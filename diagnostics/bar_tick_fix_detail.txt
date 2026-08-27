@@ -1,0 +1,36 @@
+==================================================================================================
+ DECOMPOSITION: is the 58/74 movement the bar tick, or the precision change?
+==================================================================================================
+
+ universe      legacy bar + prec2    legacy bar + prec6     raw bar + prec6
+ 58                  3,236,149.21          3,236,149.21        3,236,727.28
+                                            delta +0.00       delta +578.07
+ 74                  2,858,906.90          2,858,906.90        2,859,300.28
+                                            delta +0.00       delta +393.38
+
+==================================================================================================
+ WHY 58 AND 74 MOVE: holdings priced low enough that a 0.05 bar tick perturbs vol
+==================================================================================================
+  58   held names with close < Rs 25 :  26 names,  17584 obs   0.05 tick =  0.415% of mean price
+  58   held names with close < Rs 10 :  13 names,   7672 obs   0.05 tick =  1.087% of mean price
+  58   held names with close < Rs 5  :   9 names,   4204 obs   0.05 tick =  1.844% of mean price
+
+  74   held names with close < Rs 25 :   6 names,   2001 obs   0.05 tick =  0.445% of mean price
+  74   held names with close < Rs 10 :   2 names,   1132 obs   0.05 tick =  0.750% of mean price
+  74   held names with close < Rs 5  :   2 names,     82 obs   0.05 tick =  1.183% of mean price
+
+  mid  held names with close < Rs 25 :  63 names,  56723 obs   0.05 tick =  0.399% of mean price
+  mid  held names with close < Rs 10 :  38 names,  22627 obs   0.05 tick =  0.904% of mean price
+  mid  held names with close < Rs 5  :  26 names,   9300 obs   0.05 tick =  1.739% of mean price
+
+==================================================================================================
+ RESIDUALS AT 0.05 (production grid), per position -- after the fix
+==================================================================================================
+
+ 58: 93 of 93 identical   (0 differing positions)
+
+ 74: 86 of 87 identical   (1 differing positions)
+    2024-06-27  UNIONBANK    ref     1078  port     1079  price    140.47  rel  0.09%
+
+ MID: 92 of 93 identical   (1 differing positions)
+    2024-03-28  SJVN         ref     1694  port     1693  price    123.90  rel  0.06%

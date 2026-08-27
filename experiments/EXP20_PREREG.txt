@@ -1,0 +1,140 @@
+EXP20 -- TRADEABILITY FILTER
+================================================================================
+Written BEFORE the experiment is run. Nothing below may be changed once a result
+has been seen. If a rule turns out to be badly specified, the experiment is
+abandoned and re-registered, not edited.
+
+Trial count: the 21st tested idea on this dataset. 20 tested so far, 1 accepted
+(top-8 selection). EXP18 was the 20th and was rejected; EXP19 was never run.
+
+
+--------------------------------------------------------------------------------
+THE MEASURED PROBLEM
+--------------------------------------------------------------------------------
+The liquidity measurement (diagnostics/liquidity_participation.txt) found that the
+MidCap150 strategy holds positions that cannot be entered at the price the
+backtest assumes, at the backtest's OWN size of Rs 10,00,000:
+
+  - maximum participation 1,614% of prior-20-day median daily volume, on AIIL
+  - four AIIL fills above 100% of prior-20-day MDV
+  - p90 of 282% in the under-Rs-10 price band
+  - 22 of 985 fills above 10% participation
+
+Modelling depth natively rather than as flat slippage (diagnostics/
+depth_compare.txt) costs mid 1.80 CAGR points and 0.10 Sharpe: 29.16% -> 27.36%,
+Sharpe 2.00 -> 1.90, with 19 orders walking the book. n100 loses 0.01 points.
+
+An order for sixteen days of a stock's median volume does not execute at the
+opening price. It moves the price, or it does not execute.
+
+
+--------------------------------------------------------------------------------
+THE CLAIM
+--------------------------------------------------------------------------------
+Excluding names that cannot absorb a full position is a TRADEABILITY CONSTRAINT of
+the same category as transaction costs, not a parameter choice. Costs are already
+modelled; capacity is not. A backtest that reports returns from positions it could
+not have entered is reporting something other than a strategy.
+
+
+--------------------------------------------------------------------------------
+THE RULE
+--------------------------------------------------------------------------------
+At each rebalance, a name is INELIGIBLE if a full target position would exceed 10%
+of its prior-20-day median daily volume, at Rs 10,00,000 starting capital.
+
+  full target position value = START_CAPITAL / TOP_N = 10,00,000 / 8 = Rs 1,25,000
+  shares required            = 1,25,000 / price on the decision date
+  ineligible if                shares required > 0.10 x median(volume, prior 20 days)
+
+Ineligible names are removed from the candidate set before the top-8 is taken.
+Everything else -- the model, the 17 features, the 10 seeds, the 32-day purge, the
+monthly expanding walk-forward, TOP_N=8, BUFFER=16, breadth, inverse-vol sizing,
+SAFETY=0.98, CASH_YIELD=0.0 -- is unchanged.
+
+CAUSALITY
+    The median volume uses the 20 trading days STRICTLY BEFORE the decision date,
+    and the price is the decision date's own close, both knowable when the decision
+    is made. The filter is recomputed at every rebalance.
+
+    Report the per-year eligible count as causality evidence. AN IDENTICAL COUNT IN
+    EVERY YEAR MEANS THE FILTER IS NOT CAUSAL AND THE RUN IS VOID -- report that
+    rather than any performance number.
+
+THE THRESHOLD IS FIXED HERE AND IS NOT TUNED
+    10% of median daily volume, measured against a position sized at STARTING
+    capital. 10% because it is the level the liquidity measurement already used to
+    flag fills, so the filter and the diagnostic speak the same language. Starting
+    capital because it makes the threshold a fixed rupee amount that does not drift
+    with the equity curve, which keeps the filter causal and independent of the
+    result it is being judged on.
+
+    No other value will be tried. No price-based cut-off will be substituted.
+
+
+--------------------------------------------------------------------------------
+ACCEPT ONLY IF ALL FIVE HOLD
+--------------------------------------------------------------------------------
+  A. mid's CAGR under DEPTH_MODE="volume" IMPROVES.
+     The filter must earn its place under realistic depth, not under the
+     unlimited-depth assumption it exists to escape. This is the point of the
+     experiment: if it only looks good when depth is assumed infinite, it has
+     not addressed the problem it was built for.
+
+  B. mid's Sharpe is not lower under "volume" mode.
+
+  C. Both sub-periods pass, 2019-2022 and 2023 onward: Sharpe not lower AND CAGR
+     not lower in each.
+
+  D. Maximum fill participation falls below 50% of prior-20-day MDV, and NO fill
+     exceeds 100%.
+
+  E. n100 is unchanged to within 0.10 CAGR. It has only 3 fills above 10%
+     participation, so a filter that moves it materially is doing something other
+     than removing untradeable names, and the something else would be unmeasured.
+
+REJECT on any single failure. One batch. No variants -- no 5% or 20% cap, no
+price-based cut-off substituted in.
+
+
+--------------------------------------------------------------------------------
+WHAT IS REPORTED, WHATEVER THE OUTCOME
+--------------------------------------------------------------------------------
+For BOTH universes and BOTH depth modes ("unlimited" and "volume"):
+CAGR, Sharpe, MaxDD, trade count, and fill participation distribution.
+
+Against BOTH benchmarks for each universe:
+  - the published cap-weighted index (NIFTY100.csv, NIFTYMIDCAP150.csv)
+  - the own-universe equal-weight buy&hold, RECOMPUTED ON THE FILTERED UNIVERSE,
+    because dropping names changes the buy&hold too. Comparing a filtered strategy
+    against an unfiltered buy&hold would credit the filter with a difference that
+    is partly just a different basket.
+
+Plus the per-year eligible count (the causality evidence) and the per-year count of
+names excluded.
+
+
+--------------------------------------------------------------------------------
+HONEST EXPECTATION, RECORDED IN ADVANCE
+--------------------------------------------------------------------------------
+mid's CAGR under UNLIMITED depth will fall, because AIIL and the cheap names carry
+real return -- the leave-one-out work already showed how concentrated mid's edge is
+in a few names. That fall is expected and is not by itself a failure.
+
+The question the experiment actually asks is whether it falls by LESS than the
+1.80 points that realistic depth already costs. If the filter gives up 1.0 point of
+unlimited-depth return to avoid 1.80 points of depth cost, it is worth having. If
+it gives up more than 1.80, it is not: the honest thing would be to keep the names
+and pay the impact.
+
+Genuinely uncertain. The filter removes names by capacity, not by expected return,
+so there is no reason it should preferentially remove winners -- but mid's edge is
+concentrated in exactly the cheap, thin names the filter targets, and that is the
+one structural reason to expect it to fail.
+
+
+--------------------------------------------------------------------------------
+OUTPUT
+--------------------------------------------------------------------------------
+Separate script. Nothing written into results/, results_mid/ or results_n100/.
+The results go to diagnostics/. English only. No tuning.

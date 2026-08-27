@@ -1,0 +1,49 @@
+========================================================================================================
+ LISTING HISTORY -- is a 252-observation filter already in force?
+ dist_high_252 = c / c.rolling(252).max() - 1, no min_periods; scorable needs all 17
+ Measurement only. Nothing is changed.
+========================================================================================================
+
+========================================================================================================
+ N100   panel rows 479,333   symbols 99
+========================================================================================================
+
+  [1] OBSERVATIONS BEFORE A SYMBOL FIRST BECOMES scorable
+      (its own panel rows strictly before that date)
+      symbols scored 96 of 99   never scored 3
+      min 252   median 252   max 1279   p1 252
+
+      symbols with fewer than 200 observations before first scorable: 0
+
+  [2] DOES ANY SYMBOL BECOME scorable ON FEWER THAN 252 REAL OBSERVATIONS?
+      by PANEL rows  : 0 symbol(s)
+      by SOURCE rows : 0 symbol(s)
+
+      ffill check -- symbols whose PANEL rows exceed SOURCE rows: 0
+
+  [3] REAL TRADING DAYS BEFORE EVERY FILL
+      fills 997 of 997 measured
+      min 266   median 4421   max 6450
+      fills with fewer than 252 prior real trading days: 0
+
+========================================================================================================
+ MID   panel rows 589,269   symbols 148
+========================================================================================================
+
+  [1] OBSERVATIONS BEFORE A SYMBOL FIRST BECOMES scorable
+      (its own panel rows strictly before that date)
+      symbols scored 143 of 148   never scored 5
+      min 252   median 252   max 1282   p1 252
+
+      symbols with fewer than 200 observations before first scorable: 0
+
+  [2] DOES ANY SYMBOL BECOME scorable ON FEWER THAN 252 REAL OBSERVATIONS?
+      by PANEL rows  : 0 symbol(s)
+      by SOURCE rows : 0 symbol(s)
+
+      ffill check -- symbols whose PANEL rows exceed SOURCE rows: 0
+
+  [3] REAL TRADING DAYS BEFORE EVERY FILL
+      fills 985 of 985 measured
+      min 278   median 4020   max 6490
+      fills with fewer than 252 prior real trading days: 0

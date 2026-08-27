@@ -1,0 +1,27 @@
+EFFECT OF THE REAL NSE TICK RULE ON THE PORT (main run, not the proof)
+============================================================================================
+universemode               final equity  fills  delta vs 0.05
+58    uniform 0.05          3,236,256    929               
+58    NSE dated rule        3,236,149    929       -0.0033%
+
+74    uniform 0.05          2,858,943    883               
+74    NSE dated rule        2,858,907    883       -0.0013%
+
+mid   uniform 0.05          6,805,823    985               
+mid   NSE dated rule        6,805,826    985       +0.0000%
+
+============================================================================================
+MID -- price distribution of positions still differing on the 0.01 proof
+============================================================================================
+  identical 49 of 93 | symbol-set diffs 0 | qty-only 44
+  differing positions 57 | independent flips 34 | carried-forward 23
+
+  price band       positions  median rel   max rel  0.01 as % of px
+  Rs     0-10              15      0.073%     0.52%           0.297%
+  Rs    10-50              17      0.021%     0.09%           0.026%
+  Rs    50-250             10      0.037%     0.12%           0.012%
+  Rs   250-1000            15      0.117%     0.25%           0.003%
+
+  max share diff 120 | max relative 0.52%
+  flips >= 1% relative: 0 of 34
+  positions under Rs 10: 15 of 57

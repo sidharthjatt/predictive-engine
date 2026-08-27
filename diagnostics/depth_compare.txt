@@ -1,0 +1,34 @@
+========================================================================================================
+ DEPTH MODEL -- 'unlimited' (default, unchanged) vs 'volume'
+ levels 3 | top-level depth 10% of prior-20d median daily volume | spacing 0.15% per level
+========================================================================================================
+
+========================================================================================================
+ N100
+========================================================================================================
+  running unlimited ...
+    CAGR   25.43  Sharpe  1.88  MaxDD  -18.61  submitted  997  orders filled  997  fill events  997  walked    0  unfilled   0
+  running volume ...
+    volume loaded for 99 symbols
+    CAGR   25.42  Sharpe  1.88  MaxDD  -18.61  submitted  997  orders filled  997  fill events 1002  walked    3  unfilled   0
+      fills per walking order: 2 levels x1, 3 levels x2
+
+                  CAGR%   Sharpe   MaxDD%  trades   fills  walked  unfilled
+  unlimited       25.43     1.88   -18.61     997     997       0         0
+  volume          25.42     1.88   -18.61    1002     997       3         0
+  delta           -0.01    +0.00    +0.00      +5      +5
+
+========================================================================================================
+ MID
+========================================================================================================
+  running unlimited ...
+    CAGR   29.16  Sharpe  2.00  MaxDD  -18.95  submitted  985  orders filled  985  fill events  985  walked    0  unfilled   0
+  running volume ...
+    volume loaded for 148 symbols
+    CAGR   27.36  Sharpe  1.90  MaxDD  -18.94  submitted  986  orders filled  986  fill events 1011  walked   19  unfilled   0
+      fills per walking order: 2 levels x13, 3 levels x6
+
+                  CAGR%   Sharpe   MaxDD%  trades   fills  walked  unfilled
+  unlimited       29.16     2.00   -18.95     985     985       0         0
+  volume          27.36     1.90   -18.94    1011     986      19         0
+  delta           -1.80    -0.10    +0.01     +26     +26

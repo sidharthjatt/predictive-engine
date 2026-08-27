@@ -1,0 +1,57 @@
+captured 93 open-valuations; first 2019-01-02 last 2026-06-08
+
+========================================================================================
+ decision 2020-10-12  SUZLON   ARM D 23218 sh   port 23338 sh
+  execution day (port quote day): 2020-10-13
+  port portfolio_at_open (cash+pos, mid) :     1,091,455.28
+    positions only at quote mid          :       132,181.32
+    same positions at RAW open           :       132,181.32   diff +0.0000%
+    implied cash                         :       959,273.96
+  exposure 0.468254  SAFETY 0.98  weight(SUZLON) None
+  port invest_val       500,856.70   buy px 2.5400 (raw open 2.5381)
+  invest_val*w implied: ARM D      58,973.72  port      59,278.52  ratio 1.005168
+  held names, mid vs raw open:
+     AIIL         qty   23351  mid        2.4  open        2.4    +0.0000%
+     DIXON        qty      44  mid    1730.43  open    1730.43    -0.0000%
+========================================================================================
+ decision 2020-08-14  SUZLON   ARM D 15000 sh   port 15044 sh
+  execution day (port quote day): 2020-08-17
+  port portfolio_at_open (cash+pos, mid) :     1,094,234.90
+    positions only at quote mid          :       256,834.10
+    same positions at RAW open           :       256,834.10   diff +0.0000%
+    implied cash                         :       837,400.80
+  exposure 0.730159  SAFETY 0.98  weight(SUZLON) None
+  port invest_val       782,985.86   buy px 3.7200 (raw open 3.7095)
+  invest_val*w implied: ARM D      55,800.00  port      55,963.68  ratio 1.002933
+  held names, mid vs raw open:
+     BALKRISIND   qty      87  mid     1319.7  open     1319.7    +0.0000%
+     MCX          qty     427  mid      332.6  open      332.6    +0.0000%
+========================================================================================
+ decision 2019-10-27  SUZLON   ARM D 13974 sh   port 13949 sh
+  execution day (port quote day): 2019-10-29
+  port portfolio_at_open (cash+pos, mid) :       993,411.40
+    positions only at quote mid          :       371,819.15
+    same positions at RAW open           :       371,819.15   diff +0.0000%
+    implied cash                         :       621,592.25
+  exposure 0.560976  SAFETY 0.98  weight(SUZLON) None
+  port invest_val       546,133.97   buy px 2.1700 (raw open 2.1710)
+  invest_val*w implied: ARM D      30,323.58  port      30,269.33  ratio 0.998211
+  held names, mid vs raw open:
+     ASTRAL       qty     145  mid     643.35  open     643.35    +0.0000%
+     ICICIPRULI   qty     202  mid     485.95  open     485.95    +0.0000%
+     INDIANB      qty     355  mid      127.1  open      127.1    +0.0000%
+     MARICO       qty     251  mid      389.1  open      389.1    +0.0000%
+     PATANJALI    qty   28913  mid        1.3  open        1.3    +0.0000%
+========================================================================================
+ decision 2020-10-12  AIIL   ARM D 23368 sh   port 23351 sh
+  execution day (port quote day): 2020-10-13
+  port portfolio_at_open (cash+pos, mid) :     1,091,455.28
+    positions only at quote mid          :       132,181.32
+    same positions at RAW open           :       132,181.32   diff +0.0000%
+    implied cash                         :       959,273.96
+  exposure 0.468254  SAFETY 0.98  weight(AIIL) None
+  port invest_val       500,856.70   buy px 2.4000 (raw open 2.4000)
+  invest_val*w implied: ARM D      56,083.20  port      56,042.40  ratio 0.999273
+  held names, mid vs raw open:
+     AIIL         qty   23351  mid        2.4  open        2.4    +0.0000%
+     DIXON        qty      44  mid    1730.43  open    1730.43    -0.0000%

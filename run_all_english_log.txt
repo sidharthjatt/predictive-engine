@@ -1,0 +1,922 @@
+normal mode: using cache if available. (--fresh for full scratch)
+
+>>> STEP 1  58 scores cached (skip)
+
+==========================================================================================
+>>> STEP 2  Engine core (v1 + validation + leakage)
+==========================================================================================
+==============================================================================================================
+FINAL ENGINE -- full comparison + validation
+==============================================================================================================
+
+==============================================================================================================
+[1] WHAT EACH COMPONENT ACTUALLY DID
+==============================================================================================================
+                                            Config  CAGR%  Sharpe  Sortino  MaxDD%  Calmar  Trades    TC_Rs
+                   Equal-rupee (validation engine)  24.72    1.17     1.53  -37.59    0.66     742 315254.0
+Inverse-vol (validation engine, cash-based sizing)  25.38    1.26     1.66  -34.25    0.74     740 350593.0
+                      Equal-weight buy & hold (58)  18.65    1.06     1.22  -39.80    0.47       0      0.0
+
+    Avg positions: equal 8.0 | invvol 7.9   (must be 8.0)
+    Avg holding  : equal 58.5d | invvol 58.2d
+
+    Tried and REJECTED (with reason):
+      x N=8              : worst on every seed set (1.04-1.10 vs 1.45-1.66)
+      x dev selection    : 3 winners across 5 seeds; gap 0.05 < noise 0.08
+      x slope regime     : 14 fires, 4 correct. COVID: caught crash, missed recovery
+      x absolute gate    : Sharpe 1.03 -> 0.76. Blocks the mean-reversion edge
+      x gate ensemble    : Sharpe 0.62. Worse
+      x dynamic N        : Sharpe 0.51. Too few positions
+      x monthly vs yearly: 0.03 apart, inside noise. Kept monthly (harmless)
+
+==============================================================================================================
+[2] VALIDATION -- is inverse-vol real, or cherry-picked?
+==============================================================================================================
+
+  T1. BASELINE CONTROL -- does equal-rupee reproduce engine_v5 exactly?
+      structural target: ~8.0 positions, 680-800 trades
+      got             : CAGR 24.72%, Sharpe 1.17, 742 trades, 8.0 positions
+      (CAGR varies +/-0.5% per retrain -- not checked; structure is)
+      -> PASS
+
+  T2. SEED ROBUSTNESS -- does inv-vol win on OTHER score seeds?
+      seed set 1: equal 1.20 -> invvol 1.24 (delta +0.04) | MaxDD -37.2% -> -33.8%
+      seed set 2: equal 1.12 -> invvol 1.22 (delta +0.10) | MaxDD -38.4% -> -35.3%
+      seed set 3: equal 1.14 -> invvol 1.18 (delta +0.04) | MaxDD -36.2% -> -32.9%
+      -> improved on 3/3 seed sets. PASS
+
+  T3. SUB-PERIOD SPLIT -- works in BOTH halves independently?
+      2019-2022: equal 1.19 -> invvol 1.33 (delta +0.14) | buy&hold 1.05
+      2023-2026: equal 0.86 -> invvol 0.88 (delta +0.02) | buy&hold 1.15
+      -> PASS
+
+  T4. PARAMETER SENSITIVITY -- does the vol window matter?
+      vol_win= 40: CAGR  24.83%  Sharpe  1.23  MaxDD  -34.13%
+      vol_win= 60: CAGR  25.38%  Sharpe  1.26  MaxDD  -34.25%
+      vol_win= 90: CAGR  25.57%  Sharpe  1.27  MaxDD  -34.32%
+      vol_win=120: CAGR  24.79%  Sharpe  1.24  MaxDD  -34.50%
+      -> all four beat equal-rupee (1.17)? PASS
+
+--------------------------------------------------------------------------------------------------------------
+  VALIDATION SUMMARY
+--------------------------------------------------------------------------------------------------------------
+    PASS  T1 baseline control
+    PASS  T2 seed robustness
+    PASS  T3 sub-period
+    PASS  T4 param sensitivity
+
+    ALL PASSED -- inverse-vol is a real effect, not cherry-picking.
+
+==============================================================================================================
+[3] LEAKAGE / OVERFIT CHECKLIST
+==============================================================================================================
+
+  [PASS] Label purging
+          32 days dropped from every train window. Without it dev CAGR was 29.77%; with it 24.36%. The 5.4% gap was pure leak.
+
+  [PASS] Walk-forward
+          Each month scored by a model trained only on prior data. Expanding window. No future data in any fit.
+
+  [PASS] Execution timing
+          Signal at close of t, fill at OPEN of t+1. Slippage always against the trade. No same-day close execution.
+
+  [PASS] Feature causality
+          All 17 features use past prices/volumes only. Cross-sectional z-score uses same-day peers -- not time-series leakage.
+
+  [PASS] Shuffle test
+          Random scores gave 9.7% CAGR vs 18.5% buy&hold. A mechanical backtest bug would have made random look good. It didn't.
+
+  [PASS] Baseline control
+          Structure intact: positions == TOP_N, ~880 trades (slot-cap + buffer working). This is how the v6 slot-cap bug was caught.
+
+  [PASS] Parameter selection
+          Config fixed a priori. Dev selection abandoned after stability_test showed 3 winners across 5 seeds (gap 0.05 < noise 0.08).
+
+  [NOT FIXED] SURVIVORSHIP BIAS
+          Universe = the 58 names in the index TODAY. Names dropped 2016-2026 are absent. Strategy and benchmark share it, so the COMPARISON is fair -- but BOTH absolute CAGRs are inflated vs what was tradable in real time. Needs point-in-time index membership data, which we do not have.
+
+  [NOT MODELLED] Market impact
+          Real Zerodha charges + 0.15% slippage. Adequate at Rs 10L in large-caps. Not at institutional size.
+
+  [PARTIAL] Variant selection
+          ~20 variants tested across all engines, best reported. That is a selection step. Mitigated by the four tests above -- inv-vol holds across seeds, sub-periods and parameter values, which cherry-picked results usually do not.
+
+==============================================================================================================
+[4] FINAL, FROZEN
+==============================================================================================================
+    features            : 17, five families, cross-sectionally z-scored
+    label               : 20d forward cross-sectional rank
+    model               : LightGBM, 10-seed ensemble
+    retrain             : monthly, expanding window
+    purge_days          : 32
+    rebalance_days      : 20
+    top_n               : 8
+    buffer_rank         : 16
+    sizing              : inverse-volatility (weight = 1/vol60)
+    vol_window          : 60
+    absolute_gate       : OFF -- cut Sharpe from 1.03 to 0.76
+    regime_exit         : OFF -- slope rule right 4 of 14 times
+    costs               : real Zerodha + 0.15% slippage, signal at close, fill next open
+    how_params_chosen   : a priori by reasoning; dev selection abandoned after stability_test proved it selects noise
+
+                         Config  CAGR%  Sharpe  Sortino  MaxDD%  Calmar  Trades    TC_Rs
+Validation engine (inverse-vol)  25.38    1.26     1.66  -34.25    0.74     740 350593.0
+   Equal-weight buy & hold (58)  18.65    1.06     1.22  -39.80    0.47       0      0.0
+
+--- YEAR BY YEAR ---
+      Strategy%  BuyHold%  Diff
+date                           
+2020       78.0      28.3  49.7
+2021       44.2      37.1   7.1
+2022        8.3      10.5  -2.2
+2023       48.9      34.4  14.5
+2024       30.8      13.2  17.6
+2025        4.3      15.6 -11.3
+2026       -9.3      -6.9  -2.4
+
+  saved -> chart_FINAL.png
+
+==============================================================================================================
+NOTE: OFFICIAL NUMBERS come from engine_v2_final.py (portfolio-value sizing).
+      This file sizes new buys from leftover cash -- fine for seed/sub-period
+      validation, but its absolute CAGR is NOT the reported figure.
+VERDICT
+==============================================================================================================
+  Final     : CAGR  25.38%  Sharpe  1.26  MaxDD  -34.25%  Calmar 0.74
+  Buy & hold: CAGR  18.65%  Sharpe  1.06  MaxDD  -39.80%  Calmar 0.47
+
+  CAGR   +6.73 pts
+  Sharpe +0.20
+  MaxDD  -5.55 pts better
+  Calmar +0.27
+
+  -> Beats buy & hold on return, Sharpe AND drawdown. All three.
+     Margins are modest but consistent, and survive all four validation tests.
+
+  Always state alongside these numbers:
+    1. Survivorship bias -- universe is today's 58 names. Both sides inflated.
+    2. Signal is small (IC 0.036). Real, but small.
+    3. No market-impact model. Fine at Rs 10L; not at size.
+
+Saved -> FINAL_*.csv, FINAL_params.json, chart_FINAL.png
+    [STEP 2  Engine core (v1 + validation + leakage) done in 0.1 min]
+
+==========================================================================================
+>>> STEP 3  Engine v2 FINAL (breadth)
+==========================================================================================
+====================================================================================================
+ENGINE v2 FINAL -- cross-sectional ranking + inverse-vol + breadth scaling
+====================================================================================================
+
+                               Config  CAGR%  Sharpe  Sortino  MaxDD%  Calmar  Trades    TC_Rs
+         + breadth scaling (v2 FINAL)  16.45    1.36     1.84  -17.09    0.96     921 166472.0
+Inverse-vol, 100% invested (v1 final)  23.24    1.22     1.62  -32.90    0.71     726 302332.0
+         Equal-weight buy & hold (58)  18.65    1.06     1.22  -39.80    0.47       0      0.0
+
+   v2 FINAL average exposure: 55% invested (rest in cash at 0% yield)
+
+--- YEAR BY YEAR ---
+      Strategy%  BuyHold%  Diff
+date                           
+2020       50.0      28.3  21.7
+2021       29.2      37.1  -7.9
+2022        4.1      10.5  -6.4
+2023       25.0      34.4  -9.4
+2024       16.8      13.2   3.6
+2025        4.9      15.6 -10.7
+2026       -5.2      -6.9   1.7
+
+  saved -> chart_v2FINAL.png
+
+====================================================================================================
+VERDICT
+====================================================================================================
+  v2 FINAL   : CAGR  16.45%  Sharpe  1.36  MaxDD  -17.09%  Calmar 0.96
+  Buy & hold : CAGR  18.65%  Sharpe  1.06  MaxDD  -39.80%  Calmar 0.47
+
+  Versus equal-weight buy & hold over the same period:
+    Sharpe     1.36 vs   1.06   (+0.30)
+    MaxDD    -17.09% vs -39.80%   (+22.71 pts)
+    CAGR      16.45% vs  18.65%   (-2.20 pts)
+
+  The strategy holds 55% invested on average, so raw CAGR is not the
+  right comparison on its own -- return per deployed rupee and drawdown are.
+  Idle cash earns 0%, so none of the return above comes from interest.
+
+  Standing caveats: no capital gains tax is modelled, survivorship bias inflates
+  both lines, and the edge is not statistically significant. The honest next step
+  for a real product is a less-efficient universe (mid/small caps) or new data
+  (fundamentals), not more tuning here.
+
+Saved -> v2FINAL_comparison.csv, v2FINAL_yearly.csv, v2FINAL_equity.csv,
+         v2FINAL_params.json, chart_v2FINAL.png
+    [STEP 3  Engine v2 FINAL (breadth) done in 0.0 min]
+
+==========================================================================================
+>>> STEP 4  Decay diagnostic
+==========================================================================================
+====================================================================================================
+WHY DID THE STRATEGY STOP WORKING AFTER 2023?
+====================================================================================================
+
+[H0] IS THE GAP EVEN STATISTICALLY REAL?
+     Before explaining a difference, check it isn't noise.
+
+     2019-2022 (3.9 yrs):
+        Sharpe   strategy 1.33  vs  buy&hold 1.05   (gap +0.28)
+        Std error on a Sharpe over 3.9 yrs = +/- 0.69
+        Annualised excess +7.76%,  t-stat +1.41  -> NOT significant
+
+     2023-2026 (3.4 yrs):
+        Sharpe   strategy 1.17  vs  buy&hold 1.15   (gap +0.02)
+        Std error on a Sharpe over 3.4 yrs = +/- 0.71
+        Annualised excess +3.85%,  t-stat +0.80  -> NOT significant
+
+     If the standard error on a Sharpe exceeds the gap, the 2023-26 'failure'
+     may just be noise. Don't build a story on an insignificant difference.
+
+====================================================================================================
+[H1] SIGNAL DECAY -- did the model's edge disappear?
+====================================================================================================
+
+     Year          IC   t-stat
+     2019     +0.0451     0.92   ######################
+     2020     +0.0119     0.21   #####
+     2021     +0.0577     1.45   ############################
+     2022     +0.0701     1.50   ###################################
+     2023     +0.0688     1.55   ##################################
+     2024     +0.0276     0.70   #############
+     2025     -0.0063    -0.14   ---
+     2026     -0.0124    -0.15   ------
+
+     IC 2019-2022 : +0.0461
+     IC 2023-2026 : +0.0256
+     -> Signal weaker but not gone. H1 PARTIALLY supported.
+
+====================================================================================================
+[H2] VOL DISPERSION -- does inverse-vol still have anything to work with?
+====================================================================================================
+     Inv-vol only helps when stocks have DIFFERENT vols. If all vols converge,
+     inv-vol collapses to equal-weight and adds nothing.
+
+     Year     Avg vol   Dispersion
+     2019       28.1%       0.442   ############################################
+     2020       43.1%       0.284   ############################
+     2021       30.3%       0.285   ############################
+     2022       30.2%       0.248   ########################
+     2023       22.8%       0.413   #########################################
+     2024       26.9%       0.285   ############################
+     2025       24.1%       0.284   ############################
+     2026       28.4%       0.375   #####################################
+
+     Dispersion 2019-2022 : 0.315
+     Dispersion 2023-2026 : 0.339   (+7.6%)
+     -> Dispersion broadly unchanged. H2 REJECTED.
+
+====================================================================================================
+[H3] FACTOR ROTATION -- which raw factors still predict?
+====================================================================================================
+     IC of each feature family directly vs forward returns (bypasses the model).
+
+period        2019-22  2023-26  change  still_works
+family                                             
+Liquidity      0.0080   0.0277  0.0197         True
+Momentum      -0.0083  -0.0103 -0.0020         True
+Reversal       0.0098   0.0083 -0.0015        False
+Risk           0.0035   0.0376  0.0341         True
+TrendQuality  -0.0147  -0.0089  0.0058        False
+
+     Still predictive in 2023-26 : ['Liquidity', 'Momentum', 'Risk']
+     Dead in 2023-26             : ['Reversal', 'TrendQuality']
+
+  saved -> chart_decay.png
+
+====================================================================================================
+WHAT TO DO ABOUT IT
+====================================================================================================
+  1. REPORT IT. Full-period numbers beat buy & hold, but that comes entirely
+     from 2019-2022. Say so. A result that works in half your sample is a
+     finding, not a failure -- provided you report it.
+
+  2. DO NOT 'FIX' IT BY TUNING. The temptation now is to add a filter or
+     re-weight features until 2023-26 looks better. That is fitting to the
+     second half -- exactly the mistake this project has spent weeks avoiding.
+
+  3. If IC is still positive in 2023-26, the strategy hasn't broken -- it has
+     had a bad stretch. Every strategy does. 3.5 years settles nothing.
+
+  4. If IC has gone to zero, the honest conclusion is that price/volume features
+     no longer extract alpha from NIFTY-50, and the answer is NEW DATA, not new
+     parameters.
+
+Saved -> decay_factor_ic.csv, chart_decay.png
+    [STEP 4  Decay diagnostic done in 0.1 min]
+
+==========================================================================================
+>>> STEP 5  Validate breadth
+==========================================================================================
+================================================================================================
+VALIDATE BREADTH SCALING -- real or luck?
+================================================================================================
+
+================================================================================================
+T1. SEED ROBUSTNESS -- breadth beats baseline on 3 independent seed sets?
+================================================================================================
+   seed 1: Sharpe 1.17->1.37 (d+0.20)  MaxDD -34.1%->-15.8% (d+18.3)  invested 55%
+   seed 2: Sharpe 1.14->1.27 (d+0.13)  MaxDD -36.0%->-17.2% (d+18.8)  invested 55%
+   seed 3: Sharpe 1.21->1.32 (d+0.11)  MaxDD -32.1%->-17.0% (d+15.1)  invested 55%
+
+   Sharpe up on all 3? YES   MaxDD shallower(>3pts) on all 3? YES
+   -> T1 PASS
+
+================================================================================================
+T2. SUB-PERIOD SPLIT -- breadth works in BOTH halves?
+================================================================================================
+   2019-2022: Sharpe 1.29->1.53 (d+0.24)  MaxDD -32.9%->-17.1% (d+15.8)
+   2023-2026: Sharpe 0.73->0.84 (d+0.11)  MaxDD -19.5%->-17.8% (d+1.7)
+
+   Sharpe up in both halves? YES
+   -> T2 PASS
+
+================================================================================================
+VERDICT
+================================================================================================
+   ALL PASS. Breadth's benefit holds across seeds and sub-periods.
+   Real effect, not luck. Safe to make it part of the strategy.
+
+   Typical: Sharpe +0.15, MaxDD +17.4pts shallower, cost ~6.6 pts CAGR.
+   For real money: much lower drawdown, higher risk-adjusted return.
+
+   NOTE: breadth has no tuned threshold (no knob to overfit). Residual risk:
+   'positive 20d momentum' as the breadth definition is itself a choice.
+
+Saved -> breadth_val_seeds.csv, breadth_val_periods.csv
+    [STEP 5  Validate breadth done in 0.0 min]
+
+==========================================================================================
+>>> STEP 6  Reality check
+==========================================================================================
+==========================================================================================
+REALITY CHECK -- can this take real money?
+==========================================================================================
+
+==========================================================================================
+1. OVERALL P&L  (starting capital Rs 10,00,000)
+   Source: FINAL_equity.csv / FINAL_trades.csv -- the VALIDATION engine (v1).
+   This is NOT the official reported system. See section 1b.
+==========================================================================================
+   Period                : 2019-01-01 to 2026-06-08 (7.4 yrs)
+   Strategy final value  : Rs      5,372,574
+   Strategy net P&L      : Rs      4,372,574   (+437.3%)
+   Buy & hold final value: Rs      3,563,125
+   Buy & hold net P&L    : Rs      2,563,125   (+256.3%)
+   Strategy EDGE over B&H: Rs      1,809,449   (extra money for all the work)
+
+   Total transaction cost: Rs        350,593   (35.1% of capital)
+   Number of trades      :            740
+
+==========================================================================================
+1b. THE OFFICIAL SYSTEM  (v2, breadth-scaled -- quote THIS one)
+==========================================================================================
+   Source                : v2FINAL_equity.csv (engine_v2_final.py)
+   v2 final value        : Rs      3,101,677   (+210.2%)
+   Validation engine     : Rs      5,372,574   (+437.3%)
+   Difference            : Rs      2,270,896
+   The gap is not an error. The two engines size positions differently,
+   and v2 holds cash whenever market breadth is weak.
+
+==========================================================================================
+2. ANNUAL PROFIT / LOSS
+==========================================================================================
+   Year      Strategy    Buy&Hold      Edge      Strat Rs P&L
+   2019         +5.0%      +11.8%     -6.8%  Rs       +50,266  <- lost to B&H
+   2020        +78.0%      +28.3%    +49.7%  Rs      +819,119
+   2021        +44.2%      +37.1%     +7.1%  Rs      +826,384
+   2022         +8.3%      +10.5%     -2.2%  Rs      +222,430  <- lost to B&H
+   2023        +48.9%      +34.4%    +14.5%  Rs    +1,427,915
+   2024        +30.8%      +13.2%    +17.5%  Rs    +1,337,329
+   2025         +4.3%      +15.6%    -11.4%  Rs      +242,717  <- lost to B&H
+   2026         -9.3%       -6.9%     -2.5%  Rs      -553,587  <- lost to B&H
+
+   Beat buy & hold in 4 of 8 years
+   Had a LOSING year 1 of 8 times
+
+==========================================================================================
+3. PER-STOCK P&L  (actual rupee, round-trips + open MTM)
+==========================================================================================
+   TOP 10 MONEY-MAKERS:
+     LTFOODS        Rs     +737,351
+     SHRIRAMFIN     Rs     +312,962
+     LTTS           Rs     +295,292
+     BPCL           Rs     +281,367
+     ADANIENT       Rs     +245,880
+     SUNPHARMA      Rs     +235,321
+     LTIM           Rs     +223,120
+     LTF            Rs     +219,945
+     ETERNAL        Rs     +190,202
+     INFY           Rs     +187,777
+
+   TOP 10 MONEY-LOSERS:
+     NTPC           Rs     -133,547
+     ITC            Rs     -103,506
+     HDFCBANK       Rs      -83,922
+     TECHM          Rs      -56,504
+     TATASTEEL      Rs      -55,767
+     BRITANNIA      Rs      -48,587
+     ASIANPAINT     Rs      -45,914
+     BAJAJFINSV     Rs      -44,839
+     HCLTECH        Rs      -21,809
+     M&M            Rs      -20,345
+
+   Stocks that MADE money : 42
+   Stocks that LOST money : 13
+   Net from winners       : Rs     +5,024,802
+   Net from losers        : Rs       -652,406
+
+==========================================================================================
+4. DIRECTIONAL ACCURACY
+==========================================================================================
+   (a) Did the top-N we buy actually beat the average stock (next 20d)?
+         Top-N beat average : 58.1% of rebalances
+         Top-N beat bottom-N: 59.6% of rebalances
+         (50% = coin flip, no skill)
+
+   (b) Rank IC: mean +0.0365, positive 58.6% of the time
+         -> right direction ~59% of rebalances, but each
+            call only slightly better than a coin flip
+
+==========================================================================================
+5. TRADE HIT RATE  (completed round-trips)
+==========================================================================================
+   Completed round-trips : 366
+   Winning trades        : 222 (60.7%)
+   Losing trades         : 144 (39.3%)
+   Average WIN           : Rs    +39,505
+   Average LOSS          : Rs    -26,343
+   Win/Loss size ratio   : 1.50
+   Profit factor         : 2.31  (>1 = profitable)
+
+==========================================================================================
+6. THE REAL-MONEY VERDICT
+   Figures below are the VALIDATION engine (v1). For the official system,
+   see section 1b and FINAL_SUMMARY_TABLE.csv.
+==========================================================================================
+
+   - 7 years: strategy turned Rs 10L into Rs 5,372,574 (profit Rs 4,372,574).
+   - Buy & hold: Rs 10L into Rs 3,563,125.
+   - Strategy's EDGE over buy & hold: Rs 1,809,449 over 7 yrs (+6.7%/yr).
+
+   Hard questions for real capital:
+   1. Is +6.7%/yr worth it vs a Nifty index fund giving ~19%/yr for 0.2% fee?
+   2. That edge is NOT statistically significant (t~0.8). Live it may be zero/negative.
+   3. Edge is BEFORE taxes on 740 trades (STCG 15-20%), platform costs, and
+      worse-than-modelled slippage at size. After these, edge likely vanishes.
+   4. Survivorship bias inflates BOTH lines. Real point-in-time numbers are lower.
+
+   Bottom line:
+   - AS-IS this is NOT yet a product. Edge too small and uncertain for real money;
+     after tax and real costs likely to trail a plain Nifty index fund.
+   - What it IS: a clean, honest, validated pipeline proving you can pull a small
+     real signal without leaking or overfitting. That is the hard 80%.
+   - To be product-worthy the edge must get BIGGER -> less-efficient universe
+     (mid/small caps) or new data (fundamentals, earnings revisions). NOT more tuning.
+
+   Saved -> reality_per_stock_pnl.csv
+    [STEP 6  Reality check done in 0.0 min]
+
+==========================================================================================
+>>> STEP 7  Per-stock charts (58)
+==========================================================================================
+Loading data...
+58 stocks total. Building charts...
+
+  [ 1/58] ADANIENT        own  +1848.2%   strategy  +110.2%   (12 entries)
+  [ 2/58] ADANIPORTS      own   +364.0%   strategy   +41.2%   (5 entries)
+  [ 3/58] APOLLOHOSP      own   +560.0%   strategy   +55.3%   (7 entries)
+  [ 4/58] ASIANPAINT      own    +93.9%   strategy    -6.4%   (7 entries)
+  [ 5/58] AXISBANK        own   +102.8%   strategy    +4.0%   (4 entries)
+  [ 6/58] BAJAJ-AUTO      own   +274.6%   strategy   +13.2%   (3 entries)
+  [ 7/58] BAJAJFINSV      own   +156.8%   strategy   -13.5%   (4 entries)
+  [ 8/58] BAJFINANCE      own   +234.9%   strategy   +18.7%   (8 entries)
+  [ 9/58] BEL             own  +1316.6%   strategy   +68.3%   (8 entries)
+  [10/58] BELRISE         own   +121.5%   strategy    +0.0%   (0 entries)
+  [11/58] BHARTIARTL      own   +473.4%   strategy   +25.6%   (8 entries)
+  [12/58] BPCL            own    +55.3%   strategy   +42.6%   (9 entries)
+  [13/58] BRITANNIA       own    +63.7%   strategy   -16.4%   (6 entries)
+  [14/58] CIPLA           own   +165.3%   strategy   +16.9%   (8 entries)
+  [15/58] COALINDIA       own   +105.5%   strategy    +4.3%   (7 entries)
+  [16/58] DRREDDY         own   +144.6%   strategy   +11.0%   (8 entries)
+  [17/58] EICHERMOT       own   +204.1%   strategy    +2.5%   (2 entries)
+  [18/58] ETERNAL         own    +97.1%   strategy   +32.8%   (8 entries)
+  [19/58] GRASIM          own   +267.4%   strategy   +10.4%   (4 entries)
+  [20/58] HCLTECH         own   +140.6%   strategy   +22.6%   (10 entries)
+  [21/58] HDFCBANK        own    +39.1%   strategy    +8.7%   (6 entries)
+  [22/58] HDFCLIFE        own    +46.1%   strategy   +12.3%   (3 entries)
+  [23/58] HEROMOTOCO      own    +52.7%   strategy    +2.6%   (5 entries)
+  [24/58] HINDALCO        own   +376.9%   strategy   +11.5%   (4 entries)
+  [25/58] HINDUNILVR      own    +17.8%   strategy   +19.4%   (3 entries)
+  [26/58] ICICIBANK       own   +247.0%   strategy    +5.1%   (6 entries)
+  [27/58] INDUSINDBK      own    -43.9%   strategy  +100.0%   (6 entries)
+  [28/58] INFY            own    +80.1%   strategy   +82.4%   (11 entries)
+  [29/58] ITC             own     +5.0%   strategy    -7.1%   (8 entries)
+  [30/58] ITCHOTELS       own    -12.5%   strategy    +0.0%   (0 entries)
+  [31/58] JSWSTEEL        own   +314.9%   strategy    +1.1%   (2 entries)
+  [32/58] KOTAKBANK       own    +51.9%   strategy    +5.4%   (5 entries)
+  [33/58] LICI            own    -54.3%   strategy    +5.6%   (7 entries)
+  [34/58] LT              own   +174.2%   strategy    +6.5%   (4 entries)
+  [35/58] LTF             own    +83.7%   strategy   +49.8%   (12 entries)
+  [36/58] LTFOODS         own   +793.1%   strategy  +228.8%   (17 entries)
+  [37/58] LTIM            own   +132.1%   strategy   +99.2%   (15 entries)
+  [38/58] LTTS            own    +84.4%   strategy  +150.1%   (12 entries)
+  [39/58] M&M             own   +293.2%   strategy    -3.7%   (2 entries)
+  [40/58] M&MFIN          own     +0.3%   strategy   +56.0%   (15 entries)
+  [41/58] MARUTI          own    +74.5%   strategy    +2.5%   (3 entries)
+  [42/58] NESTLEIND       own   +153.0%   strategy   +21.3%   (12 entries)
+  [43/58] NTPC            own   +192.7%   strategy    -5.4%   (7 entries)
+  [44/58] NTPCGREEN       own    -18.0%   strategy    +0.0%   (0 entries)
+  [45/58] ONGC            own    +78.2%   strategy    +1.4%   (8 entries)
+  [46/58] POWERGRID       own   +166.5%   strategy   +12.1%   (5 entries)
+  [47/58] RELIANCE        own   +141.6%   strategy   +28.0%   (5 entries)
+  [48/58] SBILIFE         own   +194.6%   strategy   +27.8%   (3 entries)
+  [49/58] SBIN            own   +226.3%   strategy    +6.1%   (2 entries)
+  [50/58] SHRIRAMFIN      own   +274.4%   strategy   +50.5%   (15 entries)
+  [51/58] SUNPHARMA       own   +311.4%   strategy   +35.9%   (4 entries)
+  [52/58] TATACONSUM      own   +411.5%   strategy   +60.9%   (6 entries)
+  [53/58] TATASTEEL       own   +293.0%   strategy   +12.1%   (6 entries)
+  [54/58] TCS             own    +15.6%   strategy   +12.9%   (4 entries)
+  [55/58] TECHM           own   +109.1%   strategy    -6.7%   (4 entries)
+  [56/58] TITAN           own   +351.7%   strategy    +8.4%   (4 entries)
+  [57/58] ULTRACEMCO      own   +169.3%   strategy   +12.7%   (5 entries)
+  [58/58] WIPRO           own    +48.0%   strategy   +49.3%   (10 entries)
+
+Saved 58 charts -> /Users/sidharthchoudhary/Downloads/algo_trading_project/results/metrics/per_stock_charts
+Saved -> per_stock_charts_summary.csv
+    [STEP 7  Per-stock charts (58) done in 0.1 min]
+
+==========================================================================================
+>>> STEP 7b Combined per-stock (58)
+==========================================================================================
+Building 58 combined charts...
+
+  [ 1/58] ADANIENT
+  [ 2/58] ADANIPORTS
+  [ 3/58] APOLLOHOSP
+  [ 4/58] ASIANPAINT
+  [ 5/58] AXISBANK
+  [ 6/58] BAJAJ-AUTO
+  [ 7/58] BAJAJFINSV
+  [ 8/58] BAJFINANCE
+  [ 9/58] BEL
+  [10/58] BELRISE
+  [11/58] BHARTIARTL
+  [12/58] BPCL
+  [13/58] BRITANNIA
+  [14/58] CIPLA
+  [15/58] COALINDIA
+  [16/58] DRREDDY
+  [17/58] EICHERMOT
+  [18/58] ETERNAL
+  [19/58] GRASIM
+  [20/58] HCLTECH
+  [21/58] HDFCBANK
+  [22/58] HDFCLIFE
+  [23/58] HEROMOTOCO
+  [24/58] HINDALCO
+  [25/58] HINDUNILVR
+  [26/58] ICICIBANK
+  [27/58] INDUSINDBK
+  [28/58] INFY
+  [29/58] ITC
+  [30/58] ITCHOTELS
+  [31/58] JSWSTEEL
+  [32/58] KOTAKBANK
+  [33/58] LICI
+  [34/58] LT
+  [35/58] LTF
+  [36/58] LTFOODS
+  [37/58] LTIM
+  [38/58] LTTS
+  [39/58] M&M
+  [40/58] M&MFIN
+  [41/58] MARUTI
+  [42/58] NESTLEIND
+  [43/58] NTPC
+  [44/58] NTPCGREEN
+  [45/58] ONGC
+  [46/58] POWERGRID
+  [47/58] RELIANCE
+  [48/58] SBILIFE
+  [49/58] SBIN
+  [50/58] SHRIRAMFIN
+  [51/58] SUNPHARMA
+  [52/58] TATACONSUM
+  [53/58] TATASTEEL
+  [54/58] TCS
+  [55/58] TECHM
+  [56/58] TITAN
+  [57/58] ULTRACEMCO
+  [58/58] WIPRO
+
+Saved 58 charts -> /Users/sidharthchoudhary/Downloads/algo_trading_project/results/metrics/combined_charts
+    [STEP 7b Combined per-stock (58) done in 0.2 min]
+
+==========================================================================================
+>>> STEP 7c Final table chart
+==========================================================================================
+saved -> chart_FINAL_table.png
+    [STEP 7c Final table chart done in 0.0 min]
+
+==========================================================================================
+>>> STEP 7d Equity chart
+==========================================================================================
+saved -> chart_equity.png  (cumulative %, monthly retrain)
+    [STEP 7d Equity chart done in 0.0 min]
+
+==========================================================================================
+>>> STEP 7e All-stocks overview
+==========================================================================================
+saved -> chart_all_stocks.png
+saved -> per_stock_returns.csv
+
+Top 5 stocks:
+    symbol  total_return_%  CAGR_%
+  ADANIENT          1848.2   49.11
+       BEL          1316.6   42.85
+   LTFOODS           793.1   34.25
+APOLLOHOSP           641.4   30.93
+BHARTIARTL           473.4   26.48
+
+Bottom 5 stocks:
+    symbol  total_return_%  CAGR_%
+    M&MFIN             0.3    0.04
+   BELRISE            -0.2   -0.03
+ ITCHOTELS           -19.1   -2.81
+      LICI           -32.2   -5.09
+INDUSINDBK           -39.3   -6.50
+
+Strategy CAGR: 19.36%  |  Beat 42 of 58 individual stocks
+    [STEP 7e All-stocks overview done in 0.0 min]
+
+==========================================================================================
+>>> STEP 7f Portfolio combined
+==========================================================================================
+saved -> combined_PORTFOLIO.png
+    [STEP 7f Portfolio combined done in 0.0 min]
+
+==========================================================================================
+>>> STEP 7g Feature docs (dictionary + panel sample)
+==========================================================================================
+feature_dictionary.csv  (17 features)
+             feature             family
+              mom_20 MOMENTUM (trimmed)
+             mom_120 MOMENTUM (trimmed)
+            mom_12_1 MOMENTUM (trimmed)
+               rev_5           REVERSAL
+               rev_1           REVERSAL
+              vol_20  VOLATILITY / RISK
+           vol_ratio  VOLATILITY / RISK
+         idio_vol_60  Volatility / Risk
+             beta_60  Volatility / Risk
+     downside_vol_60  VOLATILITY / RISK
+           amihud_20 LIQUIDITY / VOLUME
+          turnover_z LIQUIDITY / VOLUME
+       vol_price_div LIQUIDITY / VOLUME
+trend_consistency_20      TREND QUALITY
+      path_smooth_60      TREND QUALITY
+       dist_high_252      TREND QUALITY
+              rsi_14      TREND QUALITY
+
+panel_sample.csv  (500 of 229,135 rows, 29 cols)
+panel_summary.csv
+              column          dtype  NaN_%          mean            std     min           max
+                date datetime64[ns]   0.00                                                   
+                open        float64   0.00        921.25      1586.4481    1.05       17230.0
+                high        float64   0.00      932.2379      1602.8417     1.1       17370.0
+                 low        float64   0.00      909.3359      1568.3136    1.02       17142.0
+               close        float64   0.00      920.5359      1585.2867    1.07       17292.0
+              volume        float64   0.00  6315725.8087  16828638.4066     1.0  1034530560.0
+              ret_1d        float64   0.00        0.0008         0.0229 -0.8997        1.2827
+              mom_20        float64   0.22       -0.0032         0.9659    -3.0           3.0
+             mom_120        float64   0.22       -0.0054         0.9599    -3.0           3.0
+            mom_12_1        float64   0.22       -0.0082         0.9549    -3.0           3.0
+               rev_5        float64   0.22         0.003         0.9644    -3.0           3.0
+               rev_1        float64   0.22        0.0034         0.9591    -3.0           3.0
+              vol_20        float64   0.22       -0.0111          0.943  -2.819           3.0
+           vol_ratio        float64   0.22        0.0001          0.983    -3.0           3.0
+     downside_vol_60        float64   0.22       -0.0127         0.9346 -2.5004           3.0
+           amihud_20        float64   0.22       -0.0576         0.6899 -1.3454           3.0
+          turnover_z        float64   0.22       -0.0038          0.974    -3.0           3.0
+       vol_price_div        float64   0.22           0.0         0.9867    -3.0           3.0
+trend_consistency_20        float64   0.22           0.0          0.986    -3.0           3.0
+      path_smooth_60        float64   0.22       -0.0031         0.9764 -2.8342           3.0
+       dist_high_252        float64   0.22        0.0086         0.9552    -3.0           3.0
+              rsi_14        float64   0.22           0.0          0.986    -3.0           3.0
+              symbol         object   0.00                                                   
+             fwd_ret        float64   0.50        0.0189         0.2207  -0.908       26.0972
+             mkt_ret        float64   0.00        0.0009         0.0135  -0.139         0.504
+             beta_60        float64   0.22       -0.0037         0.9716    -3.0           3.0
+         idio_vol_60        float64   0.22       -0.0167          0.919 -2.5504           3.0
+                year          int32   0.00     2015.8735         6.4965    2001          2026
+              y_rank        float64   0.50        0.5138         0.2893  0.0175           1.0
+
+All saved -> /Users/sidharthchoudhary/Downloads/algo_trading_project/results/metrics
+NOTE: features are cross-sectionally z-scored (mean~0, std~1, clipped +/-3).
+    [STEP 7g Feature docs (dictionary + panel sample) done in 0.0 min]
+>>> STEP 8  74 scores cached (skip)
+
+==========================================================================================
+>>> STEP 9  Engine v2 FINAL 74
+==========================================================================================
+====================================================================================================
+ENGINE v2 FINAL -- cross-sectional ranking + inverse-vol + breadth scaling
+====================================================================================================
+
+                               Config  CAGR%  Sharpe  Sortino  MaxDD%  Calmar  Trades    TC_Rs
+         + breadth scaling (v2 FINAL)  14.65    1.27     1.77  -17.71    0.83     895 130261.0
+Inverse-vol, 100% invested (v1 final)  19.10    1.06     1.37  -29.93    0.64     754 209237.0
+         Equal-weight buy & hold (74)  23.97    1.29     1.46  -38.29    0.63       0      0.0
+
+   v2 FINAL average exposure: 57% invested (rest in cash at 0% yield)
+
+--- YEAR BY YEAR ---
+      Strategy%  BuyHold%  Diff
+date                           
+2020       17.7      26.3  -8.6
+2021       41.0      49.8  -8.8
+2022        2.5      14.4 -11.9
+2023       22.0      39.1 -17.1
+2024       15.5      22.8  -7.3
+2025        1.9      13.2 -11.3
+
+  saved -> chart_v2FINAL.png
+
+====================================================================================================
+VERDICT
+====================================================================================================
+  v2 FINAL   : CAGR  14.65%  Sharpe  1.27  MaxDD  -17.71%  Calmar 0.83
+  Buy & hold : CAGR  23.97%  Sharpe  1.29  MaxDD  -38.29%  Calmar 0.63
+
+  Versus equal-weight buy & hold over the same period:
+    Sharpe     1.27 vs   1.29   (-0.02)  -- behind buy & hold
+    MaxDD    -17.71% vs -38.29%   (+20.58 pts)
+    CAGR      14.65% vs  23.97%   (-9.32 pts)
+
+  The strategy holds 57% invested on average, so raw CAGR is not the
+  right comparison on its own -- return per deployed rupee and drawdown are.
+  Idle cash earns 0%, so none of the return above comes from interest.
+
+  Standing caveats: no capital gains tax is modelled, survivorship bias inflates
+  both lines, and the edge is not statistically significant. The honest next step
+  for a real product is a less-efficient universe (mid/small caps) or new data
+  (fundamentals), not more tuning here.
+
+Saved -> v2FINAL_comparison.csv, v2FINAL_yearly.csv, v2FINAL_equity.csv,
+         v2FINAL_params.json, chart_v2FINAL.png
+    [STEP 9  Engine v2 FINAL 74 done in 0.0 min]
+
+==========================================================================================
+>>> STEP 10 Trade stats + per-stock (74)
+==========================================================================================
+=== 74 ===
+  total_trades: 1192
+  round_trips: 588
+  win_rate_%: 60.0
+  avg_win: 8502.0
+  avg_loss: -6023.0
+  profit_factor: 2.12
+  total_TC_Rs: 117182.0
+  stocks_traded: 74
+
+saved -> 74 per_stock_signals + v2_trades + trade_stats_74.csv
+    [STEP 10 Trade stats + per-stock (74) done in 0.0 min]
+
+==========================================================================================
+>>> STEP 11 Cash series (58 + 74)
+==========================================================================================
+Building 58 cash series...
+  58 avg cash%: 35.4%
+Building 74 cash series...
+  74 avg cash%: 35.5%
+Done -> cash_series_58.csv, cash_series_74.csv
+    [STEP 11 Cash series (58 + 74) done in 0.0 min]
+
+==========================================================================================
+>>> STEP 12 Nifty100 benchmark + final chart + fair table
+==========================================================================================
+saved -> chart_FINAL_58_74_N100.png (legend shows invested%, cash panel included)
+
+         Strategy  CAGR%  Sharpe  MaxDD%  AvgInvested%  AvgCash%  CAGR_per_InvestedCapital%
+  58 v2 (breadth)  16.45    1.36  -17.09          64.6      35.4                      25.48
+  58 v1 (inv-vol)  23.24    1.22  -32.90         100.0       0.0                      23.24
+      58 buy&hold  18.65    1.06  -39.80         100.0       0.0                      18.65
+  74 v2 (breadth)  14.65    1.27  -17.71          64.5      35.5                      22.70
+  74 v1 (inv-vol)  19.10    1.06  -29.93         100.0       0.0                      19.10
+      74 buy&hold  23.97    1.29  -38.29         100.0       0.0                      23.97
+Nifty100 (58 win)  23.05    1.29  -36.51         100.0       0.0                      23.05
+Nifty100 (74 win)  25.04    1.39  -36.51         100.0       0.0                      25.04
+
+saved -> fair_comparison_table.csv
+    [STEP 12 Nifty100 benchmark + final chart + fair table done in 0.0 min]
+
+==========================================================================================
+>>> STEP 13 FINAL summary table
+==========================================================================================
+====================================================================================================
+FINAL SYSTEM  |  Rs 10L  |  2019 - Jun'26 (58) / Dec'25 (74)  |  after TC, before tax
+====================================================================================================
+     variant           line  CAGR%  Sharpe  MaxDD%  Calmar  Invested%  Cash%  CAGR_per_InvestedCapital%
+FINAL_system          58 v2  16.45    1.36  -17.09    0.96       64.6   35.4                      25.48
+FINAL_system          58 v1  23.24    1.22  -32.90    0.71      100.0    0.0                      23.24
+FINAL_system          74 v2  14.65    1.27  -17.71    0.83       64.5   35.5                      22.70
+FINAL_system          74 v1  19.10    1.06  -29.93    0.64      100.0    0.0                      19.10
+   REFERENCE    58 buy&hold  18.65    1.06  -39.80    0.47      100.0    0.0                      18.65
+   REFERENCE    74 buy&hold  23.97    1.29  -38.29    0.63      100.0    0.0                      23.97
+   REFERENCE Nifty100 58win  23.05    1.29  -36.51    0.63      100.0    0.0                      23.05
+   REFERENCE Nifty100 74win  25.04    1.39  -36.51    0.69      100.0    0.0                      25.04
+====================================================================================================
+
+saved -> /Users/sidharthchoudhary/Downloads/algo_trading_project/results/metrics/FINAL_SUMMARY_TABLE.csv
+    [STEP 13 FINAL summary table done in 0.0 min]
+
+==========================================================================================
+>>> STEP 14 Daily audit CSVs (holdings/trades/ranking)
+==========================================================================================
+
+==========================================================================
+58 UNIVERSE
+==========================================================================
+  equity vs official v2FINAL_equity.csv : MATCH
+  SKIPPED orders: 18
+reason
+    qty < 1 after sizing      13
+    cash short (before TC)     5
+  rebalance (decision) days: 93 | ranking rows: 2,636
+  trades logged : 921   (engine reported 921)   OK
+  daily rows    : 1,842 days | holdings rows 17,551
+  avg stocks held: 9.5 | avg cash 35.3% | final Rs 3,101,677
+
+  saved -> daily_holdings_58.csv / daily_summary_58.csv / daily_trades_58.csv
+
+  --- SAMPLE: latest day (2026-06-08) ---
+    symbol  qty   price     value  weight_pct
+BAJAJFINSV  199 1674.60 333245.40       10.74
+   HCLTECH  244 1154.70 281746.80        9.08
+  JSWSTEEL   89 1260.95 112224.55        3.62
+      LICI  257  399.90 102774.30        3.31
+      LTIM   67 3977.70 266505.90        8.59
+    M&MFIN  155  280.75  43516.25        1.40
+ NESTLEIND  102 1399.45 142743.90        4.60
+      NTPC 1228  362.75 445457.00       14.36
+ NTPCGREEN  723   99.78  72140.94        2.33
+       TCS  158 2198.90 347426.20       11.20
+     TECHM  224 1503.40 336761.60       10.86
+  cash Rs 617,135 (19.9%) | holdings Rs 2,484,543 (80.1%) | TOTAL Rs 3,101,677
+
+==========================================================================
+74 UNIVERSE
+==========================================================================
+  equity vs official v2FINAL_equity.csv : MATCH
+  SKIPPED orders: 11
+reason
+    qty < 1 after sizing      8
+    cash short (before TC)    3
+  rebalance (decision) days: 87 | ranking rows: 2,507
+  trades logged : 895   (engine reported 895)   OK
+  daily rows    : 1,732 days | holdings rows 15,999
+  avg stocks held: 9.2 | avg cash 35.2% | final Rs 2,595,058
+
+  saved -> daily_holdings_74.csv / daily_summary_74.csv / daily_trades_74.csv
+
+  --- SAMPLE: latest day (2025-12-23) ---
+    symbol  qty    price     value  weight_pct
+APOLLOHOSP   27  7073.50 190984.50        7.36
+ASIANPAINT   41  2807.80 115119.80        4.44
+BAJAJHLDNG    7 11279.00  78953.00        3.04
+       DLF  185   694.25 128436.25        4.95
+ KOTAKBANK  416   432.54 179936.64        6.93
+PIDILITIND  137  1462.10 200307.70        7.72
+    RECLTD  412   354.20 145930.40        5.62
+     TITAN   40  3925.80 157032.00        6.05
+      VEDL  214   586.40 125489.60        4.84
+  cash Rs 1,272,868 (49.05%) | holdings Rs 1,322,190 (50.95%) | TOTAL Rs 2,595,058
+    [STEP 14 Daily audit CSVs (holdings/trades/ranking) done in 0.0 min]
+
+==========================================================================================
+>>> STEP 15 Forensic daily text log
+==========================================================================================
+Building forensic daily logs...
+  58: 1,842 days, 60,237 lines -> DAILY_LOG_58.txt
+       reconciliation  cash 1842/1842  equity 1842/1842  shares 1842/1842  ALL OK
+  74: 1,732 days, 56,195 lines -> DAILY_LOG_74.txt
+       reconciliation  cash 1732/1732  equity 1732/1732  shares 1732/1732  ALL OK
+    [STEP 15 Forensic daily text log done in 0.0 min]
+
+Saving permanent caches...
+caches saved (restart-proof).
+
+==========================================================================================
+ALL DONE in 0.8 min.
+58 outputs:  results/metrics/
+74 outputs:  results74/metrics/
+Final chart: results/metrics/chart_FINAL_58_74_N100.png
+==========================================================================================

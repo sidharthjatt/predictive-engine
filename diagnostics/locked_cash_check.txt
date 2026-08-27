@@ -1,0 +1,29 @@
+========================================================================================================
+ LOCKED CASH IN THE 'volume'-DEPTH BASELINE -- measurement only
+========================================================================================================
+
+========================================================================================================
+ MID   1842 trading days recorded
+========================================================================================================
+  days with ANY cash locked : 0 of 1842   (0.0%)
+  locked cash, Rs           : mean              0   max              0
+  locked as % of portfolio  : mean   0.000%   max   0.000%   p99   0.000%
+  final day locked          : Rs 0 (0.000% of portfolio)
+  equity UNDERSTATED by locked cash: mean Rs 0, max Rs 0
+
+  LOCK EPISODES: 0
+    from        until         days     max locked Rs   released?
+    none -- no cash was locked on any trading day
+
+========================================================================================================
+ N100   1842 trading days recorded
+========================================================================================================
+  days with ANY cash locked : 0 of 1842   (0.0%)
+  locked cash, Rs           : mean              0   max              0
+  locked as % of portfolio  : mean   0.000%   max   0.000%   p99   0.000%
+  final day locked          : Rs 0 (0.000% of portfolio)
+  equity UNDERSTATED by locked cash: mean Rs 0, max Rs 0
+
+  LOCK EPISODES: 0
+    from        until         days     max locked Rs   released?
+    none -- no cash was locked on any trading day

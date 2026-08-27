@@ -1,0 +1,179 @@
+====================================================================================================
+ NAUTILUS REPORTS -- generated fresh, one universe at a time
+====================================================================================================
+
+  NOTE: nautilus/reports/ is a SINGLE shared directory (nt_run.py:117), not
+  per-universe. Each run overwrites the previous one, so only the last universe
+  run is ever on disk. Before this check it held mid alone (985 fills, 124
+  midcap symbols) -- stale for 58 and 74 since the 2026-08-15 verification loop.
+
+  58: copied orders/fills/positions -> scratchpad
+
+  74: copied orders/fills/positions -> scratchpad
+
+  mid: copied orders/fills/positions -> scratchpad
+
+====================================================================================================
+ 1. ROW COUNTS AND ORDER STATUS
+====================================================================================================
+
+  58 universe
+    orders.csv      rows    929   size  335,465 B
+    fills.csv       rows    929   size  289,085 B
+    positions.csv   rows    469   size  174,899 B
+    order statuses : {'FILLED': 929}
+
+  74 universe
+    orders.csv      rows    883   size  320,294 B
+    fills.csv       rows    883   size  276,228 B
+    positions.csv   rows    446   size  166,397 B
+    order statuses : {'FILLED': 883}
+
+  MID universe
+    orders.csv      rows    985   size  356,792 B
+    fills.csv       rows    985   size  307,452 B
+    positions.csv   rows    497   size  183,619 B
+    order statuses : {'FILLED': 985}
+
+====================================================================================================
+ 2. CROSS-CHECK AGAINST THE REFERENCE ENGINE
+====================================================================================================
+
+  univ    fills.csv  ref trades   delta   fills commission    ref cum TC     delta
+  58            929         929       0         166,464.79    166,385.53     79.26
+  74            883         883       0         126,789.94    126,687.70    102.24
+  mid           985         985       0         237,601.33    237,773.15   -171.82
+
+  IS THE COMMISSION DELTA A FEE-MODEL DIFFERENCE, OR DIFFERING QTY/PRICE?
+  Matching port fills to reference trades on (date, symbol, side, qty) and
+  comparing the fee charged on those identical trades.
+
+  univ    exact qty matches  fee identical  max fee diff  unmatched
+  58                    523            520        1.0000        406
+  74                    531            527        1.0000        352
+  mid                   490            488        1.0000        495
+
+====================================================================================================
+ 3. FORENSIC DAILY LOG -- sections and reconciliation
+====================================================================================================
+
+  58  results/metrics/DAILY_LOG_58.txt
+    modified 2026-08-17 01:30   size 5,250,228 B   lines 60,914
+    [A] ORDER EXECUTION    blocks   1842
+    [B] RECONCILIATION     blocks   1842
+    [C] POSITIONS          blocks   1842
+    [D] ORDER CREATION     blocks     93
+    [A] populated (a fill actually occurred)     : 93
+    [D] populated (a rebalance actually created) : 93
+    order IDs (R###-B#/S#) occurrences           : 1,858
+    round-trip P&L mentions                      : 460
+    VERDICT: every day reconciles.
+
+  74  results74/metrics/DAILY_LOG_74.txt
+    modified 2026-08-17 01:30   size 4,855,139 B   lines 56,564
+    [A] ORDER EXECUTION    blocks   1732
+    [B] RECONCILIATION     blocks   1732
+    [C] POSITIONS          blocks   1732
+    [D] ORDER CREATION     blocks     87
+    [A] populated (a fill actually occurred)     : 87
+    [D] populated (a rebalance actually created) : 87
+    order IDs (R###-B#/S#) occurrences           : 1,763
+    round-trip P&L mentions                      : 437
+    VERDICT: every day reconciles.
+
+  MID  results_mid/metrics/DAILY_LOG_mid.txt
+    modified 2026-08-17 01:30   size 5,144,552 B   lines 59,981
+    [A] ORDER EXECUTION    blocks   1842
+    [B] RECONCILIATION     blocks   1842
+    [C] POSITIONS          blocks   1842
+    [D] ORDER CREATION     blocks     93
+    [A] populated (a fill actually occurred)     : 93
+    [D] populated (a rebalance actually created) : 93
+    order IDs (R###-B#/S#) occurrences           : 1,966
+    round-trip P&L mentions                      : 488
+    VERDICT: every day reconciles.
+
+====================================================================================================
+ 4. END-TO-END ORDER TRACE
+====================================================================================================
+
+====================================================================================================
+  58   CIPLA   created 2022-11-16  ->  filled 2022-11-17
+====================================================================================================
+
+  --- section D, 2022-11-16 (decision) ---
+    >>> [D] ORDER CREATION       rebalance #49 -- signal taken at TODAY's CLOSE, fills at TOMORROW's OPEN
+          breadth       : 46/55 stocks with positive 20-day momentum  =  0.8364
+          exposure      : 83.64%  (equal to breadth -- no threshold)
+          portfolio     : Rs 2,143,132.03   (of which cash Rs 1,088,892.11)
+              3  CIPLA            0.559786   0.2004   14.39%     N  BUY         R049-B1
+
+  --- section A, 2022-11-17 (execution) ---
+    >>> [A] ORDER EXECUTION      created at the CLOSE of 2022-11-16, filled at TODAY's OPEN
+          OrderID   Side  Symbol           Qty   Open(der)     FillPx   Slip Rs         Value   TxnFee
+          R049-S1   SELL  BEL             1402      108.20     108.04       228    151,468.86   172.00
+          R049-B1   BUY   CIPLA            224    1,125.00   1,126.69       378    252,378.00   299.44
+
+  --- nautilus/reports/fills.csv ---
+    client_order_id O-20221117-091600-001-000-476
+    instrument CIPLA.NSE  side BUY  qty 224  price 1126.7  commission 299.44 INR
+    ts_event 2022-11-17 09:16:00+00:00
+
+====================================================================================================
+  74   BAJAJHLDNG   created 2022-03-24  ->  filled 2022-03-25
+====================================================================================================
+
+  --- section D, 2022-03-24 (decision) ---
+    >>> [D] ORDER CREATION       rebalance #41 -- signal taken at TODAY's CLOSE, fills at TOMORROW's OPEN
+          breadth       : 44/74 stocks with positive 20-day momentum  =  0.5946
+          exposure      : 59.46%  (equal to breadth -- no threshold)
+          portfolio     : Rs 1,605,164.36   (of which cash Rs 792,731.04)
+              4  BAJAJHLDNG       0.607510   0.2629   14.32%     N  BUY         R041-B3
+
+  --- section A, 2022-03-25 (execution) ---
+    >>> [A] ORDER EXECUTION      created at the CLOSE of 2022-03-24, filled at TODAY's OPEN
+          OrderID   Side  Symbol           Qty   Open(der)     FillPx   Slip Rs         Value   TxnFee
+          R041-S1   SELL  SOLARINDS         20    2,680.00   2,675.98        80     53,519.60    71.33
+          R041-B3   BUY   BAJAJHLDNG        26    5,086.00   5,093.63       198    132,434.35   156.96
+
+  --- nautilus/reports/fills.csv ---
+    client_order_id O-20220325-091600-001-000-440
+    instrument BAJAJHLDNG.NSE  side BUY  qty 26  price 5093.65  commission 156.96 INR
+    ts_event 2022-03-25 09:16:00+00:00
+
+====================================================================================================
+  MID   AIIL   created 2021-10-28  ->  filled 2021-10-29
+====================================================================================================
+
+  --- section D, 2021-10-28 (decision) ---
+    >>> [D] ORDER CREATION       rebalance #36 -- signal taken at TODAY's CLOSE, fills at TOMORROW's OPEN
+          breadth       : 57/127 stocks with positive 20-day momentum  =  0.4488
+          exposure      : 44.88%  (equal to breadth -- no threshold)
+          portfolio     : Rs 2,199,626.93   (of which cash Rs 714,252.48)
+              4  AIIL             0.581480   0.6268    7.69%     N  BUY         R036-B3
+
+  --- section A, 2021-10-29 (execution) ---
+    >>> [A] ORDER EXECUTION      created at the CLOSE of 2021-10-28, filled at TODAY's OPEN
+          OrderID   Side  Symbol           Qty   Open(der)     FillPx   Slip Rs         Value   TxnFee
+          R036-S1   SELL  JSL              639      191.15     190.86       183    121,961.63   141.89
+          R036-B3   BUY   AIIL            1937       38.29      38.35       111     74,278.98    87.77
+
+  --- nautilus/reports/fills.csv ---
+    client_order_id O-20211029-091600-001-000-410
+    instrument AIIL.NSE  side BUY  qty 1937  price 38.35  commission 87.77 INR
+    ts_event 2021-10-29 09:16:00+00:00
+
+====================================================================================================
+ ORDER STATUS -- what orders.csv can and cannot show
+====================================================================================================
+
+  orders.csv comes from eng.trader.generate_order_FILLS_report() (nt_run.py:119).
+  That report is built from fill events, so every row it can contain is FILLED by
+  construction. 'all FILLED' is therefore partly definitional and is NOT by itself
+  evidence that nothing was denied. The independent evidence is below: the strategy
+  logs a warning on every denial via on_order_denied (nt_strategy.py:202), and the
+  submitted-order count is compared against the filled count.
+
+  58    submitted (orders report)   929   fills   929   denial log lines   0   'DENIED' in run output: no
+  74    submitted (orders report)   883   fills   883   denial log lines   0   'DENIED' in run output: no
+  mid   submitted (orders report)   985   fills   985   denial log lines   0   'DENIED' in run output: no

@@ -1,0 +1,170 @@
+data from 2018-06-15 (warm-up) | trading 2019-01-01 to 2026-06-08
+  instruments 58 | events 215,714
+  score rows  99,107 over 1842 days
+
+  reports -> nautilus/reports/  (orders 929, fills 929, positions 469)
+
+  rebalances       : 93
+  orders submitted : 929
+  orders filled    : 929
+  open positions   : 9
+  cash             : Rs 1,966,298.82
+  positions value  : Rs 1,248,123.76
+  EQUITY           : Rs 3,214,422.58   (from Rs 1,000,000)
+
+  first 3 rebalance decisions:
+decided_on  breadth_pos  breadth_total  breadth  exposure  port_value  cash_before  invest_value  n_held_before  n_buy  n_sell
+2019-01-01           27             53   0.5094    0.5094  1000000.00   1000000.00     499245.28              0      8       0
+2019-01-29           15             53   0.2830    0.2830   965048.89    502654.80     267664.50              8      6       4
+2019-02-26           29             53   0.5472    0.5472   956657.63    529252.16     512985.09             10      4       4
+
+========================================================================
+ NAUTILUS PORT -- VERIFICATION AGAINST THE REFERENCE ENGINE  [58 universe]
+========================================================================
+
+  final equity   reference Rs    3,237,591
+                 port      Rs    3,236,727   (-0.03%)
+
+  rebalances     reference   93   port   93
+  fills          reference  929   port  929
+
+  vs REFERENCE (valued at the execution day's close)
+    identical holdings      : 5 of 93
+    differing by symbol set : 0
+    differing by quantity   : 88
+    quantity error: median 0.40%  max 7.14%
+
+  vs ARM D     (same engine, valued at the open, 0.05 ticks)
+    identical holdings      : 93 of 93
+    differing by symbol set : 0
+    differing by quantity   : 0
+
+  control: ARM A vs the reference's own holdings -- 93 of 93 identical
+
+  reconciliation on a 0.01 tick grid (both sides) -- 93 of 93 identical
+
+========================================================================
+  VERIFIED. On a 0.01 tick grid the port and the open-valued reference
+  agree on every holding at every rebalance. So the two systems are
+  identical in logic, and the differences reported above at the real
+  0.05 grid are exactly two measured, documented things:
+    - the reference values the portfolio at the execution day's CLOSE,
+      which a strategy standing at 09:15 cannot know;
+    - quantity is a floor division by a tick-snapped price, and one
+      0.05 tick is 0.19% of a Rs 27 share.
+  Neither is a bug, and nothing else remains unexplained.
+========================================================================
+data from 2018-06-15 (warm-up) | trading 2019-01-01 to 2025-12-23
+  instruments 74 | events 276,020
+  score rows  127,489 over 1732 days
+
+  reports -> nautilus/reports/  (orders 883, fills 883, positions 446)
+
+  rebalances       : 87
+  orders submitted : 883
+  orders filled    : 883
+  open positions   : 9
+  cash             : Rs 1,430,000.49
+  positions value  : Rs 1,429,656.20
+  EQUITY           : Rs 2,859,656.69   (from Rs 1,000,000)
+
+  first 3 rebalance decisions:
+decided_on  breadth_pos  breadth_total  breadth  exposure  port_value  cash_before  invest_value  n_held_before  n_buy  n_sell
+2019-01-01           42             74   0.5676    0.5676  1000000.00   1000000.00     556216.22              0      8       0
+2019-01-29           21             74   0.2838    0.2838   995724.63    446548.64     276919.09              8      7       5
+2019-02-26           44             74   0.5946    0.5946   991251.75    504745.43     577605.07             10      4       5
+
+========================================================================
+ NAUTILUS PORT -- VERIFICATION AGAINST THE REFERENCE ENGINE  [74 universe]
+========================================================================
+
+  final equity   reference Rs    2,858,851
+                 port      Rs    2,859,300   (+0.02%)
+
+  rebalances     reference   87   port   87
+  fills          reference  883   port  883
+
+  vs REFERENCE (valued at the execution day's close)
+    identical holdings      : 5 of 87
+    differing by symbol set : 0
+    differing by quantity   : 82
+    quantity error: median 0.49%  max 7.14%
+
+  vs ARM D     (same engine, valued at the open, 0.05 ticks)
+    identical holdings      : 86 of 87
+    differing by symbol set : 0
+    differing by quantity   : 1
+    quantity error: median 0.09%  max 0.09%
+
+  control: ARM A vs the reference's own holdings -- 87 of 87 identical
+
+  reconciliation on a 0.01 tick grid (both sides) -- 87 of 87 identical
+
+========================================================================
+  VERIFIED. On a 0.01 tick grid the port and the open-valued reference
+  agree on every holding at every rebalance. So the two systems are
+  identical in logic, and the differences reported above at the real
+  0.05 grid are exactly two measured, documented things:
+    - the reference values the portfolio at the execution day's CLOSE,
+      which a strategy standing at 09:15 cannot know;
+    - quantity is a floor division by a tick-snapped price, and one
+      0.05 tick is 0.19% of a Rs 27 share.
+  Neither is a bug, and nothing else remains unexplained.
+========================================================================
+data from 2018-06-15 (warm-up) | trading 2019-01-01 to 2026-06-08
+  instruments 148 | events 519,754
+  score rows  232,397 over 1842 days
+
+  reports -> nautilus/reports/  (orders 985, fills 985, positions 497)
+
+  rebalances       : 93
+  orders submitted : 985
+  orders filled    : 985
+  open positions   : 9
+  cash             : Rs 2,949,636.65
+  positions value  : Rs 3,751,269.25
+  EQUITY           : Rs 6,700,905.90   (from Rs 1,000,000)
+
+  first 3 rebalance decisions:
+decided_on  breadth_pos  breadth_total  breadth  exposure  port_value  cash_before  invest_value  n_held_before  n_buy  n_sell
+2019-01-01           67            119   0.5630    0.5630  1000000.00   1000000.00     551764.71              0      8       0
+2019-01-29           23            120   0.1917    0.1917   974086.93    449583.37     182966.00              8      7       7
+2019-02-26           58            120   0.4833    0.4833   963193.40    718813.90     456232.61              8      7       5
+
+========================================================================
+ NAUTILUS PORT -- VERIFICATION AGAINST THE REFERENCE ENGINE  [mid universe]
+========================================================================
+
+  final equity   reference Rs    6,813,161
+                 port      Rs    6,807,127   (-0.09%)
+
+  rebalances     reference   93   port   93
+  fills          reference  985   port  985
+
+  vs REFERENCE (valued at the execution day's close)
+    identical holdings      : 6 of 93
+    differing by symbol set : 0
+    differing by quantity   : 87
+    quantity error: median 0.38%  max 11.11%
+
+  vs ARM D     (same engine, valued at the open, 0.05 ticks)
+    identical holdings      : 92 of 93
+    differing by symbol set : 0
+    differing by quantity   : 1
+    quantity error: median 0.06%  max 0.06%
+
+  control: ARM A vs the reference's own holdings -- 93 of 93 identical
+
+  reconciliation on a 0.01 tick grid (both sides) -- 93 of 93 identical
+
+========================================================================
+  VERIFIED. On a 0.01 tick grid the port and the open-valued reference
+  agree on every holding at every rebalance. So the two systems are
+  identical in logic, and the differences reported above at the real
+  0.05 grid are exactly two measured, documented things:
+    - the reference values the portfolio at the execution day's CLOSE,
+      which a strategy standing at 09:15 cannot know;
+    - quantity is a floor division by a tick-snapped price, and one
+      0.05 tick is 0.19% of a Rs 27 share.
+  Neither is a bug, and nothing else remains unexplained.
+========================================================================

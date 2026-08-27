@@ -1,0 +1,54 @@
+INVERSE-VOL WEIGHT: raw closes (ARM D) vs 0.01-rounded closes (the port's bars)
+Both on the 0.01 grid. Weights over the post-rebalance holding set.
+==============================================================================================
+
+ 2020-10-12  SUZLON   OBSERVED port/ARM D share ratio 1.005168
+   symbol             w raw  w tick-rounded     ratio      close
+   AIIL            0.093122        0.092975  0.998424       2.55
+   DIXON           0.127368        0.127167  0.998424    1690.73
+   GVT&D           0.113258        0.113080  0.998424      87.85
+   MPHASIS         0.119822        0.119633  0.998424    1395.80
+   PATANJALI       0.099643        0.099486  0.998424     192.86
+   SUNDARMFIN      0.165645        0.165384  0.998424    1300.20
+   SUZLON          0.150380        0.151719  1.008902       2.59  <--
+   TATACOMM        0.130761        0.130555  0.998424     865.15
+   PREDICTED weight ratio 1.008902  vs OBSERVED 1.005168
+
+ 2020-08-14  SUZLON   OBSERVED port/ARM D share ratio 1.002933
+   symbol             w raw  w tick-rounded     ratio      close
+   360ONE          0.095457        0.095444  0.999861     267.33
+   AJANTPHARM      0.120518        0.120501  0.999861    1086.61
+   ALKEM           0.112809        0.112793  0.999861    2925.15
+   BALKRISIND      0.130414        0.130396  0.999861    1316.00
+   ESCORTS         0.102144        0.102129  0.999861    1100.65
+   GODFRYPHLP      0.185817        0.185791  0.999861     312.65
+   IDEA            0.040754        0.040749  0.999861       8.95
+   LLOYDSME        0.060534        0.060660  1.002077      10.57
+   MCX             0.090504        0.090491  0.999861     331.75
+   SUZLON          0.061049        0.061046  0.999945       3.61  <--
+   PREDICTED weight ratio 0.999945  vs OBSERVED 1.002933
+
+ 2019-10-27  SUZLON   OBSERVED port/ARM D share ratio 0.998211
+   symbol             w raw  w tick-rounded     ratio      close
+   ASTRAL          0.137475        0.137501  1.000185     643.90
+   COCHINSHIP      0.132669        0.132693  1.000185     192.95
+   ICICIPRULI      0.124925        0.124948  1.000185     485.15
+   INDIANB         0.052044        0.052054  1.000185     126.35
+   LTTS            0.108027        0.108047  1.000185    1489.05
+   MARICO          0.204440        0.204478  1.000185     391.10
+   PATANJALI       0.049861        0.049870  1.000185       1.20
+   SUZLON          0.039780        0.039602  0.995523       2.17  <--
+   TATAINVEST      0.150779        0.150807  1.000185      82.85
+   PREDICTED weight ratio 0.995523  vs OBSERVED 0.998211
+
+ 2020-10-12  AIIL   OBSERVED port/ARM D share ratio 0.999273
+   symbol             w raw  w tick-rounded     ratio      close
+   AIIL            0.093122        0.092975  0.998424       2.55  <--
+   DIXON           0.127368        0.127167  0.998424    1690.73
+   GVT&D           0.113258        0.113080  0.998424      87.85
+   MPHASIS         0.119822        0.119633  0.998424    1395.80
+   PATANJALI       0.099643        0.099486  0.998424     192.86
+   SUNDARMFIN      0.165645        0.165384  0.998424    1300.20
+   SUZLON          0.150380        0.151719  1.008902       2.59
+   TATACOMM        0.130761        0.130555  0.998424     865.15
+   PREDICTED weight ratio 0.998424  vs OBSERVED 0.999273

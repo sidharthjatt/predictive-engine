@@ -1,0 +1,137 @@
+================================================================================
+EXPERIMENT 14 -- HIGH/LOW INTRADAY FEATURES
+PRE-REGISTRATION. Written 7 August 2026, BEFORE any code was run.
+================================================================================
+
+## WHY THIS EXPERIMENT, AND WHY NOT ANOTHER ONE
+
+Under the Fundamental Law of Active Management, IR is approximately IC times the
+square root of breadth. Portfolio construction changes neither term; it only
+redistributes the same IR across return and drawdown. That is why the six exposure
+experiments and the five training-scheme experiments all failed, and why they were
+always going to fail. Those questions are closed.
+
+Only two levers remain: raise IC, or raise breadth. Breadth is blocked on Sir's
+point-in-time universe data. IC can be raised only by new information.
+
+HIGH and LOW are new information. Verified by grep on the current codebase:
+  OPEN   -> used for execution fills only
+  CLOSE  -> used by all 17 features
+  VOLUME -> used by the three liquidity features
+  HIGH, LOW -> loaded in engine_core.py line 74, used by NOTHING
+
+This is the only untouched data already sitting on disk. It is not a new parameter
+and not a re-tuning of anything; it is a genuinely new input.
+
+## TRIAL COUNT -- STATE IT HONESTLY
+
+This is the 14th tested idea on this dataset (13 so far: 12 rejected, 1 accepted).
+Multiple testing means the bar rises with every trial. Any result here must be
+read against that count, and the count must be reported alongside it.
+
+BUDGET: four candidate features. One batch. No second round of variants regardless
+of outcome. If this fails, the price-and-volume avenue is closed and the answer is
+new data (fundamentals) or a wider universe, not more features.
+
+## THE FOUR CANDIDATE FEATURES
+
+Chosen to capture what close-to-close data structurally cannot see: what happened
+INSIDE the trading day, and what happened BETWEEN days.
+
+1. close_pos_20   mean over 20 days of (close - low) / (high - low)
+                  Where the close sits within the day's range. Near 1 means buyers
+                  controlled the close; near 0 means sellers did. No existing
+                  feature sees this at all.
+
+2. gap_20         mean over 20 days of (open / prev_close - 1)
+                  The overnight move. Separates information arriving outside market
+                  hours from intraday drift. OPEN is currently used only for fills.
+
+3. true_range_20  mean over 20 days of max(high-low, |high-prev_close|,
+                  |low-prev_close|) / close
+                  Intraday volatility. Distinct from vol_20, which is close-to-close
+                  and blind to intraday range.
+
+4. range_ratio    true_range_20 / true_range_60
+                  Is the intraday range expanding or contracting. The intraday
+                  analogue of vol_ratio.
+
+All four use data up to and including day t only. No forward-looking terms.
+
+## GATE 1 -- REDUNDANCY (runs first, before any performance number)
+
+Compute the cross-sectional correlation of each new feature against all 17 existing
+features, pooled across the panel.
+
+RULE: any candidate whose absolute correlation with an existing feature exceeds
+0.80 is DROPPED before testing. A feature that duplicates an existing one cannot
+add IC and only adds dilution.
+
+Expected casualty: true_range_20 against vol_20. If it goes, it goes.
+
+## GATE 2 -- STANDALONE RAW IC (runs second, still before the model)
+
+Compute each surviving feature's own Spearman IC against 20-day forward returns,
+bypassing the model entirely, reported for 2019-2022 and 2023-2026 separately.
+
+RULE: a feature must show |IC| above 0.005 in BOTH halves with a CONSISTENT SIGN.
+A feature that predicts in one half and reverses in the other is noise, and adding
+it to the model will only let the model fit that noise.
+
+This ordering is deliberate: sanity checks before performance numbers, per the
+lesson from the long-short bug and the EWMA episode.
+
+## GATE 3 -- LEAKAGE
+
+Run the existing audit_leakage.py causality test on every surviving feature.
+High and low make same-day contamination easy to introduce by accident.
+
+RULE: any feature that touches data from t+1 onward is a build error and is fixed
+or dropped. Not negotiable.
+
+## GATE 4 -- FULL BACKTEST, WITH A NOISE CONTROL
+
+Retrain the model on 17 + surviving new features. Run the official v2 pipeline on
+both universes.
+
+Alongside it, run a CONTROL: 17 features plus the SAME NUMBER of random noise
+features, same seeds. This measures how much of any change comes from simply
+having more features rather than from these features.
+
+ACCEPT only if ALL of the following hold:
+  a) Sharpe does not fall in EITHER universe (58 and 74)
+  b) Sharpe improves in BOTH sub-periods (2019-2022 and 2023-2026), in BOTH
+     universes -- four checks, all must pass
+  c) MaxDD does not worsen by more than 1.0 percentage point in either universe
+  d) The improvement exceeds the noise control by a clear margin
+  e) Rank IC rises above the current +0.0365
+
+REJECT if any one fails. Partial passes are rejections. Three of five is a
+rejection, not "promising".
+
+## WHAT WILL NOT HAPPEN AFTERWARDS
+
+If it fails, the result is written to rejected_experiments_REPORT.txt with its
+evidence, and no variant is attempted. No dropping one feature and retrying. No
+changing the window from 20 to 10. That path is how a rejected idea gets fitted
+into an accepted one.
+
+If it passes, it is reported with the trial count attached: "the 14th idea tested
+on this dataset, passing a pre-registered five-part rule with a noise control".
+
+## HONEST EXPECTATION, RECORDED IN ADVANCE
+
+Most likely outcome: one or two features survive Gate 1, show weak but consistent
+IC at Gate 2, and produce a Sharpe change inside noise at Gate 4 -- a rejection.
+
+The realistic upside is IC moving from 0.036 to perhaps 0.040-0.045, which is
+roughly a 10-25% improvement in IR. That is worth having and is not dramatic.
+
+The large gains are not here. They are in the universe: 58 names to 1200 raises
+breadth by more than an order of magnitude before correlation is accounted for,
+and mid/small caps are less analysed so IC should rise too. Both improve together,
+and both are blocked on the same point-in-time data. That is the priority.
+
+================================================================================
+END OF PRE-REGISTRATION
+================================================================================

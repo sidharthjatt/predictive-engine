@@ -1,0 +1,26 @@
+======================================================================================================================
+ FINAL-DAY FIX -- before / after, all three universes
+======================================================================================================================
+
+  univ            rows     last day    final equity    CAGR%  Sharpe   MaxDD%   ref same day        gap
+
+  58   before     1841   2026-06-05    3,236,727.28    17.14    1.40   -14.33                   -863.50
+       after      1842   2026-06-08    3,214,422.58    17.01    1.39   -14.33   3,215,298.95    -876.37
+       delta        +1                   -22,304.70    -0.13   -0.01    +0.00
+       index now matches the reference exactly: 1842 rows, 2019-01-01 -> 2026-06-08, no duplicates
+
+  74   before     1731   2025-12-22    2,859,300.28    16.26    1.43   -17.89                    449.40
+       after      1732   2025-12-23    2,859,656.69    16.25    1.43   -17.89   2,859,207.29     449.40
+       delta        +1                      +356.41    -0.01   +0.00    +0.00
+       index now matches the reference exactly: 1732 rows, 2019-01-01 -> 2025-12-23, no duplicates
+
+  mid  before     1841   2026-06-05    6,807,127.33    29.47    2.02   -18.95                 -6,033.37
+       after      1842   2026-06-08    6,700,905.90    29.16    2.00   -18.95   6,706,985.04  -6,079.14
+       delta        +1                  -106,221.43    -0.31   -0.02    +0.00
+       index now matches the reference exactly: 1842 rows, 2019-01-01 -> 2026-06-08, no duplicates
+
+======================================================================================================================
+ NEGATIVE CONTROL -- does the new assertion actually fire?
+======================================================================================================================
+  full series          rows  1842 vs 1842   idx_ok=True   -> verdict would be VERIFIED-eligible
+  one day dropped      rows  1841 vs 1842   idx_ok=False   -> verdict would be NOT VERIFIED

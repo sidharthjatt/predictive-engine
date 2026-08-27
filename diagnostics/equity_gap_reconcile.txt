@@ -1,0 +1,137 @@
+================================================================================================================
+ ITEMISED HAND RECONCILIATION -- rebuilt from the fill log, independent of both figures
+================================================================================================================
+
+================================================================================================================
+  58   last recorded daily_equity day 2026-06-05   true last trading day 2026-06-08
+================================================================================================================
+
+  A  as of the last RECORDED day  (2026-06-05)
+    fills up to this day : 919
+    symbol              qty       close           value
+    EICHERMOT            38     7068.80      268,614.40
+    HCLTECH             263     1154.70      303,686.10
+    INFY                107     1197.50      128,132.50
+    ITC                 289      280.70       81,122.30
+    ITCHOTELS           843      153.18      129,130.74
+    LTF                 495      268.60      132,957.00
+    LTIM                 72     4027.20      289,958.40
+    M&MFIN              242      289.85       70,143.70
+    NTPC               1320      361.65      477,378.00
+    TCS                  59     2198.90      129,735.10
+    TECHM               240     1483.50      356,040.00
+    cash                                     869,829.04
+    EQUITY                                 3,236,727.28
+
+  B  as of the TRUE last trading day  (2026-06-08)
+    fills up to this day : 929
+    symbol              qty       close           value
+    BELRISE             412      215.72       88,876.64
+    HCLTECH             263     1154.70      303,686.10
+    ITCHOTELS           843      150.36      126,753.48
+    LT                   24     3953.20       94,876.80
+    LTIM                 72     3977.70      286,394.40
+    M&MFIN              242      280.75       67,941.50
+    NTPCGREEN           783       99.78       78,127.74
+    SHRIRAMFIN           80      896.65       71,732.00
+    TCS                  59     2198.90      129,735.10
+    cash                                   1,966,298.82
+    EQUITY                                 3,214,422.58
+
+  fills ON the true last day (2026-06-08): 10
+    side  symbol              qty       price           value
+    SELL  EICHERMOT            38     7017.00      266,646.00
+    SELL  INFY                107     1218.20      130,347.40
+    SELL  ITC                 289      279.60       80,804.40
+    SELL  LTF                 495      263.70      130,531.50
+    SELL  NTPC               1320      357.90      472,428.00
+    SELL  TECHM               240     1466.90      352,056.00
+    BUY   NTPCGREEN           783       99.75       78,104.25
+    BUY   SHRIRAMFIN           80      910.35       72,828.00
+    BUY   BELRISE             412      214.21       88,254.52
+    BUY   LT                   24     3965.90       95,181.60
+
+================================================================================================================
+  74   last recorded daily_equity day 2025-12-22   true last trading day 2025-12-23
+================================================================================================================
+
+  A  as of the last RECORDED day  (2025-12-22)
+    fills up to this day : 883
+    symbol              qty       close           value
+    ASIANPAINT           52     2807.60      145,995.20
+    BAJAJHLDNG            8    11255.00       90,040.00
+    DLF                 234      692.05      161,939.70
+    INDHOTEL            221      739.90      163,517.90
+    JSWSTEEL            144     1094.90      157,665.60
+    PIDILITIND          148     1459.20      215,961.60
+    PNB                1144      121.31      138,778.64
+    TITAN                50     3933.80      196,690.00
+    VEDL                271      585.65      158,711.15
+    cash                                   1,430,000.49
+    EQUITY                                 2,859,300.28
+
+  B  as of the TRUE last trading day  (2025-12-23)
+    fills up to this day : 883
+    symbol              qty       close           value
+    ASIANPAINT           52     2807.80      146,005.60
+    BAJAJHLDNG            8    11279.00       90,232.00
+    DLF                 234      694.25      162,454.50
+    INDHOTEL            221      738.10      163,120.10
+    JSWSTEEL            144     1096.80      157,939.20
+    PIDILITIND          148     1462.10      216,390.80
+    PNB                1144      120.90      138,309.60
+    TITAN                50     3925.80      196,290.00
+    VEDL                271      586.40      158,914.40
+    cash                                   1,430,000.49
+    EQUITY                                 2,859,656.69
+
+  fills ON the true last day (2025-12-23): 0
+
+================================================================================================================
+  MID   last recorded daily_equity day 2026-06-05   true last trading day 2026-06-08
+================================================================================================================
+
+  A  as of the last RECORDED day  (2026-06-05)
+    fills up to this day : 973
+    symbol              qty       close           value
+    ACC                 621     1329.80      825,805.80
+    BHEL               1585      386.95      613,315.75
+    GLENMARK            377     2166.20      816,657.40
+    JSL                1031      690.65      712,060.15
+    LUPIN               133     2268.10      301,657.30
+    MAHABANK           7234       79.19      572,860.46
+    SAIL               4074      190.45      775,893.30
+    SBICARD            1408      589.60      830,156.80
+    THERMAX             163     4832.10      787,632.30
+    cash                                     571,088.07
+    EQUITY                                 6,807,127.33
+
+  B  as of the TRUE last trading day  (2026-06-08)
+    fills up to this day : 985
+    symbol              qty       close           value
+    BHEL               1585      386.30      612,285.50
+    GVT&D                41     4744.00      194,504.00
+    IDEA              14538       14.40      209,347.20
+    LAURUSLABS          203     1404.70      285,154.10
+    MARICO              589      808.65      476,294.85
+    MCX                  88     2823.80      248,494.40
+    POWERINDIA            6    35010.00      210,060.00
+    SAIL               4074      184.00      749,616.00
+    THERMAX             163     4696.40      765,513.20
+    cash                                   2,949,636.65
+    EQUITY                                 6,700,905.90
+
+  fills ON the true last day (2026-06-08): 12
+    side  symbol              qty       price           value
+    SELL  ACC                 621     1318.00      818,478.00
+    SELL  GLENMARK            377     2144.80      808,589.60
+    SELL  JSL                1031      684.50      705,719.50
+    SELL  LUPIN               133     2259.60      300,526.80
+    SELL  MAHABANK           7234       78.38      567,000.92
+    SELL  SBICARD            1408      584.10      822,412.80
+    BUY   POWERINDIA            6    36255.00      217,530.00
+    BUY   MCX                  88     2725.10      239,808.80
+    BUY   MARICO              589      802.30      472,554.70
+    BUY   GVT&D                41     4907.50      201,207.50
+    BUY   IDEA              14538       14.84      215,743.92
+    BUY   LAURUSLABS          203     1434.10      291,122.30

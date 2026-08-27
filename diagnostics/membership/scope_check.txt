@@ -1,0 +1,65 @@
+====================================================================================================
+ A. HOW WIDESPREAD IS THE DIGIT-LEADING SYMBOL BUG?
+====================================================================================================
+  PDFs containing at least one digit-leading symbol: 11 of 79
+    ind_prs10082026.pdf        ['3MINDIA']
+    ind_prs15092021.pdf        ['250']
+    ind_prs16022017.pdf        ['100']
+    ind_prs16082012.pdf        ['3IINFOTECH']
+    ind_prs22022016_2.pdf      ['8KMILES']
+    ind_prs22082025.pdf        ['360ONE']
+    ind_prs25022019.pdf        ['8KMILES']
+    ind_prs25082011.pdf        ['3IINFOTECH']
+    ind_prs27042017.pdf        ['100']
+    ind_prs27082013.pdf        ['20MICRONS', '3IINFOTECH']
+    ind_prs28082018.pdf        ['3MINDIA']
+
+====================================================================================================
+ B. HEADING FORMS SEEN ACROSS ALL 79 PDFs (midcap-related only)
+====================================================================================================
+   21x  NIFTY Midcap 150
+   18x  NIFTY Midcap 50
+   17x  NIFTY LargeMidcap 250
+   12x  NIFTY Midcap 100
+   10x  NIFTY Midcap Liquid 15
+    9x  Nifty Midcap 50
+    9x  CNX Midcap Index
+    8x  Nifty Midcap 150
+    8x  Nifty Midcap Select
+    8x  Nifty Midcap 100
+    8x  Nifty LargeMidcap 250
+    8x  Nifty Midcap Liquid 15
+    6x  NIFTY Midcap 150 Index
+    5x  Nifty Midcap 50 Index
+    4x  NIFTY Full Midcap 100
+    4x  NIFTY Free float Midcap 100
+    3x  NIFTY Midcap 50 Index
+    3x  NIFTY Full Midcap 100 Index
+    2x  NIFTY Midcap Select
+    2x  NIFTY LargeMidcap 250 Index
+    2x  NIFTY Midcap Liquid 15 Index
+    2x  NIFTY Midcap150 Quality 50
+    2x  Nifty Midcap 150 Index
+    2x  Nifty Free Float Midcap 100 Index
+    1x  NIFTY Free Float Midcap 100 Index
+    1x  CNX Midcap
+    1x  Nifty Full Midcap 100 Index
+    1x  Nifty Midcap Liquid 15 Index
+    1x  Nifty Full Midcap 100
+    1x  IISL had announced revision of criteria and renaming of NIFTY Free float Midcap 100
+    1x  Nifty Midcap Liquid 15 Index **
+    1x  Nifty Free Float Midcap 100 Index (Formerly Nifty Midcap 100)
+    1x  NIFTY Midcap 100 Index
+    1x  LIX15 Midcap Index
+
+====================================================================================================
+ C. PDFs WHERE 'Nifty Midcap 50' MATCHED BUT 'Nifty Midcap 100' DID NOT
+====================================================================================================
+  count: 7
+    ind_prs03092012.pdf        midcap headings present: ['Nifty Midcap 50']
+    ind_prs13062019.pdf        midcap headings present: ['NIFTY Midcap 150', 'NIFTY LargeMidcap 250', 'NIFTY Midcap 50']
+    ind_prs16022017.pdf        midcap headings present: ['NIFTY Midcap 150', 'NIFTY Midcap 50', 'NIFTY Full Midcap 100', 'NIFTY Free float Midcap 100', 'NIFTY Midcap Liquid 15']
+    ind_prs21022018.pdf        midcap headings present: ['NIFTY Midcap 150', 'NIFTY Midcap 50', 'IISL had announced revision of criteria and renaming of NIFTY Free float Midcap 100', 'NIFTY LargeMidcap 250', 'NIFTY Midcap Liquid 15']
+    ind_prs27042017.pdf        midcap headings present: ['NIFTY Midcap 150', 'NIFTY Midcap 50', 'NIFTY Full Midcap 100', 'NIFTY Free float Midcap 100']
+    ind_prs28082017.pdf        midcap headings present: ['NIFTY Midcap 150', 'NIFTY Midcap 50', 'NIFTY Full Midcap 100', 'NIFTY Free float Midcap 100', 'NIFTY Midcap Liquid 15']
+    ind_prs29082017.pdf        midcap headings present: ['NIFTY Midcap 150', 'NIFTY Midcap 50', 'NIFTY Full Midcap 100', 'NIFTY Free float Midcap 100']

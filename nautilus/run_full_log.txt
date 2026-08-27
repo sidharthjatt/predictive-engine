@@ -1,0 +1,19 @@
+data from 2018-06-15 (warm-up) | trading 2019-01-01 to 2026-06-08
+  instruments 58 | events 212,822
+  score rows  97,757 over 1842 days
+
+  reports -> nautilus/reports/  (orders 891, fills 891, positions 451)
+
+  rebalances       : 93
+  orders submitted : 914
+  orders filled    : 891
+  open positions   : 11
+  cash             : Rs 589,832.13
+  positions value  : Rs 2,360,479.90
+  EQUITY           : Rs 2,950,312.03   (from Rs 1,000,000)
+
+  first 3 rebalance decisions:
+decided_on  breadth_pos  breadth_total  breadth  exposure  port_value  cash_before  invest_value  n_held_before  n_buy  n_sell
+2019-01-01           17             53   0.3208    0.3208  1000000.00   1000000.00     314339.62              0      7       0
+2019-01-29            8             53   0.1509    0.1509   973151.21    686061.91     143952.93              7      5       4
+2019-02-26           20             53   0.3774    0.3774   969329.60    779210.15     358469.06              8      5       5
