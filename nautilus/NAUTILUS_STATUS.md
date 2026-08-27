@@ -113,6 +113,25 @@ things, neither of which is a bug:
 > traced the reports directories and the universe scope, and this table was the
 > only place still presenting the retired pair as live.
 
+> **RESOLVED, 2026-08-27 — n100 is now recorded, and it is VERIFIED.**
+>
+> `nt_verify.py --universe=n100` was run on **2026-08-27 at 17:02** and the
+> complete output captured to **`diagnostics/nt_verify_n100.txt`** (58 lines).
+> The row below is transcribed from that artefact; nothing in it comes from
+> memory. The point-2 note above is left standing because it records what the
+> table claimed before the run, and why the numbers were withheld.
+>
+> Verdict as printed: **VERIFIED. On a 0.01 tick grid the port and the
+> open-valued reference agree on every holding at every rebalance.**
+>
+> Worth reading alongside the row: at the traded 0.05 grid, n100 matches the
+> close-valued reference on only **2 of 93** rebalances, with a max quantity
+> error of **14.29%**. That is the expected consequence of the two documented
+> differences — close-valued sizing and tick-snapped floor division — and it is
+> why ARM D exists as the fair baseline, where the figure is 89 of 93 with a max
+> error of 0.13%. Final equity: reference Rs 5,364,872, port Rs 5,387,623,
+> **+0.42%**.
+
 > **CORRECTION, 2026-08-23 — the `fills` column below is not a verification
 > result, and this table implied that it was.**
 >
@@ -141,7 +160,7 @@ things, neither of which is a bug:
 | universe | status | rebalances | fills (informational, not a gate) | symbol-set diffs | ARM A control | ARM D @0.05 | 0.01-tick reconciliation |
 |---|---|---|---|---|---|---|---|
 | mid  | **LIVE** | 93/93 | 985/985 | 0 | 93 of 93 | 92 of 93 | **93 of 93** — VERIFIED |
-| n100 | **LIVE** | *not recorded* | *not recorded* | *not recorded* | *not recorded* | *not recorded* | *NOT YET RECORDED — see correction above* |
+| n100 | **LIVE** | 93/93 | 997/997 | 0 | 93 of 93 | 89 of 93 | **93 of 93** — VERIFIED |
 | 58   | retired | 93/93 | 929/929 | 0 | 93 of 93 | 93 of 93 | **93 of 93** — VERIFIED |
 | 74   | retired | 87/87 | 883/883 | 0 | 87 of 87 | 86 of 87 | **87 of 87** — VERIFIED |
 
