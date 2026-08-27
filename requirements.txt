@@ -1,0 +1,31 @@
+# ===========================================================================
+# requirements.txt -- Algo Trading Project (DT + Attention-GRU + TD3 + Nautilus)
+#
+# IMPORTANT: nautilus_trader requires Python 3.12, 3.13, or 3.14.
+# Python 3.11 ya usse purana version kaam NAHI karega -- pehle apna
+# Python version check karo: python3 --version
+# ===========================================================================
+
+# --- Core data handling ---
+pandas>=2.2,<3.0
+numpy>=1.26,<2.3
+pyarrow>=14.0
+
+# --- Classical ML (Decision Tree) ---
+scikit-learn>=1.5,<1.10
+
+# --- Deep Learning (Attention-GRU) ---
+torch>=2.2,<2.13
+
+# --- Reinforcement Learning (TD3) ---
+gymnasium>=0.29,<1.4
+stable-baselines3>=2.3,<3.0
+
+# --- Backtesting engine ---
+nautilus_trader>=1.220,<1.230
+
+# --- Plotting / equity curve charts ---
+matplotlib>=3.8,<3.12
+
+# --- Misc utilities ---
+joblib>=1.3

@@ -1,0 +1,84 @@
+================================================================================
+NOTE ADDED 2026-08-13 -- ALL VERDICTS BELOW PREDATE THE FEATURE-DENSITY FIX
+================================================================================
+Every experiment recorded here was run on a panel produced BEFORE the
+beta_60 / idio_vol_60 density fix of 2026-08-13. That bug computed both features
+with rolling(60) over the union date index, so a symbol that did not trade on a
+union date lost its next 60 windows and those rows were dropped from training.
+
+The baseline these verdicts sit against has moved:
+
+    58 universe : CAGR 16.45% -> 13.16%   Sharpe 1.36 -> 1.11
+    74 universe : CAGR 14.65% -> 15.22%   Sharpe 1.27 -> 1.35
+
+THE VERDICTS ARE NOT WITHDRAWN. Both arms of every experiment used the same
+panel, so each comparison remains internally valid; what changed is the baseline
+they are measured against, not the contrast between arms.
+
+THE EXPERIMENTS ARE DELIBERATELY NOT RE-RUN. Re-testing seventeen hypotheses on a
+new panel to see whether any now passes is exactly the multiple-testing failure
+that pre-registration exists to prevent. Any re-test would need its own
+pre-registration, written before the numbers are seen, and would have to carry
+the full trial count.
+================================================================================
+
+REJECTED EXPERIMENTS -- FULL RECORD
+====================================
+Har idea DONO universe (58 + 74) pe test hua, sub-period split ke saath.
+Accept rule pehle se tay: dono universe pe Sharpe behtar + dono halves pass.
+
+BASELINE (current, accepted):
+  58 v2: CAGR 18.80%  Sharpe 1.54  MaxDD -16.63%
+  74 v2: CAGR 16.94%  Sharpe 1.45  MaxDD -17.02%
+
+--- EXPOSURE / CASH MANAGEMENT (5 tried, 0 accepted) ---
+sqrt breadth        58: Sharpe 1.43->1.19, MaxDD -20->-27      REJECT
+median breadth      58: Sharpe 1.43->1.13, MaxDD -30%          REJECT
+conditional cut.20  58: 1.54->1.50 | 74: 1.45->1.37, DD -21.3  REJECT
+conditional cut.30  58: 1.54->1.50 | 74: 1.45->1.43            REJECT
+percentile          58: 1.54->1.52 | 74: 1.45->1.50 (mixed)    REJECT
+  NOTE: diagnostic showed exposure already spans 0-100%; the 64.6% is only
+  the 7.4-year AVERAGE. Problem is timing, not range -- and 5 attempts at
+  better timing all failed.
+
+breadth delta k=1/2/3  58: 1.54->1.53/1.47/1.43 | 74 sub-periods dono me
+                     current jeeta (2.30 vs 1.98)                REJECT
+  (6th and final attempt on exposure. Breadth signal is fully extracted;
+   linear mapping is its optimal use. Question closed.)
+
+--- CONCENTRATION (2 tried, 1 accepted) ---
+top-8 (from top-12)  58: 1.43->1.54 | 74: 1.28->1.45           ACCEPT
+dynamic (IC-based)   58: 1.54->1.39 | 74: 1.45->1.27           REJECT
+
+--- FEATURES (2 tried, 0 accepted) ---
+EWMA vol .94/.97     58: 1.54->1.36 | validation 4/4 -> 1/4    REJECT
+EWMA matched .952    58: 1.54->1.45 | validation still 1/4     REJECT
+  (full detail in ewma_vs_rolling_REPORT.txt)
+
+--- SIGNAL COMBINATION (2 tried, 0 accepted) ---
+multi-signal equal   combined IC -0.003 (negative factors drag) REJECT
+IC-weighted          IC 0.0174 vs LightGBM's 0.036              REJECT
+
+--- TRAINING SCHEME (5 tried, 0 accepted) ---
+Two questions, answered separately (2x2 design):
+
+  Q1 "Does MORE data help?"  -> rolling vs expanding
+     58 Sharpe:  expanding 1.54 | 3y 1.32 | 2y 0.97 | 1y 1.13
+     74 Sharpe:  expanding 1.45 | 3y 1.30 | 2y 1.11 | 1y 1.26
+     -> YES, more data is better. Expanding wins both universes.
+
+  Q2 "Does FADING old data help?" -> sample_weight = lambda^(age months)
+     58 Sharpe:  uniform 1.54 | L.95 1.34 | L.98 1.48 | L.995 1.56
+     74 Sharpe:  uniform 1.45 | L.95 1.09 | L.98 1.40 | L.995 1.44
+     -> NO. Monotonic: more fade = worse. Uniform wins.
+     LITMUS PASSED: lambda .995 (N_eff 33 years >> 8-year dataset) reproduced
+     uniform almost exactly, confirming the test itself was sound.
+
+  Conclusion: old data (2016-18) is still relevant. Retraining scheme is not
+  the lever. Question closed.
+
+====================================
+OVERALL: 11 rejected, 1 accepted (top-8).
+Construction-level levers are exhausted. The system is near-optimal on this
+data. Real improvement needs NEW DATA (fundamentals) or a LESS EFFICIENT
+UNIVERSE (mid/small caps, the 1200-stock plan) -- not more tuning.

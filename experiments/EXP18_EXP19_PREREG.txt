@@ -1,0 +1,191 @@
+EXP18 and EXP19 -- RANKING QUALITY
+================================================================================
+Written BEFORE either experiment is run. Nothing below may be changed once a
+result has been seen. If a rule turns out to be badly specified, the experiment is
+abandoned and re-registered, not edited.
+
+Trial count: these are the 20th and 21st tested ideas on this dataset. 19 tested
+so far, 1 accepted (top-8 selection).
+
+SCOPE: both target RANKING. Breadth and exposure are out of scope -- that family
+is closed after EXP15, EXP16 and EXP17.
+
+
+--------------------------------------------------------------------------------
+THE MEASURED PROBLEM
+--------------------------------------------------------------------------------
+On the 58 universe, per year, mean absolute standalone feature IC against the
+model's own IC:
+
+                2019     2023     2026
+  features     0.0340   0.0497   0.0344
+  MODEL       +0.0464  +0.0897  -0.0441
+
+The features have not decayed. Mean absolute feature IC in 2026 is 0.0344,
+essentially identical to 2019's 0.0340, and individual features are strong:
+beta_60 +0.1200, amihud_20 +0.0682, downside_vol_60 +0.0678, vol_20 +0.0557.
+
+The model went from +0.0897 to -0.0441. It is not merely failing to extract the
+signal; by 2026 it is extracting it with the wrong sign.
+
+The mechanism is visible in the sign-agreement row of the same diagnostic: only
+1 of 17 features holds a single sign across all eight years, and agreement with
+2019's signs falls from 17 to between 7 and 10. beta_60 runs -0.0554 in 2019 to
++0.1200 in 2026 -- a full reversal.
+
+An expanding-window model weights all history equally, so it learns each feature's
+historical average sign. For a feature that has reversed, that average is wrong
+for the present.
+
+74: model IC roughly equals mean feature IC; 0 of 17 features hold one sign.
+mid: model IC stays ABOVE mean feature IC throughout (+0.0417 vs 0.0379 in 2026).
+     The model is still adding value there, which is why "the model is broken" is
+     too broad a statement and why both experiments must run on all three.
+
+WHY NOT A DIFFERENT MODEL
+    Replacing LightGBM with a sequence model, a transformer, or a larger ensemble
+    does not address this. Any learner fed features whose sign reverses will learn
+    the historical average sign. The problem is the feature set's stability, not
+    the function approximator. Neither experiment below changes the model.
+
+WHAT HAS ALREADY FAILED, SO IS NOT RETRIED
+    Faster adaptation. Decay-weighted training was tested and was monotonically
+    worse: lambda=0.95 gave Sharpe 1.34, lambda=0.98 gave 1.48, uniform gave 1.54.
+    Decay shrinks the effective sample. EXP18 keeps the full sample and reduces the
+    number of features instead -- the opposite lever, which is why it is not a
+    repeat of that test.
+
+
+================================================================================
+EXP18 -- SIGN-STABILITY FEATURE FILTER
+================================================================================
+
+THE CLAIM
+    A feature whose sign reverses is not a weak feature; it is noise the model is
+    being asked to memorise. Training on only the features whose relationship with
+    forward returns has held its direction should produce a model whose IC does not
+    invert.
+
+THE METHOD
+    For each feature, compute its rolling 24-month standalone Spearman IC against
+    20-day forward cross-sectional rank. A feature is "sign-stable" at time t if
+    the sign of that rolling IC has been the same in at least 70% of the rolling
+    windows ending at or before t.
+
+    Retrain the model on the sign-stable subset only. Everything else -- the
+    model, its hyperparameters, the 10 seeds, the 32-day purge, the monthly
+    expanding walk-forward, TOP_N, BUFFER, breadth, sizing -- is unchanged.
+
+CAUSALITY -- THE PART THAT MUST NOT BE GOT WRONG
+    The filter is recomputed at every rebalance using ONLY data available at that
+    date. A feature that becomes unstable in 2024 is still included in the 2020
+    model. Selecting the stable set once over the full history and applying it
+    backwards would be look-ahead of the most flattering kind, and would make the
+    result meaningless.
+
+    Report, per year, which features were in the stable set. If the set is
+    identical in every year, the filter is not causal and the run is void.
+
+THE 70% AND 24-MONTH CHOICES
+    Both are fixed here and not tuned. 24 months because it is two full annual
+    cycles and matches the order of the existing 252-day windows; 70% because it
+    is a clear majority without demanding near-perfect stability, which measurement
+    shows only 1 of 17 features achieves. No other values will be tried.
+
+ACCEPT ONLY IF ALL FOUR HOLD
+  A. Model IC over 2024-2026 is positive in ALL THREE universes.
+     This is the point of the experiment. A Sharpe improvement without an IC
+     improvement would mean something else caused it.
+  B. Sharpe is not lower in ANY universe.
+  C. Both sub-periods pass in all three universes (2019-2022 and 2023 onward):
+     Sharpe not lower and CAGR not lower in each.
+  D. NOISE CONTROL. Re-run with a randomly chosen feature subset of the SAME SIZE
+     as the stable set in each period, 20 independent draws, seeds recorded. The
+     real filter's Sharpe improvement must exceed the 90th percentile of the
+     random draws in ALL THREE universes.
+     If choosing any n features does as well as choosing the stable n, the
+     stability criterion carries no information and the gain is from having fewer
+     features, not the right ones.
+
+REJECT on any single failure. One batch. No variants -- no 80% threshold, no
+36-month window, no "stable plus the two best unstable ones".
+
+HONEST EXPECTATION, RECORDED IN ADVANCE
+    Genuinely uncertain, which is unusual for this project -- most experiments here
+    were expected to fail. The measured fact that features are strong while the
+    model is inverted is a specific, mechanical problem with a specific, mechanical
+    response, and that is a better setup than the exposure experiments had.
+
+    The main way it fails: only 1 of 17 features is sign-stable across all eight
+    years. A 70% threshold over rolling windows will admit more than one, but if
+    the stable set is 3 to 5 features, the model may not have enough to rank 58 to
+    148 names, and Gate D may show that any 4 features do as well.
+
+
+================================================================================
+EXP19 -- SIGN-CORRECTED FEATURES
+================================================================================
+
+Run ONLY if EXP18 is rejected. If EXP18 is accepted, this is not run -- the
+problem is solved and testing a second remedy on the same data is mining.
+
+THE CLAIM
+    Dropping a reversed feature discards information. beta_60's IC in 2026 is
+    +0.1200 -- the strongest single feature in the universe. It is not useless; its
+    direction has changed. Orienting each feature by its own recent relationship,
+    rather than dropping it, keeps the information and fixes the sign.
+
+THE METHOD
+    At each rebalance, for each feature, compute the sign of its trailing 24-month
+    standalone IC using only data available at that date. Multiply the feature by
+    that sign before it enters the model. All 17 features are retained.
+
+    Everything else unchanged. Same causality requirement as EXP18: the sign is
+    computed from trailing data only, recomputed at every rebalance, and the
+    per-year sign vector must be reported. An identical sign vector across all
+    years means the implementation is not causal and the run is void.
+
+ACCEPT ONLY IF ALL FOUR HOLD
+  A. Model IC over 2024-2026 is positive in ALL THREE universes.
+  B. Sharpe is not lower in ANY universe.
+  C. Both sub-periods pass in all three universes.
+  D. NOISE CONTROL. Re-run with RANDOM signs -- each feature multiplied by +1 or
+     -1 drawn at random, 20 independent draws, seeds recorded. The real
+     sign-correction must exceed the 90th percentile in ALL THREE universes.
+     A random sign flip changes the feature set the model sees. If that does as
+     well, the gain is from perturbation, not from getting the direction right.
+
+REJECT on any single failure. One batch. No variants.
+
+HONEST EXPECTATION
+    Lower than EXP18. Sign-flipping a feature on a 24-month trailing window will
+    itself be unstable near a reversal, and the flip arrives after the reversal has
+    already cost something. It is a lagging correction to a lagging problem.
+
+
+================================================================================
+IF BOTH ARE REJECTED
+================================================================================
+That is an answer, and it should be recorded as one rather than followed by a
+third attempt.
+
+It would mean the features carry standalone predictive power that no
+causally-available reweighting of them converts into model IC on recent data --
+which is a finding about this feature set on this dataset, and a more useful thing
+to be able to state than another rejected variant.
+
+The remaining lever at that point is breadth, not IC: a larger universe raises BR
+in IR = IC x sqrt(BR). That is what the survivorship work unlocks, and it is a
+different axis from anything tested here.
+
+
+================================================================================
+OUTPUT
+================================================================================
+Whatever the outcome, write results to rejected_experiments_REPORT.txt format,
+including for each experiment: all four gate results, the noise-control
+distribution, the per-year feature set or sign vector (the causality evidence),
+and the per-year model IC table against the unchanged baseline.
+
+Do not modify anything in results/ or results74/. Work in a separate script.
+English only.

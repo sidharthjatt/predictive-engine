@@ -1,0 +1,145 @@
+EXP21 and EXP22
+================================================================================
+Written BEFORE either experiment is run. Nothing below may be changed once a
+result has been seen. If a rule turns out to be badly specified, the experiment is
+abandoned and re-registered, not edited.
+
+Trial count: the 22nd and 23rd tested ideas on this dataset. 21 tested so far, 1
+accepted (top-8 selection). EXP18 rejected, EXP19 never run, EXP20 rejected on
+Gate C.
+
+ORDER: EXP21 runs first. EXP22 runs REGARDLESS of EXP21's outcome -- they target
+different problems (unfilled capital versus position size) and neither is a
+variant of the other.
+
+SCOPE NOTE: both are execution and portfolio-construction changes. Neither touches
+the model, the 17 features, the 10 seeds, the 32-day purge, the monthly expanding
+walk-forward, TOP_N=8, BUFFER=16, breadth, SAFETY=0.98 or CASH_YIELD=0.0.
+
+
+================================================================================
+EXP21 -- REDEPLOY UNFILLED CASH
+================================================================================
+
+THE MEASURED PROBLEM
+    Under DEPTH_MODE="volume", mid has 5 PARTIALLY_FILLED orders with a shortfall
+    of 50,551 shares that never fill (diagnostics/exp20_result.txt and the partial
+    fill check). The capital behind that shortfall sits idle until the next
+    rebalance, 20 trading days later.
+
+THE CLAIM
+    A real system would not leave it idle. It would route the money to the next
+    name it could actually buy. Leaving it in cash is an artefact of the backtest
+    submitting one order per name and never looking again.
+
+NOT A VARIANT OF EXP20
+    EXP20 excluded untradeable names from the candidate set outright and was
+    rejected on Gate C. This does the opposite: it keeps every name, fills what
+    the book allows, and redeploys only the remainder. The two are different
+    mechanisms answering different questions, and this is recorded here so that
+    running it after EXP20's rejection is not mistaken for retrying a rejected
+    idea with a new threshold.
+
+THE RULE
+    When an order fills short of its target quantity, the unfilled RUPEE VALUE is
+    offered to the next-ranked eligible name not already held, in strict rank
+    order, subject to the same depth constraint. At most TWO redeployment attempts
+    per rebalance; after that the residual stays in cash.
+
+    Two attempts is fixed here and no other value will be tried. It is chosen as
+    the smallest number that allows a second failure to be absorbed rather than
+    ending the chain, without turning the rule into an unbounded search down the
+    ranking.
+
+ACCEPT ONLY IF ALL FIVE HOLD
+  A. mid CAGR under "volume" improves.
+  B. mid Sharpe under "volume" not lower.
+  C. Both sub-periods pass, 2019-2022 and 2023 onward: Sharpe not lower AND CAGR
+     not lower in each.
+  D. Unfilled shortfall falls by more than half.
+  E. n100 unchanged to within 0.10 CAGR. It has zero partial fills, so material
+     movement means something other than redeployment is happening.
+
+REJECT on any single failure. One batch. No variants.
+
+HONEST EXPECTATION
+    Small effect. 5 orders out of 985 is not much, and the redeployed names are
+    lower-ranked by construction, so the capital goes to worse ideas than the one
+    it could not buy. Gate D should pass mechanically; A, B and C are the real
+    test, and there is no strong reason to expect them to.
+
+
+================================================================================
+EXP22 -- POSITION TRIM RULE
+================================================================================
+
+THE MEASURED PROBLEM
+    Existing holdings are never resized once bought. This is stated in the
+    forensic log's own legend: "Existing holdings are never resized. Only new
+    positions are sized against the target exposure, so the actual invested
+    percentage can drift from the target."
+
+    LLOYDSME ran from Rs 13.90 to Rs 1,711.20, roughly 123x, and its weight grew
+    without limit. That is the direct mechanism behind mid's concentration:
+    removing LLOYDSME takes mid's edge over its own buy&hold from +1.99 to +0.02,
+    and removing TATAINVEST takes it to -0.30.
+
+    TOP_N was tested (mid_topn_test.py) and failed its concentration gate. TOP_N
+    changes how many names are held, not how large any one may become. This
+    targets the size directly, which nothing tested so far has done.
+
+    This was flagged as a pending design question early in this project and never
+    tested. It is being tested now rather than left as a note.
+
+THE RULE
+    At each rebalance, any held position whose weight exceeds 20% of portfolio
+    value is trimmed back to 20%. The proceeds go to cash and are available to
+    that rebalance's buys. Applies to held names REGARDLESS OF RANK -- a top-ranked
+    name is trimmed the same as a buffer-ranked one, because the rule is about
+    size, not conviction.
+
+    20% is fixed here and no other threshold will be tried. With TOP_N=8 the equal
+    weight is 12.5%, so 20% is 1.6x equal weight -- chosen as a clear excess rather
+    than a tuned value.
+
+ACCEPT ONLY IF ALL FIVE HOLD
+  A. mid Sharpe not lower, in BOTH depth modes.
+  B. mid MaxDD not worse by more than 2.0 points.
+  C. Both sub-periods pass, 2019-2022 and 2023 onward.
+  D. THE CONCENTRATION TEST IMPROVES MATERIALLY. Removing the single largest PnL
+     contributor must leave the edge above +1.00, against the current +0.02.
+     THIS IS THE POINT OF THE EXPERIMENT. A CAGR gain without a concentration
+     improvement is NOT a pass, and D cannot be traded off against A or B.
+  E. n100 unchanged to within 0.10 CAGR.
+
+REJECT on any single failure. One batch. No variants.
+
+HONEST EXPECTATION
+    CAGR falls, because trimming a 123x winner cuts the thing that produced the
+    return. The question is whether Gate D improves enough to justify it.
+    REJECTION IS MORE LIKELY THAN ACCEPTANCE, and that is recorded before the run
+    so a rejection cannot later be presented as an unexpected disappointment.
+
+
+================================================================================
+REPORTING, WHATEVER THE OUTCOME
+================================================================================
+Both experiments, both depth modes ("unlimited" and "volume"), both universes:
+CAGR, Sharpe, MaxDD, trade count, fill count.
+
+Against BOTH benchmarks for each universe:
+  - the published cap-weighted index (NIFTY100.csv, NIFTYMIDCAP150.csv)
+  - the own-universe equal-weight buy&hold, RECOMPUTED where the universe changes.
+    Neither rule here drops names from the candidate set, so the buy&hold basket
+    is unchanged for both -- that is stated and checked rather than assumed.
+
+Plus, for EXP21: the shortfall in shares before and after, and the redeployment
+count. For EXP22: the trim count, the largest weight before and after, and the
+full leave-one-out concentration table.
+
+
+================================================================================
+OUTPUT
+================================================================================
+Separate script. Nothing written into results/, results_mid/ or results_n100/.
+Results to diagnostics/. English only. No tuning.

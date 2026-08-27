@@ -1,0 +1,72 @@
+========================================================================================================
+ EQUITY DISCREPANCY -- run's EQUITY line vs nt_verify's daily_equity last row
+========================================================================================================
+
+========================================================================================================
+  58 universe   (trading_end configured 2026-06-08)
+========================================================================================================
+  run output   : cash             : Rs 1,966,298.82
+                 positions value  : Rs 1,248,123.76
+                 EQUITY           : Rs 3,214,422.58   (from Rs 1,000,000)
+  daily_equity : last row date 2026-06-05  cash 869,829.04  mtm 2,366,898.24  equity 3,236,727.28
+  daily_equity rows 1841   first 2019-01-01  last 2026-06-05
+  strat.last_close holds 58 symbols (final state, after the run)
+
+  columns in daily_equity: ['date', 'cash', 'mtm', 'equity']
+  last 5 daily_equity rows:
+      date      cash        mtm     equity
+2026-06-01 869829.04 2436138.41 3305967.45
+2026-06-02 869829.04 2469305.94 3339134.98
+2026-06-03 869829.04 2384333.35 3254162.39
+2026-06-04 869829.04 2385428.99 3255258.03
+2026-06-05 869829.04 2366898.24 3236727.28
+
+========================================================================================================
+  74 universe   (trading_end configured 2025-12-23)
+========================================================================================================
+  run output   : cash             : Rs 1,430,000.49
+                 positions value  : Rs 1,429,656.20
+                 EQUITY           : Rs 2,859,656.69   (from Rs 1,000,000)
+  daily_equity : last row date 2025-12-22  cash 1,430,000.49  mtm 1,429,299.79  equity 2,859,300.28
+  daily_equity rows 1731   first 2019-01-01  last 2025-12-22
+  strat.last_close holds 74 symbols (final state, after the run)
+
+  columns in daily_equity: ['date', 'cash', 'mtm', 'equity']
+  last 5 daily_equity rows:
+      date       cash        mtm     equity
+2025-12-16 1430000.49 1414350.82 2844351.31
+2025-12-17 1430000.49 1407408.42 2837408.91
+2025-12-18 1430000.49 1409046.70 2839047.19
+2025-12-19 1430000.49 1420598.28 2850598.77
+2025-12-22 1430000.49 1429299.79 2859300.28
+
+========================================================================================================
+  MID universe   (trading_end configured 2026-06-08)
+========================================================================================================
+  run output   : cash             : Rs 2,949,636.65
+                 positions value  : Rs 3,751,269.25
+                 EQUITY           : Rs 6,700,905.90   (from Rs 1,000,000)
+  daily_equity : last row date 2026-06-05  cash 571,088.07  mtm 6,236,039.26  equity 6,807,127.33
+  daily_equity rows 1841   first 2019-01-01  last 2026-06-05
+  strat.last_close holds 148 symbols (final state, after the run)
+
+  columns in daily_equity: ['date', 'cash', 'mtm', 'equity']
+  last 5 daily_equity rows:
+      date      cash        mtm     equity
+2026-06-01 571088.07 6408498.86 6979586.93
+2026-06-02 571088.07 6403771.84 6974859.91
+2026-06-03 571088.07 6332640.10 6903728.17
+2026-06-04 571088.07 6300603.65 6871691.72
+2026-06-05 571088.07 6236039.26 6807127.33
+
+================================================================================================================
+ SUMMARY -- both figures are arithmetically correct; they are DIFFERENT DAYS
+================================================================================================================
+
+  univ   daily_equity last  port @that day  ref @that day     delta   |   true last    port @true    ref @true     delta
+  58            2026-06-05       3,236,727      3,237,591      -864   |  2026-06-08     3,214,423    3,215,299      -876
+       daily_equity rows 1841 vs reference 1842   missing day 2026-06-08   fills on it: 10   gap -22,304.70
+  74            2025-12-22       2,859,300      2,858,851       449   |  2025-12-23     2,859,657    2,859,207       449
+       daily_equity rows 1731 vs reference 1732   missing day 2025-12-23   fills on it: 0   gap +356.41
+  mid           2026-06-05       6,807,127      6,813,161    -6,033   |  2026-06-08     6,700,906    6,706,985    -6,079
+       daily_equity rows 1841 vs reference 1842   missing day 2026-06-08   fills on it: 12   gap -106,221.43

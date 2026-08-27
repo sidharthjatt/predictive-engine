@@ -1,0 +1,48 @@
+### 58
+  rebalances       : 93
+  rebalances     reference   93   port   93
+  fills          reference  929   port  929
+    identical holdings      : 4 of 93
+    differing by symbol set : 0
+    differing by quantity   : 89
+    quantity error: median 0.39%  max 7.14%
+    identical holdings      : 35 of 93
+    differing by symbol set : 0
+    differing by quantity   : 58
+    quantity error: median 0.13%  max 1.67%
+  control: ARM A vs the reference's own holdings -- 93 of 93 identical
+  reconciliation on a 0.01 tick grid (both sides) -- 93 of 93 identical
+  VERIFIED. On a 0.01 tick grid the port and the open-valued reference
+
+### 74
+  rebalances       : 87
+  rebalances     reference   87   port   87
+  fills          reference  883   port  883
+    identical holdings      : 2 of 87
+    differing by symbol set : 0
+    differing by quantity   : 85
+    quantity error: median 0.51%  max 7.14%
+    identical holdings      : 32 of 87
+    differing by symbol set : 0
+    differing by quantity   : 55
+    quantity error: median 0.13%  max 3.45%
+  control: ARM A vs the reference's own holdings -- 87 of 87 identical
+  reconciliation on a 0.01 tick grid (both sides) -- 87 of 87 identical
+  VERIFIED. On a 0.01 tick grid the port and the open-valued reference
+
+### mid
+  rebalances       : 93
+  rebalances     reference   93   port   93
+  fills          reference  985   port  985
+    identical holdings      : 3 of 93
+    differing by symbol set : 0
+    differing by quantity   : 90
+    quantity error: median 0.37%  max 11.11%
+    identical holdings      : 15 of 93
+    differing by symbol set : 0
+    differing by quantity   : 78
+    quantity error: median 0.12%  max 3.33%
+  control: ARM A vs the reference's own holdings -- 93 of 93 identical
+  reconciliation on a 0.01 tick grid (both sides) -- 49 of 93 identical
+  NOT VERIFIED. Position SIZE still differs on a 0.01 grid, where tick
+

@@ -1,0 +1,140 @@
+EXP17 -- A SECOND REGIME INPUT ALONGSIDE BREADTH
+================================================================================
+Written BEFORE the experiment is run. Nothing below may be changed once a result
+has been seen. If a rule here turns out to be badly specified, the experiment is
+abandoned and re-registered, not edited.
+
+Trial count: this is the 18th tested idea on this dataset. 17 tested so far,
+1 accepted (top-8 selection). Two exposure experiments were rejected immediately
+before this one: EXP15 (panic exit) and EXP16 (index trend gate).
+
+
+--------------------------------------------------------------------------------
+1. THE QUESTION
+--------------------------------------------------------------------------------
+The system sets exposure = breadth, where breadth is the fraction of the universe
+with positive 20-day momentum. Measured behaviour of that rule:
+
+    breadth < 0.35 (18 of 93 rebalances) -> next 20 days average +0.36%, up 44%
+    breadth > 0.65 (31 of 93 rebalances) -> next 20 days average +2.76%, up 81%
+    Spearman IC of breadth vs next 20-day return: +0.19
+
+So breadth carries real information. The complaint is not about the signal, it is
+about deployment: average capital deployed is 55%, and breadth exceeds 0.80 on
+only 12 of 93 rebalances. In a rising market the system is not fully invested.
+
+EXP15 and EXP16 both tried to fix this by re-shaping the SAME signal, and both
+failed. This experiment asks a different question: does a second, largely
+independent regime signal add anything on top of breadth?
+
+
+--------------------------------------------------------------------------------
+2. THE CANDIDATE, AND HOW IT WAS CHOSEN  (declared, because it matters)
+--------------------------------------------------------------------------------
+Six candidate signals were screened on this same data, none of them derived from
+20-day momentum:
+
+    signal            corr w/ breadth    IC vs fwd20    |t|
+    dispersion_60          +0.12            +0.221      2.16
+    skew_60                -0.12            -0.217      2.13
+    idx_vol_60             +0.05            +0.132      1.27
+    downside_ratio         -0.43            -0.143      1.38
+    breadth_ma200          +0.46            -0.022      0.21
+    vol_of_vol             +0.11            +0.006      0.06
+
+dispersion_60 is taken forward. It has the highest IC and is nearly uncorrelated
+with breadth, which is the property being sought.
+
+THE HONEST PROBLEM WITH THAT: it was selected as the best of six on the same 93
+observations it will now be tested on. A |t| of 2.16 is not impressive after
+six looks -- a Bonferroni-style correction would want roughly 2.9. The screen is
+therefore treated as hypothesis generation, not evidence, and Gate D below exists
+specifically to catch the case where this is noise.
+
+    dispersion_60 = 60-day mean of the cross-sectional standard deviation of
+                    daily returns across the universe.
+
+Economic reading: high dispersion means stocks are moving apart, which is the
+condition under which a cross-sectional ranking system has something to rank.
+Low dispersion means everything moves together and selection cannot add value.
+This is a different claim from breadth, which measures direction, not spread.
+
+
+--------------------------------------------------------------------------------
+3. THE FUNCTIONAL FORM  (fixed here, before any result)
+--------------------------------------------------------------------------------
+    d_pct   = percentile rank of dispersion_60 within its own trailing 3 years,
+              computed causally (no future data), in [0, 1]
+    tilt    = 0.5 + d_pct                      -> range [0.5, 1.5]
+    exposure = clip(breadth * tilt, 0.0, 1.0)
+
+Notes on why this form and not another:
+
+  - Multiplicative, so when breadth is zero exposure is zero. The second signal
+    may not override the first; it may only scale it.
+  - Percentile rather than a raw level, so no absolute threshold is fitted and the
+    signal is scale-free across regimes.
+  - The [0.5, 1.5] band is symmetric around 1.0, so the rule cannot raise average
+    deployment by construction -- it must earn any gain by timing.
+  - Trailing 3 years for the percentile window. Not tuned. Chosen because it is
+    the same order as the 252-day windows already in the system.
+
+NO variants of this form will be tried. If it fails, the failure is recorded and
+the question is closed, exactly as EXP15 and EXP16 were closed.
+
+
+--------------------------------------------------------------------------------
+4. ACCEPT / REJECT RULE
+--------------------------------------------------------------------------------
+ACCEPT only if ALL FOUR hold:
+
+  A. Sharpe is not lower in EITHER universe (58 and 74).
+
+  B. CAGR improves by more than 1.0 pt in BOTH universes.
+     Rationale: the whole point is deployment, so a return improvement is the
+     claim being made. A Sharpe-only gain does not pass -- EXP15 and EXP16 both
+     produced small Sharpe wobbles in one universe while failing the other.
+
+  C. Both sub-periods pass in both universes:
+     58: 2019-2022 and 2023-2026    74: 2019-2022 and 2023-2025
+     "Pass" means Sharpe not lower and CAGR not lower in that sub-period.
+
+  D. NOISE CONTROL. Re-run with the dispersion series randomly shuffled across
+     rebalance dates, 20 independent shuffles, same seed set recorded. The real
+     signal's CAGR improvement must exceed the 90th percentile of the shuffled
+     improvements in BOTH universes.
+     If shuffled dispersion produces a similar gain, the gain is not information.
+     This gate exists because the candidate was chosen from a screen of six.
+
+REJECT on any single failure. One batch. No re-runs with a different tilt band,
+a different percentile window, or skew_60 substituted in.
+
+skew_60 is NOT tested here and is NOT a fallback. If EXP17 is rejected, testing
+the runner-up from the same screen is simply continuing to mine the same data.
+
+
+--------------------------------------------------------------------------------
+5. HONEST EXPECTATION, RECORDED IN ADVANCE
+--------------------------------------------------------------------------------
+Rejection, most likely at Gate D.
+
+Reasons: the Fundamental Law states IR is approximately IC x sqrt(BR). Measured
+here, IC is about 0.036 and breadth about 27, giving IR near 0.97 -- which is
+close to what the system achieves. An exposure rule changes neither IC nor BR,
+which is why twelve portfolio-construction experiments and then EXP15 and EXP16
+all failed. There is no strong reason this one is different in kind.
+
+The reason to run it anyway: EXP15 and EXP16 both re-shaped the existing signal.
+This is the first attempt to add an independent one, and that is a genuinely
+different question. It deserves one clean test.
+
+
+--------------------------------------------------------------------------------
+6. OUTPUT
+--------------------------------------------------------------------------------
+Whatever the outcome, write the result to rejected_experiments_REPORT.txt format,
+including: the four gate results, the shuffled-control distribution, and the
+number of rebalances where exposure differed from baseline by more than 5 points.
+
+Do not modify anything in results/ or results74/. Work in a separate script.
+English only.

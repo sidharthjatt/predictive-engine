@@ -1,0 +1,33 @@
+====================================================================================================
+ BAR-TICK FIX -- A/B. 'before' = bar OHLC snapped to the tick (old). 'after' = raw bars.
+====================================================================================================
+
+ 58   rebalances 93
+                                               before           after   delta
+   final equity (0.05 nse)               3,236,149.21    3,236,727.28   +578.07
+   fills (0.05)                                929.00          929.00   +0.00
+   identical vs ARM D @0.05                     35.00           93.00   +58.00
+   fills @0.01                                 929.00          929.00   +0.00
+   fill prices off the 0.01 grid                 0.00            0.00   +0.00
+   0.01 tick_proof identical                       93              93   +0  of 93
+   symbol-set diffs @0.01: before 0  after 0
+
+ 74   rebalances 87
+                                               before           after   delta
+   final equity (0.05 nse)               2,858,906.90    2,859,300.28   +393.38
+   fills (0.05)                                883.00          883.00   +0.00
+   identical vs ARM D @0.05                     32.00           86.00   +54.00
+   fills @0.01                                 883.00          883.00   +0.00
+   fill prices off the 0.01 grid                 0.00            0.00   +0.00
+   0.01 tick_proof identical                       87              87   +0  of 87
+   symbol-set diffs @0.01: before 0  after 0
+
+ MID  rebalances 93
+                                               before           after   delta
+   final equity (0.05 nse)               6,805,825.55    6,807,127.33   +1,301.78
+   fills (0.05)                                985.00          985.00   +0.00
+   identical vs ARM D @0.05                     15.00           92.00   +77.00
+   fills @0.01                                 985.00          985.00   +0.00
+   fill prices off the 0.01 grid                 0.00            0.00   +0.00
+   0.01 tick_proof identical                       49              93   +44  of 93
+   symbol-set diffs @0.01: before 0  after 0

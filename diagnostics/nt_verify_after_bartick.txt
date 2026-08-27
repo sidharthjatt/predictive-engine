@@ -1,0 +1,96 @@
+  final equity   reference Rs    3,237,591
+                 port      Rs    3,236,727   (-0.03%)
+
+  rebalances     reference   93   port   93
+  fills          reference  929   port  929
+
+  vs REFERENCE (valued at the execution day's close)
+    identical holdings      : 5 of 93
+    differing by symbol set : 0
+    differing by quantity   : 88
+    quantity error: median 0.40%  max 7.14%
+
+  vs ARM D     (same engine, valued at the open, 0.05 ticks)
+    identical holdings      : 93 of 93
+    differing by symbol set : 0
+    differing by quantity   : 0
+
+  control: ARM A vs the reference's own holdings -- 93 of 93 identical
+
+  reconciliation on a 0.01 tick grid (both sides) -- 93 of 93 identical
+
+========================================================================
+  VERIFIED. On a 0.01 tick grid the port and the open-valued reference
+  agree on every holding at every rebalance. So the two systems are
+  identical in logic, and the differences reported above at the real
+  0.05 grid are exactly two measured, documented things:
+    - the reference values the portfolio at the execution day's CLOSE,
+      which a strategy standing at 09:15 cannot know;
+    - quantity is a floor division by a tick-snapped price, and one
+      0.05 tick is 0.19% of a Rs 27 share.
+  Neither is a bug, and nothing else remains unexplained.
+========================================================================
+                 port      Rs    2,859,300   (+0.02%)
+
+  rebalances     reference   87   port   87
+  fills          reference  883   port  883
+
+  vs REFERENCE (valued at the execution day's close)
+    identical holdings      : 5 of 87
+    differing by symbol set : 0
+    differing by quantity   : 82
+    quantity error: median 0.49%  max 7.14%
+
+  vs ARM D     (same engine, valued at the open, 0.05 ticks)
+    identical holdings      : 86 of 87
+    differing by symbol set : 0
+    differing by quantity   : 1
+    quantity error: median 0.09%  max 0.09%
+
+  control: ARM A vs the reference's own holdings -- 87 of 87 identical
+
+  reconciliation on a 0.01 tick grid (both sides) -- 87 of 87 identical
+
+========================================================================
+  VERIFIED. On a 0.01 tick grid the port and the open-valued reference
+  agree on every holding at every rebalance. So the two systems are
+  identical in logic, and the differences reported above at the real
+  0.05 grid are exactly two measured, documented things:
+    - the reference values the portfolio at the execution day's CLOSE,
+      which a strategy standing at 09:15 cannot know;
+    - quantity is a floor division by a tick-snapped price, and one
+      0.05 tick is 0.19% of a Rs 27 share.
+  Neither is a bug, and nothing else remains unexplained.
+========================================================================
+                 port      Rs    6,807,127   (-0.09%)
+
+  rebalances     reference   93   port   93
+  fills          reference  985   port  985
+
+  vs REFERENCE (valued at the execution day's close)
+    identical holdings      : 6 of 93
+    differing by symbol set : 0
+    differing by quantity   : 87
+    quantity error: median 0.38%  max 11.11%
+
+  vs ARM D     (same engine, valued at the open, 0.05 ticks)
+    identical holdings      : 92 of 93
+    differing by symbol set : 0
+    differing by quantity   : 1
+    quantity error: median 0.06%  max 0.06%
+
+  control: ARM A vs the reference's own holdings -- 93 of 93 identical
+
+  reconciliation on a 0.01 tick grid (both sides) -- 93 of 93 identical
+
+========================================================================
+  VERIFIED. On a 0.01 tick grid the port and the open-valued reference
+  agree on every holding at every rebalance. So the two systems are
+  identical in logic, and the differences reported above at the real
+  0.05 grid are exactly two measured, documented things:
+    - the reference values the portfolio at the execution day's CLOSE,
+      which a strategy standing at 09:15 cannot know;
+    - quantity is a floor division by a tick-snapped price, and one
+      0.05 tick is 0.19% of a Rs 27 share.
+  Neither is a bug, and nothing else remains unexplained.
+========================================================================

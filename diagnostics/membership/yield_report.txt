@@ -1,0 +1,67 @@
+====================================================================================================
+ YIELD AND CHANGED ROWS -- original parser vs fixed
+====================================================================================================
+
+  index               rows before  rows after  PDFs before  PDFs after  imbalanced before  after
+  Nifty Midcap 50              27          35           27          35                  0      0
+  Nifty Midcap 100             20          39           20          39                  1      0
+  Nifty Midcap 150             29          37           29          37                  1      0
+
+====================================================================================================
+ ROWS WHOSE CONTENT CHANGED (same source+date, different symbols)
+====================================================================================================
+
+  MIDCAP 50: 0 existing rows changed, 8 rows are new
+
+  MIDCAP 100: 1 existing rows changed, 19 rows are new
+    ind_prs22082025.pdf|2025-09-30
+       + inclusions recovered: ['360ONE']
+
+  MIDCAP 150: 1 existing rows changed, 8 rows are new
+    ind_prs10082026.pdf|2026-09-30
+       + exclusions recovered: ['3MINDIA']
+
+====================================================================================================
+ PDFs THAT NEWLY YIELDED A SECTION
+====================================================================================================
+
+  MIDCAP 50: +8 newly matched, -0 lost
+     + ind_prs08012018.pdf
+     + ind_prs12082016.pdf
+     + ind_prs17102016.pdf
+     + ind_prs18092015.pdf
+     + ind_prs22022016_2.pdf
+     + ind_prs24052018.pdf
+     + ind_prs24082015.pdf
+     + ind_prs28112017.pdf
+
+  MIDCAP 100: +19 newly matched, -0 lost
+     + ind_prs01102010.pdf
+     + ind_prs01122011.pdf
+     + ind_prs04032010.pdf
+     + ind_prs08012018.pdf
+     + ind_prs08092006_1.pdf
+     + ind_prs12082016.pdf
+     + ind_prs12122011.pdf
+     + ind_prs15032013.pdf
+     + ind_prs16022017.pdf
+     + ind_prs17102016.pdf
+     + ind_prs17112011.pdf
+     + ind_prs18092015.pdf
+     + ind_prs19042011.pdf
+     + ind_prs22022016_2.pdf
+     + ind_prs24052018.pdf
+     + ind_prs24082015.pdf
+     + ind_prs27042017.pdf
+     + ind_prs28082017.pdf
+     + ind_prs29082017.pdf
+
+  MIDCAP 150: +8 newly matched, -0 lost
+     + ind_prs03112017.pdf
+     + ind_prs08012018.pdf
+     + ind_prs12082016.pdf
+     + ind_prs15062017.pdf
+     + ind_prs16012017.pdf
+     + ind_prs16102017.pdf
+     + ind_prs17102016.pdf
+     + ind_prs24052018.pdf

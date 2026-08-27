@@ -1,0 +1,131 @@
+FILE: data/raw/N100_Survivorship/index_membership_nifty100.csv
+columns: ['effective_date', 'index_type', 'inclusions', 'exclusions', 'symbols']  rows: 50
+index_type distinct values: ['Nifty100']
+index_type
+Nifty100    50
+
+==========================================================================
+MEMBERSHIP FILE VALIDATION
+==========================================================================
+  rows (reconstitution dates)                 50
+  date range                                  2006-06-26 -> 2026-09-30
+  distinct symbols ever a member              870
+  members per date (min/median/max)           98 / 107 / 854
+  anchor presence (of 50 dates)               RELIANCE 50, INFY 50, TCS 50, HDFCBANK 50, ICICIBANK 50, ITC 50, SBIN 50
+  transitions checked                         49
+  transitions failing list[t]=list[t-1]+inc-exc13
+  names in both inclusions and exclusions     45 of 114
+  exclusions still present in same row        0 of 69
+  names added per year (implied)              37.7
+  symbols with a price file                   86 of 870
+
+  ERRORS -- the file cannot be used:
+    - inclusions/exclusions disagree with the symbols column on 13 of 49 transitions (first: 2017-03-31). The file has no single coherent membership series.
+    - the symbols column looks CUMULATIVE: it grows from 98 to 854 names across 15 separate reconstitutions, adding 783 names while only ever removing 41. A membership list is a snapshot of who is in the index on that date, not a running total of everyone who has ever been in it. The generating script is adding inclusions without removing exclusions.
+    - 45 of 114 exclusion entries name a symbol that the SAME row also lists as an inclusion. A reconstitution adds a name or drops it, not both on one date, so at this frequency the two columns are not describing a single index event -- most likely the generating script is merging rows from more than one source list.
+
+  WARNINGS -- usable, but the result carries these caveats:
+    - 784 of 870 members have no price file. Of those, 26 were dropped from the index at some point and 758 are current members. The gap is biased toward dropped names, so RESIDUAL SURVIVORSHIP REMAINS even in pit mode. Report this alongside any result.
+
+  VERDICT: FAIL
+==========================================================================
+
+==================================================================================
+ROW-BY-ROW
+==================================================================================
+    # date             n  delta  inc  exc  exc also in inc  exc left in symbols
+    0 2006-06-26      98     +0    0    0                0                    0
+    1 2006-06-27      98     +0    0    0                0                    0
+    2 2006-09-01      98     +0    0    0                0                    0
+    3 2006-09-22      98     +0    0    0                0                    0
+    4 2006-11-08      98     +0    0    0                0                    0
+    5 2007-04-04      98     +0    0    0                0                    0
+    6 2007-06-04      98     +0    0    0                0                    0
+    7 2007-09-24      98     +0    0    0                0                    0
+    8 2007-10-05      98     +0    0    0                0                    0
+    9 2007-12-12      98     +0    0    0                0                    0
+   10 2008-03-14      98     +0    0    0                0                    0
+   11 2008-09-10      98     +0    0    0                0                    0
+   12 2009-01-12      98     +0    0    0                0                    0
+   13 2009-06-17      98     +0    0    0                0                    0
+   14 2009-10-20      98     +0    0    0                0                    0
+   15 2010-04-08      98     +0    0    0                0                    0
+   16 2010-10-01      98     +0    0    0                0                    0
+   17 2010-10-07      99     +1    2    2                0                    0
+   18 2011-03-25      99     +0    0    0                0                    0
+   19 2011-10-10      99     +0    3    3                0                    0
+   20 2013-04-01     101     +2    4    4                0                    0
+   21 2014-09-19     101     +0    2    2                0                    0
+   22 2015-03-27     103     +2    2    2                0                    0
+   23 2015-09-28     103     +0    1    1                0                    0
+   24 2015-10-19     104     +1    1    1                0                    0
+   25 2016-04-01     111     +7   14   13                0                    0
+   26 2016-09-30     113     +2    2    2                0                    0
+   27 2016-11-15     114     +1    1    1                0                    0
+   28 2017-03-31     227   +113  132    3                3                    0
+   29 2017-05-26     231     +4   10    1                0                    0
+   30 2017-09-29     323    +92  142    2                2                    0
+   31 2018-04-02     461   +138  269    5                4                    0
+   32 2018-09-28     532    +71  156    5                5                    0
+   33 2019-03-29     585    +53  147    5                5                    0
+   34 2019-09-27     628    +43  131    3                3                    0
+   35 2020-03-19     629     +1    4    1                1                    0
+   36 2020-03-27     680    +51  169    5                5                    0
+   37 2020-06-26     694    +14  143    6                5                    0
+   38 2020-07-31     695     +1    4    1                1                    0
+   39 2021-03-31     742    +47  184    6                6                    0
+   40 2021-06-30     743     +1    3    1                1                    0
+   41 2022-03-31     854   +111  259    5                4                    0
+   42 2022-08-08     853     -1    2    2                0                    0
+   43 2022-09-30     850     -3    6    5                0                    0
+   44 2023-03-31     847     -3    5    5                0                    0
+   45 2023-07-13     846     -1    1    1                0                    0
+   46 2024-03-28     843     -3    5    5                0                    0
+   47 2025-09-30     841     -2    5    5                0                    0
+   48 2026-03-30     839     -2    6    6                0                    0
+   49 2026-09-30     840     +1    5    5                0                    0
+
+==================================================================================
+SUMMARY FOR THE FILE'S AUTHOR
+==================================================================================
+FIXED since the previous file
+  All seven Nifty 100 anchors are present on all 50 dates (RELIANCE, INFY, TCS,
+  HDFCBANK, ICICIBANK, ITC, SBIN -- 50/50 each). The previous file's fatal defect,
+  five of these absent from all 76 lists, is gone. No bond or debenture identifier
+  appears anywhere in this file either; the previous 722HPCL29 is gone.
+
+STILL WRONG -- one root cause, three symptoms
+  From 2017-03-31 (row 28) onward the `symbols` column stops being a snapshot and
+  becomes a running total. Up to 2016-11-15 it holds 98-114 names, which is right
+  for a 100-name index. Then: 227 at 2017-03-31, 323 at 2017-09-29, 461 at
+  2018-04-02, 585 at 2019-03-29, peaking at 854 at 2022-03-31. Across the file it
+  adds 783 names and removes only 41.
+
+  1. Cumulative membership: 15 separate reconstitutions grow the list, essentially
+     nothing is ever removed.
+  2. 45 of 114 exclusion entries name a symbol that the SAME row also lists as an
+     inclusion -- e.g. CASTROLIND, BHARATFORG and APOLLOHOSP on 2017-03-31. A
+     reconstitution adds a name or drops it, not both on one date.
+  3. 13 of 49 transitions fail list[t] = list[t-1] + inclusions - exclusions, the
+     first being 2017-03-31 -- the same date the growth starts.
+
+  index_type is uniformly "Nifty100" on all 50 rows, so this is NOT two indices
+  interleaved in one file. Rows 42-49 (2022-08-08 onward) do shrink by 1-3 names
+  each and have zero unremoved exclusions, so the removal logic works there; it is
+  the 2017-03-31 to 2022-03-31 band that never applies it.
+
+MINIMAL CHANGE NEEDED
+  Rebuild `symbols` as a running state rather than a running total:
+      symbols[t] = symbols[t-1] + inclusions[t] - exclusions[t]
+  applying the subtraction, and emit each name in either inclusions or exclusions
+  on a given date but not both. Nothing else in the file needs to change: the
+  dates, the anchors, and the post-2022 rows are already correct. The validator
+  passes when every row satisfies that identity and each list stays near 100 names.
+
+  Verify with:  python3 results/survivorship.py validate <file> --index nifty100
+  Exit 0 = pass, 2 = fail.
+
+SEPARATE LIMITATION, NOT A DEFECT IN THE FILE
+  784 of the 870 distinct names have no price file in this repo. Even a corrected
+  membership history would leave residual survivorship bias until those are
+  sourced, and that has to be reported with any result computed from it.
