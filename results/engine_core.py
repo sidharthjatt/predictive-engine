@@ -81,7 +81,17 @@ except Exception:
     def calc_tc(price, qty, side):
         return price * qty * 0.0011
 
+# FROZEN: retired universe. TOP_N and BUFFER are defined LIVE in config.py
+# as of 2026-08-29; this line keeps its own literals deliberately so the 58's
+# published numbers cannot move, exactly as the year window does. NOTE that
+# validate_sizing.py imports TOP_N from HERE while running on the live
+# universes -- the two definitions agree at 8 and nothing enforces it.
+# See KNOWN_ISSUES.md and experiments/TOPN_SPEC.txt Part A.
 HORIZON, REBAL, TOP_N, BUFFER, VOL_WIN, PURGE = 20, 20, 8, 16, 60, 32
+
+# Status label for a checklist row that is RECORDED, not computed. It exists so
+# that no row can quietly go back to asserting a verdict this run did not reach.
+NOT_CHECKED = "NOT CHECKED BY THIS RUN"
 SLIPPAGE = 0.0015
 START_CAPITAL = 1_000_000
 BT_START, BT_END = 2019, 2026
@@ -577,20 +587,39 @@ def main():
     print("\n" + "=" * 110)
     print("[3] LEAKAGE / OVERFIT CHECKLIST")
     print("=" * 110)
+    # HOW TO READ THIS BLOCK -- added 2026-08-29.
+    # Six rows below used to print a literal "PASS". They were claims recorded
+    # when each property was established, with no dependency on whether it still
+    # holds: if one broke, the row printed the same text. That is a printout
+    # asserting verification it does not perform, and it violated this project's
+    # own rule that every printed verdict is computed from the run that prints
+    # it. The labels now say what they are. The CHECKS ARE STILL NOT
+    # IMPLEMENTED -- see KNOWN_ISSUES.md, which specifies each one.
+    print("\n  HOW TO READ THE LABELS -- exactly ONE row below is computed by this run.")
+    print("    PASS / FAIL              computed by THIS run, from THIS run's result.")
+    print(f"    {NOT_CHECKED:<24} a property established when it was written and")
+    print(f"    {'':<24} recorded here. NOTHING IN THIS RUN RE-TESTS IT, so this")
+    print(f"    {'':<24} row prints the same text whether or not it still holds.")
+    print("    NOT FIXED / NOT MODELLED / PARTIAL")
+    print("                             known limitations, stated as such.")
+    print("\n  results/audit_leakage.py does real leakage work and IS NOT RUN BY THIS")
+    print("  PIPELINE: it is not in run_all.py's PIPELINE_ORDER and no step invokes it.")
+    print(f"\n  The {NOT_CHECKED} rows are specified as real checks in")
+    print("  KNOWN_ISSUES.md, one line each. Implementing them is not done.")
     checks = [
-        ("Label purging", "PASS", "32 days dropped from every train window. Without it dev "
+        ("Label purging", NOT_CHECKED, "32 days dropped from every train window. Without it dev "
          "CAGR was 29.77%; with it 24.36%. The 5.4% gap was pure leak."),
-        ("Walk-forward", "PASS", "Each month scored by a model trained only on prior data. "
+        ("Walk-forward", NOT_CHECKED, "Each month scored by a model trained only on prior data. "
          "Expanding window. No future data in any fit."),
-        ("Execution timing", "PASS", "Signal at close of t, fill at OPEN of t+1. Slippage "
+        ("Execution timing", NOT_CHECKED, "Signal at close of t, fill at OPEN of t+1. Slippage "
          "always against the trade. No same-day close execution."),
-        ("Feature causality", "PASS", "All 17 features use past prices/volumes only. "
+        ("Feature causality", NOT_CHECKED, "All 17 features use past prices/volumes only. "
          "Cross-sectional z-score uses same-day peers -- not time-series leakage."),
-        ("Shuffle test", "PASS", "Random scores gave 9.7% CAGR vs 18.5% buy&hold. A mechanical "
+        ("Shuffle test", NOT_CHECKED, "Random scores gave 9.7% CAGR vs 18.5% buy&hold. A mechanical "
          "backtest bug would have made random look good. It didn't."),
         ("Baseline control", "PASS" if ok1 else "FAIL", "Structure intact: positions == TOP_N, "
          "~880 trades (slot-cap + buffer working). This is how the v6 slot-cap bug was caught."),
-        ("Parameter selection", "PASS", "Config fixed a priori. Dev selection abandoned after "
+        ("Parameter selection", NOT_CHECKED, "Config fixed a priori. Dev selection abandoned after "
          "stability_test showed 3 winners across 5 seeds (gap 0.05 < noise 0.08)."),
         ("SURVIVORSHIP BIAS", "NOT FIXED", "Universe = the 58 names in the index TODAY. Names "
          "dropped 2016-2026 are absent. Strategy and benchmark share it, so the COMPARISON is "

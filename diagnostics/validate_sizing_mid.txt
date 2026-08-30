@@ -1,0 +1,73 @@
+==============================================================================================================
+ SIZING VALIDATION -- is inverse-vol real, or cherry-picked?   [MidCap150 / mid]
+==============================================================================================================
+  The four tests below are engine_core.py's, unchanged. Only the panel
+  paths differ. engine_core.py itself is not modified by this script.
+
+  score panel : /Users/sidharthchoudhary/Downloads/algo_trading_project/results_mid/metrics/v_mid_expanding_cache.csv
+                148 symbols, 6573 dates, 1836 in the backtest window
+
+==============================================================================================================
+[1] THE TWO SIZING ARMS
+==============================================================================================================
+                         Config  CAGR%  Sharpe  Sortino  MaxDD%  Calmar  Trades    TC_Rs
+Equal-rupee (validation engine)  49.95    1.84     2.45  -33.42    1.49     838 830297.0
+Inverse-vol (validation engine)  48.56    1.85     2.44  -32.63    1.49     838 797760.0
+  Equal-weight buy & hold (mid)  27.77    1.50     1.77  -36.40    0.76       0      0.0
+
+==============================================================================================================
+[2] VALIDATION -- is inverse-vol real, or cherry-picked?
+==============================================================================================================
+
+  T1. BASELINE CONTROL -- does equal-rupee reproduce the engine?
+      structural target: ~8.0 positions, trades within 400-1400
+      got             : CAGR 49.95%, Sharpe 1.84, 838 trades, 8.0 positions
+      trade count 838 is INSIDE the 400-1400 range (range unchanged from the 58, which produces 706)
+      (CAGR varies +/-0.5% per retrain -- not checked; structure is)
+      -> PASS
+
+  T2. SEED ROBUSTNESS -- does inv-vol win on OTHER score seeds?
+      seed set 1/3 from cache VALSIZE_mid_seed0.csv
+      seed set 1: equal 1.76 -> invvol 1.76 (delta +0.00) | MaxDD -31.0% -> -31.7%
+      seed set 2/3 from cache VALSIZE_mid_seed1.csv
+      seed set 2: equal 1.88 -> invvol 1.87 (delta -0.01) | MaxDD -32.5% -> -32.7%
+      seed set 3/3 from cache VALSIZE_mid_seed2.csv
+      seed set 3: equal 1.88 -> invvol 1.82 (delta -0.06) | MaxDD -31.7% -> -31.8%
+      -> improved on 0/3 seed sets. FAIL -- seed-dependent
+
+  T3. SUB-PERIOD SPLIT -- works in BOTH halves independently?
+      2019-2022: equal 1.59 -> invvol 1.57 (delta -0.02) | buy&hold 1.44
+      2023-2026: equal 1.69 -> invvol 1.95 (delta +0.26) | buy&hold 1.59
+      -> FAIL -- only works in one sub-period
+
+  T4. PARAMETER SENSITIVITY -- does the vol window matter?
+      vol_win= 40: CAGR  47.24%  Sharpe  1.81  MaxDD  -32.93%
+      vol_win= 60: CAGR  48.56%  Sharpe  1.85  MaxDD  -32.63%
+      vol_win= 90: CAGR  47.51%  Sharpe  1.82  MaxDD  -32.51%
+      vol_win=120: CAGR  47.84%  Sharpe  1.83  MaxDD  -32.74%
+      -> all four beat equal-rupee (1.84)? FAIL -- depends on exact window
+
+==============================================================================================================
+[3] SUB-PERIODS -- reported, not graded
+==============================================================================================================
+   Period                          Config  CAGR%  AnnVol%  Sharpe  MaxDD%  FirstDate   LastDate  Days
+2019-2022 Equal-rupee (validation engine)  42.56    24.60    1.59  -33.42 2019-01-01 2022-12-30   993
+2019-2022 Inverse-vol (validation engine)  40.90    23.95    1.57  -32.63 2019-01-01 2022-12-30   993
+2019-2022   Equal-weight buy & hold (mid)  28.14    18.72    1.44  -36.40 2019-01-01 2022-12-30   993
+2023-2026 Equal-rupee (validation engine)  42.36    22.82    1.69  -26.29 2023-01-02 2026-05-29   843
+2023-2026 Inverse-vol (validation engine)  48.19    21.83    1.95  -23.93 2023-01-02 2026-05-29   843
+2023-2026   Equal-weight buy & hold (mid)  27.15    16.22    1.59  -19.87 2023-01-02 2026-05-29   843
+
+--------------------------------------------------------------------------------------------------------------
+  VALIDATION SUMMARY
+--------------------------------------------------------------------------------------------------------------
+    PASS  T1 baseline control
+    FAIL  T2 seed robustness
+    FAIL  T3 sub-period
+    FAIL  T4 param sensitivity
+
+    1 of 4 passed.
+    SOME FAILED -- read the failures before trusting the result.
+
+  runtime: 0.1 min
+==============================================================================================================

@@ -1,0 +1,603 @@
+TOP_N -- CENTRALISE THE CONSTANT, THEN JUSTIFY THE INCUMBENT
+================================================================================
+Written 2026-08-29, BEFORE any code is written and before any result is seen.
+
+Two parts, in order, and the order is not cosmetic.
+
+    PART A   centralise TOP_N and BUFFER into config.py. A refactor with a
+             proof obligation. No number may move.
+    PART B   validate the incumbent TOP_N=8 on the live universes and the
+             current window. A validation with a verdict rule fixed below.
+
+PART A RUNS FIRST AND MUST COMPLETE CLEAN. Part B sets TOP_N on a module to run
+its challenger arm. Doing that while the constant is defined in five separate
+live files means the arm is only partly applied, and the failure is silent --
+some sites would run 8 and some the challenger, and the result would be a number
+from a portfolio that no configuration describes. Part B is not started until
+Part A's hashes match.
+
+
+================================================================================
+WHY THIS EXISTS
+================================================================================
+TOP_N and BUFFER are defined by literal in TEN places. There is no single
+definition, and two config docstrings already ASSERT a value they do not set:
+config_n100.py:8 and config_mid.py:9 both state "TOP_N=8, BUFFER=16 ... stays
+byte-identical", which is prose describing five independent literals.
+
+That is the same defect class as the backtest window before it was centralised
+into BT_START_DATE / BT_END_DATE, and it has already produced one live
+divergence: results/make_stats_both.py:14 carries TOP_N, BUFFER = 12, 24. It was
+found by reading the grep output for this task, not by any test.
+
+The incumbent value itself has never been checked on either universe that ships.
+Its acceptance -- EXPERIMENTS.md entry 10, the ONE acceptance in twenty-five
+trials -- was measured on the 58 and the 74, both now retired, on the old year
+window and before the density fix. Every live number in this repository is
+computed at TOP_N=8 and nothing has ever asked whether 8 is still right there.
+
+
+================================================================================
+PART A -- CENTRALISE THE CONSTANT
+================================================================================
+
+--------------------------------------------------------------------------------
+THE TEN SITES, MEASURED NOT ASSUMED
+--------------------------------------------------------------------------------
+Every line below was read from the file, not recalled.
+
+LIVE -- these move to the central definition:
+
+    results/test_exposure.py:56        REBAL, TOP_N, BUFFER, VOL_WIN = 20, 8, 16, 60
+                                       THE SHIPPING ENGINE. This is the one that
+                                       matters; every published v1/v2/v3/v4 number
+                                       comes through it.
+    results/engine_v2_final_n100.py:58 same literal, n100 official run
+    results/engine_v2_final_mid.py:62  same literal, mid official run
+    nautilus/nt_strategy.py:79-80      TOP_N = 8 / BUFFER = 16, on two lines
+    nautilus/nt_attribution.py:61      REBAL, TOP_N, BUFFER = 20, 8, 16
+                                       port reference side
+
+FROZEN -- retired universes, these do NOT move:
+
+    results/engine_core.py:84          HORIZON, REBAL, TOP_N, BUFFER, VOL_WIN,
+                                       PURGE = 20, 20, 8, 16, 60, 32
+    results/engine_v2_final.py:53      58
+    results/engine_v2_final74.py:53    74
+    results/make_cash_series.py:15     retired audit
+    results/make_stats_both.py:14      retired audit, AND AT 12, 24 -- see the
+                                       separate entry required in KNOWN_ISSUES.md
+
+A SUSPECTED DISCREPANCY, CHECKED BEFORE EDITING AND FOUND NOT TO EXIST
+    It was reported to Sid that nt_strategy.py appeared to define TOP_N with no
+    BUFFER while nt_attribution.py defined both, and that a real difference
+    between the port's two sides would be a finding -- one measured with the
+    92-of-92 gate already passed under it.
+
+    CHECKED 2026-08-29, BEFORE ANY EDIT. THERE IS NO DIFFERENCE.
+    nt_strategy.py:80 defines BUFFER = 16 on the line after TOP_N. The original
+    claim came from a grep whose pattern matched only TOP_N-bearing lines.
+
+    All three live implementations express the hold band identically:
+
+        nt_strategy.py:479-480   top = ranked[:TOP_N]; keep = set(ranked[:BUFFER])
+        nt_attribution.py:230    top, keep = list(rk[:TOP_N]), set(rk[:BUFFER])
+        test_exposure.py:178-180 top = list(rk[:TOP_N]); keep = set(rk[:BUFFER])
+
+    and all three sell on the same rule -- a held name not in `keep`
+    (nt_strategy.py:521 inverts the condition; nt_attribution.py:169 and
+    test_exposure.py:86 write it directly). Nothing is harmonised because
+    nothing differs, and the 92-of-92 gate is unaffected.
+
+    THE CLAUSE STAYS IN THIS SPEC RATHER THAN BEING DELETED. A check that was
+    specified and came back negative is a result, and removing it would leave no
+    record that the port's two sides were ever compared on this.
+
+--------------------------------------------------------------------------------
+engine_core.py IS FROZEN AND IS ALSO READ BY A LIVE SCRIPT
+--------------------------------------------------------------------------------
+This is the one genuine trap in Part A and it is stated before the edit.
+
+    validate_sizing.py:71-73 does
+        from engine_core import (backtest, precompute, metrics, score_monthly,
+                                 TOP_N, START_CAPITAL, HORIZON)
+
+So a validation that runs on n100 and mid takes its TOP_N from a module frozen
+as the retired 58's provenance. It is used at validate_sizing.py:167 as the
+structural target for the average-positions check.
+
+    THAT IMPORT IS NOT CHANGED BY THIS TASK. Repointing it would alter what
+    validate_sizing.py asserts, and validate_sizing.py's engine split is an open
+    KNOWN_ISSUES entry with its own pending work item. Changing it here would be
+    changing a validation as a side effect of a refactor.
+
+    It is recorded instead: after Part A there are still two definitions of
+    TOP_N in the repository, config's and engine_core's, and one live script
+    reads the frozen one. They agree at 8 today. Nothing enforces that.
+
+--------------------------------------------------------------------------------
+NAMING -- AND WHY IT IS NOT THE BT_START_DATE CASE
+--------------------------------------------------------------------------------
+    config.TOP_N = 8
+    config.BUFFER = 16
+
+The window constants took the _DATE suffix because engine_core's BT_START /
+BT_END are year INTEGERS and two same-named constants of DIFFERENT TYPES is how
+a previous mismatch happened. That reasoning does not apply here: config.TOP_N
+and engine_core.TOP_N are both int 8. Same name, same type, same value.
+
+The residual risk is therefore silent DIVERGENCE rather than type confusion --
+exactly what make_stats_both.py did. A comment is added at engine_core.py:84
+naming config.py as the live definition and stating that this line is frozen
+deliberately. A COMMENT-ONLY EDIT TO A FROZEN FILE. No literal in that line is
+touched, so the frozen numbers cannot move.
+
+--------------------------------------------------------------------------------
+THE PROOF OBLIGATION -- BYTE-IDENTICAL, OR REVERTED
+--------------------------------------------------------------------------------
+Same standard BREADTH_LIVE_SPEC.txt placed on mode="const", and the provol
+default before it.
+
+BEFORE the edit, on BOTH live universes, record the SHA256 of the equity curve
+of every arm the shipping engine runs:
+
+    sizing invvol x mode none        (v1)
+    sizing invvol x mode breadth     (v2)
+    sizing provol x mode none        (v3)
+    sizing provol x mode breadth     (v4)
+
+Eight hashes. AFTER the edit, recompute all eight and show them identical.
+
+    IF ANY HASH MOVES, THE CHANGE IS REVERTED, NOT EXPLAINED.
+
+    A moved hash means the refactor changed behaviour, and no argument about why
+    the new number is better is admissible -- the task was to move a constant.
+
+The hashes are written to the artefact, both columns, so the proof is in the
+repository and not only in a terminal that scrolled away. A run that reports
+"identical" without printing both columns has not discharged the obligation.
+
+PURELY ADDITIVE AT EVERY CALL SITE. No call signature changes. No default
+argument changes. The edit at each live site replaces a literal with an import
+and nothing else.
+
+--------------------------------------------------------------------------------
+WHAT PART A DOES NOT FIX
+--------------------------------------------------------------------------------
+ 1. make_stats_both.py's 12/24 is NOT corrected here. It is a frozen retired
+    script and it also runs CASH_Y = 0.06 against production's CASH_YIELD = 0.0,
+    so editing the TOP_N literal alone would produce a third set of numbers
+    rather than agreement with anything. It gets a KNOWN_ISSUES.md entry
+    recording what it computes, that nothing reads its three outputs, and that
+    no published figure comes from it. Fixing it is a separate decision about a
+    retired universe's artefacts.
+
+ 2. The two config docstrings that ASSERT TOP_N=8 stay prose. After Part A they
+    are true by import rather than by coincidence, and the docstrings are
+    updated to say which file defines it. Nothing tests them.
+
+ 3. Four independent reimplementations of the backtest continue to exist
+    (test_exposure, engine_core, nt_attribution, make_stats_both). Centralising
+    a constant does not make them one engine, and the engine split stays open in
+    KNOWN_ISSUES.md.
+
+
+================================================================================
+PART B -- JUSTIFY THE INCUMBENT
+================================================================================
+This is a VALIDATION. There is a verdict rule and it is fixed below, before any
+number exists.
+
+THE QUESTION, STATED NARROWLY
+    Does the accepted choice TOP_N=8 still hold on the two universes that
+    actually ship, on the current 1,836-day window, against the value it
+    originally beat?
+
+    It is NOT "what is the best TOP_N". No search is run. No value is promoted.
+
+--------------------------------------------------------------------------------
+NO SURFACE SWEEP -- THE REASONING, RECORDED
+--------------------------------------------------------------------------------
+param_surface.py maps TOP_N in {5, 8, 12, 16, 20} x BUFFER at {1.0, 1.5, 2.0,
+3.0}x. mid_topn_test.py runs TOP_N in {8, 12, 16, 20} with BUFFER at 2x under a
+pre-registered three-gate rule. Both predate the window change, so every number
+in both is void.
+
+Neither is re-run, and the surface is not remapped:
+
+ 1. TOP_N=8 is the single ACCEPT in twenty-five trials. Sweeping it converts an
+    accepted fixed choice into a tuned one, and every result in this repository
+    was measured at 8.
+ 2. It adds to a trial denominator HANDOFF_SUMMARY section 7 already records as
+    understated by at least two.
+ 3. mid_topn_test.py ran a pre-registered rule and recorded that NO value
+    clears all three gates. Re-running a sweep after a recorded negative, on a
+    new window, is the shape of looking again until the answer changes.
+
+    THIS SPEC AGREES WITH ALL THREE AND ADDS A FOURTH.
+    EXPERIMENTS.md:491-506 records that entry 10 accepted 8 against 12, under
+    the rule "Sharpe better in both universes, both halves pass", on the 58 and
+    the 74. Both of those universes are now RETIRED. The re-test that matches
+    the acceptance is that ONE contrast on the universes that ship. Anything
+    wider is not a re-test of the acceptance; it is a new search wearing its
+    name.
+
+--------------------------------------------------------------------------------
+THE CHALLENGER SET -- ONE VALUE, AND WHY
+--------------------------------------------------------------------------------
+    TOP_N = 12.
+
+That is the value 8 actually beat. It is the only challenger with standing, and
+it is not chosen for being convenient: 12 is MORE diversified than 8, which is
+the direction mid's concentration problem lives in. TOP_N=8 out of 148 names is
+the top 5.4% against 13.8% on the 58 where the parameter was chosen
+(mid_topn_test.py:6-8), so if 8 is wrong on mid it is wrong by being too tight,
+and 12 tests exactly that.
+
+    5, 6, 10, 16 and 20 ARE EXCLUDED. None of them was part of the acceptance.
+    Adding any of them makes this a sweep by increments, which is what the
+    decision above rejects. If they are wanted, that is a separate
+    pre-registration with its own trial-count entry, not an extension of this
+    one.
+
+    TWO ARMS, TWO UNIVERSES. That is the whole grid.
+
+--------------------------------------------------------------------------------
+BUFFER IS PINNED AT 16 IN BOTH ARMS
+--------------------------------------------------------------------------------
+param_surface.py's 2.0x ratio moves BUFFER with TOP_N, which confounds
+concentration with turnover -- the v3-vs-v1 problem in V34_SPEC.txt. BUFFER is
+pinned so the contrast is clean: only the size of the buy set moves.
+
+STRUCTURAL LIMITS THE PIN IMPOSES, STATED AS LIMITS AND NOT AS REASONS TO MOVE IT
+
+    TOP_N=12 with BUFFER=16 leaves a hysteresis band of four ranks, against
+    eight at 8/16. The challenger therefore runs at HIGHER turnover pressure
+    than the incumbent, and the pin is the cause. This is a real asymmetry and
+    it is reported beside the result, not buried.
+
+    TOP_N=16 would give a ZERO-WIDTH band: buy set equals keep set, and the
+    buffer's hysteresis vanishes entirely. TOP_N above 16 is incoherent under
+    the pin -- names would be bought while already outside the keep set and sold
+    at the next rebalance.
+
+    SO THE PIN CAPS THIS TEST AT TOP_N < 16, AND DEGRADES AS 16 IS APPROACHED.
+    At 12 the band is still four ranks wide and the arm is structurally sound,
+    which is the second reason 12 is the right and only challenger. 16 and 20
+    could not be tested under the pin even if they were wanted.
+
+    At the low end the pin distorts the other way: a smaller TOP_N against
+    BUFFER=16 gives an ever-wider band, so the book fills with names far outside
+    the buy set. The mean-names-held figure is already 9.54 on n100 at 8/16,
+    above TOP_N. This is not exercised here, since no challenger below 8 is run.
+
+--------------------------------------------------------------------------------
+THE BUFFER PROVENANCE QUESTION -- SEARCHED, UNRESOLVED, WEAKER READING TAKEN
+--------------------------------------------------------------------------------
+EXPERIMENTS.md:494 states the ACCEPTED arm used BUFFER=16. IT DOES NOT STATE
+WHAT BUFFER THE 12-ARM RAN AT. That single fact decides whether a pass here
+RE-EARNS entry 10's acceptance or merely fails to contradict it:
+
+    IF the original 12-arm ran at BUFFER=16, this is a reproduction of entry 10
+    on the universes that ship, and a pass RE-EARNS the acceptance there.
+
+    IF it ran at anything else, this is NOT entry 10's contrast. It is a new
+    contrast that resembles it, and the strongest available verdict is
+    NOT CONTRADICTED.
+
+THE RECORD WAS SEARCHED BEFORE THE RUN, 2026-08-29. FIVE PLACES, ALL NEGATIVE.
+
+ 1. EXPERIMENTS.md. Entry 10 (lines 491-517) gives the accepted arm's BUFFER=16
+    and says nothing about the challenger's. Its accept rule is quoted as "As
+    entry 3", and entry 3 (line 290) is sqrt breadth, which carries no buffer
+    either. A grep of the whole file for BUFFER returns six lines and none
+    answers this.
+
+ 2. THE PRE-REGISTRATIONS. The earliest on disk is EXP14_PREREG.txt. Entry 10
+    predates the pre-registration discipline entirely -- param_surface.py:5 says
+    so in as many words. No prereg for it exists to consult.
+
+ 3. experiments/rejected_experiments_REPORT.txt:50 records the outcome only:
+    "top-8 (from top-12)  58: 1.43->1.54 | 74: 1.28->1.45  ACCEPT". No
+    constants of any kind.
+
+ 4. GIT. It cannot answer. The initial commit adf6c10 ALREADY contains
+    TOP_N, BUFFER = 8, 16 at both engine_core.py:84 and test_exposure.py:56.
+    Version control in this repository begins AFTER the acceptance, so there is
+    no 12-arm commit to show and no diff that introduced 8.
+
+ 5. SURVIVING SCRIPTS. Nothing runs a 12-arm at a fixed buffer. param_surface.py
+    and mid_topn_test.py both include TOP_N=12 and both SCALE BUFFER with it,
+    and both postdate the acceptance.
+
+ONE OBSERVATION FOUND AND DELIBERATELY NOT USED
+    make_stats_both.py carries TOP_N, BUFFER = 12, 24 and does so in that same
+    initial commit, which has the appearance of a fossil of a pre-acceptance
+    pair left un-updated when entry 10 landed.
+
+    IT IS NOT EVIDENCE AND IT IS NOT USED. Reaching "the 12-arm ran at BUFFER=24"
+    from it requires two unsupported steps: that a retired-74 audit script's
+    constants ever matched the 58's top-12 baseline in entry 10, and that the
+    2.0x pairing was in force then. The 2.0x convention is param_surface.py's,
+    and param_surface.py postdates the acceptance. Filling a gap in the record by
+    reconstruction is not something this project does, and the fact that the
+    reconstruction points at the weaker reading -- the one taken anyway -- does
+    not make it admissible.
+
+DECLARED UNRESOLVED. THE WEAKER READING IS TAKEN.
+    The strongest verdict this suite can return is NOT CONTRADICTED.
+    The word RE-EARNED does not appear in the report, in any outcome.
+    This is not provisional and does not become re-earned if someone later finds
+    the number plausible. It changes only if a RECORD of the 12-arm's BUFFER is
+    produced, and this section is then amended with what was found and where.
+
+--------------------------------------------------------------------------------
+WHAT IS RUN
+--------------------------------------------------------------------------------
+The SHIPPING engine, test_exposure.backtest_exposure, on both live universes,
+window config.BT_START_DATE to BT_END_DATE, mode="breadth", sizing="invvol" --
+the production configuration, because that is what the incumbent is incumbent
+in. Nothing else varies between the arms.
+
+Running the shipping engine is deliberate and is the thing validate_sizing.py
+cannot claim. Per KNOWN_ISSUES.md the two engines sit 1.80 CAGR points apart on
+the 58, so a TOP_N result measured on engine_core would not cover production.
+This suite sits on the same side of that split as validate_breadth_live.py.
+
+    IDENTITY CHECK, GATED. The TOP_N=8 arm MUST reproduce v2 in
+    v34_comparison.csv on CAGR, Sharpe and MaxDD in both universes -- 25.49 /
+    1.88 / -18.64 on n100 and 30.22 / 2.06 / -18.98 on mid. If the incumbent arm
+    does not reproduce the shipped number, the harness is wrong and NO verdict is
+    reported for either arm. This is a correctness gate, not a performance gate:
+    failure voids the run rather than producing a result.
+
+--------------------------------------------------------------------------------
+THE VERDICT RULE -- FIXED NOW, BEFORE ANY NUMBER EXISTS
+--------------------------------------------------------------------------------
+Entry 10's own rule was "Sharpe better in both universes, both halves pass". It
+is inherited and inverted to the incumbent's side, because the incumbent is the
+thing on trial:
+
+    CRITERION A   Sharpe(8) >= Sharpe(12)   on n100, full period
+    CRITERION B   Sharpe(8) >= Sharpe(12)   on mid,  full period
+    CRITERION C   Sharpe(8) >= Sharpe(12)   in BOTH halves, BOTH universes
+                  (2019-2022 and 2023-2026, each half measured independently,
+                  each intersected with the backtest window per the
+                  validate_sizing.py:225 form, NOT engine_core.py:537's)
+
+    HOLDS   = A and B and C.
+    FAILS   = any one of them does not.
+
+NO TOLERANCE BAND. The comparison is >=, so an exact tie holds for the
+incumbent. That is a deliberate choice in the incumbent's favour and it is
+stated rather than hidden: the burden is on the challenger to be better, which
+is the same direction entry 10 imposed on 8 when 8 was the challenger.
+
+MaxDD, CAGR, volatility, trade count, mean names held and cash-short skips are
+REPORTED FOR BOTH ARMS AND DO NOT GATE. Entry 10 gated on Sharpe alone and this
+inherits that. The asymmetry is inherited, not chosen -- the same situation as
+T2 in BREADTH_LIVE_SPEC.txt -- and like that one it is documented rather than
+fixed. A challenger that matched Sharpe while halving drawdown would not be
+detected by this rule. That is a real hole and it is the price of not changing
+the test.
+
+WHAT A HOLD MEANS
+    TOP_N=8 IS NOT CONTRADICTED on the universes that ship, on the current
+    window, against the value it originally beat, under entry 10's own
+    criterion. That is the ceiling, and it is the ceiling in every outcome:
+    the BUFFER provenance is unresolved, so a hold CANNOT re-earn entry 10's
+    acceptance and must not be reported as doing so. See the provenance section.
+
+    IT WOULD NOT MEAN 8 is optimal, or best, or that no other value is better.
+    Two arms cannot say that and this spec does not run more.
+
+WHAT A FAIL MEANS
+    The single acceptance in twenty-five trials does not reproduce on the
+    universes that ship. That is a finding about the accepted result, and it
+    puts every live number in question, because every one of them is measured at
+    TOP_N=8. It would NOT automatically promote 12: promotion is a separate
+    decision with its own pre-registration. The immediate output of a FAIL is a
+    KNOWN_ISSUES.md entry, not a config change.
+
+WHAT A SPLIT MEANS -- STATED BEFORE IT HAPPENS
+    n100 holds and mid fails, or the reverse. THE DISAGREEMENT IS THE FINDING.
+    It is reported as a disagreement. It is NOT resolved toward whichever
+    universe looks better, NOT averaged, NOT called a hold with a caveat, and
+    NOT re-run with a changed criterion. Neither universe is primary.
+
+    A mid-only failure would be the THIRD mechanism failing on mid --
+    validate_sizing.py returns 1 of 4 there, breadth passed 3 of 3. Three
+    mechanisms disagreeing across two universes is a finding about the
+    universes, not about any one mechanism.
+
+--------------------------------------------------------------------------------
+WHAT THIS TEST CANNOT TELL US
+--------------------------------------------------------------------------------
+Stated in advance so a hold is not read as more than it is.
+
+ 1. WHETHER 8 IS OPTIMAL. Two arms. The test can say 8 is not beaten by 12. It
+    cannot rank 8 against any value it does not run, and it runs one.
+
+ 2. WHETHER THE BUFFER PIN FAVOURS THE INCUMBENT. 8/16 has an eight-rank
+    hysteresis band and 12/16 has four. The challenger is handicapped on
+    turnover by the pin, and this test cannot separate "8 is a better
+    concentration" from "16 is a better buffer for 8 than for 12". That is
+    the direct cost of the clean contrast and it is not recoverable within it.
+
+ 3. WHETHER THE ORIGINAL ACCEPTANCE WAS SOUND. It was measured on two retired
+    universes, an old window and a pre-density-fix panel. Nothing here re-runs
+    it there, and a hold on n100 and mid does not retrospectively validate what
+    happened on the 58 and the 74.
+
+ 4. ANYTHING ABOUT BUFFER. BUFFER=16 is pinned, never varied, and never tested.
+    It is as underived as TOP_N was and this task does not touch it.
+
+ 5. IT INHERITS EVERY LIMIT OF THE ENGINE IT RUNS ON. Survivorship bias, the
+    cash-funding defect that already leaves v1 short of eight names on 12 and 14
+    rebalances, and the synthetic-fill execution model. A TOP_N of 12 will
+    interact with the cash-funding defect DIFFERENTLY from 8 -- twelve targets
+    funded from the same cash is more pressure, not less. MeanNamesHeld and
+    CashShortSkips are reported for both arms precisely so that interaction is
+    visible in the artefact, and any Sharpe difference may contain it.
+
+ 6. NO SIGNIFICANCE TEST. Two Sharpe ratios are compared by inequality. Nothing
+    here says a gap is larger than noise, and none has ever been run in this
+    project on anything.
+
+--------------------------------------------------------------------------------
+WRITTEN EXPECTATION -- RECORDED BEFORE THE RUN
+--------------------------------------------------------------------------------
+Recorded so that whatever happens cannot afterwards be described as expected.
+This is a prediction, not a target, and it is not adjusted after the fact.
+
+ 1. THE RULE HOLDS ON n100. Entry 10's margin there was large for its era, n100
+    is closer in character to the 58 where the parameter was chosen, and n100
+    is the universe that passes every other mechanism test in this repository.
+    Stated confidence: moderate-to-high.
+
+ 2. I EXPECT THE FAILURE, IF THERE IS ONE, ON mid, AND IN THE SUB-PERIOD
+    CRITERION C RATHER THAN THE FULL-PERIOD B. Mid is where 8 is most
+    aggressive as a fraction of the universe, it is where sizing already fails
+    3 of 4, and a single half's Sharpe is the noisiest quantity in the suite --
+    the same place BREADTH_LIVE_SPEC.txt expected its closest call.
+
+ 3. I EXPECT 12 TO SHOW HIGHER CashShortSkips AND A LOWER MeanNamesHeld RELATIVE
+    TO ITS OWN TARGET than 8 does, in both universes, because twelve targets
+    funded from cash alone is more pressure on the same defect. If it does not,
+    my model of that defect is wrong and that is worth more than the TOP_N
+    result.
+
+ 4. A SPLIT IS THE SINGLE LIKELIEST OUTCOME, as it was for breadth. It resolves
+    to nothing. See the split clause above.
+
+ 5. THIS PREDICTION LIVES IN THIS SPEC AND STAYS HERE. If it is confirmed, that
+    does not make the confirmation a finding, and the report does not claim the
+    outcome was foreseen.
+
+--------------------------------------------------------------------------------
+THE TRIAL DENOMINATOR -- STATED PLAINLY
+--------------------------------------------------------------------------------
+This runs one value of TOP_N other than 8. That is a trial, whatever it is
+called, and it is entered in EXPERIMENTS.md as one with the verdict recorded
+whichever way it falls.
+
+Calling it a validation rather than a search does not exempt it from the count.
+It constrains what may be DONE with the result -- no promotion, no second value,
+no re-run at a changed criterion -- and that is the whole of the difference.
+HANDOFF_SUMMARY section 7 records the denominator as already understated; this
+adds to it and says so rather than being filed as a re-check that does not count.
+
+--------------------------------------------------------------------------------
+CACHE NAMESPACING
+--------------------------------------------------------------------------------
+Same rule as BREADTH_LIVE_SPEC.txt, for the same reason.
+
+    Any cache this suite writes is named TOPN_{universe}_*.
+    NO FALLBACK to any other script's cache. None, no exceptions.
+    No existing cache is read unless its universe is certain FROM ITS NAME.
+
+The score panel is not re-scored -- TOP_N changes selection, not scoring, so
+both arms read the same existing per-universe score cache through
+config.require_cache. THAT INVARIANCE IS ASSERTED IN CODE, not assumed: the two
+arms must be shown to read an identical panel, because the entire contrast
+depends on it.
+
+--------------------------------------------------------------------------------
+WHAT IS NOT BEING DONE
+--------------------------------------------------------------------------------
+    - No sweep, no surface, no third value of TOP_N.
+    - BUFFER is not varied, in either arm, at any point.
+    - No value is promoted. A FAIL produces a KNOWN_ISSUES.md entry, not a
+      config change.
+    - param_surface.py and mid_topn_test.py are NOT re-run and NOT edited. They
+      are the provenance of the earlier negative and stay on their old window,
+      like validate_breadth.py on the 58.
+    - The retired engines are not touched, beyond the comment-only edit at
+      engine_core.py:84 described in Part A.
+    - make_stats_both.py's 12/24 is recorded, not fixed.
+    - validate_sizing.py's import of TOP_N from engine_core is recorded, not
+      repointed.
+    - No Nautilus mirror is added for Part B. TOP_N already exists on both port
+      sides and Part A centralises it; the port runs the production value and no
+      challenger arm ever goes through it. If a different TOP_N were ever
+      promoted, the Nautilus gate would be required at that point, and this
+      paragraph is the record of why it is not required now.
+
+--------------------------------------------------------------------------------
+OUTPUTS
+--------------------------------------------------------------------------------
+PART A
+    diagnostics/topn_centralise_hashes.txt   eight arms, before and after
+                                             columns both printed, both
+                                             universes, plus the verdict
+                                             computed from the comparison
+
+PART B
+    results_{uni}/metrics/topn_full.csv       both arms, full period, all
+                                              reported columns including
+                                              MeanNamesHeld and CashShortSkips
+    results_{uni}/metrics/topn_subperiods.csv both arms x two halves
+    results_{uni}/metrics/topn_params.json    window, universe, constants, arms,
+                                              git commit, dirty flag, run date
+    diagnostics/topn_{uni}.txt                printed verdict per universe
+
+English only in every file, comment, docstring and printed string. Every
+criterion outcome and every verdict word is computed from the run that prints
+it. No verdict string is hardcoded. The run records the git commit and whether
+the working tree was dirty, as v34_params.json and breadth_live_params.json do.
+
+
+--------------------------------------------------------------------------------
+CORRECTIONS -- made while executing Part A. Originals named, not overwritten.
+--------------------------------------------------------------------------------
+2026-08-29.
+
+1. A CLAIMED DISCREPANCY IN THE PORT DID NOT EXIST.
+   This spec was written stating that nt_strategy.py defined TOP_N with no
+   BUFFER while nt_attribution.py defined both, and gated the edit on reporting
+   that difference first. CHECKED BEFORE EDITING: nt_strategy.py:80 defined
+   BUFFER = 16 on the line after TOP_N. The claim came from a grep pattern that
+   matched only TOP_N-bearing lines. All three live implementations expressed
+   the hold band identically. The clause is kept above, rewritten to record the
+   check and its negative result, because a specified check that came back
+   negative is a result and deleting it would leave no record it was ever made.
+
+2. THE SITE TABLE'S LINE NUMBERS WERE MEASURED BEFORE THE EDIT AND HAVE MOVED.
+   The table under "THE TEN SITES" is left as measured, because it describes
+   what was found. Post-edit locations:
+
+       config.py:85-109               TOP_N = 8 / BUFFER = 16, the definition
+       results/test_exposure.py:56-58 REBAL, VOL_WIN + the import
+       results/engine_core.py:90      frozen literals, comment added above
+       nautilus/nt_strategy.py:80-82  the import
+       nautilus/nt_attribution.py:61-63
+
+3. THE COMMENT ADDED AT engine_core.py:84 SHIFTED EVERY LINE BELOW IT BY SIX,
+   AND BROKE FOUR REFERENCES THAT HAD BEEN EXACTLY RIGHT.
+   test_exposure.py's import shifted its own lower half by two. Both were
+   unavoidable -- any insertion shifts what follows -- and both were repaired in
+   the same pass rather than left:
+
+       engine_core.py:87  -> :93   BT_START/BT_END      config.py, HANDOFF_SUMMARY
+       engine_core.py:302 -> :308  avail = cash * 0.98  KNOWN_ISSUES.md
+       engine_core.py:537 -> :543  T3's half-window     KNOWN_ISSUES.md,
+                                                        validate_sizing.py comment
+       test_exposure.py:59  -> :61    CASH_YIELD        KNOWN_ISSUES.md
+       test_exposure.py:100 -> :106   invest_val        KNOWN_ISSUES.md
+       test_exposure.py:97-136 -> :103-142  the mechanism  KNOWN_ISSUES.md
+
+   THE PRE-REGISTRATIONS WERE NOT TOUCHED. BREADTH_LIVE_SPEC.txt:173 still says
+   test_exposure.py:143-157 and V34_SPEC.txt:85 still says nt_strategy.py:480
+   hardcodes 1.0 / vol. Both were accurate when written and are stale now -- the
+   const branch and the SIZING switch had already moved them before this task.
+   They are documents of record. Editing a prereg to keep its line numbers
+   current is the same act as rewriting validate_breadth.py to run on a new
+   universe, and it is refused for the same reason.
+
+4. THE PROOF RAN ON ./venv/bin/python, NOT THE SYSTEM python3, which has no
+   lightgbm and cannot import engine_core. Both hash runs used the same
+   interpreter, so the comparison is like for like.
+
+================================================================================
+END OF SPEC
+================================================================================

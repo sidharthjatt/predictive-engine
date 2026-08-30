@@ -1,0 +1,86 @@
+====================================================================================================
+ TOP_N / BUFFER CENTRALISATION -- EQUITY-CURVE HASH PROOF
+====================================================================================================
+
+ Discharges the proof obligation in experiments/TOPN_SPEC.txt Part A.
+ Four arms x two live universes = eight equity curves, hashed before the
+ edit and again after it. SHA256 over the raw float64 bytes of the curve,
+ not over a formatted rendering.
+
+ Run on the shipping engine, test_exposure.backtest_exposure.
+ Window config.BT_START_DATE to BT_END_DATE.
+ git commit 88b29cf   working tree DIRTY
+
+ REGENERATE THIS FILE:
+   ./venv/bin/python topn_centralise_check.py before /tmp/topn_before.csv
+   ...apply or revert the edit...
+   ./venv/bin/python topn_centralise_check.py after  /tmp/topn_after.csv
+   ./venv/bin/python topn_centralise_check.py report /tmp/topn_before.csv \
+                                                     /tmp/topn_after.csv
+ The system python3 has no lightgbm and cannot import engine_core.
+
+ WHAT MOVED, AND WHAT DID NOT
+   Centralised into config.py: results/test_exposure.py,
+   results/engine_v2_final_n100.py, results/engine_v2_final_mid.py,
+   nautilus/nt_strategy.py, nautilus/nt_attribution.py.
+   Frozen, literals untouched: results/engine_core.py (comment added only),
+   engine_v2_final.py, engine_v2_final74.py, make_cash_series.py,
+   make_stats_both.py.
+
+----------------------------------------------------------------------------------------------------
+ universe  sizing   mode        days  trades  before            after               
+----------------------------------------------------------------------------------------------------
+ n100      invvol   none        1836     809  4da72b2facdad3d7  4da72b2facdad3d7  ok
+ n100      invvol   breadth     1836     981  ca61130c60e99964  ca61130c60e99964  ok
+ n100      provol   none        1836     794  96b3ca2a7555f739  96b3ca2a7555f739  ok
+ n100      provol   breadth     1836     977  c5720051082d5492  c5720051082d5492  ok
+ mid       invvol   none        1836     845  7da63de7cf51288c  7da63de7cf51288c  ok
+ mid       invvol   breadth     1836     973  2726fcdd332f21c5  2726fcdd332f21c5  ok
+ mid       provol   none        1836     780  4352d0d4e07c60f1  4352d0d4e07c60f1  ok
+ mid       provol   breadth     1836     973  7fde0e4baf3911ec  7fde0e4baf3911ec  ok
+----------------------------------------------------------------------------------------------------
+
+ FULL HASHES
+   n100/invvol/none
+     before  4da72b2facdad3d7dbe963bf9ff7298bede79aefcf834278ae72bd6cb4c1bc6c
+     after   4da72b2facdad3d7dbe963bf9ff7298bede79aefcf834278ae72bd6cb4c1bc6c
+   n100/invvol/breadth
+     before  ca61130c60e999640ec9a4b11a8708980e03255c0162866690ec49333f82a832
+     after   ca61130c60e999640ec9a4b11a8708980e03255c0162866690ec49333f82a832
+   n100/provol/none
+     before  96b3ca2a7555f739f110bd78d6ac2c567530b70d177e9c25a9e9d301bbe4b6b3
+     after   96b3ca2a7555f739f110bd78d6ac2c567530b70d177e9c25a9e9d301bbe4b6b3
+   n100/provol/breadth
+     before  c5720051082d5492f877f00b1e69581b31f4df43dd19d74d8c323f5fcd9cce84
+     after   c5720051082d5492f877f00b1e69581b31f4df43dd19d74d8c323f5fcd9cce84
+   mid/invvol/none
+     before  7da63de7cf51288cf24cbba1ed38b1e494a776ac3fc785832ed6ea0095200cb8
+     after   7da63de7cf51288cf24cbba1ed38b1e494a776ac3fc785832ed6ea0095200cb8
+   mid/invvol/breadth
+     before  2726fcdd332f21c59720a0f183edf8aa06037329e31c873488e3121451fbe5e2
+     after   2726fcdd332f21c59720a0f183edf8aa06037329e31c873488e3121451fbe5e2
+   mid/provol/none
+     before  4352d0d4e07c60f16616605c98453efb054191f0c8957a182f0b257c956f96af
+     after   4352d0d4e07c60f16616605c98453efb054191f0c8957a182f0b257c956f96af
+   mid/provol/breadth
+     before  7fde0e4baf3911ec16d13ea3ca565f42a4311661a87c3db1d16602d9e0f3a156
+     after   7fde0e4baf3911ec16d13ea3ca565f42a4311661a87c3db1d16602d9e0f3a156
+
+====================================================================================================
+ RESULT: 8 of 8 equity curves IDENTICAL
+ CONSEQUENCE: the centralisation changed no behaviour and stands.
+====================================================================================================
+
+ WHAT THIS PROVES AND WHAT IT DOES NOT
+   PROVES: replacing the literals with imports left every arm's equity
+   curve byte-identical on both live universes. Trade counts are printed
+   beside the hashes and are unchanged too.
+
+   DOES NOT PROVE that the five backtest reimplementations agree with each
+   other. Centralising a constant does not merge them, and it does not fix
+   results/make_stats_both.py, which is frozen at 12/24 with a 6% cash
+   yield. Both remain open in KNOWN_ISSUES.md.
+
+   DOES NOT COVER the retired 58 and 74. They keep their own literals by
+   design, so there is nothing there for this proof to move.
+
