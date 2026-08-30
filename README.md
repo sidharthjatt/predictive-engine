@@ -1,9 +1,9 @@
-# predictive-engine-s1
+# predictive-engine
 
 A cross-sectional equity ranking system for Indian markets, and the record of the
 twenty-five ideas that were tested against it.
 
-Strategy one of a planned series on the same market data — hence `s1`. Later
+Strategy one of a planned series on the same market data. Later
 strategies are meant to run against the same universes, the same cost model and
 the same verification harness, so that a comparison between them means something.
 
