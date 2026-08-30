@@ -52,6 +52,9 @@ from test_exposure import backtest_exposure, CASH_YIELD
 
 REBAL, TOP_N, BUFFER, VOL_WIN = 20, 8, 16, 60
 START_CAPITAL = 1_000_000
+# WINDOW FROZEN: retired universe -- serves only the retired 58/74. Their published
+# numbers must not move, so this window is deliberately left on the old
+# year cut while the live universes moved to config.BT_START_DATE/BT_END_DATE.
 BT_START, BT_END = 2019, 2026
 M = config.METRICS_DIR
 

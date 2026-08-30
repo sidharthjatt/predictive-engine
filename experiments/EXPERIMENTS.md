@@ -154,7 +154,9 @@ counts each document claims for itself:
 | `EXP20_PREREG.txt` | "the 21st. 20 tested so far" (EXP19 never ran, so EXP20 took slot 21) |
 | `EXP21_EXP22_PREREG.txt` | "the 22nd and 23rd. 21 tested so far" |
 
-**This file lists 26 entries, of which 25 were actually run.** The excess over the
+**This file lists 27 entries, of which 26 were actually run.** Entry 27 was added
+2026-08-29 and counts like any other: a validation is still a trial. The excess
+over the
 preregs' final "23" is not an error in the preregs so much as an accounting
 difference with three identifiable causes:
 
@@ -176,9 +178,9 @@ multiple-testing bar is therefore higher than every pre-registration assumed,
 never lower. No verdict changes — every rejection stays a rejection, and the one
 acceptance (entry 10) was an early trial when the count was low.
 
-"At least" is meant literally. Two of the twenty-six entries have no surviving
+"At least" is meant literally. Two of the twenty-seven entries have no surviving
 mechanism (1, 8), one has no surviving verdict (26), and the count was
-demonstrably wrong three separate times. **Treat 25 as a floor, not a
+demonstrably wrong three separate times. **Treat 26 as a floor, not a
 measurement.**
 
 ---
@@ -213,9 +215,11 @@ measurement.**
 | 24 | EXP21 redeploy unfilled cash | execution | REJECT | Gate D (shortfall) |
 | 25 | EXP22 position trim at 20% | construction | REJECT | Gate D (premise refuted) |
 | 26 | Sizing: equal-rupee vs inverse-vol | sizing | **VERDICT UNKNOWN** | never recorded |
+| 27 | TOP_N=8 revalidation vs 12 | concentration | **NOT CONTRADICTED** | held 6 of 6; 12 had shallower MaxDD, ungated |
 
-One acceptance in twenty-five trials, and one trial whose outcome was never
-written down.
+One acceptance in twenty-six trials, and one trial whose outcome was never
+written down. Entry 27 is not a second acceptance: it revalidates entry 10's
+choice and promotes nothing.
 
 ---
 
@@ -506,7 +510,7 @@ pass.
 
 **The result.** 58: **Sharpe 1.43 → 1.54.** 74: **Sharpe 1.28 → 1.45.**
 
-**Verdict.** **ACCEPTED.** The only acceptance in twenty-five trials. Both
+**Verdict.** **ACCEPTED.** The only acceptance in twenty-six trials. Both
 universes improved, and by a large margin — 0.11 and 0.17 of Sharpe.
 
 **What it taught.** The concentration gain beat the diversification loss, which
@@ -2033,6 +2037,120 @@ re-run under the rule above.** The rule was written against the 2026-08-13 panel
 the trial count it would carry today is 25, not the 21 the era assumed; and
 re-running an experiment whose original outcome is unknown, then keeping the new
 result, is selection on the second draw.
+
+---
+
+### 27. TOP_N=8 revalidated against 12 on the live universes — **NOT CONTRADICTED**
+
+> **The outcome has two halves and they belong together.** TOP_N=8 is NOT
+> CONTRADICTED on its pre-registered rule. **In the same measurement TOP_N=12
+> had the shallower MaxDD in both universes** — −15.99 against −18.64 on n100,
+> −16.65 against −18.98 on mid — on a dimension the rule does not gate. That is
+> **not** a claim that 12 is better: its Sharpe is lower in every period and its
+> turnover is 40.8% and 48.1% higher. And **no drawdown criterion was
+> pre-registered**, so nothing here is a result about drawdown. A reader who
+> takes only the first sentence cannot do so honestly.
+
+*Pre-registration: `experiments/TOPN_SPEC.txt` Part B (kept), written before the
+code existed. The verdict rule, the single challenger, the BUFFER pin and the
+written expectation were all fixed there before any number was produced.*
+
+**Why it counts as a trial.** It runs one value of TOP_N other than 8. Calling it
+a validation rather than a search constrains what may be DONE with the result —
+no promotion, no second value, no re-run at a changed criterion — and that is the
+whole of the difference. It does not exempt it from the denominator.
+
+**What it did.** Ran TOP_N=8 against TOP_N=12 with **BUFFER pinned at 16 in both
+arms**, on both live universes, on the current 1,836-day window, through the
+SHIPPING engine `test_exposure.backtest_exposure` — the same side of the engine
+split as `validate_breadth_live.py`, not `engine_core.backtest`. Both arms in one
+process on one panel, proven by a panel hash taken before and after the arms.
+
+**Why 12 and nothing else.** Entry 10 accepted 8 against **12 specifically**, on
+the 58 and the 74. Both are now retired, so the honest re-test is that one
+contrast on the universes that ship. 5, 6, 10, 16 and 20 were excluded: none was
+part of the acceptance, and adding them makes this a sweep. `param_surface.py` and
+`mid_topn_test.py` were neither re-run nor edited.
+
+**The accept rule, inherited from entry 10 and inverted to the incumbent's side.**
+Sharpe(8) ≥ Sharpe(12) on n100 full, mid full, and both halves of both universes.
+Ties hold for the incumbent — deliberately, since the burden is on the challenger,
+which is the direction entry 10 imposed on 8 when 8 was the challenger.
+
+**The result. Six of six criteria hold; no split.**
+
+| universe | period | Sharpe 8 | Sharpe 12 | dSharpe | holds |
+|---|---|---|---|---|---|
+| n100 | full | 1.88 | 1.69 | +0.19 | yes |
+| n100 | 2019–2022 | 1.84 | 1.73 | +0.11 | yes |
+| n100 | 2023–2026 | 1.65 | 1.54 | +0.11 | yes |
+| mid | full | 2.06 | 1.94 | +0.12 | yes |
+| mid | 2019–2022 | 1.77 | 1.61 | +0.16 | yes |
+| mid | 2023–2026 | 1.96 | 1.74 | +0.22 | yes |
+
+**Verdict. NOT CONTRADICTED — and, in the same measurement, TOP_N=12 held the
+shallower drawdown in both universes on an ungated dimension (see the note at
+the head of this entry).** That is the ceiling and it is the ceiling in every
+outcome, because **the record does not state what BUFFER entry 10's 12-arm ran
+at**. Searched across this file, the pre-registrations, `rejected_experiments_
+REPORT.txt`, git history — the initial commit already carries `8, 16`, so version
+control begins after the acceptance — and every surviving script. All negative. So
+this cannot be shown to be entry 10's contrast, and **RE-EARNED is not available
+and does not appear in the report.**
+
+**REPORTED, NOT GATED — and one of these runs against the incumbent.** Entry 10
+gated on Sharpe alone and this inherits that asymmetry.
+
+| universe | dCAGR (8−12) | dMaxDD (8−12) | trades 8 | trades 12 |
+|---|---|---|---|---|
+| n100 | +7.10 pt | **−2.65 pt** | 981 | 1,381 |
+| mid | +6.36 pt | **−2.33 pt** | 973 | 1,441 |
+
+**TOP_N=12 has the SHALLOWER drawdown in both universes.** The rule does not see
+it, because it gates on Sharpe. This is exactly the hole the spec named in advance
+— "a challenger that matched Sharpe while halving drawdown would not be detected
+by this rule" — and it is recorded here rather than left in the artefact.
+
+**NO DRAWDOWN CRITERION IS ADDED.** Adding one now, with these numbers in view,
+would be fitting the rule to the data — the precise thing that documenting the
+Sharpe-only asymmetry rather than harmonising it was meant to avoid. It stays
+ungated and recorded, on the same footing as T3 in `BREADTH_LIVE_SPEC.txt`.
+
+**THE WRITTEN EXPECTATION WAS WRONG ON TWO OF ITS FOUR POINTS.** Recorded as a
+contradiction of a written prediction, not smoothed over.
+
+1. Predicted a hold on n100 with moderate-to-high confidence — **correct**.
+2. Predicted the closest call would be on **mid**, in a sub-period. **Wrong.** The
+   two tightest margins are both on n100 (+0.11 in each half); mid's halves came
+   in at +0.16 and +0.22.
+3. Predicted TOP_N=12 would show **higher** cash-short skips than 8, since twelve
+   targets funded from cash alone is more pressure on the funding defect.
+   **WRONG, AND IN THE OPPOSITE DIRECTION.** TOP_N=12 records **zero** skips in
+   both universes against 7 on n100 and 1 on mid for the incumbent. The spec said
+   in advance that if this failed, "my model of that defect is wrong and that is
+   worth more than the TOP_N result". It failed. The mechanism binds on
+   PER-NAME TARGET SIZE, not on the count of targets: `invest_val` is split
+   TOP_N ways, so each new entrant at 12 needs a smaller slice of cash than at 8,
+   and the score-descending loop exhausts cash less often. Mean names held moves
+   9.54 → 12.88 on n100 and 9.23 → 12.88 on mid, so the fuller book also leaves
+   fewer new entrants to fund each rebalance.
+4. Predicted a split as the single likeliest outcome — **wrong**, both universes
+   held.
+
+**What it did NOT establish.** That 8 is optimal — two arms cannot say that.
+That the pin is neutral — 8/16 leaves an eight-rank hysteresis band and 12/16
+leaves four, so the challenger runs +40.8% and +48.1% more trades, and this test
+cannot separate "8 is a better concentration" from "16 suits 8 better than it
+suits 12". Nothing about BUFFER, which was pinned and never varied. And no
+significance test: two Sharpe ratios were compared by inequality, and nothing here
+says a +0.11 gap is larger than noise.
+
+**Artefacts.** `results_{n100,mid}/metrics/topn_full.csv`, `topn_subperiods.csv`,
+`topn_params.json`; `diagnostics/topn_{n100,mid}.txt` and
+`diagnostics/topn_verdict.txt`. Script: `results/validate_topn.py`. The incumbent
+arm reproduces the shipped v2 on CAGR, Sharpe and MaxDD in both universes, read
+from `v34_comparison.csv` rather than typed in, as a correctness gate that voids
+the run on failure.
 
 ---
 

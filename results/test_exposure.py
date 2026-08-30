@@ -53,16 +53,22 @@ except Exception:
     def calc_tc(price, qty, side):
         return price * qty * 0.0011
 
-REBAL, TOP_N, BUFFER, VOL_WIN = 20, 8, 16, 60
+REBAL, VOL_WIN = 20, 60
+# SELECTION -- imported from config.py, the single definition.
+TOP_N, BUFFER = config.TOP_N, config.BUFFER
 SLIPPAGE = 0.0015
 START_CAPITAL = 1_000_000
 CASH_YIELD = 0.0        # no yield assumed on idle cash
-BT_START, BT_END = 2019, 2026
+# BACKTEST WINDOW -- imported from config.py, the single definition.
+# Date-based and inclusive. The old year cut (BT_START, BT_END = 2019, 2026)
+# ran to 2026-06-08, six trading days beyond this window.
+BT_START_DATE, BT_END_DATE = config.BT_START_DATE, config.BT_END_DATE
 M = config.METRICS_DIR
 
 
 def backtest_exposure(px, op, sc, dates, pc, mom20, port_vol=None,
-                      mode="none", target_vol=None, audit=None, sizing="invvol"):
+                      mode="none", target_vol=None, audit=None, sizing="invvol",
+                      const_expo=None):
     """audit=None reproduces the original code path exactly: no overhead, and the
     official numbers are unchanged.
     Passing a dict with holdings/summary/trades/ranking/decisions/skipped keys logs
@@ -145,6 +151,15 @@ def backtest_exposure(px, op, sc, dates, pc, mom20, port_vol=None,
             elif mode == "voltgt":
                 pv = port_vol.loc[dt] if (port_vol is not None and dt in port_vol.index) else np.nan
                 expo = min(1.0, target_vol / pv) if (not np.isnan(pv) and pv > 0) else 1.0
+            elif mode == "const":
+                # The T3 control of experiments/BREADTH_LIVE_SPEC.txt. Holds a
+                # FIXED exposure so that breadth can be compared against the same
+                # average cash level, isolating the timing from the level.
+                # The caller supplies the level; it is read from the breadth
+                # run's own realised mean and is never a literal in this file.
+                if const_expo is None:
+                    raise ValueError('mode="const" requires const_expo')
+                expo = float(const_expo)
             elif mode == "both":
                 m = mom20.loc[dt].dropna()
                 b = float((m > 0).mean()) if len(m) else 1.0
@@ -172,7 +187,11 @@ def backtest_exposure(px, op, sc, dates, pc, mom20, port_vol=None,
                     keep -= engine_core.MEMBERSHIP.forced_exits(set(shares.keys()), dt)
                 # sizing="invvol" (default) reproduces the existing system exactly.
                 # "equal" gives every one of the TOP_N positions the same share of
-                # invest_value. Nothing else differs between the two.
+                # invest_value.
+                # "provol" is the mirror of invvol: the raw vol instead of its
+                # reciprocal, so a high-vol name gets the LARGE position. Same guard,
+                # same normalisation, same fallback -- only the numerator differs.
+                # Mirrored in nautilus/nt_strategy.py; the two must not drift.
                 if sizing == "equal":
                     w = {s: 1.0 / len(top) for s in top}
                 else:
@@ -180,7 +199,13 @@ def backtest_exposure(px, op, sc, dates, pc, mom20, port_vol=None,
                     w = {}
                     for s in top:
                         vs = v.get(s, np.nan)
-                        w[s] = (1.0 / vs) if (not np.isnan(vs) and vs > 0.01) else 0.0
+                        ok = (not np.isnan(vs)) and vs > 0.01
+                        if not ok:
+                            w[s] = 0.0
+                        elif sizing == "provol":
+                            w[s] = vs
+                        else:
+                            w[s] = 1.0 / vs
                     tot = sum(w.values())
                     w = ({s: w[s] / tot for s in top} if tot > 0
                          else {s: 1.0/len(top) for s in top})
@@ -252,7 +277,7 @@ def main():
     px = p.pivot_table(index="date", columns="symbol", values="close").ffill()
     op = p.pivot_table(index="date", columns="symbol", values="open").ffill()
     sc = p.pivot_table(index="date", columns="symbol", values="score")
-    bd = px.index[(px.index.year >= BT_START) & (px.index.year <= BT_END)]
+    bd = px.index[(px.index >= BT_START_DATE) & (px.index <= BT_END_DATE)]
     pc = precompute(px)
     mom20 = px / px.shift(20) - 1
 

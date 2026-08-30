@@ -20,6 +20,9 @@ sys.path.append(str(Path(__file__).resolve().parents[1]))
 import config
 
 M = config.METRICS_DIR
+# WINDOW FROZEN: retired universe -- serves only the retired 58/74. Their published
+# numbers must not move, so this window is deliberately left on the old
+# year cut while the live universes moved to config.BT_START_DATE/BT_END_DATE.
 BT_START, BT_END = 2019, 2026
 
 # strategy + benchmark equity (already computed)

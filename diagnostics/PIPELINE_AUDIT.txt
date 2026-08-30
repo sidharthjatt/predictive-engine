@@ -1,0 +1,423 @@
+================================================================================
+run_all.py -- PIPELINE AUDIT
+Read-only audit, 2026-08-29. Nothing was run, written or fixed to produce this.
+================================================================================
+
+COMMISSIONED BECAUSE make_stats_both.py WAS FOUND BY ACCIDENT.
+    STEP 10 runs make_stats_both.py, whose three outputs nothing reads, at
+    TOP_N/BUFFER of 12/24 and CASH_Y of 0.06 against 8/16 and 0.0 everywhere
+    else, producing 1,193 fills against 883 for the same universe and window.
+    It surfaced while grepping for something unrelated during the TOP_N task.
+    The question this document answers is what else is in there.
+
+
+--------------------------------------------------------------------------------
+METHOD, AND WHAT IT CANNOT SEE
+--------------------------------------------------------------------------------
+Every "nothing reads it" below is a STATIC GREP over *.py, *.md, *.txt and
+*.json in the tree as it stood on 2026-08-29.
+
+    IT CANNOT SEE a human opening a CSV, a notebook, a chart looked at once and
+    closed, or a consumer that has since been deleted.
+
+    FOR CHARTS, "no reader" IS THE NORMAL STATE -- a chart's consumer is a
+    person. Published charts are therefore separated from charts nothing points
+    at, rather than lumped together as dead.
+
+All 32 scripts named in PIPELINE_ORDER exist. Line numbers are as of this date;
+see KNOWN_ISSUES.md on why line references decay.
+
+
+================================================================================
+1. THE 32 STEPS AND WHO CONSUMES THEM
+================================================================================
+
+FEEDS SOMETHING DOWNSTREAM -- 13 steps
+    build_scores{,74,_mid,_n100}    score panels; read by nearly everything
+    engine_core                     FINAL_comparison.csv, FINAL_equity.csv
+                                    -> STEP 6, STEP 13, the three other engines
+    engine_v2_final{,74,_mid,_n100} v2FINAL_equity.csv -- the most-read artefact
+                                    in the repository, 16 readers, and the
+                                    Nautilus port's reference
+    make_{daily,mid,n100}_audit     the six daily_* CSVs -> nt_verify,
+                                    nt_attribution, the charts, STEP 13
+    make_cash_series                cash_series_{58,74}.csv -> STEP 13
+    make_final_chart_fair           fair_comparison_table.csv -> STEP 14
+    nt_export_scores                the parquets the port reads
+
+TERMINAL AND PUBLISHED -- 2 steps
+    make_combined_n100_mid (10i)    docs/chart_COMBINED_n100_mid.png, README:89
+    diagnose_decay (4)              docs/chart_decay.png, README:181
+
+TERMINAL AND NOTHING POINTS AT THEM
+    CSVs   FINAL_val_seeds.csv, FINAL_val_periods.csv, FINAL_val_volwin.csv,
+           breadth_val_seeds.csv, breadth_val_periods.csv,
+           reality_per_stock_pnl.csv, per_stock_charts_summary.csv,
+           per_stock_returns.csv, feature_dictionary.csv, panel_sample.csv,
+           panel_summary.csv, decay_factor_ic.csv, v2_trades.csv,
+           v2_per_stock_signals.csv, trade_stats_74.csv
+    charts chart_FINAL_table.png, chart_equity.png, chart_all_stocks.png,
+           combined_PORTFOLIO.png, chart_v2FINAL.png (four universes),
+           chart_mid_FINAL.png (the one that declares itself invalid),
+           chart_n100.png, and two directories of per-stock PNGs
+
+    THE FIVE VALIDATION TABLES ARE THE TROUBLING ONES. FINAL_val_* and
+    breadth_val_* are the EVIDENCE FOR VALIDATION VERDICTS. They are regenerated
+    on every run and read by nothing, in either code or prose.
+
+
+================================================================================
+2. RETIRED VERSUS LIVE -- 22 OF 32 STEPS SERVE RETIRED UNIVERSES
+================================================================================
+
+    serves        steps                                              count
+    58 only       0, 1, 2, 3, 4, 5, 6, 7, 7b, 7c, 7d, 7e, 7f, 7g       14
+    74 only       8, 9, 10                                              3
+    58 + 74       11, 12, 13, 14, 15                                    5
+    ----------------------------------------------------------------------
+    RETIRED SUBTOTAL                                                   22
+    ----------------------------------------------------------------------
+    mid           10a, 10b, 10c, 10d                                    4
+    n100          10e, 10f, 10g, 10h                                    4
+    both live     10i                                                   1
+    all four      16                                                    1
+
+ROUGHLY 69% OF THE PIPELINE SERVES UNIVERSES THAT WERE RETIRED. This is not a
+few stale steps. The live universes are nine steps bolted onto the side of a
+58/74 pipeline, and THE STEP NUMBERING SAYS SO: the live work is lettered 10a
+through 10i, suffixes inside a slot belonging to the 74.
+
+
+================================================================================
+3. CONSTANTS THAT DIVERGE FROM config.py
+================================================================================
+
+config.py defines BT_START_DATE / BT_END_DATE, and since 2026-08-29 TOP_N and
+BUFFER. IT DEFINES NO CASH_YIELD, SLIPPAGE, START_CAPITAL, VOL_WIN OR SAFETY
+FACTOR. Those have no central home at all -- see section 6.
+
+  site                              constant            value          frozen?
+  ------------------------------------------------------------------------------
+  engine_core.py:90,93              TOP_N,BUFFER;       8,16;          yes
+                                    BT_START,BT_END     2019,2026 ints
+  engine_v2_final.py:53,58          same                8,16; year ints yes
+  engine_v2_final74.py:53,58        same                8,16; year ints yes
+  make_stats_both.py:14             TOP_N,BUFFER        12,24          NO -- drift
+  make_stats_both.py:15             CASH_Y              0.06           NO -- drift
+  make_cash_series.py:16            CASH_Y              0.06           NO -- drift
+  make_cash_series.py:15            TOP_N,BUFFER,VOL_WIN 8,16,60 literal yes(window)
+  make_daily_audit.py:42            window              year ints      yes
+  validate_breadth.py:31            window              year ints      yes
+  reality_check.py:31               window              year ints      yes
+  make_per_stock_charts.py:30       window              year ints      yes
+  make_combined_all.py:22           window              year ints      yes
+  make_stock_chart.py:26            window              year ints      yes
+  diagnose_decay.py:74,85,104,      window              BARE 2019      no constant
+    106,133                                             LITERALS       at all
+  make_mid_chart.py:125             window              BARE 2019      NO -- and
+                                                        LITERAL        this is a
+                                                                       LIVE script
+  make_daily_log.py:31              CASH_YIELD          0.0, duplicated, comment
+                                                        says "must match
+                                                        test_exposure.py"
+
+THE make_cash_series.py FINDING IS THE ONE THAT MATTERS, AND IT IS WORSE THAN
+make_stats_both.py.
+    make_stats_both.py's outputs are dead. cash_series_58.csv and
+    cash_series_74.csv are LIVE INPUTS TO STEP 13. make_final_chart_fair.py reads
+    them at lines 74-76 and uses cash_pct at 119-123 and 182 to compute average
+    deployment and the "on deployed capital only" figures that go into the chart
+    subtitle AND into fair_comparison_table.csv -- which STEP 14 then reads.
+
+    A 6% yield inflates the cash leg, so those deployment percentages are
+    computed from a portfolio earning interest the real engine does not pay.
+
+    IT IS A WRONG NUMBER REACHING A CONSUMER, which the make_stats_both defect
+    is not. It is confined to the retired 58/74 chain and touches neither live
+    universe nor any README figure -- BUT THAT CONFINEMENT IS CIRCUMSTANTIAL,
+    NOT BY DESIGN. Nothing in the code scopes it; it is confined only because
+    the live universes happen to have their own audit and chart steps.
+
+
+================================================================================
+4. FIVE INLINE REIMPLEMENTATIONS OF THE BACKTEST, NOT FOUR
+================================================================================
+The count carried in KNOWN_ISSUES.md until this audit was four. IT WAS AN
+UNDERCOUNT. The fifth is make_cash_series.py:42-70 -- its own shares/cash/pending
+ledger with transaction costs, slippage, the buffer rule and inverse-vol sizing,
+importing no engine at all.
+
+  #  implementation                        serves
+  ------------------------------------------------------------------------------
+  1  engine_core.backtest                  validation suite, jackknives,
+                                           param_surface.py
+  2  test_exposure.backtest_exposure       everything that ships
+  3  nt_attribution.py inline book         the port's reference side, nt_verify
+  4  make_stats_both.py inline book        dead outputs
+  5  make_cash_series.py:42-70             STEP 13 -> STEP 14
+
+ARGUABLY SIX. nt_strategy.py expresses the same rules a third time in Nautilus
+terms. It is counted separately because it is the artefact UNDER TEST and its
+divergence from the reference is the entire point of nt_verify.
+
+make_daily_log.py looked like a sixth and is NOT one: it reconstructs the daily
+narrative from the audit CSVs and holds no ledger. Its single `cash`-shaped line
+at 286 is a counter. Every other pipeline script is a pure consumer -- checked by
+looking for a shares/cash ledger in each: reality_check, make_per_stock_charts,
+make_combined_all, make_stock_chart, make_final_chart_fair, make_final_summary,
+make_combined_portfolio, make_charts, make_final_table, diagnose_decay,
+make_mid_chart, make_n100_chart and make_combined_n100_mid all have zero.
+
+
+================================================================================
+5. DOES run_all.py STILL RUN END TO END?
+================================================================================
+
+THIS IS INFERRED FROM READING. IT WAS NOT RUN, and answering properly would
+require running it -- a three-hour --fresh run, or a cached run that still
+executes all 32 steps.
+
+WHAT READING ESTABLISHES
+    All 32 scripts exist and appear in PIPELINE_ORDER. The static ordering check
+    (check_pipeline_order.enforce) runs before any step. The guarded ordering
+    hazards in REQUIRED_INPUTS are correctly sequenced.
+
+THE FIRST BREAK IS AT STEP 1 OR STEP 2, AND IT IS IN THE DOCUMENTATION.
+    run_all.py:197 launches each step with sys.executable, so the pipeline
+    inherits whichever interpreter started it. The docstring at run_all.py:4-7
+    says to run `python3 run_all.py`. The system python3 has no lightgbm, and
+    engine_core.py:42 imports it -- so the DOCUMENTED invocation dies at STEP 1,
+    or at STEP 2 if the panels are cached. It must be launched as
+    ./venv/bin/python run_all.py.
+
+    This one is a reading-level certainty, not a guess.
+
+BEYOND THAT, NO HONEST PREDICTION IS AVAILABLE -- AND THE REASON IS ITSELF A
+FINDING. TWENTY-TWO OF THE THIRTY-TWO STEPS HAVE NOT BEEN RE-RUN SINCE THE
+WINDOW CHANGE, because that work touched only the live scripts. Their inputs and
+expectations have been drifting with nothing exercising them.
+
+MINOR, AND CORRECT IN THE CODE: nt_export_scores.py DOES export n100
+(nt_export_scores.py:92). Its own docstring header at lines 18-21 and
+run_all.py's STEP 16 label both still say "58 + 74 + mid". Labels stale, code
+right.
+
+
+================================================================================
+6. CONSTANTS WITH NO CENTRAL HOME AT ALL
+================================================================================
+Distinct from section 3. These are not cases of a site diverging from config.py
+-- THERE IS NOTHING IN config.py FOR THEM TO DIVERGE FROM. Each is defined
+independently everywhere it is used, and each would drift the same way
+make_stats_both.py did, with the same absence of anything able to notice.
+
+VOL_WIN = 60 -- TEN DEFINITIONS
+    test_exposure.py:56, engine_v2_final.py:53, engine_v2_final74.py:53,
+    engine_v2_final_mid.py:62, engine_v2_final_n100.py:58,
+    make_cash_series.py:15, make_stats_both.py:14, validate_breadth.py:32,
+    validate_topn.py:93, nt_strategy.py:84
+
+THE 0.98 SAFETY FACTOR -- SEVEN BARE LITERALS, TWO NAMED CONSTANTS
+    bare   test_exposure.py:106 and 225, make_cash_series.py:55,
+           make_stats_both.py:58, engine_core.py:308
+    named  nt_attribution.py:66 SAFETY, nt_strategy.py:86 SAFETY
+
+    ONLY THE TWO NAUTILUS FILES GIVE IT A NAME. In the engine it is an unnamed
+    0.98 appearing twice with no comment explaining its purpose -- already noted
+    in HANDOFF_SUMMARY section 5. Its effect is to hold back 2%.
+
+SEEDS = [7,42,99,1,2,3,11,22,33,101] -- FOUR COPIES
+    build_scores.py:15, build_scores74.py:19, build_scores_mid.py:25,
+    build_scores_n100.py:28
+
+    Every published number depends on this list, and a one-character difference
+    between two copies would produce two universes scored under different
+    ensembles with nothing to catch it.
+
+ALSO DUPLICATED: START_CAPITAL = 1_000_000 and SLIPPAGE = 0.0015, in every
+engine and in make_daily_log.py.
+
+NOTHING IS CENTRALISED HERE, DELIBERATELY. TOP_N and BUFFER needed an
+eight-hash byte-identity proof before that edit was allowed to stand
+(diagnostics/topn_centralise_hashes.txt). Each of these needs its own, and
+SEEDS in particular touches the scoring stage rather than the backtest, so its
+proof is a different and more expensive one. They are recorded, not fixed.
+
+
+================================================================================
+7. A CHECKLIST THAT CHECKS NOTHING
+================================================================================
+Found while answering section 8, and it belongs in this document rather than
+only in that answer.
+
+engine_core.py:586-609, printed by STEP 2 under the heading
+"[3] LEAKAGE / OVERFIT CHECKLIST", is a table of TEN ROWS OF WHICH ONLY ONE IS
+COMPUTED. "Baseline control" reads `"PASS" if ok1 else "FAIL"`. THE OTHER NINE
+ARE STRING LITERALS typed into the source, and SIX OF THEM READ "PASS" -- label
+purging, walk-forward, execution timing, feature causality, the shuffle test
+and parameter selection.
+
+    COUNT CORRECTED. An earlier draft of this section said nine rows and seven
+    PASS. The verified figures are ten, one, six -- counted from the source
+    rather than read off it.
+
+    ("Label purging", "PASS", "32 days dropped from every train window...")
+
+They were true when written. They are not verified by the run that prints them,
+and a regression in purging or in walk-forward construction would leave this
+table printing PASS.
+
+THIS CONTRADICTS THE PROJECT'S OWN STANDING RULE, recorded as lesson 5 in
+HANDOFF_SUMMARY section 9: "An output that hardcodes its own conclusion will
+eventually lie. Every printed verdict is computed from the run that prints it."
+
+The three rows reading NOT FIXED, NOT MODELLED and PARTIAL are honest labels
+rather than verdicts, and are not the problem. The six reading PASS are.
+
+THIS NOW HAS ITS OWN KNOWN_ISSUES.md ENTRY -- "STEP 2 prints a leakage checklist
+that performs no checks" -- carrying the per-row table and a one-line statement
+of what each real check would require. It is recorded there rather than only
+here because THIS DOCUMENT IS ABOUT THE PIPELINE'S SHAPE, while that is a
+CORRECTNESS CLAIM THE REPOSITORY MAKES ABOUT ITSELF.
+
+RESOLVED IN PART, 2026-08-29, AFTER THIS AUDIT WAS WRITTEN. The six false PASS
+labels were replaced with NOT CHECKED BY THIS RUN and the block now points at
+results/audit_leakage.py. THE SIX CHECKS ARE STILL NOT IMPLEMENTED and the
+KNOWN_ISSUES entry stays open. Proof that the edit moved no computed value:
+diagnostics/leakage_labels_hashes.txt.
+
+
+================================================================================
+8. IF THE RETIRED PATH BECOMES A FROZEN ARCHIVE, WHAT IS LOST?
+================================================================================
+Asked so that the argument AGAINST the split is written down by the person
+proposing it. The answer is not nothing. THREE THINGS ARE LOST, AND ONE OF THEM
+IS LOAD-BEARING FOR THE LIVE UNIVERSES.
+
+(1) THE TRADING CALENDAR IS A 58 ARTEFACT THAT THE LIVE PATH DEPENDS ON.
+    LOAD-BEARING.
+    STEP 0, make_trading_calendar.py, derives the NSE trading calendar FROM THE
+    58 UNIVERSE'S RAW FILES and writes data/nse_trading_calendar.csv.
+    engine_core.build_panel filters every panel by it and refuses to run without
+    it -- for mid and n100 as much as for the 58. It exists because 70 of 148
+    MidCap150 source files carry rows on NSE holidays, putting 237 phantom dates
+    into the mid index, 107 inside the backtest window.
+
+    The FILE survives any freeze; it is an artefact. What is lost is the ability
+    to REGENERATE it, and it needs regeneration whenever the price data extends
+    past its current coverage -- which is exactly when the live universes' window
+    next moves.
+
+    SO A SPLIT CANNOT SIMPLY MOVE STEP 0 TO THE ARCHIVE SIDE. Either STEP 0
+    stays in the live path while reading 58 raw data, or the calendar is
+    re-derived from a live universe, and re-deriving it from mid is precisely
+    what its own docstring rules out. THIS IS THE STRONGEST SINGLE ARGUMENT
+    AGAINST THE SPLIT AS PROPOSED and it must be resolved in any spec.
+
+(2) THE RETIRED UNIVERSES' NAUTILUS RECONCILIATION BECOMES UNRUNNABLE.
+    STEP 16 exports scores_58.parquet and scores_74.parquet, which nt_verify
+    reads to reconcile the retired universes -- currently 1,842 and 1,732 days.
+    Frozen, those parquets persist but cannot be regenerated, so the retired
+    reconciliations can never be re-run. Whether that matters depends on whether
+    a retired universe's reconciliation is ever expected to run again. It is a
+    real loss and it is a small one.
+
+(3) THE 58 SCORE PANEL FEEDS RESEARCH SCRIPTS THAT ARE STILL CITED AS
+    PROVENANCE.
+    v5_expanding.csv is read by validate_sizing.py, param_surface.py,
+    experiments/sizing_test.py, validate_breadth.py and several diagnostics.
+    Several are the recorded provenance of results this project still quotes.
+    The cached panel persists through a freeze; only the ability to rebuild it
+    from raw data is lost.
+
+WHAT IS EXPLICITLY NOT LOST, AND WAS EXPECTED TO BE
+    THE LEAKAGE CHECKLIST. Re-running STEP 2 looked like the strongest argument
+    for keeping the retired path runnable -- an executable leakage and overfit
+    audit is exactly the kind of thing artefacts cannot replace. IT IS NOT ONE.
+    Six of its ten rows are hardcoded "PASS" literals and three more are
+    hardcoded labels; only one is computed (section 7). Freezing it loses a
+    printout, not a check.
+
+    THE FOUR INVERSE-VOL VALIDATION GATES in STEP 2 ARE genuinely computed
+    (ok1 through ok4) and would stop running. But they run on engine_core.backtest
+    against the retired 58, which KNOWN_ISSUES.md records as not covering
+    production, so what stops running is a live check on a retired universe
+    through an engine that does not ship.
+
+
+================================================================================
+9. JUDGEMENT
+================================================================================
+
+THIS IS NOT A PIPELINE. IT IS A LAB NOTEBOOK THAT SOMEONE WIRED TO A main().
+
+The tell is the shape, not any individual defect. A pipeline is a dependency
+graph that produces a deliverable; every step exists because something
+downstream needs it. Here 13 of 32 steps feed anything, 2 produce a published
+figure, and the rest write files into metrics/ that no code and no document has
+ever read back. Those were not designed as outputs. They are the residue of
+exploratory sessions -- someone wanted to see a decay chart, a per-stock P&L, a
+feature dictionary -- and when the question was answered the script stayed and
+was appended to main(). Nothing in this project ever removes a step, so
+run_all.py is a stratigraphic record of every question anyone has asked.
+
+That explains the defects rather than excusing them. make_stats_both.py drifted
+to 12/24 because nothing depends on it, so nothing could notice.
+make_cash_series.py kept CASH_Y = 0.06 because it predates the decision to set
+cash yield to zero and no test spans it. Five reimplementations of the backtest
+exist because each exploratory script needed a book immediately and importing
+the engine would have meant reshaping the engine. Every one of these is the same
+failure: THE PIPELINE HAS NO CONSUMER THAT WOULD BREAK. That property is what
+makes drift invisible, and it is structural rather than a set of bugs.
+
+The second thing, and the one worth acting on: 69% OF THE COMPUTE SERVES
+UNIVERSES THAT WERE RETIRED, AND IT IS THAT 69% THAT IS ROTTING. The freeze
+policy is CORRECT -- retired numbers must not move -- but it has had an
+unintended effect: it converts two-thirds of the pipeline into code that must
+never change and is therefore never re-run, never exercised and never checked,
+while still executing on every full run and still writing into shared
+directories. A frozen ARTEFACT and a frozen SCRIPT THAT KEEPS RUNNING are very
+different things. The first is a record; the second is an unmaintained process
+with write access.
+
+PROPOSAL, NOT YET ACTED ON: SPLIT RATHER THAN REPAIR.
+    run_all.py is trying to be two incompatible things -- the reproducible build
+    of the live system, and the archive of how the retired results were produced.
+    Those want opposite properties. The live path (build, engine, audit, chart,
+    parquet, for n100 and mid, roughly nine steps) should be short, exercised on
+    every change, and hold the property that its inputs and outputs are checked.
+    The retired path should be frozen AS ARTEFACTS rather than as runnable steps:
+    the 58 and 74 numbers already exist on disk and must not move, so re-running
+    the scripts that made them buys little and risks much. Making it a
+    documented, deliberately-invoked archive command would remove
+    make_stats_both.py, the 6% cash yield reaching STEP 13, and two-thirds of the
+    surface area in one decision, WITHOUT DELETING A SINGLE RECORD.
+
+    Section 8 is the cost side of that proposal and the calendar dependency in
+    8(1) is a genuine obstacle, not a detail.
+
+THE COUNTER-ARGUMENT, AND IT IS A REAL ONE.
+    This pipeline has produced results that reconcile on 1,836 of 1,836 days and
+    verify against a Nautilus port on 92 of 92 rebalances at zero tolerance on
+    share counts. Whatever it looks like, THE LIVE PATH WORKS. The concern
+    recorded here is not that it is wrong today. It is that the REASON it is
+    right today is that a handful of live scripts get attention, and the
+    mechanism that would catch the rest going wrong does not exist.
+
+    A reader who concludes from this document that the numbers are unreliable has
+    read it wrong. The published figures are reconciled, ported and verified. What
+    is unreliable is the PROCESS AROUND them, and the distinction matters.
+
+    Against the split specifically: it is a large change touching retired
+    artefacts, the calendar dependency is unresolved, and a pipeline that works
+    is not obviously worth restructuring on aesthetic grounds. make_cash_series.py
+    is the strongest evidence that the failure mode is not aesthetic -- it is one
+    step away from a published table, and it took a TOP_N audit to find it -- but
+    one live instance is one live instance, and it is honest to say so.
+
+NO SPLIT IS PROPOSED FOR EXECUTION HERE. If it happens it gets a spec first,
+like everything else in this project.
+
+================================================================================
+END OF AUDIT
+================================================================================

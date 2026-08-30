@@ -1,0 +1,246 @@
+V3/V4 -- PRO-VOL SIZING, FOUR-ARM MEASUREMENT
+================================================================================
+Written 2026-08-28, BEFORE any code is changed and before any result is seen.
+
+This is a MEASUREMENT, not an accept/reject experiment. No arm is competing to
+enter the production system. The question is descriptive:
+
+    What happens to return and to risk when position size is driven by
+    volatility in each direction, with and without breadth scaling?
+
+Because nothing is being accepted, there is no accept rule and no trial counter
+entry. Every number below is reported whatever it turns out to be. The four arms
+are reported side by side and the reader draws the conclusion.
+
+
+--------------------------------------------------------------------------------
+THE FOUR ARMS
+--------------------------------------------------------------------------------
+                      always-invested        breadth-scaled
+    inverse-vol       v1  (exists)           v2  (exists, official)
+    pro-vol           v3  (new)              v4  (new)
+
+    inverse-vol   w[s] = (1/vol60[s]) / sum(1/vol60)   low vol -> large position
+    pro-vol       w[s] =    vol60[s]  / sum(vol60)     high vol -> large position
+
+Nothing else differs between the arms. Same 17 features, same LightGBM 10-seed
+ensemble, same monthly retrain, same expanding window, same 32-day purge, same
+TOP_N=8 / BUFFER=16, same VOL_WIN=60, same slippage, same Zerodha cost model,
+same close-signal / next-open-fill execution, same CASH_YIELD=0.0.
+
+Only two things vary: the direction of the sizing rule, and whether exposure is
+breadth-scaled or pinned at 100%.
+
+
+--------------------------------------------------------------------------------
+WINDOW -- FIXED, AND IT MOVES EVERY EXISTING NUMBER
+--------------------------------------------------------------------------------
+    2019-01-01 to 2026-05-29 inclusive, both universes, every arm, every script.
+
+The current code cuts by YEAR (BT_START, BT_END = 2019, 2026) and the price data
+runs to 2026-06-08. So the published v1/v2 figures include six trading days
+that this window excludes.  [corrected from seven -- see CORRECTIONS below]
+
+CONSEQUENCE, STATED IN ADVANCE: every existing v1/v2 number becomes stale the
+moment this cut is applied. v1 and v2 must be re-measured on the new window in
+the SAME run as v3 and v4. No figure from before this change may be placed in a
+table beside a figure from after it.
+
+
+--------------------------------------------------------------------------------
+UNIVERSES
+--------------------------------------------------------------------------------
+Nifty100 (n100) and MidCap150 (mid). The retired 58 and 74 are not run.
+
+Both universes are reported in full. Neither is treated as primary. Where the
+two disagree, that disagreement is the finding and is reported as such rather
+than resolved in favour of whichever looks better.
+
+
+--------------------------------------------------------------------------------
+WHAT IS REPORTED, PER ARM PER UNIVERSE
+--------------------------------------------------------------------------------
+FULL PERIOD
+    CAGR%, Sharpe, Sortino, MaxDD%, Calmar, annualised volatility%,
+    average deployed%, trade count, total TC in rupees, final equity.
+
+SUB-PERIODS -- 2019-2022 and 2023-2026, measured independently
+    CAGR% and annualised volatility% for every arm, plus Sharpe and MaxDD%.
+
+    Volatility is reported in every sub-period cell alongside CAGR. This is the
+    point of the exercise: pro-vol is expected to buy return with risk, and a
+    CAGR column on its own would hide the price being paid.
+
+REFERENCE LINE, PRESENT IN EVERY TABLE AND EVERY SUB-PERIOD
+    Equal-weight buy & hold of the same universe, measured on the same panel and
+    the same window. It carries the same columns as the arms.
+
+
+--------------------------------------------------------------------------------
+CORRECTNESS GATE -- NAUTILUS
+--------------------------------------------------------------------------------
+The Nautilus port reproduces the execution layer and is the check that the
+engine does what it claims. It is not optional here.
+
+    nt_strategy.py:480 currently hardcodes w[sy] = 1.0 / vol. It takes the same
+    sizing switch as the engine.
+
+    nt_verify must report VERIFIED at 92 of 92 rebalances for EVERY arm on BOTH
+    universes, on the new window.  [corrected from 93 of 93 -- see CORRECTIONS]
+
+If any arm fails to verify, NO performance number is reported for that arm. A
+port that disagrees with the engine means one of the two is wrong and there is
+no way to tell which. This is a correctness gate, not a performance gate:
+failure voids the measurement rather than producing a negative result.
+
+
+--------------------------------------------------------------------------------
+HONEST EXPECTATION, RECORDED BEFORE THE RUN
+--------------------------------------------------------------------------------
+Pro-vol is the opposite of standard portfolio theory. Risk parity, minimum
+variance and the whole inverse-volatility literature point the other way. That
+is not a reason to skip the measurement, but it means the first question asked
+about a favourable pro-vol result will be "why", and "the numbers came out
+better" is not an answer.
+
+Predicted, in advance:
+
+    v3 vs v1   higher CAGR, higher annualised volatility, deeper MaxDD,
+               Sharpe roughly equal or lower.
+    v4 vs v2   same direction, smaller magnitude, because breadth scaling
+               already caps total exposure and damps both sides.
+
+Reasoning: putting more money into more volatile names is taking more risk. Raw
+return should rise in a rising market. Risk-adjusted return has no reason to.
+
+If the outcome contradicts this, that is the interesting result and it is
+recorded as a contradiction of a written prediction rather than presented as
+something that was expected all along.
+
+
+--------------------------------------------------------------------------------
+WHAT IS NOT BEING DONE
+--------------------------------------------------------------------------------
+    - Inverse-vol sizing is not modified. v1 and v2 keep their current logic.
+    - No held position is ever topped up or resized. The existing rule stands:
+      a name already held is not re-sized, only sold when its rank falls below
+      BUFFER.
+    - No parameter is tuned. VOL_WIN stays at 60 for all four arms. No variant
+      runs, no thresholds, no caps, no second pass.
+    - No arm is promoted into production on the strength of this measurement.
+      That would be a separate decision requiring its own pre-registration.
+
+
+--------------------------------------------------------------------------------
+OUTPUT
+--------------------------------------------------------------------------------
+Per universe, into the existing metrics directory:
+    v34_comparison.csv       four arms + buy & hold, full period, all columns
+    v34_subperiods.csv       four arms + buy & hold x two halves, CAGR and vol
+    v34_equity.csv           four equity curves plus buy & hold, one date index
+    v34_params.json          window, universe, constants, git commit, run date
+    chart_v34.png            four curves plus buy & hold on one axis
+
+Plus one combined document covering both universes:
+    diagnostics/v34_report.txt
+
+English only in every file, comment, docstring and printed string. No printed
+verdict may be hardcoded; every conclusion string is computed from the run that
+printed it.
+--------------------------------------------------------------------------------
+CONFOUND FOUND AFTER TASK 4, BEFORE TASK 5 -- 2026-08-28
+--------------------------------------------------------------------------------
+The four arms have been run. Before the Nautilus gate was executed, the trade
+counts were checked and did not behave as the design assumes.
+
+Selection is rank-based and sizing-independent: the top-8 TARGET set is identical
+between v1 and v3, and between v2 and v4, on all 92 rebalances in both universes.
+That was verified, not assumed. What differs is EXECUTION.
+
+    THE v3-vs-v1 CONTRAST IS CONFOUNDED.
+    THE v4-vs-v2 CONTRAST IS CLEAN.
+
+Measured:
+
+                      rebalances whose HELD set differs      name-days differing
+    n100  v1 vs v3           66 of 91                              121
+    mid   v1 vs v3           70 of 91                              114
+    n100  v2 vs v4            4 of 91                                4
+    mid   v2 vs v4            0 of 91                                0
+
+    mean names actually held per rebalance
+                      v1      v3          v2      v4
+    n100             8.01    7.78        9.54    9.52
+    mid              8.04    7.63        9.23    9.23
+
+So v1 and v3 are not one portfolio under two weightings. They target the same
+eight names and then hold different subsets of them: v3 holds fewer, and falls
+below eight on 24 of 91 rebalances on n100 and 34 of 91 on mid, against 12 and 14
+for v1. Any v3-vs-v1 difference in return or risk contains a portfolio-composition
+effect as well as a sizing effect, and this measurement cannot separate them.
+
+v2 and v4 hold the same portfolio. On mid that is exact -- zero differing
+rebalances, zero name-days. On n100 it is four name-days out of roughly eight
+hundred. The v4-vs-v2 contrast measures what this spec says it measures.
+
+CAUSE, AND WHY NOTHING WAS FIXED
+    Not pro-vol. `invest_val` is computed over the whole portfolio while new
+    entrants are funded from cash alone and held positions are never resized, so
+    the tail of the score-descending buy loop is skipped when cash runs out.
+    Inverse-vol already hits this 119 times on n100 and 92 on mid. Pro-vol hits it
+    140 and 129 times. Full detail and the per-arm table are in KNOWN_ISSUES.md.
+
+    Fixing it would change inverse-vol sizing behaviour and move the published v1
+    and v2 numbers, and this spec forbids resizing held positions at line 125. So
+    the confound is recorded and the arms are left exactly as they are.
+
+    The two diagnostic columns MeanNamesHeld and CashShortSkips were added to
+    v34_comparison.csv and v34_subperiods.csv in both universes so the confound is
+    visible in the artefact rather than only in prose.
+
+HOW THIS MUST BE READ IN THE FINAL REPORT
+    Any statement comparing v3 with v1 must carry the confound. A statement
+    comparing v4 with v2 need not. The prediction section above is UNCHANGED and is
+    judged against the arms as they came out.
+
+
+--------------------------------------------------------------------------------
+CORRECTIONS -- made after measurement, before any code changed or any arm ran
+--------------------------------------------------------------------------------
+2026-08-28. Three figures in this spec and in the instruction that accompanied it
+were wrong. All three were found by measuring the repository rather than by
+reading it, and all three were corrected before a single line of engine code was
+edited and before any arm was run. The originals are named here rather than
+silently overwritten.
+
+1. "seven trading days" (window section above) was SIX.
+   The cut drops 2026-06-01, 06-02, 06-03, 06-04, 06-05 and 06-08. 2026-05-30 and
+   05-31 are a weekend, so the last included session is Friday 2026-05-29 and the
+   next is Monday 2026-06-01. Measured identically on both live universes:
+   1842 trading days before, 1836 after.
+
+2. "93 of 93 rebalances" (correctness gate above) is 92 of 92.
+   Rebalances fire at `i % REBAL == 0 and i < len(dates) - 1` with REBAL = 20. At
+   1842 days the last one is index 1840; at 1836 days that index no longer exists,
+   so the walk ends at 1820. Both universes: 93 rebalances before, 92 after.
+   The Nautilus gate is therefore 92 of 92, for every arm on both universes.
+
+3. The instruction accompanying this spec listed ten audit and chart scripts to
+   move to the new window. SEVEN OF THEM SERVE ONLY THE RETIRED 58 AND 74:
+   make_daily_audit.py, make_cash_series.py, make_stats_both.py,
+   make_combined_all.py, make_stock_chart.py, make_per_stock_charts.py and
+   validate_breadth.py. Moving them would have made a retired universe's audit
+   trail end on a different day from the retired engine run it documents -- the
+   same defect the instruction was trying to prevent, inverted.
+
+   Corrected before editing: those seven are frozen, carrying the comment
+   "WINDOW FROZEN: retired universe" so a single grep finds them all. Only the
+   three live-universe scripts moved -- make_mid_audit.py, make_n100_audit.py and
+   make_mid_chart.py:144. make_n100_chart.py and make_combined_n100_mid.py read
+   the equity CSV and inherit the window with no edit.
+
+Nothing else in this spec has been altered.
+
+================================================================================
+END OF SPEC
+================================================================================

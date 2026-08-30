@@ -58,7 +58,9 @@ except Exception:
     def calc_tc(price, qty, side):
         return price * qty * 0.0011
 
-REBAL, TOP_N, BUFFER = 20, 8, 16
+REBAL = 20
+# SELECTION -- imported from config.py, the single definition.
+TOP_N, BUFFER = config.TOP_N, config.BUFFER
 SLIPPAGE = 0.0015
 START_CAPITAL = 1_000_000
 SAFETY = 0.98
@@ -123,8 +125,31 @@ def load_panel(cache_path=None):
     px = p.pivot_table(index="date", columns="symbol", values="close").ffill()
     op = p.pivot_table(index="date", columns="symbol", values="open").ffill()
     sc = p.pivot_table(index="date", columns="symbol", values="score")
-    bd = px.index[(px.index.year >= 2019) & (px.index.year <= 2026)]
+    # Window from config.py so the reference re-implementation cuts on exactly
+    # the same dates as the engine. A year cut here against a date cut there
+    # would make nt_verify fail on rebalance COUNT for a reason unrelated to
+    # sizing or execution.
+    bd = px.index[(px.index >= config.BT_START_DATE)
+                  & (px.index <= config.BT_END_DATE)]
     return px, op, sc, bd, precompute(px), px / px.shift(20) - 1
+
+
+# ---------------------------------------------------------------------------
+# SIZING MODE -- must mirror nt_strategy.SIZING and test_exposure's `sizing`
+# ---------------------------------------------------------------------------
+# This module is the REFERENCE side that nt_verify compares the port against. If
+# it stayed on inverse-vol while the port ran pro-vol, every pro-vol arm would
+# fail verification for a reason that has nothing to do with the port. Same guard
+# (vol > 0.01), same zero on failure, same normalisation, same fallback.
+SIZING = "invvol"
+
+
+def set_sizing(mode: str):
+    """Set the sizing rule. Raises rather than silently accepting a typo."""
+    global SIZING
+    if mode not in ("invvol", "provol"):
+        raise ValueError(f"sizing must be 'invvol' or 'provol', got {mode!r}")
+    SIZING = mode
 
 
 def run(px, op, sc, dates, pc, mom20, size_at_close: bool, tick_round: bool = False,
@@ -214,7 +239,13 @@ def run(px, op, sc, dates, pc, mom20, size_at_close: bool, tick_round: bool = Fa
                 w = {}
                 for s in top:
                     vs = v.get(s, np.nan)
-                    w[s] = (1.0 / vs) if (not np.isnan(vs) and vs > 0.01) else 0.0
+                    ok = (not np.isnan(vs)) and vs > 0.01
+                    if not ok:
+                        w[s] = 0.0
+                    elif SIZING == "provol":
+                        w[s] = vs
+                    else:
+                        w[s] = 1.0 / vs
                 tot = sum(w.values())
                 w = ({s: w[s] / tot for s in top} if tot > 0
                      else {s: 1.0 / len(top) for s in top})
@@ -245,7 +276,7 @@ if __name__ == "__main__":
     # changes, and a stale number in a verdict is how this project has been misled
     # before. Run it and read the result.
     import nt_run
-    _strat = nt_run.run("2019-01-01", "2026-06-08")
+    _strat = nt_run.run(str(config.BT_START_DATE.date()), str(config.BT_END_DATE.date()))
     NAUTILUS_EQUITY = _strat.daily_equity[-1]["equity"]
 
     px, op, sc, bd, pc, mom20 = load_panel()

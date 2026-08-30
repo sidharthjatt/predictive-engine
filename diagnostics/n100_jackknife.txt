@@ -1,0 +1,79 @@
+NOTE ADDED 2026-08-28 -- WINDOW THIS ARTEFACT WAS MEASURED ON
+  Backtest window: 2019-01-01 to 2026-06-08 inclusive, 1842 trading days,
+  93 rebalances. That is the OLD year-based cut.
+
+  n100_jackknife.py imports BT_START/BT_END from engine_core.py, which is
+  deliberately frozen on the year cut because it is the retired 58's
+  provenance. The live engines moved to 2019-01-01..2026-05-29 (1836 days,
+  92 rebalances) on 2026-08-28.
+
+  DO NOT PLACE THESE NUMBERS BESIDE A v34 TABLE OR ANY POST-2026-08-28
+  FIGURE. They describe a different window and the comparison would be
+  invalid. Re-run the script to measure it on the current window.
+================================================================================
+
+================================================================================================
+ NIFTY 100 JACKKNIFE -- is the edge concentrated? (99 names)
+================================================================================================
+================================================================================================
+ BASELINE GATE -- does this script's reconstruction reproduce the pipeline?
+================================================================================================
+
+                          this script   v2FINAL_equity     delta
+   strategy CAGR               25.36%           25.36%     +0.00
+   buy & hold CAGR             23.18%           23.18%     +0.00
+   edge                        +2.18            +2.18      +0.00
+
+   GATE PASSED -- both sides within 0.05 pt.
+
+================================================================================================
+ COST
+================================================================================================
+   one edge() call            : 0.2 s
+   full run                   : 300 calls (1 baseline + 99 leave-one-out + 200 random)
+   estimate                   : 1 min (63 s), assuming every call costs the baseline
+   removal size 8 is 8.1% of n100, against 5.4% of mid's 148
+
+------------------------------------------------------------------------------------------------
+ [1] LEAVE-ONE-OUT over all 99 names
+------------------------------------------------------------------------------------------------
+     ... 25/99
+     ... 50/99
+     ... 75/99
+
+   edge distribution over 99 single-name removals:
+     min -0.48   p10 +1.48   median +2.05   p90 +2.45   max +2.79
+     removals that flip the edge negative: 1 of 99 (1.0%)
+
+   most damaging single removals:
+     ADANIENSOL    edge  -0.48  drop  +2.66  (strategy 22.48%, buy&hold 22.96%)
+     MAZDOCK       edge  +0.40  drop  +1.78  (strategy 23.17%, buy&hold 22.77%)
+     VBL           edge  +0.74  drop  +1.44  (strategy 23.70%, buy&hold 22.96%)
+     UNIONBANK     edge  +1.01  drop  +1.17  (strategy 24.29%, buy&hold 23.28%)
+     SOLARINDS     edge  +1.03  drop  +1.15  (strategy 23.93%, buy&hold 22.90%)
+     ADANIPOWER    edge  +1.17  drop  +1.01  (strategy 23.95%, buy&hold 22.78%)
+     PFC           edge  +1.24  drop  +0.94  (strategy 24.36%, buy&hold 23.12%)
+     HCLTECH       edge  +1.36  drop  +0.82  (strategy 24.61%, buy&hold 23.25%)
+
+------------------------------------------------------------------------------------------------
+ [2] 200 RANDOM REMOVALS OF 8 NAMES   (seed 0)
+------------------------------------------------------------------------------------------------
+     ... 50/200
+     ... 100/200
+     ... 150/200
+     ... 200/200
+
+   edge distribution over 200 random 8-name removals:
+     min -3.91   p10 -1.13   median +1.12   p90 +2.52   max +4.10
+     removals that flip the edge negative: 44 of 200 (22.0%)
+
+================================================================================================
+ SUMMARY -- reported, not graded
+================================================================================================
+   baseline edge                        +2.18 pt
+   largest single-name drop             +2.66 pt (ADANIENSOL, edge -> -0.48)
+   single removals flipping it negative 1 of 99
+   random-8 removals flipping it negative  44 of 200
+
+   This is a measurement, not a pre-registered experiment. There is no
+   accept rule and no threshold to pass, so the numbers stand as they are.
