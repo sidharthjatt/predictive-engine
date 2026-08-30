@@ -36,6 +36,9 @@ def run(tmp, perm, mdir, y_end, tag):
     op = p.pivot_table(index="date", columns="symbol", values="open").ffill()
     sc = p.pivot_table(index="date", columns="symbol", values="score")
     pc = precompute(px); mom20 = px / px.shift(20) - 1
+    # WINDOW FROZEN: retired universe -- serves only the retired 58/74. Their published
+    # numbers must not move, so this window is deliberately left on the old
+    # year cut while the live universes moved to config.BT_START_DATE/BT_END_DATE.
     bd = px.index[(px.index.year >= 2019) & (px.index.year <= y_end)]
 
     audit = {"holdings": [], "summary": [], "trades": [], "ranking": [], "decisions": [], "skipped": []}

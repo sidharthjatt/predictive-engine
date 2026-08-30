@@ -34,6 +34,9 @@ def run_with_cash(cache_path,y_end):
     px=p.pivot_table(index="date",columns="symbol",values="close").ffill()
     op=p.pivot_table(index="date",columns="symbol",values="open").ffill()
     sc=p.pivot_table(index="date",columns="symbol",values="score")
+    # WINDOW FROZEN: retired universe -- serves only the retired 58/74. Their published
+    # numbers must not move, so this window is deliberately left on the old
+    # year cut while the live universes moved to config.BT_START_DATE/BT_END_DATE.
     bd=px.index[(px.index.year>=2019)&(px.index.year<=y_end)]
     pc=precompute(px); mom20=px/px.shift(20)-1
     shares,cash={},CAP; pending=None; recs=[]; cd=(1+CASH_Y)**(1/252)-1

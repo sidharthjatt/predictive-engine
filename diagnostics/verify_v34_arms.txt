@@ -1,0 +1,24 @@
+====================================================================================================
+ V34 CORRECTNESS GATE -- nt_verify, four arms, both universes
+====================================================================================================
+  window 2019-01-01 to 2026-05-29   (from config.py, shared by engine and port)
+  the SIZING column is read back from the modules at run time, not from
+  the loop variable, so it cannot report a rule the code did not use.
+
+  N100
+    arm  intended  nt_strategy  nt_attribution  result          verdict
+    v1   invvol    invvol       invvol          92 of 92        VERIFIED
+    v2   invvol    invvol       invvol          92 of 92        VERIFIED
+    v3   provol    provol       provol          92 of 92        VERIFIED
+    v4   provol    provol       provol          92 of 92        VERIFIED
+
+  MID
+    arm  intended  nt_strategy  nt_attribution  result          verdict
+    v1   invvol    invvol       invvol          92 of 92        VERIFIED
+    v2   invvol    invvol       invvol          92 of 92        VERIFIED
+    v3   provol    provol       provol          92 of 92        VERIFIED
+    v4   provol    provol       provol          92 of 92        VERIFIED
+
+====================================================================================================
+ GATE PASSED -- every arm VERIFIED on every universe run
+====================================================================================================

@@ -1,0 +1,143 @@
+====================================================================================================
+ V3/V4 PRO-VOL SIZING -- COMBINED REPORT, BOTH UNIVERSES
+====================================================================================================
+ Spec      : experiments/V34_SPEC.txt
+ Window    : 2019-01-01 to 2026-05-29 inclusive
+ Generated : 2026-08-28
+
+ This is a MEASUREMENT, not an accept/reject experiment. No arm is competing
+ to enter production. Every number below is read from the CSVs the engines
+ wrote; no figure or direction word in this file is hand-written.
+
+====================================================================================================
+ Nifty 100 (n100) -- FULL PERIOD
+====================================================================================================
+                   Config  CAGR%  AnnVol%  Sharpe  Sortino  MaxDD%  Calmar  Deployed%  Trades    TC_Rs  MeanNamesHeld  CashShortSkips  FinalEquity
+ v1 invvol, 100% invested  35.13    19.71    1.65     2.13  -35.32    0.99      100.0     809 511571.0           8.01           119.0   9294664.39
+v2 invvol, breadth-scaled  25.49    12.71    1.88     2.55  -18.64    1.37       56.6     981 241844.0           9.54             7.0   5375020.79
+ v3 provol, 100% invested  27.91    22.92    1.21     1.58  -35.28    0.79      100.0     794 393189.0           7.78           140.0   6191295.82
+v4 provol, breadth-scaled  23.89    15.42    1.49     2.00  -19.07    1.25       56.6     977 229320.0           9.52             9.0   4886777.44
+  buy & hold equal-weight  23.74    17.57    1.32     1.59  -36.52    0.65      100.0       0      0.0            NaN             NaN   4845781.31
+
+ Nifty 100 (n100) -- SUB-PERIODS, measured independently
+----------------------------------------------------------------------------------------------------
+   Period                    Config  CAGR%  AnnVol%  Sharpe  MaxDD%  Deployed%  MeanNamesHeld  CashShortSkips  FirstDate   LastDate  Days
+2019-2022  v1 invvol, 100% invested  37.55    20.68    1.67  -35.32      100.0           7.98            66.0 2019-01-01 2022-12-30   993
+2019-2022 v2 invvol, breadth-scaled  25.37    12.96    1.84  -18.64       56.6           9.45             5.0 2019-01-01 2022-12-30   993
+2019-2022  v3 provol, 100% invested  34.87    23.32    1.42  -35.28      100.0           7.86            75.0 2019-01-01 2022-12-30   993
+2019-2022 v4 provol, breadth-scaled  27.08    15.29    1.67  -19.07       56.6           9.43             6.0 2019-01-01 2022-12-30   993
+2019-2022   buy & hold equal-weight  24.69    19.67    1.24  -36.52      100.0            NaN             NaN 2019-01-01 2022-12-30   993
+2023-2026  v1 invvol, 100% invested  32.38    18.52    1.64  -18.54      100.0           8.05            53.0 2023-01-02 2026-05-29   843
+2023-2026 v2 invvol, breadth-scaled  25.68    12.41    1.94  -10.43       56.6           9.64             2.0 2023-01-02 2026-05-29   843
+2023-2026  v3 provol, 100% invested  20.20    22.47    0.95  -33.19      100.0           7.69            65.0 2023-01-02 2026-05-29   843
+2023-2026 v4 provol, breadth-scaled  20.28    15.59    1.28  -15.99       56.6           9.62             3.0 2023-01-02 2026-05-29   843
+2023-2026   buy & hold equal-weight  22.50    14.75    1.48  -19.97      100.0            NaN             NaN 2023-01-02 2026-05-29   843
+
+====================================================================================================
+ MidCap150 (mid) -- FULL PERIOD
+====================================================================================================
+                   Config  CAGR%  AnnVol%  Sharpe  Sortino  MaxDD%  Calmar  Deployed%  Trades    TC_Rs  MeanNamesHeld  CashShortSkips  FinalEquity
+ v1 invvol, 100% invested  45.87    22.38    1.83     2.40  -34.78    1.32      100.0     845 674964.0           8.04            92.0  16383771.30
+v2 invvol, breadth-scaled  30.22    13.49    2.06     2.66  -18.98    1.59       54.1     973 231561.0           9.23             1.0   7069592.85
+ v3 provol, 100% invested  48.98    24.51    1.78     2.44  -32.64    1.50      100.0     780 760453.0           7.63           129.0  19149977.98
+v4 provol, breadth-scaled  32.74    15.63    1.92     2.55  -17.45    1.88       54.1     973 250315.0           9.23             1.0   8145634.76
+  buy & hold equal-weight  27.77    17.61    1.50     1.77  -36.40    0.76      100.0       0      0.0            NaN             NaN   6147717.05
+
+ MidCap150 (mid) -- SUB-PERIODS, measured independently
+----------------------------------------------------------------------------------------------------
+   Period                    Config  CAGR%  AnnVol%  Sharpe  MaxDD%  Deployed%  MeanNamesHeld  CashShortSkips  FirstDate   LastDate  Days
+2019-2022  v1 invvol, 100% invested  39.30    22.99    1.58  -34.78      100.0           8.16            50.0 2019-01-01 2022-12-30   993
+2019-2022 v2 invvol, breadth-scaled  25.41    13.51    1.77  -18.98       54.1           9.33             1.0 2019-01-01 2022-12-30   993
+2019-2022  v3 provol, 100% invested  45.69    25.11    1.65  -32.64      100.0           7.61            76.0 2019-01-01 2022-12-30   993
+2019-2022 v4 provol, breadth-scaled  26.28    15.61    1.60  -17.45       54.1           9.33             1.0 2019-01-01 2022-12-30   993
+2019-2022   buy & hold equal-weight  28.14    18.72    1.44  -36.40      100.0            NaN             NaN 2019-01-01 2022-12-30   993
+2023-2026  v1 invvol, 100% invested  53.82    21.66    2.14  -26.12      100.0           7.90            42.0 2023-01-02 2026-05-29   843
+2023-2026 v2 invvol, breadth-scaled  36.00    13.48    2.39   -9.80       54.1           9.12             0.0 2023-01-02 2026-05-29   843
+2023-2026  v3 provol, 100% invested  52.86    23.80    1.94  -29.41      100.0           7.64            53.0 2023-01-02 2026-05-29   843
+2023-2026 v4 provol, breadth-scaled  40.59    15.65    2.30  -12.17       54.1           9.12             0.0 2023-01-02 2026-05-29   843
+2023-2026   buy & hold equal-weight  27.15    16.22    1.59  -19.87      100.0            NaN             NaN 2023-01-02 2026-05-29   843
+
+====================================================================================================
+ [1] v4 vs v2 -- THE ONE CLEAN CONTRAST. THIS GETS A VERDICT.
+====================================================================================================
+ Both arms are breadth-scaled. They hold the SAME portfolio: 0 of 91
+ rebalances differ on mid, 4 name-days of about 800 on n100. So the only
+ material difference between them is the sizing rule, which is what the spec
+ set out to measure.
+
+ PREDICTION, quoted from V34_SPEC.txt:
+     "v4 vs v2   same direction, smaller magnitude, because breadth scaling
+                already caps total exposure and damps both sides."
+     where the stated direction is: higher CAGR, higher annualised
+     volatility, deeper MaxDD, Sharpe roughly equal or lower.
+
+  Nifty 100 (n100):
+    CAGR      25.49% ->   23.89%    -1.60 pt   LOWER
+    AnnVol    12.71% ->   15.42%    +2.71 pt   HIGHER
+    Sharpe     1.88  ->    1.49     -0.39      LOWER
+    MaxDD    -18.64% ->  -19.07%    -0.43 pt   DEEPER
+    prediction components matched: 3 of 4 -- higher CAGR: NO, higher volatility: yes, deeper MaxDD: yes, Sharpe equal or lower: yes
+
+  MidCap150 (mid):
+    CAGR      30.22% ->   32.74%    +2.52 pt   HIGHER
+    AnnVol    13.49% ->   15.63%    +2.14 pt   HIGHER
+    Sharpe     2.06  ->    1.92     -0.14      LOWER
+    MaxDD    -18.98% ->  -17.45%    +1.53 pt   SHALLOWER
+    prediction components matched: 3 of 4 -- higher CAGR: yes, higher volatility: yes, deeper MaxDD: NO, Sharpe equal or lower: yes
+
+  VERDICT, computed:
+    n100  the central claim (pro-vol raises CAGR) is CONTRADICTED: CAGR moved -1.60 pt.
+    mid   the central claim (pro-vol raises CAGR) is held: CAGR moved +2.52 pt.
+    The two universes DISAGREE on the sign of the CAGR change.
+
+====================================================================================================
+ [2] v3 vs v1 -- CONFOUNDED, THEREFORE UNTESTABLE. NO VERDICT IS DRAWN.
+====================================================================================================
+ These two arms do NOT hold the same portfolio. They target the same eight
+ names -- the top-8 target set is identical on all 92 rebalances, verified --
+ and then hold different subsets of them, because new positions are funded
+ from cash alone and pro-vol exhausts cash more often. See KNOWN_ISSUES.md.
+
+ The prediction for this contrast is NOT judged. It did not fail; the
+ measurement cannot test it, because any difference below mixes the sizing
+ rule with a portfolio-composition effect that this design cannot separate.
+
+ THE CONFOUND, MEASURED:
+    n100  mean names held  v1 8.01  vs  v3 7.78     cash-short skips  v1 119  vs  v3 140
+    mid   mean names held  v1 8.04  vs  v3 7.63     cash-short skips  v1 92  vs  v3 129
+
+ THE NUMBERS, REPORTED IN FULL ANYWAY:
+
+  Nifty 100 (n100):
+    CAGR      35.13% ->   27.91%    -7.22 pt   LOWER
+    AnnVol    19.71% ->   22.92%    +3.21 pt   HIGHER
+    Sharpe     1.65  ->    1.21     -0.44      LOWER
+    MaxDD    -35.32% ->  -35.28%    +0.04 pt   SHALLOWER
+
+  MidCap150 (mid):
+    CAGR      45.87% ->   48.98%    +3.11 pt   HIGHER
+    AnnVol    22.38% ->   24.51%    +2.13 pt   HIGHER
+    Sharpe     1.83  ->    1.78     -0.05      LOWER
+    MaxDD    -34.78% ->  -32.64%    +2.14 pt   SHALLOWER
+
+  No verdict. See above for why.
+
+====================================================================================================
+ [3] DO THE TWO UNIVERSES AGREE?
+====================================================================================================
+ Neither universe is primary. Where they disagree, the disagreement is the
+ finding and is reported as such rather than resolved in favour of whichever
+ looks better.
+
+             contrast  n100 dCAGR  n100 dVol  n100 dSharpe  n100 dMaxDD  mid dCAGR  mid dVol  mid dSharpe  mid dMaxDD
+     v4 vs v2 (clean)       -1.60       2.71         -0.39        -0.43       2.52      2.14        -0.14        1.53
+v3 vs v1 (confounded)       -7.22       3.21         -0.44         0.04       3.11      2.13        -0.05        2.14
+
+    v4 vs v2   CAGR        n100 lower      mid higher     -> DISAGREE
+    v4 vs v2   volatility  n100 higher     mid higher     -> agree
+    v4 vs v2   Sharpe      n100 lower      mid lower      -> agree
+    v4 vs v2   MaxDD       n100 deeper     mid shallower  -> DISAGREE
+    v3 vs v1   CAGR        n100 lower      mid higher     -> DISAGREE
+    v3 vs v1   volatility  n100 higher     mid higher     -> agree
+    v3 vs v1   Sharpe      n100 lower      mid lower      -> agree
+    v3 vs v1   MaxDD       n100 shallower  mid shallower  -> agree

@@ -141,7 +141,10 @@ print( "    was an artefact of that bug and must not be quoted.")
 # --- residual contamination in the PRICE panel, which the return filter cannot reach ---
 _px = pd.read_csv(score_panel_path(), parse_dates=["date"]) \
         .pivot_table(index="date", columns="symbol", values="close").ffill()
-_bd = _px.index[(_px.index.year >= 2019) & (_px.index.year <= 2026)]
+# Window from config.py. This buy&hold figure feeds the chart subtitle and must
+# describe the same days as the equity curve plotted beside it.
+_bd = _px.index[(_px.index >= config.BT_START_DATE)
+                & (_px.index <= config.BT_END_DATE)]
 _r = _px.pct_change().loc[_bd]
 _ext = _r.stack(); _ext = _ext[_ext.abs() > 0.55].sort_values(key=abs, ascending=False)
 _m = _r.mean(axis=1)

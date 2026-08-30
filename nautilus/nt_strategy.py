@@ -2,7 +2,8 @@
 nt_strategy.py -- the Predictive Engine execution logic as a Nautilus Strategy.
 
 WHAT THIS FILE DOES AND DOES NOT DO
-    It reproduces the EXECUTION layer only: ranking, buffer, inverse-vol sizing,
+    It reproduces the EXECUTION layer only: ranking, buffer, volatility sizing
+    (inverse-vol by default, pro-vol under set_sizing),
     breadth-scaled exposure, and order submission. No model is trained here. The
     scores arrive precomputed from nt_export_scores.py, which is the only channel
     between research and execution.
@@ -65,6 +66,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "results"))
 from qbeast_in_charges import (Broker, Exchange, Product, Segment, Side as QSide,
                                compute_leg_charges)
@@ -75,13 +77,39 @@ from nautilus_trader.model.identifiers import InstrumentId
 from nautilus_trader.model.objects import Quantity
 from nautilus_trader.trading.strategy import Strategy
 
-TOP_N = 8
-BUFFER = 16
+# SELECTION -- imported from config.py, the single definition.
+import config
+TOP_N, BUFFER = config.TOP_N, config.BUFFER
 REBAL = 20
 VOL_WIN = 60
 MOM_WIN = 20
 SAFETY = 0.98
 TRADING_DAYS = 252
+
+# ---------------------------------------------------------------------------
+# SIZING MODE -- mirrors results/test_exposure.py's `sizing` argument
+# ---------------------------------------------------------------------------
+# "invvol" (default)  w = 1/vol   -- low vol gets the large position
+# "provol"            w = vol     -- high vol gets the large position
+#
+# The engine takes this per call; the port is a long-lived strategy object, so
+# it takes it as a module switch set before the run, exactly as nt_data.py
+# handles DEPTH_MODE. The DEFAULT IS "invvol" so any caller that does not set
+# it gets the existing behaviour unchanged.
+#
+# THE RULE MUST MATCH test_exposure.py EXACTLY. Same guard (vol > 0.01), same
+# zero weight when it fails, same normalisation by the sum, same equal-weight
+# fallback when the total is zero. If these two drift, nt_verify stops
+# reconciling and the divergence looks like an execution bug.
+SIZING = "invvol"
+
+
+def set_sizing(mode: str):
+    """Set the sizing rule. Raises rather than silently accepting a typo."""
+    global SIZING
+    if mode not in ("invvol", "provol"):
+        raise ValueError(f"sizing must be 'invvol' or 'provol', got {mode!r}")
+    SIZING = mode
 
 
 def leg_charges(price, qty, side):
@@ -467,7 +495,7 @@ class PredictiveEngineStrategy(Strategy):
         port_val = cash + holdings_value
         invest_val = port_val * exposure * SAFETY
 
-        # --- inverse-volatility weights over the top-N ---
+        # --- volatility weights over the top-N, direction set by SIZING ---
         w = {}
         for sy in top:
             arr = [self._close_at(sy, k) for k in range(i_now - VOL_WIN, i_now + 1)]
@@ -477,7 +505,12 @@ class PredictiveEngineStrategy(Strategy):
             arr = np.asarray(arr, dtype=float)
             rets = arr[1:] / arr[:-1] - 1.0
             vol = float(np.std(rets, ddof=1) * np.sqrt(TRADING_DAYS))
-            w[sy] = (1.0 / vol) if vol > 0.01 else 0.0
+            if vol <= 0.01:
+                w[sy] = 0.0
+            elif SIZING == "provol":
+                w[sy] = vol
+            else:
+                w[sy] = 1.0 / vol
         tot = sum(w.values())
         w = ({k: v / tot for k, v in w.items()} if tot > 0
              else {k: 1.0 / len(top) for k in top})

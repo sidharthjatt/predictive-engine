@@ -41,7 +41,11 @@ def run(tmp, perm, mdir, y_end, tag):
     op = p.pivot_table(index="date", columns="symbol", values="open").ffill()
     sc = p.pivot_table(index="date", columns="symbol", values="score")
     pc = precompute(px); mom20 = px / px.shift(20) - 1
-    bd = px.index[(px.index.year >= 2019) & (px.index.year <= y_end)]
+    # Window from config.py -- this audit documents a live universe whose engine
+    # window moved, so it must move with it or the log reconciles days the
+    # engine never traded.
+    bd = px.index[(px.index >= config.BT_START_DATE)
+                  & (px.index <= config.BT_END_DATE)]
 
     audit = {"holdings": [], "summary": [], "trades": [], "ranking": [], "decisions": [], "skipped": []}
     eq, tc, ntr, expo = backtest_exposure(px, op, sc, bd, pc, mom20,

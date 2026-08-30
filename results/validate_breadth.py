@@ -25,6 +25,9 @@ from engine_core import build_panel, score_monthly, metrics, precompute, HORIZON
 from features_v2 import FEATS_V2
 from test_exposure import backtest_exposure
 
+# WINDOW FROZEN: retired universe -- serves only the retired 58/74. Their published
+# numbers must not move, so this window is deliberately left on the old
+# year cut while the live universes moved to config.BT_START_DATE/BT_END_DATE.
 BT_START, BT_END = 2019, 2026
 VOL_WIN = 60
 M = config.METRICS_DIR
