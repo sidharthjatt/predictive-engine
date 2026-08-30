@@ -1,0 +1,72 @@
+========================================================================================================
+ BREADTH VALIDATION ON A LIVE UNIVERSE -- MidCap150 (mid)
+========================================================================================================
+  spec    experiments/BREADTH_LIVE_SPEC.txt
+  window  2019-01-01 to 2026-05-29 inclusive
+  T1 and T2 are copied verbatim from results/validate_breadth.py, which
+  stays frozen. T3 is new and is REPORTED, NOT GATED.
+
+  score panel  /Users/sidharthchoudhary/Downloads/algo_trading_project/results_mid/metrics/v_mid_expanding_cache.csv
+               148 symbols, 1836 days in the window
+
+========================================================================================================
+ T1. SEED ROBUSTNESS -- does breadth beat 100% invested on 3 independent seed sets?
+========================================================================================================
+  GATED on BOTH: dSharpe > 0 and dMaxDD > 3 points, on ALL three sets.
+    seed set 1/3 [5, 55, 555] scoring (refits the model) ...
+      Sharpe 1.74 -> 2.08 (+0.34)    MaxDD -30.97% -> -15.91% (+15.06 pt)    deployed 54.1%
+    seed set 2/3 [13, 26, 39] scoring (refits the model) ...
+      Sharpe 1.86 -> 2.07 (+0.21)    MaxDD -31.95% -> -16.29% (+15.66 pt)    deployed 54.1%
+    seed set 3/3 [101, 202, 303] scoring (refits the model) ...
+      Sharpe 1.78 -> 1.87 (+0.09)    MaxDD -32.08% -> -15.90% (+16.18 pt)    deployed 54.1%
+
+    Sharpe improved on 3/3 seed sets  -> PASS
+    MaxDD improved by more than 3 points on 3/3 seed sets  -> PASS
+
+========================================================================================================
+ T2. SUB-PERIOD STABILITY -- does breadth hold in both halves?
+========================================================================================================
+  GATED on dSharpe > 0 in both halves. THERE IS NO DRAWDOWN CRITERION HERE.
+  That asymmetry with T1 is inherited from the 58's suite, not chosen: a
+  rule improving Sharpe in both halves while worsening drawdown in one
+  would pass T2. MaxDD is printed below but does NOT gate.
+    2019-2022  (2019-01-01 to 2022-12-30, 993 days)
+      Sharpe 1.58 -> 1.77 (+0.19)    MaxDD -34.78% -> -18.98% (+15.80 pt, not gated)    deployed 54.1%
+    2023-2026  (2023-01-02 to 2026-05-29, 843 days)
+      Sharpe 1.84 -> 1.96 (+0.12)    MaxDD -24.28% -> -13.35% (+10.93 pt, not gated)    deployed 54.3%
+
+    Sharpe improved in 2/2 halves  -> PASS
+
+========================================================================================================
+ T3. CONSTANT-EXPOSURE CONTROL -- REPORTED, NOT GATED, NO VERDICT
+========================================================================================================
+  Breadth against a FIXED exposure set to breadth's OWN realised mean over
+  the same window, so the average cash level is identical in both arms and
+  only the timing differs.
+  The constant is read from the breadth run itself; it is never a literal.
+  It is therefore NOT an independent benchmark, and this does NOT test
+  whether the level breadth picks is a good level -- that is unmeasured.
+  No criterion is applied to any number below.
+    full       constant held at 54.08% (breadth's own realised mean over this window)
+      Sharpe  const 1.76  breadth 2.06   difference +0.30
+      MaxDD   const -23.33%  breadth -18.98%   difference +4.35 points
+      CAGR    const 25.27%  breadth 30.22%   difference +4.95 points
+    2019-2022  constant held at 54.12% (breadth's own realised mean over this window)
+      Sharpe  const 1.53  breadth 1.77   difference +0.24
+      MaxDD   const -23.35%  breadth -18.98%   difference +4.37 points
+      CAGR    const 22.10%  breadth 25.41%   difference +3.31 points
+    2023-2026  constant held at 54.28% (breadth's own realised mean over this window)
+      Sharpe  const 1.90  breadth 1.96   difference +0.06
+      MaxDD   const -17.65%  breadth -13.35%   difference +4.30 points
+      CAGR    const 25.97%  breadth 29.73%   difference +3.76 points
+
+========================================================================================================
+ VERDICT -- MidCap150 (mid)
+========================================================================================================
+    PASS   T1 seed robustness (Sharpe)
+    PASS   T1 seed robustness (MaxDD > 3 pt)
+    PASS   T2 sub-period stability (Sharpe)
+
+    3 of 3 gated criteria hold.
+    PASS on this universe.
+    T3 did not enter this verdict.

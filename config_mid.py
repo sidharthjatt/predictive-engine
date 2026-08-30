@@ -6,7 +6,8 @@ symbol list only:
   - Data:   data/raw/MidCap150/clean/       (149 CSVs = 148 constituents + 1 index)
   - Output: results_mid/metrics/            (kept apart from results/ and results74/)
 
-Everything else -- 17 features, TOP_N=8, BUFFER=16, HORIZON=REBAL=20, 32-day purge,
+Everything else -- 17 features, TOP_N and BUFFER (defined in config.py, currently
+8 and 16), HORIZON=REBAL=20, 32-day purge,
 the same 10 seeds, SAFETY=0.98, CASH_YIELD=0.0 -- stays byte-identical to the 58
 setup, so that only the universe differs and the comparison stays fair.
 

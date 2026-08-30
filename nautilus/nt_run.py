@@ -42,15 +42,19 @@ UNIVERSES = {
     "58":  {"cache": ROOT / "results" / "metrics" / "v5_expanding_cache.csv",
             "scores": "scores_58.parquet",
             "metrics": ROOT / "results" / "metrics",
+            # WINDOW FROZEN: retired universe -- the 58 is retired and its published
+            # numbers must not move, so this end date is deliberately unchanged.
             "tag": "58", "end": "2026-06-08"},
     "74":  {"cache": ROOT / "results74" / "metrics" / "v74_expanding_cache.csv",
             "scores": "scores_74.parquet",
             "metrics": ROOT / "results74" / "metrics",
+            # WINDOW FROZEN: retired universe -- the 74 is retired and its published
+            # numbers must not move, so this end date is deliberately unchanged.
             "tag": "74", "end": "2025-12-23"},
     "mid": {"cache": ROOT / "results_mid" / "metrics" / "v_mid_expanding_cache.csv",
             "scores": "scores_mid.parquet",
             "metrics": ROOT / "results_mid" / "metrics",
-            "tag": "mid", "end": "2026-06-08"},
+            "tag": "mid", "end": str(config.BT_END_DATE.date())},
     # Nifty 100 (fourth universe). Same shape as the others: only the paths and the
     # end date differ, so every rule the port applies is unchanged.
     #
@@ -62,7 +66,7 @@ UNIVERSES = {
     "n100": {"cache": ROOT / "results_n100" / "metrics" / "v_n100_expanding_cache.csv",
              "scores": "scores_n100.parquet",
              "metrics": ROOT / "results_n100" / "metrics",
-             "tag": "n100", "end": "2026-06-08"},
+             "tag": "n100", "end": str(config.BT_END_DATE.date())},
 }
 PRICE_CACHE = UNIVERSES["58"]["cache"]
 START_CAPITAL = 1_000_000

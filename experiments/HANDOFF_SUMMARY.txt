@@ -1,197 +1,335 @@
 ================================================================================
-!! SUPERSEDED IN PART -- READ THIS FIRST (added 2026-08-13) !!
-================================================================================
-Every performance number below was measured BEFORE the feature-density fix of
-2026-08-13 and is therefore measured on a degraded panel.
-
-THE DEFECT: features_v2.add_market_relative_features computed beta_60 and
-idio_vol_60 with rolling(60) over the UNION date index. A symbol that did not
-trade on a union date lost its next 60 windows, and every affected row was then
-dropped by dropna(subset=FEATS_V2). On the 58 that silently discarded 42,964
-idio_vol_60 rows and 25,296 beta_60 rows, which never reached training. The bug
-acted as a filter that happened to select favourable rows.
-
-THE FIX: both features are now computed on each symbol's own trading index and
-aligned back. Formulas, window length and ddof convention are unchanged. Verified
-not to alter values it should not: where old and new are both defined the max
-absolute difference is 5.2e-13 (beta_60) and 3.3e-15 (idio_vol_60), zero rows
-lost, and a truncation causality test returns exactly 0.000e+00.
-
-WHAT MOVED:
-    universe   CAGR                        Sharpe
-    58         16.45% -> 13.16%  (-3.29)   1.36 -> 1.11  (-0.25)
-    74         14.65% -> 15.22%  (+0.57)   1.27 -> 1.35  (+0.08)
-    MidCap150   9.06% -> 27.34%  (+18.28)  1.63 -> 1.70  (+0.07)
-
-READ PLAINLY: on the 58 the strategy now returns 13.16% against 10.93% for
-NIFTY100 (ahead by 2.2 points) and 18.65% for an equal-weight buy&hold of its own
-universe (behind by 5.5 points). On MidCap150 it returns 27.34% against 28.35%
-for that universe's buy&hold -- also behind. The direction is consistent across
-universes once the buy&hold is measured on the same fixed panel.
-
-ALSO SUPERSEDED: the inverse-vol validation. engine_core.py now reports FAIL on
-T3 (sub-period) and T4 (vol-window sensitivity), where it passed 4/4 before. Any
-claim in this document that inverse-vol sizing is validated across sub-periods
-and parameter values is no longer supported.
-
-The structural content below -- architecture, method, what was tried and
-rejected, the standing caveats -- remains accurate. Only the numbers moved.
-================================================================================
-
-================================================================================
 PREDICTIVE ENGINE -- HANDOFF SUMMARY
-Last updated: 7 August 2026 (supersedes all earlier handoffs)
+Rewritten 28 August 2026. Supersedes every earlier handoff in this file.
 ================================================================================
+
+This describes the repository as it stands today. The previous version carried
+pre-window-change numbers, claimed inverse-vol was validated 4/4, and said nothing
+about the four-arm pro-vol measurement, the funding-rule defect or the Nautilus
+gate. All of that is corrected below rather than appended.
+
+WHAT A READER MUST NOT ASSUME FROM THIS DOCUMENT: that a number here has been
+checked recently. Where something is unverified, this document says so.
 
 ## 0. CONTEXT
 
-User: Sid (Sidharth Choudhary). Speak Hinglish in chat; address him as "Sid" or
-"Sidh". ALL file content -- code, comments, docstrings, logs, CSVs, documents --
-must be in English only. This is a hard rule set on 7 Aug 2026.
+User: Sid (Sidharth Choudhary). Hinglish is fine in chat; address him as "Sid".
+ALL FILE CONTENT -- code, comments, docstrings, printed strings, CSV headers,
+logs, documents -- is ENGLISH ONLY. Hard rule.
 
-Project: "Predictive Engine" -- the cross-sectional LightGBM ranking component of
-Prof Gaurav Sir's real-money systematic equity system at IIT Jodhpur. This is
-Sid's MTech thesis component and his SECOND FLAGSHIP portfolio project.
-
-BOUNDARY: Sir's full "NIFTY50 Algorithmic Trading System" is a SEPARATE piece of
-work that is not Sid's. Never mix the two.
-
-Machine: Mac Mini, 10 cores. Path: ~/Downloads/algo_trading_project
-Python venv is already active.
-
-WORKING RULES (followed throughout; keep following them):
- 1. Verify logic in a container BEFORE giving code. Never guess. Grep paths,
-    regexes and column names first.
- 2. Ask before deleting or changing anything.
- 3. Never put "sir" in a filename.
- 4. Always use config.read_price_csv() to read any raw data.
- 5. Write the accept/reject rule BEFORE running a test, then look at the result.
- 6. Save evidence for rejected experiments.
- 7. Litmus/sanity check first, performance numbers second.
- 8. Zero tolerance for leakage, overfitting and bugs.
+Other standing rules: verify logic in the repo before changing it, grep the paths
+and line numbers rather than guessing; ask before changing anything outside the
+task at hand; never hardcode a printed conclusion; no AI attribution in commits.
 
 ================================================================================
-## 1. WHAT CHANGED IN THE 7 AUG 2026 SESSION -- READ THIS FIRST
+## 1. THE WINDOW CHANGED. EVERY EARLIER NUMBER IS VOID.
 ================================================================================
 
-Three things changed, and ALL previously reported numbers are now stale.
+    BACKTEST WINDOW: 2019-01-01 to 2026-05-29 inclusive
+    1,836 trading days, 92 rebalances, BOTH live universes.
 
-### (A) CASH_YIELD 0.06 -> 0.0  [THIS CHANGED EVERY v2 NUMBER]
-The backtest used to assume idle cash earned 6% a year. That does not happen
-automatically: idle cash in a Zerodha account earns nothing. Earning 6% would
-require actively parking cash in a liquid fund, with its own T+1 friction, exit
-loads and tax -- a separate operation that is not modelled. Sid's instruction was
-to remove all assumptions, so the yield was set to zero.
+Defined once, in config.py, as BT_START_DATE and BT_END_DATE. Every live site
+imports them. The names are deliberately NOT BT_START/BT_END, because
+engine_core.py:93 still defines those as year INTEGERS for the retired 58 and two
+constants with the same name and different types is how a previous mismatch
+happened.
 
-Changed in exactly two places (verified by grep -- no other copies exist):
-  results/test_exposure.py    line 53
-  results/make_daily_log.py   line 29   (must always match the engine)
+The code previously cut by YEAR and ran to 2026-06-08. The new window drops six
+trading days: 2026-06-01 through 2026-06-08. It also drops one rebalance --
+rebalances fire at `i % 20 == 0 and i < len(dates)-1`, so 93 became 92.
 
-Impact: v2 lost roughly 2 percentage points of CAGR in both universes, because it
-sits ~35% in cash. v1 and all benchmarks are unaffected (they hold no cash).
+CONSEQUENCE, STATED PLAINLY: every v1 and v2 figure published before 2026-08-28
+is VOID. Do not place a pre-change number in a table beside a post-change one.
+What moved:
 
-### (B) STALE HARDCODED NUMBERS REMOVED
-Several scripts printed numbers baked in from older runs. The worst was
-engine_v2_final74.py, which printed "It clearly beats buy & hold on risk-adjusted
-terms: Sharpe 1.27 vs 1.29" -- a statement contradicted by its own figures.
+    universe  arm  metric   before(1842d)  after(1836d)   move
+    n100      v1   CAGR%          34.90        35.13     +0.23
+    n100      v2   CAGR%          25.36        25.49     +0.13
+    mid       v1   CAGR%          44.50        45.87     +1.37
+    mid       v1   Sharpe          1.79         1.83     +0.04
+    mid       v2   CAGR%          29.18        30.22     +1.04
+    mid       v2   Sharpe          2.00         2.06     +0.06
 
-Every such string is now computed from the current run. engine_v2_final74.py now
-prints "-- behind buy & hold" automatically when the Sharpe delta is negative.
-These outputs can no longer go stale.
+MaxDD is unchanged to the decimal on all four, because the deepest drawdown sits
+well before June 2026. mid moved roughly ten times more than n100 from the same
+six-day cut; that asymmetry is noted and not explained.
 
-Also fixed: engine_v2_final74.py labelled its benchmark "buy & hold (58)" when it
-was the 74 universe.
-
-### (C) reality_check.py NOW STATES WHICH ENGINE IT REPORTS
-reality_check.py reads FINAL_equity.csv -- the VALIDATION engine (engine_core.py),
-not the official system. Its headline "Rs 10L -> Rs 53,72,574" was being quoted as
-if it were the official result. It is not.
-
-The script now says so at the top, and a new section 1b prints the official v2
-figure beside it:
-     v2 final value (official) : Rs 31,01,677
-     validation engine         : Rs 53,72,574
-NEVER quote Rs 53.7L as a headline number. Quote the v2 figure.
-
-### (D) FULL ENGLISH CONVERSION
-All 35 project .py files converted from Hinglish to English (comments, docstrings,
-print strings). Logic, variable names and numbers untouched; every file compiles
-and a full run reproduces identical results. engine_core.py's docstring also had
-the wrong filename ("engine_FINAL.py") -- corrected.
-
-### (E) FORENSIC DAILY LOG REBUILT
-make_daily_log.py was rewritten. It now has four sections per trading day, order
-IDs linking creation to execution, entry dates and round-trip P&L on every sell,
-skipped orders with reasons, and -- most importantly -- a RECONCILIATION section
-that checks three identities every single day:
-     CASH    opening + yield + sales - purchases - fees = closing
-     EQUITY  cash + holdings = total
-     SHARES  opening qty +/- today's trade = closing qty
-Current status: 1842/1842 (58) and 1732/1732 (74), all three identities, ALL OK.
-A verification summary sits at the end of each log file.
-
-This check is not decorative: it caught a real mismatch during development when
-the engine and the log had different CASH_YIELD values.
+RETIRED UNIVERSES ARE FROZEN ON THE OLD WINDOW BY DECISION. The 58 and the 74
+keep their year cut so their published numbers do not move. Ten sites carry the
+comment "WINDOW FROZEN: retired universe" -- one grep finds them all.
 
 ================================================================================
-## 2. OFFICIAL NUMBERS (Rs 10L, after TC, before tax, zero cash yield)
+## 2. OFFICIAL NUMBERS (Rs 10,00,000 start, after TC, before tax, zero cash yield)
 ================================================================================
 
-variant       line             CAGR%  Sharpe  MaxDD%  Calmar  Inv%   Cash%  perInvCap%
-FINAL_system  58 v2            16.45  1.36    -17.09  0.96    64.6   35.4   25.48
-FINAL_system  58 v1            23.24  1.22    -32.90  0.71    100.0  0.0    23.24
-FINAL_system  74 v2            14.65  1.27    -17.71  0.83    64.5   35.5   22.70
-FINAL_system  74 v1            19.10  1.06    -29.93  0.64    100.0  0.0    19.10
-REFERENCE     58 buy&hold      18.65  1.06    -39.80  0.47    100.0  0.0    18.65
-REFERENCE     74 buy&hold      23.97  1.29    -38.29  0.63    100.0  0.0    23.97
-REFERENCE     Nifty100 58win   23.05  1.29    -36.51  0.63    100.0  0.0    23.05
-REFERENCE     Nifty100 74win   25.04  1.39    -36.51  0.69    100.0  0.0    25.04
+Read from results_*/metrics/v34_comparison.csv, window above.
 
-Final values: 58 v2 = Rs 31,01,677 | 74 v2 = Rs 25,95,058
-Trades: 921 (58) / 895 (74).  TC: Rs 1,66,472 (58) / Rs 1,30,261 (74).
-Skipped orders: 18 (58, 1.9%) / 11 (74, 1.2%) -- mostly "qty < 1 after sizing".
-No "no open price" skips at all, so data quality is clean. This is why average
-positions are ~7.9 rather than 8.0.
+NIFTY 100 (99 constituents)
+    arm                          CAGR%  Sharpe  MaxDD%  AnnVol%  Deployed%  Final Rs
+    v1 invvol, 100% invested     35.13    1.65  -35.32    19.71      100.0  92,94,664
+    v2 invvol, breadth-scaled    25.49    1.88  -18.64    12.71       56.6  53,75,021
+    v3 provol, 100% invested     27.91    1.21  -35.28    22.92      100.0  61,91,296
+    v4 provol, breadth-scaled    23.89    1.49  -19.07    15.42       56.6  48,86,777
+    equal-weight buy & hold      23.74    1.32  -36.52    17.57      100.0  48,45,781
 
-Rank IC mean +0.0365, positive 58.6% of the time. Top-8 beat the market average on
-58.1% of rebalances. Win rate 60.7% over 366 round-trips, profit factor 2.31.
+MIDCAP150 (148 constituents)
+    arm                          CAGR%  Sharpe  MaxDD%  AnnVol%  Deployed%  Final Rs
+    v1 invvol, 100% invested     45.87    1.83  -34.78    22.38      100.0 1,63,83,771
+    v2 invvol, breadth-scaled    30.22    2.06  -18.98    13.49       54.1  70,69,593
+    v3 provol, 100% invested     48.98    1.78  -32.64    24.51      100.0 1,91,49,978
+    v4 provol, breadth-scaled    32.74    1.92  -17.45    15.63       54.1  81,45,635
+    equal-weight buy & hold      27.77    1.50  -36.40    17.61      100.0  61,47,717
 
-### THE HONEST SCORECARD -- the story changed, say it correctly
-  Drawdown : -17.1% / -17.7% vs -36.5% index. Roughly HALF. This is the real,
-             surviving result. It comes from breadth scaling, not from cash yield.
-  Sharpe   : 58 -> 1.36 vs 1.29 index (ahead, but by 0.07, well inside the
-             +/-0.7 standard error on a Sharpe over this sample).
-             74 -> 1.27 vs 1.29 index (BEHIND).
-  Per deployed rupee: 58 -> 25.48 vs 23.05 (ahead). 74 -> 22.70 vs 25.04 (behind).
-  Raw CAGR : behind in both universes.
-
-  So the claim "beats the benchmark on risk-adjusted terms in both universes" is
-  NO LONGER TRUE and must not be repeated. The defensible claim is:
-  "comparable risk-adjusted return at roughly half the drawdown, with no return
-  coming from interest on idle cash."
-
-VALIDATION STATUS (unchanged by any of the above):
-  Leakage 4/4 PASS (purging caught 5.4% of fake CAGR; the shuffle test gave 9.7%
-                    CAGR vs 18.5% buy & hold, so the engine itself is clean)
-  Inverse-vol 4/4 PASS (baseline control, 3 seed sets, 2 sub-periods, 4 vol windows)
-  Breadth PASS (3 seed sets + both halves)
-  Top-8 PASS (monotonic trend + sub-period + both universes)
-
-PERMANENT CAVEATS (always state these alongside the numbers):
- 1. NO CAPITAL GAINS TAX. ~900 short-term trades; STCG ~20%. Buy & hold pays only
-    LTCG at 12.5%. Note that TxnFee DOES include transaction-level taxes (STT,
-    stamp duty, GST) -- those are real Zerodha contract-note charges.
- 2. SURVIVORSHIP BIAS. The universe is today's index names (LTFOODS +793%,
-    ADANIENT +1848% included from 2019). Proof: BELRISE / ITCHOTELS / NTPCGREEN
-    show 0 entries. Both lines are affected equally, so the comparison is fair,
-    but both absolute figures are inflated.
- 3. Edge t ~ 0.8 -- NOT statistically significant.
- 4. Market impact not modelled beyond Rs 10L.
- 5. Signal decay: IC fell from +0.0461 (2019-22) to +0.0256 (2023-26), and is
-    slightly negative in 2025 and 2026. Report this; do not tune it away.
+v2 is the shipping configuration. The equal-weight buy & hold is NOT investable:
+it is today's index members backfilled, so it carries the same survivorship
+inflation the strategy does.
 
 ================================================================================
-## 3. SYSTEM CONFIG (FINAL, FROZEN)
+## 3. PRO-VOL WAS MEASURED AND IS NOT SUPPORTED
+================================================================================
+
+Spec: experiments/V34_SPEC.txt, written before any code changed.
+Report: diagnostics/v34_report.txt, every figure computed from the run.
+
+Four arms: v1 invvol/always-invested, v2 invvol/breadth (shipping), v3
+provol/always-invested, v4 provol/breadth. Sizing is the only difference --
+w = 1/vol60 against w = vol60, same guard, same normalisation, same fallback.
+
+THE WRITTEN PREDICTION was that pro-vol buys return with risk: higher CAGR,
+higher volatility, deeper MaxDD, Sharpe equal or lower.
+
+v4 vs v2 -- THE ONE CLEAN CONTRAST (same portfolio, only the weights differ):
+
+    n100   CAGR 25.49 -> 23.89  (-1.60)   Sharpe 1.88 -> 1.49  (-0.39)
+           vol  12.71 -> 15.42  (+2.71)   MaxDD -18.64 -> -19.07 (deeper)
+    mid    CAGR 30.22 -> 32.74  (+2.52)   Sharpe 2.06 -> 1.92  (-0.14)
+           vol  13.49 -> 15.63  (+2.14)   MaxDD -18.98 -> -17.45 (shallower)
+
+ON n100 THE PREDICTION IS CONTRADICTED, and it is recorded as a contradiction of
+a written prediction rather than as something that was expected. Pro-vol lowered
+CAGR by 1.60 points AND lowered Sharpe by 0.39 AND raised volatility AND deepened
+drawdown. Nothing was bought with the extra risk. On mid the CAGR claim held but
+the drawdown claim did not -- MaxDD came out shallower, not deeper.
+
+THE TWO UNIVERSES DISAGREE on the sign of the CAGR change and on the sign of the
+drawdown change. They agree only that pro-vol raises volatility and lowers
+Sharpe. The disagreement IS the finding and is not resolved toward mid.
+
+v3 vs v1 -- UNTESTABLE, NOT FAILED. This is a different outcome from a failed
+prediction and must not be collapsed into one. The two arms target the same eight
+names (verified identical on all 92 rebalances) but hold different subsets:
+
+    n100   mean names held  v1 8.01 vs v3 7.78   cash-short skips  119 vs 140
+    mid    mean names held  v1 8.04 vs v3 7.63   cash-short skips   92 vs 129
+
+Any v3-v1 difference mixes sizing with a portfolio-composition effect this design
+cannot separate. No verdict is drawn in either direction.
+
+NO ARM IS PROMOTED. Inverse-vol sizing is unchanged and v2 still ships.
+
+================================================================================
+## 4. THREE THINGS WRONG OR UNVERIFIED, AND ONE NOW CLOSED. FULL LIST: KNOWN_ISSUES.md
+================================================================================
+
+(A) NEW POSITIONS ARE FUNDED FROM CASH ALONE -- AFFECTS THE SHIPPING BASELINE.
+    invest_val is computed over the WHOLE portfolio, but held names are skipped
+    and never resized, so new entrants are bought from cash only. When their
+    combined target exceeds cash, the tail of the score-descending buy loop is
+    dropped, logged as "cash short (before TC)".
+
+    THIS IS NOT A PRO-VOL PROBLEM. v1, the always-invested inverse-vol arm that
+    ships, fails to fill its own eight-name target on 12 of 91 rebalances on n100
+    and 14 of 91 on mid, and drops 119 and 92 individual names. That had never
+    been measured before 2026-08-28. Breadth scaling largely masks it in v2 (7 and
+    1 skips) because only 54-56% is deployed.
+
+    Left unfixed BY DECISION, not oversight: fixing it changes inverse-vol
+    behaviour and moves the published v1/v2 numbers, and V34_SPEC.txt:125 forbids
+    resizing held positions. Visible in the artefacts as the MeanNamesHeld and
+    CashShortSkips columns.
+
+(B) INVERSE-VOL SIZING VALIDATES ON n100 AND FAILS ON mid.
+    The four-test suite was run on the live universes for the first time on
+    2026-08-28. It had only ever run on the retired 58.
+        n100  4 of 4 PASS      diagnostics/validate_sizing_n100.txt
+        mid   1 of 4 PASS      diagnostics/validate_sizing_mid.txt
+              T2 seed robustness FAIL (0 of 3: +0.00, +0.00, -0.06)
+              T3 sub-period      FAIL (2019-2022 delta -0.02)
+              T4 vol window      FAIL (0 of 4 beat equal-rupee 1.80)
+    Any claim that inverse-vol is validated must name the universe. It is not
+    validated on mid.
+
+(C) BREADTH IS NOW VALIDATED ON BOTH LIVE UNIVERSES. CLOSED 2026-08-29.
+    Was: validated only on the retired 58 by validate_breadth.py, which reads
+    config.METRICS_DIR and has never run on n100 or mid.
+
+    Closed by results/validate_breadth_live.py, under
+    experiments/BREADTH_LIVE_SPEC.txt, written before any code. T1 (seed
+    robustness, gated on dSharpe > 0 AND dMaxDD > 3 on all three seed sets) and
+    T2 (sub-period, gated on dSharpe > 0 in both halves) are copied VERBATIM from
+    the 58's suite. The dMaxDD > 3 bar is underived and was NOT recalibrated for
+    either universe. The T1/T2 asymmetry -- T1 gates on Sharpe and drawdown, T2
+    on Sharpe alone -- is inherited, not chosen, and is documented in place.
+
+        n100   3 of 3 gated criteria   PASS
+        mid    3 of 3 gated criteria   PASS
+
+    Both pass, so the spec's split-result clause did not fire.
+
+    AND IT COVERS PRODUCTION, WHICH THE SIZING VALIDATION DOES NOT. It imports
+    test_exposure.backtest_exposure -- the shipping engine -- and its breadth arm
+    returns CAGR 25.49 / Sharpe 1.88 / MaxDD -18.64 on n100 and 30.22 / 2.06 /
+    -18.98 on mid, identical to v2 in v34_comparison.csv on all three headline
+    figures in both universes. validate_sizing.py runs on engine_core.backtest,
+    a structurally different implementation that lands 1.80 CAGR points away from
+    the shipping engine on the 58 -- see "There are FIVE reimplementations of the
+    backtest, not two" in KNOWN_ISSUES.md -- so its result
+    does NOT cover what ships. The breadth PASS must not be generalised to the sizing result:
+    the two are validated against different engines.
+
+    T3, THE CONSTANT-EXPOSURE CONTROL -- REPORTED, NOT GATED, NO VERDICT.
+    Breadth against a FIXED exposure set to breadth's own realised mean over the
+    same window, so the average cash level is identical in both arms and only the
+    timing differs. The constant is read from the breadth run itself, so it is
+    not an independent benchmark. This does NOT test whether the level breadth
+    picks (56.6% n100, 54.1% mid) is a good level; that is open and unmeasured.
+    T3 was added after v2's numbers were known, so gating on it would be choosing
+    a criterion with the data in view. Differences only, no criterion applied:
+
+        n100   full        dSharpe +0.21   dMaxDD +5.49 pt   dCAGR +2.49 pt
+               2019-2022   dSharpe +0.15   dMaxDD +5.53 pt   dCAGR +0.57 pt
+               2023-2026   dSharpe +0.15   dMaxDD +2.96 pt   dCAGR +2.78 pt
+        mid    full        dSharpe +0.30   dMaxDD +4.35 pt   dCAGR +4.95 pt
+               2019-2022   dSharpe +0.24   dMaxDD +4.37 pt   dCAGR +3.31 pt
+               2023-2026   dSharpe +0.06   dMaxDD +4.30 pt   dCAGR +3.76 pt
+
+    THE WRITTEN EXPECTATION WAS NOT BORNE OUT. BREADTH_LIVE_SPEC.txt records, in
+    advance, an expectation that breadth's T3 edge would be smaller than it
+    measured; the differences exceed it in every period on both universes. That
+    is a statement about the prediction, recorded before the run precisely so it
+    could be checked -- it is NOT a verdict on T3, which stays ungated. Whether
+    T3 ever becomes a gate is a separate pre-registered decision.
+
+    Artefacts: results_{n100,mid}/metrics/breadth_live_{t1,t2,t3}.csv and
+    breadth_live_params.json; diagnostics/breadth_live_{n100,mid}.txt.
+
+(D) STEP 2 PRINTS A LEAKAGE CHECKLIST THAT PERFORMS NO CHECKS.
+    engine_core.py:586-609 builds a TEN-ROW table printed at run_all.py STEP 2
+    under "[3] LEAKAGE / OVERFIT CHECKLIST". ONE ROW IS COMPUTED -- "Baseline
+    control", which reads `"PASS" if ok1 else "FAIL"`. NINE ARE STRING LITERALS.
+
+    SIX OF THOSE LITERALS READ "PASS": label purging, walk-forward, execution
+    timing, feature causality, the shuffle test and parameter selection. Nothing
+    in the run establishes any of them. IF ANY OF THE SIX PROPERTIES BROKE
+    TOMORROW, THE ROW WOULD PRINT THE SAME TEXT.
+
+    A reader of STEP 2's output would reasonably conclude that the pipeline
+    verifies causality. It does not, and the output is indistinguishable from one
+    that had. The remaining three literals -- NOT FIXED, NOT MODELLED, PARTIAL --
+    are honest labels rather than verdicts and are not the problem.
+
+    IT VIOLATES LESSON 5 IN SECTION 9 OF THIS DOCUMENT, inside this project's own
+    code: "An output that hardcodes its own conclusion will eventually lie. Every
+    printed verdict is computed from the run that prints it."
+
+    THE CLAIMS WERE TRUE WHEN WRITTEN and this is not an allegation that any of
+    the six is currently broken. results/audit_leakage.py exists and does real
+    work, but it is NOT in PIPELINE_ORDER and run_all.py never runs it.
+
+    THE FALSE LABELS WERE REMOVED THE SAME DAY, 2026-08-29. The six rows now
+    print NOT CHECKED BY THIS RUN, from a named constant engine_core.NOT_CHECKED,
+    under a key stating that exactly one row is computed and that a NOT CHECKED
+    row prints the same text whether or not the property holds. The block now
+    also says that results/audit_leakage.py is not run by this pipeline.
+    engine_core.py is frozen, so the edit was PROVED byte-identical rather than
+    argued harmless: 2 of 2 curves on the 58 and 8 of 8 on the live universes --
+    diagnostics/leakage_labels_hashes.txt.
+
+    THE SIX CHECKS ARE STILL NOT BUILT and the entry stays OPEN. Each needs its
+    own design, and the two expensive ones -- feature causality and the shuffle
+    control -- need tolerances and seed counts that do not exist. KNOWN_ISSUES.md
+    carries a one-line specification of each.
+
+    NOTHING ABOUT THE PIPELINE'S ACTUAL LEAKAGE EXPOSURE CHANGED ON 2026-08-29.
+    What changed is that the output no longer claims otherwise.
+
+================================================================================
+## 4A. TOP_N IS NOW CENTRALISED, AND 8 IS NOT CONTRADICTED. 2026-08-29.
+================================================================================
+
+THE OUTCOME HAS TWO HALVES. READ BOTH OR NEITHER.
+    TOP_N=8 is NOT CONTRADICTED on its pre-registered rule. IN THE SAME
+    MEASUREMENT TOP_N=12 HAD THE SHALLOWER MaxDD IN BOTH UNIVERSES -- -15.99
+    against -18.64 on n100, -16.65 against -18.98 on mid -- on a dimension the
+    rule does not gate.
+
+    That is NOT a claim that 12 is better: its Sharpe is lower in every period
+    and its turnover is 40.8% and 48.1% higher. And NO DRAWDOWN CRITERION WAS
+    PRE-REGISTERED, so nothing here is a result about drawdown.
+
+    NO DRAWDOWN CRITERION IS ADDED. Adding one with these numbers in view would
+    be fitting the rule to the data, which is what documenting the Sharpe-only
+    asymmetry rather than fixing it was meant to avoid.
+
+Spec: experiments/TOPN_SPEC.txt, written before any code. Two parts, in order.
+
+PART A -- THE CONSTANT IS DEFINED ONCE.
+    TOP_N and BUFFER were literals in TEN places with no single definition. They
+    now live in config.py:108-109, imported by the five live sites:
+    test_exposure.py:58, engine_v2_final_n100.py:60, engine_v2_final_mid.py:64,
+    nt_strategy.py:82, nt_attribution.py:63.
+
+    THE RETIRED ENGINES KEEP THEIR OWN LITERALS, like the year window --
+    engine_core.py:90 (comment added, literal untouched), engine_v2_final.py:53,
+    engine_v2_final74.py:53, make_cash_series.py:15, make_stats_both.py:14.
+
+    PROVEN, NOT ASSERTED: all four arms x both live universes, eight equity
+    curves, SHA256 byte-identical before and after. diagnostics/
+    topn_centralise_hashes.txt carries both columns; topn_centralise_check.py
+    regenerates it.
+
+    TWO DEFINITIONS OF TOP_N STILL EXIST. config.py's and engine_core.py's, and
+    validate_sizing.py imports TOP_N from the FROZEN one while running on the
+    live universes. They agree at 8 and nothing enforces that.
+
+PART B -- THE INCUMBENT WAS REVALIDATED. EXPERIMENTS.md entry 27.
+    TOP_N=8 against TOP_N=12 -- the value it beat in entry 10 -- with BUFFER
+    PINNED at 16 in both arms, both live universes, current window, on the
+    SHIPPING engine. No sweep: 12 is the only challenger with standing, because
+    entry 10's acceptance was 8-against-12 and was measured on the 58 and the 74,
+    both now retired.
+
+    SIX OF SIX CRITERIA HOLD. dSharpe (8 minus 12):
+        n100   full +0.19   2019-2022 +0.11   2023-2026 +0.11
+        mid    full +0.12   2019-2022 +0.16   2023-2026 +0.22
+    No split. Both universes held. The ungated drawdown half of this outcome is
+    at the head of this section and is not optional reading.
+
+    THE WORD IS "NOT CONTRADICTED" AND THAT IS THE CEILING IN EVERY OUTCOME.
+    The record does not state what BUFFER entry 10's 12-arm ran at -- searched
+    across EXPERIMENTS.md, the preregs, rejected_experiments_REPORT.txt, git (the
+    initial commit already carries 8, 16, so version control begins after the
+    acceptance) and every surviving script, all negative. So this cannot be shown
+    to be entry 10's contrast and RE-EARNED is not available.
+
+    TOP_N=12 HAS THE SHALLOWER DRAWDOWN IN BOTH UNIVERSES -- n100 -15.99 against
+    -18.64, mid -16.65 against -18.98. The rule does not see it, because entry
+    10 gated on Sharpe alone and this inherits that. Recorded, not gated.
+
+    THE PIN HANDICAPS THE CHALLENGER ON TURNOVER. 8/16 leaves an eight-rank
+    hysteresis band, 12/16 leaves four, and 12 runs +40.8% and +48.1% more
+    trades. This test cannot separate "8 is a better concentration" from "16
+    suits 8 better than it suits 12".
+
+    A WRITTEN PREDICTION WAS CONTRADICTED, IN THE OPPOSITE DIRECTION. The spec
+    predicted TOP_N=12 would show MORE cash-short skips than 8. It shows ZERO in
+    both universes, against 7 on n100 and 1 on mid. The funding defect binds on
+    PER-NAME TARGET SIZE, not on the count of targets: invest_val is split TOP_N
+    ways, so each entrant at 12 needs a smaller slice of cash. The spec said in
+    advance that this failing was worth more than the TOP_N result.
+
+================================================================================
+## 5. SYSTEM CONFIG
 ================================================================================
 
 PIPELINE:
@@ -199,273 +337,165 @@ PIPELINE:
   -> LightGBM 10-seed ensemble, monthly retrain, EXPANDING window, 32-day purge
   -> 20-day forward cross-sectional RANK label
   -> TOP_N=8 buy / BUFFER=16 hold / rank 17+ sell
-  -> breadth exposure (linear: share of stocks with positive 20d momentum)
-  -> inverse-vol sizing (w = 1/vol60, normalised)
-  -> signal at day-t CLOSE, fill at day-(t+1) OPEN, 0.15% slippage against
-  -> real Zerodha transaction costs (brokerage/STT/stamp/exchange/GST)
+  -> breadth exposure (share of stocks with positive 20-day momentum)
+  -> inverse-vol sizing (w = 1/vol60, normalised); "provol" and "equal" exist as
+     alternative modes and are not used in production
+  -> signal at day-t CLOSE, fill at day-(t+1) OPEN, 0.15% slippage
+  -> real Zerodha delivery-equity costs (brokerage/STT/stamp/exchange/SEBI/GST/DP)
 
 CONSTANTS:
   HORIZON=20, REBAL=20, TOP_N=8, BUFFER=16, VOL_WIN=60, PURGE=32
   SEEDS=[7,42,99,1,2,3,11,22,33,101]
-  START_CAPITAL=10,00,000 | CASH_YIELD=0.0 | SAFETY_FACTOR=0.98
+  START_CAPITAL=10,00,000 | CASH_YIELD=0.0 | SLIPPAGE=0.0015
+  The 0.98 safety factor is a bare literal in test_exposure.py, appearing twice,
+  with no comment explaining its purpose. Its effect is to hold back 2%.
 
-UNIVERSES:
-  58 stocks: 2019-01-01 to 2026-06-08 (7.4 yrs), panel 229,135 rows
-  74 stocks: 2019-01-01 to 2025-12-31 (7.0 yrs), panel 153,811 rows
-  Nifty100 benchmark: 100 CSVs, equal-weight basket proxy (NOT the real
-  cap-weighted index)
+LIVE UNIVERSES: Nifty 100 (99 names) and MidCap150 (148), both 2019-01-01 to
+2026-05-29. RETIRED: 58 and 74, frozen on the old year window.
 
 17 FEATURES:
   MOMENTUM(3): mom_20, mom_120, mom_12_1
-  REVERSAL(2): rev_5, rev_1        <- strongest family (IC +0.0197/+0.0116)
+  REVERSAL(2): rev_5, rev_1
   VOLATILITY(5): vol_20, vol_ratio, idio_vol_60, beta_60, downside_vol_60
   LIQUIDITY(3): amihud_20, turnover_z, vol_price_div
   TREND QUALITY(4): trend_consistency_20, path_smooth_60, dist_high_252, rsi_14
 
-### TWO MECHANICS THAT ARE OFTEN MISUNDERSTOOD -- know these
+TWO MECHANICS OFTEN MISUNDERSTOOD:
 
-1. FULL COMPOUNDING. At each rebalance:
-       port_val   = current market value of holdings + all cash
-       invest_val = port_val * exposure * 0.98
-   Profits are never set aside. If the portfolio grows to Rs 12L, breadth is
-   applied to Rs 12L. This is why Rs 10L became Rs 31L.
+1. FULL COMPOUNDING. invest_val = port_val * exposure * 0.98, where port_val is
+   holdings plus cash. Profits are never set aside.
 
-2. EXISTING HOLDINGS ARE NEVER RESIZED. The engine skips any symbol already held:
-       if s == "_exposure" or s in shares: continue
-   Only NEW positions are sized against the target exposure. A held stock is sold
-   only when its rank falls below 16.
-
-   Consequence: actual invested % can drift far above the target. A real example
-   from the log -- breadth 3.33%, so target exposure 3.33%, but actual invested
-   79.86%, a gap of 76 points. The new buys were small and correct; the 11 existing
-   holdings simply were not trimmed.
-
-   THIS IS THE ANSWER to "why does it still buy in a falling market". The buys are
-   tiny. The problem is that old positions are not cut. Section [D] of the daily log
-   now prints this gap on every rebalance line.
+2. EXISTING HOLDINGS ARE NEVER RESIZED. The engine skips any symbol already held.
+   Only NEW positions are sized against the target. A held stock is sold only when
+   its rank falls below 16. Actual invested % can therefore drift far from target
+   -- one logged example is breadth 3.33% against 79.86% actually invested. This
+   is also the direct cause of defect (A) above.
 
 ================================================================================
-## 4. REJECTED EXPERIMENTS (full record: rejected_experiments_REPORT.txt)
+## 6. CORRECTNESS -- WHAT IS ACTUALLY PROVEN
 ================================================================================
 
-Total: 12 REJECTED, 1 ACCEPTED (top-8 concentration).
+NAUTILUS GATE, 2026-08-28: diagnostics/verify_v34_arms.txt
+    All FOUR arms VERIFIED at 92 of 92 rebalances on BOTH universes, on the new
+    window. The sizing rule in force was asserted on both the port
+    (nt_strategy.SIZING) and the reference side (nt_attribution.SIZING) before
+    each arm and printed beside its result, read back from the modules rather
+    than from the loop variable, so no arm can have been measured under a stale
+    global.
 
-EXPOSURE / CASH MANAGEMENT -- 6 attempts, 0 accepted:
-  sqrt breadth, median breadth, conditional breadth (percentile gate at cut 0.20
-  and 0.30), percentile exposure, percentile + smoothing, breadth delta (level +
-  direction, k=1/2/3). Each was pre-registered as: Sharpe must not fall in either
-  universe, both sub-periods must pass, drawdown must not worsen. None passed.
+RECONCILIATION: mid and n100 both report cash, equity and share counts tying out
+on 1,836 of 1,836 days, ALL OK, plus "equity vs official v2FINAL_equity.csv:
+MATCH". The retired 58 and 74 still show 1,842 and 1,732, correctly.
 
-  CONCLUSION (permanent): all the information in the breadth signal has been
-  extracted. Linear mapping is its optimal use. A 7th attempt is fitting to noise.
-  QUESTION CLOSED. Note that a "60% negative -> go fully to cash" rule is the same
-  family as the already-rejected conditional breadth, only more aggressive.
-
-  KEY FINDING from attempt 4: minInv 0.0%, maxInv 99.6%. The system ALREADY uses
-  the full 0-100% range. 64.6% is only the 7.4-year average. The problem is timing,
-  not range -- and perfect timing does not exist, as six designs demonstrated.
-
-TRAINING SCHEME -- 5 attempts, 0 accepted, run as a clean 2x2:
-  Q1 "Does more data help?" rolling 1y/2y/3y vs expanding.
-     Expanding won in both universes. Sub-periods contradicted each other across
-     universes, which is the signature of noise.
-  Q2 "Does fading old data help?" sample_weight = lambda^(age in months).
-     Monotonic: the more fading, the worse. Litmus passed -- lambda 0.995 has
-     N_eff = 399 months = 33 years, so it is effectively uniform, and it did
-     reproduce uniform.
-  CONCLUSION: retraining scheme is not the lever that matters. QUESTION CLOSED.
-
-v1/v2 CAPITAL BLEND: not a free lunch, a slider. Every 10% of v1 added costs
-  roughly +0.55 CAGR / -0.027 Sharpe / -1.6 pts of drawdown. Not added to the
-  system -- it is a capital-allocation decision, not engineering.
-  test_v1_v2_blend.py is KEPT, because Sir will eventually ask about the split.
-
-EARLIER SESSIONS: fraction rule, long-short (the 2526% CAGR bug), multi-signal
-  equal-weight, IC-weighted combination, dynamic concentration, EWMA volatility
-  (two attempts, full record in ewma_vs_rolling_REPORT.txt).
-ACCEPTED: top-8 concentration (from top-12).
+WHAT THE PORT DOES NOT PROVE: it runs against a synthetic 09:15 quote with
+QUOTE_DEPTH = 10,000,000 shares. Every order fills instantly, in full, at one
+price, whatever its size. No L2 data exists anywhere in this project. Slippage is
+a flat 15 bps regardless of order size. No latency, no queue position, no market
+impact. It is a faithful simulation of bookkeeping and timing, not of execution.
 
 ================================================================================
-## 5. CURRENT FILE STATE
+## 7. THE EXPERIMENT RECORD
 ================================================================================
 
-ROOT:
-  config.py           <- smart_parse_dates() + read_price_csv() live here
-  config74.py
-  run_all.py          <- 20 steps
-  requirements.txt
-  permanent/
-  run_all_ewma_log.txt        <- EWMA attempt B evidence (KEEP)
-  run_all_ewma2_log.txt       <- EWMA attempt C evidence (KEEP)
-  run_all_nocashyield_log.txt <- first run after CASH_YIELD -> 0
-  run_all_cleanup_log.txt, run_all_cleanup2_log.txt, run_all_english_log.txt
+experiments/EXPERIMENTS.md is the record: 27 numbered entries, 26 run, ONE
+acceptance (top-8 selection from top-12). Entry 27, added 2026-08-29, revalidated
+that acceptance on the live universes and promoted nothing. Its outcome has an
+ungated second half -- TOP_N=12 held the shallower drawdown in both universes --
+and section 4A carries both. Five pre-registrations are kept in full
+beside it because a summary of a prereg is not the prereg.
 
-results/ (34 .py files, all English):
-  PRODUCTION (do not delete despite the names):
-    test_exposure.py    <- holds backtest_exposure(); this is PRODUCTION CODE
-    features_v2.py      <- the 17 features
-    qbeast_in_charges.py<- Zerodha transaction cost calculator
-  IN RUN_ALL: build_scores(.74), engine_core, engine_v2_final(.74), diagnose_decay,
-    validate_breadth, reality_check, make_per_stock_charts, make_combined_all,
-    make_final_table, make_charts, make_stock_chart, make_combined_portfolio,
-    export_feature_docs, make_stats_both, make_cash_series, make_final_chart_fair,
-    make_final_summary, make_daily_audit, make_daily_log
-  KEPT (evidence/diagnostics): audit_leakage, diagnose_alpha, diagnose_cash_drag,
-    save_ewma_comparison, stability_test, test_feature_pruning, test_v1_v2_blend
+The true trial count is AT LEAST 25 and the pre-registrations' own running count
+drifted -- it understates by at least two. Every multiple-testing argument in this
+project was made against a denominator that is too small.
 
-results/metrics/ and results74/metrics/:
-  FINAL_SUMMARY_TABLE.csv, fair_comparison_table.csv, v2FINAL_*, FINAL_*,
-  validation CSVs, diagnostics, feature docs, reports, charts,
-  the 6 daily audit CSVs per universe, DAILY_LOG_58.txt / DAILY_LOG_74.txt,
-  and the caches (v5_expanding_cache.csv, raw_panel_cache.csv -- DO NOT DELETE,
-  they save 40 minutes).
+The exposure and portfolio-construction family is closed after eight attempts.
+EXP22's premise was refuted rather than rejected: no position ever reached 20% of
+portfolio value, so no weight cap at any threshold addresses mid's concentration.
+EXP18 fixed a diagnosed IC inversion exactly as predicted and made performance
+worse.
 
-DELETED in this session: all *.py.bak files, run_all_final_log.txt,
-  run_all_final_fresh_log.txt, .DS_Store, __pycache__.
-
-USEFUL COMMANDS:
-  Full fresh run (~25 min): python3 run_all.py --fresh 2>&1 | tee run_log.txt
-  Cached run (~1 min)     : python3 run_all.py
-  One day's full record   : grep -A 70 "^# \[2020-03-19\]" results/metrics/DAILY_LOG_58.txt
-  Only rebalance days     : grep "REBALANCE DAY" results/metrics/DAILY_LOG_58.txt
-  Any reconciliation fail : grep "FAIL" results/metrics/DAILY_LOG_58.txt
+The V3/V4 measurement is NOT an entry in that record. It is a measurement with no
+accept rule and no trial-counter entry, by the spec's own statement.
 
 ================================================================================
-## 6. PENDING WORK
+## 8. PENDING WORK
 ================================================================================
 
-### IMMEDIATE -- documents still carry the old numbers
-All of these still say 18.80 / 1.54 / Rs 53,72,574 and must be updated:
-  - the thesis draft
-  - the 30-second pitch (it currently claims "Sharpe 1.54 and drawdown -16.6%
-    vs the index's 1.29 and -36.5%")
-  - the resume line
-Use the section 2 table. The narrative must change from "beats the benchmark on
-risk-adjusted terms" to "comparable risk-adjusted return at half the drawdown".
+BLOCKED ON SIR -- survivorship. Point-in-time membership was rebuilt from the NSE
+press-release archive and reaches 2024-03-28 only, against a 2019-01-01 backtest
+start. Downloading the complete non-bond archive back to 2016 did not extend
+coverage by a single day. The walk still breaks on a missing IREDA exclusion that
+is in no press release on disk. SURVIVORSHIP_MODE stays "static" and every number
+in section 2 carries the bias. Full status: diagnostics/membership/STATUS.md.
 
-### AN OPEN DESIGN QUESTION (not tuning -- worth testing)
-Enforce the exposure target on the WHOLE portfolio, not just on new buys. At each
-rebalance, if actual invested % exceeds the target, trim existing holdings back to
-target proportionally.
-
-This is not a new threshold or a tuned knob -- it applies the target the system
-already computes. It is the only change that would genuinely raise cash in a
-falling market, because it addresses the real cause (holdings are never trimmed)
-rather than the exposure formula, which has already been tested six times.
-
-Honest expected cost: higher turnover, higher TC, and trimming in bull markets too
-(breadth 70% while holdings sit at 90%), which will cut upside. Sharpe may fall.
-Pre-register the rule before running it: Sharpe must not fall in either universe,
-and both sub-periods must pass. If it fails, record it in
-rejected_experiments_REPORT.txt and close the exposure question for good.
-
-Also considered and NOT recommended: rebalancing every 10 days instead of 20. The
-label is trained on a 20-day forward horizon, so acting at 10 days uses the signal
-at half its horizon, and turnover (and TC) roughly doubles. It would also not fix
-the falling-market complaint, because holdings still would not be trimmed.
-
-### BLOCKED ON SIR
-1. SURVIVORSHIP BIAS FIX. Sir sent 3 xlsx files on 4 Aug 2026:
-   a) Length_of_time_series.xlsx -- 2,575 symbols with listing/delisting dates,
-      359 delisted.
-   b) vintage_symbol_mapping_with_actions_mapping_GY.xlsx -- old-to-new symbol
-      mapping (BHARTI->BHARTIARTL, CMC->TCS merge, IPCL->RELIANCE merge, etc).
-      7 symbols still unmapped.
-   c) Data_match_percentage_GY.xlsx -- THE IMPORTANT ONE. Sheet "all_data" has
-      point-in-time NIFTY100 membership: 76 effective dates from 2003-03-19 to
-      2026-03-31. Churn is severe: 66 of 100 names changed between 2003 and 2026.
-      Data availability is only ~75-80%.
-
-   STATUS: no code written yet, which is the right call -- writing against
-   incomplete data means writing it twice.
-
-   WHEN THE DATA IS COMPLETE: build point_in_time_universe.py, add a symbol
-   mapping layer, add a listing/delisting filter, make the universe in
-   engine_core.py date-dependent, then re-run everything.
-
-   TWO QUESTIONS TO ASK SIR:
-     1. Delisting handling -- if a position is held and the stock delists, at what
-        price is the exit booked?
-     2. Missing data (~20-25% of symbols) -- drop them or wait?
-
-   HONEST EXPECTATION: CAGR will fall for BOTH the strategy and the benchmark,
-   because today's inflation is removed. The numbers will be real.
-
-2. MUTUAL FUND BENCHMARK. Sir sent three funds as possible additional benchmarks.
-   Their published Sharpe figures (0.28-0.34) subtract a risk-free rate; ours does
-   not, and the periods differ. Comparing them directly would be wrong. If this is
-   ever added, get daily NAV and recompute with our own metrics code over the same
-   period. Currently parked.
-
-### GENUINELY NEW LEVERS (not tuning)
-3. HIGH/LOW FEATURES. Verified by grep: OPEN is used for execution, CLOSE for all
-   17 features, VOLUME for liquidity features. HIGH and LOW are loaded in
-   engine_core.py line 74 and USED NOWHERE. True range, close-to-high position,
-   overnight gap and high-low spread are all available and untried. This is new
-   data, not tuning, and it is the easiest next experiment.
-
-4. 1200-STOCK UNIVERSE (when Sir's data arrives). Expect IC to rise from 0.036
-   toward 0.06-0.10 in less-analysed mid/small caps. A LIQUIDITY FILTER becomes
-   mandatory, and TOP_N must scale with universe size (top-8 of 58 is 14%; top-8
-   of 1200 is meaningless).
-
-5. FUNDAMENTALS DATA, if it can be obtained -- a price-independent signal source.
+NOT STARTED, and each needs its own pre-registration:
+  - moving the SIZING validation onto the shipping engine. Breadth was validated
+    on both live universes on 2026-08-29 (item C above) and that suite does run
+    the shipping engine; validate_sizing.py still does not.
+  - promoting T3, the constant-exposure control, to a gate -- deliberately left
+    ungated because it was added after v2's numbers were known
+  - the sizing test in experiments/sizing_test.py has a pre-registered four-gate
+    rule and NO recorded verdict; it was never run to a result
+  - fundamentals data, as a price-independent signal source
+  - a wider, less efficient universe -- the only lever that raises breadth in
+    IR = IC x sqrt(BR), and it is blocked on the same survivorship data
 
 ================================================================================
-## 7. LESSONS WORTH KEEPING
+## 9. LESSONS WORTH KEEPING
 ================================================================================
 
  1. When a backtest looks too good, look for the bug first. Long-short showed
-    2526% CAGR; it was a double-counting bug. Litmus test first, performance second.
- 2. N_eff = (1+lambda)/(1-lambda); CoM = lambda/(1-lambda). Useful for sanity
-    checking any EWMA scheme before trusting its result.
- 3. Never change two things at once. The EWMA episode changed weighting and horizon
-    together and nothing could be attributed.
- 4. Always test on BOTH universes. Results frequently disagree, and one universe
-    alone would have produced the wrong conclusion.
- 5. Sub-period splits are more trustworthy than full-period results. breadth-delta
-    k=2 won the full period on the 74 but lost both halves -- it was lucky
-    compounding.
- 6. Determinism matters. Six byte-identical runs are what make "top-8 raised Sharpe"
-    a claim rather than a guess.
- 7. Healthy suspicion pays. When six runs came back identical Sid asked whether
-    something was wrong; a seed-rotation test confirmed genuine computation.
- 8. No moving averages, no indicators. This is Sid's standing instruction and is
-    why the Faber 200-day trend gate was dropped.
- 9. Reconciliation checks earn their keep. The daily log's cash identity caught a
-    real configuration mismatch the moment it appeared.
-10. An output that hardcodes its own conclusion will eventually lie. Every printed
-    verdict is now computed from the current run.
+    2526% CAGR; it was a double-counting bug.
+ 2. Never change two things at once. The EWMA episode changed weighting and
+    horizon together and nothing could be attributed.
+ 3. Always test on BOTH universes. They disagree often enough that one alone
+    would have produced the wrong conclusion -- the pro-vol measurement is the
+    latest instance, and the disagreement was the finding.
+ 4. Sub-period splits are more trustworthy than full-period results.
+ 5. An output that hardcodes its own conclusion will eventually lie. Every
+    printed verdict is computed from the run that prints it.
+ 6. Do not propose a cause without a number attached. Four hypotheses about one
+    reconciliation gap were wrong before measurement caught them.
+ 7. Write the accept rule before the run, then look at the result.
+ 8. A trade count that should not depend on a parameter, and does, is a defect
+    and not a curiosity. Checking that on the four arms is what found defect (A).
+ 9. A prediction that becomes UNTESTABLE is a different outcome from a prediction
+    that FAILS. Collapsing the two overstates what was learned.
+10. Verify that an import is side-effect free before relying on it, rather than
+    assuming. Same for whether a diagnostic flag changes the numbers it observes.
 11. PRESENTATION RULE (permanent): always write "Name -- descriptive tagline with
-    keywords", never a bare project name, everywhere.
+    keywords", never a bare project name.
 
 ================================================================================
-## 8. 30-SECOND PITCH (updated -- use this one)
+## 10. 30-SECOND PITCH
 ================================================================================
 
 "The system builds 17 features from daily price and volume, normalises them
 cross-sectionally, and ranks stocks every month with a LightGBM 10-seed ensemble
-using a 32-day purge and an expanding walk-forward window. It buys the top 8,
-sets total exposure from market breadth, sizes positions by inverse volatility,
-and executes on a close-signal / next-open-fill basis with real Zerodha costs.
+using a 32-day purge and an expanding walk-forward window. It buys the top 8, sets
+total exposure from market breadth, sizes positions by inverse volatility, and
+executes close-signal / next-open-fill with real Zerodha costs.
 
-The result is a drawdown of about 17% against the index's 36.5%, roughly half,
-in both universes. Risk-adjusted return is comparable rather than better: Sharpe
-1.36 against 1.29 on the 58, and 1.27 against 1.29 on the 74. Raw return is behind,
-because the strategy holds around 35% cash and I model that cash as earning
-nothing.
+On Nifty 100 it returns 25.49% CAGR at Sharpe 1.88 with an 18.6% maximum drawdown,
+against 23.74% and 1.32 at 36.5% for an equal-weight hold of the same names. On
+MidCap150, 30.22% at 2.06 with 19.0%, against 27.77% and 1.50 at 36.4%. The
+drawdown is roughly half the benchmark's in both, which is the defensible result;
+the return edge is about two points and rests heavily on a few names.
 
-I tested leakage four ways -- purging alone caught 5.4 points of fake CAGR, and a
-shuffle test confirmed the engine itself is clean. Inverse-vol and breadth both
-validated across seeds and sub-periods. Twelve improvement ideas were tested and
-rejected, with the accept/reject rule written down first; only top-8 concentration
-survived. The whole system reproduces from scratch in 25 minutes with one command,
-and every trading day is reconciled -- cash, equity and share counts all tie out
-on 1,842 of 1,842 days.
+Every trading day reconciles -- cash, equity and share counts tie out on 1,836 of
+1,836 days -- and the execution layer is ported to NautilusTrader, where all four
+sizing arms verify against the research engine on 92 of 92 rebalances at zero
+tolerance on share counts.
 
-Caveats: no capital gains tax, survivorship bias in the universe, and the edge is
-not statistically significant. To make this a product it needs a less efficient
-universe or new data, not more tuning."
+Caveats, and they are real: survivorship bias, since the universe is today's index
+members backfilled and point-in-time membership only reaches 2024. No capital
+gains tax. No significance test has ever been run on the edge -- not that it
+failed one, nobody ran one. Inverse-vol sizing validates on Nifty 100 and fails
+three of four tests on MidCap150 -- and that validation runs on a different engine
+from the one that ships, so it does not cover production. Breadth exposure passes
+3 of 3 on both live universes on a suite that DOES run the shipping engine and
+reproduces v2 exactly. To make this a product it needs a less efficient universe
+or new data, not more tuning."
 
 ================================================================================
 END OF HANDOFF

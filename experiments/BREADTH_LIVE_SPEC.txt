@@ -1,0 +1,341 @@
+BREADTH VALIDATION ON THE LIVE UNIVERSES -- Nifty 100 and MidCap150
+================================================================================
+Written 2026-08-28, BEFORE any code is written and before any result is seen.
+
+WHY THIS EXISTS
+    Every published v2 and v4 number is produced with breadth-scaled exposure.
+    The mechanism that sets that exposure has been validated ONCE, on the retired
+    58-stock universe, by results/validate_breadth.py. It has never been
+    validated on either universe that is actually run. KNOWN_ISSUES.md records
+    this as an open gap. This spec closes it.
+
+    This is a VALIDATION, not a measurement. Unlike V34_SPEC.txt, there is a
+    verdict rule, and it is fixed below before any number is produced.
+
+
+--------------------------------------------------------------------------------
+WHAT IS BEING COPIED, AND WHAT IS NOT
+--------------------------------------------------------------------------------
+results/validate_breadth.py STAYS FROZEN AND UNTOUCHED. It is the provenance of
+the 58's result and rewriting it would destroy that record. The new work goes in
+a new file, results/validate_breadth_live.py, universe as a required argument.
+
+T1 and T2 are copied VERBATIM -- same structure, same seed sets, same criteria,
+same thresholds. T3 is new, and is REPORTED, NOT GATED.
+
+
+--------------------------------------------------------------------------------
+T1 -- SEED ROBUSTNESS (gated, copied verbatim)
+--------------------------------------------------------------------------------
+Three independent seed sets:  [5,55,555]  [13,26,39]  [101,202,303]
+
+For each set: rescore the panel, then run the SAME backtest twice on it --
+mode="none" (always 100% invested) against mode="breadth" -- and difference them.
+
+    CRITERION A   dSharpe > 0     on all three sets
+    CRITERION B   dMaxDD  > 3     on all three sets   (percentage points)
+
+Both must hold. Three seed sets, not one, because a mechanism that only helps
+under the production seeds is a property of those seeds, not of the mechanism.
+
+
+--------------------------------------------------------------------------------
+T2 -- SUB-PERIOD STABILITY (gated, copied verbatim)
+--------------------------------------------------------------------------------
+On the production 10-seed panel, split the window in two and run the same
+two-mode comparison independently in each half.
+
+    CRITERION C   dSharpe > 0     in both halves
+
+T2 HAS NO DRAWDOWN CRITERION, AND THAT ASYMMETRY IS DELIBERATE AND INHERITED
+    T1 gates on Sharpe AND drawdown. T2 gates on Sharpe ALONE. The consequence,
+    stated plainly: a rule that improved Sharpe in both halves while WORSENING
+    drawdown in one of them would pass T2.
+
+    This asymmetry was not chosen here. It is inherited from the 58's suite,
+    where T2 was written with a single criterion. It is copied because
+    harmonising it would be changing the test, and a test changed to suit a new
+    dataset is not the same test. It is documented rather than fixed.
+
+
+--------------------------------------------------------------------------------
+THE dMaxDD > 3 THRESHOLD IS UNDERIVED. IT IS NOT RECALIBRATED.
+--------------------------------------------------------------------------------
+Three percentage points of drawdown improvement. NOTHING in validate_breadth.py
+derives that number, and nothing here derives it either. It is a magic constant
+of the same class as T1's 400-1400 trade range in validate_sizing.py.
+
+    It is copied to both universes unchanged.
+    It is not tuned up, down, or per-universe.
+    It is NOT justified after the fact from any figure this repo already holds.
+
+Specifically: the 10-seed v1-vs-v2 drawdown gaps already visible in
+v34_comparison.csv (n100 16.68 points, mid 15.80 points) are NOT evidence that
+the bar is correctly set. Those are 10-seed production numbers; T1 runs 3-seed
+sets, which are noisier and need not behave the same way. Quoting them as
+post-hoc support for the threshold would be exactly the reasoning this spec
+forbids.
+
+The docstring of validate_breadth.py claims breadth has "no knob to overfit".
+That is true of the MECHANISM and false of the TEST. This is the knob.
+
+
+--------------------------------------------------------------------------------
+T3 -- CONSTANT-EXPOSURE CONTROL (new; REPORTED, NOT GATED)
+--------------------------------------------------------------------------------
+THE PROBLEM T3 EXISTS TO EXPOSE
+    T1 and T2 compare 100% invested against breadth-scaled. Breadth-scaled runs
+    at roughly 56.6% deployed on n100 and 54.1% on mid. ANY rule that cut average
+    exposure to that level would reduce drawdown, purely arithmetically. So a
+    pass on T1 and T2 alone cannot distinguish
+
+        (a) breadth times exposure INFORMATIVELY -- it is out of the market at
+            the times that matter, from
+        (b) holding about 45% cash lowers drawdown, and any constant would do.
+
+    Without T3 a pass means very little.
+
+THE CONTROL
+    Run the strategy at a FIXED exposure equal to the breadth arm's own realised
+    mean exposure over the same window, and compare breadth against THAT instead
+    of against 100% invested.
+
+    The constant is COMPUTED FROM THE BREADTH RUN ITSELF, never typed in. The
+    56.6 and 54.1 above are quoted for context only; the code reads the realised
+    mean from the run that is being controlled, and the sub-period constants are
+    each half's own realised mean, not the full-period one.
+
+    Note that breadth exposure depends only on 20-day momentum across the
+    universe and not on the model scores, so the constant is invariant to the
+    seed set. It still differs between universes and between sub-periods.
+
+WHAT T3 TESTS, AND THE NARROWER QUESTION IT IS ACTUALLY ASKING
+    The constant is breadth's OWN realised mean. That makes T3 narrower than it
+    looks, and the two questions below are easy to collapse into one. They are
+    not the same question.
+
+    WHAT T3 DOES TEST -- TIMING, WITH DEPLOYMENT LEVEL NEUTRALISED.
+        Held at the same average cash level, does breadth's decision about WHEN
+        to be in the market add anything over being in the market at that level
+        all the time? Level is held constant precisely so that the timing is the
+        only thing left varying.
+
+    WHAT T3 DOES NOT TEST -- WHETHER BREADTH'S CHOSEN LEVEL IS A GOOD LEVEL.
+        Breadth picked 56.6% on n100 and 54.1% on mid. Nothing in this suite
+        evaluates those numbers against 40%, or 70%, or any other level. Whether
+        the level breadth selects is a good one is OPEN AND UNMEASURED, and a T3
+        result -- in either direction -- says nothing about it.
+
+    THE CONSTANT IS NOT AN INDEPENDENT BENCHMARK.
+        It is read out of the arm it is being compared against. It cannot
+        disagree with breadth about the level, because it IS breadth's level. Any
+        reading of T3 that treats the constant as an outside standard, or as a
+        rival exposure rule that was beaten or that won, is wrong.
+
+WHY REPORTED AND NOT GATED
+    T1 and T2 and their verdict rule were fixed on the 58 before any live number
+    was seen. T3 is being added now, after v2's numbers are known. Promoting it
+    to a gate at this point would be choosing a criterion with the data already
+    in view. Its numbers are printed beside the verdict and are excluded from it.
+    Whether T3 ever becomes a gate is a separate, separately pre-registered
+    decision and is NOT part of this task.
+
+T3 HAS NO BAR AND MUST NOT ACQUIRE ONE IN THE REPORTING
+    An ungated test acquires a bar the moment its numbers are described in
+    evaluative language. The report is therefore restricted, and the restriction
+    is part of this spec, not a stylistic preference:
+
+        REPORT THE DIFFERENCE AND NOTHING ELSE. If the measured drawdown edge is
+        1.2 points, the report says 1.2 points.
+
+        NO "weak", "strong", "small", "large", "modest", "most of the effect",
+        "mostly the cash rather than the timing", or any equivalent. Every one of
+        those is a verdict, and T3 is not gated. This applies to the generated
+        report file and to how the result is summarised in conversation.
+
+        NO PASS/FAIL WORD, and no threshold of any kind applied to T3's numbers.
+
+    THE 3-POINT FIGURE MUST NOT MIGRATE INTO T3.
+        `dMaxDD > 3` is T1's underived bar for a DIFFERENT comparison -- breadth
+        against 100% invested. It has no standing whatsoever against breadth
+        versus a constant, and it must not appear beside T3's numbers, not as a
+        criterion and not as an informal reference point.
+
+        The written expectation below happens to name three points as well. That
+        is my own guess and is unrelated to T1's bar; the coincidence of the two
+        numbers is not a reason to treat either as a level T3 is measured
+        against. NEITHER NUMBER APPEARS IN T3's REPORTING.
+
+
+--------------------------------------------------------------------------------
+THE CODE CHANGE T3 REQUIRES, AND ITS PROOF OBLIGATION
+--------------------------------------------------------------------------------
+results/test_exposure.py:143-157 selects exposure by `mode`. T3 needs a fifth
+branch, mode="const", taking its level from a new keyword argument that defaults
+to None.
+
+    PURELY ADDITIVE. No line inside the "none", "breadth", "voltgt" or "both"
+    branches may be modified, and no existing call site may change.
+
+    PROVEN, NOT ASSERTED. Before the edit, run all four existing modes on one
+    universe and record the SHA256 of each equity curve. After the edit, run them
+    again and show the hashes are identical. Byte-identical equity curves, the
+    same standard used for the provol default in Task 3. If any hash moves, the
+    change is reverted, not explained.
+
+THE NAUTILUS MIRROR IS DELIBERATELY SKIPPED
+    SIZING was mirrored into nt_strategy.py and nt_attribution.py because the
+    port must be able to run every arm the engine runs, and nt_verify compares
+    the two sides.
+
+    Exposure is different. nt_strategy.py computes breadth unconditionally at
+    line 470-471 and has no exposure-mode concept at all; nt_attribution.py takes
+    the exposure it is handed. There is no "mode" switch in the port to extend.
+    T3 is a research control that never runs through the port and never enters
+    nt_verify, so mirroring it would add a dead branch to two production files to
+    keep a symmetry that does not exist there.
+
+    Decision: SKIP THE MIRROR. If a constant-exposure arm is ever promoted to
+    something that ships, the port must be extended at that point, and this
+    paragraph is the record of why it was not extended now.
+
+
+--------------------------------------------------------------------------------
+CACHE NAMESPACING -- THE MOST DANGEROUS PART OF THE PORT
+--------------------------------------------------------------------------------
+validate_breadth.py:56-60 does this:
+
+    cache  = Path(f"/tmp/breadth_seed{si}.csv")
+    shared = Path(f"/tmp/FINAL_seed{si}.csv")
+    src = cache if cache.exists() else (shared if shared.exists() else None)
+
+On the 58 that is a sound optimisation: same raw panel, same seeds, so
+engine_core's cache is genuinely the same object. Carried to n100 or mid
+unchanged, it would silently load FIFTY-EIGHT-STOCK SCORES and print a breadth
+verdict for the wrong universe with NO ERROR AT ALL. It is the same collision
+class already fixed once with the VALSIZE_ prefix, but worse, because the reach
+into another script's cache is deliberate rather than accidental.
+
+    Every cache in the new file is named VALBREADTH_{universe}_seed{i}.csv.
+    THE FALLBACK TO FINAL_seed IS REMOVED ENTIRELY. No fallback, no exceptions.
+    No cache written by any other script is read by this one.
+
+    No existing cache is reused unless its universe is certain from its name.
+    A silent wrong-universe result costs far more than recomputing.
+
+
+--------------------------------------------------------------------------------
+WHAT ELSE THIS SUITE STILL CANNOT TEST
+--------------------------------------------------------------------------------
+Stated in advance so that a pass is not read as more than it is.
+
+ 1. THE BREADTH DEFINITION ITSELF. "Fraction of the universe with positive
+    20-day momentum" is one choice among many. The suite tests that definition
+    against no scaling and against a constant. It cannot say it is the right
+    definition, or the best one.
+
+ 2. SHARPE IMPROVEMENT IS PARTLY ARITHMETIC. Volatility falls when half the book
+    sits in cash at CASH_YIELD=0.0. Some of dSharpe is that, not skill. T3
+    addresses this and does not gate, so the gated verdict remains exposed to it.
+
+ 3. NO PRODUCTION ARTEFACT TO GATE AGAINST. Like validate_sizing.py, this
+    reconstructs the strategy and compares it against itself. Nothing checks the
+    reconstruction against a shipped artefact.
+
+    ONE THING IT DOES BETTER THAN validate_sizing.py: it imports
+    backtest_exposure from test_exposure.py -- the SHIPPING engine -- whereas
+    validate_sizing.py uses engine_core.backtest, the other implementation. Per
+    KNOWN_ISSUES.md those two differ by 1.80 CAGR points on the 58. So this suite
+    does test what actually ships. That is a genuine advantage and it is the only
+    one; it does not make the suite complete.
+
+
+--------------------------------------------------------------------------------
+THE VERDICT RULE -- FIXED NOW, BEFORE ANY NUMBER EXISTS
+--------------------------------------------------------------------------------
+    PASS on a universe  =  criteria A and B and C all hold on that universe.
+    FAIL on a universe  =  any one of them does not.
+    T3 does not enter this rule.
+
+WHAT A PASS WOULD MEAN
+    The exposure rule that ships is robust to the model seed and to the sample
+    split, on the universe it actually runs on. That is all.
+
+    IT WOULD NOT MEAN breadth beats a constant exposure of the same average
+    level. T3 speaks to that question and does not gate, so a PASS is compatible
+    with T3 showing that a constant would have done as well.
+
+WHAT A FAIL WOULD MEAN
+    The mechanism that sets deployment for EVERY published v2 and v4 number is
+    not robust on the universe it runs on. That would put the headline results in
+    question, not merely the exposure rule, because every one of them is
+    breadth-scaled.
+
+    A mid failure specifically would be the SECOND independent mechanism failing
+    on mid: validate_sizing.py already returns 4/4 on n100 and 1/4 on mid. Two
+    mechanisms failing on one universe and passing on the other is a finding
+    about that universe, not about either mechanism.
+
+WHAT A SPLIT RESULT MEANS -- STATED BEFORE IT HAPPENS
+    A split is the likeliest single outcome and IT IS NOT A TIE-BREAK.
+
+    If n100 passes and mid fails, or the reverse, the DISAGREEMENT IS THE
+    FINDING. It is reported as a disagreement. It is NOT resolved toward
+    whichever universe looks better, NOT averaged, NOT called a pass with a
+    caveat, and NOT re-run with a changed threshold. Neither universe is primary.
+
+
+--------------------------------------------------------------------------------
+WRITTEN EXPECTATION -- RECORDED BEFORE THE RUN
+--------------------------------------------------------------------------------
+Recorded so that whatever happens cannot be described afterwards as expected.
+This is a prediction, not a target, and it is not adjusted after the fact.
+
+ 1. T1 and T2 PASS on both universes. The 10-seed drawdown gaps are large enough
+    that I expect 3-seed sets to clear a 3-point bar too. Stated confidence:
+    high on n100, moderate on mid.
+
+ 2. THE BAR I EXPECT TO BE CLOSEST IS CRITERION C on mid, not criterion B.
+    Sharpe in a single half is the noisiest quantity in the suite, and mid is
+    already the universe where validate_sizing fails 3 of 4.
+
+ 3. T3 IS WHERE I EXPECT BREADTH TO LOOK WEAK. My expectation is that a constant
+    exposure at the same average level captures MOST of the drawdown reduction,
+    and that breadth's advantage over the constant is small -- under about 3
+    points of drawdown and under about 0.15 of Sharpe on both universes. I do
+    not expect breadth to lose outright to the constant, but I would not be
+    surprised by it on one universe.
+
+ 4. THE ABOVE IS A PREDICTION, NOT A LICENCE FOR THE REPORT TO SAY IT.
+    I expect a small T3 edge, and I am recording that expectation here so it
+    cannot be claimed afterwards as a result that was foreseen or as one that was
+    surprising. But the prediction lives in this spec and stays here. When the
+    numbers arrive the report states the measured differences and stops; it does
+    not conclude that the effect is the cash rather than the timing, because that
+    is a verdict and T3 is not gated. See T3 HAS NO BAR above.
+
+    A prediction that is confirmed does not turn an ungated measurement into a
+    finding.
+
+
+--------------------------------------------------------------------------------
+OUTPUTS
+--------------------------------------------------------------------------------
+    results_{uni}/metrics/breadth_live_t1.csv        per seed set
+    results_{uni}/metrics/breadth_live_t2.csv        per half
+    results_{uni}/metrics/breadth_live_t3.csv        control, not gated
+    diagnostics/breadth_live_{uni}.txt               printed verdict
+
+Every criterion outcome and every verdict word is computed from the run that
+prints it. No verdict string is hardcoded. The run records the git commit and
+whether the working tree was dirty, as v34_params.json now does.
+
+
+--------------------------------------------------------------------------------
+COST
+--------------------------------------------------------------------------------
+T1 rescores three seed sets per universe. A single-month probe is timed FIRST and
+the extrapolated cost reported BEFORE the full run starts, not after. The
+existing /tmp/VALSIZE_* caches are NOT reused unless their panel shape and
+universe are verified from the file itself; if there is any doubt, they are
+recomputed.

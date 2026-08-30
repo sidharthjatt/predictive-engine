@@ -1,0 +1,69 @@
+================================================================================
+LEAKAGE CHECKLIST LABELS -- EQUITY-CURVE HASH PROOF
+2026-08-29
+================================================================================
+
+WHAT CHANGED
+    results/engine_core.py, the [3] LEAKAGE / OVERFIT CHECKLIST block. Six rows
+    that printed a literal "PASS" now print NOT CHECKED BY THIS RUN, and a label
+    key plus a pointer to results/audit_leakage.py was added above the rows.
+
+    PRINTED STRINGS ONLY. No literal feeding a computation was touched, and the
+    one computed row -- "Baseline control", `"PASS" if ok1 else "FAIL"` -- is
+    unchanged. The three honest labels NOT FIXED, NOT MODELLED and PARTIAL are
+    unchanged.
+
+WHY A PROOF IS REQUIRED
+    engine_core.py is FROZEN as the retired 58 universe's provenance. Its
+    published numbers must not move. "It is only a print statement" is an
+    argument, not evidence, and this project's standard for an edit to a frozen
+    file is byte-identity, the same standard applied to the TOP_N centralisation
+    in diagnostics/topn_centralise_hashes.txt.
+
+METHOD
+    SHA256 over the raw float64 bytes of the equity curve returned by
+    engine_core.backtest on the 58 panel, frozen year window, both sizing arms.
+    Regenerate with:
+
+        ./venv/bin/python results/hash_58_engine_core.py
+
+    The system python3 has no lightgbm and cannot import engine_core. Both
+    halves of this comparison used ./venv/bin/python.
+
+--------------------------------------------------------------------------------
+THE 58 -- engine_core.backtest, 1,842 days, frozen year window
+--------------------------------------------------------------------------------
+  arm      final equity      before                            after
+  equal    5,632,008.81      abda070bbf38aa71...               abda070bbf38aa71...
+  invvol   5,714,092.27      482e5467f4701705...               482e5467f4701705...
+
+  FULL HASHES
+    58/equal
+      before  abda070bbf38aa71300059c8382c45d33938317cb4e3ab135953ac7cf04e6c45
+      after   abda070bbf38aa71300059c8382c45d33938317cb4e3ab135953ac7cf04e6c45
+    58/invvol
+      before  482e5467f4701705e64a0e3f00aa43ff3dc9917454c69f23fa558c1d4be2df5c
+      after   482e5467f4701705e64a0e3f00aa43ff3dc9917454c69f23fa558c1d4be2df5c
+
+--------------------------------------------------------------------------------
+THE LIVE UNIVERSES -- checked as well, because engine_core is imported by them
+--------------------------------------------------------------------------------
+    engine_core supplies metrics() and precompute() to the live path, so the
+    edit was also checked against the eight arms of the TOP_N proof:
+    four arms x n100 and mid, via topn_centralise_check.py.
+
+        8 of 8 IDENTICAL.
+
+================================================================================
+RESULT: 2 of 2 on the 58 IDENTICAL, and 8 of 8 on the live universes IDENTICAL.
+CONSEQUENCE: the label change moved no computed value and stands.
+================================================================================
+
+WHAT THIS PROVES AND WHAT IT DOES NOT
+    PROVES that changing the six labels altered nothing any run computes, on the
+    frozen universe and on both live ones.
+
+    DOES NOT PROVE that the six properties themselves hold. THAT IS THE ENTIRE
+    POINT OF THE CHANGE: the rows previously asserted verification that no run
+    performed, and they now say so. The six real checks are specified in
+    KNOWN_ISSUES.md and ARE NOT IMPLEMENTED.

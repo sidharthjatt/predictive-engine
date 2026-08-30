@@ -12,6 +12,10 @@ in the SYMBOLS list below.
 
 from pathlib import Path
 
+# Imported at module level, not beside its first user further down, because
+# BT_START_DATE / BT_END_DATE below are Timestamps and are needed at import time.
+import pandas as _pd
+
 # ---------------------------------------------------------------------------
 # Project root -- every path below is relative to this
 # ---------------------------------------------------------------------------
@@ -60,17 +64,66 @@ EQUITY_CURVES_DIR = RESULTS_DIR / "equity_curves"
 METRICS_DIR = RESULTS_DIR / "metrics"
 
 # ---------------------------------------------------------------------------
-# Train / Validation / Test split (TIME-BASED -- never random shuffle)
-# These dates were finalised after inspecting the data in Phase 1.
-# Current placeholder: ~70% train, ~15% val, ~15% test by calendar year.
+# BACKTEST WINDOW -- the single definition. Every live site imports these.
 # ---------------------------------------------------------------------------
+# Inclusive on both ends. Price data runs to 2026-06-08, so this cut is real and
+# drops six trading days: 2026-06-01 through 2026-06-08.
+#
+# THE NAMES ARE DELIBERATELY NOT BT_START / BT_END.
+#   engine_core.py:93 defines BT_START, BT_END as YEAR INTEGERS (2019, 2026) and
+#   is deliberately not changed -- it is the retired 58 universe's provenance.
+#   Two constants with the same name and different types in one repository is
+#   how a previous mismatch happened, so these carry _DATE and are Timestamps.
+#
+# Scripts that import the int form from engine_core (mid_jackknife.py,
+# n100_jackknife.py, mid_topn_test.py, experiments/sizing_test.py) therefore keep
+# the OLD year window and keep running. Their outputs stay internally consistent
+# but describe a different window from anything using the constants below.
+BT_START_DATE = _pd.Timestamp("2019-01-01")
+BT_END_DATE = _pd.Timestamp("2026-05-29")
 
-TRAIN_START = "2016-01-01"
-TRAIN_END   = "2019-12-31"
-VAL_START   = "2020-01-01"
-VAL_END     = "2021-12-31"
-TEST_START  = "2020-01-01"
-TEST_END    = "2026-06-05"
+# ---------------------------------------------------------------------------
+# SELECTION -- the single definition. Every live site imports these.
+# ---------------------------------------------------------------------------
+# TOP_N   how many names the buy set holds at each rebalance.
+# BUFFER  the hold band: a held name is sold only when its rank falls below
+#         this, so turnover does not rise with tighter selection.
+#
+# Centralised 2026-08-29 under experiments/TOPN_SPEC.txt Part A. Before that
+# they were literals in TEN places with no single definition, and one of those
+# ten had drifted: results/make_stats_both.py carries 12, 24. Nothing could have
+# caught it, because there was nothing for it to disagree with.
+#
+# THE RETIRED ENGINES DO NOT IMPORT THESE. engine_core.py, engine_v2_final.py,
+# engine_v2_final74.py, make_cash_series.py and make_stats_both.py keep their own
+# literals so the 58's and 74's published numbers cannot move -- the same freeze
+# the old year window carries. engine_core.py:90 therefore still defines TOP_N
+# and BUFFER, and validate_sizing.py imports TOP_N from THERE, not from here.
+# The two agree at 8 today and nothing enforces that. See KNOWN_ISSUES.md.
+#
+# No _DATE-style suffix is used. The window constants needed one because
+# engine_core's BT_START/BT_END are year INTEGERS and a same-name/different-type
+# collision had already caused a mismatch. Here both definitions are int 8 and
+# int 16, so there is no type trap -- only the divergence risk noted above.
+TOP_N = 8
+BUFFER = 16
+
+# ---------------------------------------------------------------------------
+# Train / Validation / Test split -- DELETED 2026-08-28
+# ---------------------------------------------------------------------------
+# TRAIN_START, TRAIN_END, VAL_START, VAL_END, TEST_START and TEST_END all had
+# ZERO references anywhere in the repository, verified by raw grep rather than by
+# a filtered count. They were placeholders from the earlier decision-tree / GRU /
+# TD3 phase and described a split no current script uses.
+#
+# They were also inconsistent with the window that IS used: TEST_END read
+# 2026-06-05, which matches neither the old year cut (to 2026-06-08) nor
+# BT_END_DATE (2026-05-29). A dead date constant that disagrees with the live one
+# is a trap for the next reader.
+#
+# The backtest window is BT_START_DATE / BT_END_DATE above, and the walk-forward
+# split is not date constants at all -- it is the expanding monthly retrain with a
+# 32-day purge in engine_core.score_monthly().
 
 # ---------------------------------------------------------------------------
 # Feature engineering window settings (CAUSAL ONLY -- only past data is used)
@@ -109,7 +162,6 @@ TD3_NOISE_CLIP = 0.5
 #   above 12 in both slots      -> corrupt or mixed -> raise (never fail silently)
 #   never above 12 anywhere     -> genuinely ambiguous -> warn and assume DD-MM
 # ============================================================================
-import pandas as _pd
 
 
 def smart_parse_dates(s, source=""):

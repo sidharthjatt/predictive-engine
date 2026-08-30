@@ -33,7 +33,9 @@ import config74
 import config_mid
 
 OUT_DIR = Path(__file__).resolve().parent / "data"
-BT_START = 2019
+# Date window from config.py. The old year cut emitted June-2026 rows that
+# nt_run.py then re-filtered by date; one cut in one place is enough.
+BT_START_DATE, BT_END_DATE = config.BT_START_DATE, config.BT_END_DATE
 
 
 def export(cache_path: Path, out_path: Path, tag: str, year_end: int) -> pd.DataFrame:
@@ -44,7 +46,7 @@ def export(cache_path: Path, out_path: Path, tag: str, year_end: int) -> pd.Data
     df = pd.read_csv(cache_path, usecols=["date", "symbol", "score"], parse_dates=["date"])
     print(f"  cache rows        : {len(df):,}")
 
-    df = df[(df["date"].dt.year >= BT_START) & (df["date"].dt.year <= year_end)]
+    df = df[(df["date"] >= BT_START_DATE) & (df["date"] <= BT_END_DATE)]
     df = df.dropna(subset=["score"]).sort_values(["date", "symbol"]).reset_index(drop=True)
 
     # --- checks: the strategy cannot rank what it cannot see ---

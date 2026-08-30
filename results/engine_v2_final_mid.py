@@ -54,13 +54,19 @@ warnings.filterwarnings("ignore")
 
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+import config
 import config_mid
 from engine_core import metrics, precompute
 from test_exposure import backtest_exposure, CASH_YIELD
 
-REBAL, TOP_N, BUFFER, VOL_WIN = 20, 8, 16, 60
+REBAL, VOL_WIN = 20, 60
+# SELECTION -- imported from config.py, the single definition.
+TOP_N, BUFFER = config.TOP_N, config.BUFFER
 START_CAPITAL = 1_000_000
-BT_START, BT_END = 2019, 2026
+# BACKTEST WINDOW -- imported from config.py, the single definition.
+# Date-based and inclusive. The old year cut (BT_START, BT_END = 2019, 2026)
+# ran to 2026-06-08, six trading days beyond this window.
+BT_START_DATE, BT_END_DATE = config.BT_START_DATE, config.BT_END_DATE
 M = config_mid.METRICS_DIR_MID
 
 
@@ -69,11 +75,18 @@ def main():
     print("ENGINE v2 FINAL -- cross-sectional ranking + inverse-vol + breadth scaling")
     print("=" * 100)
 
-    p = pd.read_csv("/tmp/v_mid_expanding.csv", parse_dates=["date"])
+    # UNLISTED FIX 2026-08-28: this read /tmp/v_mid_expanding.csv directly and
+    # raised FileNotFoundError whenever /tmp had been cleared. n100's engine has
+    # always used config.require_cache with the permanent copy as the fallback;
+    # this now matches it. Pre-existing bug, not introduced by the V34 work.
+    src = config.require_cache(M / "v_mid_expanding_cache.csv",
+                               "/tmp/v_mid_expanding.csv",
+                               what="MidCap150 score panel")
+    p = pd.read_csv(src, parse_dates=["date"])
     px = p.pivot_table(index="date", columns="symbol", values="close").ffill()
     op = p.pivot_table(index="date", columns="symbol", values="open").ffill()
     sc = p.pivot_table(index="date", columns="symbol", values="score")
-    bd = px.index[(px.index.year >= BT_START) & (px.index.year <= BT_END)]
+    bd = px.index[(px.index >= BT_START_DATE) & (px.index <= BT_END_DATE)]
     pc = precompute(px)
     mom20 = px / px.shift(20) - 1
     idx = (1 + px.pct_change().mean(axis=1).fillna(0)).cumprod()
@@ -197,6 +210,33 @@ def main():
     plt.tight_layout()
     plt.savefig(M / "chart_v2FINAL.png", dpi=150, bbox_inches="tight")
     print("\n  saved -> chart_v2FINAL.png")
+
+    # ------------------------------------------------------------------ V3/V4
+    # Four-arm pro-vol measurement, per experiments/V34_SPEC.txt. v1 and v2 above
+    # are passed in rather than recomputed, so the arms in v34_comparison.csv are
+    # the same curves that wrote v2FINAL_equity.csv. Same process, same panel,
+    # same dates, same seeds -- which is what the spec requires.
+    # Nothing above this line is altered; v2FINAL_* keeps its names and columns.
+    import v34_common
+    v34_comp, v34_subs, _ = v34_common.run_v34(
+        M, "MidCap150 (148 constituents)", "mid", px, op, sc, bd, pc, mom20, port_vol, tv,
+        backtest_exposure,
+        base_eq, tcb, nb, fin_eq, tcf, nf, expo,
+        START_CAPITAL,
+        [("2019-2022", 2019, 2022), ("2023-2026", 2023, 2026)],
+        {"TOP_N": TOP_N, "BUFFER": BUFFER, "REBAL": REBAL, "VOL_WIN": VOL_WIN,
+         "START_CAPITAL": START_CAPITAL, "CASH_YIELD": CASH_YIELD,
+         "SLIPPAGE": 0.0015},
+        v1_audit=base_audit)
+    print("\n" + "=" * 100)
+    print(" V3/V4 FOUR-ARM MEASUREMENT -- MidCap150 (148 constituents)")
+    print("=" * 100)
+    print("\n FULL PERIOD")
+    print(v34_comp.to_string(index=False))
+    print("\n SUB-PERIODS")
+    print(v34_subs.to_string(index=False))
+    print("\n  saved -> v34_comparison.csv, v34_subperiods.csv, v34_equity.csv,")
+    print("           v34_params.json, chart_v34.png")
 
     print("\n" + "=" * 100)
     print("VERDICT")

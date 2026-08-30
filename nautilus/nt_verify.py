@@ -17,6 +17,7 @@ import pandas as pd
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+import config
 import nt_data
 import nt_run
 
@@ -112,7 +113,7 @@ def tick_proof():
         # This is a control run, not a result. Its own summary would land in the
         # middle of the report and read like the port's real numbers.
         with contextlib.redirect_stdout(io.StringIO()):
-            strat = nt_run.run("2019-01-01", U["end"], quiet=True, universe=UNIVERSE)
+            strat = nt_run.run(str(config.BT_START_DATE.date()), U["end"], quiet=True, universe=UNIVERSE)
         dates, port = port_holdings(strat)
         panel = nt_attribution.load_panel(U["cache"])
         return compare(port, arm(panel, dates, size_at_close=False,
@@ -123,7 +124,7 @@ def tick_proof():
 
 
 def main():
-    strat = nt_run.run("2019-01-01", U["end"], universe=UNIVERSE)
+    strat = nt_run.run(str(config.BT_START_DATE.date()), U["end"], universe=UNIVERSE)
 
     eq = pd.DataFrame(strat.daily_equity)
     eq["date"] = pd.to_datetime(eq["date"])
