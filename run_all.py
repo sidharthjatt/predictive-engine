@@ -1,10 +1,26 @@
 """
 run_all.py -- the complete pipeline (58 + 74 + benchmark), from scratch, in one command.
 =================================================================================
-    python3 run_all.py              # uses cache if present (fast)
-    python3 run_all.py --fresh      # everything from scratch (clears cache)
+    ./venv/bin/python run_all.py            # uses cache if present (fast)
+    ./venv/bin/python run_all.py --fresh    # everything from scratch (clears cache)
 
-On a new machine or from nothing: `python3 run_all.py --fresh`
+On a new machine or from nothing: `./venv/bin/python run_all.py --fresh`
+
+THE INTERPRETER IN THAT COMMAND IS LOAD-BEARING. IT IS NOT INTERCHANGEABLE WITH
+`python3`.
+    run() spawns every step with subprocess.run([sys.executable, ...]), so
+    WHATEVER INTERPRETER LAUNCHES THIS FILE IS PROPAGATED TO EVERY CHILD. There
+    is no fallback and no second chance: a wrong interpreter at the command line
+    is a wrong interpreter for all 32 steps.
+
+    Corrected 2026-09-02. This docstring previously said `python3 run_all.py`.
+    On the machine the published numbers were produced on, `python3` resolves to
+    Python 3.11 with no lightgbm, so that command died at STEP 1 with
+    ModuleNotFoundError -- and 3.11 is also BELOW nautilus_trader's 3.12 floor,
+    which requirements.txt warns about. Both failures had the same cause.
+    See KNOWN_ISSUES.md, "The documented commands are not verified against the
+    machine they run on".
+
 This rebuilds both universes, the benchmark comparison, and every chart and CSV.
 
 ORDER:
@@ -37,6 +53,39 @@ run_all.py enforces the non-obvious cases itself -- see REQUIRED_INPUTS below,
 which fails with the missing filename and the owing step instead of a pandas
 FileNotFoundError.
 """
+# ---------------------------------------------------------------------------
+# DETERMINISM PIN -- SET BEFORE ANY NUMERIC LIBRARY IS IMPORTED.
+# ---------------------------------------------------------------------------
+# WHY HERE AND NOT IN config.py. Every pipeline step runs as a SUBPROCESS
+# (run() below spawns sys.executable). A child inherits os.environ AT SPAWN, so
+# setting these here -- before the child exists -- guarantees they are in place
+# before the child imports numpy, pandas or lightgbm. Setting them inside
+# config.py would be too late for numpy, because most scripts import pandas
+# BEFORE they import config, and an OpenMP/BLAS runtime reads its thread count
+# when it initialises at import.
+#
+# This block is above `import sys` deliberately: only `os` is imported first, and
+# `os` pulls in no numeric library.
+#
+# WHY 1 AND NOT A LARGER NUMBER. Parallelism in this pipeline is at the PROCESS
+# level -- joblib runs one process per seed and engine_core._fit_seed already
+# passes n_jobs=1 -- so pinning the thread count to 1 costs no wall clock while
+# removing every intra-library reduction-order effect. Threads are what make a
+# floating-point sum order-dependent; one thread has one order.
+#
+# PYTHONHASHSEED fixes string-hash randomisation. Nothing in the pipeline
+# currently iterates an unsorted set of strings into an output, but nothing
+# enforces that either, so the seed is pinned rather than relied upon.
+#
+# NOT COVERED: a step run STANDALONE (`python3 results/build_scores_n100.py`)
+# does not pass through here and gets the machine defaults. That gap is real and
+# is not closed by this block.
+import os as _os
+for _v in ("OMP_NUM_THREADS", "MKL_NUM_THREADS", "OPENBLAS_NUM_THREADS",
+           "VECLIB_MAXIMUM_THREADS", "NUMEXPR_NUM_THREADS"):
+    _os.environ[_v] = "1"
+_os.environ["PYTHONHASHSEED"] = "0"
+
 import sys, subprocess, time, shutil
 from pathlib import Path
 ROOT = Path(__file__).resolve().parent
@@ -65,11 +114,25 @@ FROZEN_SCRIPTS = {
     "make_per_stock_charts.py", "validate_breadth.py",
 }
 
+
 # STEP 16 lives in nautilus/, not results/. Listing it by bare name meant the static
 # checker resolved it to results/nt_export_scores.py, found nothing, and SILENTLY
 # SKIPPED IT -- it had never been covered by the ordering check. Found 2026-09-04 when
 # the checker was taught to report what it could not resolve.
 NAUTILUS_SCRIPTS = {"nt_export_scores.py"}
+
+# A step whose body lives in a shared helper must be scanned WITH that helper, or
+# the static ordering check loses the edges the helper writes. results/audit_step.py
+# holds the one audit implementation the three per-universe entry points call.
+STEP_HELPERS = {
+    "make_daily_audit.py":   (R / "audit_step.py",),
+    "make_mid_audit.py":     (R / "audit_step.py",),
+    "make_n100_audit.py":    (R / "audit_step.py",),
+    "build_scores.py":       (R / "build_scores_step.py",),
+    "build_scores74.py":     (R / "build_scores_step.py",),
+    "build_scores_mid.py":   (R / "build_scores_step.py",),
+    "build_scores_n100.py":  (R / "build_scores_step.py",),
+}
 
 
 def script_path(script):
@@ -284,7 +347,7 @@ def main():
     import check_pipeline_order as cpo
     cpo.enforce(PIPELINE_ORDER,
                 covered={f.name for lst in REQUIRED_INPUTS.values() for f, _ in lst},
-                resolver=script_path)
+                resolver=script_path, helpers=STEP_HELPERS)
 
     # ===== TRADING CALENDAR (must precede every panel build) =====
     # build_panel refuses to run without it, so this cannot be skipped or bypassed.

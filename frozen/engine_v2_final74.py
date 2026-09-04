@@ -58,7 +58,17 @@ START_CAPITAL = 1_000_000
 # WINDOW FROZEN: retired universe -- serves only the retired 58/74. Their published
 # numbers must not move, so this window is deliberately left on the old
 # year cut while the live universes moved to config.BT_START_DATE/BT_END_DATE.
-BT_START, BT_END = 2019, 2026
+#
+# THE END YEAR IS 2025, NOT 2026. This file is a copy of engine_v2_final.py and
+# carried the 58's end year for as long as it has existed. Every place the 74's own
+# window is stated per-universe says 2025 -- make_cash_series.py, nt_run.py's
+# "2025-12-23", the daily audit, and universes/registry.py's year_range. The two
+# agreed only by ACCIDENT: the 74 panel ends 2025-12-23, so a 2026 cut and a 2025
+# cut select the same 1,732 days and the discrepancy could not show itself. It would
+# have diverged silently the moment any 2026 row appeared for this universe.
+# Corrected 2026-09-04; the selected days, and therefore every published 74 number,
+# are unchanged. See KNOWN_ISSUES.md.
+BT_START, BT_END = 2019, 2025
 M = config74.METRICS_DIR_74
 
 

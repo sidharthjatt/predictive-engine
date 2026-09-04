@@ -1,0 +1,108 @@
+"""
+build_scores_step.py -- the raw panel and monthly score panel, once, for any universe.
+======================================================================================
+
+WHAT THIS REPLACES
+    Four files carried the same body: build_scores.py (58), build_scores74.py (74),
+    build_scores_mid.py and build_scores_n100.py. Each said so in its own docstring
+    -- "A copy of build_scores.py", "A copy of build_scores74.py", "A copy of
+    build_scores_mid.py" -- a chain of copies, each one universe further from the
+    original.
+
+    Every difference between them is a universe property universes/registry.py
+    records:
+
+        data directory   u.prepare_data_dir()
+        raw panel out    u.raw_tmp
+        score panel out  u.score_tmp
+        purge mode       u.purge_mode        <- see below, this one is load-bearing
+        frozen write     u.frozen
+        index exclusion  u.index_name        (None for 58/74: no index in the folder)
+        symbol check     u.symbols()         (None for 58/74: the directory defines it)
+
+THE PURGE MODE IS A PROPERTY OF THE UNIVERSE, NOT OF THIS FILE
+    The retired 58 and 74 are scored with purge_mode="calendar", which
+    engine_core.score_monthly documents as DEFECTIVE -- it underflows on a holiday
+    cluster. They keep it because they are frozen and their published numbers must
+    not move. The live universes take the corrected "trading" default.
+
+    Before this merge that fact lived as a literal in two files and as an omission
+    in the other two, with nothing connecting them: a reader had to notice that
+    build_scores_mid.py did NOT pass purge_mode and know why. It is now read from
+    u.purge_mode, beside u.frozen and the window, so the pin travels with the
+    universe rather than with whichever file happens to score it.
+
+    58 and 74 must resolve "calendar". mid and n100 must resolve "trading". That is
+    asserted explicitly, per universe, rather than left to be inferred.
+
+SEEDS ARE UNIVERSE-INVARIANT
+    All four files listed the same ten seeds. That is not a universe property -- it
+    is the production ensemble, identical everywhere so the comparison between
+    universes stays fair -- so it is one constant here rather than a registry field.
+"""
+import sys
+import time
+import warnings
+from pathlib import Path
+
+import pandas as pd
+
+warnings.filterwarnings("ignore")
+ROOT = Path(__file__).resolve().parents[1]
+for _p in (str(ROOT), str(ROOT / "results"), str(ROOT / "frozen")):
+    if _p not in sys.path:
+        sys.path.insert(0, _p)
+
+from engine_core import build_panel, score_monthly, HORIZON   # noqa: E402
+from features_v2 import FEATS_V2                              # noqa: E402
+from _frozen_guard import guard as _frozen_guard              # noqa: E402
+
+# The production ensemble. Identical in all four originals; not a universe property.
+SEEDS = [7, 42, 99, 1, 2, 3, 11, 22, 33, 101]
+
+
+def run(u):
+    """Build the raw panel and the monthly score panel for one universe."""
+    if u.frozen:
+        _frozen_guard(u.tag)
+
+    data_dir = u.prepare_data_dir()
+    want = u.symbols()
+
+    if want is None:
+        print("[1/2] Building raw panel...", flush=True)
+    else:
+        print(f"[1/2] Building raw panel for {len(want)} {u.label} stocks...", flush=True)
+    t0 = time.time()
+    raw = build_panel(HORIZON, data_dir=data_dir)
+
+    if u.index_name is not None:
+        # THE INDEX IS EXCLUDED, AND THAT IS ASSERTED RATHER THAN ASSUMED.
+        # build_panel globs its data_dir, so it is pointed at a constituents
+        # directory that holds no index file. A bare glob over the source folder
+        # would have made the index one more tradable name -- the error this project
+        # made once before, when an index was averaged into its own constituent
+        # basket and the result was labelled as the benchmark.
+        got = set(raw["symbol"].unique())
+        assert u.index_name not in got, "the index entered the panel as a tradable symbol"
+        missing = set(want) - got
+        print(f"    symbols in panel: {len(got)} of {len(want)}"
+              + (f" | dropped for insufficient history: {sorted(missing)}" if missing else ""))
+    else:
+        got = set(raw["symbol"].unique())
+
+    keep = ["date", "symbol", "open", "close", "year", "y_rank", "scorable"] + FEATS_V2
+    raw = raw[keep]
+    raw.to_csv(u.raw_tmp, index=False)
+    print(f"    done {(time.time()-t0)/60:.1f} min, {len(raw):,} rows", flush=True)
+
+    print("[2/2] Monthly scoring, 10-seed ensemble (slow)...", flush=True)
+    t0 = time.time()
+    scored = score_monthly(raw, SEEDS, purge_mode=u.purge_mode)
+    scored[["date", "symbol", "open", "close", "score", "year"]].to_csv(
+        u.score_tmp, index=False)
+    print(f"    done {(time.time()-t0)/60:.1f} min", flush=True)
+    if want is None:
+        print(f"DONE -- {u.score_tmp} ready")
+    else:
+        print(f"DONE -- {u.score_tmp} ready ({len(got)} stocks)")
