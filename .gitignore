@@ -42,8 +42,14 @@ results_n100/metrics/
 # are rebuilt.
 nautilus/data/*.parquet
 
-# Engine output: orders.csv / fills.csv / positions.csv per universe.
+# Engine output: orders.csv / fills.csv / positions.csv, per universe AND per arm.
 nautilus/reports/
+
+# Per-combination output: runs/{universe}/{arm}/. Written by run.py, one directory
+# per (universe, arm), and rebuilt in full by `run.py --universe all --arm all`.
+# Generated output like everything above it -- the numbers in it are reproducible
+# from the panels, and its params.json records the git state that produced them.
+runs/
 
 # ------------------------------------------------------------ bulk price data
 # ~396 MB of vendor OHLCV CSVs. Excluded for size, not for irrelevance -- the

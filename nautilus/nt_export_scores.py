@@ -81,7 +81,18 @@ def export(cache_path: Path, out_path: Path, tag: str, year_end: int) -> pd.Data
     return df
 
 
-if __name__ == "__main__":
+def main():
+    """STEP 16. Body moved out of the __main__ guard, unchanged.
+
+    See make_daily_log.main() for why this was missed: a spawned step never needed
+    a main(), so the S4 boundary was invisible-by-absence until run.py ran the
+    pipeline in one process.
+
+    THE PATHS BELOW ARE RELATIVE, AND THAT NOW MATTERS. run_all.run() spawned each
+    step with cwd=ROOT explicitly; in process there is no such thing, so run.py
+    chdirs to ROOT for the same reason. Left alone, running run.py from any other
+    directory would have failed here, on this step only.
+    """
     print("Exporting model scores for the Nautilus execution layer...")
     d58 = export(Path("results/metrics/v5_expanding_cache.csv"),
                  OUT_DIR / "scores_58.parquet", "58", 2026)
@@ -96,3 +107,7 @@ if __name__ == "__main__":
           f"mid: {len(dmid):,} rows | n100: {len(dn100):,} rows")
     print("These files are the ONLY input the Nautilus strategy takes from the model.")
     print("=" * 66)
+
+
+if __name__ == "__main__":
+    main()

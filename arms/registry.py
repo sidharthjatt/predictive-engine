@@ -70,3 +70,31 @@ def get(name):
     except KeyError:
         raise KeyError(
             f"unknown arm {name!r}; known: {', '.join(ARMS)}") from None
+
+
+_BY_PARAMS = {(a.mode, a.sizing): a for a in ARMS.values()}
+
+
+def by_params(mode, sizing):
+    """The named arm for a (mode, sizing) pair, or None if it is not one of the four.
+
+    backtest_exposure accepts modes ("voltgt", "const", "both") and a sizing
+    ("equal") that no named arm uses, so this is deliberately partial: a caller that
+    needs a name for an unnamed combination should say so in its own terms rather
+    than have one invented here. See path_segment().
+    """
+    return _BY_PARAMS.get((mode, sizing))
+
+
+def path_segment(mode, sizing):
+    """A filesystem-safe directory name identifying one (mode, sizing) combination.
+
+    A named arm gives its name -- "v3". Anything else gives "{mode}-{sizing}", which
+    is still unique and still readable, so an exploratory combination writes beside
+    the four named ones instead of into one of them. This is total by design: the
+    point of the segment is that two different configurations cannot land in the
+    same directory, and raising on the unnamed case would just push the collision
+    back to whichever caller shrugged and passed a constant.
+    """
+    a = by_params(mode, sizing)
+    return a.name if a is not None else f"{mode}-{sizing}"

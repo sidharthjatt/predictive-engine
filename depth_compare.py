@@ -87,7 +87,15 @@ def main():
             #   client_order_id from the venue's own fills report is the order
             #   identity, so distinct ids that produced any fill is what "filled"
             #   means, and an id appearing more than once is an order that walked.
-            rep = Path("nautilus") / "reports" / u / "fills.csv"
+            # The arm is part of the reports path now (a run's sizing/mode chose
+            # the directory). This script never passes either, so nt_run's own
+            # defaults apply -- named through arms.registry rather than spelled
+            # "v2" here, so the two cannot drift.
+            import inspect
+            from arms.registry import path_segment
+            _d = {k: v.default for k, v in inspect.signature(nt_run.run).parameters.items()}
+            rep = (Path("nautilus") / "reports" / u
+                   / path_segment(_d["mode"], _d["sizing"]) / "fills.csv")
             fr = pd.read_csv(rep)
             per_order = fr.groupby("client_order_id").size()
             filled_orders = int(len(per_order))

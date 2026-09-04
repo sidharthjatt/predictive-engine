@@ -38,6 +38,23 @@ from matplotlib.ticker import PercentFormatter
 
 from engine_core import metrics
 
+
+def _window_label(eq=None):
+    """One line naming the window every figure on the chart belongs to.
+
+    ADDED 2026-09-02. Three different trade counts on three different windows
+    once appeared on one chart with none of them labelled: 981 research fills on
+    the 1,836-day window, 978 port fills on the same window, and 997 fills from a
+    depth study on the retired 1,842-day window. A trade count without its window
+    is not checkable, and a CAGR without its window has already been quoted
+    against the wrong one in this project.
+    """
+    import config as _c
+    n = f", {len(eq):,} trading days" if eq is not None else ""
+    return (f"WINDOW {_c.BT_START_DATE.date()} to {_c.BT_END_DATE.date()}{n} -- "
+            f"every CAGR, Sharpe, drawdown and TRADE COUNT on this page is on that "
+            f"window and no other.")
+
 TRADING_DAYS = 252
 
 
@@ -257,7 +274,8 @@ def run_v34(M, universe_label, universe_tag, px, op, sc, bd, pc, mom20, port_vol
     ax[0].yaxis.set_major_formatter(PercentFormatter(decimals=0))
     ax[0].set_title(
         f"{universe_label} -- four sizing/exposure arms plus equal-weight buy & hold\n"
-        f"{bd[0].date()} to {bd[-1].date()}, {len(bd)} trading days. "
+        f"WINDOW {bd[0].date()} to {bd[-1].date()}, {len(bd)} trading days -- every "
+        f"CAGR, Sharpe, drawdown and TRADE COUNT here is on that window and no other.\n"
         f"All figures after Zerodha costs plus 0.15% slippage.\n"
         f"v1/v3 hold 100% invested; v2/v4 scale exposure by breadth. "
         f"Sizing is the only other difference: 1/vol against vol.", fontsize=9)
@@ -277,3 +295,113 @@ def run_v34(M, universe_label, universe_tag, px, op, sc, bd, pc, mom20, port_vol
     plt.close()
 
     return comp, subs, curves
+
+
+# ---------------------------------------------------------------------------
+# SINGLE-ARM EXECUTION
+# ---------------------------------------------------------------------------
+def run_arm(u, arm, rebal=None, out_dir=None):
+    """Run ONE arm on ONE universe and write that combination's own artefacts.
+
+    WHY THIS EXISTS ALONGSIDE run_v34, NOT INSTEAD OF IT.
+        run_v34 computes all four arms in a single call and writes them as rows of
+        v34_comparison.csv. That file is not just a report: SEVEN scripts read it as
+        an IDENTITY GATE -- purge_fix_measure, seed_noise_measure, seed_noise_report,
+        shuffle_test, validate_topn, drawdown_exit_measure and rebal_cadence_sweep
+        each assert their own control run reproduces its published v2 row exactly,
+        and make_v34_report indexes all five rows by Config. Replacing that table
+        with per-arm files would break all seven.
+
+        So this is ADDITIVE. run_v34 keeps producing the combined table when all
+        four arms are run; this produces one arm's own output, into its own
+        directory, so a single arm can be run on its own without touching anything
+        the rest of the project reads.
+
+    IT LOADS ITS OWN PANEL. run_v34 is handed already-built objects by an engine
+    that has just used them; this is called directly by run.py for an arbitrary
+    (universe, arm) pair, with no engine in the picture, so it builds what it needs.
+    The construction is the same as the engines': close/open/score pivots, the
+    universe's own window, precompute, 20-day momentum.
+    """
+    import config
+    import paths
+    from engine_core import precompute
+    from test_exposure import backtest_exposure, START_CAPITAL
+
+    out = Path(out_dir) if out_dir is not None else paths.run_dir(u, arm)
+    out.mkdir(parents=True, exist_ok=True)
+
+    src = config.require_cache(u.score_cache, str(u.score_tmp),
+                               what=f"{u.label} score panel")
+    p = pd.read_csv(src, parse_dates=["date"])
+    px = p.pivot_table(index="date", columns="symbol", values="close").ffill()
+    op = p.pivot_table(index="date", columns="symbol", values="open").ffill()
+    sc = p.pivot_table(index="date", columns="symbol", values="score")
+    bd = u.trading_days(px.index)
+    pc = precompute(px)
+    mom20 = px / px.shift(20) - 1
+    idx = (1 + px.pct_change().mean(axis=1).fillna(0)).cumprod()
+    port_vol = idx.pct_change().rolling(60).std() * np.sqrt(252)
+    tv = port_vol.loc[bd].median()
+
+    audit = {k: [] for k in ("holdings", "summary", "trades",
+                             "ranking", "decisions", "skipped")}
+    eq, tc, ntr, expo = backtest_exposure(
+        px, op, sc, bd, pc, mom20, port_vol,
+        mode=arm.mode, target_vol=tv, sizing=arm.sizing, audit=audit,
+        # A frozen universe opts OUT of the valuation correction, exactly as its
+        # engine does; keyed off the universe, not off which file is running.
+        value_at_open=not u.frozen, rebal=rebal)
+
+    bh = START_CAPITAL * (1 + px.pct_change().loc[bd].mean(axis=1).fillna(0)).cumprod()
+    dep = 100.0 if arm.mode == "none" else expo * 100
+    rows = [arm_row(eq, arm.label, tc, ntr, dep),
+            arm_row(bh, "buy & hold equal-weight", 0, 0, 100.0)]
+    mh, nsk = held_and_skips(audit)
+    rows[0]["MeanNamesHeld"], rows[0]["CashShortSkips"] = round(mh, 2), nsk
+    rows[1]["MeanNamesHeld"], rows[1]["CashShortSkips"] = "", ""
+    comp = pd.DataFrame(rows)
+    comp.to_csv(out / "comparison.csv", index=False)
+
+    halves = [("2019-2022", 2019, 2022), ("2023-2026", 2023, 2026)]
+    curves = [(arm.label, eq, dep), ("buy & hold equal-weight", bh, 100.0)]
+    sub_rows(curves, halves, {arm.label: audit}).to_csv(out / "subperiods.csv", index=False)
+
+    pd.DataFrame({"date": bd, arm.equity_column: eq.values,
+                  "buyhold": bh.values}).to_csv(out / "equity.csv", index=False)
+
+    (out / "params.json").write_text(json.dumps({
+        "universe": u.label, "universe_tag": u.tag,
+        "arm": arm.name, "mode": arm.mode, "sizing": arm.sizing,
+        "rebal": rebal if rebal is not None else 20,
+        "frozen_universe": u.frozen, "value_at_open": not u.frozen,
+        "purge_mode": u.purge_mode,
+        "window_start": str(bd[0].date()), "window_end": str(bd[-1].date()),
+        "trading_days": int(len(bd)),
+        "deployed_pct": round(float(dep), 1),
+        "git_state": _git_state(), "run_date": str(pd.Timestamp.today().date()),
+    }, indent=2))
+
+    fig, ax = plt.subplots(2, 1, figsize=(13, 8), height_ratios=[2, 1])
+    for (lab, e, d), c in zip(curves, ("#1f77b4", "#7f7f7f")):
+        m = metrics(e, lab)
+        ax[0].plot(e.index, (e / e.iloc[0] - 1) * 100, lw=1.8, color=c,
+                   ls="-" if c != "#7f7f7f" else "--",
+                   label=f"{lab}  [inv {d:.0f}%]  CAGR {m['CAGR%']}%  "
+                         f"vol {ann_vol_pct(e)}%  Sharpe {m['Sharpe']}")
+    ax[0].axhline(0, color="k", lw=.6, alpha=.5)
+    ax[0].set_ylabel("Cumulative return (%)")
+    ax[0].yaxis.set_major_formatter(PercentFormatter(decimals=0))
+    ax[0].set_title(f"{u.label} -- {arm.label}\n{_window_label(eq)}\n"
+                    f"mode={arm.mode}  sizing={arm.sizing}  "
+                    f"rebal={rebal if rebal is not None else 20}", fontsize=9)
+    ax[0].legend(loc="upper left", fontsize=8); ax[0].grid(alpha=.3)
+    for (lab, e, d), c in zip(curves, ("#1f77b4", "#7f7f7f")):
+        dd = (e / e.cummax() - 1) * 100
+        ax[1].plot(e.index, dd, lw=1.2, color=c, label=f"{lab} (max {dd.min():.1f}%)")
+    ax[1].set_ylabel("Drawdown (%)")
+    ax[1].yaxis.set_major_formatter(PercentFormatter(decimals=0))
+    ax[1].legend(loc="lower left", fontsize=8); ax[1].grid(alpha=.3)
+    plt.tight_layout(); plt.savefig(out / "chart.png", dpi=140, bbox_inches="tight")
+    plt.close()
+    return comp, out

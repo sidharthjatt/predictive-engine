@@ -1,0 +1,397 @@
+"""
+run.py -- one entry point: choose the universe and the arm, everything runs for it.
+==================================================================================
+
+    ./venv/bin/python run.py --universe mid --arm v3
+    ./venv/bin/python run.py --universe all --arm all
+    ./venv/bin/python run.py --universe n100 --arm v1 --rebal 5
+    ./venv/bin/python run.py --list                 # resolve and print, run nothing
+    ./venv/bin/python run.py --dry-run              # same, with output paths
+
+THE INTERPRETER IS LOAD-BEARING, exactly as it was for run_all.py. `python3` on the
+machine these numbers were produced on is 3.11 with no lightgbm, and below
+nautilus_trader's 3.12 floor. Use ./venv/bin/python.
+
+TWO KINDS OF STEP, AND THEY SELECT DIFFERENTLY
+    ARM STEPS are universe-generic AND arm-generic: one implementation
+    (v34_common.run_arm) takes a Universe and an Arm and runs that single
+    combination. Adding a universe or an arm to the registries makes new
+    combinations available with no code change, which is the property this file
+    exists to provide.
+
+    PIPELINE STEPS are the thirty-one scripts run_all.py ordered. Most are still
+    bound to one universe by their own filename -- engine_v2_final_mid.py is
+    MidCap150 and nothing else -- because the engine family was deliberately not
+    merged: what separates those files is written analysis, not duplication. So a
+    NEW universe gets its scores, its audit and every arm automatically, and would
+    still need an engine and a chart script written for it. That limit is real and
+    is stated here rather than discovered later.
+
+WHAT IS NOT MOVED
+    results*/metrics/ is untouched. Every existing artefact keeps its path, so the
+    seven identity gates that read v34_comparison.csv, and every consumer of the
+    daily audit files, keep working. runs/{universe}/{arm}/ is ADDITIVE: it holds
+    the per-combination output that did not exist before.
+"""
+# ---------------------------------------------------------------------------
+# DETERMINISM PIN -- SET BEFORE ANY NUMERIC LIBRARY IS IMPORTED.
+# Carried over from run_all.py unchanged, and for the same reason: an OpenMP/BLAS
+# runtime reads its thread count when it initialises at import, so this must run
+# before pandas or lightgbm arrive. Only `os` is imported above it.
+# ---------------------------------------------------------------------------
+import os as _os
+for _v in ("OMP_NUM_THREADS", "MKL_NUM_THREADS", "OPENBLAS_NUM_THREADS",
+           "VECLIB_MAXIMUM_THREADS", "NUMEXPR_NUM_THREADS"):
+    _os.environ[_v] = "1"
+_os.environ["PYTHONHASHSEED"] = "0"
+# The frozen 58/74 steps refuse to run without this. A full run IS the sanctioned
+# way to regenerate them; see frozen/_frozen_guard.py.
+_os.environ["ALLOW_FROZEN_WRITE"] = "1"
+
+import argparse
+import sys
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent
+for _p in (str(ROOT), str(ROOT / "results"), str(ROOT / "frozen"), str(ROOT / "nautilus")):
+    if _p not in sys.path:
+        sys.path.insert(0, _p)
+
+import paths                                        # noqa: E402
+from universes.registry import REGISTRY             # noqa: E402
+from arms.registry import ARMS                      # noqa: E402
+
+# ---------------------------------------------------------------------------
+# WHICH PIPELINE STEPS BELONG TO WHICH UNIVERSE
+# ---------------------------------------------------------------------------
+# Derived by scanning each step (and its helpers) for the universe it names, then
+# written down here so selection is explicit rather than re-derived by regex on
+# every run. A step serving several universes is listed under each: STEP 13
+# make_final_chart_fair.py reads the 58 and the 74 and would be wrong to run for
+# only one of them.
+#
+# Steps marked () serve every universe and always run.
+STEP_UNIVERSES = {
+    "make_trading_calendar.py":   ("58",),
+    "build_scores.py":            ("58",),
+    "engine_core.py":             ("58",),
+    "engine_v2_final.py":         ("58",),
+    "diagnose_decay.py":          ("58",),
+    "validate_breadth.py":        ("58",),
+    "reality_check.py":           ("58",),
+    "make_per_stock_charts.py":   ("58",),
+    "make_combined_all.py":       ("58",),
+    "make_final_table.py":        ("58",),
+    "make_charts.py":             ("58",),
+    "make_stock_chart.py":        ("58",),
+    "make_combined_portfolio.py": ("58",),
+    "export_feature_docs.py":     ("58",),
+    "build_scores74.py":          ("74",),
+    "engine_v2_final74.py":       ("74",),
+    "build_scores_mid.py":        ("mid",),
+    "engine_v2_final_mid.py":     ("mid",),
+    "make_mid_audit.py":          ("mid",),
+    "make_mid_chart.py":          ("mid",),
+    "build_scores_n100.py":       ("n100",),
+    "engine_v2_final_n100.py":    ("n100",),
+    "make_n100_audit.py":         ("n100",),
+    "make_n100_chart.py":         ("n100",),
+    "make_combined_n100_mid.py":  ("mid", "n100"),
+    "make_cash_series.py":        ("58", "74"),
+    "make_daily_audit.py":        ("58", "74"),
+    "make_final_chart_fair.py":   ("58", "74"),
+    "make_final_summary.py":      ("58", "74"),
+    "make_daily_log.py":          ("58", "74", "mid", "n100"),
+    "nt_export_scores.py":        ("58", "74", "mid", "n100"),
+}
+
+
+# A SCORE-BUILD STEP IS SKIPPED WHEN ITS PANEL IS ALREADY ON DISK.
+# run_all.main() did this with four hand-written `if not (TMP/"v5_expanding.csv")`
+# guards. Without it a shimmed run_all.py would rebuild all four panels on every
+# run -- hours, for nothing -- so the behaviour moves here rather than being lost.
+#
+# WHICH STEPS is written down; WHICH FILE is read from the registry (u.score_tmp),
+# so a new universe's build step inherits the skip with no path repeated here.
+SCORE_BUILD_STEPS = {
+    "build_scores.py", "build_scores74.py",
+    "build_scores_mid.py", "build_scores_n100.py",
+}
+
+
+def cached_panel(scr):
+    """The already-built score panel that lets `scr` be skipped, or None."""
+    if Path(scr).name not in SCORE_BUILD_STEPS:
+        return None
+    serves = STEP_UNIVERSES.get(Path(scr).name) or ()
+    for tag in serves:
+        p = Path(REGISTRY[tag].score_tmp)
+        if p.exists():
+            return p
+    return None
+
+
+def show(p):
+    """A path as the reader will recognise it: repo-relative when it is in the repo.
+
+    NOT Path.relative_to, which RAISES on a path outside ROOT. A universe is free to
+    put its metrics anywhere -- nothing in universes/registry.py says the directory
+    must be inside this checkout, and the first throwaway universe added to test
+    that (requirement 6: adding a universe is a config change) pointed its
+    metrics_dir at /tmp and crashed --dry-run here. Printing a plan is not a place
+    to enforce a layout rule the registry does not have.
+    """
+    p = Path(p)
+    try:
+        return str(p.relative_to(ROOT))
+    except ValueError:
+        return str(p)
+
+
+def resolve_universes(name):
+    if name in ("all", None):
+        return list(REGISTRY.values())
+    if name not in REGISTRY:
+        raise SystemExit(f"unknown universe {name!r}; known: {', '.join(REGISTRY)}")
+    return [REGISTRY[name]]
+
+
+def resolve_arms(name):
+    if name in ("all", None):
+        return list(ARMS.values())
+    if name not in ARMS:
+        raise SystemExit(f"unknown arm {name!r}; known: {', '.join(ARMS)}")
+    return [ARMS[name]]
+
+
+def pipeline_steps(unis):
+    """The run_all.py steps that serve any selected universe, IN ORDER.
+
+    Order comes from run_all.PIPELINE_ORDER and is never re-sorted: it is the thing
+    check_pipeline_order.enforce verifies, and a consumer must never precede its
+    producer.
+    """
+    import runpy
+    mod = runpy.run_path(str(ROOT / "run_all.py"), run_name="__not_main__")
+    want = {u.tag for u in unis}
+    out = []
+    for label, scr in mod["PIPELINE_ORDER"]:
+        serves = STEP_UNIVERSES.get(scr)
+        if serves is None:
+            out.append((label, scr, "?unmapped"))          # surfaced, never skipped
+        elif want & set(serves):
+            out.append((label, scr, ",".join(serves)))
+    return out, mod
+
+
+def arm_steps(unis, arms):
+    """One entry per (universe, arm), plus the combinations deliberately skipped.
+
+    A FROZEN UNIVERSE RUNS ONLY THE SHIPPING ARMS. arms/registry.SHIPPING records
+    that v1 and v2 are the two that ship on every universe and that v3/v4 exist only
+    for the live pair -- and the code agrees: frozen/engine_v2_final.py and
+    engine_v2_final74.py contain no reference to v34_common at all, so the retired
+    universes have never had a four-arm path. Running v3 on the 58 would not
+    overwrite anything, but it would manufacture a number for a retired universe
+    that has never existed. Skipped, and reported rather than dropped silently.
+    """
+    from arms.registry import SHIPPING
+    ship = {a.name for a in SHIPPING}
+    runs, skipped = [], []
+    for u in unis:
+        for a in arms:
+            if u.frozen and a.name not in ship:
+                skipped.append((u, a))
+            else:
+                runs.append((u, a))
+    return runs, skipped
+
+
+def build_plan(args):
+    unis = resolve_universes(args.universe)
+    arms = resolve_arms(args.arm)
+    plan = {"universes": unis, "arms": arms, "pipeline": [], "arm_runs": [], "skipped": []}
+    if args.steps in ("pipeline", "all"):
+        plan["pipeline"], plan["_run_all"] = pipeline_steps(unis)
+    if args.steps in ("arms", "all"):
+        plan["arm_runs"], plan["skipped"] = arm_steps(unis, arms)
+    return plan
+
+
+def print_plan(plan, args, show_paths=False):
+    unis, arms = plan["universes"], plan["arms"]
+    print("=" * 96)
+    print(f" RESOLVED PLAN   --universe {args.universe}   --arm {args.arm}   "
+          f"--steps {args.steps}" + (f"   --rebal {args.rebal}" if args.rebal else ""))
+    print("=" * 96)
+    print(f"  universes ({len(unis)}): " + ", ".join(u.tag for u in unis))
+    print(f"  arms      ({len(arms)}): " + ", ".join(f"{a.name}[{a.mode}/{a.sizing}]" for a in arms))
+    if args.rebal:
+        print(f"  rebalance cadence: {args.rebal} (default 20)")
+    else:
+        print(f"  rebalance cadence: 20 (default, unchanged)")
+
+    if plan["pipeline"]:
+        print(f"\n  PIPELINE STEPS ({len(plan['pipeline'])}), in run_all order:")
+        for label, scr, serves in plan["pipeline"]:
+            mark = "  <-- UNMAPPED" if serves == "?unmapped" else ""
+            print(f"    {label:<9} {scr:<28} [{serves}]{mark}")
+    elif args.steps in ("pipeline", "all"):
+        print("\n  PIPELINE STEPS: none selected")
+
+    if plan["arm_runs"]:
+        print(f"\n  ARM RUNS ({len(plan['arm_runs'])}):")
+        for u, a in plan["arm_runs"]:
+            line = f"    {u.tag:<6} {a.name:<4} mode={a.mode:<8} sizing={a.sizing:<7}"
+            if show_paths:
+                line += f"  -> {show(paths.run_dir(u, a))}/"
+            print(line)
+    elif args.steps in ("arms", "all"):
+        print("\n  ARM RUNS: none selected")
+
+    if plan["skipped"]:
+        print(f"\n  SKIPPED ({len(plan['skipped'])}) -- frozen universes run only the shipping arms:")
+        for u, a in plan["skipped"]:
+            print(f"    {u.tag:<6} {a.name:<4} skipped: {u.tag} is frozen (retired) and has no "
+                  f"v3/v4 path -- its engine never calls v34_common")
+
+    if show_paths:
+        print("\n  OUTPUT LOCATIONS")
+        for u, a in plan["arm_runs"]:
+            d = show(paths.run_dir(u, a))
+            print(f"    {u.tag}/{a.name:<4} {d}/comparison.csv  subperiods.csv  equity.csv  "
+                  f"params.json  chart.png  run.log")
+        seen = set()
+        for u in unis:
+            m = show(paths.metrics(u))
+            if m not in seen:
+                seen.add(m)
+                print(f"    {u.tag:<6} existing artefacts stay in {m}/  (unchanged)")
+    print("=" * 96)
+
+
+def main(argv=None):
+    ap = argparse.ArgumentParser(description="Run the pipeline for one universe/arm combination.")
+    ap.add_argument("--universe", default="all",
+                    help="universe tag, or 'all' (default). " + ", ".join(REGISTRY))
+    ap.add_argument("--arm", default="all",
+                    help="arm name, or 'all' (default). " + ", ".join(ARMS))
+    ap.add_argument("--steps", default="all", choices=("all", "pipeline", "arms"),
+                    help="which kinds of step to run (default all)")
+    ap.add_argument("--rebal", type=int, default=None,
+                    help="rebalance cadence in trading days; omit for the default 20")
+    ap.add_argument("--list", action="store_true", help="resolve and print the plan, run nothing")
+    ap.add_argument("--dry-run", action="store_true",
+                    help="like --list, and show every output location")
+    ap.add_argument("--fresh", action="store_true", help="clear caches first (full rebuild)")
+    args = ap.parse_args(argv)
+
+    plan = build_plan(args)
+    if args.list or args.dry_run:
+        print_plan(plan, args, show_paths=args.dry_run)
+        return 0
+
+    return execute(plan, args)
+
+
+def execute(plan, args):
+    """Run the plan in ONE process, carrying run_all.py's four safety mechanisms."""
+    import importlib
+    import time
+    import module_state
+    import check_pipeline_order as cpo
+
+    mod = plan.get("_run_all")
+    if mod is None:
+        _, mod = pipeline_steps(plan["universes"])
+
+    # SAFETY 1 -- the determinism pin is already set, at the top of this file,
+    # before any numeric import. Nothing to do here; it is listed so the four are
+    # accounted for in one place.
+
+    # THE WORKING DIRECTORY IS ROOT, AND THAT IS NOT COSMETIC.
+    # run_all.run() spawned every step with an explicit cwd=ROOT. In process there
+    # is no cwd argument, so a step is handed whatever directory the shell happened
+    # to be in -- and nautilus/nt_export_scores.py builds its four input paths as
+    # bare relatives ("results/metrics/v5_expanding_cache.csv"). Without this,
+    # run.py works from the repo root and fails from anywhere else, on one step,
+    # with a FileNotFoundError that names a path the reader can see exists.
+    _os.chdir(ROOT)
+
+    # SAFETY 2 -- the static ordering check. Runs over the FULL pipeline, not the
+    # selected subset: an inversion is a property of the pipeline, and checking only
+    # what was selected would let a subset hide one.
+    # The unresolved-placeholder LIST is suppressed when no pipeline step was
+    # selected: on an arms-only run those ten lines name steps this invocation does
+    # not touch, and a warning that fires every time about something irrelevant is
+    # how a checker gets ignored. The count still prints, and an inversion is still
+    # fatal.
+    cpo.enforce(mod["PIPELINE_ORDER"],
+                covered={f.name for lst in mod["REQUIRED_INPUTS"].values() for f, _ in lst},
+                resolver=mod["script_path"], helpers=mod["STEP_HELPERS"],
+                list_unresolved=bool(plan["pipeline"]))
+
+    # SAFETY 3 -- cache restore, so a step reads the panel it expects.
+    if args.fresh:
+        print("--fresh: clearing caches (full rebuild)")
+        for c in mod["CACHE_TMP"] + mod["CACHE_PERM"]:
+            if c.exists():
+                c.unlink()
+    else:
+        mod["restore_cache_to_tmp"]()
+
+    # Stated once per run, as run_all.main() did, so the log itself records which
+    # universe construction produced the numbers under it.
+    import survivorship as sv
+    print(f"SURVIVORSHIP: {sv.describe_state()}\n")
+
+    t_start = time.time()
+    for label, scr, serves in plan["pipeline"]:
+        if serves == "?unmapped":
+            raise SystemExit(f"{scr} is not in STEP_UNIVERSES; add it there so "
+                             f"selection cannot silently drop it")
+        cached = None if args.fresh else cached_panel(scr)
+        if cached is not None:
+            print(f"\n>>> {label}  {scr}  -- score panel cached, skipping "
+                  f"({cached})")
+            continue
+        # SAFETY 4 -- fail by filename and owing step, not from inside pandas.
+        mod["check_inputs"](label, scr)
+        print("\n" + "=" * 90); print(f">>> {label}  {scr}"); print("=" * 90, flush=True)
+        t0 = time.time()
+        # IN PROCESS, NOT SPAWNED. Every step has main() (S4). module_state.pinned()
+        # restores any shared module global a step reassigns, which a subprocess used
+        # to get for free by exiting.
+        with module_state.pinned(
+                report=lambda ch: print(f"    [restored leaked globals: "
+                                        f"{', '.join(f'{m}.{a}' for m, a, _, _ in ch)}]"),
+                on_uncovered=lambda ms: print(f"    [note: {', '.join(ms)} imported "
+                                              f"inside the step; not covered by the guard]")):
+            importlib.import_module(Path(scr).stem).main()
+        print(f"    [{label} done in {(time.time()-t0)/60:.1f} min]")
+
+    for u, a in plan["arm_runs"]:
+        print("\n" + "=" * 90)
+        print(f">>> ARM {u.tag} / {a.name}   mode={a.mode} sizing={a.sizing}"
+              + (f" rebal={args.rebal}" if args.rebal else ""))
+        print("=" * 90, flush=True)
+        t0 = time.time()
+        import v34_common
+        with module_state.pinned():
+            comp, out = v34_common.run_arm(u, a, rebal=args.rebal)
+        print(comp.to_string(index=False))
+        print(f"    -> {show(out)}/   [{(time.time()-t0)/60:.1f} min]")
+
+    # SAFETY 3, second half -- persist the panels so the next run need not rebuild.
+    if plan["pipeline"]:
+        mod["save_permanent_caches"]()
+
+    print("\n" + "=" * 90)
+    print(f"DONE in {(time.time()-t_start)/60:.1f} min   "
+          f"({len(plan['pipeline'])} pipeline steps, {len(plan['arm_runs'])} arm runs)")
+    print("=" * 90)
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
