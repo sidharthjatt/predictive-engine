@@ -435,6 +435,61 @@ than change behaviour mid-measurement.
 columns for every arm, so a reader of those tables alone can see that v1 and v3
 did not hold the same portfolio.
 
+### 2026-09-04: WHY IT CANNOT BE FIXED WITHOUT CHANGING THE STRATEGY
+
+Measured after the valuation fix (`value_at_open=True`), v1 arm, window
+2019-01-01 to 2026-06-08, 93 rebalances, on the same three panels used throughout.
+
+**THE CAUSE IS ARITHMETIC, NOT A FUNDING-ORDER BUG.** The `TOP_N` target weights
+sum to 1.0, so `invest_val` alone commits 98% of portfolio value to eight names.
+Buffer names — the up-to-eight more held because they are still inside `BUFFER`,
+which is what stops the book churning — **carry no target weight at all** and yet
+hold capital. So whenever a buffer name is held the book is over-committed by
+construction and cash MUST be short. Reordering the buy loop cannot fix that; the
+only levers are to give buffer names a target, to trim them, or to drop them.
+
+**Five funding models were measured. The two that close the gap both cost
+performance on every universe:**
+
+| model | mid CAGR / blocked | n100 CAGR / blocked | 58 CAGR / blocked | trades |
+|---|---|---|---|---|
+| current — cash only | 44.69 / 93 | 34.60 / 120 | 23.83 / 137 | baseline |
+| A trim over-target top-N only | 44.28 / 81 | 33.32 / 106 | 24.82 / 128 | +8-11% |
+| B2 full target-weight, entrants first | 45.41 / 88 | 33.72 / 111 | 24.44 / 140 | +23-27% |
+| B full target-weight, top-ups first | 46.73 / 100 | 31.80 / 123 | 24.00 / 154 | +25% |
+| C also trim buffer names | 38.10 / **22** | 31.93 / **24** | 22.45 / **17** | +26-48% |
+| D strict target-weight, no buffer | 42.37 / **0** | 27.94 / **0** | 20.33 / **0** | **+50%** |
+
+Read it in three parts.
+
+**Only C and D close the gap, and both are consistently worse.** D — the literal
+`trade_i = target_i - current_i` across all held names, where a buffer name's
+target is zero — reaches exactly zero skipped buys on all three universes. It does
+so by dissolving the buffer, and costs **-2.32, -6.66 and -3.50 CAGR points** with
+50% more trades. C keeps the buffer but trims it to fund entrants, which sells
+drifted-up winners to buy lower-ranked entrants; it costs **-6.59, -2.67, -1.38**.
+
+**The buffer-preserving models barely move the gap.** A, B and B2 change skipped
+buys by about ±10%, because there is not enough over-target excess *inside* the
+top eight to fund the entrants. **B is counterproductive**: topping up incumbents
+before funding entrants raises skips from 93 to 100 on mid.
+
+**And their CAGR effect has no consistent sign** — A is -0.41/-1.28/+0.99, B2 is
++0.72/-0.88/+0.61 across mid/n100/58. That is inside the seed-noise floor this
+project measured at sd 0.97-2.14 CAGR points (`EXPERIMENTS.md` entry 29).
+
+**One thing the gap does cost, measurably.** It is why the shipping engine holds a
+mean book of 7.98 on mid — BELOW `TOP_N` — which is the failure
+`results/validate_engine.py` reports as T1 on that universe. A, B2, C and D all lift
+it back into `[TOP_N, BUFFER]`; B does not.
+
+**Decision, 2026-09-04: not implemented.** This is a trade-off between churn
+control and full funding, not a defect with a correct repair. Every model that
+closes the gap degrades performance on all three universes, so selecting one after
+seeing these numbers would be fitting the strategy to the result. If it is taken
+up, it belongs in `experiments/` as a pre-registration with its gates written
+first. `results/test_exposure.py` is unchanged by this entry.
+
 ---
 
 ## Breadth is validated on both live universes; sizing still is not

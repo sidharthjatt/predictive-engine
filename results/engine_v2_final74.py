@@ -85,11 +85,15 @@ def main():
     # curve is asserted identical to the un-audited baseline below.
     base_audit = {k: [] for k in
                   ("holdings", "summary", "trades", "ranking", "decisions", "skipped")}
+    # FROZEN 74: value_at_open=False pins the pre-2026-09-04 close-valued sizing,
+    # so this retired universe's published numbers cannot move. The live universes
+    # take the corrected default. See test_exposure.backtest_exposure.
     base_eq, tcb, nb, _ = backtest_exposure(px, op, sc, bd, pc, mom20, port_vol,
                                             mode="none", target_vol=tv,
-                                            audit=base_audit)
+                                            audit=base_audit, value_at_open=False)
     fin_eq, tcf, nf, expo = backtest_exposure(px, op, sc, bd, pc, mom20, port_vol,
-                                              mode="breadth", target_vol=tv)
+                                              mode="breadth", target_vol=tv,
+                                              value_at_open=False)
     bh = START_CAPITAL * (1 + px.pct_change().loc[bd].mean(axis=1).fillna(0)).cumprod()
 
     mbase = metrics(base_eq, "Inverse-vol, 100% invested (v1 final)", tcb, nb)

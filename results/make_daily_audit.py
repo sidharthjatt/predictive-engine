@@ -42,8 +42,13 @@ def run(tmp, perm, mdir, y_end, tag):
     bd = px.index[(px.index.year >= 2019) & (px.index.year <= y_end)]
 
     audit = {"holdings": [], "summary": [], "trades": [], "ranking": [], "decisions": [], "skipped": []}
+    # FROZEN 58/74 ONLY: this script serves no live universe. value_at_open=False
+    # pins the pre-2026-09-04 close-valued sizing. It must stay in lockstep with
+    # engine_v2_final*.py, because the SAFETY check below compares this curve
+    # against v2FINAL_equity.csv and would fail if only one side moved.
     eq, tc, ntr, expo = backtest_exposure(px, op, sc, bd, pc, mom20,
-                                          mode="breadth", audit=audit)
+                                          mode="breadth", audit=audit,
+                                          value_at_open=False)
 
     # ---- SAFETY: does this match the official equity curve? ----
     off = pd.read_csv(Path(mdir) / "v2FINAL_equity.csv", parse_dates=["date"]).set_index("date")

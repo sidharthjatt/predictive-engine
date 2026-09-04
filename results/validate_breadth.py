@@ -35,10 +35,14 @@ M = config.METRICS_DIR
 
 def eval_window(px, op, sc, pc, mom20, port_vol, target_vol, y0, y1):
     dd = px.index[(px.index.year >= y0) & (px.index.year <= y1)]
+    # FROZEN 58 ONLY: value_at_open=False pins the pre-2026-09-04 close-valued
+    # sizing, so the 58 breadth-validation artefacts cannot move.
     base_eq, tc, ntr, _ = backtest_exposure(px, op, sc, dd, pc, mom20, port_vol,
-                                            mode="none", target_vol=target_vol)
+                                            mode="none", target_vol=target_vol,
+                                            value_at_open=False)
     br_eq, tc2, ntr2, expo = backtest_exposure(px, op, sc, dd, pc, mom20, port_vol,
-                                               mode="breadth", target_vol=target_vol)
+                                               mode="breadth", target_vol=target_vol,
+                                               value_at_open=False)
     return metrics(base_eq, "b", tc, ntr), metrics(br_eq, "r", tc2, ntr2), expo
 
 

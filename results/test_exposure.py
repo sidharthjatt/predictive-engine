@@ -68,11 +68,38 @@ M = config.METRICS_DIR
 
 def backtest_exposure(px, op, sc, dates, pc, mom20, port_vol=None,
                       mode="none", target_vol=None, audit=None, sizing="invvol",
-                      const_expo=None):
+                      const_expo=None, value_at_open=True):
     """audit=None reproduces the original code path exactly: no overhead, and the
     official numbers are unchanged.
     Passing a dict with holdings/summary/trades/ranking/decisions/skipped keys logs
-    a daily snapshot into it."""
+    a daily snapshot into it.
+
+    value_at_open -- WHICH PRICE VALUES THE BOOK WHEN SIZING THE DAY'S BUYS.
+
+        True (default, and the causally correct rule): the portfolio is valued at
+        the EXECUTION day's OPEN, which is the price the orders themselves fill at.
+
+        False: the portfolio is valued at the execution day's CLOSE. This is what
+        this function did unconditionally until 2026-09-04, and it is LOOK-AHEAD --
+        the order is placed at 09:15 against a valuation that does not exist until
+        15:30. Selection is unaffected (ranks were fixed on the prior decision day),
+        but the QUANTITY bought depends on information from later the same day.
+        Measured on the 58, v1 arm: it flatters CAGR by 0.79 points (24.62 -> 23.83).
+
+        WHY THE DEFAULT IS True RATHER THAN False. nautilus/nt_attribution.py has
+        carried this same switch for longer, and every verification path already
+        passes value_at_open=True -- nt_verify.py:119, nt_verify.py:163 and
+        verify_v34_arms.py:82. The 92-of-92 correctness gate therefore already
+        certifies the OPEN-valued rule. Defaulting to True brings this engine onto
+        the basis its own gate verifies, instead of leaving the two disagreeing.
+
+        WHO PASSES False, AND WHY. The retired 58 and 74 are frozen: their published
+        numbers must not move. Their four callers pin value_at_open=False
+        explicitly -- engine_v2_final.py, engine_v2_final74.py, make_daily_audit.py
+        and validate_breadth.py. That is the same pattern build_scores.py already
+        uses to pin the defective purge_mode="calendar" for those two universes
+        while the live universes take the corrected default. A frozen universe opts
+        OUT of a correction; it is never the correction that opts in."""
     shares, cash = {}, START_CAPITAL
     cum_tc, n_trades = 0.0, 0
     eq, pending, expo_log = [], None, []
@@ -101,8 +128,13 @@ def backtest_exposure(px, op, sc, dates, pc, mom20, port_vol=None,
                             "tc": round(tc, 2)})
                     del shares[s]
             if targets:
-                port_val = sum(q * prices[s] for s, q in shares.items()
-                               if not np.isnan(prices.get(s, np.nan))) + cash
+                # THE BOOK IS VALUED AT THE PRICE THE ORDERS FILL AT.
+                # `opens` is this morning's open -- the same price used two lines
+                # below to size and fill every buy. `prices` is today's close, which
+                # is not knowable when the order is sent. See value_at_open above.
+                vp = opens if value_at_open else prices
+                port_val = sum(q * vp[s] for s, q in shares.items()
+                               if not np.isnan(vp.get(s, np.nan))) + cash
                 invest_val = port_val * targets["_exposure"] * 0.98
                 for s, w in targets.items():
                     if s == "_exposure" or s in shares:

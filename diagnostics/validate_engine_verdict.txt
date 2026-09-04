@@ -1,0 +1,18 @@
+========================================================================================================
+ COMBINED VERDICT -- the shipping engine against the four tests
+========================================================================================================
+  Every verdict below is on test_exposure.backtest_exposure. engine_core's
+  own FINAL_val_*.csv are untouched and still describe engine_core.backtest.
+
+  test                                              n100
+  T1 baseline structure (REDEFINED)                 PASS
+  T2 seed robustness                                PASS
+  T3 sub-period                                     PASS
+  T4 param sensitivity                              PASS
+
+  mean book / trades                          8.01 / 831
+  Sharpe equal -> invvol                      1.45->1.62
+
+  THE LIVE UNIVERSES ARE THE ONES THAT DESCRIBE WHAT SHIPS:
+    n100   4 of 4 passed
+========================================================================================================

@@ -1,0 +1,50 @@
+========================================================================================================
+ VALIDATION SUITE vs THE SHIPPING ENGINE -- 58 (retired -- comparability only)
+========================================================================================================
+  engine      test_exposure.backtest_exposure (value_at_open default = causally clean sizing)
+  contrast    inverse-vol vs equal-rupee, mode="none" (100% invested)
+  TOP_N=8  BUFFER=16  purge_mode="calendar"
+  panel       1842 trading days, 58 symbols, 2019-01-01 -> 2026-06-08
+
+  T1. BASELINE STRUCTURE -- is selection doing what it is specified to do?
+      REDEFINED for this engine. engine_core's T1 asserted mean positions was
+      within 0.2 of TOP_N, which tested for its slot cap. The shipping engine
+      has no cap, so its book floats in [TOP_N, BUFFER] = [8, 16] by
+      design. A book pinned at TOP_N would mean the buffer had stopped working.
+      structural target : mean book in [8, 16]  and  400-1400 trades
+      got               : mean book 8.15 (in range), 734 trades (in band)
+      reference         : equal-rupee CAGR 25.68%, Sharpe 1.24 | inverse-vol CAGR 23.83%, Sharpe 1.24
+      CAGR is not checked -- it moves +/-0.5% per refit. Structure is.
+      -> PASS
+
+  T2. SEED ROBUSTNESS -- does inverse-vol still win on OTHER score seeds?
+      seed set 1/3 from cache FINAL_seed0.csv
+        equal 1.07 -> invvol 1.13 (delta +0.0538 exact) | MaxDD -36.8% -> -34.3%
+      seed set 2/3 from cache FINAL_seed1.csv
+        equal 1.02 -> invvol 1.09 (delta +0.0710 exact) | MaxDD -41.8% -> -37.7%
+      seed set 3/3 from cache FINAL_seed2.csv
+        equal 1.20 -> invvol 1.28 (delta +0.0834 exact) | MaxDD -39.5% -> -36.9%
+      -> improved on 3/3 seed sets (smallest margin +0.0538 Sharpe). PASS
+
+  T3. SUB-PERIOD SPLIT -- does it work in BOTH halves independently?
+      2019-2022: equal 1.32 -> invvol 1.34 (delta +0.0159 exact) | buy&hold 0.99
+      2023-2026: equal 0.69 -> invvol 0.77 (delta +0.0771 exact) | buy&hold 1.15
+      -> PASS   (smallest margin +0.0159 Sharpe)
+
+  T4. PARAMETER SENSITIVITY -- does the vol window matter?
+      vol_win= 40: CAGR  25.07%  Sharpe  1.29  MaxDD  -32.78%   margin vs equal-rupee +0.0525
+      vol_win= 60: CAGR  23.83%  Sharpe  1.24  MaxDD  -33.65%   margin vs equal-rupee +0.0021
+      vol_win= 90: CAGR  25.21%  Sharpe  1.31  MaxDD  -33.09%   margin vs equal-rupee +0.0704
+      vol_win=120: CAGR  24.49%  Sharpe  1.28  MaxDD  -32.86%   margin vs equal-rupee +0.0394
+      reference: equal-rupee Sharpe 1.240205 (exact)
+      -> all four beat equal-rupee? PASS   (smallest margin +0.0021 Sharpe)
+
+  ----------------------------------------------------------------------------------------------------
+    T1 baseline structure (REDEFINED)          PASS
+    T2 seed robustness                         PASS
+    T3 sub-period                              PASS
+    T4 param sensitivity                       PASS
+                                               4 of 4 tests passed
+  ----------------------------------------------------------------------------------------------------
+
+  saved -> metrics/v2val_summary.csv, v2val_periods.csv, v2val_volwin.csv, v2val_seeds.csv
