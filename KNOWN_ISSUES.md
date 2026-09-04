@@ -654,3 +654,60 @@ judgement about what the chart is for, not a typo correction.
 `docs/chart_COMBINED_n100_mid.png`, which covers mid and n100 together and carries
 no stale text. If the mid chart is ever wanted on its own, this has to be resolved
 first.
+
+---
+
+## A committed diagnostics artefact had gone stale against the panel it names
+
+Found 2026-09-04, while verifying the registry conversions. The artefact is
+corrected by this commit; **the class is open.**
+
+`diagnostics/topn_verdict.txt`, `topn_n100.txt` and `topn_mid.txt` are the TOP_N
+validation's evidence and are cited by `experiments/EXPERIMENTS.md`. Each one
+prints the sha256 of the score panel it was computed from. **Those hashes did not
+match the panels in the repository.**
+
+| universe | panel sha256 in the committed artefact | panel sha256 today |
+|---|---|---|
+| n100 | `af9a28ac9e58032c...` | `163927a65e89165d...` |
+| mid  | `aa277d1bd2c86774...` | `1e2d85df4d8fee73...` |
+
+So the numbers on record were computed from a panel that is no longer the one
+`results_n100/metrics/v_n100_expanding_cache.csv` and
+`results_mid/metrics/v_mid_expanding_cache.csv` hold.
+
+**THE PANELS DID NOT MOVE; THE ARTEFACT DID NOT KEEP UP.** Every
+`results*/metrics/` directory was archived before any of this session's work
+began, and both score panels compare **byte-identical** between that archive and
+the tree afterwards. The staleness therefore predates this session and has nothing
+to do with the registry conversions, the `frozen/` move or the valuation fix --
+re-running `results/validate_topn.py` to verify a conversion is only what exposed
+it. The artefact was regenerated at some point without the panel behind it being
+regenerated too, or the reverse.
+
+**What the refresh changes.** The verdict text does not move: TOP_N=8 is still
+NOT CONTRADICTED on both live universes, and TOP_N=12 still holds the shallower
+drawdown in the same measurement. The figures do:
+
+| | n100 was | n100 now | mid was | mid now |
+|---|---|---|---|---|
+| CAGR% (TOP_N=8) | 25.49 | **25.78** | 30.22 | **29.70** |
+| Sharpe | 1.88 | **1.86** | 2.06 | **2.03** |
+| MaxDD% | −18.64 | **−19.87** | −18.98 | **−18.88** |
+| dSharpe (8 minus 12) | +0.1900 | **+0.2000** | +0.1200 | **+0.0400** |
+| trades | 981 | 978 | 973 | 963 |
+
+**The mid dSharpe is the one to look at.** TOP_N=8's Sharpe advantage over
+TOP_N=12 on the MidCap150 falls from +0.12 to **+0.04**. The pre-registered rule
+in `experiments/TOPN_SPEC.txt` is not a threshold on that margin, so the verdict
+stands as written -- but +0.04 is inside the seed-noise floor this project
+measured at sd 0.97 to 2.14 CAGR points (`EXPERIMENTS.md` entry 29), and anyone
+quoting the mid TOP_N result as evidence of a margin should quote this number
+rather than the old one.
+
+**Why this is filed as a class and not just a correction.** Nothing checks that a
+diagnostics artefact still matches the panel it names, even though every one of
+these three files prints the hash that would make the check trivial. The hash is
+recorded and then never compared. The same gap is described from the other
+direction in *An artefact was used three times without checking it was the one the
+code reads*.
