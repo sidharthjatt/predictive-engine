@@ -9,16 +9,22 @@ WHY A DRIVER RATHER THAN FOUR nt_verify INVOCATIONS
     in main(). It has no per-arm entry point. This drives its pieces directly so
     all four arms are verified in one process against one panel.
 
-THE STALE-GLOBAL RISK, AND HOW IT IS PROVEN ABSENT
-    Sizing is a module-level global in TWO places -- nt_strategy.SIZING for the
-    port and nt_attribution.SIZING for the reference side. Four arms in one
-    process is exactly the setup where a global left over from the previous arm
-    silently verifies the wrong rule and still prints 92 of 92.
+THE STALE-CONFIG RISK, AND HOW IT IS PROVEN ABSENT
+    Sizing used to be a module-level global in two places -- nt_strategy.SIZING and
+    nt_attribution.SIZING -- and four arms in one process is exactly the setup where
+    a value left over from the previous arm silently verifies the wrong rule and
+    still prints 92 of 92. This file guarded that by asserting both globals held the
+    intended value before each arm.
 
-    So before each arm this asserts BOTH globals equal the arm's intended sizing,
-    and prints the observed values beside that arm's result. The printed line is
-    read back from the modules at the moment of the run, not from the loop
-    variable, so the log cannot claim a rule the code was not using.
+    That guard was weaker than it looked: it proved the global had been SET, never
+    that the run USED it. The exposure mode proved the point -- there was none, so
+    every arm ran at breadth exposure while the sizing asserts passed happily, and
+    v1/v3 were verified as configurations that were never actually run.
+
+    Both are now passed as arguments, and BOTH SIDES RECORD WHAT THEY ACTUALLY
+    APPLIED, on the branch actually taken. This asserts against that recording and
+    prints it. An arm whose configuration never reaches the decision point now fails
+    here instead of passing.
 
     Both sides must move together. If only the port switched, a pro-vol arm would
     be compared against an inverse-vol reference and would fail for a reason that
@@ -60,13 +66,15 @@ from arms.registry import ARMS as ARM_REGISTRY
 # most: this is the correctness gate, so a name here that disagreed with the name
 # the engine uses would verify the wrong thing and still print 92 of 92.
 #
-# ARMS pairs each arm with its SIZING rule only. Note v1/v2 share "invvol" and
-# v3/v4 share "provol" -- that is not a typo, it is the fact recorded in
-# KNOWN_ISSUES.md: the Nautilus port has no exposure mode and always uses
-# breadth, so the four arms are two configurations run twice. Taking sizing from
-# arms/registry.py rather than re-listing it means the gate cannot drift from the
-# definition the research engine uses.
-ARMS = [(a.name, a.sizing) for a in ARM_REGISTRY.values()]
+# ARMS carries each arm's MODE and SIZING, both taken from arms/registry.py rather
+# than re-listed here, so the gate cannot drift from the definition the research
+# engine uses.
+# NOW CARRIES THE EXPOSURE MODE TOO. Until 2026-09-04 the port had no exposure
+# mode -- it always used breadth -- so v1/v3 (mode="none", 100% invested) could not
+# be expressed and this gate ran two configurations twice, printing 92 of 92 for
+# four arms it had only two of. mode is threaded through now, so the four arms are
+# four arms.
+ARMS = [(a.name, a.mode, a.sizing) for a in ARM_REGISTRY.values()]
 # ORDER IS LOAD-BEARING AND IS NOT registry.LIVE's ORDER. LIVE comes out in the
 # registry's declaration order (58, 74, mid, n100 -> mid, n100), while this
 # report -- like every other script here -- runs n100 first. Using LIVE swapped
@@ -74,18 +82,18 @@ ARMS = [(a.name, a.sizing) for a in ARM_REGISTRY.values()]
 UNIVERSES = [u.tag for u in (REGISTRY["n100"], REGISTRY["mid"])]
 
 
-def set_both(mode):
-    """Move the port and the reference together, then read both back."""
-    nt_strategy.set_sizing(mode)
-    nt_attribution.set_sizing(mode)
-    return nt_strategy.SIZING, nt_attribution.SIZING
+def verify_arm(universe, arm, mode, sizing):
+    """Return (n_rebalances, n_identical, observed_port, observed_ref, detail).
 
-
-def verify_arm(universe, arm, sizing):
-    """Return (n_rebalances, n_identical, observed_port, observed_ref, detail)."""
-    port_sz, ref_sz = set_both(sizing)
-    assert port_sz == sizing, f"nt_strategy.SIZING is {port_sz!r}, expected {sizing!r}"
-    assert ref_sz == sizing, f"nt_attribution.SIZING is {ref_sz!r}, expected {sizing!r}"
+    WHAT REPLACED THE GLOBAL ASSERT, AND WHY IT IS STRONGER. This used to set
+    nt_strategy.SIZING and nt_attribution.SIZING and assert both had taken the
+    value. That proved the global was SET; it never proved the run USED it -- and
+    the exposure mode was being ignored entirely while those asserts passed.
+    Both sides now take the configuration as an argument and record what they
+    actually applied, on the branch actually taken. The assert reads that recording
+    back, so an arm whose configuration never reached the decision point fails here
+    instead of passing.
+    """
 
     U = nt_run.UNIVERSES[universe]
     nt_data.set_tick_size("0.01"); nt_data.set_tick_mode("fixed")
@@ -93,11 +101,15 @@ def verify_arm(universe, arm, sizing):
     try:
         with contextlib.redirect_stdout(io.StringIO()):
             strat = nt_run.run(str(config.BT_START_DATE.date()), U["end"],
-                               quiet=True, universe=universe)
+                               quiet=True, universe=universe,
+                               sizing=sizing, mode=mode)
             dates, port = nt_verify.port_holdings(strat)
             panel = nt_attribution.load_panel(U["cache"])
+            ref_applied = {"sizing": None, "mode": None}
             ref = nt_verify.arm(panel, dates, size_at_close=False,
-                                value_at_open=True, tick_round=True)
+                                value_at_open=True, tick_round=True,
+                                sizing=sizing, mode=mode,
+                                applied_out=ref_applied)
         stats = nt_verify.compare(port, ref, dates)
     finally:
         nt_data.set_tick_size("0.05"); nt_data.set_tick_mode("nse")
@@ -111,7 +123,16 @@ def verify_arm(universe, arm, sizing):
             if port.get(d, {}) != ref.get(d, {}):
                 detail = (d, port.get(d, {}), ref.get(d, {}))
                 break
-    return n, n - mism, nt_strategy.SIZING, nt_attribution.SIZING, detail
+    # READ BACK WHAT EACH SIDE ACTUALLY APPLIED, not what it was asked to apply.
+    port_applied, ref_a = strat.applied, ref_applied
+    for who, got in (("nt_strategy", port_applied), ("nt_attribution", ref_a)):
+        assert got["sizing"] == sizing, \
+            f"{who} applied sizing {got['sizing']!r}, expected {sizing!r}"
+        assert got["mode"] == mode, \
+            f"{who} applied mode {got['mode']!r}, expected {mode!r}"
+    obs_port = f"{port_applied['mode']}/{port_applied['sizing']}"
+    obs_ref = f"{ref_a['mode']}/{ref_a['sizing']}"
+    return n, n - mism, obs_port, obs_ref, detail
 
 
 def main():
@@ -121,30 +142,32 @@ def main():
     print("=" * 100)
     print(f"  window {config.BT_START_DATE.date()} to {config.BT_END_DATE.date()}"
           f"   (from config.py, shared by engine and port)")
-    print("  the SIZING column is read back from the modules at run time, not from")
-    print("  the loop variable, so it cannot report a rule the code did not use.")
+    print("  the applied columns are what each side RECORDED at its decision point,")
+    print("  not what it was asked to apply, so they cannot report a rule the code")
+    print("  did not actually use.")
 
     failures = []
     for u in unis:
         print(f"\n  {u.upper()}")
-        print(f"    {'arm':<5}{'intended':<10}{'nt_strategy':<13}{'nt_attribution':<16}"
-              f"{'result':<16}verdict")
-        for arm, sizing in ARMS:
-            n, ok, ps, rs, detail = verify_arm(u, arm, sizing)
-            agree = (ps == sizing == rs)
+        print(f"    {'arm':<5}{'intended':<16}{'port applied':<17}"
+              f"{'reference applied':<20}{'result':<16}verdict")
+        for arm, mode, sizing in ARMS:
+            n, ok, ps, rs, detail = verify_arm(u, arm, mode, sizing)
+            intended = f"{mode}/{sizing}"
+            agree = (ps == intended == rs)
             verdict = "VERIFIED" if (ok == n and agree) else "NOT VERIFIED"
             if verdict != "VERIFIED":
-                failures.append((u, arm, sizing, n, ok, ps, rs, detail))
-            print(f"    {arm:<5}{sizing:<10}{ps:<13}{rs:<16}"
+                failures.append((u, arm, intended, n, ok, ps, rs, detail))
+            print(f"    {arm:<5}{intended:<16}{ps:<17}{rs:<20}"
                   f"{f'{ok} of {n}':<16}{verdict}")
 
     print("\n" + "=" * 100)
     if failures:
         print(" GATE FAILED")
         print("=" * 100)
-        for u, arm, sizing, n, ok, ps, rs, detail in failures:
-            print(f"\n  {u} {arm} ({sizing}): {ok} of {n} identical")
-            print(f"    nt_strategy.SIZING={ps!r}  nt_attribution.SIZING={rs!r}")
+        for u, arm, intended, n, ok, ps, rs, detail in failures:
+            print(f"\n  {u} {arm} (intended {intended}): {ok} of {n} identical")
+            print(f"    port applied {ps!r}   reference applied {rs!r}")
             if detail:
                 d, pd_, rd_ = detail
                 syms = sorted(set(pd_) | set(rd_))

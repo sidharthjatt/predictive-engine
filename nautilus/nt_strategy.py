@@ -3,7 +3,8 @@ nt_strategy.py -- the Predictive Engine execution logic as a Nautilus Strategy.
 
 WHAT THIS FILE DOES AND DOES NOT DO
     It reproduces the EXECUTION layer only: ranking, buffer, volatility sizing
-    (inverse-vol by default, pro-vol under set_sizing),
+    (inverse-vol or pro-vol, and breadth-scaled or fully-invested exposure, both
+    set through configure()),
     breadth-scaled exposure, and order submission. No model is trained here. The
     scores arrive precomputed from nt_export_scores.py, which is the only channel
     between research and execution.
@@ -87,29 +88,33 @@ SAFETY = 0.98
 TRADING_DAYS = 252
 
 # ---------------------------------------------------------------------------
-# SIZING MODE -- mirrors results/test_exposure.py's `sizing` argument
+# SIZING AND EXPOSURE MODE -- mirror test_exposure.py's `sizing` and `mode` arguments
 # ---------------------------------------------------------------------------
 # "invvol" (default)  w = 1/vol   -- low vol gets the large position
 # "provol"            w = vol     -- high vol gets the large position
 #
-# The engine takes this per call; the port is a long-lived strategy object, so
-# it takes it as a module switch set before the run, exactly as nt_data.py
-# handles DEPTH_MODE. The DEFAULT IS "invvol" so any caller that does not set
-# it gets the existing behaviour unchanged.
+# THESE ARE PER-STRATEGY CONFIGURATION, NOT MODULE SWITCHES ANY MORE.
+# They used to be module globals set by set_sizing() before a run, mirroring how
+# nt_data.py handles DEPTH_MODE. Two things were wrong with that. A global is
+# process-wide, so verify_v34_arms had to assert both modules agreed before every
+# arm to catch a stale value left by the previous one -- and that assert only ever
+# proved the global had been SET, never that the run USED it. Second, there was no
+# exposure mode at all: exposure was breadth, always, so mode="none" could not be
+# expressed and v1/v3 were not representable. See KNOWN_ISSUES.md.
 #
-# THE RULE MUST MATCH test_exposure.py EXACTLY. Same guard (vol > 0.01), same
-# zero weight when it fails, same normalisation by the sum, same equal-weight
-# fallback when the total is zero. If these two drift, nt_verify stops
-# reconciling and the divergence looks like an execution bug.
-SIZING = "invvol"
-
-
-def set_sizing(mode: str):
-    """Set the sizing rule. Raises rather than silently accepting a typo."""
-    global SIZING
-    if mode not in ("invvol", "provol"):
-        raise ValueError(f"sizing must be 'invvol' or 'provol', got {mode!r}")
-    SIZING = mode
+# Both now arrive through configure() and are recorded on the instance AT THE POINT
+# OF USE, so a caller can read back what the run actually applied rather than what
+# it was asked to apply.
+#
+#   sizing  "invvol" w = 1/vol  (low vol, large position)  | "provol" w = vol
+#   mode    "breadth" exposure = fraction with positive 20d momentum | "none" = 1.0
+#
+# THE RULES MUST MATCH test_exposure.py EXACTLY. Same guard (vol > 0.01), same zero
+# weight when it fails, same normalisation, same equal-weight fallback, and the same
+# two exposure modes. If these drift, nt_verify stops reconciling and the divergence
+# looks like an execution bug.
+DEFAULT_SIZING = "invvol"
+DEFAULT_MODE = "breadth"
 
 
 def leg_charges(price, qty, side):
@@ -150,6 +155,11 @@ class PredictiveEngineStrategy(Strategy):
         self._queue = []              # this morning's orders, released one at a time
         self._invest_val = None       # fixed once the sells are done, then shared by the buys
         self._exposure = 0.0          # exposure decided at the close, applied at the open
+        self.sizing = DEFAULT_SIZING  # set by configure(); "invvol" | "provol"
+        self.mode = DEFAULT_MODE      # set by configure(); "breadth" | "none"
+        # What the run ACTUALLY applied, recorded on the branch taken rather than
+        # copied from the config. verify_v34_arms reads this back.
+        self.applied = {"sizing": None, "mode": None}
         self._open_px = {}            # symbol -> this morning's ask (the BUY fill price)
         self._open_bid = {}           # symbol -> this morning's bid (the SELL fill price)
         self._open_mid = {}           # symbol -> this morning's raw open, for valuation
@@ -160,8 +170,19 @@ class PredictiveEngineStrategy(Strategy):
         self.holdings_log = []        # holdings at each rebalance, for reconciliation
 
     # ---------------------------------------------------------------- setup
-    def configure(self, scores: pd.DataFrame, instruments, trading_start: str):
-        """Called before the engine runs. Keeps __init__ free of heavy objects."""
+    def configure(self, scores: pd.DataFrame, instruments, trading_start: str,
+                  sizing: str = DEFAULT_SIZING, mode: str = DEFAULT_MODE):
+        """Called before the engine runs. Keeps __init__ free of heavy objects.
+
+        `sizing` and `mode` default to the values every existing caller relied on
+        when they were module globals, so a caller that passes neither gets exactly
+        the previous behaviour. Both raise on a typo rather than accepting it.
+        """
+        if sizing not in ("invvol", "provol"):
+            raise ValueError(f"sizing must be 'invvol' or 'provol', got {sizing!r}")
+        if mode not in ("breadth", "none"):
+            raise ValueError(f"mode must be 'breadth' or 'none', got {mode!r}")
+        self.sizing, self.mode = sizing, mode
         self.scores = scores.copy()
         self.scores["date"] = pd.to_datetime(self.scores["date"])
         self._scores_by_day = {d: g.set_index("symbol")["score"]
@@ -470,7 +491,15 @@ class PredictiveEngineStrategy(Strategy):
             return
         n_pos = sum(1 for v in mom.values() if v > 0)
         breadth = n_pos / len(mom)
-        exposure = max(0.0, min(1.0, breadth))
+        # THE `if not mom: return` GUARD ABOVE IS DELIBERATELY UNCHANGED. Under
+        # mode="none" test_exposure never consults momentum at all, so on a
+        # rebalance date where no symbol has momentum data it would trade while this
+        # returns early. With WARMUP_DAYS=200 that case is not expected to arise;
+        # it is documented rather than silently altered, because changing the guard
+        # would change WHEN rebalances happen, which is a larger change than adding
+        # the exposure mode. See KNOWN_ISSUES.md.
+        exposure = 1.0 if self.mode == "none" else max(0.0, min(1.0, breadth))
+        self.applied["mode"] = self.mode
 
         # --- ranking, restricted to names we have a price for today ---
         s = self._scores_by_day[day]
@@ -495,7 +524,7 @@ class PredictiveEngineStrategy(Strategy):
         port_val = cash + holdings_value
         invest_val = port_val * exposure * SAFETY
 
-        # --- volatility weights over the top-N, direction set by SIZING ---
+        # --- volatility weights over the top-N, direction set by self.sizing ---
         w = {}
         for sy in top:
             arr = [self._close_at(sy, k) for k in range(i_now - VOL_WIN, i_now + 1)]
@@ -507,10 +536,11 @@ class PredictiveEngineStrategy(Strategy):
             vol = float(np.std(rets, ddof=1) * np.sqrt(TRADING_DAYS))
             if vol <= 0.01:
                 w[sy] = 0.0
-            elif SIZING == "provol":
+            elif self.sizing == "provol":
                 w[sy] = vol
             else:
                 w[sy] = 1.0 / vol
+        self.applied["sizing"] = self.sizing
         tot = sum(w.values())
         w = ({k: v / tot for k, v in w.items()} if tot > 0
              else {k: 1.0 / len(top) for k in top})

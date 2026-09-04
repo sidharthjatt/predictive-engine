@@ -82,7 +82,8 @@ FEE_MODEL = QbeastIndianFeeModel(
 )
 
 
-def run(trading_start, trading_end, symbols=None, quiet=True, universe="58"):
+def run(trading_start, trading_end, symbols=None, quiet=True, universe="58",
+        sizing="invvol", mode="breadth"):
     warm_start = (pd.Timestamp(trading_start) - pd.Timedelta(days=WARMUP_DAYS)).strftime("%Y-%m-%d")
     print(f"data from {warm_start} (warm-up) | trading {trading_start} to {trading_end}")
 
@@ -124,7 +125,9 @@ def run(trading_start, trading_end, symbols=None, quiet=True, universe="58"):
     eng.add_data(events)
 
     strat = PredictiveEngineStrategy()
-    strat.configure(scores, instruments, trading_start)
+    # sizing/mode default to what every caller relied on when these were module
+    # globals, so an existing call site behaves exactly as before.
+    strat.configure(scores, instruments, trading_start, sizing=sizing, mode=mode)
     eng.add_strategy(strat)
 
     eng.run()

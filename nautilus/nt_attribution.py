@@ -135,30 +135,33 @@ def load_panel(cache_path=None):
 
 
 # ---------------------------------------------------------------------------
-# SIZING MODE -- must mirror nt_strategy.SIZING and test_exposure's `sizing`
+# SIZING AND EXPOSURE MODE -- must mirror nt_strategy and test_exposure exactly
 # ---------------------------------------------------------------------------
 # This module is the REFERENCE side that nt_verify compares the port against. If
 # it stayed on inverse-vol while the port ran pro-vol, every pro-vol arm would
 # fail verification for a reason that has nothing to do with the port. Same guard
 # (vol > 0.01), same zero on failure, same normalisation, same fallback.
-SIZING = "invvol"
-
-
-def set_sizing(mode: str):
-    """Set the sizing rule. Raises rather than silently accepting a typo."""
-    global SIZING
-    if mode not in ("invvol", "provol"):
-        raise ValueError(f"sizing must be 'invvol' or 'provol', got {mode!r}")
-    SIZING = mode
+# PASSED PER CALL, NOT SET AS A MODULE GLOBAL. run() already takes its other
+# switches as keyword arguments (size_at_close, tick_round, value_at_open); sizing
+# and mode now join them. The globals they replace were process-wide, so a value
+# left behind by one arm silently applied to the next, and asserting the global had
+# been set never proved the run used it. See nt_strategy.py for the same change.
+DEFAULT_SIZING = "invvol"
+DEFAULT_MODE = "breadth"
 
 
 def run(px, op, sc, dates, pc, mom20, size_at_close: bool, tick_round: bool = False,
-        value_at_open: bool = False, holdings_out=None):
+        value_at_open: bool = False, holdings_out=None,
+        sizing: str = DEFAULT_SIZING, mode: str = DEFAULT_MODE, applied_out=None):
     """`holdings_out`, when a dict is passed, is filled with
     {rebalance_date: {symbol: qty}} -- the holdings standing at each decision, which
     is the same quantity the port records in strat.holdings_log and the same one
     daily_holdings_58.csv reports. It is an out-parameter rather than an extra
     return value so existing three-value callers keep working."""
+    if sizing not in ("invvol", "provol"):
+        raise ValueError(f"sizing must be 'invvol' or 'provol', got {sizing!r}")
+    if mode not in ("breadth", "none"):
+        raise ValueError(f"mode must be 'breadth' or 'none', got {mode!r}")
     shares, cash = {}, float(START_CAPITAL)
     eq, pending, n_trades, cum_tc = [], None, 0, 0.0
 
@@ -224,7 +227,9 @@ def run(px, op, sc, dates, pc, mom20, size_at_close: bool, tick_round: bool = Fa
         if i % REBAL == 0 and i < len(dates) - 1:
             m = mom20.loc[dt].dropna()
             expo = float((m > 0).mean()) if len(m) else 1.0
-            expo = max(0.0, min(1.0, expo))
+            expo = 1.0 if mode == "none" else max(0.0, min(1.0, expo))
+            if applied_out is not None:
+                applied_out["mode"] = mode
             s_ = sc.loc[dt].dropna()
             s_ = s_[[k for k in s_.index if not np.isnan(prices.get(k, np.nan))]]
             if len(s_) >= TOP_N:
@@ -242,13 +247,15 @@ def run(px, op, sc, dates, pc, mom20, size_at_close: bool, tick_round: bool = Fa
                     ok = (not np.isnan(vs)) and vs > 0.01
                     if not ok:
                         w[s] = 0.0
-                    elif SIZING == "provol":
+                    elif sizing == "provol":
                         w[s] = vs
                     else:
                         w[s] = 1.0 / vs
                 tot = sum(w.values())
                 w = ({s: w[s] / tot for s in top} if tot > 0
                      else {s: 1.0 / len(top) for s in top})
+                if applied_out is not None:
+                    applied_out["sizing"] = sizing
 
                 if size_at_close:
                     pv = sum(q * prices[s] for s, q in shares.items()
