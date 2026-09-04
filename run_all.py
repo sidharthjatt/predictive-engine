@@ -19,7 +19,6 @@ ORDER:
   === 74 UNIVERSE ===
   8.  build_scores74     -> 74 scores (SLOW ~27min)
   9.  engine_v2_final74  -> 74 v2 FINAL
-  10. make_stats_both    -> 74 trade stats + per-stock signals
   === MIDCAP150 UNIVERSE (third universe) ===
   build_scores_mid   -> MidCap150 scores (SLOW)
   engine_v2_final_mid-> MidCap150 v2 FINAL
@@ -42,6 +41,50 @@ import sys, subprocess, time, shutil
 from pathlib import Path
 ROOT = Path(__file__).resolve().parent
 R = ROOT / "results"
+F = ROOT / "frozen"
+
+# FROZEN-WRITE OVERRIDE. The retired 58/74 scripts in frozen/ refuse to run unless
+# this is set, because results*/metrics/ is gitignored and a stray standalone run
+# overwrites a published artefact with no way back. A full pipeline run IS the
+# sanctioned way to regenerate them, so it says so once here -- before main()
+# spawns anything, and a child inherits os.environ at spawn.
+# See frozen/_frozen_guard.py.
+import os
+os.environ["ALLOW_FROZEN_WRITE"] = "1"
+
+# The retired 58/74 pipeline lives in frozen/, not results/. The split is by
+# UNIVERSE, not by kind: every script here serves only the 58 or the 74 and
+# carries a FROZEN marker. Shared libraries (engine_core, test_exposure,
+# v34_common, survivorship, qbeast_in_charges) stay in results/ because the LIVE
+# universes import them.
+FROZEN_SCRIPTS = {
+    "build_scores.py", "build_scores74.py",
+    "engine_v2_final.py", "engine_v2_final74.py",
+    "make_daily_audit.py", "make_cash_series.py",
+    "make_combined_all.py", "make_stock_chart.py",
+    "make_per_stock_charts.py", "validate_breadth.py",
+}
+
+# STEP 16 lives in nautilus/, not results/. Listing it by bare name meant the static
+# checker resolved it to results/nt_export_scores.py, found nothing, and SILENTLY
+# SKIPPED IT -- it had never been covered by the ordering check. Found 2026-09-04 when
+# the checker was taught to report what it could not resolve.
+NAUTILUS_SCRIPTS = {"nt_export_scores.py"}
+
+
+def script_path(script):
+    """Where a pipeline step actually lives. One definition, used by run() and
+    by the static ordering check, so the two cannot disagree about a step's
+    location -- a disagreement would make check_pipeline_order silently skip a
+    file it could not find rather than fail."""
+    q = Path(script)
+    if q.is_absolute():
+        return q
+    if q.name in FROZEN_SCRIPTS:
+        return F / q.name
+    if q.name in NAUTILUS_SCRIPTS:
+        return ROOT / "nautilus" / q.name
+    return R / q.name
 TMP = Path("/tmp")
 FRESH = "--fresh" in sys.argv
 
@@ -141,7 +184,6 @@ PIPELINE_ORDER = [
     ("STEP 7g", "export_feature_docs.py"),
     ("STEP 8", "build_scores74.py"),
     ("STEP 9", "engine_v2_final74.py"),
-    ("STEP 10", "make_stats_both.py"),
     ("STEP 10a", "build_scores_mid.py"),
     ("STEP 10b", "engine_v2_final_mid.py"),
     ("STEP 10c", "make_mid_audit.py"),
@@ -194,7 +236,7 @@ def run(label, script, cwd=None):
         sys.exit(1)
     check_inputs(label, script)
     t0 = time.time()
-    r = subprocess.run([sys.executable, str(R / script)], cwd=str(cwd or ROOT))
+    r = subprocess.run([sys.executable, str(script_path(script))], cwd=str(cwd or ROOT))
     if r.returncode != 0:
         print(f"\n!!! {script} FAILED (exit {r.returncode}). Stopping.")
         sys.exit(1)
@@ -241,7 +283,8 @@ def main():
     # nothing. This catches the case nobody remembered to add to it.
     import check_pipeline_order as cpo
     cpo.enforce(PIPELINE_ORDER,
-                covered={f.name for lst in REQUIRED_INPUTS.values() for f, _ in lst})
+                covered={f.name for lst in REQUIRED_INPUTS.values() for f, _ in lst},
+                resolver=script_path)
 
     # ===== TRADING CALENDAR (must precede every panel build) =====
     # build_panel refuses to run without it, so this cannot be skipped or bypassed.
@@ -272,7 +315,6 @@ def main():
     else:
         print(">>> STEP 8  74 scores cached (skip)")
     run("STEP 9  Engine v2 FINAL 74", "engine_v2_final74.py")
-    run("STEP 10 Trade stats + per-stock (74)", "make_stats_both.py")
 
     # ===== MIDCAP150 UNIVERSE (third universe) =====
     if not (TMP / "v_mid_expanding.csv").exists():

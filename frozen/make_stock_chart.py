@@ -17,6 +17,9 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from matplotlib.ticker import PercentFormatter
 sys.path.append(str(Path(__file__).resolve().parents[1]))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from _frozen_guard import guard as _frozen_guard
+_frozen_guard("58")   # refuses unless ALLOW_FROZEN_WRITE=1; run_all.py sets it
 import config
 
 M = config.METRICS_DIR

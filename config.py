@@ -91,11 +91,12 @@ BT_END_DATE = _pd.Timestamp("2026-05-29")
 #
 # Centralised 2026-08-29 under experiments/TOPN_SPEC.txt Part A. Before that
 # they were literals in TEN places with no single definition, and one of those
-# ten had drifted: results/make_stats_both.py carries 12, 24. Nothing could have
+# ten had drifted: results/make_stats_both.py carried 12, 24 (that script was
+# deleted 2026-09-04 -- dead outputs, drifted constants). Nothing could have
 # caught it, because there was nothing for it to disagree with.
 #
 # THE RETIRED ENGINES DO NOT IMPORT THESE. engine_core.py, engine_v2_final.py,
-# engine_v2_final74.py, make_cash_series.py and make_stats_both.py keep their own
+# engine_v2_final74.py and make_cash_series.py (now in frozen/) keep their own
 # literals so the 58's and 74's published numbers cannot move -- the same freeze
 # the old year window carries. engine_core.py:90 therefore still defines TOP_N
 # and BUFFER, and validate_sizing.py imports TOP_N from THERE, not from here.

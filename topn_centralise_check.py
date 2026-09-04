@@ -131,7 +131,7 @@ def report(before_csv, after_csv):
     L.append("   nautilus/nt_strategy.py, nautilus/nt_attribution.py.")
     L.append("   Frozen, literals untouched: results/engine_core.py (comment added only),")
     L.append("   engine_v2_final.py, engine_v2_final74.py, make_cash_series.py,")
-    L.append("   make_stats_both.py.")
+    L.append("   make_stats_both.py, deleted 2026-09-04.")
     L.append("")
     L.append("-" * 100)
     L.append(f" {'universe':<10}{'sizing':<9}{'mode':<10}{'days':>6}{'trades':>8}  "
@@ -163,7 +163,7 @@ def report(before_csv, after_csv):
     L.append("")
     L.append("   DOES NOT PROVE that the five backtest reimplementations agree with each")
     L.append("   other. Centralising a constant does not merge them, and it does not fix")
-    L.append("   results/make_stats_both.py, which is frozen at 12/24 with a 6% cash")
+    L.append("   results/make_stats_both.py, which was frozen at 12/24 with a 6% cash")
     L.append("   yield. Both remain open in KNOWN_ISSUES.md.")
     L.append("")
     L.append("   DOES NOT COVER the retired 58 and 74. They keep their own literals by")

@@ -19,7 +19,10 @@ import pandas as pd
 warnings.filterwarnings("ignore")
 
 sys.path.append(str(Path(__file__).resolve().parents[1]))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "results"))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+from _frozen_guard import guard as _frozen_guard
+_frozen_guard("58")   # refuses unless ALLOW_FROZEN_WRITE=1; run_all.py sets it
 import config
 from engine_core import build_panel, score_monthly, metrics, precompute, HORIZON
 from features_v2 import FEATS_V2

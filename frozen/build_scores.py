@@ -7,8 +7,11 @@ not lost again.
 import sys, time
 from pathlib import Path
 import pandas as pd
-sys.path.insert(0, str(Path(__file__).resolve().parent))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "results"))
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from _frozen_guard import guard as _frozen_guard
+_frozen_guard("58")   # refuses unless ALLOW_FROZEN_WRITE=1; run_all.py sets it
 from engine_core import build_panel, score_monthly, HORIZON
 from features_v2 import FEATS_V2
 
