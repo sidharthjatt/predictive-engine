@@ -1,52 +1,35 @@
 """
-build_scores74.py -- scores for the 74-stock universe (kept apart from the 58)
-==================================================================
-A copy of build_scores.py for the 58, differing only in:
-  - Data: Development_data_files/ (74 stocks)
-  - Output cache: /tmp/v74_expanding.csv  (separate from the 58's /tmp/v5_expanding.csv)
-Model, features and seeds are identical to the 58, so the comparison stays fair.
-~40-45 min (74 stocks, 10 seeds, monthly walk-forward).
+build_scores74.py -- the 74-stock universe's raw panel and monthly scores
+
+A per-universe entry point. The body lives once in results/build_scores_step.py,
+which took over from the four copies this file used to be one of; every difference
+between them was a universe property universes/registry.py records. See that module
+for the mapping, and for why purge_mode is read from the registry rather than
+written here.
+
+FROZEN. This universe is retired: its published numbers must not move. The registry
+records purge_mode="calendar" for it -- the DEFECTIVE calendar purge, kept
+deliberately -- and build_scores_step.run() reads it from there and calls the
+frozen-write guard, both keyed off u.frozen.
+
+Output caches: raw_panel74_20.csv and v74_expanding.csv in /tmp, copied to the permanent
+results74/metrics by run_all.py at the end of the run.
 """
-import sys, time
+import sys
 from pathlib import Path
-import pandas as pd
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "results"))
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-sys.path.insert(0, str(Path(__file__).resolve().parent))
-from _frozen_guard import guard as _frozen_guard
-from engine_core import build_panel, score_monthly, HORIZON
-from features_v2 import FEATS_V2
-import config74
+
+ROOT = Path(__file__).resolve().parents[1]
+for _p in (str(ROOT), str(ROOT / "results")):
+    if _p not in sys.path:
+        sys.path.insert(0, _p)
+
+import build_scores_step
+from universes.registry import REGISTRY
 
 
 def main():
-    """The step, as a function, so run.py can call it in process.
-
-    IMPORT MUST NOT DO THE WORK. This whole body used to run at module level,
-    so importing this file started a 40-minute model fit as a side effect --
-    which is why the pipeline could only ever spawn it as a subprocess.
-    """
-    # THE FROZEN GUARD MOVED IN HERE WITH THE WORK. At module level it fired on
-    # IMPORT, so run.py could not even load this file without tripping it. It
-    # guards the WRITE, so it belongs where the writing happens.
-    _frozen_guard("74")   # refuses unless ALLOW_FROZEN_WRITE=1; run_all.py sets it
-
-    SEEDS = [7, 42, 99, 1, 2, 3, 11, 22, 33, 101]
-    DATA74 = config74.RAW_DATA_DIR_74
-    print("[1/2] Building raw panel for 74 stocks...", flush=True)
-    t0 = time.time()
-    raw = build_panel(HORIZON, data_dir=DATA74)   # <-- 74 folder
-    keep = ["date", "symbol", "open", "close", "year", "y_rank", "scorable"] + FEATS_V2
-    raw = raw[keep]
-    raw.to_csv(f"/tmp/raw_panel74_{HORIZON}.csv", index=False)
-    print(f"    done {(time.time()-t0)/60:.1f} min, {len(raw):,} rows", flush=True)
-    print("[2/2] Monthly scoring, 10-seed ensemble (slow)...", flush=True)
-    t0 = time.time()
-    scored = score_monthly(raw, SEEDS, purge_mode="calendar")
-    scored[["date", "symbol", "open", "close", "score", "year"]].to_csv(
-        "/tmp/v74_expanding.csv", index=False)
-    print(f"    done {(time.time()-t0)/60:.1f} min", flush=True)
-    print("DONE -- /tmp/v74_expanding.csv ready (74 stocks)")
+    """The step, as a function, so run.py can call it in process."""
+    build_scores_step.run(REGISTRY["74"])
 
 
 if __name__ == "__main__":

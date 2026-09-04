@@ -77,10 +77,42 @@ DIR_REF = re.compile(r'(config(?:74|_mid|_n100)?)\.(METRICS_DIR\w*)')
 TAG_CALL = re.compile(
     r'(config(?:74|_mid|_n100)?)\.(METRICS_DIR\w*)\s*,\s*\d+\s*,\s*["\'](\w+)["\']')
 
+# A STEP MAY NAME ITS UNIVERSE THROUGH THE REGISTRY INSTEAD OF A CONFIG MODULE.
+# TAG_CALL above recognises the original shape -- run(..., config74.METRICS_DIR_74,
+# 2025, "74") -- which is how the audit scripts used to bind their tag. Once they
+# collapsed into one implementation they call audit_step.run(REGISTRY["mid"])
+# instead, TAG_CALL matched nothing, and every daily_*_{tag}.csv became unresolved:
+# the checker lost four producer edges and still reported success. This recognises
+# the registry form as well.
+REGISTRY_CALL = re.compile(r'REGISTRY\[["\'](\w+)["\']\]')
+
 DIRKEY = {("config", "METRICS_DIR"): "results",
           ("config74", "METRICS_DIR_74"): "results74",
           ("config_mid", "METRICS_DIR_MID"): "results_mid",
           ("config_n100", "METRICS_DIR_N100"): "results_n100"}
+
+def _tag2dir():
+    """tag -> the results directory that universe writes into, from the registry.
+
+    Derived rather than restated: universes/registry.py already knows where each
+    universe's metrics live, and a second hand-written copy here is exactly the kind
+    of thing that drifts. Falls back to the historical four if the registry cannot be
+    imported, so this checker keeps working in a tree without it.
+    """
+    try:
+        import sys as _s
+        from pathlib import Path as _P
+        _r = str(_P(__file__).resolve().parent)
+        if _r not in _s.path:
+            _s.path.insert(0, _r)
+        from universes.registry import REGISTRY
+        return {u.tag: _P(u.metrics_dir).parent.name for u in REGISTRY.values()}
+    except Exception:
+        return {"58": "results", "74": "results74",
+                "mid": "results_mid", "n100": "results_n100"}
+
+
+_TAG2DIR = _tag2dir()
 
 # Panels restored into /tmp before the run, not produced by any step.
 CACHES = {"v5_expanding_cache.csv", "raw_panel_cache.csv",
@@ -91,7 +123,19 @@ CACHES = {"v5_expanding_cache.csv", "raw_panel_cache.csv",
 
 def _scan(script_path):
     """-> (writes, reads, unresolved) as sets of (dirkey, filename)."""
-    txt = script_path.read_text()
+    return _scan_text(script_path.read_text())
+
+
+def _scan_text(txt):
+    """The scan, over source TEXT rather than one file.
+
+    A STEP AND ITS HELPERS MUST BE SCANNED AS ONE UNIT, not scanned separately and
+    unioned. The tag that resolves daily_trades_{tag}.csv is bound in the ENTRY
+    POINT (audit_step.run(REGISTRY["mid"])) while the to_csv that uses it lives in
+    the HELPER. Scanned apart, the helper has no tag and every filename with a
+    placeholder falls into `unresolved`; scanned together, the tag applies. Getting
+    this wrong is silent -- the checker reports success with the edges missing.
+    """
     var2dir, tags = {}, []
     for m in DIR_ASSIGN.finditer(txt):
         d = DIRKEY.get((m.group(2), m.group(3)))
@@ -109,6 +153,10 @@ def _scan(script_path):
         d = DIRKEY.get((m.group(1), m.group(2)))
         if d:
             tags.append((d, m.group(3)))
+    for m in REGISTRY_CALL.finditer(txt):
+        d = _TAG2DIR.get(m.group(1))
+        if d:
+            tags.append((d, m.group(1)))
     own = sorted(set(var2dir.values()) | {d for d, _ in tags})
     default = own[0] if len(own) == 1 else None
 
@@ -147,7 +195,7 @@ def _scan(script_path):
     return writes, reads, unresolved
 
 
-def analyse(pipeline, results_root=None, resolver=None):
+def analyse(pipeline, results_root=None, resolver=None, helpers=None):
     """pipeline: [(step_label, script_filename)] in execution order.
 
     -> (inversions, unresolved, edges) where an inversion is
@@ -174,7 +222,18 @@ def analyse(pipeline, results_root=None, resolver=None):
         if not p.exists():
             missing.append((label, scr, str(p)))
             continue
-        W[scr], Rd[scr], U[scr] = _scan(p)
+        # A STEP'S WRITES MAY LIVE IN A HELPER MODULE IT IMPORTS. When the three
+        # near-identical audit scripts collapsed into results/audit_step.py, every
+        # to_csv moved out of the step files and this scan stopped seeing them: four
+        # producer edges vanished and the checker still reported success. The step
+        # and its helpers are scanned as ONE text, so the tag bound in the entry
+        # point resolves the filenames written in the helper.
+        src = p.read_text()
+        for hp in (helpers or {}).get(scr, ()):
+            hp = Path(hp)
+            if hp.exists():
+                src += "\n" + hp.read_text()
+        W[scr], Rd[scr], U[scr] = _scan_text(src)
 
     producers = {}
     for scr, ws in W.items():
@@ -209,7 +268,8 @@ def analyse(pipeline, results_root=None, resolver=None):
     return inversions, unresolved, edges
 
 
-def enforce(pipeline, covered, results_root=None, verbose=False, resolver=None):
+def enforce(pipeline, covered, results_root=None, verbose=False, resolver=None,
+            helpers=None):
     """Fail the pipeline on any inversion not already named in REQUIRED_INPUTS.
 
     `covered` is the set of filenames REQUIRED_INPUTS already guards, so a known
@@ -217,7 +277,7 @@ def enforce(pipeline, covered, results_root=None, verbose=False, resolver=None):
     inversion is fatal whether or not it is covered -- being in REQUIRED_INPUTS
     means the failure is legible, not that the order is acceptable.
     """
-    inversions, unresolved, edges = analyse(pipeline, results_root, resolver)
+    inversions, unresolved, edges = analyse(pipeline, results_root, resolver, helpers)
     print(f"  pipeline order check: {len(edges)} resolved cross-step "
           f"dependencies, {len(unresolved)} unresolved, "
           f"{len(inversions)} inversion(s)")

@@ -1,58 +1,30 @@
 """
-build_scores_mid.py -- scores for the MidCap150 universe (third universe)
-========================================================================
-A copy of build_scores74.py, differing only in:
-  - Data: data/raw/MidCap150/constituents/ (148 stocks, index excluded)
-  - Output cache: /tmp/v_mid_expanding.csv (separate from the 58 and 74 caches)
-Model, features and seeds are identical to the 58 and the 74, so the comparison
-stays fair. Only the universe differs.
+build_scores_mid.py -- the MidCap150 universe's raw panel and monthly scores
 
-THE INDEX IS EXCLUDED, AND THAT IS ASSERTED RATHER THAN ASSUMED
-    build_panel globs its data_dir, so it is pointed at the constituents directory
-    config_mid builds, which contains the 148 stocks and not NIFTYMIDCAP150.csv.
-    The panel's symbol set is then checked against config_mid.SYMBOLS_MID. A bare
-    glob over clean/ would have made the index the 149th tradable name.
+A per-universe entry point. The body lives once in results/build_scores_step.py,
+which took over from the four copies this file used to be one of; every difference
+between them was a universe property universes/registry.py records. See that module
+for the mapping, and for why purge_mode is read from the registry rather than
+written here.
+\nThe index is excluded by pointing build_panel at a constituents-only directory,\nwhich u.prepare_data_dir() rebuilds; the panel's symbol set is then asserted\nagainst the registry's list.\n
+Output caches: raw_panel_mid_20.csv and v_mid_expanding.csv in /tmp, copied to the permanent
+results_mid/metrics by run_all.py at the end of the run.
 """
-import sys, time
+import sys
 from pathlib import Path
-import pandas as pd
-sys.path.insert(0, str(Path(__file__).resolve().parent))
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from engine_core import build_panel, score_monthly, HORIZON
-from features_v2 import FEATS_V2
-import config_mid
+
+ROOT = Path(__file__).resolve().parents[1]
+for _p in (str(ROOT), str(ROOT / "results")):
+    if _p not in sys.path:
+        sys.path.insert(0, _p)
+
+import build_scores_step
+from universes.registry import REGISTRY
 
 
 def main():
-    """The step, as a function, so run.py can call it in process.
-
-    IMPORT MUST NOT DO THE WORK. This whole body used to run at module level,
-    so importing this file started a 40-minute model fit as a side effect --
-    which is why the pipeline could only ever spawn it as a subprocess.
-    """
-    SEEDS = [7, 42, 99, 1, 2, 3, 11, 22, 33, 101]
-    DATA_MID = config_mid.ensure_constituents_dir()
-    print(f"[1/2] Building raw panel for {len(config_mid.SYMBOLS_MID)} MidCap150 stocks...",
-          flush=True)
-    t0 = time.time()
-    raw = build_panel(HORIZON, data_dir=DATA_MID)     # <-- constituents only
-    got = set(raw["symbol"].unique())
-    assert config_mid.INDEX_NAME_MID not in got, \
-        "the index entered the panel as a tradable symbol"
-    missing = set(config_mid.SYMBOLS_MID) - got
-    print(f"    symbols in panel: {len(got)} of {len(config_mid.SYMBOLS_MID)}"
-          + (f" | dropped for insufficient history: {sorted(missing)}" if missing else ""))
-    keep = ["date", "symbol", "open", "close", "year", "y_rank", "scorable"] + FEATS_V2
-    raw = raw[keep]
-    raw.to_csv(f"/tmp/raw_panel_mid_{HORIZON}.csv", index=False)
-    print(f"    done {(time.time()-t0)/60:.1f} min, {len(raw):,} rows", flush=True)
-    print("[2/2] Monthly scoring, 10-seed ensemble (slow)...", flush=True)
-    t0 = time.time()
-    scored = score_monthly(raw, SEEDS)
-    scored[["date", "symbol", "open", "close", "score", "year"]].to_csv(
-        "/tmp/v_mid_expanding.csv", index=False)
-    print(f"    done {(time.time()-t0)/60:.1f} min", flush=True)
-    print(f"DONE -- /tmp/v_mid_expanding.csv ready ({len(got)} stocks)")
+    """The step, as a function, so run.py can call it in process."""
+    build_scores_step.run(REGISTRY["mid"])
 
 
 if __name__ == "__main__":

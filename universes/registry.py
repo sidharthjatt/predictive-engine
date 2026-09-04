@@ -84,10 +84,31 @@ class Universe:
     year_range: Optional[Tuple[int, int]]      # frozen universes cut by year
     date_range: Optional[Tuple[object, object]]  # live universes cut by date
     _symbols: Optional[Callable]  # authoritative symbol list, where one exists
+    _prepare: Optional[Callable]  # brings data_dir into existence, where that is needed
 
     def symbols(self):
         """The tradable names, or None when the directory is the definition."""
         return None if self._symbols is None else self._symbols()
+
+    def prepare_data_dir(self):
+        """The directory build_panel should glob, READY TO USE.
+
+        WHY THIS IS AN ACTION AND NOT JUST data_dir. For the 58 and the 74 the
+        directory simply exists and this returns it. For mid and n100 it does not:
+        their source folder holds the published INDEX alongside the constituents,
+        and build_panel globs whatever directory it is handed, so pointing it at the
+        source would sweep NIFTYMIDCAP150.csv or NIFTY100.csv in as one more
+        tradable name. config_mid/config_n100 solve that by maintaining a symlink
+        directory containing the constituents ONLY, and rebuilding it -- pruning
+        anything stale -- each time it is asked for.
+
+        That rebuild is the part `data_dir` cannot express. A merged build_scores
+        that read data_dir and skipped the call would point build_panel at whatever
+        symlinks happened to be on disk, and the index-exclusion guarantee would
+        rest on luck rather than on a step that runs. So the universe carries how
+        its directory comes into being, next to where it is.
+        """
+        return self.data_dir if self._prepare is None else self._prepare()
 
     def trading_days(self, index):
         """Restrict a price index to this universe's backtest window.
@@ -117,6 +138,7 @@ _58 = Universe(
     nautilus_end="2026-06-08",
     purge_mode="calendar", frozen=True, index_name=None,
     year_range=(2019, 2026), date_range=None, _symbols=None,
+    _prepare=None
 )
 
 _74 = Universe(
@@ -131,6 +153,7 @@ _74 = Universe(
     nautilus_end="2025-12-23",
     purge_mode="calendar", frozen=True, index_name=None,
     year_range=(2019, 2025), date_range=None, _symbols=None,
+    _prepare=None
 )
 
 _MID = Universe(
@@ -147,6 +170,7 @@ _MID = Universe(
     index_name=config_mid.INDEX_NAME_MID,
     year_range=None, date_range=(config.BT_START_DATE, config.BT_END_DATE),
     _symbols=lambda: set(config_mid.SYMBOLS_MID),
+    _prepare=config_mid.ensure_constituents_dir
 )
 
 _N100 = Universe(
@@ -163,6 +187,7 @@ _N100 = Universe(
     index_name=config_n100.INDEX_NAME_N100,
     year_range=None, date_range=(config.BT_START_DATE, config.BT_END_DATE),
     _symbols=lambda: set(config_n100.SYMBOLS_N100),
+    _prepare=config_n100.ensure_constituents_dir
 )
 
 REGISTRY = {u.tag: u for u in (_58, _74, _MID, _N100)}

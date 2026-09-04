@@ -1,61 +1,30 @@
 """
-build_scores_n100.py -- scores for the Nifty 100 universe (fourth universe)
-==========================================================================
-A copy of build_scores_mid.py, differing only in:
-  - Data: data/raw/N100_constituents/     (99 stocks, index excluded by name)
-  - Output cache: /tmp/v_n100_expanding.csv  (separate from every other cache)
-Model, features and seeds are identical to the other universes, so the comparison
-stays fair. Only the universe differs.
+build_scores_n100.py -- the Nifty 100 universe's raw panel and monthly scores
 
-THE INDEX IS EXCLUDED, AND THAT IS ASSERTED RATHER THAN ASSUMED
-    build_panel globs its data_dir, so it is pointed at the constituents directory
-    config_n100 builds, which contains the 99 stocks and not NIFTY100.csv. The
-    panel's symbol set is then checked against config_n100.SYMBOLS_N100. A bare
-    glob over nifty100_benchmark/ would have made the index the 100th tradable
-    name -- which is precisely the error this project made once before, when the
-    index was averaged into its own constituent basket and the result was labelled
-    as the benchmark.
+A per-universe entry point. The body lives once in results/build_scores_step.py,
+which took over from the four copies this file used to be one of; every difference
+between them was a universe property universes/registry.py records. See that module
+for the mapping, and for why purge_mode is read from the registry rather than
+written here.
+\nThe index is excluded by pointing build_panel at a constituents-only directory,\nwhich u.prepare_data_dir() rebuilds; the panel's symbol set is then asserted\nagainst the registry's list.\n
+Output caches: raw_panel_n100_20.csv and v_n100_expanding.csv in /tmp, copied to the permanent
+results_n100/metrics by run_all.py at the end of the run.
 """
-import sys, time
+import sys
 from pathlib import Path
-import pandas as pd
-sys.path.insert(0, str(Path(__file__).resolve().parent))
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from engine_core import build_panel, score_monthly, HORIZON
-from features_v2 import FEATS_V2
-import config_n100
+
+ROOT = Path(__file__).resolve().parents[1]
+for _p in (str(ROOT), str(ROOT / "results")):
+    if _p not in sys.path:
+        sys.path.insert(0, _p)
+
+import build_scores_step
+from universes.registry import REGISTRY
 
 
 def main():
-    """The step, as a function, so run.py can call it in process.
-
-    IMPORT MUST NOT DO THE WORK. This whole body used to run at module level,
-    so importing this file started a 40-minute model fit as a side effect --
-    which is why the pipeline could only ever spawn it as a subprocess.
-    """
-    SEEDS = [7, 42, 99, 1, 2, 3, 11, 22, 33, 101]
-    DATA_N100 = config_n100.ensure_constituents_dir()
-    print(f"[1/2] Building raw panel for {len(config_n100.SYMBOLS_N100)} Nifty 100 stocks...",
-          flush=True)
-    t0 = time.time()
-    raw = build_panel(HORIZON, data_dir=DATA_N100)     # <-- constituents only
-    got = set(raw["symbol"].unique())
-    assert config_n100.INDEX_NAME_N100 not in got, \
-        "the index entered the panel as a tradable symbol"
-    missing = set(config_n100.SYMBOLS_N100) - got
-    print(f"    symbols in panel: {len(got)} of {len(config_n100.SYMBOLS_N100)}"
-          + (f" | dropped for insufficient history: {sorted(missing)}" if missing else ""))
-    keep = ["date", "symbol", "open", "close", "year", "y_rank", "scorable"] + FEATS_V2
-    raw = raw[keep]
-    raw.to_csv(f"/tmp/raw_panel_n100_{HORIZON}.csv", index=False)
-    print(f"    done {(time.time()-t0)/60:.1f} min, {len(raw):,} rows", flush=True)
-    print("[2/2] Monthly scoring, 10-seed ensemble (slow)...", flush=True)
-    t0 = time.time()
-    scored = score_monthly(raw, SEEDS)
-    scored[["date", "symbol", "open", "close", "score", "year"]].to_csv(
-        "/tmp/v_n100_expanding.csv", index=False)
-    print(f"    done {(time.time()-t0)/60:.1f} min", flush=True)
-    print(f"DONE -- /tmp/v_n100_expanding.csv ready ({len(got)} stocks)")
+    """The step, as a function, so run.py can call it in process."""
+    build_scores_step.run(REGISTRY["n100"])
 
 
 if __name__ == "__main__":

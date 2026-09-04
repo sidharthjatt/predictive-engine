@@ -711,3 +711,51 @@ these three files prints the hash that would make the check trivial. The hash is
 recorded and then never compared. The same gap is described from the other
 direction in *An artefact was used three times without checking it was the one the
 code reads*.
+
+---
+
+## chart_COMBINED_n100_mid.png is not byte-reproducible across sessions
+
+Found 2026-09-04. `make_combined_n100_mid.py` saves with `bbox_inches="tight"`, and
+the tight bounding box has been observed to differ by two pixels of height (1764 vs
+1766) between sessions on identical inputs and identical code. The same file run
+twice in one session is stable, so this is not run-to-run noise -- it drifts across
+process invocations over time. The trigger was not identified; the matplotlib font
+cache predates both runs. Nothing else about the chart changes and every printed
+figure is identical. It matters only for byte-comparison: this PNG cannot be used
+as a fixture.
+
+---
+
+## The 74's backtest window was the 58's, and agreed only by accident
+
+Found and corrected 2026-09-04, while mapping the engine family onto
+universes/registry.py.
+
+`engine_v2_final74.py` cut its backtest window with `BT_START, BT_END = 2019, 2026`.
+That 2026 is the **58's** end year. The file is a copy of `engine_v2_final.py` --
+its own docstring says "Same strategy as engine_v2_final.py, run on the 74-stock
+universe" -- and it carried the 58's literal for as long as it has existed.
+
+**Everywhere the 74's window is stated per-universe, it says 2025**:
+`make_cash_series.py` passes `2025`, `nt_run.py` records `"2025-12-23"` with a
+comment explaining why, the daily audit passed `y_end=2025`, and
+`universes/registry.py` records `year_range=(2019, 2025)`.
+
+**The two rules agreed only by accident of the data.** The 74 panel ends
+2025-12-23, so a 2019..2026 cut and a 2019..2025 cut select the same **1,732
+trading days**. The discrepancy could not show itself, and would have diverged
+silently the first time any 2026 row appeared for this universe -- from a data
+refresh, or from the panel being rebuilt against a later source.
+
+**Corrected to 2025.** Verified: `v2FINAL_comparison.csv`, `v2FINAL_equity.csv`,
+`v2FINAL_yearly.csv`, `v2FINAL_params.json`, `daily_trades_v1_74.csv` and
+`chart_v2FINAL.png` are all byte-identical after the change. No published 74 number
+moves, which is what makes this safe to fix rather than something to leave recorded.
+
+**The class is what matters.** A window literal copied between universes is
+invisible while the shorter panel hides it. The other `BT_START, BT_END = 2019,
+2026` sites -- `engine_core.py`, `engine_v2_final.py`, `reality_check.py`,
+`validate_breadth.py`, `make_combined_all.py`, `make_stock_chart.py`,
+`make_per_stock_charts.py` -- all serve the 58, whose panel really does end
+2026-06-08, and are correct as they stand. This was checked rather than assumed.
