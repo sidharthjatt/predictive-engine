@@ -20,18 +20,13 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "results"))
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from _frozen_guard import guard as _frozen_guard
-_frozen_guard("58/74")   # refuses unless ALLOW_FROZEN_WRITE=1; run_all.py sets it
 import config, config74
 from engine_core import precompute
 from test_exposure import backtest_exposure
-
-
 def cache(tmp, perm):
     if Path(perm).exists(): return perm
     if Path(tmp).exists():  return tmp
     raise FileNotFoundError(f"{perm} / {tmp} missing -- run run_all.py first")
-
-
 def run(tmp, perm, mdir, y_end, tag):
     print(f"\n{'='*74}\n{tag} UNIVERSE\n{'='*74}")
     p = pd.read_csv(cache(tmp, perm), parse_dates=["date"])
@@ -95,7 +90,23 @@ def run(tmp, perm, mdir, y_end, tag):
           f"({r['invested_pct']}%) | TOTAL Rs {r['total']:,.0f}")
 
 
-run("/tmp/v5_expanding.csv",  "results/metrics/v5_expanding_cache.csv",
-    config.METRICS_DIR, 2026, "58")
-run("/tmp/v74_expanding.csv", "results74/metrics/v74_expanding_cache.csv",
-    config74.METRICS_DIR_74, 2025, "74")
+def main():
+    """The step, as a function, so run.py can call it in process.
+
+    IMPORT MUST NOT DO THE WORK. This body used to run at module level, so
+    importing this file executed the whole step as a side effect -- which is why
+    the pipeline could only ever spawn it as a subprocess.
+    """
+    # THE FROZEN GUARD MOVED IN HERE WITH THE WORK. At module level it fired on
+    # IMPORT, so run.py could not load this file at all. It guards the WRITE, so
+    # it belongs where the writing happens.
+    _frozen_guard("58/74")   # refuses unless ALLOW_FROZEN_WRITE=1; run_all.py sets it
+
+    run("/tmp/v5_expanding.csv",  "results/metrics/v5_expanding_cache.csv",
+        config.METRICS_DIR, 2026, "58")
+    run("/tmp/v74_expanding.csv", "results74/metrics/v74_expanding_cache.csv",
+        config74.METRICS_DIR_74, 2025, "74")
+
+
+if __name__ == "__main__":
+    main()
