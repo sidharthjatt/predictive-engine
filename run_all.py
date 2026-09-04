@@ -8,10 +8,11 @@ On a new machine or from nothing: `./venv/bin/python run_all.py --fresh`
 
 THE INTERPRETER IN THAT COMMAND IS LOAD-BEARING. IT IS NOT INTERCHANGEABLE WITH
 `python3`.
-    run() spawns every step with subprocess.run([sys.executable, ...]), so
-    WHATEVER INTERPRETER LAUNCHES THIS FILE IS PROPAGATED TO EVERY CHILD. There
-    is no fallback and no second chance: a wrong interpreter at the command line
-    is a wrong interpreter for all 32 steps.
+    Every step now runs IN THIS INTERPRETER (run.py imports and calls it), which
+    makes the command line the only interpreter there is -- no fallback and no
+    second chance. It was true when steps were subprocesses too, because the
+    subprocess was spawned with sys.executable and inherited the same wrong
+    interpreter thirty-one times; it is if anything more direct now.
 
     Corrected 2026-09-02. This docstring previously said `python3 run_all.py`.
     On the machine the published numbers were produced on, `python3` resolves to
@@ -86,7 +87,7 @@ for _v in ("OMP_NUM_THREADS", "MKL_NUM_THREADS", "OPENBLAS_NUM_THREADS",
     _os.environ[_v] = "1"
 _os.environ["PYTHONHASHSEED"] = "0"
 
-import sys, subprocess, time, shutil
+import sys, time, shutil
 from pathlib import Path
 ROOT = Path(__file__).resolve().parent
 R = ROOT / "results"
@@ -263,6 +264,8 @@ PIPELINE_ORDER = [
     ("STEP 15", "make_daily_log.py"),
     ("STEP 16", "nt_export_scores.py"),
 ]
+# Kept as the canonical set of pipeline script names. run()'s membership guard used
+# it; run.py needs the same answer when it maps a step to its universe.
 _PIPELINE_SCRIPTS = {s for _, s in PIPELINE_ORDER}
 
 
@@ -287,23 +290,14 @@ def check_inputs(label, script):
     sys.exit(1)
 
 
-def run(label, script, cwd=None):
-    print("\n" + "=" * 90)
-    print(f">>> {label}")
-    print("=" * 90, flush=True)
-    # keeps PIPELINE_ORDER honest: a step added to main() but not to the list
-    # would otherwise be invisible to the static ordering check.
-    if Path(script).name not in _PIPELINE_SCRIPTS:
-        print(f"\n!!! {Path(script).name} is not in PIPELINE_ORDER. Add it there,")
-        print("    in its execution position, so the ordering check can see it.")
-        sys.exit(1)
-    check_inputs(label, script)
-    t0 = time.time()
-    r = subprocess.run([sys.executable, str(script_path(script))], cwd=str(cwd or ROOT))
-    if r.returncode != 0:
-        print(f"\n!!! {script} FAILED (exit {r.returncode}). Stopping.")
-        sys.exit(1)
-    print(f"    [{label} done in {(time.time()-t0)/60:.1f} min]")
+# THE SUBPROCESS RUNNER IS GONE, AND SO IS THE GUARD IT CARRIED.
+# run() used to spawn each step with sys.executable and refuse any script absent
+# from PIPELINE_ORDER -- a step added to main() but not to the list would otherwise
+# have been invisible to the static ordering check. main() no longer names steps at
+# all: run.py iterates PIPELINE_ORDER itself, so a step outside the list cannot run
+# in the first place and the guard has nothing left to catch. It is removed rather
+# than kept as unreachable code that reads like it is still protecting something.
+
 
 def restore_cache_to_tmp():
     """Restore permanent copies into /tmp so scripts run without rebuilding."""
@@ -321,111 +315,14 @@ def restore_cache_to_tmp():
             shutil.copy(perm, TMP / tmp_name)
             print(f"    restored {tmp_name} from permanent cache")
 
-def main():
-    t_start = time.time()
-    # Stated once at the top of every pipeline run, so the log itself records which
-    # universe construction produced the numbers below it.
-    sys.path.insert(0, str(R))
-    import survivorship as sv
-    print(f"SURVIVORSHIP: {sv.describe_state()}\n")
-    if FRESH:
-        print("--fresh: deleting ALL cached scores (tmp + permanent)...")
-        for c in CACHE_TMP + CACHE_PERM:
-            if c.exists():
-                c.unlink()
-        print("cache cleared. Full rebuild (~3 hours).\n")
-    else:
-        print("normal mode: using cache if available. (--fresh for full scratch)\n")
-        restore_cache_to_tmp()
+def save_permanent_caches():
+    """Copy the /tmp panels back to their permanent homes.
 
-    # STATIC ORDERING CHECK -- runs before any step, costs milliseconds.
-    # Derives consumer/producer edges from the source rather than from the
-    # hand-maintained REQUIRED_INPUTS list above, and fails on any inversion.
-    # REQUIRED_INPUTS still earns its place: it produces a better message at the
-    # exact moment of failure, and it catches a producer that ran but wrote
-    # nothing. This catches the case nobody remembered to add to it.
-    import check_pipeline_order as cpo
-    cpo.enforce(PIPELINE_ORDER,
-                covered={f.name for lst in REQUIRED_INPUTS.values() for f, _ in lst},
-                resolver=script_path, helpers=STEP_HELPERS)
-
-    # ===== TRADING CALENDAR (must precede every panel build) =====
-    # build_panel refuses to run without it, so this cannot be skipped or bypassed.
-    run("STEP 0  NSE trading calendar (derived from the 58 universe)",
-        "make_trading_calendar.py")
-
-    # ===== 58 UNIVERSE =====
-    if not (TMP / "v5_expanding.csv").exists():
-        run("STEP 1  Build 58 scores (SLOW)", "build_scores.py")
-    else:
-        print(">>> STEP 1  58 scores cached (skip)")
-    run("STEP 2  Engine core (v1 + validation + leakage)", "engine_core.py")
-    run("STEP 3  Engine v2 FINAL (breadth)", "engine_v2_final.py")
-    run("STEP 4  Decay diagnostic", "diagnose_decay.py")
-    run("STEP 5  Validate breadth", "validate_breadth.py")
-    run("STEP 6  Reality check", "reality_check.py")
-    run("STEP 7  Per-stock charts (58)", "make_per_stock_charts.py")
-    run("STEP 7b Combined per-stock (58)", "make_combined_all.py")
-    run("STEP 7c Final table chart", "make_final_table.py")
-    run("STEP 7d Equity chart", "make_charts.py")
-    run("STEP 7e All-stocks overview", "make_stock_chart.py")
-    run("STEP 7f Portfolio combined", "make_combined_portfolio.py")
-    run("STEP 7g Feature docs (dictionary + panel sample)", "export_feature_docs.py")
-
-    # ===== 74 UNIVERSE =====
-    if not (TMP / "v74_expanding.csv").exists():
-        run("STEP 8  Build 74 scores (SLOW)", "build_scores74.py")
-    else:
-        print(">>> STEP 8  74 scores cached (skip)")
-    run("STEP 9  Engine v2 FINAL 74", "engine_v2_final74.py")
-
-    # ===== MIDCAP150 UNIVERSE (third universe) =====
-    if not (TMP / "v_mid_expanding.csv").exists():
-        run("STEP 10a Build MidCap150 scores (SLOW)", "build_scores_mid.py")
-    else:
-        print(">>> STEP 10a MidCap150 scores cached (skip)")
-    run("STEP 10b Engine v2 FINAL MidCap150", "engine_v2_final_mid.py")
-    run("STEP 10c Daily audit CSVs (MidCap150)", "make_mid_audit.py")
-    run("STEP 10d MidCap150 chart + cap-weighted index", "make_mid_chart.py")
-
-    # ===== NIFTY 100 UNIVERSE (fourth universe) =====
-    if not (TMP / "v_n100_expanding.csv").exists():
-        run("STEP 10e Build Nifty 100 scores (SLOW)", "build_scores_n100.py")
-    else:
-        print(">>> STEP 10e Nifty 100 scores cached (skip)")
-    run("STEP 10f Engine v2 FINAL Nifty 100", "engine_v2_final_n100.py")
-    run("STEP 10g Daily audit CSVs (Nifty 100)", "make_n100_audit.py")
-    run("STEP 10h Nifty 100 chart + cap-weighted index", "make_n100_chart.py")
-    run("STEP 10i Combined chart: Nifty 100 + MidCap150", "make_combined_n100_mid.py")
-
-    # ===== BENCHMARK + FINAL CHART =====
-    run("STEP 11 Cash series (58 + 74)", "make_cash_series.py")
-
-    # ORDERING, AND WHY IT IS THIS WAY.
-    #   make_daily_audit.py writes daily_trades_58.csv and daily_trades_74.csv.
-    #   make_final_chart_fair.py READS both, through tc_from_log(), to get the
-    #   dated transaction costs for the v2 arms.
-    #
-    #   The audit used to run at STEP 14, AFTER the chart. That never worked from
-    #   scratch: it only ever succeeded because the two CSVs were left behind by a
-    #   previous run and were still sitting in metrics/ when the chart ran. The
-    #   first genuinely empty metrics/ exposed it as a FileNotFoundError from
-    #   inside pandas at STEP 12.
-    #
-    #   The mid and n100 universes already had this right -- make_mid_audit runs
-    #   at 10c before make_mid_chart at 10d, and make_n100_audit at 10g before
-    #   make_n100_chart at 10h. This makes 58/74 match that pattern.
-    #
-    #   The audit depends only on v2FINAL_equity.csv (STEPS 3 and 9) and the /tmp
-    #   panels, so it is free to move anywhere after STEP 9.
-    run("STEP 12 Daily audit CSVs (58 + 74: holdings/trades/ranking)",
-        "make_daily_audit.py")
-    run("STEP 13 Nifty100 benchmark + final chart + fair table",
-        "make_final_chart_fair.py")
-    run("STEP 14 FINAL summary table", "make_final_summary.py")
-    run("STEP 15 Forensic daily text log", "make_daily_log.py")
-
-    # save permanent caches for next time
+    The other half of restore_cache_to_tmp(). Extracted from main() so run.py can
+    call it too -- left inline, run.py's cache handling would have restored panels
+    and never persisted them, which is silent and only shows up as a slow rebuild
+    much later.
+    """
     print("\nSaving permanent caches...")
     pairs = [("v5_expanding.csv", R/"metrics"/"v5_expanding_cache.csv"),
              ("raw_panel_20.csv", R/"metrics"/"raw_panel_cache.csv"),
@@ -440,24 +337,48 @@ def main():
             shutil.copy(TMP / tmp_name, perm)
     print("caches saved (restart-proof).")
 
-    # AFTER the caches are persisted, not before: nt_export_scores.py reads the
-    # PERMANENT panels, which do not exist on a fresh run until the block above
-    # copies them. Placing this earlier crashed the pipeline with
-    # "v5_expanding_cache.csv missing -- run run_all.py first".
-    #
-    # The parquets are derived from the score panels and go STALE the moment those
-    # are rebuilt. Leaving this out of the pipeline once made nt_verify report NOT
-    # VERIFIED on the 58 and mid with 91 and 92 symbol-set differences, entirely
-    # because the port was reading last run's scores.
-    run("STEP 16 Export Nautilus score parquets (58 + 74 + mid)",
-        str(ROOT / "nautilus" / "nt_export_scores.py"))
 
-    print("\n" + "=" * 90)
-    print(f"ALL DONE in {(time.time()-t_start)/60:.1f} min.")
-    print("58 outputs:  results/metrics/")
-    print("74 outputs:  results74/metrics/")
-    print("Final chart: results/metrics/chart_FINAL_58_74_N100.png")
-    print("=" * 90)
+def main():
+    """Delegate to run.py. This file is now a compatibility entry point.
+
+    WHAT STILL LIVES HERE, AND WHY IT WAS NOT MOVED
+        PIPELINE_ORDER, REQUIRED_INPUTS, STEP_HELPERS, FROZEN_SCRIPTS,
+        NAUTILUS_SCRIPTS, script_path(), check_inputs(), the cache lists and the two
+        cache functions are all READ BY run.py, which loads this file with
+        runpy.run_path to get them. They are the ordered description of the pipeline;
+        run.py is the thing that chooses a subset of it and runs it. Copying them
+        into run.py would leave two orderings to keep in agreement, which is the
+        class of bug check_pipeline_order.py exists to catch.
+
+    WHAT CHANGED FOR SOMEONE WHO RUNS THIS FILE
+        Steps now run IN THIS PROCESS rather than as thirty-one subprocesses, with
+        module_state.pinned() restoring any shared global a step reassigns -- the
+        thing a fresh interpreter used to give for free. The step labels in the log
+        are PIPELINE_ORDER's short ones ("STEP 10c") rather than main()'s longer
+        descriptions; the steps, their order, and their outputs are the same.
+
+        `--fresh` still works. It is forwarded.
+    """
+    extra = [a for a in sys.argv[1:] if a != "--fresh"]
+    if extra:
+        # THIS FILE TAKES ONE FLAG. It never used argparse -- FRESH is a bare
+        # `"--fresh" in sys.argv` -- so every other argument was silently ignored
+        # and the full pipeline started anyway. `run_all.py --help` launching a
+        # three-hour rebuild is not a help message. Unrecognised arguments now stop
+        # the run and point at the entry point that understands them.
+        print(__doc__)
+        print(f"run_all.py takes only --fresh; got {' '.join(extra)}")
+        print("For anything else -- one universe, one arm, --list, --dry-run,")
+        print("--rebal -- use run.py, which this file now delegates to:")
+        print("    ./venv/bin/python run.py --help")
+        return 2
+
+    import run as _run
+    argv = ["--universe", "all", "--arm", "all"]
+    if FRESH:
+        argv.append("--fresh")
+    return _run.main(argv)
+
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

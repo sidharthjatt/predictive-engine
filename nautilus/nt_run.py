@@ -139,7 +139,18 @@ def run(trading_start, trading_end, symbols=None, quiet=True, universe="58",
     # silently overwrote the other two -- the files looked current while describing
     # a run nobody asked about. The universe is part of the path now, so all three
     # persist side by side and a directory cannot be mistaken for another's output.
-    out = Path(__file__).resolve().parent / "reports" / universe
+    #
+    # AND ONE DIRECTORY PER ARM UNDER IT, for exactly the same reason one level up.
+    # run() gained sizing/mode as arguments on 2026-09-04, which made the collision
+    # the universe split had just fixed reappear on the other axis:
+    # verify_v34_arms.py runs four arms per universe in a loop, and all four wrote
+    # here, so nautilus/reports/mid/ described whichever arm happened to run last
+    # while looking like the universe's report. The arm name comes from
+    # arms.registry, so the directory and the arm cannot drift apart, and a
+    # combination that is not one of the four named arms gets "{mode}-{sizing}"
+    # rather than being folded into one that is.
+    from arms.registry import path_segment
+    out = Path(__file__).resolve().parent / "reports" / universe / path_segment(mode, sizing)
     out.mkdir(parents=True, exist_ok=True)
     # orders.csv IS NOT AN ORDERS REPORT. It is written by
     # generate_order_fills_report(), which emits one row per order THAT PRODUCED A
@@ -153,7 +164,8 @@ def run(trading_start, trading_end, symbols=None, quiet=True, universe="58",
     orders_rep.to_csv(out / "orders.csv")
     fills_rep.to_csv(out / "fills.csv")
     pos_rep.to_csv(out / "positions.csv")
-    print(f"\n  reports -> nautilus/reports/{universe}/  [{U['tag']} universe]  "
+    print(f"\n  reports -> nautilus/reports/{universe}/{out.name}/  "
+          f"[{U['tag']} universe, arm {out.name}: mode={mode} sizing={sizing}]  "
           f"(orders {len(orders_rep)}, fills {len(fills_rep)}, positions {len(pos_rep)})")
 
     acct = eng.cache.account_for_venue(VENUE)

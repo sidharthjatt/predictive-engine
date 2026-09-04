@@ -68,7 +68,7 @@ M = config.METRICS_DIR
 
 def backtest_exposure(px, op, sc, dates, pc, mom20, port_vol=None,
                       mode="none", target_vol=None, audit=None, sizing="invvol",
-                      const_expo=None, value_at_open=True):
+                      const_expo=None, value_at_open=True, rebal=None):
     """audit=None reproduces the original code path exactly: no overhead, and the
     official numbers are unchanged.
     Passing a dict with holdings/summary/trades/ranking/decisions/skipped keys logs
@@ -100,6 +100,14 @@ def backtest_exposure(px, op, sc, dates, pc, mom20, port_vol=None,
         uses to pin the defective purge_mode="calendar" for those two universes
         while the live universes take the corrected default. A frozen universe opts
         OUT of a correction; it is never the correction that opts in."""
+    # REBALANCE CADENCE. None means "use the module value", which is what every
+    # caller relied on when this was only a module global -- so omitting it is
+    # byte-identical to the previous behaviour, and rebal_cadence_sweep.py's
+    # `test_exposure.REBAL = n` override still works because the module value is
+    # read HERE, at call time, not bound at import.
+    _rebal = REBAL if rebal is None else int(rebal)
+    if _rebal < 1:
+        raise ValueError(f"rebal must be >= 1, got {rebal!r}")
     shares, cash = {}, START_CAPITAL
     cum_tc, n_trades = 0.0, 0
     eq, pending, expo_log = [], None, []
@@ -174,7 +182,7 @@ def backtest_exposure(px, op, sc, dates, pc, mom20, port_vol=None,
                     shares[s] = shares.get(s, 0) + q
             pending = None
 
-        if i % REBAL == 0 and i < len(dates) - 1:
+        if i % _rebal == 0 and i < len(dates) - 1:
             if mode == "none":
                 expo = 1.0
             elif mode == "breadth":

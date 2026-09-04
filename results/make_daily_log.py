@@ -414,7 +414,15 @@ def build(mdir, tag):
     return out
 
 
-if __name__ == "__main__":
+def main():
+    """STEP 15. Body moved out of the __main__ guard, unchanged.
+
+    S4 gave every pipeline step a function boundary so run.py could call it in
+    process; this file and nt_export_scores.py were missed, and nothing noticed
+    because run_all.py still SPAWNED each step, and a subprocess runs the __main__
+    guard whether or not a main() exists. The first full in-process run stopped
+    here with AttributeError. The statements below are the guard's, in order.
+    """
     import config, config74, config_mid
     print("Building forensic daily logs...")
     build(config.METRICS_DIR, "58")
@@ -427,3 +435,7 @@ if __name__ == "__main__":
     # four sections and the same daily reconciliation as every other universe.
     import config_n100
     build(config_n100.METRICS_DIR_N100, "n100")
+
+
+if __name__ == "__main__":
+    main()

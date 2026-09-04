@@ -81,15 +81,23 @@ def nautilus_scores(u):
     return NAUTILUS_DIR / "data" / u.nautilus_scores
 
 
-def nautilus_reports(u):
-    """orders.csv / fills.csv / positions.csv for one universe.
+def nautilus_reports(u, arm=None):
+    """orders.csv / fills.csv / positions.csv for one universe and one arm.
 
-    ONE DIRECTORY PER UNIVERSE, because a single shared reports/ once left only
-    the last universe's files on disk. The ARM is still missing from this path,
-    which is why verify_v34_arms -- looping four arms over two universes -- leaves
-    only the last arm's reports behind. Recorded, not yet fixed.
+    ONE DIRECTORY PER UNIVERSE AND ARM. A single shared reports/ once left only the
+    last universe's files on disk; adding the universe fixed that and left the same
+    hole one level down, so verify_v34_arms -- four arms over two universes -- kept
+    only the last arm's reports while the directory still looked like the
+    universe's. Both axes are in the path now.
+
+    `arm` may be an Arm, an arm name, or None. None returns the universe directory
+    itself, which is what a caller wants when it is listing every arm rather than
+    naming one.
     """
-    return NAUTILUS_DIR / "reports" / u.tag
+    d = NAUTILUS_DIR / "reports" / u.tag
+    if arm is None:
+        return d
+    return d / (arm if isinstance(arm, str) else arm.name)
 
 
 # --------------------------------------------------------------- diagnostics

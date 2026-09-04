@@ -269,19 +269,29 @@ def analyse(pipeline, results_root=None, resolver=None, helpers=None):
 
 
 def enforce(pipeline, covered, results_root=None, verbose=False, resolver=None,
-            helpers=None):
+            helpers=None, list_unresolved=True):
     """Fail the pipeline on any inversion not already named in REQUIRED_INPUTS.
 
     `covered` is the set of filenames REQUIRED_INPUTS already guards, so a known
     dependency that is correctly ordered AND guarded is not reported twice. An
     inversion is fatal whether or not it is covered -- being in REQUIRED_INPUTS
     means the failure is legible, not that the order is acceptable.
+
+    `list_unresolved=False` prints the COUNT but not the ten placeholder lines. It
+    exists for the case where none of the steps that own those placeholders is
+    being run -- an arms-only invocation of run.py -- because a warning that
+    appears on every single run, about steps the run does not touch, is training to
+    ignore the checker rather than information. The count still prints, so the
+    entries are never invisible; an INVERSION is fatal either way, since ordering
+    is a property of the pipeline and not of the selection.
     """
     inversions, unresolved, edges = analyse(pipeline, results_root, resolver, helpers)
     print(f"  pipeline order check: {len(edges)} resolved cross-step "
           f"dependencies, {len(unresolved)} unresolved, "
-          f"{len(inversions)} inversion(s)")
-    if verbose or unresolved:
+          f"{len(inversions)} inversion(s)"
+          + ("" if (verbose or list_unresolved) else "  [unresolved not listed: no "
+             "pipeline steps selected]"))
+    if verbose or (unresolved and list_unresolved):
         for label, scr, key in unresolved:
             d = key[0] or "?"
             print(f"    unresolved  {scr} -> {d}/metrics/{key[1]}"
