@@ -53,8 +53,25 @@ import nt_strategy
 import nt_attribution
 import nt_verify
 
-ARMS = [("v1", "invvol"), ("v2", "invvol"), ("v3", "provol"), ("v4", "provol")]
-UNIVERSES = ["n100", "mid"]
+from universes.registry import REGISTRY
+from arms.registry import ARMS as ARM_REGISTRY
+
+# BOTH REGISTRIES FEED THIS FILE, and it is the one place where that matters
+# most: this is the correctness gate, so a name here that disagreed with the name
+# the engine uses would verify the wrong thing and still print 92 of 92.
+#
+# ARMS pairs each arm with its SIZING rule only. Note v1/v2 share "invvol" and
+# v3/v4 share "provol" -- that is not a typo, it is the fact recorded in
+# KNOWN_ISSUES.md: the Nautilus port has no exposure mode and always uses
+# breadth, so the four arms are two configurations run twice. Taking sizing from
+# arms/registry.py rather than re-listing it means the gate cannot drift from the
+# definition the research engine uses.
+ARMS = [(a.name, a.sizing) for a in ARM_REGISTRY.values()]
+# ORDER IS LOAD-BEARING AND IS NOT registry.LIVE's ORDER. LIVE comes out in the
+# registry's declaration order (58, 74, mid, n100 -> mid, n100), while this
+# report -- like every other script here -- runs n100 first. Using LIVE swapped
+# the two blocks in the output. The order is therefore stated explicitly.
+UNIVERSES = [u.tag for u in (REGISTRY["n100"], REGISTRY["mid"])]
 
 
 def set_both(mode):

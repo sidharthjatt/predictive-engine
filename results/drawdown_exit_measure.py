@@ -76,6 +76,7 @@ import pandas as pd
 
 import config, config_mid, config_n100
 import test_exposure
+from universes.registry import REGISTRY
 from engine_core import precompute, metrics
 
 # ---------------------------------------------------------------- constants
@@ -90,11 +91,17 @@ OUT_CELLS = ROOT / "diagnostics" / "drawdown_exit_cells.csv"
 OUT_EVENTS = ROOT / "diagnostics" / "drawdown_exit_events.csv"
 OUT_EQUITY = ROOT / "diagnostics" / "drawdown_exit_equity.csv"
 
+# The METRICS DIRECTORY and the SCORE PANEL paths come from
+# universes/registry.py -- the single definition. As in rebal_cadence_sweep.py,
+# the third element is the cache FILENAME rather than a full path, because load()
+# joins it to the metrics directory itself.
+#
+# The LABEL stays local: it is printed into diagnostics/drawdown_exit.txt.
+# Order is load-bearing -- the measurement is reported universe by universe.
+LABELS = {"n100": "NIFTY 100", "mid": "MIDCAP150"}
 UNIVERSES = {
-    "n100": ("NIFTY 100", config_n100.METRICS_DIR_N100, "v_n100_expanding_cache.csv",
-             "/tmp/v_n100_expanding.csv"),
-    "mid": ("MIDCAP150", config_mid.METRICS_DIR_MID, "v_mid_expanding_cache.csv",
-            "/tmp/v_mid_expanding.csv"),
+    u.tag: (LABELS[u.tag], u.metrics_dir, u.score_cache.name, str(u.score_tmp))
+    for u in (REGISTRY["n100"], REGISTRY["mid"])
 }
 
 # ------------------------------------------------------- the three patches

@@ -41,6 +41,7 @@ from engine_core import (HORIZON, PURGE, FEATS_V2, _fit_seed, precompute,
                          metrics)
 import test_exposure
 from test_exposure import backtest_exposure
+from universes.registry import REGISTRY
 from v34_common import ann_vol_pct
 
 SEEDS = [7, 42, 99, 1, 2, 3, 11, 22, 33, 101]
@@ -49,19 +50,20 @@ VOL_WIN = 60
 ARMS = [("v1", "invvol", "none"), ("v2", "invvol", "breadth"),
         ("v3", "provol", "none"), ("v4", "provol", "breadth")]
 
+# ALL FOUR PANEL PATHS, THE METRICS DIRECTORY AND THE SYMBOL LIST come from
+# universes/registry.py -- the single definition. This registry had the widest
+# key vocabulary of the nineteen (raw / raw_tmp / sc / sc_tmp / md / syms /
+# label); the facts behind those seven names are four paths, a directory and a
+# symbol list, and they are now named once.
+#
+# The LABEL stays local: it is printed into diagnostics/purge_fix_measure.txt.
+# Order is load-bearing -- the measurement is reported universe by universe.
+LABELS = {"n100": "NIFTY 100", "mid": "MIDCAP150"}
 UNIVERSES = {
-    "n100": {"raw": config_n100.METRICS_DIR_N100 / "raw_panel_n100_cache.csv",
-             "raw_tmp": "/tmp/raw_panel_n100_20.csv",
-             "sc": config_n100.METRICS_DIR_N100 / "v_n100_expanding_cache.csv",
-             "sc_tmp": "/tmp/v_n100_expanding.csv",
-             "md": config_n100.METRICS_DIR_N100,
-             "syms": lambda: set(config_n100.SYMBOLS_N100), "label": "NIFTY 100"},
-    "mid": {"raw": config_mid.METRICS_DIR_MID / "raw_panel_mid_cache.csv",
-            "raw_tmp": "/tmp/raw_panel_mid_20.csv",
-            "sc": config_mid.METRICS_DIR_MID / "v_mid_expanding_cache.csv",
-            "sc_tmp": "/tmp/v_mid_expanding.csv",
-            "md": config_mid.METRICS_DIR_MID,
-            "syms": lambda: set(config_mid.SYMBOLS_MID), "label": "MIDCAP150"},
+    u.tag: {"raw": u.raw_cache, "raw_tmp": str(u.raw_tmp),
+            "sc": u.score_cache, "sc_tmp": str(u.score_tmp),
+            "md": u.metrics_dir, "syms": u.symbols, "label": LABELS[u.tag]}
+    for u in (REGISTRY["n100"], REGISTRY["mid"])
 }
 
 

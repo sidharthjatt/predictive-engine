@@ -29,6 +29,8 @@ from nt_data import VENUE, load_universe
 sys.path.insert(0, str(ROOT / "results"))
 from qbeast_in_charges import (Broker, Exchange, Product, QbeastIndianFeeModel, Segment)
 from nt_strategy import PredictiveEngineStrategy
+from universes.registry import REGISTRY
+import paths
 
 # The same panel the reference engine uses. Feeding raw CSVs instead produced a
 # different union date index and therefore different momentum windows.
@@ -38,35 +40,24 @@ from nt_strategy import PredictiveEngineStrategy
 # universe is a registry entry, not a new code path -- the strategy, the venue and
 # the verification are shared, so whatever is proven on one is proven the same way
 # on the others.
+# PATHS COME FROM universes/registry.py -- the single definition, shared with the
+# research side. This registry was the most complete of the nineteen: it is the
+# only one that knew all FOUR universes, and its per-universe backtest END DATE
+# lived nowhere else in the repository. That end date is now u.nautilus_end, so
+# the port and the research scripts read one definition.
+#
+# WHY THE END DATES DIFFER, PRESERVED EXACTLY:
+#   58  2026-06-08  frozen -- retired universe, its published numbers must not move
+#   74  2025-12-23  frozen -- likewise
+#   mid/n100        config.BT_END_DATE; the constituents stop before the index does,
+#                   so the panel and therefore the backtest stop there too.
 UNIVERSES = {
-    "58":  {"cache": ROOT / "results" / "metrics" / "v5_expanding_cache.csv",
-            "scores": "scores_58.parquet",
-            "metrics": ROOT / "results" / "metrics",
-            # WINDOW FROZEN: retired universe -- the 58 is retired and its published
-            # numbers must not move, so this end date is deliberately unchanged.
-            "tag": "58", "end": "2026-06-08"},
-    "74":  {"cache": ROOT / "results74" / "metrics" / "v74_expanding_cache.csv",
-            "scores": "scores_74.parquet",
-            "metrics": ROOT / "results74" / "metrics",
-            # WINDOW FROZEN: retired universe -- the 74 is retired and its published
-            # numbers must not move, so this end date is deliberately unchanged.
-            "tag": "74", "end": "2025-12-23"},
-    "mid": {"cache": ROOT / "results_mid" / "metrics" / "v_mid_expanding_cache.csv",
-            "scores": "scores_mid.parquet",
-            "metrics": ROOT / "results_mid" / "metrics",
-            "tag": "mid", "end": str(config.BT_END_DATE.date())},
-    # Nifty 100 (fourth universe). Same shape as the others: only the paths and the
-    # end date differ, so every rule the port applies is unchanged.
-    #
-    # THE END DATE IS THE CONSTITUENTS', NOT THE INDEX'S. NIFTY100.csv runs to
-    # 2026-06-22, but the 99 constituent files stop at 2026-06-08, so the score
-    # panel and therefore the backtest stop there too. Setting this to the index's
-    # last date would ask the port to trade 14 days for which no constituent price
-    # exists, and would put it out of step with the reference engine's own window.
-    "n100": {"cache": ROOT / "results_n100" / "metrics" / "v_n100_expanding_cache.csv",
-             "scores": "scores_n100.parquet",
-             "metrics": ROOT / "results_n100" / "metrics",
-             "tag": "n100", "end": str(config.BT_END_DATE.date())},
+    u.tag: {"cache": u.score_cache,
+            "scores": u.nautilus_scores,
+            "metrics": u.metrics_dir,
+            "tag": u.tag,
+            "end": u.nautilus_end}
+    for u in REGISTRY.values()
 }
 PRICE_CACHE = UNIVERSES["58"]["cache"]
 START_CAPITAL = 1_000_000

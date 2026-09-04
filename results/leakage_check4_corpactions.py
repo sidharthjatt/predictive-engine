@@ -36,11 +36,16 @@ import numpy as np
 import pandas as pd
 import config, config_mid, config_n100
 from features_v2 import EXTREME_RET_HI, EXTREME_RET_LO
+from universes.registry import REGISTRY
 
-UNIVERSES = {
-    "n100": (config_n100.CONSTITUENTS_DIR_N100, "NIFTY 100"),
-    "mid": (config_mid.CONSTITUENTS_DIR_MID, "MIDCAP150"),
-}
+# The DATA DIRECTORY comes from universes/registry.py -- the single definition.
+# The LABEL stays local: it is printed into
+# diagnostics/leakage_check4_corpactions.txt, and the sibling scripts spell the
+# same two universes differently. Labels are presentation; paths are facts.
+# Order is load-bearing -- the report is written universe by universe.
+LABELS = {"n100": "NIFTY 100", "mid": "MIDCAP150"}
+UNIVERSES = {u.tag: (u.data_dir, LABELS[u.tag])
+             for u in (REGISTRY["n100"], REGISTRY["mid"])}
 
 
 def run(uni, d, label, W):

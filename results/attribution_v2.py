@@ -38,12 +38,18 @@ import datetime as _dt
 import numpy as np
 import pandas as pd
 import config, config_mid, config_n100
+from universes.registry import REGISTRY
 
 START = 1_000_000
-UNIVERSES = {
-    "n100": (config_n100.METRICS_DIR_N100, "n100", "NIFTY 100"),
-    "mid": (config_mid.METRICS_DIR_MID, "mid", "MIDCAP150"),
-}
+# The METRICS DIRECTORY and TAG come from universes/registry.py -- the single
+# definition. The tag was previously repeated as a literal beside the key that
+# already held it; it is now u.tag, so the two cannot disagree.
+#
+# The LABEL stays local: it is printed into diagnostics/attribution_v2.txt.
+# Order is load-bearing -- the report is written universe by universe.
+LABELS = {"n100": "NIFTY 100", "mid": "MIDCAP150"}
+UNIVERSES = {u.tag: (u.metrics_dir, u.tag, LABELS[u.tag])
+             for u in (REGISTRY["n100"], REGISTRY["mid"])}
 
 
 def round_trips(df):

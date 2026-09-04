@@ -34,20 +34,30 @@ sys.path.insert(0, str(ROOT)); sys.path.insert(0, str(ROOT / "results"))
 import numpy as np
 import pandas as pd
 import config, config_mid, config_n100
+from universes.registry import REGISTRY
+import paths
 
 SLIPPAGE = 0.0015
 TICK = 0.05
 TOL = 0.005    # 2-decimal storage; see tick() -- STRICTER than the spec's half-tick
 
+# EVERY PATH HERE COMES FROM universes/registry.py AND paths.py -- the single
+# definitions. This entry previously spelled out four paths per universe, two of
+# which (the Nautilus fills report and the daily_decisions artefact) encode
+# layout rules that live in paths.py: reports are one directory per universe, and
+# the daily-audit family puts the tag in the filename as well as the directory.
+#
+# The LABEL stays local: it is printed into
+# diagnostics/checkB_execution_timing.txt. Labels are presentation; paths are
+# facts. Order is load-bearing -- the report is written universe by universe.
+LABELS = {"n100": "NIFTY 100", "mid": "MIDCAP150"}
 UNIVERSES = {
-    "n100": (ROOT / "nautilus" / "reports" / "n100" / "fills.csv",
-             config_n100.METRICS_DIR_N100 / "v_n100_expanding_cache.csv",
-             "/tmp/v_n100_expanding.csv",
-             config_n100.METRICS_DIR_N100 / "daily_decisions_n100.csv", "NIFTY 100"),
-    "mid": (ROOT / "nautilus" / "reports" / "mid" / "fills.csv",
-            config_mid.METRICS_DIR_MID / "v_mid_expanding_cache.csv",
-            "/tmp/v_mid_expanding.csv",
-            config_mid.METRICS_DIR_MID / "daily_decisions_mid.csv", "MIDCAP150"),
+    u.tag: (paths.nautilus_reports(u) / "fills.csv",
+            u.score_cache,
+            str(u.score_tmp),
+            paths.tagged_artefact(u, "daily_decisions"),
+            LABELS[u.tag])
+    for u in (REGISTRY["n100"], REGISTRY["mid"])
 }
 
 

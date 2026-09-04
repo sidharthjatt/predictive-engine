@@ -88,6 +88,7 @@ import config_n100
 from engine_core import precompute
 import test_exposure
 from test_exposure import backtest_exposure
+from universes.registry import REGISTRY
 from v34_common import arm_row, held_and_skips, _git_state
 
 VOL_WIN = 60
@@ -95,21 +96,20 @@ BUFFER_PINNED = 16
 INCUMBENT, CHALLENGER = 8, 12
 HALVES = [("2019-2022", 2019, 2022), ("2023-2026", 2023, 2026)]
 
+# PATHS AND SYMBOLS COME FROM universes/registry.py -- the single definition.
+# The LABEL stays local: this file's spelling is printed into
+# diagnostics/topn_verdict.txt, which is committed and cited by EXPERIMENTS.md,
+# and the sibling scripts spell the same two universes two other ways. Labels are
+# presentation; paths are facts.
+#
+# Order is load-bearing: run_universe() is called per universe in this order and
+# the combined verdict accumulates in that sequence.
+LABELS = {"n100": "NIFTY 100", "mid": "MIDCAP150"}
 UNIVERSES = {
-    "n100": {
-        "perm": config_n100.METRICS_DIR_N100 / "v_n100_expanding_cache.csv",
-        "tmp": "/tmp/v_n100_expanding.csv",
-        "metrics_dir": config_n100.METRICS_DIR_N100,
-        "symbols": lambda: set(config_n100.SYMBOLS_N100),
-        "label": "NIFTY 100",
-    },
-    "mid": {
-        "perm": config_mid.METRICS_DIR_MID / "v_mid_expanding_cache.csv",
-        "tmp": "/tmp/v_mid_expanding.csv",
-        "metrics_dir": config_mid.METRICS_DIR_MID,
-        "symbols": lambda: set(config_mid.SYMBOLS_MID),
-        "label": "MIDCAP150",
-    },
+    u.tag: {"perm": u.score_cache, "tmp": str(u.score_tmp),
+            "metrics_dir": u.metrics_dir, "symbols": u.symbols,
+            "label": LABELS[u.tag]}
+    for u in (REGISTRY["n100"], REGISTRY["mid"])
 }
 
 

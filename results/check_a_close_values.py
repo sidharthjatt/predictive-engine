@@ -31,11 +31,15 @@ import numpy as np
 import pandas as pd
 import config, config_mid, config_n100
 from features_v2 import EXTREME_RET_HI, EXTREME_RET_LO
+from universes.registry import REGISTRY
 
-UNIVERSES = {
-    "n100": (config_n100.CONSTITUENTS_DIR_N100, config_n100.METRICS_DIR_N100, "NIFTY 100"),
-    "mid": (config_mid.CONSTITUENTS_DIR_MID, config_mid.METRICS_DIR_MID, "MIDCAP150"),
-}
+# The DATA DIRECTORY and METRICS DIRECTORY come from universes/registry.py --
+# the single definition. The LABEL stays local: it is printed into
+# diagnostics/checkA_close_bad_values.txt. Labels are presentation; paths are
+# facts. Order is load-bearing -- the report is written universe by universe.
+LABELS = {"n100": "NIFTY 100", "mid": "MIDCAP150"}
+UNIVERSES = {u.tag: (u.data_dir, u.metrics_dir, LABELS[u.tag])
+             for u in (REGISTRY["n100"], REGISTRY["mid"])}
 TOL = 1e-9
 
 

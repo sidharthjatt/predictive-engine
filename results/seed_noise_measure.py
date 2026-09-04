@@ -43,6 +43,7 @@ import config, config_mid, config_n100
 from engine_core import FEATS_V2, _fit_seed, PURGE, precompute, metrics
 import test_exposure
 from test_exposure import backtest_exposure
+from universes.registry import REGISTRY
 from v34_common import ann_vol_pct
 
 PROD_SEEDS = [7, 42, 99, 1, 2, 3, 11, 22, 33, 101]
@@ -54,15 +55,16 @@ VOL_WIN = 60
 ARMS = [("v1", "invvol", "none"), ("v2", "invvol", "breadth")]
 REQUIRED_RAW = ["date", "symbol", "open", "close", "y_rank", "scorable"]
 
+# THE RAW PANEL PATHS, THE METRICS DIRECTORY AND THE SYMBOL LIST come from
+# universes/registry.py -- the single definition. The LABEL stays local: it is
+# printed into diagnostics/seed_noise.txt, and this file uses the
+# "NIFTY 100"/"MIDCAP150" spelling rather than the registry's descriptive one.
+# Order is load-bearing -- the report is written universe by universe.
+LABELS = {"n100": "NIFTY 100", "mid": "MIDCAP150"}
 UNIVERSES = {
-    "n100": {"raw": config_n100.METRICS_DIR_N100 / "raw_panel_n100_cache.csv",
-             "raw_tmp": "/tmp/raw_panel_n100_20.csv",
-             "md": config_n100.METRICS_DIR_N100,
-             "syms": lambda: set(config_n100.SYMBOLS_N100), "label": "NIFTY 100"},
-    "mid": {"raw": config_mid.METRICS_DIR_MID / "raw_panel_mid_cache.csv",
-            "raw_tmp": "/tmp/raw_panel_mid_20.csv",
-            "md": config_mid.METRICS_DIR_MID,
-            "syms": lambda: set(config_mid.SYMBOLS_MID), "label": "MIDCAP150"},
+    u.tag: {"raw": u.raw_cache, "raw_tmp": str(u.raw_tmp),
+            "md": u.metrics_dir, "syms": u.symbols, "label": LABELS[u.tag]}
+    for u in (REGISTRY["n100"], REGISTRY["mid"])
 }
 
 
