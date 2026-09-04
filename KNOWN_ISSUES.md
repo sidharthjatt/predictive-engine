@@ -759,3 +759,58 @@ invisible while the shorter panel hides it. The other `BT_START, BT_END = 2019,
 `validate_breadth.py`, `make_combined_all.py`, `make_stock_chart.py`,
 `make_per_stock_charts.py` -- all serve the 58, whose panel really does end
 2026-06-08, and are correct as they stand. This was checked rather than assumed.
+
+---
+
+## The Nautilus gate verified four arms it only had two of -- FIXED 2026-09-04
+
+Found 2026-09-04 while surveying the port. **The gate now passes on four genuinely
+distinct configurations; before this it did not have four to test.**
+
+`nt_strategy.py` and `nt_attribution.py` both computed exposure as
+`max(0, min(1, breadth))` unconditionally. There was no exposure mode, so
+`mode="none"` -- the always-invested rule behind v1 and v3 -- could not be
+expressed on the port side at all. `verify_v34_arms.ARMS` listed only the SIZING
+rule, pairing v1 with v2 ("invvol") and v3 with v4 ("provol"), and ran each pair
+twice. It printed `92 of 92 VERIFIED` for four arms while exercising two.
+
+**The safety check in place could not catch it.** It set `nt_strategy.SIZING` and
+`nt_attribution.SIZING` and asserted both globals held the intended value. That
+proves the global was SET, never that the run USED it -- and the ignored exposure
+mode is exactly the case that slips through: every sizing assert passed while the
+mode was discarded.
+
+**A NOTE ON PROVENANCE.** Comments in `verify_v34_arms.py` and `arms/registry.py`
+cited "the fact recorded in KNOWN_ISSUES.md" for this. It was not recorded here --
+the citation was written on the assumption it had been. This entry is that record,
+created after the fact.
+
+**What changed.** `sizing` and `mode` are passed as arguments --
+`PredictiveEngineStrategy.configure(sizing=, mode=)` and
+`nt_attribution.run(sizing=, mode=)` -- with the module globals removed. Defaults
+are `invvol`/`breadth`, so every previous caller behaves exactly as before. Both
+sides RECORD what they actually applied, on the branch actually taken, and the gate
+asserts against that recording rather than against a global it set beforehand. An
+arm whose configuration never reaches the decision point now fails.
+
+**The 8-of-8 pass is real, and was checked for vacuity.** A port-versus-reference
+gate would still pass if both sides changed identically and mode did nothing, so
+v1 was measured against v2 directly on the n100:
+
+| | v1 (`mode="none"`) | v2 (`mode="breadth"`) |
+|---|---|---|
+| mean exposure | **1.000000** | **0.565910** |
+| final equity | Rs 9,197,640 | Rs 5,470,189 |
+| orders submitted | 819 | 978 |
+| rebalances holding identical positions | **1 of 92** | |
+
+v1 and v2 are different portfolios on 91 of 92 rebalances. Both universes verify
+92 of 92 on all four arms.
+
+**ONE DIVERGENCE IS DOCUMENTED RATHER THAN FIXED.** `nt_strategy.rebalance()`
+returns early when no symbol has momentum data (`if not mom: return`). Under
+`mode="none"` the research engine never consults momentum, so on such a date it
+would rebalance where the port skips. With `WARMUP_DAYS = 200` the case is not
+expected to arise. The guard was left untouched deliberately: changing it would
+change WHEN rebalances happen, which is a larger change than adding the exposure
+mode, and it would have been made while changing something else.

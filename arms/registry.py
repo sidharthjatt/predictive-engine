@@ -9,12 +9,14 @@ WHY THIS IS SHORT, AND WHY IT STILL EARNS A FILE
     duplication to collapse here.
 
     What IS scattered is the NAMING. "v1".."v4" appear as label strings in
-    v34_common, as a list of (name, sizing) pairs in verify_v34_arms, and as
-    column names in v34_equity.csv -- and those three do not agree. Notably
-    verify_v34_arms.ARMS pairs v1 and v2 with the SAME sizing and v3 and v4 with
-    the same sizing, because the Nautilus port has no exposure mode at all and
-    always uses breadth. So the port's "four arms" are two configurations run
-    twice. See KNOWN_ISSUES.md.
+    v34_common, as a list of pairs in verify_v34_arms, and as column names in
+    v34_equity.csv -- and those three did not agree.
+
+    Until 2026-09-04 verify_v34_arms.ARMS listed only SIZING, pairing v1 with v2
+    and v3 with v4, because the Nautilus port had no exposure mode at all and
+    always ran at breadth: its "four arms" were two configurations run twice. The
+    port now takes mode, so the four arms are four arms and this module is the one
+    definition all of them read.
 
     This module names the four arms once, in terms of the two parameters that
     actually produce them, so a caller cannot invent a fifth spelling.

@@ -15,8 +15,13 @@ WHY THIS EXISTS
         test_exposure.TOP_N     = top_n        validate_topn.py:154
         test_exposure.BUFFER    = BUFFER_PINNED
         test_exposure.REBAL     = rebal        rebal_cadence_sweep.py:172
-        nt_strategy.set_sizing("provol")       verify_v34_arms.py
-        nt_attribution.set_sizing("provol")
+        nt_strategy / nt_attribution           -- SIZING was a global here too until
+                                                  2026-09-04; both now take sizing
+                                                  and mode as arguments, so there is
+                                                  nothing left to leak. The names stay
+                                                  in WATCHED below: hasattr skips them
+                                                  when absent, and a future global of
+                                                  the same name would be covered.
         nt_data.set_tick_size("0.01") / set_tick_mode("fixed") / set_depth_mode(...)
         survivorship.set_mode(...) / set_exit_policy(...)
 
