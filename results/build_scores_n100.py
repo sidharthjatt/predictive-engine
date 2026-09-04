@@ -25,30 +25,38 @@ from engine_core import build_panel, score_monthly, HORIZON
 from features_v2 import FEATS_V2
 import config_n100
 
-SEEDS = [7, 42, 99, 1, 2, 3, 11, 22, 33, 101]
-DATA_N100 = config_n100.ensure_constituents_dir()
 
-print(f"[1/2] Building raw panel for {len(config_n100.SYMBOLS_N100)} Nifty 100 stocks...",
-      flush=True)
-t0 = time.time()
-raw = build_panel(HORIZON, data_dir=DATA_N100)     # <-- constituents only
+def main():
+    """The step, as a function, so run.py can call it in process.
 
-got = set(raw["symbol"].unique())
-assert config_n100.INDEX_NAME_N100 not in got, \
-    "the index entered the panel as a tradable symbol"
-missing = set(config_n100.SYMBOLS_N100) - got
-print(f"    symbols in panel: {len(got)} of {len(config_n100.SYMBOLS_N100)}"
-      + (f" | dropped for insufficient history: {sorted(missing)}" if missing else ""))
+    IMPORT MUST NOT DO THE WORK. This whole body used to run at module level,
+    so importing this file started a 40-minute model fit as a side effect --
+    which is why the pipeline could only ever spawn it as a subprocess.
+    """
+    SEEDS = [7, 42, 99, 1, 2, 3, 11, 22, 33, 101]
+    DATA_N100 = config_n100.ensure_constituents_dir()
+    print(f"[1/2] Building raw panel for {len(config_n100.SYMBOLS_N100)} Nifty 100 stocks...",
+          flush=True)
+    t0 = time.time()
+    raw = build_panel(HORIZON, data_dir=DATA_N100)     # <-- constituents only
+    got = set(raw["symbol"].unique())
+    assert config_n100.INDEX_NAME_N100 not in got, \
+        "the index entered the panel as a tradable symbol"
+    missing = set(config_n100.SYMBOLS_N100) - got
+    print(f"    symbols in panel: {len(got)} of {len(config_n100.SYMBOLS_N100)}"
+          + (f" | dropped for insufficient history: {sorted(missing)}" if missing else ""))
+    keep = ["date", "symbol", "open", "close", "year", "y_rank", "scorable"] + FEATS_V2
+    raw = raw[keep]
+    raw.to_csv(f"/tmp/raw_panel_n100_{HORIZON}.csv", index=False)
+    print(f"    done {(time.time()-t0)/60:.1f} min, {len(raw):,} rows", flush=True)
+    print("[2/2] Monthly scoring, 10-seed ensemble (slow)...", flush=True)
+    t0 = time.time()
+    scored = score_monthly(raw, SEEDS)
+    scored[["date", "symbol", "open", "close", "score", "year"]].to_csv(
+        "/tmp/v_n100_expanding.csv", index=False)
+    print(f"    done {(time.time()-t0)/60:.1f} min", flush=True)
+    print(f"DONE -- /tmp/v_n100_expanding.csv ready ({len(got)} stocks)")
 
-keep = ["date", "symbol", "open", "close", "year", "y_rank", "scorable"] + FEATS_V2
-raw = raw[keep]
-raw.to_csv(f"/tmp/raw_panel_n100_{HORIZON}.csv", index=False)
-print(f"    done {(time.time()-t0)/60:.1f} min, {len(raw):,} rows", flush=True)
 
-print("[2/2] Monthly scoring, 10-seed ensemble (slow)...", flush=True)
-t0 = time.time()
-scored = score_monthly(raw, SEEDS)
-scored[["date", "symbol", "open", "close", "score", "year"]].to_csv(
-    "/tmp/v_n100_expanding.csv", index=False)
-print(f"    done {(time.time()-t0)/60:.1f} min", flush=True)
-print(f"DONE -- /tmp/v_n100_expanding.csv ready ({len(got)} stocks)")
+if __name__ == "__main__":
+    main()

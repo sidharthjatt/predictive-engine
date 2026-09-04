@@ -93,5 +93,15 @@ def run(tmp, perm, mdir, y_end, tag):
           f"({r['invested_pct']}%) | TOTAL Rs {r['total']:,.0f}")
 
 
-run("/tmp/v_mid_expanding.csv", "results_mid/metrics/v_mid_expanding_cache.csv",
-    config_mid.METRICS_DIR_MID, 2026, "mid")
+def main():
+    """The step, as a function, so run.py can call it in process.
+
+    IMPORT MUST NOT DO THE WORK. This call used to sit at module level, so
+    importing this file ran the whole audit as a side effect -- which is why the
+    pipeline could only ever spawn it as a subprocess.
+    """
+    run("/tmp/v_mid_expanding.csv", "results_mid/metrics/v_mid_expanding_cache.csv",
+        config_mid.METRICS_DIR_MID, 2026, "mid")
+
+if __name__ == "__main__":
+    main()
