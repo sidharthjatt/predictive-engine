@@ -35,15 +35,16 @@ import config, config_mid, config_n100
 from engine_core import precompute
 import test_exposure
 from test_exposure import backtest_exposure
+from universes.registry import REGISTRY
 
 VOL_WIN = 60
 
-UNIVERSES = {
-    "n100": (config_n100.METRICS_DIR_N100 / "v_n100_expanding_cache.csv",
-             "/tmp/v_n100_expanding.csv"),
-    "mid":  (config_mid.METRICS_DIR_MID / "v_mid_expanding_cache.csv",
-             "/tmp/v_mid_expanding.csv"),
-}
+# The SCORE PANEL paths, permanent and working, come from universes/registry.py
+# -- the single definition. This file carries no label of its own, so nothing is
+# kept local here. Order is load-bearing: the hash table is emitted universe by
+# universe and compared row for row against the previous run.
+UNIVERSES = {u.tag: (u.score_cache, str(u.score_tmp))
+             for u in (REGISTRY["n100"], REGISTRY["mid"])}
 
 ARMS = [("invvol", "none"), ("invvol", "breadth"),
         ("provol", "none"), ("provol", "breadth")]

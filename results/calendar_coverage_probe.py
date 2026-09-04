@@ -61,6 +61,7 @@ sys.path.insert(0, str(ROOT)); sys.path.insert(0, str(ROOT / "results"))
 import pandas as pd
 
 import config, config_mid, config_n100
+from universes.registry import REGISTRY
 
 TRACKED = ROOT / "data" / "nse_trading_calendar.csv"
 OUT = ROOT / "diagnostics" / "calendar_coverage_probe.txt"
@@ -72,10 +73,16 @@ COVERAGE_MIN = 0.50
 # The reported window, for the contrast between in-window and full-range results.
 WIN_LO, WIN_HI = pd.Timestamp("2019-01-01"), pd.Timestamp("2026-05-29")
 
-UNIVERSES = {
-    "n100": ("NIFTY 100", config_n100.CONSTITUENTS_DIR_N100),
-    "mid": ("MIDCAP150", config_mid.CONSTITUENTS_DIR_MID),
-}
+# The DATA DIRECTORY comes from universes/registry.py -- the single definition.
+# The LABEL stays local: it is printed into
+# diagnostics/calendar_coverage_probe.txt, and the sibling scripts spell the same
+# two universes differently. Labels are presentation; paths are facts.
+# NOTE the tuple order here is (label, dir), the reverse of the leakage checks'
+# (dir, label). That inconsistency is preserved rather than tidied, because
+# changing it would touch this file's unpacking for no behavioural gain.
+LABELS = {"n100": "NIFTY 100", "mid": "MIDCAP150"}
+UNIVERSES = {u.tag: (LABELS[u.tag], u.data_dir)
+             for u in (REGISTRY["n100"], REGISTRY["mid"])}
 
 
 def sha256(path):

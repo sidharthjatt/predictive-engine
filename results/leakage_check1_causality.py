@@ -29,14 +29,19 @@ import numpy as np
 import pandas as pd
 import config, config_mid, config_n100
 from features_v2 import FEATS_V2, add_stock_features, add_market_relative_features
+from universes.registry import REGISTRY
 
 N_DATES = 24
 PRICE_COLS = ["open", "high", "low", "close"]
 
-UNIVERSES = {
-    "n100": (config_n100.CONSTITUENTS_DIR_N100, "NIFTY 100"),
-    "mid": (config_mid.CONSTITUENTS_DIR_MID, "MIDCAP150"),
-}
+# The DATA DIRECTORY comes from universes/registry.py -- the single definition.
+# The LABEL stays local: this file's "NIFTY 100"/"MIDCAP150" spelling is printed
+# into diagnostics/leakage_check1_causality.txt, and the sibling scripts use two
+# other spellings for the same two universes. Labels are presentation; paths are
+# facts. Order is load-bearing -- the report is written universe by universe.
+LABELS = {"n100": "NIFTY 100", "mid": "MIDCAP150"}
+UNIVERSES = {u.tag: (u.data_dir, LABELS[u.tag])
+             for u in (REGISTRY["n100"], REGISTRY["mid"])}
 
 
 def load_raw(d):

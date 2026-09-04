@@ -83,6 +83,7 @@ from joblib import Parallel, delayed
 
 from engine_core import _fit_seed, HORIZON, PURGE, PURGE_EMBARGO
 from features_v2 import FEATS_V2
+from universes.registry import REGISTRY
 
 # The production ensemble. Duplicated in every build_scores*.py; see
 # KNOWN_ISSUES.md on that duplication.
@@ -90,23 +91,34 @@ SEEDS = [7, 42, 99, 1, 2, 3, 11, 22, 33, 101]
 
 OUT = ROOT / "diagnostics" / "purge_mode_probe.txt"
 
-# Months to probe, per universe. Chosen for cut divergence, in BOTH directions,
-# plus months whose cuts coincide, which the run itself classifies as controls.
+# PATHS COME FROM universes/registry.py -- the single definition. Before this,
+# every study script spelled the same four paths out again under its own key
+# names; nineteen of them did, under nine different vocabularies, with nothing
+# able to check one against another.
+#
+# THE LABEL IS NOT TAKEN FROM THE REGISTRY, DELIBERATELY. This file's spelling
+# ("NIFTY 100" / "MIDCAP150") is printed into diagnostics/purge_mode_probe.txt,
+# and the sibling scripts use two other spellings for the same two universes.
+# The registry carries the descriptive one. Sourcing labels from it would rewrite
+# committed artefacts -- diagnostics/topn_verdict.txt among them -- for a
+# cosmetic reason. Labels are presentation and stay local; paths are facts and
+# do not.
+#
+# MONTHS ARE THIS STUDY'S OWN DATA. Chosen for cut divergence, in BOTH
+# directions, plus months whose cuts coincide, which the run classifies as
+# controls. They describe the probe, not the universe.
+LABELS = {"n100": "NIFTY 100", "mid": "MIDCAP150"}
+MONTHS = {
+    "n100": ["2016-03", "2016-05", "2016-07", "2017-02", "2017-08",
+             "2017-12", "2018-04", "2019-02", "2019-05", "2019-09",
+             "2020-05", "2020-10", "2021-05", "2023-05", "2026-05"],
+    "mid": ["2017-08", "2019-02", "2019-09", "2020-05", "2023-05"],
+}
+# Order is load-bearing: the report is written universe by universe in this order.
 UNIVERSES = {
-    "n100": {
-        "label": "NIFTY 100",
-        "raw": ROOT / "results_n100" / "metrics" / "raw_panel_n100_cache.csv",
-        "scored": ROOT / "results_n100" / "metrics" / "v_n100_expanding_cache.csv",
-        "months": ["2016-03", "2016-05", "2016-07", "2017-02", "2017-08",
-                   "2017-12", "2018-04", "2019-02", "2019-05", "2019-09",
-                   "2020-05", "2020-10", "2021-05", "2023-05", "2026-05"],
-    },
-    "mid": {
-        "label": "MIDCAP150",
-        "raw": ROOT / "results_mid" / "metrics" / "raw_panel_mid_cache.csv",
-        "scored": ROOT / "results_mid" / "metrics" / "v_mid_expanding_cache.csv",
-        "months": ["2017-08", "2019-02", "2019-09", "2020-05", "2023-05"],
-    },
+    u.tag: {"label": LABELS[u.tag], "raw": u.raw_cache, "scored": u.score_cache,
+            "months": MONTHS[u.tag]}
+    for u in (REGISTRY["n100"], REGISTRY["mid"])
 }
 
 

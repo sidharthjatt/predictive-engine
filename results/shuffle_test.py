@@ -48,6 +48,7 @@ import config_n100
 from engine_core import precompute, metrics
 import test_exposure
 from test_exposure import backtest_exposure
+from universes.registry import REGISTRY
 from v34_common import ann_vol_pct, _git_state
 
 N_SHUFFLES = 100
@@ -57,15 +58,17 @@ ARMS = [("v1", "invvol", "none"), ("v2", "invvol", "breadth"),
         ("v3", "provol", "none"), ("v4", "provol", "breadth")]
 GATED_ARMS = ("v1", "v2")         # v2 ships; v1 is the clean selection test
 
+# PATHS AND SYMBOLS COME FROM universes/registry.py -- the single definition.
+# The LABEL stays local: it is printed into diagnostics/shuffle_verdict.txt and
+# written into shuffle_params.json, and the sibling scripts spell the same two
+# universes two other ways. Labels are presentation; paths are facts.
+# Order is load-bearing -- the verdict accumulates universe by universe.
+LABELS = {"n100": "NIFTY 100", "mid": "MIDCAP150"}
 UNIVERSES = {
-    "n100": {"perm": config_n100.METRICS_DIR_N100 / "v_n100_expanding_cache.csv",
-             "tmp": "/tmp/v_n100_expanding.csv",
-             "metrics_dir": config_n100.METRICS_DIR_N100,
-             "symbols": lambda: set(config_n100.SYMBOLS_N100), "label": "NIFTY 100"},
-    "mid": {"perm": config_mid.METRICS_DIR_MID / "v_mid_expanding_cache.csv",
-            "tmp": "/tmp/v_mid_expanding.csv",
-            "metrics_dir": config_mid.METRICS_DIR_MID,
-            "symbols": lambda: set(config_mid.SYMBOLS_MID), "label": "MIDCAP150"},
+    u.tag: {"perm": u.score_cache, "tmp": str(u.score_tmp),
+            "metrics_dir": u.metrics_dir, "symbols": u.symbols,
+            "label": LABELS[u.tag]}
+    for u in (REGISTRY["n100"], REGISTRY["mid"])
 }
 
 

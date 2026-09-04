@@ -65,6 +65,7 @@ import pandas as pd
 import config, config_mid, config_n100
 import test_exposure
 from test_exposure import backtest_exposure
+from universes.registry import REGISTRY
 from engine_core import precompute, metrics
 
 CADENCES = [5, 10, 20, 40, 60]
@@ -125,11 +126,17 @@ OUT_EQUITY = ROOT / "diagnostics" / "rebal_cadence_equity.csv"
 AUDIT_DIR = ROOT / "diagnostics" / "rebal_cadence_audit"
 AUDIT_KEYS = ("holdings", "summary", "ranking", "decisions", "trades", "skipped")
 
+# The METRICS DIRECTORY and the SCORE PANEL paths come from
+# universes/registry.py -- the single definition. Note the third element is the
+# cache FILENAME, not a full path: this file joins it to the metrics directory
+# itself, so it is taken as u.score_cache.name rather than re-spelled.
+#
+# The LABEL stays local: it is printed into diagnostics/rebal_cadence_sweep.txt.
+# Order is load-bearing -- the sweep is reported universe by universe.
+LABELS = {"n100": "NIFTY 100", "mid": "MIDCAP150"}
 UNIVERSES = {
-    "n100": ("NIFTY 100", config_n100.METRICS_DIR_N100, "v_n100_expanding_cache.csv",
-             "/tmp/v_n100_expanding.csv"),
-    "mid": ("MIDCAP150", config_mid.METRICS_DIR_MID, "v_mid_expanding_cache.csv",
-            "/tmp/v_mid_expanding.csv"),
+    u.tag: (LABELS[u.tag], u.metrics_dir, u.score_cache.name, str(u.score_tmp))
+    for u in (REGISTRY["n100"], REGISTRY["mid"])
 }
 
 

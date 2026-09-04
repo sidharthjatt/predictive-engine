@@ -74,23 +74,21 @@ import config
 from engine_core import (precompute, metrics, score_monthly, HORIZON, VOL_WIN,
                          START_CAPITAL)
 from test_exposure import backtest_exposure
+from universes.registry import REGISTRY
 
 # Date window from config.py, NOT engine_core's year ints -- see config.py.
 BT_START_DATE, BT_END_DATE = config.BT_START_DATE, config.BT_END_DATE
 
+# ALL FOUR PANEL PATHS AND THE METRICS DIRECTORY come from
+# universes/registry.py -- the single definition. The LABEL stays local; this
+# file uses the "Nifty 100"/"MidCap150" spelling, and it is written into
+# breadth_live_params.json as well as printed, so it must not move.
+LABELS = {"n100": "Nifty 100", "mid": "MidCap150"}
 UNIVERSES = {
-    "n100": {"score_perm": ROOT/"results_n100"/"metrics"/"v_n100_expanding_cache.csv",
-             "score_tmp":  "/tmp/v_n100_expanding.csv",
-             "raw_perm":   ROOT/"results_n100"/"metrics"/"raw_panel_n100_cache.csv",
-             "raw_tmp":    f"/tmp/raw_panel_n100_{HORIZON}.csv",
-             "metrics":    ROOT/"results_n100"/"metrics",
-             "label":      "Nifty 100"},
-    "mid":  {"score_perm": ROOT/"results_mid"/"metrics"/"v_mid_expanding_cache.csv",
-             "score_tmp":  "/tmp/v_mid_expanding.csv",
-             "raw_perm":   ROOT/"results_mid"/"metrics"/"raw_panel_mid_cache.csv",
-             "raw_tmp":    f"/tmp/raw_panel_mid_{HORIZON}.csv",
-             "metrics":    ROOT/"results_mid"/"metrics",
-             "label":      "MidCap150"},
+    u.tag: {"score_perm": u.score_cache, "score_tmp": str(u.score_tmp),
+            "raw_perm": u.raw_cache, "raw_tmp": str(u.raw_tmp),
+            "metrics": u.metrics_dir, "label": LABELS[u.tag]}
+    for u in (REGISTRY["n100"], REGISTRY["mid"])
 }
 
 # Verbatim from results/validate_breadth.py. Not reordered, not extended.

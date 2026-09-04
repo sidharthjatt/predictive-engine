@@ -71,20 +71,21 @@ sys.path.insert(0, str(ROOT / "results"))
 import config
 from engine_core import (backtest, precompute, metrics, score_monthly,
                          TOP_N, START_CAPITAL, HORIZON)
+from universes.registry import REGISTRY
 # Date window from config.py, NOT engine_core's year ints -- see config.py.
 BT_START_DATE, BT_END_DATE = config.BT_START_DATE, config.BT_END_DATE
 
+# ALL FOUR PANEL PATHS come from universes/registry.py -- the single definition.
+# The LABEL stays local, and note this file spells it "Nifty 100"/"MidCap150"
+# where most of the others use "NIFTY 100"/"MIDCAP150" -- a third spelling of the
+# same two universes. That is exactly why labels are not sourced from the
+# registry: unifying them would rewrite committed artefacts.
+LABELS = {"n100": "Nifty 100", "mid": "MidCap150"}
 UNIVERSES = {
-    "n100": {"score_perm": ROOT/"results_n100"/"metrics"/"v_n100_expanding_cache.csv",
-             "score_tmp":  "/tmp/v_n100_expanding.csv",
-             "raw_perm":   ROOT/"results_n100"/"metrics"/"raw_panel_n100_cache.csv",
-             "raw_tmp":    f"/tmp/raw_panel_n100_{HORIZON}.csv",
-             "label":      "Nifty 100"},
-    "mid":  {"score_perm": ROOT/"results_mid"/"metrics"/"v_mid_expanding_cache.csv",
-             "score_tmp":  "/tmp/v_mid_expanding.csv",
-             "raw_perm":   ROOT/"results_mid"/"metrics"/"raw_panel_mid_cache.csv",
-             "raw_tmp":    f"/tmp/raw_panel_mid_{HORIZON}.csv",
-             "label":      "MidCap150"},
+    u.tag: {"score_perm": u.score_cache, "score_tmp": str(u.score_tmp),
+            "raw_perm": u.raw_cache, "raw_tmp": str(u.raw_tmp),
+            "label": LABELS[u.tag]}
+    for u in (REGISTRY["n100"], REGISTRY["mid"])
 }
 
 # Verbatim from engine_core.py:506 and :536 and :555. Not tuned, not reordered.
