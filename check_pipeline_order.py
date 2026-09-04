@@ -59,7 +59,8 @@ ROOT = Path(__file__).resolve().parent
 WRITE_CALL = re.compile(r'\b(to_csv|savefig|write_text|to_parquet|to_json)\s*\(')
 # Either `M / "x.csv"` (a variable bound above) or the dotted form used inline,
 # `config74.METRICS_DIR_74 / "x.csv"`. The dotted form is what make_cash_series.py
-# and make_stats_both.py use, and missing it left real edges unresolved.
+# and the since-deleted make_stats_both.py used, and missing it left real edges
+# unresolved.
 PATH_EXPR = re.compile(
     r'(?:(config(?:74|_mid|_n100)?)\.)?(\w+)\s*/\s*f?["\']'
     r'([A-Za-z0-9_.\-]*(?:\{\w+\}[A-Za-z0-9_.\-]*)*'
@@ -146,20 +147,32 @@ def _scan(script_path):
     return writes, reads, unresolved
 
 
-def analyse(pipeline, results_root=None):
+def analyse(pipeline, results_root=None, resolver=None):
     """pipeline: [(step_label, script_filename)] in execution order.
 
     -> (inversions, unresolved, edges) where an inversion is
        (step, script, dirkey, filename, [producing steps, all later]).
+
+    `resolver` maps a script name to its path. It exists because the retired 58/74
+    steps moved to frozen/ while the live ones stayed in results/, so a single root
+    no longer locates every step. run_all.py passes its own script_path() so the
+    checker and the runner cannot disagree about where a step lives.
+
+    WHY THAT MATTERS MORE THAN IT LOOKS. The loop below SKIPS a script whose path
+    does not exist. Without a shared resolver, moving a file would not fail the
+    check -- it would quietly drop that file from the analysis and still report
+    success, which is the exact failure mode this module was written to catch.
     """
     R = (results_root or ROOT / "results")
     order = {scr: i for i, (_, scr) in enumerate(pipeline)}
     step_of = {scr: label for label, scr in pipeline}
 
     W, Rd, U = {}, {}, {}
+    missing = []
     for label, scr in pipeline:
-        p = R / scr
+        p = resolver(scr) if resolver else R / scr
         if not p.exists():
+            missing.append((label, scr, str(p)))
             continue
         W[scr], Rd[scr], U[scr] = _scan(p)
 
@@ -186,10 +199,17 @@ def analyse(pipeline, results_root=None):
                                    [f"{step_of[s]} {s}" for s in later]))
         for key in sorted(U.get(scr, ())):
             unresolved.append((label, scr, key))
+    if missing:
+        print("\n" + "!" * 88)
+        print("PIPELINE ORDER CHECK -- these steps were NOT analysed: their files")
+        print("were not found at the resolved path. The check below does NOT cover them.")
+        for label, scr, path in missing:
+            print(f"    {label:<10} {scr:<28} looked in {path}")
+        print("!" * 88, flush=True)
     return inversions, unresolved, edges
 
 
-def enforce(pipeline, covered, results_root=None, verbose=False):
+def enforce(pipeline, covered, results_root=None, verbose=False, resolver=None):
     """Fail the pipeline on any inversion not already named in REQUIRED_INPUTS.
 
     `covered` is the set of filenames REQUIRED_INPUTS already guards, so a known
@@ -197,7 +217,7 @@ def enforce(pipeline, covered, results_root=None, verbose=False):
     inversion is fatal whether or not it is covered -- being in REQUIRED_INPUTS
     means the failure is legible, not that the order is acceptable.
     """
-    inversions, unresolved, edges = analyse(pipeline, results_root)
+    inversions, unresolved, edges = analyse(pipeline, results_root, resolver)
     print(f"  pipeline order check: {len(edges)} resolved cross-step "
           f"dependencies, {len(unresolved)} unresolved, "
           f"{len(inversions)} inversion(s)")

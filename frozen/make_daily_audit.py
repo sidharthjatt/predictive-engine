@@ -16,8 +16,11 @@ import sys, warnings
 from pathlib import Path
 import numpy as np, pandas as pd
 warnings.filterwarnings("ignore")
-sys.path.insert(0, str(Path(__file__).resolve().parent))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "results"))
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from _frozen_guard import guard as _frozen_guard
+_frozen_guard("58/74")   # refuses unless ALLOW_FROZEN_WRITE=1; run_all.py sets it
 import config, config74
 from engine_core import precompute
 from test_exposure import backtest_exposure
