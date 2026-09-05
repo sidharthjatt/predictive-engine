@@ -1892,46 +1892,52 @@ code reads*.
 
 ---
 
-## A full run no longer refreshes chart_COMBINED_n100_mid.png
+## The combined chart is per-selection, and the published pair chart is always drawn
 
 Recorded 2026-09-06, when `make_combined_n100_mid.py` became
 `make_combined_universes.py` and started comparing whichever universes the run
 selected instead of a hardcoded pair.
 
-**The behaviour change, stated plainly.** The combined chart's filename is derived
-from the selection, so:
+**What each selection produces:**
 
-    --universe n100,mid   ->  chart_COMBINED_n100_mid.png     (the published figure)
-    --universe all        ->  chart_COMBINED_n100_mid_58_74.png
-    --universe mid,58     ->  chart_COMBINED_mid_58.png
-    --universe mid        ->  nothing; one universe is not a comparison
+    --universe mid          nothing; one universe is not a comparison
+    --universe mid,58       chart_COMBINED_mid_58.png
+    --universe n100,mid     chart_COMBINED_n100_mid.png                 (one file)
+    --universe n100,mid,58  chart_COMBINED_n100_mid_58.png  AND  chart_COMBINED_n100_mid.png
+    --universe all          chart_COMBINED_n100_mid_58_74.png  AND  chart_COMBINED_n100_mid.png
 
-`--universe all` is the default, and it used to write
-`chart_COMBINED_n100_mid.png`. It now writes the four-universe file instead. **The
-two-universe figure is not overwritten, not deleted, and not refreshed** -- it is
-simply not what a four-universe selection produces.
+**TWO RULES, NOT ONE.** The N-way chart answers "how do the selected universes
+compare" and its filename names exactly the selection. The n100+mid pair chart
+answers a different, standing question -- "how do the two live universes compare"
+-- and it is the figure `docs/README.md` embeds and the top-level README displays.
+It is refreshed whenever BOTH its universes are in the selection, not only when
+they are the whole of it, because that second question does not stop being asked
+because a retired universe was also run.
 
-**THE PUBLISHED FIGURE ITSELF DID NOT MOVE.** `--universe n100,mid` reproduces
-`chart_COMBINED_n100_mid.png` byte for byte against the pre-change baseline;
-verified as a file comparison, twice, in the session that made the change. What
-changed is which invocation produces it, not what it contains.
+**AN INTERMEDIATE VERSION GOT THIS WRONG AND IT IS WORTH RECORDING.** For one
+commit, `--universe all` wrote only the four-universe chart, on the reasoning that
+"exactly one chart across exactly the selection" was the whole rule. That left the
+docs copy stale after every full run with nothing saying so -- the file was not
+overwritten with different numbers, it simply stopped being written, which is the
+harder failure to notice. The fix was not to choose between the two charts but to
+recognise they answer different questions.
 
-**Why this is a trap.** `docs/README.md` embeds the two-universe chart, and the
-project's habit is to run `--universe all`. After such a run the docs copy is stale
-and nothing says so, because the file it points at was not touched rather than
-rewritten with different numbers. `docs/README.md` now carries this warning next to
-the table; regenerate that figure with `--universe n100,mid`.
+**At N == 2 the pair chart is not drawn twice.** When the selection IS n100+mid,
+the N-way chart already writes exactly that file; the extra pass is skipped rather
+than rendering the same figure to the same path.
 
-**Not resolved by choosing for the reader.** Making `--universe all` emit both the
-four-universe chart and the n100+mid one would contradict the rule the step is
-built on -- one comparison across exactly the selected set -- and would put a file
-on disk that no selection asked for. Recorded instead.
+**BOTH CHARTS COME FROM THE SAME LOADED ROWS**, so they cannot disagree about a
+number, and the pair chart's subtitle is derived from the universes ON THE FIGURE
+rather than from the selection. That is what makes it reproducible: "58 and 74 are
+out of scope and are not plotted" does not change depending on whether 58 and 74
+also ran. Verified: `chart_COMBINED_n100_mid.png` is byte-identical to the
+pre-change baseline under `--universe all`, `--universe n100,mid,58` and
+`--universe n100,mid` alike.
 
-**Caveat on the byte-identity claim above.** It is a SAME-SESSION result, and the
-next entry records that this specific PNG has drifted by two pixels of height
-ACROSS sessions on identical inputs. The comparison here is therefore valid against
-that known limit and no stronger: it shows the rename and the genericisation
-changed nothing, not that the file is reproducible next month.
+**Caveat on every byte-identity claim above.** They are SAME-SESSION results, and
+the next entry records that this specific PNG has drifted by two pixels of height
+ACROSS sessions on identical inputs. The comparisons are valid against that known
+limit and no stronger.
 
 ## chart_COMBINED_n100_mid.png is not byte-reproducible across sessions
 
