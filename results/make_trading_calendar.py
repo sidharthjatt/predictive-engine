@@ -29,7 +29,6 @@ DERIVED FROM THE RAW FILES, NOT THE BUILT PANEL
 Run: python3 results/make_trading_calendar.py
 """
 import sys
-from datetime import datetime
 from pathlib import Path
 
 import pandas as pd
@@ -85,8 +84,23 @@ def main():
 
     OUT.parent.mkdir(parents=True, exist_ok=True)
     with OUT.open("w") as fh:
+        # NO TIMESTAMP IN THIS HEADER, DELIBERATELY.
+        #   This artefact is TRACKED in git, unlike results*/metrics/. A
+        #   `generated_at: <now>` line made it a different file after every single
+        #   pipeline run while all 6,574 dates stayed identical, so `git status`
+        #   was never clean and the one line that could ever signal a real change
+        #   was buried in noise that fired every time.
+        #
+        #   The file is now a pure function of its inputs: same raw CSVs in, same
+        #   bytes out. When it changes, the calendar changed. When it was
+        #   generated is what git already records, more reliably than the file
+        #   could say about itself.
+        #
+        #   This also sharpens calendar_coverage_probe.py:132/251, which sha256s
+        #   this file before and after its run and reports TRACKED CALENDAR
+        #   UNCHANGED BY THIS RUN. That check could previously have failed on a
+        #   timestamp alone.
         fh.write("# NSE trading calendar, derived artefact -- do not edit by hand.\n")
-        fh.write(f"# generated_at: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
         fh.write(f"# generated_by: results/make_trading_calendar.py\n")
         fh.write(f"# derived_from: union of trading dates across {n_files} raw CSVs in\n")
         fh.write(f"#               {SOURCE_DIR.relative_to(ROOT)}  (the 58 universe)\n")

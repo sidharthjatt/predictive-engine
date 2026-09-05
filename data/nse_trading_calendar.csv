@@ -1,5 +1,4 @@
 # NSE trading calendar, derived artefact -- do not edit by hand.
-# generated_at: 2026-08-23 14:29:08
 # generated_by: results/make_trading_calendar.py
 # derived_from: union of trading dates across 58 raw CSVs in
 #               data/raw/nifty50  (the 58 universe)
