@@ -119,6 +119,15 @@ LIQUIDITY = {
 
 _COUNT_WORD = {2: "both", 3: "all three", 4: "all four"}
 
+# THE STANDING PUBLISHED COMPARISON. n100-vs-mid is the figure docs/README.md
+# embeds and the top-level README displays, so it is refreshed whenever both of
+# its universes are selected -- not only when they are the WHOLE selection. It is
+# named here, once, rather than being inferred from `frozen` or from LIVE: which
+# figure the project publishes is an editorial fact, not a property of the
+# universes, and deriving it would silently repoint the README the day a third
+# live universe is added.
+PAIR_CHART = ("n100", "mid")
+
 
 def _joined(items):
     """'a', 'a and b', 'a, b and c' -- the form the two-universe title used."""
@@ -192,21 +201,30 @@ def main():
                        config74.METRICS_DIR_74 / "daily_trades_74.csv",
                        config74.METRICS_DIR_74 / "daily_trades_v1_74.csv")
 
+    # LOADED ONCE, PLOTTED POSSIBLY TWICE. The published n100+mid pair chart is
+    # drawn from the SAME rows as the N-way chart when both are produced, so the
+    # two figures cannot disagree about a number.
     UNIV = []
     for t in tags:
         u = REGISTRY[t]
         eqf, pjf, tr2, tr1 = FILES[t]
+        eq = pd.read_csv(eqf, parse_dates=["date"]).set_index("date")
+        index = None
+        if u.index_file is not None:
+            raw = (config.read_price_csv(u.index_file)[["date", "close"]].dropna()
+                   .set_index("date")["close"].sort_index())
+            s_ = raw.reindex(eq.index.union(raw.index)).ffill().reindex(eq.index)
+            index = CAP * s_ / s_.iloc[0]
         UNIV.append({
-            "tag": t, "u": u, "M": Path(eqf).parent,
-            "eqf": eqf, "pjf": pjf, "tr2": tr2, "tr1": tr1,
-            "idxfile": u.index_file, "idxname": u.index_name,
+            "tag": t, "u": u, "M": Path(eqf).parent, "eqf": eqf,
+            "eq": eq, "index": index,
+            "inv": json.loads(pjf.read_text())["avg_exposure_pct"],
+            "b_v2": before_tc(eq["strategy"], tr2),
+            "b_v1": before_tc(eq["baseline_invvol"], tr1),
+            "idxname": u.index_name,
             "display": DISPLAY.get(t, t),
             "colours": COLOURS.get(t, ("#1f77b4", "#7f7f7f", "#2ca02c", "#000000")),
         })
-
-    # THE FILENAME NAMES WHAT IS ACTUALLY ON THE CHART, in plotting order. With
-    # n100 and mid selected this is exactly chart_COMBINED_n100_mid.png.
-    OUT = UNIV[0]["M"] / ("chart_COMBINED_" + "_".join(u["tag"] for u in UNIV) + ".png")
 
     print("=" * 108)
     print(" COMBINED -- " + _joined([u["display"] for u in UNIV])
@@ -219,46 +237,80 @@ def main():
         print(" Every registered universe is on this chart.")
     print("=" * 108)
     print(f"\n  SURVIVORSHIP: {sv.describe_state()}")
-
-    series = []
     for row in UNIV:
-        t = row["tag"]
-        eq = pd.read_csv(row["eqf"], parse_dates=["date"]).set_index("date")
-        params = json.loads(row["pjf"].read_text())
-        inv = params["avg_exposure_pct"]
+        _report(row)
+
+    # THE FILENAME NAMES WHAT IS ACTUALLY ON THE CHART, in plotting order.
+    _draw(UNIV, UNIV[0]["M"] / ("chart_COMBINED_"
+                                + "_".join(u["tag"] for u in UNIV) + ".png"))
+
+    # ------------------------------------------------------------------
+    # THE PUBLISHED PAIR CHART, IN ADDITION TO THE N-WAY ONE.
+    # ------------------------------------------------------------------
+    # n100-vs-mid is the project's standing comparison: it is the figure
+    # docs/README.md embeds and the one the top-level README displays. It is NOT
+    # merely "the N-way chart when N happens to be 2" -- it is a published figure
+    # in its own right, and a four-universe run that silently stopped refreshing
+    # it left the docs copy stale with nothing saying so.
+    #
+    # So whenever BOTH n100 and mid are in the selection, the pair chart is
+    # refreshed as well. Two different, valid comparisons, not a contradiction:
+    # the N-way chart answers "how do the selected universes compare", the pair
+    # chart answers "how do the two live universes compare", and the second
+    # question does not stop being asked because a retired universe was also run.
+    #
+    # ONLY WHEN N > 2. At N == 2 the selection IS the pair, the N-way chart above
+    # already wrote exactly this file, and drawing it again would render the same
+    # figure to the same path twice.
+    #
+    # IT IS DRAWN AS IF ONLY THE PAIR WERE SELECTED, which is what makes it byte
+    # identical to the --universe n100,mid output: _subtitle derives "58 and 74 are
+    # out of scope and are not plotted" from REGISTRY minus the rows being PLOTTED,
+    # not minus the selection, so the string does not depend on what else ran.
+    pair = [r for r in UNIV if r["tag"] in PAIR_CHART]
+    if len(pair) == len(PAIR_CHART) and len(UNIV) > len(PAIR_CHART):
+        print("\n" + "-" * 108)
+        print(" ALSO REFRESHING THE PUBLISHED PAIR CHART -- "
+              + " and ".join(r["display"] for r in pair)
+              + ". Same rows as above, drawn on their own.")
+        print(" It is a standing published figure, not a by-product of N == 2, so a "
+              "wider selection still refreshes it.")
+        print("-" * 108)
+        _draw(pair, pair[0]["M"] / ("chart_COMBINED_"
+                                    + "_".join(r["tag"] for r in pair) + ".png"))
+
+
+def _report(row):
+    """One universe's headline numbers, printed before anything is plotted."""
+    t, eq, index = row["tag"], row["eq"], row["index"]
+    b_v2, b_v1 = row["b_v2"], row["b_v1"]
+    nsym = len(row["u"].symbols()) if row["u"].symbols() is not None else None
+    print(f"\n  {t.upper()}  "
+          + (f"({nsym} constituents, {row['idxname']} excluded by name)  "
+             if nsym is not None else "(directory-defined basket)  ")
+          + f"window {eq.index[0].date()} -> {eq.index[-1].date()}  inv {row['inv']}%")
+    print(f"    {'series':<46}{'before TC':>11}{'after TC':>10}{'Sharpe':>8}{'MaxDD%':>9}")
+    printable = [(f"{t} v2 (breadth)", eq["strategy"], b_v2[0]),
+                 (f"{t} v1 (inv-vol)", eq["baseline_invvol"], b_v1[0]),
+                 (f"{t} buy&hold (equal-weight universe)", eq["buyhold"], None)]
+    if index is not None:
+        printable.append((f"{row['idxname']} (cap-weighted index)", index, None))
+    for lab, s2, b in printable:
+        bt = f"{b:>10.2f}%" if b is not None else f"{'--':>11}"
+        print(f"    {lab:<46}{bt}{cagr(s2):>9.2f}%{sharpe(s2):>8.2f}{dd(s2).min():>8.2f}%")
+    print(f"    v2 trades {b_v2[2]}, TC Rs {b_v2[1]:,.0f}   |   "
+          f"v1 trades {b_v1[2]}, TC Rs {b_v1[1]:,.0f}")
+
+
+def _series(rows):
+    """The plotted lines for these rows, in row order."""
+    out = []
+    for row in rows:
+        t, eq, index = row["tag"], row["eq"], row["index"]
+        b_v2, b_v1 = row["b_v2"], row["b_v1"]
         c_v2, c_v1, c_bh, c_ix = row["colours"]
-
-        b_v2 = before_tc(eq["strategy"], row["tr2"])
-        b_v1 = before_tc(eq["baseline_invvol"], row["tr1"])
-
-        # THE INDEX LINE ONLY WHERE THE UNIVERSE HAS A PUBLISHED INDEX.
-        index = None
-        if row["idxfile"] is not None:
-            raw = (config.read_price_csv(row["idxfile"])[["date", "close"]].dropna()
-                   .set_index("date")["close"].sort_index())
-            s_ = raw.reindex(eq.index.union(raw.index)).ffill().reindex(eq.index)
-            index = CAP * s_ / s_.iloc[0]
-
-        nsym = len(row["u"].symbols()) if row["u"].symbols() is not None else None
-        head = (f"\n  {t.upper()}  "
-                + (f"({nsym} constituents, {row['idxname']} excluded by name)  "
-                   if nsym is not None else "(directory-defined basket)  ")
-                + f"window {eq.index[0].date()} -> {eq.index[-1].date()}  inv {inv}%")
-        print(head)
-        print(f"    {'series':<46}{'before TC':>11}{'after TC':>10}{'Sharpe':>8}{'MaxDD%':>9}")
-        printable = [(f"{t} v2 (breadth)", eq["strategy"], b_v2[0]),
-                     (f"{t} v1 (inv-vol)", eq["baseline_invvol"], b_v1[0]),
-                     (f"{t} buy&hold (equal-weight universe)", eq["buyhold"], None)]
-        if index is not None:
-            printable.append((f"{row['idxname']} (cap-weighted index)", index, None))
-        for lab, s2, b in printable:
-            bt = f"{b:>10.2f}%" if b is not None else f"{'--':>11}"
-            print(f"    {lab:<46}{bt}{cagr(s2):>9.2f}%{sharpe(s2):>8.2f}{dd(s2).min():>8.2f}%")
-        print(f"    v2 trades {b_v2[2]}, TC Rs {b_v2[1]:,.0f}   |   "
-              f"v1 trades {b_v1[2]}, TC Rs {b_v1[1]:,.0f}")
-
-        series += [
-            (f"{t} v2 (breadth)  [inv {inv}%]", eq["strategy"], c_v2, "-",
+        out += [
+            (f"{t} v2 (breadth)  [inv {row['inv']}%]", eq["strategy"], c_v2, "-",
              f"CAGR {b_v2[0]:.2f}% before TC / {cagr(eq['strategy']):.2f}% after TC"
              f"  [{b_v2[2]} trades, Rs {b_v2[1]:,.0f}]"),
             (f"{t} v1 (inv-vol)  [inv 100%]", eq["baseline_invvol"], c_v1, "-",
@@ -268,11 +320,16 @@ def main():
              f"CAGR {cagr(eq['buyhold']):.2f}%  (buy once, hold: no TC)"),
         ]
         if index is not None:
-            series.append(
+            out.append(
                 (f"{row['idxname']} (cap-weighted index)  [inv 100%]", index, c_ix, ":",
                  f"CAGR {cagr(index):.2f}%  (index level, not a portfolio: no TC)"))
+    return out
 
-    sub = _subtitle(UNIV, tags, unsel)
+
+def _draw(rows, out_path):
+    """Render exactly these rows to this path."""
+    series = _series(rows)
+    sub = _subtitle(rows)
     fig, ax = plt.subplots(2, 1, figsize=(17, 12), height_ratios=[2, 1])
     for lab, s2, c, ls, extra in series:
         ax[0].plot(s2.index, cum(s2), lw=1.9, color=c, ls=ls, label=f"{lab}  {extra}")
@@ -288,12 +345,20 @@ def main():
     ax[1].yaxis.set_major_formatter(PercentFormatter(decimals=0))
     ax[1].legend(loc="lower left", fontsize=7.5, ncol=2); ax[1].grid(alpha=.3)
     plt.tight_layout()
-    plt.savefig(OUT, dpi=150, bbox_inches="tight")
-    print(f"\n  saved -> {OUT}")
+    plt.savefig(out_path, dpi=150, bbox_inches="tight")
+    plt.close(fig)
+    print(f"\n  saved -> {out_path}")
 
 
-def _subtitle(UNIV, tags, unsel):
+def _subtitle(UNIV):
     """The chart's own description of what is on it, derived from what is on it.
+
+    IT TAKES THE ROWS BEING PLOTTED, NOT THE SELECTION, and that distinction is
+    what keeps the published pair chart reproducible. "58 and 74 are out of scope
+    and are not plotted" is computed from REGISTRY minus the universes ON THIS
+    FIGURE, so the pair chart carries the identical sentence whether it was drawn
+    from `--universe n100,mid` or alongside a four-universe run. A subtitle that
+    depended on what else the run did would make the same figure two files.
 
     EVERY CLAUSE IS CONDITIONAL ON THE UNIVERSES ACTUALLY PLOTTED. The old block
     was one hardcoded string naming n100 and mid, including a liquidity paragraph
@@ -305,7 +370,8 @@ def _subtitle(UNIV, tags, unsel):
     """
     n = len(UNIV)
     word = _COUNT_WORD.get(n, f"all {n}")
-    has_index = [u for u in UNIV if u["idxfile"] is not None]
+    unsel = [t for t in REGISTRY if t not in {u["tag"] for u in UNIV}]
+    has_index = [u for u in UNIV if u["index"] is not None]
 
     line1 = (_joined([u["display"] for u in UNIV])
              + " -- v1, v2, own-universe equal-weight buy&hold, and the "
@@ -350,8 +416,7 @@ def _subtitle(UNIV, tags, unsel):
     # different days is partly reading a calendar difference, and a reader should
     # not have to open another file to discover that. Empty when they agree, which
     # is why the n100+mid chart is unchanged.
-    ends = {u["tag"]: pd.read_csv(u["eqf"], parse_dates=["date"])["date"].iloc[-1]
-            for u in UNIV}
+    ends = {u["tag"]: u["eq"].index[-1] for u in UNIV}
     win = ""
     if len({e.date() for e in ends.values()}) > 1:
         win = ("WINDOWS DIFFER and the lines therefore stop on different days: "
