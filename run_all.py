@@ -224,6 +224,22 @@ REQUIRED_INPUTS = {
         (R / "metrics" / "fair_comparison_table.csv",
          "STEP 13 make_final_chart_fair.py"),
     ],
+    # STEP 16 reads the PERMANENT panels, which STEP 15b copies from /tmp. Named
+    # here so that if the two are ever re-ordered again the run stops with the
+    # missing filename and the step that owes it, instead of dying inside pandas
+    # with "v5_expanding_cache.csv missing" and no indication of who writes it.
+    # nt_export_scores also falls back to /tmp via config.require_cache, so this
+    # fires only when BOTH copies are absent -- a genuine missing panel.
+    "nt_export_scores.py": [
+        (R / "metrics" / "v5_expanding_cache.csv",
+         "STEP 15b save_caches_step.py"),
+        (ROOT / "results74" / "metrics" / "v74_expanding_cache.csv",
+         "STEP 15b save_caches_step.py"),
+        (ROOT / "results_mid" / "metrics" / "v_mid_expanding_cache.csv",
+         "STEP 15b save_caches_step.py"),
+        (ROOT / "results_n100" / "metrics" / "v_n100_expanding_cache.csv",
+         "STEP 15b save_caches_step.py"),
+    ],
 }
 
 
@@ -262,6 +278,12 @@ PIPELINE_ORDER = [
     ("STEP 13", "make_final_chart_fair.py"),
     ("STEP 14", "make_final_summary.py"),
     ("STEP 15", "make_daily_log.py"),
+    # ORDERING, AND WHY IT IS A STEP. STEP 16 reads the PERMANENT panels, so the
+    # copy from /tmp must happen before it -- the constraint run_all.py used to
+    # enforce with a bare call between two run() lines, and which S8 lost when it
+    # folded the pipeline into one loop. It is a position in this list now, so
+    # rewriting the loop cannot drop it. See results/save_caches_step.py.
+    ("STEP 15b", "save_caches_step.py"),
     ("STEP 16", "nt_export_scores.py"),
 ]
 # Kept as the canonical set of pipeline script names. run()'s membership guard used
@@ -318,24 +340,17 @@ def restore_cache_to_tmp():
 def save_permanent_caches():
     """Copy the /tmp panels back to their permanent homes.
 
-    The other half of restore_cache_to_tmp(). Extracted from main() so run.py can
-    call it too -- left inline, run.py's cache handling would have restored panels
-    and never persisted them, which is silent and only shows up as a slow rebuild
-    much later.
+    THE BODY MOVED TO results/save_caches_step.py, WHICH IS NOW STEP 15b. This
+    stays as the one name callers already use, delegating rather than holding a
+    second copy of the pair list -- two lists to keep in agreement is how the
+    constraint got lost the first time.
+
+    The eight hand-written pairs this used to carry are reproduced exactly by the
+    step's registry-derived ones; verified pair for pair before the move.
     """
-    print("\nSaving permanent caches...")
-    pairs = [("v5_expanding.csv", R/"metrics"/"v5_expanding_cache.csv"),
-             ("raw_panel_20.csv", R/"metrics"/"raw_panel_cache.csv"),
-             ("v74_expanding.csv", ROOT/"results74"/"metrics"/"v74_expanding_cache.csv"),
-             ("raw_panel74_20.csv", ROOT/"results74"/"metrics"/"raw_panel74_cache.csv"),
-             ("v_mid_expanding.csv", ROOT/"results_mid"/"metrics"/"v_mid_expanding_cache.csv"),
-             ("raw_panel_mid_20.csv", ROOT/"results_mid"/"metrics"/"raw_panel_mid_cache.csv"),
-             ("v_n100_expanding.csv", ROOT/"results_n100"/"metrics"/"v_n100_expanding_cache.csv"),
-             ("raw_panel_n100_20.csv", ROOT/"results_n100"/"metrics"/"raw_panel_n100_cache.csv")]
-    for tmp_name, perm in pairs:
-        if (TMP / tmp_name).exists():
-            shutil.copy(TMP / tmp_name, perm)
-    print("caches saved (restart-proof).")
+    sys.path.insert(0, str(R))
+    import save_caches_step
+    save_caches_step.main()
 
 
 def main():

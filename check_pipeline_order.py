@@ -114,11 +114,32 @@ def _tag2dir():
 
 _TAG2DIR = _tag2dir()
 
-# Panels restored into /tmp before the run, not produced by any step.
-CACHES = {"v5_expanding_cache.csv", "raw_panel_cache.csv",
-          "v74_expanding_cache.csv", "raw_panel74_cache.csv",
-          "v_mid_expanding_cache.csv", "raw_panel_mid_cache.csv",
-          "v_n100_expanding_cache.csv", "raw_panel_n100_cache.csv"}
+def _caches():
+    """The permanent panel caches, from the registry rather than a written list.
+
+    Panels are restored into /tmp before the run and are NOT produced by any step,
+    so analyse() skips them when building producer/consumer edges. That exclusion
+    has to cover every universe: a fifth one whose caches were missing from this
+    set would have its cache reads treated as real dependencies, find no producer,
+    and -- if one ever appeared -- report an inversion that is not one. A false
+    inversion is worse than the bug it would be pretending to catch, because it
+    teaches the reader to ignore the checker.
+
+    Falls back to the eight literal names for the same reason _tag2dir() does: this
+    module must stay importable when the registry cannot be imported.
+    """
+    try:
+        from universes.registry import REGISTRY
+        return ({u.score_cache.name for u in REGISTRY.values()}
+                | {u.raw_cache.name for u in REGISTRY.values()})
+    except Exception:
+        return {"v5_expanding_cache.csv", "raw_panel_cache.csv",
+                "v74_expanding_cache.csv", "raw_panel74_cache.csv",
+                "v_mid_expanding_cache.csv", "raw_panel_mid_cache.csv",
+                "v_n100_expanding_cache.csv", "raw_panel_n100_cache.csv"}
+
+
+CACHES = _caches()
 
 
 def _scan(script_path):
