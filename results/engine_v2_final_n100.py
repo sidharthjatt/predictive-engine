@@ -117,12 +117,37 @@ def main():
     print(yr.to_string())
     yr.to_csv(M / "v2FINAL_yearly.csv")
 
-    pd.DataFrame({"date": fin_eq.index, "strategy": fin_eq.values,
-                  "baseline_invvol": base_eq.values,
+    # PER-ARM COLUMNS ALONGSIDE THE ORIGINAL TWO.
+    # `strategy` is v2 and `baseline_invvol` is v1 -- names that say what the
+    # curve was FOR rather than which arm it IS, which is why nothing downstream
+    # could ask this file for v3 or v4. The arm-keyed names are
+    # arms/registry.Arm.equity_column, the same spelling v34_equity.csv already
+    # uses, so the project ends up with ONE name per arm instead of two.
+    #
+    # THE OLD NAMES ARE GONE FROM THE LIVE UNIVERSES. They were kept as duplicates
+    # while the nine readers were repointed one at a time, each byte-compared; that
+    # is finished, and every reader now goes through arms/registry.equity_series.
+    #
+    # THE FROZEN 58 AND 74 STILL WRITE `strategy`/`baseline_invvol` AND ALWAYS
+    # WILL. Their engines are those universes' provenance and are not modified, so
+    # equity_series' fallback is permanent rather than transitional -- it is how a
+    # frozen universe's file is read, not a shim awaiting deletion.
+    pd.DataFrame({"date": fin_eq.index,
+                  "v1_invvol_none": base_eq.values,
+                  "v2_invvol_breadth": fin_eq.values,
                   "buyhold": bh.values}).to_csv(M / "v2FINAL_equity.csv", index=False)
 
     bt = pd.DataFrame(base_audit["trades"])
     assert len(bt) == nb, f"v1 trade log {len(bt)} rows vs engine count {nb}"
+    # WRITTEN UNCONDITIONALLY, AND THAT IS A KNOWN LEAK, RECORDED NOT HIDDEN.
+    # `--arm v2` still produces daily_trades_v1_n100.csv -- a file named for an
+    # arm the run did not select. Gating it was TRIED and reverted: STEP 10d
+    # make_n100_chart.py declares this file in run_all.REQUIRED_INPUTS as a hard
+    # edge, so a gated write makes `--arm v2` die at check_inputs with a missing
+    # file. Removing that edge would weaken the static contract and cost the
+    # checker a resolved dependency, which experiments/ARM_SUBSET_SPEC.txt's G6
+    # forbids. Closing this properly means making make_n100_chart.py arm-aware
+    # too; see KNOWN_ISSUES.md.
     bt.to_csv(M / "daily_trades_v1_n100.csv", index=False)
     print(f"   v1 baseline trade log: {len(bt)} trades, TC Rs {bt['tc'].sum():,.0f} "
           f"-> daily_trades_v1_n100.csv")

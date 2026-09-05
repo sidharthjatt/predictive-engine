@@ -54,7 +54,8 @@ for _p in (str(ROOT), str(ROOT / "results"), str(ROOT / "frozen")):
         sys.path.insert(0, _p)
 
 import config                                    # noqa: E402
-from engine_core import precompute               # noqa: E402
+from engine_core import precompute
+import arms.registry as arm_reg               # noqa: E402
 from test_exposure import backtest_exposure      # noqa: E402
 from _frozen_guard import guard as _frozen_guard  # noqa: E402
 
@@ -74,13 +75,66 @@ def panel_path(u):
         f"{u.score_cache} / {u.score_tmp} missing -- run run_all.py first")
 
 
-def run(u):
-    """Write the daily audit trail for one universe."""
+def _reference_curve(M, arm_name):
+    """The engine's own recorded equity curve for this arm, or None.
+
+    THE AUDIT IS A CHECK, NOT A DUMP, and this is what it checks against. The
+    trail is produced by re-running the backtest with logging on; if that re-run
+    disagreed with the curve the engine published, the trail would describe a
+    portfolio nobody reported. So every arm's trail is reconciled against the
+    engine's own number for that arm.
+
+    TWO FILES, BECAUSE THE ENGINE WRITES TWO. v1 and v2 are the shipping strategy
+    and its control and live in v2FINAL_equity.csv; v3 and v4 are measurement arms
+    and live in v34_equity.csv. Both are written by the engine step that runs
+    immediately before this one, so both are on disk by now.
+
+    None means the engine did not record that arm on this run -- a frozen
+    universe has no v3/v4 at all, and an arm-subset run has no file for an arm it
+    did not measure. The caller reports that rather than asserting against nothing.
+    """
+    import arms.registry as _ar
+    # SPELLED `M / "..."`, NOT `Path(M) / "..."`. check_pipeline_order matches the
+    # bare `<dir> / "<literal>"` shape; wrapping the directory in Path() made this
+    # read invisible to the scanner and the edge vanished from its inventory.
+    M = Path(M)
+    f = M / "v2FINAL_equity.csv"
+    if f.exists():
+        df = pd.read_csv(f, parse_dates=["date"]).set_index("date")
+        s = _ar.equity_series(df, arm_name)
+        if s is not None:
+            return s
+    for name in (f"v34_equity{_ar.selection_suffix()}.csv", "v34_equity.csv"):
+        g = M / name
+        if g.exists():
+            df = pd.read_csv(g, parse_dates=["date"]).set_index("date")
+            col = _ar.ARMS[arm_name].equity_column
+            if col in df.columns:
+                return df[col]
+    return None
+
+
+def run(u, arm=None):
+    """Write the daily audit trail for one universe and one arm.
+
+    arm=None means v2 -- the arm this step has always audited, and the one whose
+    filenames the Nautilus verification reads. Passing None reproduces the old
+    behaviour exactly, which is why every existing caller keeps working.
+
+    FILENAMES. v2 writes the unsuffixed daily_*_{tag}.csv it always has, because
+    nt_verify.py, nt_daily_compare.py and nt_holdings_compare.py read those exact
+    names and they are the 92-of-92 correctness gate. Every other arm writes
+    daily_*_{tag}_{arm}.csv. v2 is therefore NOT special-cased in what it
+    measures, only in what its files are called -- and that is a compatibility
+    fact about the Nautilus port, recorded here rather than inferred.
+    """
     if u.frozen:
         # Guards the WRITE. Frozen artefacts are gitignored and exist in one copy.
         _frozen_guard(u.tag)
 
-    print(f"\n{'='*74}\n{u.tag} UNIVERSE\n{'='*74}")
+    _hdr = u.tag if (arm is None or (arm.name if hasattr(arm, "name") else arm) == "v2") \
+        else f"{u.tag} / {arm.name if hasattr(arm, 'name') else arm}"
+    print(f"\n{'='*74}\n{_hdr} UNIVERSE\n{'='*74}")
     p = pd.read_csv(panel_path(u), parse_dates=["date"])
     px = p.pivot_table(index="date", columns="symbol", values="close").ffill()
     op = p.pivot_table(index="date", columns="symbol", values="open").ffill()
@@ -89,24 +143,44 @@ def run(u):
     mom20 = px / px.shift(20) - 1
     bd = u.trading_days(px.index)
 
+    # THE ARM'S OWN PARAMETERS, not a hardcoded breadth/invvol pair. The default
+    # is v2, which is the arm this step has always run, so mode and sizing below
+    # are the same two values it always passed.
+    _arm = arm_reg.ARMS["v2"] if arm is None else (
+        arm if hasattr(arm, "name") else arm_reg.ARMS[arm])
     audit = {"holdings": [], "summary": [], "trades": [],
              "ranking": [], "decisions": [], "skipped": []}
     eq, tc, ntr, expo = backtest_exposure(
-        px, op, sc, bd, pc, mom20, mode="breadth", audit=audit,
+        px, op, sc, bd, pc, mom20, mode=_arm.mode, sizing=_arm.sizing, audit=audit,
         # frozen: keep the close-valued sizing so published numbers cannot move
         value_at_open=not u.frozen)
 
-    # ---- SAFETY: does this match the official equity curve? ----
+    # ---- SAFETY: does this match the official equity curve FOR THIS ARM? ----
+    # The check is the point of the step. Auditing an arm against another arm's
+    # curve would report MATCH only by accident, so the reference is looked up by
+    # arm name -- v1/v2 from v2FINAL_equity.csv, v3/v4 from v34_equity.csv.
     M = Path(u.metrics_dir)
-    off = pd.read_csv(M / "v2FINAL_equity.csv", parse_dates=["date"]).set_index("date")
-    diff = float((eq - off["strategy"].reindex(eq.index)).abs().max())
+    _ref = _reference_curve(M, _arm.name)
+    if _ref is None:
+        # NOT AN ASSERTION FAILURE, AND NOT SILENT EITHER. It means the engine did
+        # not record this arm on this run, so there is nothing to reconcile
+        # against and writing an unchecked trail would be worse than writing none.
+        print(f"  {u.tag}/{_arm.name}: the engine recorded no equity curve for this "
+              f"arm, so its trail cannot be checked -- not written")
+        return
+    diff = float((eq - _ref.reindex(eq.index)).abs().max())
     status = "MATCH" if diff < 0.01 else f"*** MISMATCH Rs {diff:.2f} ***"
-    print(f"  equity vs official v2FINAL_equity.csv : {status}")
+    print(f"  {_arm.name} equity vs the engine's recorded curve : {status}")
     if diff >= 0.01:
         print("  !! audit logging changed something -- do not go further")
         return
 
-    tag = u.tag
+    # v2 KEEPS THE UNSUFFIXED FILENAMES. nt_verify.py, nt_daily_compare.py and
+    # nt_holdings_compare.py read daily_summary_{tag}.csv, daily_holdings_{tag}.csv
+    # and daily_trades_{tag}.csv by those exact names, and they are the 92-of-92
+    # correctness gate. Suffixing v2 would break the gate that certifies the
+    # engine. Every other arm is suffixed.
+    tag = u.tag if _arm.name == "v2" else f"{u.tag}_{_arm.name}"
     h = pd.DataFrame(audit["holdings"]); s = pd.DataFrame(audit["summary"])
     t = pd.DataFrame(audit["trades"])
     h.to_csv(M / f"daily_holdings_{tag}.csv", index=False)

@@ -55,6 +55,7 @@ sys.path.insert(0, str(ROOT / "results"))
 import config
 from engine_core import metrics, precompute, BT_START, BT_END
 from test_exposure import backtest_exposure
+import arms.registry as arm_reg
 
 VOL_WIN = 60
 N_RANDOM = 200
@@ -93,7 +94,7 @@ def edge(drop=()):
 def official():
     """(strategy CAGR, buy&hold CAGR, edge) as the pipeline recorded them."""
     eq = pd.read_csv(OFFICIAL, parse_dates=["date"]).set_index("date")
-    s = metrics(eq["strategy"], "s")["CAGR%"]
+    s = metrics(arm_reg.equity_series(eq, "v2"), "s")["CAGR%"]
     b = metrics(eq["buyhold"], "b")["CAGR%"]
     return s, b, s - b
 

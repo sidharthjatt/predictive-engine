@@ -1,0 +1,253 @@
+================================================================================
+ARM_SUBSET_SPEC.txt -- making --arm reach the PUBLISHED outputs
+Pre-registered 2026-09-06. Written BEFORE any implementation, as FUNDING_SPEC.txt
+was, because this moves published artefacts.
+================================================================================
+
+WHY THIS SPEC EXISTS
+--------------------------------------------------------------------------------
+Step 2 (commit f187e7c) gave --arm subset selection and made the v34 MEASUREMENT
+follow it. It deliberately stopped at a boundary, recorded in KNOWN_ISSUES.md:
+
+    --arm v3 still produces artefacts showing v1 and v2, because those two are
+    the shipping strategy and its control -- written by each engine as the
+    `strategy` and `baseline_invvol` COLUMNS of v2FINAL_equity.csv.
+
+Crossing that boundary means changing the shape of a file that four engines write
+and ten scripts read, and building a per-arm audit trail that does not exist yet.
+That is a published-artefact change, so it gets a pre-registration with its gates
+written first rather than a commit with the numbers already in view.
+
+
+A CORRECTION TO THE BRIEF, MADE BEFORE ANYTHING IS BUILT
+--------------------------------------------------------------------------------
+The task described "every published consumer + the 7 identity gates ... assert
+against that file's v2 row". THE SEVEN GATES DO NOT READ v2FINAL_equity.csv AT
+ALL. Verified by reading all seven:
+
+    purge_fix_measure.py:245      reads v34_comparison.csv
+    seed_noise_measure.py:169     reads v34_comparison.csv
+    seed_noise_report.py:56       reads v34_comparison.csv
+    shuffle_test.py:138           reads v34_comparison.csv
+    validate_topn.py:179          reads v34_comparison.csv
+    rebal_cadence_sweep.py:265    reads v34_comparison.csv
+    drawdown_exit_measure.py:373  reads v34_comparison.csv
+
+Six assert on its v2 ROW; rebal_cadence_sweep is the exception and reads all four
+rows through its own ARM_ROW map. None of them opens v2FINAL_equity.csv.
+
+THIS MATTERS ENORMOUSLY FOR THE RISK PROFILE. v34_comparison.csv is written by
+run_v34 from the engine's v1_eq/v2_eq -- the SAME curves that write
+v2FINAL_equity.csv -- but it is a different file with a different layout. So the
+restructure proposed below is a SERIALISATION change to v2FINAL_equity.csv and
+touches the gates only if it perturbs the curves themselves. It must not, and
+proving that it does not is the central safety obligation of this spec.
+
+The brief's "~8 consumers" was also low. The real count is ten, established below.
+
+
+WHAT CHANGES STRUCTURALLY
+--------------------------------------------------------------------------------
+S1. v2FINAL_equity.csv gains per-arm columns.
+
+    now : date, strategy, baseline_invvol, buyhold
+    after: date, v1_invvol_none, v2_invvol_breadth, buyhold      (live universes)
+
+    The new names are arms/registry.Arm.equity_column, already the column names
+    v34_equity.csv uses, so the project gains ONE spelling of an arm-keyed equity
+    column instead of two.
+
+    COMPATIBILITY IS EXPLICIT, NOT IMPLIED. `strategy` and `baseline_invvol` are
+    RETAINED as duplicate columns for one release, so every unconverted reader
+    keeps working while the ten are repointed one at a time and byte-compared.
+    They are removed in a final step of this spec, not silently.
+
+    A SUBSET WRITES ONLY ITS ARMS' COLUMNS -- and, per the Step 2 rule, writes
+    v2FINAL_equity_<sel>.csv rather than overwriting the canonical file. The
+    canonical unsuffixed artefacts are produced only by a full four-arm selection.
+
+S2. The engine computes only the selected arms.
+    engine_v2_final_{mid,n100}.py compute v2 (fin_eq) and v1 (base_eq)
+    unconditionally. Under a subset they compute only what was asked for. THE
+    FROZEN ENGINES ARE NOT TOUCHED: engine_v2_final.py and engine_v2_final74.py
+    are the 58's and 74's provenance, they have no v3/v4 path, and their published
+    numbers must not move. The 58 and 74 therefore keep exactly today's behaviour
+    and are out of scope for S2, S3 and S4.
+
+S3. A per-arm audit trail is BUILT. It does not exist to repoint.
+    Today audit_step.run(u) hardcodes mode="breadth"+invvol -- that is v2 -- and
+    writes six files per universe:
+        daily_{holdings,summary,trades,ranking,decisions,skipped}_{tag}.csv
+    It also ASSERTS its equity against v2FINAL_equity.csv["strategy"], which is
+    what makes it a check and not just a dump.
+
+    After: audit_step.run(u, arm) writes ..._{tag}_{arm}.csv for each selected
+    arm, and asserts against THAT arm's column. v2 additionally keeps the
+    unsuffixed filenames, because they are the Nautilus reference (see G5).
+
+    NOTE, AND IT IS NOT A DETAIL: v1 already has a trade log --
+    daily_trades_v1_{tag}.csv, written by the ENGINE, not by audit_step. So the
+    project already has two half-trails under two naming conventions. This spec
+    unifies them; the engine's separate v1 write is retired in favour of the
+    per-arm audit, and the old filename retained as a duplicate for one release
+    exactly as in S1.
+
+S4. The published consumers plot the selected arms.
+    make_combined_universes.py, make_mid_chart.py, make_n100_chart.py,
+    make_final_chart_fair.py and make_final_summary.py hardcode a v2 line and a v1
+    line per universe. They become a loop over the selected arms, in ARMS order,
+    with per-arm colour keyed to the arm -- the fix Step 2 already made inside
+    run_v34's chart after position-keyed colour gave v3 v2's colour.
+
+
+THE FULL CONSUMER INVENTORY -- TEN, CONFIRMED BY GREP
+--------------------------------------------------------------------------------
+Readers of v2FINAL_equity.csv and the columns each names:
+
+  IN THE PIPELINE (5)                        columns
+    results/make_final_chart_fair.py         strategy, baseline_invvol, buyhold
+    results/make_mid_chart.py                strategy, baseline_invvol
+    results/make_n100_chart.py               strategy, baseline_invvol
+    results/make_combined_universes.py       strategy, baseline_invvol
+    results/reality_check.py                 strategy, buyhold
+    results/audit_step.py                    strategy            [6th; see note]
+
+  MANUAL / DIAGNOSTIC (4)
+    n100_jackknife.py                        strategy, buyhold
+    results/test_v1_v2_blend.py              strategy, baseline_invvol
+    results/diagnose_cash_drag.py            strategy, buyhold
+    results/attribution_v2.py                strategy
+
+  Six are pipeline steps (audit_step is reached through make_mid_audit.py,
+  make_n100_audit.py and make_daily_audit.py); four are run by hand. TEN in total,
+  not eight. Writers are four: the two live engines and the two frozen ones.
+
+FOUR FILES THAT LOOK LIKE CONSUMERS AND ARE NOT. diagnose_decay.py,
+make_charts.py, make_combined_portfolio.py and frozen/make_stock_chart.py all
+index a column called "strategy", but on FINAL_equity.csv -- engine_core's 58-only
+output, a different file. They are OUT of the blast radius. Confusing the two
+would have "repointed" four scripts that read a file this spec never touches.
+
+
+WHAT "SAFE" MEANS HERE, AND HOW IT IS PROVED
+--------------------------------------------------------------------------------
+SAFE MEANS: this is a change of FILE LAYOUT and of WHICH ARMS RUN. It is not a
+change to how any arm is computed. Therefore, on the default --arm all, every
+number in every published artefact must be bit-identical to today, and the proof
+is a file comparison, not a metric comparison.
+
+THE ONE-SENTENCE VERSION: if any published number moves, the change is wrong and
+is reverted, not explained.
+
+G1  THE DEFAULT REPRODUCES EVERYTHING, BYTE FOR BYTE.
+    `run.py --universe all --arm all` reproduces all 281 cold-run baseline
+    artefacts. Not "the headline figures agree" -- the same sha256, compared as
+    files, with the manifest's existing normalisation for git_state/run_date only.
+    THIS IS UNCONDITIONAL. It failing is a bug in the change, not a result.
+
+G2  THE CURVES THEMSELVES ARE UNTOUCHED.
+    Before any consumer is repointed, the restructured v2FINAL_equity.csv is
+    checked column-by-column against the pre-change file:
+        new["v1_invvol_none"]     equals old["baseline_invvol"] exactly
+        new["v2_invvol_breadth"]  equals old["strategy"] exactly
+        new["buyhold"]            equals old["buyhold"] exactly
+    "Exactly" means pandas .equals() on the float64 values, not np.allclose.
+    This is what makes G3 an argument rather than a hope.
+
+G3  THE SEVEN GATES ARE NOT RE-BASELINED, AND MUST NOT NEED TO BE.
+    They read v34_comparison.csv, which this spec does not restructure. Their
+    inputs are the engine's v1_eq/v2_eq curves; G2 proves those curves are
+    unchanged. So the prediction is that all seven pass UNCHANGED, with no
+    re-baselining of any kind.
+
+    IF ANY GATE NEEDS RE-BASELINING, THAT IS THE SIGNAL TO STOP. It would mean
+    the restructure perturbed a curve, which is precisely the failure this spec
+    exists to prevent. The response is to stop and report, not to update the
+    gate's reference and continue. Each of the seven is run before and after and
+    its verdict line diffed.
+
+G4  THE V34 MEASUREMENT IS UNAFFECTED.
+    v34_comparison.csv, v34_equity.csv, v34_subperiods.csv, v34_params.json and
+    chart_v34.png reproduce byte for byte on a full selection. run_v34 is not
+    modified by this spec.
+
+G5  THE NAUTILUS GATE STILL PASSES AT 92 OF 92, ON ALL EIGHT COMBINATIONS.
+    This is the constraint most easily missed. nt_verify.py, nt_daily_compare.py
+    and nt_holdings_compare.py read daily_summary_{TAG}.csv,
+    daily_holdings_{TAG}.csv and daily_trades_{TAG}.csv BY THOSE EXACT NAMES.
+    S3 renames the per-arm trail; if v2's unsuffixed files stopped being written,
+    the 92-of-92 correctness gate would break -- and it is the gate that certifies
+    the whole engine. v2 therefore keeps the unsuffixed names. verify_v34_arms.py
+    is run before and after and must report VERIFIED on all eight.
+
+G6  THE STATIC CHECKER DOES NOT REGRESS.
+    check_pipeline_order: at least 42 resolved cross-step dependencies, no more
+    than 9 unresolved, 0 inversions. Per-arm filenames introduce a {arm}
+    placeholder the scanner cannot expand, exactly as {tag} did; the mitigation is
+    the one make_daily_audit.py already documents -- literal names under guards,
+    not a loop. If the count falls, the literals come back before the step lands.
+
+G7  THE SUBSET ACTUALLY SUBSETS.
+    For each of --arm v1 / v2 / v3 / v4 / v1,v3 / v2,v4 / all, on mid and n100:
+    no unselected arm's name appears in any produced filename, in any CSV column
+    header, in any chart title, or in any chart legend. Checked by grepping the
+    produced artefacts for the unselected arm names, not by reading the code.
+
+G8  FROZEN UNIVERSES DO NOT MOVE AT ALL.
+    Every 58 and 74 artefact is byte-identical under every arm selection. They
+    have no v3/v4 path and their engines are untouched by S2-S4.
+
+DECISION RULE, FIXED NOW
+    G1, G2, G5, G8 are unconditional. Any of them failing stops the work and is
+    reported; none is negotiable by adjusting a reference.
+    G3 failing means a curve moved -> STOP AND REPORT, per the brief's instruction
+    that a structural change must not quietly become a numbers change.
+    G4, G6, G7 failing means the implementation is incomplete, and it is finished
+    or reverted rather than shipped with the gap recorded.
+
+
+ORDER OF WORK, AND WHY IT IS THIS ORDER
+--------------------------------------------------------------------------------
+Each step is byte-compared against the cold-run baseline before the next begins,
+which is only possible because of the duplicate-column period in S1.
+
+    1. Add the per-arm columns to v2FINAL_equity.csv, KEEPING strategy and
+       baseline_invvol. Nothing reads the new columns yet. G1 must pass here --
+       the file has gained columns, so "byte-identical" is asserted on every OTHER
+       artefact and on the OLD columns of this one, and that exception is stated
+       in the report rather than buried.
+    2. Repoint the ten consumers, ONE AT A TIME, each with a full byte-compare.
+    3. Build the per-arm audit trail (S3), v2 keeping the unsuffixed names.
+    4. Make the published charts loop over selected arms (S4).
+    5. Make the engines compute only selected arms (S2).
+    6. Remove the duplicate strategy/baseline_invvol columns, and re-run
+       everything. This is the only step that can break an unconverted reader,
+       and by then there are none -- which step 2 will have proved one file at a
+       time rather than assumed.
+
+WHY NOT DO 6 FIRST: because then every one of the ten breaks at once and the
+byte-compare cannot attribute a difference to a file.
+
+
+PREDICTIONS, RECORDED SO THEY CAN BE WRONG
+--------------------------------------------------------------------------------
+P1  G1 passes at every step. This is a serialisation change; nothing recomputes.
+P2  All seven gates pass unchanged, with no re-baselining. G2 is the reason.
+P3  The Nautilus gate stays at 92 of 92 because v2's unsuffixed audit filenames
+    are retained. If it moves at all, the cause is S3's assert, not the port.
+P4  G6 will FAIL on the first attempt at S3 and need the literal-name treatment.
+    The {arm} placeholder is the same shape as the {tag} one that has already cost
+    this project eight resolved edges once, in Step 2's own combined chart.
+P5  The riskiest step is 6, not 1. Removing a column is the only irreversible
+    part, and an unconverted reader fails there with a KeyError rather than a
+    wrong number -- which is the good failure mode, and is stated so that nobody
+    "fixes" it by reinstating the column.
+
+WHAT IS NOT BEING DONE
+--------------------------------------------------------------------------------
+    - The frozen 58 and 74 engines are not modified. Their published numbers must
+      not move and they have no v3/v4 path.
+    - v34_comparison.csv and the rest of the v34 measurement are not restructured.
+    - No gate's reference values are updated. If a gate needs it, the work stops.
+    - Rebalance cadence is untouched. That is Step 3.
+    - No arm is promoted, demoted, or made the default. --arm all stays default.

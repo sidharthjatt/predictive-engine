@@ -9,6 +9,7 @@ import pandas as pd
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import config
 from universes.registry import REGISTRY, selected_tags
+import arms.registry as arm_reg
 
 # config74 WAS IMPORTED HERE AND NEVER USED -- M74 was assigned from it and read
 # nowhere. Dropped rather than guarded: an import that exists only to be assigned
@@ -37,7 +38,25 @@ def main():
               "selection, so make_final_chart_fair.py wrote no "
               "fair_comparison_table.csv.")
         return
-    src = M58 / "fair_comparison_table.csv"
+    # THE SAME SUFFIX make_final_chart_fair.py wrote. A narrowed arm selection
+    # produces fair_comparison_table_v1.csv, and summarising the canonical table
+    # instead would report arms this run did not select.
+    # THE SAME SUFFIX make_final_chart_fair.py wrote, computed the same way.
+    # NOT arm_reg.selection_suffix(): that is empty only for all FOUR arms, and
+    # this table is over the SHIPPING PAIR, so the full case here is {v2, v1}.
+    # Using the four-arm predicate would look for fair_comparison_table_v1_v2.csv
+    # on a default run and skip because it does not exist.
+    _PLOT = ("v2", "v1")
+    _sel = [a for a in _PLOT if a in set(arm_reg.selected_names())]
+    if not _sel:
+        print("FINAL summary SKIPPED -- this run selected none of the shipping "
+              "arms (v2, v1), so make_final_chart_fair.py wrote no table.")
+        return
+    _asfx = "" if set(_sel) == set(_PLOT) else "_" + "_".join(_sel)
+    # THE CANONICAL NAME AS A LITERAL on the common path, for the same reason the
+    # writer spells it out: this is the STEP 13 -> STEP 14 edge the checker reads.
+    src = (M58 / "fair_comparison_table.csv" if _asfx == ""
+           else M58 / ("fair_comparison_table" + _asfx + ".csv"))
     if not src.exists():
         print(f"FINAL summary SKIPPED -- {src} does not exist. It is written by "
               "STEP 13 make_final_chart_fair.py.")

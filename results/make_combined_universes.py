@@ -59,6 +59,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import config
 from universes.registry import REGISTRY, selected_tags, report_order
+import arms.registry as arm_reg
 
 import survivorship as sv
 def cum(s): return (s / s.iloc[0] - 1) * 100
@@ -101,6 +102,38 @@ COLOURS = {
     "58":   ("#ff7f0e", "#9467bd", "#8c564b", "#555555"),
     "74":   ("#bcbd22", "#76b7b2", "#b07aa1", "#999999"),
 }
+
+# WHICH SLOT OF THAT TUPLE EACH ARM USES. v2 has always been the first colour and
+# v1 the second, so with both selected the chart is unchanged. v3 and v4 are new
+# on this chart and take the two spare slots -- the buy&hold and index colours are
+# separate entries, so nothing collides.
+#
+# THE COLOUR IS KEYED TO THE ARM, NOT TO POSITION. Step 2 already fixed this
+# inside run_v34's chart, where a positional zip gave v3 v2's colour the moment v2
+# was deselected. The same trap exists here and is avoided the same way.
+ARM_SLOT = {"v2": 0, "v1": 1}
+ARM_DESC = {"v1": "inv-vol", "v2": "breadth"}
+
+# THIS CHART IS DEFINED OVER THE SHIPPING ARMS, AND A SELECTION NARROWS IT RATHER
+# THAN WIDENING IT.
+#
+# It compares UNIVERSES. Each universe contributes its shipping strategy (v2,
+# breadth-scaled) and that strategy's always-invested control (v1), which is what
+# the published figure has always shown. v3 and v4 are MEASUREMENT arms: they
+# exist to price pro-vol sizing against inverse-vol, and their home is the v34
+# chart, which Step 2 already made arm-aware.
+#
+# WHY NOT SIMPLY PLOT EVERY SELECTED ARM. Because `--arm all` is the default, so
+# doing that would put four lines per universe on the published chart instead of
+# two -- changing a published figure as a side effect of a structural change,
+# which experiments/ARM_SUBSET_SPEC.txt forbids unconditionally (G1). Narrowing is
+# safe and widening is not, so the rule is: plot the selected arms INTERSECTED
+# with the shipping pair.
+#
+# THE CONSEQUENCE IS REAL AND IS NOT HIDDEN: with `--arm v3` no shipping arm is
+# selected, and this chart is not drawn at all rather than being drawn with a
+# measurement arm on it. It says so when it skips.
+PLOT_ARMS = ("v2", "v1")
 
 # THE LIQUIDITY PARAGRAPH IS A PER-UNIVERSE MEASUREMENT, NOT CHART FURNITURE.
 # It used to be one hardcoded block naming n100 and mid, which is why the chart
@@ -145,6 +178,19 @@ def main():
     # n100 before mid, which is what makes the derived filename resolve to the
     # published chart_COMBINED_n100_mid.png rather than renaming it.
     tags = report_order(t for t in selected_tags() if t in REGISTRY)
+
+    # WHICH ARMS THIS CHART CAN SHOW: the selection, narrowed to the shipping pair.
+    plot_arms = [a for a in PLOT_ARMS if a in set(arm_reg.selected_names())]
+    if not plot_arms:
+        print("=" * 108)
+        print(" COMBINED chart SKIPPED -- it compares universes through their "
+              "SHIPPING arms (v2, v1) and")
+        print(f" this run selected none of them "
+              f"({', '.join(arm_reg.selected_names())}). v3 and v4 are measurement "
+              "arms; their")
+        print(" comparison is chart_v34, not this one. Nothing is written.")
+        print("=" * 108)
+        return
 
     if len(tags) < 2:
         have = ", ".join(tags) or "none"
@@ -209,6 +255,11 @@ def main():
         u = REGISTRY[t]
         eqf, pjf, tr2, tr1 = FILES[t]
         eq = pd.read_csv(eqf, parse_dates=["date"]).set_index("date")
+        # ARMS BY NAME, NOT BY THE COLUMN THEY HAPPEN TO SIT IN.
+        # equity_series falls back to the legacy `strategy`/`baseline_invvol`
+        # spelling, which is what the frozen 58 and 74 still write.
+        eq_v2 = arm_reg.equity_series(eq, "v2")
+        eq_v1 = arm_reg.equity_series(eq, "v1")
         index = None
         if u.index_file is not None:
             raw = (config.read_price_csv(u.index_file)[["date", "close"]].dropna()
@@ -219,8 +270,15 @@ def main():
             "tag": t, "u": u, "M": Path(eqf).parent, "eqf": eqf,
             "eq": eq, "index": index,
             "inv": json.loads(pjf.read_text())["avg_exposure_pct"],
-            "b_v2": before_tc(eq["strategy"], tr2),
-            "b_v1": before_tc(eq["baseline_invvol"], tr1),
+            # ONE ENTRY PER PLOTTED ARM, so _report and _series iterate instead
+            # of naming v2 and v1. The trade log differs per arm: v2's is the
+            # unsuffixed daily_trades_<tag>.csv and v1's is the engine's
+            # daily_trades_v1_<tag>.csv, which is what the published figure has
+            # always read -- not the new per-arm audit trail, which would be a
+            # different file with the same contents and no reason to switch.
+            "arms": {n: {"eq": e, "b": before_tc(e, lg)}
+                     for n, e, lg in (("v2", eq_v2, tr2), ("v1", eq_v1, tr1))
+                     if n in plot_arms and e is not None},
             "idxname": u.index_name,
             "display": DISPLAY.get(t, t),
             "colours": COLOURS.get(t, ("#1f77b4", "#7f7f7f", "#2ca02c", "#000000")),
@@ -241,8 +299,13 @@ def main():
         _report(row)
 
     # THE FILENAME NAMES WHAT IS ACTUALLY ON THE CHART, in plotting order.
+    # THE ARM SUFFIX, ON THE SAME RULE AS THE UNIVERSE ONE. Both shipping arms
+    # plotted -> no suffix, and the filename is the published one. A narrower arm
+    # selection writes chart_COMBINED_n100_mid_v2.png beside it and leaves the
+    # published figure alone, exactly as a narrower UNIVERSE selection does.
+    asfx = "" if set(plot_arms) == set(PLOT_ARMS) else "_" + "_".join(plot_arms)
     _draw(UNIV, UNIV[0]["M"] / ("chart_COMBINED_"
-                                + "_".join(u["tag"] for u in UNIV) + ".png"))
+                                + "_".join(u["tag"] for u in UNIV) + asfx + ".png"))
 
     # ------------------------------------------------------------------
     # THE PUBLISHED PAIR CHART, IN ADDITION TO THE N-WAY ONE.
@@ -277,29 +340,28 @@ def main():
               "wider selection still refreshes it.")
         print("-" * 108)
         _draw(pair, pair[0]["M"] / ("chart_COMBINED_"
-                                    + "_".join(r["tag"] for r in pair) + ".png"))
+                                    + "_".join(r["tag"] for r in pair) + asfx + ".png"))
 
 
 def _report(row):
     """One universe's headline numbers, printed before anything is plotted."""
     t, eq, index = row["tag"], row["eq"], row["index"]
-    b_v2, b_v1 = row["b_v2"], row["b_v1"]
     nsym = len(row["u"].symbols()) if row["u"].symbols() is not None else None
     print(f"\n  {t.upper()}  "
           + (f"({nsym} constituents, {row['idxname']} excluded by name)  "
              if nsym is not None else "(directory-defined basket)  ")
           + f"window {eq.index[0].date()} -> {eq.index[-1].date()}  inv {row['inv']}%")
     print(f"    {'series':<46}{'before TC':>11}{'after TC':>10}{'Sharpe':>8}{'MaxDD%':>9}")
-    printable = [(f"{t} v2 (breadth)", eq["strategy"], b_v2[0]),
-                 (f"{t} v1 (inv-vol)", eq["baseline_invvol"], b_v1[0]),
-                 (f"{t} buy&hold (equal-weight universe)", eq["buyhold"], None)]
+    printable = [(f"{t} {n} ({ARM_DESC[n]})", d["eq"], d["b"][0])
+                 for n, d in row["arms"].items()]
+    printable.append((f"{t} buy&hold (equal-weight universe)", eq["buyhold"], None))
     if index is not None:
         printable.append((f"{row['idxname']} (cap-weighted index)", index, None))
     for lab, s2, b in printable:
         bt = f"{b:>10.2f}%" if b is not None else f"{'--':>11}"
         print(f"    {lab:<46}{bt}{cagr(s2):>9.2f}%{sharpe(s2):>8.2f}{dd(s2).min():>8.2f}%")
-    print(f"    v2 trades {b_v2[2]}, TC Rs {b_v2[1]:,.0f}   |   "
-          f"v1 trades {b_v1[2]}, TC Rs {b_v1[1]:,.0f}")
+    print("    " + "   |   ".join(
+        f"{n} trades {d['b'][2]}, TC Rs {d['b'][1]:,.0f}" for n, d in row["arms"].items()))
 
 
 def _series(rows):
@@ -307,18 +369,21 @@ def _series(rows):
     out = []
     for row in rows:
         t, eq, index = row["tag"], row["eq"], row["index"]
-        b_v2, b_v1 = row["b_v2"], row["b_v1"]
-        c_v2, c_v1, c_bh, c_ix = row["colours"]
-        out += [
-            (f"{t} v2 (breadth)  [inv {row['inv']}%]", eq["strategy"], c_v2, "-",
-             f"CAGR {b_v2[0]:.2f}% before TC / {cagr(eq['strategy']):.2f}% after TC"
-             f"  [{b_v2[2]} trades, Rs {b_v2[1]:,.0f}]"),
-            (f"{t} v1 (inv-vol)  [inv 100%]", eq["baseline_invvol"], c_v1, "-",
-             f"CAGR {b_v1[0]:.2f}% before TC / {cagr(eq['baseline_invvol']):.2f}% after TC"
-             f"  [{b_v1[2]} trades, Rs {b_v1[1]:,.0f}]"),
+        c_bh, c_ix = row["colours"][2], row["colours"][3]
+        # COLOUR AND DEPLOYMENT KEYED TO THE ARM. v2 takes the tuple's first
+        # colour and v1 the second, which is where they have always been, so with
+        # both plotted every line keeps its exact colour. Only v2 is
+        # breadth-scaled, so only v2 reports a deployment below 100%.
+        for n, d in row["arms"].items():
+            c = row["colours"][ARM_SLOT[n]]
+            inv = row["inv"] if arm_reg.ARMS[n].mode == "breadth" else 100
+            out.append(
+                (f"{t} {n} ({ARM_DESC[n]})  [inv {inv}%]", d["eq"], c, "-",
+                 f"CAGR {d['b'][0]:.2f}% before TC / {cagr(d['eq']):.2f}% after TC"
+                 f"  [{d['b'][2]} trades, Rs {d['b'][1]:,.0f}]"))
+        out.append(
             (f"{t} buy&hold (equal-weight universe)  [inv 100%]", eq["buyhold"], c_bh, "--",
-             f"CAGR {cagr(eq['buyhold']):.2f}%  (buy once, hold: no TC)"),
-        ]
+             f"CAGR {cagr(eq['buyhold']):.2f}%  (buy once, hold: no TC)"))
         if index is not None:
             out.append(
                 (f"{row['idxname']} (cap-weighted index)  [inv 100%]", index, c_ix, ":",

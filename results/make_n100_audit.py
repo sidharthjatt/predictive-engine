@@ -24,11 +24,20 @@ for _p in (str(ROOT), str(ROOT / "results")):
 
 import audit_step
 from universes.registry import REGISTRY
+import arms.registry as arm_reg
 
 
 def main():
     """The step, as a function, so run.py can call it in process."""
-    audit_step.run(REGISTRY["n100"])
+    # ONE TRAIL PER SELECTED ARM. This step wrote exactly one, v2's, because
+    # audit_step hardcoded breadth+invvol. The literal REGISTRY["n100"] subscript
+    # is kept -- check_pipeline_order reads it to resolve daily_*_{tag}.csv to a
+    # directory, and a loop variable there matches nothing.
+    #
+    # A FROZEN UNIVERSE IS NOT REACHED FROM HERE. n100 is live; the 58 and 74 go
+    # through frozen/make_daily_audit.py, which is deliberately left on v2 only.
+    for _a in arm_reg.selected():
+        audit_step.run(REGISTRY["n100"], _a)
 
 
 if __name__ == "__main__":
