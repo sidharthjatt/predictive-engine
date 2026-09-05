@@ -1,31 +1,106 @@
 # ===========================================================================
-# requirements.txt -- Algo Trading Project (DT + Attention-GRU + TD3 + Nautilus)
+# requirements.txt -- cross-sectional equity ranking engine for Indian markets
 #
-# IMPORTANT: nautilus_trader requires Python 3.12, 3.13, or 3.14.
-# Python 3.11 ya usse purana version kaam NAHI karega -- pehle apna
-# Python version check karo: python3 --version
+# 17 price and volume features -> cross-sectional z-score -> LightGBM 10-seed
+# ensemble, monthly retrain, expanding walk-forward -> top-8 selection ->
+# breadth-scaled exposure -> inverse-vol sizing -> next-open fills with real
+# Zerodha delivery-equity costs. Execution is ported to NautilusTrader.
+#
+# THIS FILE WAS WRONG UNTIL 2026-09-02 AND THE HEADER IS THE REASON IT WENT
+# UNNOTICED. It described a "DT + Attention-GRU + TD3" project -- a previous
+# incarnation of this repository -- and pinned torch, gymnasium and
+# stable-baselines3 for it. None of the three is imported by any file in this
+# repository. Meanwhile lightgbm, the model that produces every score, was
+# absent. See KNOWN_ISSUES.md.
+#
+# HOW THIS LIST WAS DERIVED, so it can be re-derived rather than trusted:
+# every script in run_all.py's PIPELINE_ORDER was parsed with ast, its local
+# imports followed transitively (41 modules reached from 32 steps), and the
+# third-party names collected. Two requirements do NOT appear as an import
+# statement and are explained in place below: scikit-learn and pyarrow.
+#
+# PYTHON VERSION: 3.12 or newer. nautilus_trader requires 3.12+, and this is a
+# hard floor, not a preference. The headline was produced on 3.12.13.
+#
+# RUN IT WITH THE VENV INTERPRETER, NOT `python3`:
+#     ./venv/bin/python run_all.py
+# run_all.py spawns every step with sys.executable, so whatever interpreter
+# launches it is propagated to every child. See run_all.py's docstring.
 # ===========================================================================
+
+# --- The model. Every score in this project comes from lgb.LGBMRegressor. ---
+#
+# PINNED EXACTLY, AND NOT AS A STYLE CHOICE. The published headline is the
+# output of one specific version's arithmetic. A one-bit float difference is
+# enough to flip a LightGBM split, reorder near-tied names at the TOP_N=8
+# boundary and move CAGR by two thirds of a point -- measured, see
+# KNOWN_ISSUES.md, "The headline is not reproducible from the artefacts on disk
+# to better than about a point". A minor-version bump is free to change split
+# arithmetic, so a floor here would not preserve the numbers.
+lightgbm==4.6.0
+
+# scikit-learn is NOT optional here even though nothing imports it directly.
+# lgb.LGBMRegressor is defined in lightgbm.sklearn, and lightgbm declares
+# scikit-learn only as an EXTRA ("scikit-learn>=0.24.2; extra == 'scikit-learn'"),
+# so installing lightgbm alone does not bring it in.
+scikit-learn>=1.5,<2.0
 
 # --- Core data handling ---
 pandas>=2.2,<3.0
 numpy>=1.26,<2.3
+
+# pyarrow is NOT optional here even though nothing imports it directly.
+# STEP 16 nautilus/nt_export_scores.py calls df.to_parquet / pd.read_parquet,
+# and pandas needs a parquet engine for both.
 pyarrow>=14.0
 
-# --- Classical ML (Decision Tree) ---
-scikit-learn>=1.5,<1.10
+# scipy is imported directly by STEP 4 diagnose_decay.py and STEP 6
+# reality_check.py. It is also a hard dependency of lightgbm, but it is listed
+# on its own account so that dropping lightgbm would not silently break STEP 6.
+scipy>=1.10
 
-# --- Deep Learning (Attention-GRU) ---
-torch>=2.2,<2.13
-
-# --- Reinforcement Learning (TD3) ---
-gymnasium>=0.29,<1.4
-stable-baselines3>=2.3,<3.0
-
-# --- Backtesting engine ---
+# --- Backtesting / execution engine ---
+# Imported by qbeast_in_charges.py, which the pipeline reaches for cost
+# modelling. Sets the 3.12 Python floor noted in the header.
 nautilus_trader>=1.220,<1.230
 
 # --- Plotting / equity curve charts ---
 matplotlib>=3.8,<3.12
 
-# --- Misc utilities ---
+# --- Parallel seed fitting (engine_core.score_monthly, one process per seed) ---
 joblib>=1.3
+
+# ===========================================================================
+# NOT ON THE run_all.py PATH, BUT NEEDED BY TOOLING IN THIS REPOSITORY
+# ===========================================================================
+# openpyxl is the engine pandas.read_excel uses for the .xlsx membership
+# workbooks in results/extract_membership.py and results/repair_membership.py.
+# Those scripts are survivorship tooling and are NOT in PIPELINE_ORDER, so
+# run_all.py completes without this. It is listed because omitting it made the
+# membership work fail on a fresh checkout.
+openpyxl>=3.1
+
+# ===========================================================================
+# VERSIONS THE CURRENT PUBLISHED NUMBERS WERE PRODUCED UNDER -- PROVENANCE,
+# NOT PINS. Only lightgbm above is pinned. This block records what was actually
+# installed when the 2026-09-02 headline was produced, so that a later
+# discrepancy can be attributed rather than guessed at.
+#
+#     Python        3.12.13
+#     lightgbm      4.6.0
+#     scikit-learn  1.9.0
+#     numpy         2.2.6
+#     pandas        2.3.3
+#     scipy         1.18.0
+#     matplotlib    3.11.0
+#     joblib        1.5.3
+#     pyarrow       24.0.0
+#     nautilus_trader 1.228.0
+#     openpyxl      3.1.5
+#
+# CROSS-MACHINE REPRODUCIBILITY IS NOT ESTABLISHED AND SHOULD NOT BE EXPECTED,
+# and this block does not establish it. Same-machine determinism was verified on
+# 2026-09-02 (byte-identical score panels across two full runs); nothing
+# equivalent has been run on a second machine. Installing these exact versions
+# is necessary for reproducing the headline, not demonstrably sufficient.
+# ===========================================================================

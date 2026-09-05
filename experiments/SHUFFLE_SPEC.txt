@@ -1,0 +1,264 @@
+SHUFFLE TEST -- IS THE RETURN IN THE MODEL, OR IN THE MECHANICS?
+================================================================================
+Written 2026-09-01, BEFORE any code is written and before any result is seen.
+
+THE QUESTION
+    Reconciliation and the Nautilus gate prove the engine does what it says. They
+    prove nothing about whether the RETURNS are an artefact. If randomised scores
+    produce returns near the strategy's, the alpha is not in the model.
+
+    This is a VALIDATION. There is a verdict rule and it is fixed below, before
+    any number exists.
+
+IT IS ALSO THE FIRST SIGNIFICANCE TEST THIS PROJECT HAS EVER RUN.
+    HANDOFF_SUMMARY section 10 states plainly: "No significance test has ever been
+    run on the edge -- not that it failed one, nobody ran one." That is still true
+    at the moment this spec is written.
+
+    The [PASS] Shuffle test rows in the old run logs are NOT evidence. They were
+    hardcoded string literals in engine_core.py, removed on 2026-08-29, and they
+    described work done on the retired 58 at some earlier date with no surviving
+    artefact. See KNOWN_ISSUES.md, "STEP 2's leakage checklist performs no checks".
+    NOTHING IS BEING RE-RUN HERE. This is the first time.
+
+
+--------------------------------------------------------------------------------
+WHAT IS SHUFFLED, AND WHAT IS HELD FIXED
+--------------------------------------------------------------------------------
+THE SHUFFLE: a CROSS-SECTIONAL PERMUTATION of the score matrix.
+    For each date independently, the non-NaN scores are permuted across the
+    symbols that have one. Nothing else in the panel is touched.
+
+    WHY THIS PERMUTATION AND NOT RANDOM DRAWS.
+      - It preserves the score DISTRIBUTION on every date exactly, so the spread
+        between rank 1 and rank 8 is whatever the model actually produced.
+      - It preserves WHICH NAMES ARE SCORABLE on each date, so eligibility,
+        panel density and the len(s_) >= TOP_N guard behave identically.
+      - It destroys ONLY the mapping from symbol to score, which is the model's
+        entire output.
+    Random draws would change the distribution and would test a different thing.
+
+HELD FIXED, BIT FOR BIT: prices, opens, the panel, the trading dates, the window,
+TOP_N=8, BUFFER=16, VOL_WIN=60, the 0.98 factor, slippage, the Zerodha cost model,
+CASH_YIELD=0.0, the execution timing, and the sizing rule of each arm.
+
+BREADTH IS INVARIANT TO THE SHUFFLE, AND THIS MATTERS MORE THAN IT LOOKS.
+    test_exposure.py:149-150 computes exposure as mean(mom20 > 0) across the
+    universe. It never reads a score. So the breadth-scaled arms deploy the SAME
+    fraction on the SAME dates under a shuffle as they do for real.
+
+    CONSEQUENCE, STATED IN ADVANCE: whatever breadth contributes to Sharpe and to
+    drawdown is present in the null as well as in the real arm. The shuffle
+    therefore tests the MODEL'S SELECTION and nothing else. It cannot and does not
+    test breadth. That is a feature -- it isolates the thing being questioned --
+    but it means a v2 result carries breadth's benefit on both sides.
+
+NO RESCORING. The permutation acts on an existing score panel, so no LightGBM run
+is involved and the cost is backtests only.
+
+
+--------------------------------------------------------------------------------
+THE GRID
+--------------------------------------------------------------------------------
+    4 arms   v1 invvol/none, v2 invvol/breadth (SHIPPING), v3 provol/none,
+             v4 provol/breadth
+    2 universes   n100, mid
+    N shuffles per arm per universe, N fixed below
+
+The real arms are recomputed IN THE SAME PROCESS on the SAME panel, not read from
+v34_comparison.csv, so the comparison is exact rather than approximate.
+
+    IDENTITY GATE. The real v2 arm must reproduce the shipped figure -- CAGR
+    25.49 / Sharpe 1.88 on n100 and 30.22 / 2.06 on mid, READ FROM
+    v34_comparison.csv rather than typed in. If it does not, the harness is wrong
+    and NO shuffle result is reported. Correctness gate, not a performance gate.
+
+
+--------------------------------------------------------------------------------
+SEED COUNT
+--------------------------------------------------------------------------------
+    N = 100 permutations per arm per universe. Seeds 0..99, numpy default_rng.
+
+    WHY 100. The statistic is a one-sided permutation p-value with resolution
+    1/(N+1). At N=100 that is 0.0099, so a p-value can resolve below the 0.05
+    bar with room to spare. At N=20 the finest attainable p is 0.048 and would
+    sit on the bar itself, which is not a usable test.
+
+    800 backtests total. A single-arm probe is TIMED FIRST and the extrapolated
+    cost REPORTED BEFORE the full run starts, not after. If the probe implies
+    more than 20 minutes, N drops to 50 and THAT CHANGE IS RECORDED HERE WITH THE
+    MEASURED COST rather than made silently.
+
+
+--------------------------------------------------------------------------------
+THE STATISTIC, AND THE TOLERANCE
+--------------------------------------------------------------------------------
+PRIMARY STATISTIC: CAGR. The question is about RETURNS -- "if randomised scores
+produce returns near the strategy's". CAGR is the direct measure and, unlike
+Sharpe, it is not confounded by breadth's volatility damping, which is present in
+the null.
+
+    one-sided permutation p-value
+
+        p = (1 + #{shuffles with CAGR >= real CAGR}) / (N + 1)
+
+    The +1 in both terms is the standard finite-sample correction; without it a
+    zero count would report p = 0, which no permutation test can support.
+
+THE TOLERANCE IS THE p-VALUE BAR, AND IT IS 0.05.
+    p < 0.05 means: fewer than about 5 in 100 random selections matched or beat
+    the real strategy's return, holding every mechanic identical.
+
+    0.05 IS A CONVENTION AND IS UNDERIVED, exactly like the dMaxDD > 3 bar in
+    BREADTH_LIVE_SPEC.txt. It is fixed here before any number exists and it is NOT
+    adjusted afterwards in either direction.
+
+EFFECT SIZE IS REPORTED ALONGSIDE, NEVER INSTEAD.
+    real CAGR minus the MEDIAN shuffle CAGR, in points, per arm per universe. A
+    p-value says "unlikely under the null"; it does not say "large". Both are
+    printed and the report does not offer one as the other.
+
+
+--------------------------------------------------------------------------------
+THE VERDICT RULE -- FIXED NOW, BEFORE ANY NUMBER EXISTS
+--------------------------------------------------------------------------------
+    GATED, on CAGR, at p < 0.05:
+        A   v1 on n100          B   v1 on mid
+        C   v2 on n100          D   v2 on mid
+
+    ALL FOUR MUST HOLD.
+
+    WHY v1 AND v2 AND NOT ALL FOUR ARMS. v2 is what ships and must be tested.
+    v1 is the cleaner test of SELECTION, because it is 100% invested and no
+    exposure rule dilutes the signal. v3 and v4 are pro-vol arms that no arm
+    of production uses and that V34_SPEC.txt declined to promote; they are
+    REPORTED IN FULL and do not gate.
+
+    REPORTED, NOT GATED: Sharpe and MaxDD p-values for all four arms, the full
+    null distribution (min, 5th, 25th, median, 75th, 95th, max) for every
+    statistic, the count of shuffles beating the real arm, the equal-weight buy
+    and hold line, and the effect sizes.
+
+WHAT A PASS MEANS -- AND THE CEILING IS LOW
+    Random selection, with every mechanic held identical, does not reproduce the
+    strategy's return. The model's ranking is doing something.
+
+    IT WOULD NOT MEAN the strategy is validated. Three things it cannot say:
+
+      1. IT DOES NOT CORRECT FOR THE 26-TRIAL DENOMINATOR. This configuration was
+         chosen after at least 26 recorded trials on this same data
+         (EXPERIMENTS.md). A permutation test asks whether THIS configuration
+         beats random selection; it does not ask whether a configuration selected
+         by 26 passes over the same panel would be expected to. A p of 0.01 here
+         is NOT a 1% chance the strategy is noise.
+
+      2. IT DOES NOT ADDRESS SURVIVORSHIP. THE NULL CARRIES THE SAME BIAS. Random
+         portfolios are drawn from the same backfilled index membership, so both
+         the real arm and every shuffle enjoy it. The shuffle can only ever say
+         "better than random WITHIN this biased universe". If the universe is
+         inflated, the shuffle test passes anyway.
+
+      3. IT DOES NOT MAKE THE RETURN TRADABLE. Synthetic fills, no market impact,
+         no capital gains tax. Unchanged by this test.
+
+WHAT A FAIL MEANS
+    Randomised scores reproduce the strategy's returns. THE ALPHA IS NOT IN THE
+    MODEL, and the return is coming from the mechanics -- concentration into 8
+    names, inverse-vol sizing, breadth exposure, the universe itself -- any of
+    which a random selector gets for free.
+
+    That would be the most important negative result this project has produced,
+    and it is reported plainly and immediately, with no attempt to find a variant
+    that passes. NO SECOND SHUFFLE DESIGN IS RUN IF THE FIRST FAILS. Re-running a
+    null until it stops rejecting is the same act as re-running a sweep after a
+    recorded negative.
+
+WHAT A SPLIT MEANS -- STATED BEFORE IT HAPPENS
+    Likeliest split: v1 passes and v2 fails, on one or both universes. That would
+    mean the model's selection adds return when fully invested, but that at ~56%
+    deployment the surviving edge is not separable from random selection.
+
+    IT IS REPORTED AS A DISAGREEMENT BETWEEN ARMS, not resolved toward the arm
+    that looks better, not averaged, and NOT re-run at a changed bar. A universe
+    split is handled the same way, as in V34_SPEC.txt and BREADTH_LIVE_SPEC.txt.
+
+
+--------------------------------------------------------------------------------
+WRITTEN EXPECTATION -- RECORDED BEFORE THE RUN
+--------------------------------------------------------------------------------
+Recorded so that whatever happens cannot afterwards be described as expected.
+
+ 1. v1 PASSES ON BOTH UNIVERSES, and comfortably. Its edge over equal-weight buy
+    and hold is 11.4 points on n100 (35.13 vs 23.74) and 18.1 on mid (45.87 vs
+    27.77). A random 8-name selection should land near buy and hold less turnover
+    costs. Confidence: high.
+
+ 2. v2 IS THE ONE AT RISK, AND n100 v2 IS THE MOST LIKELY FAILURE IN THE SUITE.
+    Real v2 on n100 returns 25.49 against 23.74 for buy and hold -- AN EDGE OF
+    1.75 POINTS. A null built from 8-name random portfolios is wide, because
+    8 names out of 99 is a high-variance draw. If the null's spread is on the
+    order of several CAGR points, 1.75 will sit inside it and the p-value will
+    not clear 0.05. Confidence that n100 v2 fails: I put it a little under even,
+    and I would not be surprised either way.
+
+    THAT IS THE HONEST POSITION AND IT IS BEING WRITTEN DOWN BEFORE THE RUN
+    PRECISELY BECAUSE IT IS UNCOMFORTABLE. If n100 v2 fails, the shipping
+    configuration's return is not separable from random selection on the larger
+    universe, and this spec forbids finding a variant that rescues it.
+
+ 3. THE SHUFFLED BREADTH ARMS WILL KEEP MOST OF THEIR DRAWDOWN ADVANTAGE. Because
+    exposure is score-independent, shuffled v2 should show a much shallower MaxDD
+    than shuffled v1, just as the real arms do. If that does NOT happen, my
+    understanding of the exposure path is wrong and that matters more than the
+    shuffle result.
+
+ 4. SHUFFLED ARMS MAY BEAT EQUAL-WEIGHT BUY AND HOLD. Concentration, inverse-vol
+    sizing and breadth are all available to a random selector. If the null's
+    median sits above buy and hold, the MECHANICS carry return independently of
+    the model. That is reportable and is not gated.
+
+ 5. THIS PREDICTION STAYS IN THIS SPEC. A confirmed prediction does not become a
+    finding, and a contradicted one is reported as a contradiction.
+
+
+--------------------------------------------------------------------------------
+WHAT THIS TEST CANNOT DO
+--------------------------------------------------------------------------------
+ 1. IT CANNOT SEPARATE ALPHA FROM SURVIVORSHIP. Both arms of the comparison draw
+    from the same backfilled universe. This is the single most important limit and
+    it is why the survivorship question is asked alongside rather than after.
+ 2. IT CANNOT TEST BREADTH. Exposure is invariant under the shuffle.
+ 3. IT CANNOT CORRECT THE TRIAL DENOMINATOR. See the pass ceiling above.
+ 4. IT TESTS ONE PANEL. The permutation null is conditional on the realised price
+    history 2019-2026. It says nothing about another period.
+ 5. IT DOES NOT VALIDATE THE ENGINE. That is what reconciliation and the Nautilus
+    gate do, and they are unaffected by this either way.
+
+
+--------------------------------------------------------------------------------
+CACHES, ENGINE, AND OUTPUTS
+--------------------------------------------------------------------------------
+ENGINE: test_exposure.backtest_exposure, the SHIPPING engine -- the same side of
+the split as validate_breadth_live.py and validate_topn.py, not engine_core.
+
+CACHES: this suite WRITES NO CACHE. It reads the production score panel and
+asserts the universe and panel shape FROM THE FILE, never from the path. Both the
+real arm and every shuffle are proven to have read one identical panel.
+
+OUTPUTS
+    results_{uni}/metrics/shuffle_summary.csv     per arm: real, null quantiles,
+                                                  p-values, effect sizes
+    results_{uni}/metrics/shuffle_draws.csv       every individual shuffle draw
+    results_{uni}/metrics/shuffle_params.json     N, seeds, window, constants,
+                                                  git commit, dirty flag
+    diagnostics/shuffle_{uni}.txt                 per universe
+    diagnostics/shuffle_verdict.txt               the gated verdict
+
+English only. Every criterion outcome and every verdict word is computed from the
+run that prints it. No verdict string is hardcoded.
+
+THIS COUNTS AS A TRIAL and is entered in EXPERIMENTS.md whichever way it falls.
+
+================================================================================
+END OF SPEC
+================================================================================

@@ -1,0 +1,128 @@
+========================================================================================================
+ PER-SYMBOL ATTRIBUTION -- v2 (breadth), the SHIPPING arm -- NIFTY 100 (n100)
+========================================================================================================
+
+  WINDOW 2019-01-01 to 2026-05-29, 1,836 trading days.
+  Every figure below is on that window and no other.
+  source daily_trades_n100.csv, 978 fills, mtime 2026-09-04 14:02 (local)
+  arm: backtest_exposure(mode='breadth', sizing='invvol'); no refit, no re-score
+
+  RECONCILIATION -- how much of the result realised P&L explains
+    start capital                  Rs      1,000,000
+    final equity                   Rs      5,465,013
+    total gain                     Rs      4,465,013
+    sum of NET realised round trips Rs     4,487,857
+    unexplained (open positions at the end, and compounding)  Rs -22,844
+    Realised P&L does not equal the equity gain: positions open on the last
+    day are never realised, and a rupee earned early compounds. Shares below
+    are shares OF REALISED P&L, not of the equity gain.
+
+  symbols traded 93   round trips 484   overall win rate 60.1%
+
+  TOP 15 BY NET REALISED P&L
+  symbol               net Rs  share%  trips   win%    avg win   avg loss days held
+  MAZDOCK             524,352   11.68     12     58     95,742    -29,169       796
+  SOLARINDS           409,886    9.13     15     73     39,879     -7,196      1175
+  BAJAJHLDNG          310,692    6.92     18     78     23,990     -6,292       989
+  ADANIENSOL          305,001    6.80     15     60     40,733    -10,267       821
+  ADANIPOWER          227,781    5.08     22     68     19,569     -9,393      1049
+  ZYDUSLIFE           226,669    5.05      8     75     45,633    -23,564       378
+  BOSCHLTD            210,806    4.70      4     50    122,700    -17,297       231
+  PFC                 193,382    4.31      9     67     34,122     -3,784       613
+  INFY                176,863    3.94      7     86     31,677    -13,197       349
+  VBL                 163,583    3.65     10     80     22,817     -9,475      1032
+  ETERNAL             155,829    3.47      7     71     43,470    -30,760       386
+  SBIN                145,298    3.24      2    100     72,649          0        87
+  HDFCAMC             135,280    3.01      7     71     32,232    -12,941       375
+  CGPOWER             121,043    2.70     12     58     23,934     -9,299       772
+  HAL                 111,061    2.47     11     64     20,209     -7,600       674
+
+  BOTTOM 5 BY NET REALISED P&L
+  INDIGO              -55,232   -1.23      2     50      2,455    -57,687        90
+  ONGC                -65,687   -1.46      2      0          0    -32,844        85
+  MOTHERSON           -71,170   -1.59      5     60      8,139    -47,794       290
+  HINDZINC            -72,457   -1.61      8     38      5,595    -17,848       267
+  MARUTI             -127,884   -2.85      1      0          0   -127,884        58
+
+  CONCENTRATION
+    top  1 names:  11.68% of net realised P&L   (MAZDOCK)
+    top  3 names:  27.74% of net realised P&L   (MAZDOCK, SOLARINDS, BAJAJHLDNG)
+    top  5 names:  39.61% of net realised P&L   (MAZDOCK, SOLARINDS, BAJAJHLDNG, ADANIENSOL, ADANIPOWER)
+    top 10 names:  61.25% of net realised P&L
+    61 of 93 symbols are net positive; the losers cost Rs -789,940
+
+  LARGEST CONTRIBUTOR REMOVED -- ARITHMETIC, NOT A RE-RUN
+    largest contributor            MAZDOCK at Rs 524,352 (11.68% of realised P&L)
+    realised P&L without it        Rs 3,963,505  (from Rs 4,487,857)
+    that is a 11.7% reduction in realised P&L
+    THIS IS NOT the strategy re-run without that name. The model would have
+    selected differently and the capital would have gone elsewhere. A true
+    leave-one-out requires re-running the engine; mid_jackknife.py does that.
+
+  written: attribution_v2_per_symbol.csv, attribution_v2_round_trips.csv
+
+
+========================================================================================================
+ PER-SYMBOL ATTRIBUTION -- v2 (breadth), the SHIPPING arm -- MIDCAP150 (mid)
+========================================================================================================
+
+  WINDOW 2019-01-01 to 2026-05-29, 1,836 trading days.
+  Every figure below is on that window and no other.
+  source daily_trades_mid.csv, 963 fills, mtime 2026-09-04 14:01 (local)
+  arm: backtest_exposure(mode='breadth', sizing='invvol'); no refit, no re-score
+
+  RECONCILIATION -- how much of the result realised P&L explains
+    start capital                  Rs      1,000,000
+    final equity                   Rs      6,862,643
+    total gain                     Rs      5,862,643
+    sum of NET realised round trips Rs     5,960,634
+    unexplained (open positions at the end, and compounding)  Rs -97,990
+    Realised P&L does not equal the equity gain: positions open on the last
+    day are never realised, and a rupee earned early compounds. Shares below
+    are shares OF REALISED P&L, not of the equity gain.
+
+  symbols traded 122   round trips 477   overall win rate 57.4%
+
+  TOP 15 BY NET REALISED P&L
+  symbol               net Rs  share%  trips   win%    avg win   avg loss days held
+  TATAINVEST          565,468    9.49     13     77     60,812    -14,218      1004
+  GVT&D               550,573    9.24      6     67    148,459    -21,630       498
+  APARINDS            536,137    8.99      6    100     89,356          0       495
+  GODFRYPHLP          485,942    8.15     12     50    103,578    -22,588       998
+  AIIL                453,927    7.62     14     79     46,130    -17,836      1049
+  LLOYDSME            431,525    7.24      8     75     74,575     -7,962       916
+  MOTILALOFS          336,160    5.64      6     67     86,443     -4,806       302
+  KALYANKJIL          314,305    5.27      6    100     52,384          0       345
+  JSL                 217,572    3.65      8     75     38,268     -6,018       525
+  MEDANTA             217,436    3.65      3    100     72,479          0       261
+  TIINDIA             216,438    3.63      8     50     57,981     -3,871       439
+  BLUESTARCO          211,200    3.54      6     83     42,501     -1,307       326
+  TATAELXSI           209,546    3.52      8     75     38,448    -10,572       495
+  PERSISTENT          188,544    3.16      8     75     34,202     -8,334       357
+  SCHAEFFLER          144,828    2.43      4     75     50,280     -6,012       118
+
+  BOTTOM 5 BY NET REALISED P&L
+  IDEA                -81,237   -1.36      5     20     28,036    -27,318       231
+  AUROPHARMA          -85,411   -1.43      3      0          0    -28,470       114
+  GICRE               -86,874   -1.46      2      0          0    -43,437       117
+  COFORGE             -88,784   -1.49      5      0          0    -17,757       207
+  HEROMOTOCO          -99,806   -1.67      3      0          0    -33,269       123
+
+  CONCENTRATION
+    top  1 names:   9.49% of net realised P&L   (TATAINVEST)
+    top  3 names:  27.72% of net realised P&L   (TATAINVEST, GVT&D, APARINDS)
+    top  5 names:  43.49% of net realised P&L   (TATAINVEST, GVT&D, APARINDS, GODFRYPHLP, AIIL)
+    top 10 names:  68.94% of net realised P&L
+    76 of 122 symbols are net positive; the losers cost Rs -1,288,941
+
+  LARGEST CONTRIBUTOR REMOVED -- ARITHMETIC, NOT A RE-RUN
+    largest contributor            TATAINVEST at Rs 565,468 (9.49% of realised P&L)
+    realised P&L without it        Rs 5,395,166  (from Rs 5,960,634)
+    that is a 9.5% reduction in realised P&L
+    THIS IS NOT the strategy re-run without that name. The model would have
+    selected differently and the capital would have gone elsewhere. A true
+    leave-one-out requires re-running the engine; mid_jackknife.py does that.
+
+  written: attribution_v2_per_symbol.csv, attribution_v2_round_trips.csv
+
+

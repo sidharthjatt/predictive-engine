@@ -1,0 +1,124 @@
+====================================================================================================
+ WHICH PURGE BUILT THE SHIPPED SCORE PANELS -- DIFFERENTIAL PROBE
+====================================================================================================
+
+  A DIFFERENTIAL TEST BETWEEN TWO CANDIDATES. NOT AN IDENTITY REPRODUCTION.
+  Each month is refit TWICE from the same on-disk raw panel, once per
+  purge_mode, and compared against the shipped score panel. The question is
+  which candidate is CLOSER, never whether either one reproduces.
+
+  PURGE = 32 calendar days (legacy)   HORIZON = 20 trading rows   PURGE_EMBARGO = 2 trading rows
+  seeds [7, 42, 99, 1, 2, 3, 11, 22, 33, 101]
+
+====================================================================================================
+ NIFTY 100 (n100)
+====================================================================================================
+
+  raw panel    raw_panel_n100_cache.csv   rows 479,333
+  scored panel v_n100_expanding_cache.csv   rows 479,333
+
+  CONTROL MONTHS -- the two cuts select an IDENTICAL training set.
+  The two branches MUST return identical output here. If they do not, the
+  probe has a preference of its own and its verdict means nothing.
+
+  month      trainrows   identical output   mean abs vs shipped  rank flips
+  2016-03      220,982               True             2.318e-03       1,062
+  2017-02      239,220               True             2.052e-03       1,025
+  2017-08      249,251               True             2.314e-03       1,180
+
+  ALL CONTROLS IDENTICAL: True
+  ERROR FLOOR from the controls, mean abs: 2.052e-03 .. 2.318e-03
+  That floor is the panel round-trip alone. It has nothing to do with
+  the purge, and no candidate can beat it.
+
+  DIVERGENT MONTHS -- the two cuts select different training sets.
+  'tr>cal' marks the SIZE-INCREASING cases, where the trading cut falls
+  LATER and trains on MORE rows. Those rule out the confound that a
+  smaller training set is simply always closer to the shipped panel.
+
+  month     dir     cut cal      cut tr         rows cal    rows tr |  maxabs cal   maxabs tr |  meanabs cal   meanabs tr |  flips cal  flips tr | closer
+  2016-05   tr<cal  2016-03-31   2016-03-28      224,231    223,994 |   3.371e-02   2.084e-02 |    2.918e-03    2.313e-03 |      1,247     1,122 | trading
+  2016-07   tr>cal  2016-05-30   2016-06-01      227,305    227,462 |   2.797e-02   2.748e-02 |    2.544e-03    2.458e-03 |      1,158     1,119 | trading
+  2017-12   tr>cal  2017-10-30   2017-11-01      255,970    256,134 |   2.147e-02   1.644e-02 |    2.342e-03    2.017e-03 |      1,274     1,238 | trading
+  2018-04   tr<cal  2018-03-01   2018-02-26      263,065    262,816 |   2.114e-02   1.615e-02 |    2.237e-03    1.693e-03 |      1,246     1,165 | trading
+  2019-02   tr>cal  2018-12-31   2019-01-02      280,254    280,426 |   2.527e-02   1.608e-02 |    2.155e-03    1.853e-03 |      1,218     1,137 | trading
+  2019-05   tr<cal  2019-03-31   2019-03-27      285,585    285,413 |   2.943e-02   1.585e-02 |    2.125e-03    1.735e-03 |      1,387     1,321 | trading
+  2019-09   tr<cal  2019-08-02   2019-07-30      293,003    292,739 |   5.913e-02   2.169e-02 |    2.223e-03    1.743e-03 |      1,181     1,074 | trading
+  2020-05   tr<cal  2020-04-02   2020-03-26      307,483    307,127 |   7.031e-02   1.675e-02 |    3.511e-03    1.873e-03 |      1,238     1,071 | trading
+  2020-10   tr>cal  2020-08-30   2020-09-01      316,397    316,571 |   2.218e-02   1.933e-02 |    1.864e-03    1.751e-03 |      1,263     1,221 | trading
+  2021-05   tr<cal  2021-04-01   2021-03-26      329,412    329,145 |   4.118e-02   1.877e-02 |    2.400e-03    1.997e-03 |      1,341     1,295 | trading
+  2023-05   tr<cal  2023-03-31   2023-03-24      374,714    374,338 |   4.028e-02   2.001e-02 |    2.291e-03    1.634e-03 |      1,460     1,364 | trading
+  2026-05   tr<cal  2026-04-02   2026-03-27      444,692    444,404 |   2.906e-02   3.576e-02 |    3.416e-03    2.628e-03 |      1,440     1,341 | trading
+
+====================================================================================================
+ MIDCAP150 (mid)
+====================================================================================================
+
+  raw panel    raw_panel_mid_cache.csv   rows 589,269
+  scored panel v_mid_expanding_cache.csv   rows 589,269
+
+  CONTROL MONTHS -- the two cuts select an IDENTICAL training set.
+  The two branches MUST return identical output here. If they do not, the
+  probe has a preference of its own and its verdict means nothing.
+
+  month      trainrows   identical output   mean abs vs shipped  rank flips
+  2017-08      273,997               True             2.077e-03       1,545
+
+  ALL CONTROLS IDENTICAL: True
+  ERROR FLOOR from the controls, mean abs: 2.077e-03 .. 2.077e-03
+  That floor is the panel round-trip alone. It has nothing to do with
+  the purge, and no candidate can beat it.
+
+  DIVERGENT MONTHS -- the two cuts select different training sets.
+  'tr>cal' marks the SIZE-INCREASING cases, where the trading cut falls
+  LATER and trains on MORE rows. Those rule out the confound that a
+  smaller training set is simply always closer to the shipped panel.
+
+  month     dir     cut cal      cut tr         rows cal    rows tr |  maxabs cal   maxabs tr |  meanabs cal   meanabs tr |  flips cal  flips tr | closer
+  2019-02   tr>cal  2018-12-31   2019-01-02      312,654    312,880 |   3.634e-02   2.102e-02 |    2.482e-03    2.027e-03 |      1,709     1,645 | trading
+  2019-09   tr<cal  2019-08-02   2019-07-30      329,333    328,991 |   3.224e-02   2.319e-02 |    2.217e-03    1.638e-03 |      1,666     1,510 | trading
+  2020-05   tr<cal  2020-04-02   2020-03-26      347,983    347,519 |   2.511e-02   2.257e-02 |    2.717e-03    1.969e-03 |      1,858     1,712 | trading
+  2023-05   tr<cal  2023-03-31   2023-03-24      439,665    439,149 |   1.974e-02   2.537e-02 |    2.007e-03    1.416e-03 |      2,250     2,087 | trading
+
+====================================================================================================
+ VERDICT -- computed from the rows above, not written into this script
+====================================================================================================
+
+  control months, both universes .................. 4
+  controls returning identical output .............. 4  -> probe is unbiased between branches: True
+  divergent months, both universes ................. 16
+    trading closer on MEAN ABS ..................... 16 of 16
+    trading closer on RANK DISAGREEMENT ............ 16 of 16
+    trading closer on MAX ABS (weak statistic) ..... 14 of 16
+  size-increasing months (trading trains on MORE) .. 5
+    trading closer on MEAN ABS there ............... 5 of 5
+
+  One-sided sign test on the primary statistic (mean abs), under the null
+  that the shipped panel is equally close to both candidates:
+    16 of 16 -> p = 1.526e-05
+
+  DETERMINATION: THE SHIPPED PANELS WERE BUILT WITH purge_mode="trading".
+  Unanimous on both primary statistics, the controls confirm the probe has
+  no branch preference, and the size-increasing months exclude the
+  training-set-size confound.
+
+  THE RESIDUAL, AND WHY THERE IS ONE.
+  NEITHER candidate reproduces the shipped panel. The best fit still leaves
+  a non-zero mean absolute difference and a four-figure rank disagreement in
+  every month, control months included. The cause is known and is not the
+  purge: build_scores_*.py score the IN-MEMORY panel and write
+  raw_panel_*_cache.csv as a by-product, and the two differ by one unit in
+  the last place. This probe can only read the CSV. The control months
+  measure that floor directly:
+    n100  mean abs floor 2.052e-03 .. 2.318e-03
+    mid   mean abs floor 2.077e-03 .. 2.077e-03
+  See KNOWN_ISSUES.md, "The headline is not reproducible from the artefacts
+  on disk to better than about a point".
+
+  WHAT THIS RUN DID NOT ESTABLISH:
+    - that the shipped panels reproduce exactly from the artefacts on disk;
+      they do not, and the one-ULP gap above is the reason.
+    - anything about whether the trading purge is CORRECT. That is
+      diagnostics/leakage_check2_purge.txt. This asks only which one ran.
+
+  wall clock 5.0 min

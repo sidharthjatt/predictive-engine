@@ -154,7 +154,7 @@ counts each document claims for itself:
 | `EXP20_PREREG.txt` | "the 21st. 20 tested so far" (EXP19 never ran, so EXP20 took slot 21) |
 | `EXP21_EXP22_PREREG.txt` | "the 22nd and 23rd. 21 tested so far" |
 
-**This file lists 27 entries, of which 26 were actually run.** Entry 27 was added
+**This file lists 29 entries, of which 28 were actually run.** Entry 27 was added
 2026-08-29 and counts like any other: a validation is still a trial. The excess
 over the
 preregs' final "23" is not an error in the preregs so much as an accounting
@@ -178,9 +178,9 @@ multiple-testing bar is therefore higher than every pre-registration assumed,
 never lower. No verdict changes — every rejection stays a rejection, and the one
 acceptance (entry 10) was an early trial when the count was low.
 
-"At least" is meant literally. Two of the twenty-seven entries have no surviving
+"At least" is meant literally. Two of the twenty-nine entries have no surviving
 mechanism (1, 8), one has no surviving verdict (26), and the count was
-demonstrably wrong three separate times. **Treat 26 as a floor, not a
+demonstrably wrong three separate times. **Treat 28 as a floor, not a
 measurement.**
 
 ---
@@ -216,8 +216,16 @@ measurement.**
 | 25 | EXP22 position trim at 20% | construction | REJECT | Gate D (premise refuted) |
 | 26 | Sizing: equal-rupee vs inverse-vol | sizing | **VERDICT UNKNOWN** | never recorded |
 | 27 | TOP_N=8 revalidation vs 12 | concentration | **NOT CONTRADICTED** | held 6 of 6; 12 had shallower MaxDD, ungated |
+| 28 | Shuffle test (permutation null) | significance | **PASS** | 4 of 4 gated, p = 0.0099, 0 of 100 beat |
+| 29 | Seed noise floor (40 seeds, sub-ensembles) | stability | **FLOOR MEASURED** | sd 0.97-2.14 CAGR at K=10; purge result inconclusive |
+| 30 | Rebalance cadence sweep, v2, REBAL 5/10/20/40 | cadence | **NO CADENCE QUALIFIES** | none beats 20 outside the seed floor on both universes; universes disagree on sign at 10 and 40 |
+| 31 | Cadence grid, all four arms, REBAL 5/10/20/40/60 | cadence | **ONLY v2 HAS A VERDICT** | 8 of 8 controls reproduce; 0 cells with a measured floor beat control on both; 6 v3/v4 cells UNKNOWN (no floor ever measured) |
+| 32 | Audit flag A/B on the shipping engine | verification | **CLAIM VERIFIED** | max abs difference 0.0 across 73,440 equity values, 40 cells; a docstring comment became a measurement |
+| 33 | Portfolio drawdown exit, 10/12.5/15/20/25% | risk rule | **SPEC WAS WRONG** | re-entry unsatisfiable by construction: one exit, zero re-entries, 84% of the window flat; CAGR −24.6 to −31.5; every trigger in one week of March 2020 |
+| 34 | Drawdown exit rev 2, time-only re-entry, waits 5/20/40 | risk rule | **OSCILLATES SIX YEARS** | 77 exits / 76 re-entries; re-enters while still in breach; WORSE than rev 1 on n100 — sitting out the bull market beat whipsawing through it |
+| 35 | Drawdown exit rev 3, peak reset at re-entry | risk rule | **NON-DEGENERATE, STILL UNJUDGEABLE** | 77 exits → 4; flat 84% → 1-10%; CAGR within ~2 points, 10 of 30 cells INSIDE the floor; 4 positive cells are inside the floor and are NOT findings; MaxDD still has no floor on any arm |
 
-One acceptance in twenty-six trials, and one trial whose outcome was never
+One acceptance in twenty-eight trials, and one trial whose outcome was never
 written down. Entry 27 is not a second acceptance: it revalidates entry 10's
 choice and promotes nothing.
 
@@ -510,7 +518,7 @@ pass.
 
 **The result.** 58: **Sharpe 1.43 → 1.54.** 74: **Sharpe 1.28 → 1.45.**
 
-**Verdict.** **ACCEPTED.** The only acceptance in twenty-six trials. Both
+**Verdict.** **ACCEPTED.** The only acceptance in twenty-eight trials. Both
 universes improved, and by a large margin — 0.11 and 0.17 of Sharpe.
 
 **What it taught.** The concentration gain beat the diversification loss, which
@@ -2151,6 +2159,1726 @@ says a +0.11 gap is larger than noise.
 arm reproduces the shipped v2 on CAGR, Sharpe and MaxDD in both universes, read
 from `v34_comparison.csv` rather than typed in, as a correctness gate that voids
 the run on failure.
+
+---
+
+### 28. Shuffle test — randomised scores against the real model — **PASS**
+
+*Pre-registration: `experiments/SHUFFLE_SPEC.txt`, written 2026-09-01 before any
+code existed. The permutation, N, the statistic, the 0.05 bar, the gated arms and
+the written expectation were all fixed there before any number was produced.*
+
+**THE FIRST SIGNIFICANCE TEST THIS PROJECT HAS EVER RUN.** The `[PASS] Shuffle
+test` rows in the old run logs were hardcoded string literals, removed from
+`engine_core.py` on 2026-08-29. Nothing was re-run; this is the first time.
+
+**What it did.** For each date independently, permuted the non-NaN scores across
+the symbols that had one — preserving the per-date score distribution and the set
+of scorable names, destroying only the symbol→score mapping. Everything else held
+bit for bit. 100 permutations × 4 arms × 2 universes = 800 backtests on the
+shipping engine, 77 seconds.
+
+**Gated:** one-sided CAGR permutation p < 0.05 on v1 and v2, both universes.
+
+| universe | arm | real CAGR | null median | effect | shuffles beating real | p |
+|---|---|---|---|---|---|---|
+| n100 | v1 | 35.13 | 15.44 | **+19.69 pt** | **0 of 100** | 0.0099 |
+| n100 | v2 | 25.49 | 11.42 | **+14.07 pt** | **0 of 100** | 0.0099 |
+| mid | v1 | 45.87 | 15.80 | **+30.07 pt** | **0 of 100** | 0.0099 |
+| mid | v2 | 30.22 | 11.28 | **+18.94 pt** | **0 of 100** | 0.0099 |
+
+0.0099 is the floor at N=100, i.e. `(1+0)/101`. **Not one permutation out of 100
+matched the real arm on any gated arm.** The ungated arms agree: v4 p = 0.0099 on
+both; v3 p = 0.0297 on n100 (2 of 100 beat it) and 0.0099 on mid. Sharpe, reported
+not gated, gives p = 0.0099 for v1 and v2 on both universes.
+
+**THE MECHANICS DO NOT CARRY THE RETURN — THEY COST IT.** Random 8-name selection
+at 100% invested returns a median 15.44% on n100 against 23.74% for equal-weight
+buy & hold of the same 99 names, and 15.80% against 27.77% on mid. **Concentration
+into 8 names plus turnover is worth roughly −8 and −12 CAGR points against simply
+holding the universe.** The model is not merely beating a random selector; it is
+overcoming a substantial drag that the random selector also pays.
+
+**MaxDD is NOT distinguishable from the null** — p = 0.37 and 0.36 for v1 and v2
+on n100, 0.20 and 0.44 on mid. The drawdown profile is a property of the
+mechanics, not of the model's selection. For the breadth arms that is expected and
+was predicted; for v1 it is worth stating plainly.
+
+**THE WRITTEN EXPECTATION WAS WRONG ON ITS MOST SPECIFIC POINT.**
+
+1. v1 passes on both, comfortably — **correct**.
+2. Predicted n100 v2 as "the most likely failure in the suite", confidence "a
+   little under even" that it fails. **WRONG, and not marginally**: 0 of 100, the
+   minimum attainable p. **The reasoning error is identifiable and worth keeping.**
+   The prediction anchored on v2's 1.75-point edge over equal-weight buy & hold —
+   but buy & hold is 100% invested and v2 deploys 56.6%. The correct null holds
+   deployment identical, and random selection at 56.6% returns 11.42%, not 23.74%.
+   **A 100%-invested benchmark was being used to reason about a 56%-invested arm.**
+3. Shuffled breadth arms keep the drawdown advantage — **correct**, −19.77 against
+   −37.06 on n100 and −19.76 against −37.96 on mid.
+4. Predicted shuffled arms might beat buy & hold — **wrong**, all eight land below
+   it, which is the concentration-drag finding above.
+
+**What this does NOT establish, and the ceiling is low.** It does not correct for
+the ≥26-trial denominator: this configuration was chosen after 26 recorded passes
+over the same data, and a p of 0.0099 is **not** the probability that the strategy
+is noise. **It does not address survivorship — the null carries the same bias**,
+since every shuffled portfolio draws from the same backfilled membership; this test
+would pass just as easily on an inflated universe. It does not test breadth, which
+is invariant under the shuffle. It does not make the return tradable.
+
+**Artefacts.** `results_{n100,mid}/metrics/shuffle_{summary,draws,params}`;
+`diagnostics/shuffle_{n100,mid}.txt` and `diagnostics/shuffle_verdict.txt`.
+Script: `results/shuffle_test.py`. The real v2 arm reproduced the shipped figure on
+CAGR, Sharpe and MaxDD in both universes as a correctness gate, read from
+`v34_comparison.csv` rather than typed in.
+
+---
+
+### 29. The seed noise floor — **MEASURED, AND IT SWALLOWS THE PURGE RESULT**
+
+*Pre-registration: `experiments/SEED_NOISE_SPEC.txt`, written 2026-09-02 before
+any code existed. The design, the K grid, the subset count, the limits and the
+written prediction were fixed there before any number was produced.*
+
+**Why it was run.** Entry 28's purge measurement reported shipping-arm deltas of
++0.54 (n100) and −0.81 (mid) and judged them against a **0.5-point noise floor
+that was invented, not measured**. It was pre-registered, which made it honest,
+but not correct. This measures the floor.
+
+**Design.** 40 distinct seeds fitted once per universe, **every seed's scores
+stored separately**, sub-ensembles of size K formed afterwards by averaging K
+stored columns. Same fitting cost as four separate 10-seed runs, but it yields an
+empirical σ(K) curve rather than an assumed 1/√K scaling. First 10 seeds are the
+production set. Everything except the seeds held fixed, including the **current**
+production purge, so the shipped configuration is one draw of the distribution
+being measured. K ∈ {1,2,3,5,10,20,40}, 50 random subsets per K. Wall clock
+**130 min 16 sec** for the fitting, **2 min** for the sub-ensemble analysis.
+
+**The floor, at K = 10 — the ensemble size that ships.**
+
+| universe | arm | CAGR sd | CAGR range | Sharpe sd | MaxDD sd |
+|---|---|---|---|---|---|
+| n100 | v1 | 1.74 | 7.68 | 0.07 | 1.57 |
+| n100 | **v2** | **0.97** | **4.17** | 0.06 | 1.62 |
+| mid | v1 | 2.14 | 10.26 | 0.07 | 1.34 |
+| mid | **v2** | **1.39** | **6.12** | 0.08 | 0.88 |
+
+**THE PURGE RESULT IS INCONCLUSIVE AT ITS DESIGN. All four deltas sit inside the
+spread.**
+
+| universe | arm | purge dCAGR | seed sd | % of seed draws deviating by ≥ \|delta\| | verdict |
+|---|---|---|---|---|---|
+| n100 | v1 | +1.42 | 1.74 | 36% | INSIDE |
+| n100 | v2 | +0.54 | 0.97 | **60%** | INSIDE |
+| mid | v1 | −1.70 | 2.14 | 48% | INSIDE |
+| mid | v2 | −0.81 | 1.39 | 50% | INSIDE |
+
+On n100 v2, **60% of seed draws move further from their own median than the entire
+purge effect did**. The purge correction is real and the leak it fixes is real —
+see the leakage audit — but its measured return impact cannot be distinguished
+from ordinary re-fit variation. Entry 28's headline deltas should not be quoted as
+effects.
+
+**σ(K) IS NEARLY FLAT, AND THAT IS THE MOST IMPORTANT NUMBER HERE.**
+
+| universe | arm | fitted σ(K) | exponent |
+|---|---|---|---|
+| n100 | v1 | 2.180·K^(−0.150) | −0.150 |
+| n100 | v2 | 1.559·K^(−0.226) | −0.226 |
+| mid | v1 | 3.632·K^(−0.245) | −0.245 |
+| mid | v2 | 1.801·K^(−0.168) | −0.168 |
+
+Independent noise averages down at K^(−0.5). **Every observed exponent is between
+−0.15 and −0.25, less than half of that.** The seed-to-seed variation is largely
+*common*, not independent, so adding seeds barely helps: n100 v2 falls only from
+1.57 at K=1 to 0.97 at K=10.
+
+**Seeds required for ±0.5-point stability — extrapolated, and the extrapolation is
+the point:** n100 v2 **152**, mid v2 **2,044**, mid v1 **3,310**, n100 v1
+**17,889**. No tested K up to 40 comes close. These assume the fitted exponent
+holds far outside the measured range and should be read as "far more than is
+practical", not as targets.
+
+**Year-level spread confirms this is one phenomenon, not two.** At K=10, changing
+only the seeds moves individual years by:
+
+| universe | arm | worst year | range |
+|---|---|---|---|
+| n100 | v1 | 2021 | 34.16 pt |
+| n100 | v2 | 2023 | 19.95 pt |
+| mid | v1 | 2021 | **48.06 pt** |
+| mid | v2 | 2021 | 27.72 pt |
+
+The purge run's 21-point year swings were **never evidence about the purge**.
+Seed changes alone produce swings of the same size and larger. **This and the
+purge run's year-level result are ONE finding about model stability.**
+
+**A THIRD INSTANCE, AND THE SMALLEST PERTURBATION YET.** The identity gate in this
+run FAILED and correctly refused to report anything: the production 10 seeds
+reproduced from the store gave CAGR 26.15 on n100 against 25.49 recorded. Cause,
+diagnosed and measured: `build_scores_*.py` calls `score_monthly` on the
+**in-memory** panel, while this store was fitted on `raw_panel_*_cache.csv` read
+back from disk. The two differ by **one unit in the last place — max 4.441e-16
+across 2,638,259 cells**. That is enough to change LightGBM split decisions, flip
+near-tied ranks, and move headline CAGR by **+0.66 on n100 and −0.29 on mid**.
+
+**A last-bit float difference moves the shipping arm more than the purge fix did.**
+The spread above is unaffected — all 40 seeds share one panel — and the baseline
+offset is stated in `diagnostics/seed_noise.txt` rather than hidden. This finding
+warrants its own `KNOWN_ISSUES.md` entry; none was added, as this task was scoped
+to the experiment record only.
+
+> **CORRECTION, 2026-09-02.** The last sentence above is now false and is left
+> standing rather than rewritten. **A `KNOWN_ISSUES.md` entry was subsequently
+> added**: *"The headline is not reproducible from the artefacts on disk to better
+> than about a point"*, dated 2026-09-02 and attributed to this run's identity gate
+> failing. It carries the 4.441e-16 maximum difference across 2,638,259 cells, the
+> +0.66 / −0.29 headline offsets, and the three options for closing it. It also
+> places this finding alongside the other two perturbation scales — training rows
+> moved, and seeds redrawn — as three measurements of one property rather than
+> three defects. **No figure in this entry is amended by this correction**; only
+> the claim that no entry existed was wrong.
+
+**Predictions, judged.**
+
+1. σ(CAGR) ≈ 1–2 on v2, range 3–6 — **correct** (0.97/4.17 and 1.39/6.12).
+2. Purge deltas inside the spread, measurement inconclusive — **correct**, and it
+   was recorded in advance precisely because it retracts a result reported hours
+   earlier.
+3. Year-level spread in double digits, one finding not two — **correct**.
+4. Seeds needed 50–250 — **correct for n100 v2 (152), badly wrong for the other
+   three** (2,044 to 17,889). The error was assuming an exponent near −0.5; the
+   measured exponents are −0.15 to −0.25, which is itself the finding.
+5. v1 noisier than v2 — **correct** in every case.
+6. Published headlines unchanged — **correct**; the production seeds remain a
+   legitimate draw.
+
+**What this does not say.** It does not say the strategy is wrong; a wide spread
+is a statement about resolution, not about the mean. It does not retroactively
+re-judge past experiments — but **any past decision resting on a difference
+smaller than ~1 CAGR point was resting on less than it appeared to**, and
+identifying which is a separate task not undertaken here.
+
+**Artefacts.** `results_{n100,mid}/metrics/seed_noise_{headline,yearly,sigma_k}.csv`;
+`diagnostics/seed_noise.txt`. Scripts: `results/seed_noise_measure.py` (fitting),
+`results/seed_noise_report.py` (sub-ensembles). Per-seed stores retained at
+`results/SEEDNOISE_{uni}_scores.npy`.
+
+---
+
+## The purge correction was applied, and the headline moved. 2026-09-02.
+
+Not an experiment and not a trial — a **correctness repair** with a measured
+consequence. It carries no accept rule because nothing was being accepted.
+
+**Why it was applied.** The calendar-day purge is wrong by construction: 32
+CALENDAR days against a label spanning 20 TRADING rows, so the margin varies with
+the holiday calendar and underflows. Measured in `diagnostics/LEAKAGE_AUDIT.txt`:
+the label reached into the scored month in 7 of 126 months and touched its first
+day in 21 more, identically on both universes. **It was repaired because it is
+defective, NOT because of any return impact.**
+
+**What changed.** `engine_core.score_monthly` gained `purge_mode`, defaulting to
+`"trading"` — `cut = cal[i_first - HORIZON - 2]`, in trading rows, which cannot
+underflow. Verified **min = median = max = 2 on all 126 months, both universes,
+zero months at or below zero**. The retired 58 and 74 are pinned to
+`purge_mode="calendar"` so their frozen numbers still reproduce.
+
+**The new headline. Window 2019-01-01 to 2026-05-29, 1,836 trading days.**
+
+| universe | arm | CAGR was | CAGR now | Δ | Sharpe now | MaxDD now | Trades now |
+|---|---|---|---|---|---|---|---|
+| n100 | v1 | 35.13 | 35.01 | −0.12 | 1.64 | −35.50 | 813 |
+| n100 | **v2 (ships)** | 25.49 | **25.78** | **+0.29** | 1.87 | −19.96 | 978 |
+| n100 | v3 | 27.91 | 29.09 | +1.18 | 1.23 | −45.58 | 788 |
+| n100 | v4 | 23.89 | 22.86 | −1.03 | 1.41 | −22.08 | 980 |
+| mid | v1 | 45.87 | 45.92 | +0.05 | 1.84 | −34.68 | 833 |
+| mid | **v2 (ships)** | 30.22 | **29.71** | **−0.51** | 2.03 | −18.93 | 963 |
+| mid | v3 | 48.98 | 49.54 | +0.56 | 1.79 | −35.76 | 792 |
+| mid | v4 | 32.74 | 32.31 | −0.43 | 1.92 | −17.50 | 961 |
+
+Equal-weight buy & hold is unchanged in both (23.74 and 27.77), as it must be —
+it does not depend on scores.
+
+**NEITHER MOVE IS TO BE QUOTED AS AN EFFECT.** Entry 29 measured the seed noise
+floor at **sd 0.97 (n100 v2) and 1.39 (mid v2)**, with ranges of 4.17 and 6.12
+across 50 ten-seed draws. **+0.29 and −0.51 sit well inside that.** They move in
+opposite directions on the two universes. Nothing here says the strategy improved
+or worsened; these are simply the numbers the corrected code produces.
+
+### The three purge-effect figures, reconciled — carry the third
+
+Three different deltas have been reported for the same change. They differ
+because they were measured on different panels, and only one describes the path
+that ships.
+
+| figure | n100 v2 | mid v2 | what it actually compared | status |
+|---|---|---|---|---|
+| first reported | +0.54 | −0.81 | in-memory panel + old purge **vs CSV panel + new purge** | **CONTAMINATED** — mixes the purge change with the one-bit CSV round-trip, which alone is worth +0.66 on n100 |
+| second | −0.12 | −0.52 | CSV panel, old vs new purge | like-for-like but on a panel that **does not ship** |
+| **third** | **+0.29** | **−0.51** | **in-memory panel, old vs new purge** | **CARRY THIS ONE** |
+
+The third is the one to carry because `build_scores_*.py` scores the **in-memory**
+panel — that is the production path, and both sides of the comparison sit on it.
+The first is superseded and should not be requoted anywhere; it was reported
+before the CSV round-trip defect had been found. All three sit inside the seed
+floor, so the reconciliation changes the number without changing the conclusion.
+
+**Artefacts.** `results_{n100,mid}/metrics/v34_comparison.csv`, `v2FINAL_*`,
+`chart_v34.png`, `chart_COMBINED_n100_mid.png`, all regenerated 2026-09-02 15:06.
+Nautilus gate re-run and **VERIFIED at 92 of 92 rebalances on both universes** on
+the 0.01 tick grid, with the ARM A control at 92 of 92. Execution timing re-checked
+against the new `fills.csv`: 977 of 978 and 961 of 963 at the fill day's open, zero
+at any close. Measured wall clock: **36 min 07 sec** to re-score, under 1 min
+downstream, 1 min for the gate.
+
+**Chart captions.** Three hardcoded liquidity blocks carrying void 1,842-day
+figures were removed rather than recomputed — no liquidity or depth study has been
+run on the current window, and substituting an unsourced number would be worse
+than the staleness. Every chart now opens with its window and states that every
+CAGR, Sharpe, drawdown and trade count on it belongs to that window.
+
+---
+
+### 30. Rebalance cadence sweep on the shipping arm — **NO CADENCE QUALIFIES; THE UNIVERSES DISAGREE**
+
+*Pre-registration: `experiments/REBAL_CADENCE_SPEC.txt`, written 2026-09-03
+before any code existed. The four cadences, the control, the trial-count charge,
+the noise-floor rule and seven numbered predictions were all fixed there first.*
+
+**NO ACCEPT RULE. NOTHING IS PROMOTED.** This is a survey of a parameter's effect,
+not a selection procedure. It has no gate and no criterion by which a cadence
+wins.
+
+**Why it could be run at all.** `REBAL` is **already** counted in trading rows —
+`test_exposure.py:145` reads `if i % REBAL == 0 and i < len(dates) - 1` where `i`
+indexes the panel's own trading calendar. There is no unit mismatch here and this
+is **not** the calendar-day purge defect again. No refactor was needed.
+
+**Method.** v2 (inverse-vol, `mode="breadth"`, the shipping arm), both live
+universes, `REBAL` in {5, 10, 20, 40}, off the **existing** score panels — no
+refit, no rescore. Only the book's rebalance clock changed.
+
+**THE OBVIOUS ROUTE WAS WRONG AND WAS CAUGHT BEFORE THE RUN.**
+`engine_core.backtest` takes `rebal` as a parameter but **has no breadth mode** —
+only `sizing="equal"/"invvol"`, every book always-invested — so it cannot express
+v2 at all, and it is a different implementation 1.80 CAGR points from the shipping
+engine on the 58. The cadence was instead varied by assigning
+`test_exposure.REBAL` as a module attribute at runtime. **No file on disk was
+modified**; SHA256 of `test_exposure.py` verified identical before and after, and
+the constant is still 20.
+
+**HORIZON STAYED AT 20 ROWS AT EVERY CADENCE.** At REBAL=5 the model predicts 20
+rows forward while the book turns over in 5; at REBAL=40 it holds for twice the
+horizon it was fitted to predict. The mismatch is deliberate — cadence measured
+alone — and **no cell here is an optimised cadence**. `HORIZON` and `REBAL` are
+independent in the code (`engine_core.py:90`) and equal at 20 by coincidence of
+value, not construction.
+
+**THE CONTROL REPRODUCED EXACTLY**, all five quantities on both universes, read
+from `v34_comparison.csv` rather than typed in: n100 25.78 / 1.87 / −19.96 / 978 /
+245,816 and mid 29.71 / 2.03 / −18.93 / 963 / 229,916.
+
+**NIFTY 100** — seed floor 0.97
+
+| REBAL | rebals | CAGR% | Sharpe | MaxDD% | trades | TC Rs | TC/eq% | dCAGR | vs floor |
+|---|---|---|---|---|---|---|---|---|---|
+| 5 | 367 | 17.79 | 1.39 | −18.50 | 2,439 | 4,26,566 | 12.69 | −7.99 | outside |
+| 10 | 184 | 22.64 | 1.72 | −18.69 | 1,524 | 3,12,485 | 6.89 | −3.14 | outside |
+| **20** | 92 | **25.78** | **1.87** | **−19.96** | **978** | **2,45,816** | 4.50 | control | control |
+| 40 | 46 | 22.26 | 1.68 | −25.61 | 533 | 1,11,125 | 2.51 | −3.52 | outside |
+
+**MIDCAP150** — seed floor 1.39
+
+| REBAL | rebals | CAGR% | Sharpe | MaxDD% | trades | TC Rs | TC/eq% | dCAGR | vs floor |
+|---|---|---|---|---|---|---|---|---|---|
+| 5 | 367 | 27.87 | 1.90 | −16.53 | 2,468 | 5,69,996 | 9.23 | −1.84 | outside |
+| 10 | 184 | 30.05 | 1.96 | −16.49 | 1,577 | 4,10,533 | 5.86 | +0.34 | **INSIDE** |
+| **20** | 92 | **29.71** | **2.03** | **−18.93** | **963** | **2,29,916** | 3.35 | control | control |
+| 40 | 46 | 32.72 | 2.12 | −18.01 | 560 | 1,53,703 | 1.89 | +3.01 | outside |
+
+**THE UNIVERSES DISAGREE ON THE SIGN AT TWO OF THE THREE NON-CONTROL CADENCES** —
+REBAL=10 (−3.14 against +0.34) and REBAL=40 (−3.52 against +3.01). Only REBAL=5
+agrees, and it is worse on both. **No cadence beats REBAL=20 by more than the seed
+floor on both universes simultaneously.**
+
+**THE ONE FAVOURABLE CELL, STATED AS A MEASUREMENT AND NOT AS A CANDIDATE.**
+REBAL=40 on mid returns 32.72 against 29.71, +3.01, outside the 1.39 floor, at
+Sharpe 2.12 against 2.03. **n100 contradicts it by 3.52 points in the opposite
+direction**, outside its own floor. Under this project's own standard a result the
+two universes disagree on in sign is the finding, not the number.
+
+**AND CAPACITY IS NOT MEASURED HERE AT ALL, WHICH BEARS DIRECTLY ON THAT CELL.**
+Fills are synthetic against a `QUOTE_DEPTH` of 10,000,000 shares at a flat 15 bps
+slippage regardless of order size; no L2 data exists anywhere in this project, no
+market impact, no queue position. **mid already has a measured liquidity problem —
+one order reached 1,614% of that symbol's prior 20-day median volume.** REBAL=40
+trades less often but in **larger clips per rebalance** — TC per rebalance 3,341
+against 2,499 at the control, the highest in the sweep — so it concentrates rather
+than relieves that exposure. **A cadence that trades differently is not shown to be
+executable differently, in either direction.**
+
+**PREDICTIONS, JUDGED. Six of seven correct; P5 wrong.**
+
+1. **P1** control reproduces exactly — **CORRECT**, all ten quantities.
+2. **P2** rebalance counts 367 / 184 / 92 / 46 — **CORRECT**, exactly, both
+   universes. Arithmetic, judged anyway because a disagreement would have flagged
+   a harness fault.
+3. **P3** trades rise sublinearly, 2× to 3.5× at REBAL=5 — **CORRECT, at the
+   bottom of the stated range**: 2.49× and 2.56× against 4× the rebalances. The
+   predicted mechanism — `BUFFER = 16` hysteresis leaving more rebalances finding
+   the book already correct — is what produced it. Predicted 2,000–3,400 trades on
+   n100 against a naive ~3,900; actual 2,439.
+4. **P4** CAGR falls at REBAL=5 on both universes by more than the seed floor —
+   **CORRECT. It held.** n100 −7.99, mid −1.84, both outside, same sign. This was
+   flagged in the spec as the prediction most likely to be wrong, on the reasoning
+   that scores vary daily within a scored month so a shorter cadence acts on
+   genuinely fresher information. **That reservation was unnecessary**: TC reaches
+   12.69% of final equity at REBAL=5 on n100 against 4.50% at the control, and the
+   fresher scores did not come close to paying for it.
+5. **P5** REBAL=40 lands inside the seed floor on at least one universe —
+   **WRONG.** It is outside on both: −3.52 on n100 and +3.01 on mid. The reasoning
+   was that halved TC and increased staleness would partly cancel. Instead
+   REBAL=40 produced the largest single divergence in the sweep on mid and a large
+   one on n100, **in opposite directions**.
+6. **P6** the universes disagree on the sign of at least one cadence change —
+   **CORRECT**, at two of three. A prediction about this project rather than about
+   cadence; lesson 3 held again.
+7. **P7** no cadence beats REBAL=20 by more than the floor on both universes
+   simultaneously — **CORRECT**. Nothing qualifies.
+
+**TRIAL COUNT. This sweep is charged as FOUR looks at the shipping arm**, taking
+this file's floor from 28 to 32. The control is charged too: it is a control, not
+a free observation — the sweep still looked at the data with it in hand. The
+argument for charging 3 was available and was not taken, because this project's
+count has understated at least three times and the error always runs toward more
+looks. **No result here is corrected for that denominator.**
+
+**WHAT THIS DOES NOT ESTABLISH.** Not an optimal cadence — the label is pinned at
+20 rows. Not a joint cadence-and-horizon result — no refit was performed at any
+cadence. **Nothing about drawdown**: there is no measured noise floor for MaxDD and
+entry 28 could not distinguish it from a random-selection null, so no drawdown
+difference in the tables above may be read as an effect. Nothing about capacity.
+Nothing about whether any cadence ranking survives redrawing the seeds — one
+ten-seed panel was used, and entry 29 established that redrawing them moves the
+shipping arm by sd 0.97 to 1.39 on its own.
+
+**Artefacts.** `diagnostics/rebal_cadence_sweep.txt`. Script:
+`results/rebal_cadence_sweep.py`, which asserts the override before each call and
+reads every control value from `v34_comparison.csv` rather than carrying it. Wall
+clock **2 sec**, eight backtests, no refit.
+
+---
+
+### 31. Rebalance cadence across all four arms — **ONLY v2 HAS A TRUSTWORTHY VERDICT, AND IT IS: NO CADENCE BEATS REBAL=20**
+
+*Pre-registration: `experiments/REBAL_CADENCE_SPEC.txt` PART 8, written 2026-09-03
+after entry 30's v2 result and **before any four-arm number existed**. The grid,
+the eight controls, the trial charge, the floor rules and eight numbered
+predictions Q1–Q8 were all fixed there first.*
+
+**NO ACCEPT RULE. NOTHING IS PROMOTED.** Extends entry 30 from v2 alone to all
+four arms of `V34_SPEC.txt`, both live universes, `REBAL` in {5, 10, 20, 40} —
+**32 cells, 8 controls**. Off the existing score panels: no refit, no rescore.
+Cadence varied by assigning `test_exposure.REBAL` at runtime; **no file on disk
+modified**, SHA256 of `test_exposure.py` identical before and after, constant
+still 20.
+
+**ALL EIGHT CONTROLS REPRODUCED**, on seven quantities each — CAGR, Sharpe,
+MaxDD, AnnVol, Trades, TC and FinalEquity — read from `v34_comparison.csv` rather
+than typed in.
+
+---
+
+**THREE THINGS THAT BELONG WITH THE TABLE, NOT UNDER IT**
+
+1. **HORIZON IS 20 TRADING ROWS IN EVERY CELL.** No arm is refitted at any
+   cadence. **No cell in this grid is an optimised cadence for its arm.** At
+   REBAL=5 the model predicts 20 rows forward while the book turns over in 5; at
+   REBAL=40 it holds for twice the horizon it was fitted to predict.
+2. **NO FLOOR WAS EVER MEASURED FOR SHARPE, ON ANY ARM.** The Sharpe column is
+   reported because it was asked for. **No Sharpe difference across any cells in
+   this grid may be read as an effect.**
+3. **NO FLOOR EXISTS FOR MaxDD EITHER.** Entry 28's shuffle test could not
+   distinguish MaxDD from a random-selection null (p 0.37/0.36 on n100, 0.20/0.44
+   on mid). **No drawdown difference across any cells may be read as an effect.**
+   AnnVol likewise has no floor.
+
+**CAGR FLOORS ARE PER ARM, AND TWO ARMS HAVE NONE.** Entry 29 measured v1 and v2
+only:
+
+| arm | n100 | mid | status |
+|---|---|---|---|
+| v1 | 1.74 | 2.14 | measured |
+| **v2** | **0.97** | **1.39** | measured — the shipping arm |
+| v3 | — | — | **NEVER MEASURED** |
+| v4 | — | — | **NEVER MEASURED** |
+
+**UNKNOWN IS NOT A NEAR-MISS.** It means no floor was ever measured for that arm,
+so whether the cell is an effect or noise **is not established by this grid**, in
+either direction.
+
+---
+
+**NIFTY 100** — 1,836 trading days
+
+| arm | REBAL | rebals | CAGR% | dCAGR | floor | Sharpe | MaxDD% | AnnVol% | trades | TC Rs | TC/eq% | FinalEquity |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| v1 | 5 | 367 | 27.74 | −7.27 | outside | 1.39 | −26.94 | 19.30 | 1,807 | 8,05,138 | 13.13 | 61,30,186 |
+| v1 | 10 | 184 | 33.51 | −1.50 | INSIDE | 1.62 | −32.09 | 19.29 | 1,177 | 6,33,441 | 7.45 | 85,01,373 |
+| v1 | **20** | 92 | 35.01 | +0.00 | control | 1.64 | −35.50 | 19.81 | 813 | 5,08,341 | 5.50 | 92,36,608 |
+| v1 | 40 | 46 | 30.28 | −4.73 | outside | 1.50 | −35.17 | 19.11 | 457 | 2,41,329 | 3.40 | 70,92,575 |
+| **v2** | 5 | 367 | 17.79 | −7.99 | outside | 1.39 | −18.50 | 12.59 | 2,439 | 4,26,566 | 12.69 | 33,61,128 |
+| **v2** | 10 | 184 | 22.64 | −3.14 | outside | 1.72 | −18.69 | 12.55 | 1,524 | 3,12,485 | 6.89 | 45,33,937 |
+| **v2** | **20** | 92 | **25.78** | +0.00 | control | 1.87 | −19.96 | 12.96 | 978 | 2,45,816 | 4.50 | **54,65,550** (ships) |
+| **v2** | 40 | 46 | 22.26 | −3.52 | outside | 1.68 | −25.61 | 12.67 | 533 | 1,11,125 | 2.51 | 44,30,597 |
+| v3 | 5 | 367 | 31.43 | +2.34 | **UNKNOWN** | 1.33 | −30.01 | 22.98 | 1,800 | 8,81,107 | 11.64 | 75,67,064 |
+| v3 | 10 | 184 | 33.98 | +4.89 | **UNKNOWN** | 1.42 | −37.70 | 22.88 | 1,160 | 6,27,954 | 7.19 | 87,28,602 |
+| v3 | **20** | 92 | 29.09 | +0.00 | control | 1.23 | −45.58 | 23.39 | 788 | 3,99,707 | 6.03 | 66,25,976 |
+| v3 | 40 | 46 | 31.19 | +2.10 | **UNKNOWN** | 1.36 | −39.74 | 22.10 | 432 | 2,32,194 | 3.11 | 74,67,360 |
+| v4 | 5 | 367 | 20.64 | −2.22 | **UNKNOWN** | 1.32 | −22.57 | 15.34 | 2,435 | 4,40,809 | 10.98 | 40,13,618 |
+| v4 | 10 | 184 | 23.95 | +1.09 | **UNKNOWN** | 1.50 | −22.02 | 15.38 | 1,534 | 3,12,189 | 6.37 | 49,04,148 |
+| v4 | **20** | 92 | 22.86 | +0.00 | control | 1.41 | −22.08 | 15.71 | 980 | 2,15,835 | 4.70 | 45,94,334 |
+| v4 | 40 | 46 | 24.25 | +1.39 | **UNKNOWN** | 1.50 | −28.53 | 15.54 | 529 | 1,17,222 | 2.35 | 49,92,010 |
+
+**MIDCAP150** — 1,836 trading days
+
+| arm | REBAL | rebals | CAGR% | dCAGR | floor | Sharpe | MaxDD% | AnnVol% | trades | TC Rs | TC/eq% | FinalEquity |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| v1 | 5 | 367 | 39.67 | −6.25 | outside | 1.69 | −37.31 | 21.49 | 1,858 | 12,12,791 | 10.21 | 1,18,72,717 |
+| v1 | 10 | 184 | 44.26 | −1.66 | INSIDE | 1.81 | −35.80 | 21.97 | 1,247 | 10,68,830 | 7.08 | 1,50,91,267 |
+| v1 | **20** | 92 | 45.92 | +0.00 | control | 1.84 | −34.68 | 22.24 | 833 | 6,82,235 | 4.15 | 1,64,19,894 |
+| v1 | 40 | 46 | 41.94 | −3.98 | outside | 1.78 | −34.98 | 21.35 | 460 | 3,37,145 | 2.52 | 1,33,77,258 |
+| **v2** | 5 | 367 | 27.87 | −1.84 | outside | 1.90 | −16.53 | 13.65 | 2,468 | 5,69,996 | 9.23 | 61,75,084 |
+| **v2** | 10 | 184 | 30.05 | +0.34 | INSIDE | 1.96 | −16.49 | 14.19 | 1,577 | 4,10,533 | 5.86 | 70,01,699 |
+| **v2** | **20** | 92 | **29.71** | +0.00 | control | 2.03 | −18.93 | 13.51 | 963 | 2,29,916 | 3.35 | **68,64,240** (ships) |
+| **v2** | 40 | 46 | 32.72 | +3.01 | outside | 2.12 | −18.01 | 14.06 | 560 | 1,53,703 | 1.89 | 81,35,706 |
+| v3 | 5 | 367 | 42.58 | −6.96 | **UNKNOWN** | 1.61 | −30.36 | 24.24 | 1,816 | 14,94,166 | 10.80 | 1,38,33,758 |
+| v3 | 10 | 184 | 50.13 | +0.59 | **UNKNOWN** | 1.78 | −39.81 | 25.07 | 1,211 | 13,34,475 | 6.58 | 2,02,73,311 |
+| v3 | **20** | 92 | 49.54 | +0.00 | control | 1.79 | −35.76 | 24.53 | 792 | 8,14,788 | 4.14 | 1,96,91,257 |
+| v3 | 40 | 46 | 59.62 | +10.08 | **UNKNOWN** | 2.09 | −28.49 | 24.17 | 448 | 7,05,733 | 2.21 | 3,19,24,845 |
+| v4 | 5 | 367 | 29.54 | −2.77 | **UNKNOWN** | 1.77 | −19.00 | 15.58 | 2,470 | 5,87,538 | 8.64 | 67,98,550 |
+| v4 | 10 | 184 | 36.25 | +3.94 | **UNKNOWN** | 2.01 | −15.94 | 16.36 | 1,575 | 5,06,021 | 5.12 | 98,80,841 |
+| v4 | **20** | 92 | 32.31 | +0.00 | control | 1.92 | −17.50 | 15.48 | 961 | 2,53,221 | 3.18 | 79,52,034 |
+| v4 | 40 | 46 | 40.63 | +8.32 | **UNKNOWN** | 2.18 | −21.53 | 16.55 | 558 | 2,09,583 | 1.68 | 1,24,94,519 |
+
+Rebalance counts are 367 / 184 / 92 / 46 in every cell, identical across arms —
+the clock does not depend on the arm.
+
+---
+
+**THE CORRECTION THAT PRODUCED THIS TABLE. 2026-09-03.**
+
+An earlier run applied **v2's floor to every arm**. That was wrong twice:
+
+- **v1 has its own measured floor and it is LARGER than v2's** (1.74/2.14 against
+  0.97/1.39). Two cells change status: **v1 REBAL=10 moves from `outside` to
+  `INSIDE` on both universes** (−1.50 and −1.66).
+- **v3 and v4 have no measured floor at all.** Labelling their cells `outside`
+  with v2's number is **borrowing a number from a different arm, not measuring
+  anything**. All twelve v3/v4 non-control labels change to **UNKNOWN**.
+
+**WHAT SURVIVES A MEASURED FLOOR: three cells, and all three are WORSE.**
+
+| cell | n100 | mid | |
+|---|---|---|---|
+| v1 REBAL=5 | −7.27 | −6.25 | worse on both |
+| v1 REBAL=40 | −4.73 | −3.98 | worse on both |
+| v2 REBAL=5 | −7.99 | −1.84 | worse on both |
+
+**ZERO cells with a measured floor beat their own control on both universes.**
+
+**Six cells are NOT ESTABLISHED** — every one v3 or v4, including the three that
+the earlier labelling called favourable: **v3 R=40 (+2.10 / +10.08), v4 R=10
+(+1.09 / +3.94), v4 R=40 (+1.39 / +8.32)**. Whether any of these is an effect or
+noise **is not established by this grid**.
+
+---
+
+**THE ONLY ARM WITH A TRUSTWORTHY VERDICT IS v2.** It is the shipping arm and the
+only one whose own measured floor was applied to a decision here. v1 has a
+measured floor but does not ship; v3 and v4 have none.
+
+**v2's VERDICT: NO CADENCE BEATS REBAL=20 ON BOTH UNIVERSES.**
+
+    REBAL=5    n100 -7.99 outside   mid -1.84 outside    worse on both
+    REBAL=10   n100 -3.14 outside   mid +0.34 INSIDE     no verdict on mid
+    REBAL=40   n100 -3.52 outside   mid +3.01 outside    OPPOSITE SIGNS
+
+---
+
+**PREDICTIONS Q1–Q8, JUDGED.**
+
+1. **Q1** all eight controls reproduce — **CORRECT**, seven quantities each.
+2. **Q2** rebalance counts 367/184/92/46, identical across arms — **CORRECT**.
+3. **Q3** always-invested arms trade fewer than breadth arms at every cadence,
+   both universes — **CORRECT, 16 of 16 comparisons.**
+4. **Q4** REBAL=5 worse than control on all four n100 arms — **WRONG.** Three of
+   four held; **v3 is +2.34, better.** The direction claim fails independently of
+   any floor labelling.
+5. **Q5** on mid, REBAL=40 beats control on more than one arm — **CORRECT**, on
+   three (v2 +3.01, v3 +10.08, v4 +8.32). So the mid REBAL=40 effect is not
+   specific to the breadth arm, which was the alternative named in the spec.
+6. **Q6** the universes disagree on the REBAL=40 sign on at least two of four arms
+   — **WRONG.** Only **one** does: v2 (−3.52 / +3.01). v1, v3 and v4 all agree.
+   Signs do not depend on floors.
+7. **Q7** no cell beats its own control by more than the floor on both universes —
+   **JUDGED WRONG IN THE FIRST PASS, THEN WITHDRAWN UNDER THE PER-ARM FLOOR
+   CORRECTION. Both the original judgement and its retraction are recorded here
+   rather than the retraction alone.**
+   **WHY IT WAS WITHDRAWN:** all three counterexamples were v3/v4 cells whose
+   "outside" label came from a floor borrowed from v2, and **"beats by more than
+   the floor" is undefined on an arm with no measured floor.** Q7 now reads: holds
+   on every arm where a floor exists (v1, v2); untestable on v3 and v4.
+8. **Q8** the arm ranking at REBAL=20 is not preserved at every cadence —
+   **CORRECT, but on one universe only.** On n100 the control is the odd one out:
+   v1 > v3 at REBAL=20, and v3 > v1 at 5, 10 and 40. **On mid the ranking is
+   perfectly stable** — v3 > v1 > v4 > v2 at all four cadences.
+
+**Score: five correct (Q1, Q2, Q3, Q5, Q8), two wrong (Q4, Q6), one withdrawn
+(Q7).**
+
+---
+
+**CAPACITY IS NOT MEASURED HERE AND BEARS ON EVERY FAVOURABLE CELL.** Fills are
+synthetic against a `QUOTE_DEPTH` of 10,000,000 shares at a flat 15 bps slippage
+regardless of order size. No L2 data exists anywhere in this project, no market
+impact, no queue position. **mid already has a measured liquidity problem — one
+order reached 1,614% of that symbol's prior 20-day median volume**, and every
+UNKNOWN cell draws the bulk of its apparent edge from mid. **A cadence that trades
+differently is not shown to be executable differently, in either direction.**
+
+**v3 AND v4 DO NOT SHIP AND NOTHING HERE REOPENS THAT.** Pro-vol was measured
+under `V34_SPEC.txt` and is not supported: on n100 it lowered CAGR by 2.92 **and**
+Sharpe by 0.46 against v2, and the universes disagree on the sign. A cadence
+observation on an arm already rejected on its own measurement is not a route to
+promoting it. **No floor measurement for v3 or v4 is proposed** — they do not ship
+and entry 29's cost was 130 minutes per measurement.
+
+**TRIAL COUNT, NOT UNDERCOUNTED.** Entry 30 charged 4 looks for the v2 sweep,
+taking the floor 28 → 32. This grid adds v1, v3 and v4 at four cadences each =
+**12 new looks**. v2's four cells are re-run identically and are not charged
+twice. **NEW FLOOR: 44.** No result here is corrected for that denominator.
+
+**WHAT THIS DOES NOT ESTABLISH.** No optimal cadence for any arm — HORIZON is
+pinned at 20 rows. No joint cadence-and-horizon result — nothing was refitted.
+Nothing about Sharpe, drawdown or volatility differences, none of which has a
+floor. Nothing about capacity. Nothing about whether any ranking survives
+redrawing the seeds: one ten-seed panel was used, and entry 29 established that
+redrawing them moves v1 and v2 by sd 0.97 to 2.14 CAGR points on their own.
+
+**Artefacts.** `diagnostics/rebal_cadence_sweep.txt`. Script:
+`results/rebal_cadence_sweep.py`, which carries the per-arm floors as a table with
+`None` meaning "never measured", refuses to render a verdict where none exists,
+and reads every control value from `v34_comparison.csv`. Wall clock **4 sec**, 32
+backtests, no refit. Spec: `experiments/REBAL_CADENCE_SPEC.txt` PART 8.
+
+**AMENDMENT, 2026-09-03. THE GRID WAS EXTENDED TO REBAL=60, AND THE SWEEP NOW
+WRITES MACHINE-READABLE OUTPUTS. The tables above are not amended — they are the
+four-cadence grid as measured, and this block carries the fifth column.**
+
+**REBAL=60 gives 31 rebalances** over 1,836 trading days (i = 0, 60, … 1800;
+1800 < 1835), against 46 / 92 / 184 / 367 at the other cadences. **All 8 controls
+at REBAL=20 reproduced again**, unchanged.
+
+| universe | arm | CAGR% | dCAGR | floor | Sharpe | MaxDD% | AnnVol% | trades | TC Rs | TC/eq% | FinalEquity |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| n100 | v1 | 28.13 | −6.88 | outside | 1.39 | −31.13 | 19.46 | 305 | 1,27,914 | 2.04 | 62,68,952 |
+| n100 | **v2** | 19.51 | −6.27 | outside | 1.48 | −15.60 | 12.78 | 362 | 69,127 | 1.85 | 37,43,262 |
+| n100 | v3 | 29.28 | +0.19 | **UNKNOWN** | 1.22 | −39.65 | 23.73 | 300 | 1,36,762 | 2.04 | 66,98,450 |
+| n100 | v4 | 18.64 | −4.22 | **UNKNOWN** | 1.23 | −25.68 | 15.02 | 358 | 63,400 | 1.79 | 35,45,471 |
+| mid | v1 | 42.88 | −3.04 | outside | 1.73 | −37.76 | 22.48 | 318 | 3,06,949 | 2.18 | 1,40,51,702 |
+| mid | **v2** | 32.89 | +3.18 | outside | 2.02 | −23.70 | 14.84 | 371 | 1,19,726 | 1.46 | 82,12,692 |
+| mid | v3 | 45.58 | −3.96 | **UNKNOWN** | 1.70 | −41.72 | 24.14 | 294 | 3,14,918 | 1.95 | 1,61,43,310 |
+| mid | v4 | 34.71 | +2.40 | **UNKNOWN** | 1.88 | −26.98 | 16.93 | 371 | 1,29,361 | 1.42 | 90,84,553 |
+
+**Cross-universe at REBAL=60:** v1 **worse on both** (−6.88 / −3.04, a measured
+difference). **v2 disagrees in sign** (−6.27 / +3.18) — no verdict. v3 and v4
+**UNKNOWN**, no floor.
+
+**v2's VERDICT IS UNCHANGED BY THE FIFTH COLUMN: no cadence beats REBAL=20 on
+both universes.** REBAL=5 worse on both; 10 inside the floor on mid; **40 and 60
+both opposite signs**.
+
+**ONE OBSERVATION THAT IS NOT A FINDING.** n100 v2 at REBAL=60 has the shallowest
+MaxDD in its entire row — **−15.60 against −19.96** at the control. **MaxDD has no
+measured floor on any arm** and entry 28 could not distinguish it from a
+random-selection null, so this is precisely the comparison the rule forbids. It is
+recorded so a later reader does not find it unremarked, not because it means
+anything.
+
+**TRIAL COUNT: +4 new looks** (4 arms × 1 cadence, matching the convention entries
+30 and 31 use — universes are not multiplied). **FLOOR 44 → 48.**
+
+**THE SWEEP NOW WRITES MACHINE-READABLE OUTPUTS, so a later reader need not re-run
+it to get at the numbers, the curves or the per-day detail:**
+
+| file | size | contents |
+|---|---|---|
+| `diagnostics/rebal_cadence_sweep.txt` | 16,288 B | the text diagnostic |
+| `diagnostics/rebal_cadence_cells.csv` | 4,099 B | **40 rows × 17 columns**, one row per cell: universe, arm, rebal, n_rebalances, CAGR, dCAGR, floor verdict, seed floor, Sharpe, MaxDD, AnnVol, trades, TC_Rs, TC as % of final equity, final equity, deployed%, ships |
+| `diagnostics/rebal_cadence_equity.csv` | 1,346,406 B | **1,836 × 40** equity curves, date-indexed, one column per cell (`{universe}_{arm}_r{rebal}`) |
+| `diagnostics/rebal_cadence_audit/` | **61 MB, 6 files** | per-day streams, each with `cell`/`universe`/`arm`/`rebal` columns: `holdings.csv` 633,895 rows, `ranking.csv` 158,901, `summary.csv` 73,440, `trades.csv` 41,862, `decisions.csv` 5,760, `skipped.csv` 4,657 |
+
+`seed_floor_CAGR` is **empty for every v3 and v4 row** rather than carrying a
+borrowed number, so sorting on it shows at a glance which cells have no floor.
+Three internal cross-checks hold: `summary.csv` = 40 × 1,836 rows exactly;
+`decisions.csv` = 5,760 = the summed rebalance counts; `trades.csv` = 41,862,
+matching the grid's trade counts.
+
+**THE EQUITY CURVES WERE PREVIOUSLY COMPUTED AND DISCARDED.** `run()` read
+`eq` for its metrics and let it go out of scope, so no chart could ever be drawn
+without re-running the whole sweep. They are now retained.
+
+**ADDING THESE OUTPUTS MOVED NO NUMBER.** Proved rather than assumed: the
+diagnostic was byte-identical across the run that added the two CSVs, and the
+audit streams were then verified against the same baseline — see **entry 32**,
+which used this grid as the A/B for the engine's `audit=None` claim.
+
+
+
+---
+
+### 32. The audit flag does not change what it observes — **A DOCSTRING CLAIM, VERIFIED**
+
+*Pre-registration: `experiments/REBAL_CADENCE_SPEC.txt` PART 9, written 2026-09-03
+**before the audit path was wired in and before any comparison was run**. The
+baseline files, their byte counts, three numbered predictions R1–R3 and a
+non-negotiable stop condition were all fixed there first.*
+
+Not an experiment and not a trial — **a verification of an assumption the code has
+been making about itself.** It has no accept rule because nothing was being
+accepted.
+
+**WHAT WAS CLAIMED.** `results/test_exposure.py:72` — the docstring of
+`backtest_exposure`, the shipping engine:
+
+> "audit=None reproduces the original code path exactly: no overhead, and the
+> official numbers are unchanged."
+
+**THAT WAS A COMMENT, AND IT HAD BEEN ONE FOR AS LONG AS THE PARAMETER HAD
+EXISTED.** Nothing had ever tested it. `HANDOFF_SUMMARY.txt` section 9 lesson 10
+says in terms: verify whether a diagnostic flag changes the numbers it observes,
+rather than assuming it. This is that check, and it was possible at no extra cost
+because entry 31's cadence grid had just produced a clean `audit=None` baseline.
+
+**THE A/B DESIGN.** The same 40 cells run twice, once with `audit=None` and once
+with a six-key audit dict, everything else bit for bit identical:
+
+    4 arms (v1, v2, v3, v4)  x  5 cadences (5, 10, 20, 40, 60)  x  2 universes
+      = 40 cells, 1,836 trading days each = 73,440 equity values per side
+
+    baseline, fixed before the change and hashed:
+      diagnostics/rebal_cadence_sweep.txt     16,287 bytes
+      diagnostics/rebal_cadence_equity.csv  1,346,406 bytes   1,836 x 40
+      diagnostics/rebal_cadence_cells.csv       4,099 bytes   40 x 17
+
+**THE RESULT. NOTHING MOVED.**
+
+| prediction | outcome |
+|---|---|
+| **R1** grid byte-identical | **CORRECT.** The only differing line in 214 is `wall clock 5 sec` → `wall clock 10 sec`, the run's own elapsed time and not a measured quantity. Excluding it, `diff` returns identical — all 40 cells, all 8 controls, every metric. |
+| **R2** all 40 curves match to full precision | **CORRECT.** `cmp` on the 1,346,406-byte equity file: **byte-identical**. Numerically **max absolute difference 0.0 across all 73,440 values**; 0 of 40 columns show any non-zero difference; `DataFrame.equals` True. |
+| **R3** trade counts and TC unchanged in all 40 cells | **CORRECT.** The cells CSV is byte-identical; 0 cells differ on trades, TC_Rs, CAGR, Sharpe, MaxDD or final_equity. |
+
+Not "small" — **zero**. The stop condition in PART 9 did not fire.
+
+**WHY IT MATTERED BEYOND THIS SWEEP.** Several published artefacts were produced
+**with** audit enabled — the v34 and v2FINAL runs pass audit dicts — and others
+without. Those figures were being compared across a flag whose inertness was
+assumed and never measured. **It is no longer assumed.**
+
+**THE CEILING, AND IT IS NARROW.** This holds **on these 40 cells, on these two
+score panels, in this window**. It does **not** prove the flag is inert in
+general: not on other arms, other windows, other panels, or the retired
+universes. And it says **nothing about the four other inline reimplementations of
+the backtest** — `engine_core.backtest`, `nt_attribution.py`'s book,
+`make_stats_both.py`'s book and `make_cash_series.py:42-70` — none of which was
+touched. See `KNOWN_ISSUES.md`, "There are FIVE reimplementations of the backtest,
+not two". What was converted is one comment into one measurement with a stated
+scope.
+
+**Cost.** Wall clock 5 sec → 10 sec with audit on. The audit streams are 61 MB
+across six files; see entry 31 for the layout.
+
+**Artefacts.** `diagnostics/rebal_cadence_sweep.txt`,
+`diagnostics/rebal_cadence_cells.csv`, `diagnostics/rebal_cadence_equity.csv` and
+`diagnostics/rebal_cadence_audit/`. Script: `results/rebal_cadence_sweep.py`.
+Spec: `experiments/REBAL_CADENCE_SPEC.txt` PART 9.
+
+---
+
+### 33. Portfolio drawdown exit — **SPECIFIED IN ADVANCE, IMPLEMENTED CORRECTLY, AND THE SPECIFICATION WAS WRONG**
+
+*Pre-registration: `experiments/DRAWDOWN_EXIT_SPEC.txt`, written and frozen
+2026-09-03 **before the measurement script existed** — the rule, the five
+thresholds, the two underived re-entry constants, three blocking correctness
+gates, a governing constraint, and nine numbered predictions D1–D9.*
+
+**NO ACCEPT RULE. NOTHING COULD BE PROMOTED BY THIS MEASUREMENT**, by design: the
+rule's primary objective is drawdown reduction, and **there is no measured noise
+floor for MaxDD on any arm**. Only the rule's *cost* was ever inferable.
+
+---
+
+## THE CENTRAL FINDING: THE RE-ENTRY CONDITION IS UNSATISFIABLE BY CONSTRUCTION
+
+**The rule exits once and never returns. Across every threshold that fired, on
+both universes, there are ZERO re-entries and the book is flat for 1,536–1,540 of
+1,836 days — 84% of the window.**
+
+The mechanism, and it follows directly from two choices in the spec:
+
+- **§5.2 the peak is never reset** on exit or re-entry — it stays the all-time
+  high of portfolio value;
+- **§5.4 cash earns nothing while flat** — `CASH_YIELD = 0.0`.
+
+So once flat, portfolio value is frozen at the exit proceeds while the peak stays
+where it was. **Drawdown measured against that peak therefore cannot recover**,
+the re-entry condition `dd > −(0.5 × THRESHOLD)` can never become true, and the
+latch never clears. The rule does not "exit and wait". **It terminates the
+strategy.**
+
+**THIS IS A DESIGN ERROR IN SECTION 5 OF THE SPEC. IT IS THE SPEC AUTHOR'S, NOT
+THE IMPLEMENTATION'S.** Every gate passed; the code did exactly what was written.
+Both offending choices were argued for in advance and both are individually
+defensible — §5.2 prevents the rule re-arming at a lower bar after each firing,
+§5.4 refuses to credit a cash yield the engine does not pay. **Their interaction
+was not considered, and the spec was frozen before anyone noticed.** Writing the
+rule down in advance did not prevent the error; it made the error legible
+afterwards, which is the whole argument for pre-registration and is the only
+thing that went right here.
+
+---
+
+## RESULTS
+
+**NIFTY 100** — measured CAGR floor 0.97
+
+| thresh | CAGR% | dCAGR | floor | Sharpe | MaxDD% | AnnVol% | trades | TC Rs | FinalEquity | exits | re-ent | days flat | %flat |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| control | 25.78 | +0.00 | control | 1.87 | −19.96 | 12.96 | 978 | 2,45,816 | 54,65,550 | 0 | 0 | 0 | 0.0 |
+| 0.10 | 0.78 | **−25.00** | outside | 0.20 | −14.97 | 4.44 | 158 | 12,979 | 10,59,335 | 1 | **0** | 1,540 | **83.9** |
+| 0.125 | 1.16 | **−24.62** | outside | 0.29 | −12.58 | 4.40 | 158 | 13,010 | 10,89,119 | 1 | **0** | 1,538 | 83.8 |
+| **0.15** | 0.12 | **−25.66** | outside | 0.05 | −19.04 | 4.70 | 158 | 12,926 | 10,08,692 | 1 | **0** | 1,536 | 83.7 |
+| 0.20 | 25.78 | +0.00 | INSIDE | 1.87 | −19.96 | 12.96 | 978 | 2,45,816 | 54,65,550 | **0** | 0 | 0 | 0.0 |
+| 0.25 | 25.78 | +0.00 | INSIDE | 1.87 | −19.96 | 12.96 | 978 | 2,45,816 | 54,65,550 | **0** | 0 | 0 | 0.0 |
+
+**MIDCAP150** — measured CAGR floor 1.39
+
+| thresh | CAGR% | dCAGR | floor | Sharpe | MaxDD% | AnnVol% | trades | TC Rs | FinalEquity | exits | re-ent | days flat | %flat |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| control | 29.71 | +0.00 | control | 2.03 | −18.93 | 13.51 | 963 | 2,29,916 | 68,64,240 | 0 | 0 | 0 | 0.0 |
+| 0.10 | −1.54 | **−31.25** | outside | −0.32 | −17.90 | 4.64 | 186 | 13,295 | 8,91,731 | 1 | **0** | 1,540 | 83.9 |
+| 0.125 | −0.91 | **−30.62** | outside | −0.21 | −13.94 | 4.09 | 186 | 13,340 | 9,34,871 | 1 | **0** | 1,538 | 83.8 |
+| **0.15** | −1.79 | **−31.50** | outside | −0.40 | −19.48 | 4.40 | 186 | 13,279 | 8,74,610 | 1 | **0** | 1,536 | 83.7 |
+| 0.20 | 29.71 | +0.00 | INSIDE | 2.03 | −18.93 | 13.51 | 963 | 2,29,916 | 68,64,240 | **0** | 0 | 0 | 0.0 |
+| 0.25 | 29.71 | +0.00 | INSIDE | 2.03 | −18.93 | 13.51 | 963 | 2,29,916 | 68,64,240 | **0** | 0 | 0 | 0.0 |
+
+**THE ONLY INFERENTIAL CLAIM THE DESIGN SUPPORTS: the rule costs return, by
+twenty to thirty times the measured floor.** Final equity falls from 54.7 lakh to
+10.1 lakh on n100 and from 68.6 lakh to 8.7 lakh on mid.
+
+## EVERY FIRING, IN FULL — AND IT IS ONE WEEK
+
+| threshold | n100 trigger → fill | dd | mid trigger → fill | dd |
+|---|---|---|---|---|
+| 0.10 | 2020-03-12 → 2020-03-13 | −11.34% | 2020-03-12 → 2020-03-13 | −12.49% |
+| 0.125 | 2020-03-16 → 2020-03-17 | −12.52% | 2020-03-16 → 2020-03-17 | −13.94% |
+| 0.15 | 2020-03-18 → 2020-03-19 | −17.15% | 2020-03-18 → 2020-03-19 | −17.17% |
+| 0.20 | **NEVER FIRED** in 1,836 days | — | **NEVER FIRED** | — |
+| 0.25 | **NEVER FIRED** in 1,836 days | — | **NEVER FIRED** | — |
+
+Trigger years pooled: **2020 only**. The measurement's own clustering check
+answers YES. The spec's governing constraint — written at its head before any
+number existed — held exactly: **five thresholds on one crash is one observation,
+and these thresholds were tested once, in a single week of March 2020.**
+
+---
+
+## PREDICTIONS D1–D9, JUDGED
+
+1. **D1** control reproduces — **CORRECT**, seven quantities, both universes.
+2. **D2** execution timing passes — **CORRECT**. 9 of 9 exit fills on n100 and 10
+   of 10 on mid at the fill day's OPEN, **zero at any close**, trigger→fill offset
+   exactly 1 session in every case. Four candidate prices tested, not one.
+3. **D3** daily reconciliation holds — **CORRECT**, 1,836 of 1,836 days at every
+   threshold. See the gate note below; the first version of this gate was wrong.
+4. **D4** every threshold lowers CAGR on both universes, and 0.10/0.125 exceed the
+   floor — **CORRECT WHERE THE RULE FIRED, VACUOUS WHERE IT DID NOT.** At 0.10,
+   0.125 and 0.15 the fall is 24.6–31.5 points, far beyond the floor. At 0.20 and
+   0.25 CAGR is *identical* to the control because the rule never fired — which
+   satisfies "does not improve" but not "lowers". Recorded as partially correct
+   rather than correct.
+5. **D5** MaxDD improves at every threshold — **UNTESTABLE BY DESIGN, AND NOT
+   CLAIMED.** MaxDD is shallower at 0.125 on both universes and *deeper* at 0.15
+   on mid, but there is no floor and entry 28 could not distinguish MaxDD from a
+   random null. No verdict is drawn. Recorded as predicted, not as judged.
+6. **D6** firing is a single cluster in March 2020 at 0.15/0.20/0.25, with extra
+   firings at 0.10 and 0.125 — **HALF CORRECT, AND THE HALF THAT FAILED IS THE
+   MORE INTERESTING.** The cluster claim is **CORRECT and stronger than
+   predicted**: every trigger at every threshold on both universes falls in one
+   week. The extra-firings claim is **WRONG**: 0.10 and 0.125 fired once each, not
+   more, because after the single exit the rule was permanently flat and could
+   never fire again. **The zero-re-entry defect is why this half failed.**
+7. **D7** days flat under 10% at 0.15 and above — **WRONG, AND BY THE LARGEST
+   MARGIN OF ANY PREDICTION HERE.** Measured **83.7%**, not under 10%. Predicted
+   on the assumption that re-entry would occur roughly a month after the exit; it
+   never occurred at all.
+8. **D8** the universes agree in sign at every threshold — **CORRECT**, and it was
+   flagged in the spec as the prediction most likely to be wrong because it
+   predicts against this project's base rate of universe disagreement. Both fell
+   together in March 2020 and the rule acted on both identically.
+9. **D9** no threshold improves CAGR by more than the floor on both universes —
+   **CORRECT**. None improves it at all.
+
+**Score: four correct (D1, D2, D3, D8), two wrong (D6-part, D7), one partially
+correct (D4), one untestable by design (D5), one whose cluster half was correct
+and firing half wrong (D6).** The prediction flagged in advance as most likely to
+be wrong (D8) was correct; the two that failed (D7, and D6's count) both failed
+for the *same* unforeseen reason, which is the design error above.
+
+---
+
+## THE G3 EPISODE — A GATE THAT FAILED FOR ITS OWN REASONS
+
+**The first version of gate G3 FAILED ON THE UNMODIFIED CONTROL** — 47 of 1,836
+days on n100, with no drawdown rule active at all. That is a claim of a
+reconciliation defect in the **shipping engine**, and it was investigated before
+being reported rather than after.
+
+**The cause was the gate, not the engine.** `audit["summary"]` stores
+`round(mtm,2)`, `round(cash,2)` and `round(pv,2)` as **three independent
+roundings**, so `round(mtm,2) + round(cash,2)` can differ from `round(mtm+cash,2)`
+by one paisa **by construction**. Measured on the shipping arm with the rule off:
+**maximum difference 0.0100000007, and ZERO days above 0.011.** The gate tested
+`> 0.01`, which float representation pushes just over.
+
+**WHY THE REWRITTEN GATE IS NOT A LOOSENED TOLERANCE.** Loosening would mean
+raising a threshold until a failure disappears. Instead:
+
+- the budget is **derived from the storage format** — two roundings at half a
+  paisa each — and is stated in the function's docstring with the measured
+  numbers, so a later reader can check the derivation rather than trust it;
+- a **second** check was added that the original lacked: the holdings stream
+  summed per day against `mtm`, with a budget that scales as `0.005 × names_held`
+  because each row is independently rounded;
+- a **third, rounding-free** check was added and is the one that actually
+  reconciles: the stored total against the **unrounded** equity curve, which must
+  agree to half a paisa. Measured max **0.005**.
+
+The rewritten gate is **stricter in substance** than the original — three checks
+where there was one, including a rounding-free one — while being correct about
+what the audit's own storage format permits. **No defect in `backtest_exposure`
+was found, and none is alleged.**
+
+---
+
+## WHAT IS NOT ESTABLISHED
+
+- **NOTHING ABOUT DRAWDOWN.** No measured seed noise floor exists for MaxDD on any
+  arm, and the one measurement on that axis is negative — entry 28's shuffle test
+  could not distinguish MaxDD from a random-selection null (p 0.37/0.36 on n100,
+  0.20/0.44 on mid). **The rule's entire purpose is unmeasurable with what this
+  project has.** The MaxDD column above is reported because it was asked for.
+- **NOTHING ABOUT 0.20 AND 0.25. THEY NEVER FIRED, SO THEY ARE UNTESTED RATHER
+  THAN SAFE.** Their identity with the control is an absence of evidence, not
+  evidence of harmlessness. A wider threshold has not been shown to be a better
+  choice; it has been shown not to have been exercised.
+- **NOTHING BEYOND MARCH 2020.** Every trigger across every threshold and both
+  universes falls in the same week. The next drawdown will not have 2020's shape
+  or speed — a slow grinding decline of the same depth would trigger at a
+  different time, sell into different liquidity, and follow a different path.
+  **The window does not contain that case.**
+- **NOTHING ABOUT CAPACITY, AND THIS RULE IS THE WORST CASE FOR THE FILL MODEL.**
+  An exit sells the entire book in one session, into a falling market, against a
+  synthetic `QUOTE_DEPTH` of 10,000,000 shares at flat 15 bps regardless of order
+  size. `diagnostics/liquidity_participation.txt` already records a mid SELL at
+  **1,614.52%** of its symbol's prior-20-day median volume. Nothing here can say
+  what a full liquidation on 13 March 2020 would actually have filled at.
+- **NOTHING ABOUT A POSITION-LEVEL STOP**, which is a different rule the spec
+  explicitly does not address.
+- **NOTHING ABOUT SEED STABILITY.** One ten-seed panel; entry 29 established that
+  redrawing the seeds moves v2 by sd 0.97–1.39 on its own.
+
+**THE RULE AS SPECIFIED IS NOT A CANDIDATE FOR ANYTHING.** Not because it lost on
+a metric, but because the specification contained an error that makes its
+behaviour degenerate. A corrected rule — one whose re-entry condition can actually
+be satisfied — is a **new pre-registration with its own trial charge**, and
+nothing in this entry constitutes evidence about it.
+
+**TRIAL COUNT: 5 thresholds + the control = 6 new looks. FLOOR 48 → 54.** The
+control is charged by the convention adopted 2026-09-03: one rule rather than a
+per-experiment judgement about what counts.
+
+**Artefacts.** `diagnostics/drawdown_exit.txt`, `drawdown_exit_cells.csv` (12
+rows), `drawdown_exit_events.csv` (6 rows), `drawdown_exit_equity.csv`
+(1,836 × 12). Script: `results/drawdown_exit_measure.py`, which derives the rule
+by patching the **shipping function's own source** at four asserted anchors rather
+than reimplementing the loop — a sixth inline backtest was explicitly avoided —
+and aborts if any anchor fails to match exactly once. Spec:
+`experiments/DRAWDOWN_EXIT_SPEC.txt`.
+
+---
+
+### 34. Drawdown exit, revision 2 — **TIME-ONLY RE-ENTRY OSCILLATES FOR SIX YEARS, AND IS WORSE THAN SITTING OUT THE ENTIRE BULL MARKET**
+
+*Pre-registration: `experiments/DRAWDOWN_EXIT_SPEC.txt` section 12, written
+2026-09-03 **after** entry 33's result and **before** the script was modified.
+The grid, the three waits, the trial charge and eight predictions E1–E8 were all
+fixed there first. **Whipsaw was predicted, not discovered** — the spec named it
+the headline prediction and the obvious failure mode of a time-only re-entry.*
+
+**NO ACCEPT RULE. NOTHING PROMOTED.** MaxDD still has no measured noise floor on
+any arm, so the rule's primary objective remains unjudgeable. Only CAGR cost is
+inferable.
+
+**WHAT CHANGED FROM REVISION 1.** Re-entry became TIME-ONLY: the first scheduled
+rebalance at least `RE_ENTRY_WAIT` trading days after the exit fill, **with no
+drawdown condition**. Everything else identical, including — and this is the
+point — **the peak is still never reset**.
+
+**GATES.** G1 control reproduces the published v2 row on seven quantities, both
+universes. G2 **617 / 313 / 209 exit fills** per wait setting, every one at the
+fill day's open, **zero at any close**, trigger→fill offset exactly 1 throughout.
+G3 1,836 of 1,836 days on the control and all 15 cells. All pass.
+
+---
+
+## THE CENTRAL FINDING: THE RULE OSCILLATES FOR SIX YEARS
+
+**77 exits and 76 re-entries at wait=5. The oscillation begins in March 2020 and
+never stops.**
+
+Because the peak is never reset and cash earns nothing, the book **re-enters while
+still in breach of its own threshold**, and the trigger fires again at that same
+day's close. n100, threshold 0.15, wait 5 — the first four cycles:
+
+    EXIT     2020-03-18 -> fill 03-19   dd -17.15%   pv 10,32,253
+    REENTRY  2020-04-22                 dd -19.04%   FLAT 20 days
+    EXIT     2020-04-23 -> fill 04-24   dd -19.61%   pv 10,01,560
+    REENTRY  2020-05-21                 dd -20.20%   FLAT 18 days
+    EXIT     2020-05-22 -> fill 05-26   dd -20.73%   pv  9,87,663
+    REENTRY  2020-06-19                 dd -20.44%   FLAT 18 days
+    EXIT     2020-06-22 -> fill 06-23   dd -21.16%   pv  9,82,297
+
+**THE DRAWDOWN DEEPENS MONOTONICALLY, AND TRANSACTION COSTS ARE THE ONLY CAUSE.**
+−17.15% at the first trigger, −21.16% four cycles later; portfolio value falls
+from 10.32 lakh to 9.82 lakh on friction alone. Each cycle buys the whole book and
+sells it one day later. **The rule digs its own hole deeper every cycle and the
+peak it is measured against never moves, so it can never climb out.**
+
+**Trigger years pooled, n100: 2020: 60, 2021: 69, 2022: 66, 2023: 66, 2024: 75,
+2025: 66, 2026: 24.** The clustering check answers NO — but **this is not the rule
+finding new drawdowns.** It is the same March 2020 breach, never resolved,
+grinding through to the end of the window.
+
+---
+
+## REVISION 2 IS WORSE THAN REVISION 1 ON n100
+
+| n100, threshold 0.15 | CAGR% | final equity |
+|---|---|---|
+| control | 25.78 | 54,65,550 |
+| **revision 1** (drawdown re-entry, never re-entered, 84% flat) | **0.12** | 10,08,692 |
+| **revision 2**, wait 5 | **−3.24** | 7,83,520 |
+| revision 2, wait 20 | −1.14 | 9,18,773 |
+| revision 2, wait 40 | −0.44 | 9,67,685 |
+
+**SITTING OUT THE ENTIRE BULL MARKET BEAT WHIPSAWING THROUGH IT.** Revision 1
+missed the whole 2020–2026 recovery in cash and still finished ahead of revision 2
+at every wait on n100. This was predicted as E6 and predicted the *other way*; its
+failure is a genuine finding rather than an accounting artefact. On mid revision 2
+is the less bad of the two, so the two universes disagree about which failure mode
+is worse.
+
+---
+
+## RESULTS
+
+**NIFTY 100** — measured CAGR floor 0.97
+
+| thresh | wait | CAGR% | dCAGR | floor | Sharpe | MaxDD% | trades | TC Rs | FinalEquity | fires | exits | reent | %flat |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| control | – | 25.78 | +0.00 | control | 1.87 | −19.96 | 978 | 2,45,816 | 54,65,550 | 0 | 0 | 0 | 0.0 |
+| 0.10 | 5 | −2.59 | −28.37 | outside | −0.51 | −33.89 | 1,374 | 1,10,258 | 8,23,613 | 153 | 77 | 76 | 75.6 |
+| 0.10 | 20 | −0.49 | −26.27 | outside | −0.08 | −22.63 | 766 | 64,832 | 9,64,502 | 77 | 39 | 38 | 79.7 |
+| 0.10 | 40 | 0.23 | −25.55 | outside | 0.07 | −18.38 | 558 | 48,422 | 10,16,854 | 51 | 26 | 25 | 81.2 |
+| 0.125 | 5 | −2.21 | −27.99 | outside | −0.43 | −31.98 | 1,374 | 1,12,793 | 8,47,421 | 153 | 77 | 76 | 75.5 |
+| 0.125 | 20 | −0.11 | −25.89 | outside | −0.00 | −20.46 | 766 | 66,178 | 9,91,630 | 77 | 39 | 38 | 79.6 |
+| 0.125 | 40 | 0.60 | −25.18 | outside | 0.16 | −16.08 | 558 | 49,358 | 10,45,542 | 51 | 26 | 25 | 81.0 |
+| 0.15 | 5 | −3.24 | −29.02 | outside | −0.61 | −37.11 | 1,374 | 1,05,965 | 7,83,520 | 153 | 77 | 76 | 75.4 |
+| 0.15 | 20 | −1.14 | −26.92 | outside | −0.21 | −26.30 | 766 | 62,476 | 9,18,773 | 77 | 39 | 38 | 79.5 |
+| 0.15 | 40 | −0.44 | −26.22 | outside | −0.07 | −22.33 | 558 | 46,823 | 9,67,685 | 51 | 26 | 25 | 80.9 |
+| 0.20 / 0.25 | all | 25.78 | +0.00 | INSIDE | 1.87 | −19.96 | 978 | 2,45,816 | 54,65,550 | **0** | 0 | 0 | 0.0 |
+
+**MIDCAP150** — measured CAGR floor 1.39. dCAGR **−31.40 to −33.29** at every
+firing cell; fires 153 / 77 / 51 at waits 5 / 20 / 40; 0.20 and 0.25 identical to
+the control at every wait.
+
+---
+
+## PREDICTIONS E1–E8, JUDGED
+
+1. **E1** the three gates pass — **CORRECT**.
+2. **E2** whipsaw — **CORRECT ON THE MECHANISM, WRONG ON EVERY MAGNITUDE.**
+   (a) predicted "high single digits to low tens" firings; measured **77 exits** —
+   wrong by an order of magnitude. (b) trade counts above the control at tighter
+   thresholds — **CORRECT**, 1,374 against 978. (c) predicted the oscillation
+   persists "a matter of months"; it persists **six years** — **WRONG, and this is
+   the failure that mattered**: the prediction did not see that TC-driven decay
+   makes recovery to the frozen peak impossible. (d) days flat below revision 1's
+   84% — **CORRECT**, 75.4%.
+3. **E3** firing counts ordered wait 5 ≥ 20 ≥ 40 — **CORRECT**, 153 / 77 / 51,
+   strictly ordered, no inversion.
+4. **E4** 0.20 and 0.25 never fire and are identical to the control — **CORRECT**,
+   all six cells on both universes. It was stated in advance as a logical
+   consequence rather than a guess, and it held as one.
+5. **E5** every firing threshold lowers CAGR beyond the measured floor —
+   **CORRECT**, by 25.2–29.0 points on n100 and 31.4–33.3 on mid.
+6. **E6** revision 2 beats revision 1 on CAGR at every firing cell — **WRONG ON
+   n100, CORRECT ON mid.** The spec flagged this as the second most likely to be
+   wrong and said its failure would be a genuine finding. **It is: whipsaw costs
+   more than sitting out a six-year bull market.**
+7. **E7** every trigger still within 2020 — **WRONG.** Triggers span 2020–2026 —
+   not because the rule found new drawdowns, but because it never resolved the
+   first one. The prediction was wrong for a reason that makes the result worse,
+   not better.
+8. **E8** the universes agree in sign at every firing cell — **CORRECT**.
+
+**Score: five correct (E1, E3, E4, E5, E8), two wrong (E6, E7), one correct in
+mechanism and wrong in every magnitude (E2).**
+
+---
+
+## THE ROOT CAUSE IS COMMON TO BOTH REVISIONS
+
+**REVISIONS 1 AND 2 HAVE ONE CAUSE AND TWO SYMPTOMS: THE PEAK IS NEVER RESET.**
+After the March 2020 breach the rule is permanently in breach and can never clear.
+
+- **Revision 1** could not re-enter, because drawdown could not recover while the
+  book sat in cash at 0% against a frozen peak. Symptom: one exit, zero
+  re-entries, 84% flat.
+- **Revision 2** re-entered on a timer while still in breach, and exited again the
+  next close. Symptom: 77 exits, six years of oscillation.
+
+Neither is a defect in the implementation; both follow from spec section 5.2,
+which fixed the peak as all-time and never reset. **That choice was argued for in
+advance — it prevents the rule re-arming at a lower bar after each firing — and it
+is the direct cause of both failures.**
+
+---
+
+## WHAT IS NOT ESTABLISHED
+
+- **NOTHING ABOUT DRAWDOWN.** No measured floor for MaxDD on any arm; entry 28
+  could not distinguish it from a random-selection null. The MaxDD column is
+  reported because it was asked for.
+- **NOTHING ABOUT 0.20 AND 0.25.** They never fired at any wait, so they are
+  **untested rather than safe**. Their identity with the control is an absence of
+  evidence.
+- **NOTHING ABOUT CAPACITY, AND WHIPSAW MAKES IT WORSE.** 77 full liquidations and
+  76 full re-entries, against a synthetic `QUOTE_DEPTH` of 10,000,000 shares at
+  flat 15 bps regardless of size, when
+  `diagnostics/liquidity_participation.txt` already records a mid SELL at
+  **1,614.52%** of its symbol's prior-20-day median volume.
+- **NOTHING BEYOND THE ONE 2020 EPISODE.** The 2021–2026 triggers are the
+  unresolved 2020 breach, not new events. **Repeated firings within one episode
+  are not repeated tests of the rule.**
+
+**TRIAL COUNT: 15 cells + the control = 16 new looks. FLOOR 54 → 70.**
+
+**Artefacts.** `diagnostics/drawdown_exit.txt`, `drawdown_exit_cells.csv` (32
+rows), `drawdown_exit_events.csv` (95 KB, every exit and re-entry with dates and
+days flat), `drawdown_exit_equity.csv` (1,836 × 32). Script:
+`results/drawdown_exit_measure.py`, which patches the shipping function's own
+source at four asserted anchors rather than reimplementing the loop.
+
+---
+
+### 35. Drawdown exit, revision 3 — **NON-DEGENERATE AT LAST, AND STILL UNJUDGEABLE**
+
+*Pre-registration: `experiments/DRAWDOWN_EXIT_SPEC.txt` section 13, written
+2026-09-03 **after** entry 34's result and **before** the script was modified.
+The change, the trial charge, what the change GIVES UP, and eight predictions
+F1–F8 were all fixed there first.*
+
+**NO ACCEPT RULE. NOTHING PROMOTED.**
+
+**THE CHANGE, AND IT IS ONE LINE OF BEHAVIOUR.** On re-entry the peak is reset to
+that day's portfolio value; the high-water mark starts fresh and drawdown is
+measured from the new peak. Everything else is unchanged.
+
+**GATES.** G1 the control reproduces the published v2 row on seven quantities,
+both universes. G2 every exit fills at the next session's open, zero at any close,
+trigger→fill offset exactly 1. G3 1,836 of 1,836 days on the control and all 15
+cells. All pass.
+
+---
+
+## THE PEAK RESET FIXES THE COMMON ROOT CAUSE OF ENTRIES 33 AND 34
+
+Entries 33 and 34 were **one cause with two symptoms**: the peak was never reset,
+so after the March 2020 breach the rule was permanently in breach and could never
+clear.
+
+| revision | re-entry rule | symptom | n100 @ 0.15 CAGR |
+|---|---|---|---|
+| 1 (entry 33) | drawdown must recover | **could never re-enter** — 1 exit, 0 re-entries, 84% flat | 0.12 |
+| 2 (entry 34) | time-only | **re-entered while still in breach**, exited next close — 77 exits, six years of oscillation | −3.24 (wait 5) |
+| **3 (this entry)** | time-only **+ peak reset** | **non-degenerate** — 1 exit, 20 days flat | **25.11** |
+
+**77 exits became 4. Days flat went from 75–84% to 1.1–9.8%. CAGR went from 25–33
+points below the control to within two points of it.** The degeneracy is gone, and
+it went for the reason predicted: after a reset the book re-enters at a fresh peak
+and is no longer in breach, so it cannot exit again until a genuinely new decline.
+
+---
+
+## RESULTS
+
+**NIFTY 100** — measured CAGR floor 0.97
+
+| thresh | wait | CAGR% | dCAGR | floor | Sharpe | MaxDD% | trades | TC Rs | FinalEquity | fires | exits | %flat |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| control | – | 25.78 | +0.00 | control | 1.87 | −19.96 | 978 | 2,45,816 | 54,65,550 | 0 | 0 | 0.0 |
+| 0.10 | 5 | 24.16 | −1.62 | outside | 1.81 | −19.13 | 963 | 2,33,794 | 49,65,012 | 8 | 4 | 4.4 |
+| 0.10 | 20 | 23.02 | −2.76 | outside | 1.74 | −19.13 | 951 | 2,20,065 | 46,39,007 | 8 | 4 | 5.4 |
+| 0.10 | 40 | 23.68 | −2.10 | outside | 1.86 | −15.71 | 907 | 2,19,042 | 48,25,820 | 8 | 4 | 9.8 |
+| 0.125 | 5 | 26.44 | **+0.66** | **INSIDE** | 1.93 | −16.85 | 980 | 2,55,192 | 56,82,475 | 2 | 1 | 1.2 |
+| 0.125 | 20 | 26.44 | **+0.66** | **INSIDE** | 1.93 | −16.85 | 980 | 2,55,192 | 56,82,475 | 2 | 1 | 1.2 |
+| 0.125 | 40 | 26.60 | **+0.82** | **INSIDE** | 1.97 | −13.34 | 972 | 2,56,445 | 57,37,362 | 2 | 1 | 2.3 |
+| 0.15 | 5 | 25.11 | −0.67 | INSIDE | 1.83 | −22.99 | 980 | 2,37,444 | 52,55,965 | 2 | 1 | 1.1 |
+| 0.15 | 20 | 25.11 | −0.67 | INSIDE | 1.83 | −22.99 | 980 | 2,37,444 | 52,55,965 | 2 | 1 | 1.1 |
+| 0.15 | 40 | 25.28 | −0.50 | INSIDE | 1.87 | −19.74 | 972 | 2,38,695 | 53,08,021 | 2 | 1 | 2.2 |
+| 0.20 / 0.25 | all | 25.78 | +0.00 | INSIDE | 1.87 | −19.96 | 978 | 2,45,816 | 54,65,550 | **0** | 0 | 0.0 |
+
+**MIDCAP150** — measured CAGR floor 1.39
+
+| thresh | wait | CAGR% | dCAGR | floor | Sharpe | MaxDD% | trades | FinalEquity | exits | %flat |
+|---|---|---|---|---|---|---|---|---|---|---|
+| control | – | 29.71 | +0.00 | control | 2.03 | −18.93 | 963 | 68,64,240 | 0 | 0.0 |
+| 0.10 | 5 | 29.26 | −0.45 | INSIDE | 2.01 | −18.81 | 969 | 66,89,215 | 3 | 2.7 |
+| 0.10 | 20 | 29.25 | −0.46 | INSIDE | 2.02 | −18.81 | 943 | 66,87,355 | 3 | 4.9 |
+| 0.10 | 40 | 27.10 | −2.61 | outside | 1.92 | −18.34 | 913 | 59,04,365 | 3 | 8.2 |
+| 0.125 | 5 | 30.23 | **+0.52** | **INSIDE** | 2.07 | −14.88 | 953 | 70,71,436 | 1 | 1.2 |
+| 0.125 | 20 | 30.23 | **+0.52** | **INSIDE** | 2.07 | −14.88 | 953 | 70,71,436 | 1 | 1.2 |
+| 0.125 | 40 | 29.88 | **+0.17** | **INSIDE** | 2.07 | −14.39 | 941 | 69,34,141 | 1 | 2.3 |
+| 0.15 | 5 | 29.04 | −0.67 | INSIDE | 1.99 | −20.37 | 953 | 66,07,033 | 1 | 1.1 |
+| 0.15 | 20 | 29.04 | −0.67 | INSIDE | 1.99 | −20.37 | 953 | 66,07,033 | 1 | 1.1 |
+| 0.15 | 40 | 28.73 | −0.98 | INSIDE | 1.99 | −19.91 | 941 | 64,91,437 | 1 | 2.2 |
+| 0.20 / 0.25 | all | 29.71 | +0.00 | INSIDE | 2.03 | −18.93 | 963 | 68,64,240 | **0** | 0.0 |
+
+### THE FOUR POSITIVE CELLS ARE INSIDE THE FLOOR AND ARE THEREFORE NOT FINDINGS
+
+n100 0.125 at **+0.66 / +0.66 / +0.82** and mid 0.125 at **+0.52 / +0.52 / +0.17**
+are the only cells where the rule beats its control. **Every one is INSIDE the
+measured CAGR floor** — 0.97 on n100, 1.39 on mid — which means it **cannot be
+distinguished from ordinary re-fit variation in either direction**. Reading +0.66
+as an improvement is exactly what the floor rule forbids, and it is the mistake
+entry 28's retracted purge deltas were made of. **THEY ARE NOT EVIDENCE THAT 0.125
+IS A GOOD THRESHOLD.** They are cells where the rule's cost was too small to
+measure.
+
+---
+
+## PREDICTIONS F1–F8, JUDGED
+
+1. **F1** the three gates pass — **CORRECT**.
+2. **F2** the oscillation stops, firings in the low single digits — **CORRECT**.
+   4 exits at 0.10, 1 at 0.125 and 0.15, against revision 2's 77.
+3. **F3** days flat collapses to under 15% — **CORRECT**, 1.1% to 9.8%.
+4. **F4** better than revisions 1 and 2 at every firing cell, **but still short of
+   the control by more than the floor** — **FIRST HALF CORRECT, SECOND HALF
+   WRONG.** Ten of the thirty firing cells land INSIDE the floor and four are
+   positive. The spec flagged this as the prediction most likely to be wrong and
+   said a cell inside the floor was entirely possible; it was.
+5. **F5** 0.20 and 0.25 never fire and stay identical to the control — **CORRECT**,
+   all twelve cells. Stated in advance as a logical consequence, and it held as one.
+6. **F6** no cell shows two or more exits inside a single decline — **CORRECT.**
+   The 4-exit cell fires in **2020, 2022, 2025 and 2026**, years apart, each fully
+   recovered between. See the caveat below: this is a statement about the window.
+7. **F7** reported MaxDD worsens at some cells relative to revision 1 —
+   **CORRECT AS REPORTED, NOT JUDGED.** n100 0.15 shows −22.99 against the
+   control's −19.96. MaxDD has no measured floor, so no claim is drawn.
+8. **F8** the universes agree in sign at every firing cell — **WRONG.** At 0.10
+   wait 5, n100 is −1.62 (outside) while mid is −0.45 (INSIDE): the two universes
+   disagree on whether there is a measurable effect at all.
+
+**Score: six correct (F1, F2, F3, F5, F6, F7-as-reported), one half-wrong (F4),
+one wrong (F8).**
+
+---
+
+## THE STATE, PLAINLY
+
+**THE RULE IS NOW NON-DEGENERATE AND COSTS LITTLE. WHETHER IT HELPS IS STILL
+UNMEASURABLE.**
+
+- Non-degenerate: 4 exits, not 77; 1.1–9.8% flat, not 84%; CAGR within about two
+  points of the control across every firing cell, and inside the floor in ten of
+  thirty.
+- Unmeasurable: **MaxDD has NO measured seed noise floor on any arm**, and entry
+  28's shuffle test could not distinguish MaxDD from a random-selection null
+  (p 0.37/0.36 on n100, 0.20/0.44 on mid). **Drawdown reduction is the rule's
+  entire purpose.** The shallower drawdowns at 0.125 — −16.85 against −19.96 on
+  n100, −14.88 against −18.93 on mid — are **not evidence**, by the same rule that
+  disqualifies the four positive CAGR cells.
+
+**THREE REVISIONS ESTABLISHED WHAT THE RULE DOES, NOT WHETHER IT WORKS.** What was
+learned is mechanical: how it fails when the peak is frozen (two distinct ways),
+and that it stops failing when the peak is reset. Nothing across entries 33, 34 and
+35 bears on the question the rule exists to answer.
+
+**WHAT WOULD CHANGE THAT: a measured seed noise floor for MaxDD on v2**, by entry
+29's method, of order 130 minutes per universe. **IT IS NOT PROPOSED HERE.** It is
+named so a later reader knows precisely which missing measurement stands between
+this rule and a verdict.
+
+---
+
+## THE PEAK-RESET GIVE-UP IS LIVE AND UNTESTED
+
+The spec stated before the run what the reset costs: **the rule no longer measures
+drawdown from the strategy's all-time high.** A book that falls THRESHOLD,
+re-enters, and falls THRESHOLD again has lost far more than THRESHOLD from its true
+peak while the rule sees two ordinary breaches. At 15%, two chained resets reach a
+**27.75%** true drawdown; three reach **38.6%**. **The rule now limits the loss per
+episode, not the loss overall.**
+
+**F6 HELD — AND IT HELD FOR A REASON THAT DOES NOT GENERALISE.** No cell chained,
+because this window's one severe drawdown is **fast-down-fast-up**: a near-vertical
+March 2020 fall followed by a rapid recovery, with the other firings years apart
+and fully recovered between. **A SLOW GRINDING DECLINE IS THE CASE THAT WOULD
+CHAIN — repeated THRESHOLD-sized falls with insufficient recovery between them,
+each resetting the peak lower — AND THAT CASE IS NOT IN THE DATA.** F6 is a
+statement about 2019–2026, not about the rule, and the spec said so in advance.
+
+**It also breaks the coherence argued for in spec section 2.** That section chose
+the all-time peak partly so the trigger and `engine_core.py:370`'s reported MaxDD
+would mean the same thing. After revision 3 they do not: reported MaxDD is still
+all-time, the trigger is not. No comparison between them is drawn here, and a later
+reader must not draw one.
+
+---
+
+## WHAT IS NOT ESTABLISHED
+
+- **Nothing about drawdown**, on any cell, in any revision. No floor exists.
+- **Nothing about 0.20 and 0.25**, which never fired at any wait in any revision.
+  They are **untested rather than safe**; their identity with the control is an
+  absence of evidence.
+- **Nothing about the chained-reset case**, per above.
+- **Nothing about capacity.** Fills are synthetic against a `QUOTE_DEPTH` of
+  10,000,000 shares at flat 15 bps regardless of size, and an exit still sells the
+  entire book in one session; `diagnostics/liquidity_participation.txt` records a
+  mid SELL at **1,614.52%** of its symbol's prior-20-day median volume.
+- **Nothing about seed stability.** One ten-seed panel. Entry 29 established that
+  redrawing the seeds moves v2 by sd 0.97–1.39 on its own — the same magnitude as
+  every INSIDE cell above.
+- **The governing constraint applies in full**: the window contains ONE severe
+  drawdown, and the next will not have 2020's shape or speed.
+
+**TRIAL COUNT: 15 cells + the control = 16 new looks. FLOOR 70 → 86.**
+
+**Artefacts.** `diagnostics/drawdown_exit.txt`, `drawdown_exit_cells.csv` (32
+rows), `drawdown_exit_events.csv` (every exit and re-entry with dates and days
+flat), `drawdown_exit_equity.csv` (1,836 × 32). Script:
+`results/drawdown_exit_measure.py`. Spec: `experiments/DRAWDOWN_EXIT_SPEC.txt`
+section 13.
+
+---
+
+## Which purge the shipped panels were built with, measured. 2026-09-02.
+
+Not an experiment and not a trial — a **measurement on the artefacts**, run
+because two statements in this file contradicted each other about a live code
+path and the question could not be settled by reading either one.
+
+**THE QUESTION, AND WHY IT NEEDED A MEASUREMENT.** `engine_core.score_monthly`
+takes `purge_mode`, defaulting to `"trading"`. That is what the code does *today*.
+It is a different question from what the score panels **on disk** were built with,
+and the second question is the one that decides whether the headline in
+`HANDOFF_SUMMARY.txt` section 2 sits on the corrected purge or the legacy one. A
+score panel records dates, symbols and scores. **It does not record the purge that
+produced it**, so the question cannot be answered by reading the file.
+
+**WHAT IT IS, NAMED PLAINLY: A DIFFERENTIAL TEST THAT CHOSE BETWEEN TWO
+CANDIDATES. IT IS NOT AN IDENTITY REPRODUCTION.** For selected months the
+production 10-seed ensemble was refit **twice** from the same on-disk raw panel —
+once under `purge_mode="calendar"`, once under `"trading"` — and each candidate
+compared against the shipped panel's own scores for that month. The question asked
+was only ever *which candidate is closer*. Neither reproduces the shipped panel,
+and no claim is made that either does.
+
+**WHY A DIFFERENTIAL TEST IS SOUND DESPITE THAT.** `build_scores_*.py` score the
+**in-memory** panel and write `raw_panel_*_cache.csv` as a by-product; the two
+differ by one unit in the last place. The probe can only read the CSV, so **both
+candidates carry that same offset**. It is common mode and cancels in a comparison
+of which is closer. It does not cancel in an absolute comparison, which is exactly
+why no absolute claim is made.
+
+**Statistics**, all against the shipped scores: max absolute difference (a
+single-cell statistic, reported but weak), **mean absolute difference** (primary),
+and **per-date rank disagreement** — the quantity the strategy actually consumes.
+
+**TWO DESIGN FEATURES WITHOUT WHICH THE RESULT WOULD MEAN NOTHING.**
+
+1. **CONTROL MONTHS.** In some months the two cuts select an *identical* training
+   set. There the two branches must return byte-identical output — if they did
+   not, the probe would have a preference of its own. Controls are **classified by
+   the run**, by comparing the two training masks, not chosen by hand. **4 of 4
+   controls returned identical output on both universes.** They also measure the
+   **error floor**: mean abs 2.052e-03 to 2.318e-03 on n100, 2.077e-03 on mid.
+2. **SIZE-INCREASING MONTHS.** The calendar cut is not always the later one. In
+   **5 of the 16** divergent months the trading cut falls later and trains on
+   **more** rows. These exclude the confound that a smaller training set is simply
+   always closer. **Trading won all 5.**
+
+**THE RESULT — 16 OF 16.**
+
+| statistic | trading closer |
+|---|---|
+| mean absolute difference (primary) | **16 of 16** |
+| per-date rank disagreement | **16 of 16** |
+| max absolute difference (weak) | 14 of 16 |
+| mean abs, size-increasing months only | **5 of 5** |
+
+One-sided sign test on the primary statistic, under the null that the shipped
+panel is equally close to both candidates: **p = 1.526e-05**. On the divergent
+months the trading candidate lands **at or below** the control error floor while
+the calendar candidate lands **above** it.
+
+**DETERMINATION. The shipped n100 and mid score panels were built with
+`purge_mode="trading"`.** Two independent lines agree with it and neither was
+relied on for the verdict: `engine_core.py` was modified at 14:28:25 on 2026-09-02
+and both live panels were written at 15:06:19, against a measured re-score cost of
+36 min 07 sec; and `shuffle_summary.csv` (2026-09-01 23:47) carries n100 v2 at
+25.49 while `v34_comparison.csv` (2026-09-02 15:16) carries 25.78, so the panel
+demonstrably changed between those timestamps.
+
+**THE RESIDUAL, AND WHAT THIS DID NOT ESTABLISH.** The best-fitting candidate
+still leaves a non-zero mean absolute difference and a four-figure rank
+disagreement in **every** month, controls included. **This measurement did NOT
+establish that the shipped panels reproduce from the artefacts on disk — they do
+not.** The cause is the one-unit-in-the-last-place gap between the in-memory panel
+and its CSV, recorded in `KNOWN_ISSUES.md` under *"The headline is not reproducible
+from the artefacts on disk to better than about a point"*, and the control months
+measure it directly. It also establishes **nothing about whether the trading purge
+is correct** — that is `diagnostics/leakage_check2_purge.txt`. It asks only which
+one ran.
+
+**Artefacts.** `diagnostics/purge_mode_probe.txt`. Script:
+`results/purge_mode_probe.py`, which computes its own verdict from the measured
+rows rather than carrying one. 20 months probed across both universes, 40 refits
+of the production 10 seeds, wall clock **5.1 min**.
+
+---
+
+## Decoupling the trading calendar by a coverage threshold — REFUTED BEFORE IMPLEMENTATION. 2026-09-03.
+
+*Pre-registration: `experiments/CALENDAR_DECOUPLE_SPEC.txt`, written 2026-09-03
+before any code. The design, the threshold, the predictions and the four
+verification gates were all fixed there first.*
+
+Not an experiment and not a trial — a **design refuted by measurement**, recorded
+because the refutation is the useful artefact. **No code was written and no
+production path changed.**
+
+**THE DESIGN TESTED.** `make_trading_calendar.py` derives the NSE calendar from
+the **retired 58 universe's** raw files, and `engine_core._load_calendar()` raises
+without that artefact for every universe. The candidate: build the calendar from
+the **selected universe's own files**, and drop any date carried by fewer than a
+**single global coverage threshold** of the files active that year — `COVERAGE_MIN
+= 0.50`, named in the spec as an underived constant.
+
+**WHY IT LOOKED SOUND.** Over 2019-01-01 to 2026-05-29, filtering at 50%
+reproduces the tracked 58-derived calendar **exactly** — identical sets, 1,836
+dates, zero either way, in **both** universes. Coverage there is bimodal with an
+empty 35.5-point band (low group 15.4–47.3%, kept group 82.8–100%).
+
+**IT IS REFUTED, AND IT IS NOT ADJUSTABLE.** The in-window result covers 1,836 of
+~6,574 dates. Extended to the full range the files cover:
+
+| universe | filtered | 58 calendar | filtered-only | calendar-only |
+|---|---|---|---|---|
+| n100 | 6,572 | 6,574 | **0** | **2** |
+| mid | 6,552 | 6,574 | **0** | **22** |
+
+Every window year reproduces exactly; **all failures are pre-2019**. The
+difference is one-directional throughout — the filter never invents a date, it
+only drops dates the calendar has.
+
+**THE EMPTY-INTERVAL PROOF, WHICH SETTLES ALL THRESHOLDS AT ONCE.** A threshold T
+reproduces the calendar if and only if `max(coverage of excluded dates) < T ≤
+min(coverage of included dates)`. Measured:
+
+| universe | calendar HAS | calendar LACKS | required interval | result |
+|---|---|---|---|---|
+| n100 | 6,574 at 13.85%–100% | 237 at 1.27%–24.24% | `24.24% < T ≤ 13.85%` | **EMPTY — overlap 10.40 pt** |
+| mid | 6,573 at 4.35%–100% | 237 at 1.16%–47.30% | `47.30% < T ≤ 4.35%` | **EMPTY — overlap 42.95 pt** |
+
+**No value of `COVERAGE_MIN` works, in either universe.** Changing it changes
+*which* dates are wrong; it cannot make none of them wrong. This is a property of
+the data, not of the chosen value.
+
+**THE FOUR BINDING CASES** — calendar dates too thinly covered for any threshold
+that also excludes the 237:
+
+| date | day | n100 coverage | mid coverage |
+|---|---|---|---|
+| **2017-12-02** | Sat | above 50% | **5/115 = 4.35%** |
+| **2003-03-22** | Sat | **9/65 = 13.85%** | **3/61 = 4.92%** |
+| **2017-04-04** | Tue | **29/87 = 33.33%** | **43/115 = 37.39%** |
+| **2003-01-01 .. 2003-01-24** | 18 consecutive sessions | above 50% | **29/61 = 47.54%**, 2.46 pt under the line |
+
+A fifth difference is not a filtering decision at all: **2000-01-03** is absent
+from mid's union entirely, because mid's data starts 2000-01-04.
+
+**THE EMPTY MIDDLE IS A PROPERTY OF THE RECENT YEARS, NOT OF THE DATA.** Per-year
+band edges narrow sharply before 2019: mid 2003 gap **19.7 points** (low tops at
+49.2%), mid 2016 kept side at **exactly 50.0%**, n100 2017 gap 31.0. For 2019–2026
+the kept side never falls below 82.8%. The spec's insensitivity argument — every
+threshold in (0.473, 0.828] partitions identically — is true **only** for the
+range it was measured on.
+
+**THE PREDICTIONS, JUDGED HONESTLY.**
+
+1. **P1 and P2 were not predictions.** They said the n100- and mid-derived
+   calendars would be identical to the tracked one **over 2019-01-01 to
+   2026-05-29** — a range where the identity had *already been measured* two days
+   earlier. They were correct, and worthless. **Scoping a prediction to data you
+   have already measured is not a prediction**, and the spec now says so in place.
+   The extension to the full range is what mattered, and it is **FALSE**.
+2. **P3, P4 and P5 were never tested.** They covered published figures, panel
+   byte-identity and the retired artefacts. **No code ran**, so no panel, no arm
+   and no retired artefact was produced or compared. They are neither confirmed
+   nor refuted and must not be reported as passing.
+
+**WHY THE FAILURE WOULD HAVE MATTERED.** The 24 missing dates are all pre-2019, so
+they are **training rows, not scored rows** — but `build_panel` filters the whole
+panel and training reaches back to 2001. Entry 28 measured a 0.01% change in
+training rows moving n100 v2 CAGR by 0.54 points. A calendar 22 dates short is a
+larger perturbation in the same place. **The change would have moved published
+numbers in a project whose entire justification for it was that nothing moves.**
+Gates 2 and 3 of the spec were designed to catch this; they were never needed,
+because the measurement caught it first, for four seconds of compute.
+
+**WHAT THIS DOES NOT ESTABLISH.**
+
+- **NOT that the 58-derived calendar is right about those 24 dates.** No external
+  NSE source was consulted, here or anywhere in this project. Three of the binding
+  dates are Saturdays. Whether 2003-03-22, 2017-12-02 and 2017-04-04 were genuine
+  sessions is **untested**. The measurement establishes only that a coverage
+  filter cannot *reproduce* the existing calendar, not that the existing calendar
+  is correct.
+- **NOT that no decoupling is possible.** It refutes **one** design — a single
+  global coverage threshold. Other designs were not measured and nothing here
+  rules them out.
+- **Nothing about panels, scores or published figures.** No code that touches them
+  was run.
+
+**Artefacts.** `diagnostics/calendar_coverage_probe.txt`. Script:
+`results/calendar_coverage_probe.py`, which computes its verdict from the measured
+rows rather than carrying one, and hashes the tracked calendar before and after to
+prove it was not written. Wall clock **4 sec**. Spec, with the refutation appended
+as PART 8 and a BLOCKED banner at its head:
+`experiments/CALENDAR_DECOUPLE_SPEC.txt`.
+
+**The coupling stays open** — `KNOWN_ISSUES.md`, *"STEP 0 couples the live
+universes to the retired 58 universe"* — now with one candidate design measured
+and refuted before implementation.
+
+---
+
+## Entries 27, 28, 29 and C were run on pre-purge-fix scores. 2026-09-02.
+
+The purge correction of 2026-09-02 rebuilt the n100 and mid score panels. **Every
+validation and measurement run before that date used the superseded scores.** This
+is recorded once, as a state of the record, rather than as a list of tasks.
+
+**AFFECTED, AND WHAT EACH USED**
+
+| entry | what it established | superseded diagnostics |
+|---|---|---|
+| **27** TOP_N revalidation | TOP_N=8 NOT CONTRADICTED, 6 of 6 criteria | `topn_n100.txt`, `topn_mid.txt`, `topn_verdict.txt` |
+| **28** Shuffle test | 0 of 100 permutations beat the real arm, p = 0.0099 | `shuffle_n100.txt`, `shuffle_mid.txt`, `shuffle_verdict.txt` |
+| **29** Seed noise floor | sd 0.97–2.14 CAGR at K=10; sigma(K) exponent −0.15 to −0.25 | `seed_noise.txt` |
+| **C** Breadth live validation | 3 of 3 gated criteria PASS on both universes | `breadth_live_n100.txt`, `breadth_live_mid.txt` |
+
+Also superseded: `v34_report.txt`, `validate_sizing_{n100,mid}.txt`,
+`n100_jackknife.txt`, `nt_verify_n100.txt`, `nt_reports_verify.txt`, and the
+`purge_fix_measure.txt` / `leakage_check2_purge.txt` pair, which describe the
+defect before it was repaired.
+
+NOT affected: `leakage_check1_causality.txt` and `leakage_check3_normalisation.txt`
+test the FEATURE stage, which the purge does not touch; `checkA_close_bad_values.txt`
+reads raw CSVs; `membership/STATUS.md` is independent of scoring. Retired-universe
+artefacts are correctly unchanged — the 58 and 74 are pinned to the legacy purge.
+
+**WHAT THIS CHANGES, AND WHAT IT DOES NOT.**
+
+**The conclusions stand.** The purge effect on the shipping arm was **+0.29 on
+n100 and −0.51 on mid**, both inside the seed noise floor measured in entry 29
+(sd 0.97 and 1.39). A perturbation smaller than the measurement's own resolution
+cannot reverse a verdict that did not turn on a fraction of a CAGR point:
+
+- entry 27 held on Sharpe margins of +0.11 to +0.22;
+- entry 28 had **zero** of 100 permutations beating the real arm, against effect
+  sizes of +14 to +30 CAGR points;
+- entry C passed 3 of 3 gated criteria;
+- entry 29's finding is about the SHAPE of sigma(K), which is a property of the
+  ensemble rather than of any particular score panel.
+
+**The exact figures do not stand.** Every number in those entries describes scores
+that no longer ship. A reader quoting "25.49" or "0 of 100 on the current panel"
+is quoting a superseded artefact. **The entries are not amended**, because their
+numbers were correct when produced and rewriting them would destroy the record;
+this section is the pointer that they are historical.
+
+**WHAT A FULL REFRESH WOULD COST**, measured where known, so the decision is a
+costed one:
+
+| work | cost | basis |
+|---|---|---|
+| Seed noise floor (entry 29) | **130 min** | measured 2026-09-02; 40 seeds x 126 months x 2 universes |
+| Shuffle test (entry 28) | **~80 sec** | measured; 100 permutations x 4 arms x 2 universes, no refit |
+| TOP_N revalidation (entry 27) | **~1 min** | measured; 12 backtests, no refit |
+| Breadth live (entry C) | **not measured** | rescores 3 seed sets x 2 universes; by the ~17 min/universe/10-seed rate, of order 100 min |
+| validate_sizing | **not measured** | rescores per test; same order |
+| Nautilus reports / liquidity / depth | **not measured** | depth and liquidity also need the window moved off 1,842 days |
+| **score rebuild itself** | **36 min 07 sec** | already done for the live universes |
+
+The two cheap ones — the shuffle test and the TOP_N revalidation — are minutes and
+need no refitting, because both consume an existing score panel. The expensive
+ones are those that refit: the seed noise floor, breadth live, and
+validate_sizing.
+
+**NOTHING WAS RE-RUN TO PRODUCE THIS SECTION.** It is an inventory of what the
+rebuild superseded, not a refresh.
+
+---
+
+## Leakage-side verification, as of 2026-09-02 — what has artefacts, and what does not
+
+A summary of work already recorded elsewhere in this file and in `diagnostics/`.
+**It makes no new claim.** Every line names the artefact behind it, and anything
+without one is listed as open.
+
+### Tested and closed
+
+| failure mode | result | artefact |
+|---|---|---|
+| Feature causality | 17 of 17 features bit-exact at day *t* when every row after *t* is corrupted — two independent corruptions, both universes | `diagnostics/leakage_check1_causality.txt` |
+| Normalisation scope | no whole-panel statistic fitted on anything the model sees; every feature operation trailing or same-day; the only forward-looking operations are the label and its artefact mask | `diagnostics/leakage_check3_normalisation.txt` |
+| Walk-forward construction | no training row dated on or after the scored month, all 126 months, both universes | `diagnostics/leakage_check2_purge.txt` |
+| Execution timing **[CORRECTED 2026-09-02 — see the second correction block at the end of this section]** | 976 of 977 and 971 of 973 fills at the fill day's open; **0 at any close**; all 1,950 one session after a recorded decision date | `diagnostics/checkB_execution_timing.txt` |
+| Random-selection null | 0 of 100 score permutations beat the real arm on either gated arm on either universe | `diagnostics/shuffle_verdict.txt`, entry 28 |
+| Bad values in the traded price column | 0 of 2,690 and 0 of 3,503 `close` values violate their own session's high/low; the out-of-bounds values are all in `adj_close`, which the engine does not use | `diagnostics/checkA_close_bad_values.txt` |
+
+### Tested, failed, measured — not repaired
+
+| failure mode | result | artefact |
+|---|---|---|
+| Label purging **[CORRECTED 2026-09-02 — see the correction block below this table]** | The purge is 32 **calendar** days against a label spanning 20 **trading** rows. The label reached into the scored month in **7 of 126 months** and touched its first day in **21 more**, identically on both universes. A trading-row purge with a 2-row embargo fixes it by construction (min gap 2 on all 126). **The fix is not applied**: `engine_core.py` still runs the calendar purge, and the correction exists only in a measurement script. The return impact could not be distinguished from re-fit noise. | `diagnostics/leakage_check2_purge.txt`, `diagnostics/purge_fix_measure.txt`, entry 29 |
+
+**CORRECTION, 2026-09-02. THE LABEL-PURGING ROW ABOVE IS FALSE ON TWO COUNTS, AND
+ITS ORIGINAL TEXT IS LEFT IN PLACE RATHER THAN REWRITTEN.**
+
+The row states *"The fix is not applied: `engine_core.py` still runs the calendar
+purge, and the correction exists only in a measurement script."* Both halves are
+wrong, and the row was already wrong on the day it was written — the same day, and
+in the same file, as the section *"The purge correction was applied, and the
+headline moved"*, which is the accurate one. The two contradicted each other about
+a live code path.
+
+**What is true, established from code and artefacts rather than from either
+document:**
+
+1. **`engine_core.py` does not run the calendar purge by default.**
+   `results/engine_core.py:413` reads
+   `def score_monthly(raw, seeds, purge=PURGE, purge_mode="trading")`, and the
+   branch at `results/engine_core.py:460` takes the trading-row cut
+   `cut = _cal[i_first - HORIZON - PURGE_EMBARGO]` unless `"calendar"` is asked
+   for by name. `results/build_scores_n100.py:50` and
+   `results/build_scores_mid.py:47` both call `score_monthly(raw, SEEDS)` and so
+   take the default. Only the four retired-universe sites pin `"calendar"`:
+   `build_scores.py:31`, `build_scores74.py:36`, `engine_core.py:575`,
+   `validate_breadth.py:66`.
+2. **The correction does not exist "only in a measurement script."** It is in
+   `score_monthly` itself, and it is what the shipping panels were built with —
+   measured, not inferred, in *"Which purge the shipped panels were built with,
+   measured"* above: 16 of 16 divergent months favour the trading candidate on
+   both primary statistics, p = 1.526e-05, with controls confirming the probe has
+   no branch preference.
+
+**WHAT THIS CHANGES FOR THE HEADLINE: NOTHING.** `HANDOFF_SUMMARY.txt` section 2
+and `v34_comparison.csv` were already on the corrected purge. The defect was in
+this row's description of the code, not in any published number. **No figure in
+this file is amended by this correction** — the 7 of 126 months, the 21 more, and
+the min-gap-2 result are all still correct, and the return-impact sentence is still
+correct.
+
+**The row's placement is also wrong and is left alone.** Label purging now belongs
+under *Tested and closed*, not under *Tested, failed, measured — not repaired*.
+Moving it would renumber and reflow a record section; that is a separate decision.
+Read the row as: tested, failed, measured, **and since repaired**.
+
+**CORRECTION, 2026-09-02. THE EXECUTION-TIMING ROW CARRIES PRE-PURGE-FIX FILL
+COUNTS. ITS ORIGINAL FIGURES ARE LEFT IN PLACE RATHER THAN OVERWRITTEN.**
+
+The row reads *"976 of 977 and 971 of 973 fills at the fill day's open; 0 at any
+close; all 1,950 one session after a recorded decision date."* Those counts are
+from the fill record produced **before** the purge correction rebuilt the panels.
+The check was re-run against the new `fills.csv` on 2026-09-02 at 15:17 and the
+counts moved, because the corrected scores change which names are bought.
+
+Read from `diagnostics/checkB_execution_timing.txt`, not from any summary:
+
+| | recorded in the row | measured 2026-09-02 |
+|---|---|---|
+| n100, fills at the fill day's open | 976 of 977 | **977 of 978** |
+| mid, fills at the fill day's open | 971 of 973 | **961 of 963** |
+| total fills, one session after a decision date | 1,950 | **1,941** |
+| fills executing at a close rather than an open | 0 | **0**, unchanged |
+
+The artefact states *"FILLS EXECUTING AT A CLOSE RATHER THAN AN OPEN: 0"* on both
+universes, so the substantive claim of the row — the only one it was making — is
+unaffected. **What is wrong is the arithmetic, not the finding.** The three
+exceptions are two one-paisa rounding misses and one symbol with no panel price
+under its post-rename ticker.
+
+---
+
+### Open, with no artefact that closes them
+
+- **Survivorship.** Point-in-time index membership reaches 2024-03-28 against a
+  2019-01-01 start — 5 years 3 months of a 7.6-year window uncovered. Downloading
+  the complete non-bond NSE archive added zero days. Not quantifiable with what is
+  on disk. `diagnostics/membership/STATUS.md`.
+- **The multiple-comparison denominator.** 29 recorded entries, 28 run, one
+  acceptance. No result in this file is corrected for it, and the permutation test
+  in entry 28 does not correct for it either.
+- **No out-of-sample data.** Every number comes from one panel, 2019-01-01 to
+  2026-05-29, on universes backfilled from today's index membership. Nothing has
+  been held out, and no result has been produced on data the configuration was not
+  chosen against.
+- **The reproducibility limit.** The published headline cannot be reproduced from
+  the artefacts on disk to better than roughly one CAGR point. A one-bit float
+  difference between the in-memory panel and its CSV moves n100 v2 by +0.66; a
+  0.01% change in training rows moves it by +0.54; redrawing the ten seeds gives a
+  standard deviation of 0.97 to 2.14 with a range of 4.17 to 10.26. See
+  `KNOWN_ISSUES.md` and entries 28 and 29.
+
+### What this establishes
+
+That six specific mechanisms by which a backtest can manufacture returns were
+tested against artefacts, five held, and one failed and was measured. **It does
+not establish that the returns are real.** The four items above are untested by
+any of this work, and the first and third of them are the ones that would matter
+most. **No confidence figure is attached to the headline, and none is available
+from this work.**
 
 ---
 

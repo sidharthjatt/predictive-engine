@@ -1,0 +1,174 @@
+====================================================================================================
+ CAN A COVERAGE THRESHOLD REPLACE THE 58-DERIVED TRADING CALENDAR?
+====================================================================================================
+
+  tracked calendar   data/nse_trading_calendar.csv
+    6,574 dates   2000-01-03 .. 2026-06-08
+    SHA256 a05a7ed00b1470981c17cc7c8936a34a39fc9e55ba467c63a8b5d4e1db2d9e8c
+  spec               experiments/CALENDAR_DECOUPLE_SPEC.txt
+  threshold reported COVERAGE_MIN = 0.5
+    The verdict below does NOT depend on this value. See the
+    empty-interval test, which settles all thresholds at once.
+
+====================================================================================================
+ NIFTY 100 (n100)
+====================================================================================================
+  99 constituent files   union 6,811 dates   2000-01-03 .. 2026-06-08
+
+  PER-YEAR IDENTITY AT COVERAGE_MIN = 0.5
+    year    active  58 cal  filtered  filt-only  cal-only
+      2000       3     250       250          0         0
+      2001       3     248       248          0         0
+      2002       9     251       251          0         0
+      2003      65     254       253          0         1  <-- FAILS
+      2004      68     254       254          0         0
+      2005      68     251       251          0         0
+      2006      70     250       250          0         0
+      2007      75     249       249          0         0
+      2008      78     246       246          0         0
+      2009      78     243       243          0         0
+      2010      79     252       252          0         0
+      2011      80     247       247          0         0
+      2012      80     251       251          0         0
+      2013      80     250       250          0         0
+      2014      80     244       244          0         0
+      2015      84     248       248          0         0
+      2016      84     248       248          0         0
+      2017      87     250       249          0         1  <-- FAILS
+      2018      90     246       246          0         0
+      2019      89     245       245          0         0
+      2020      91     252       252          0         0
+      2021      94     248       248          0         0
+      2022      94     248       248          0         0
+      2023      95     246       246          0         0
+      2024      96     249       249          0         0
+      2025      99     249       249          0         0
+      2026      99     105       105          0         0
+
+    FULL RANGE: filtered 6,572   tracked 6,574   filtered-only 0   calendar-only 2
+    IN WINDOW 2019-01-01 .. 2026-05-29: filtered 1,836   tracked 1,836   differences 0
+
+  EVERY DIFFERING DATE, LISTED. Not characterised, listed.
+    2003-03-22 Sat   13.85%  in the 58 CALENDAR, ABSENT from filtered set
+    2017-04-04 Tue   33.33%  in the 58 CALENDAR, ABSENT from filtered set
+
+  THE EMPTY-INTERVAL TEST -- settles ALL thresholds at once
+    dates the calendar HAS    6,574   coverage  13.85% .. 100.00%
+    dates the calendar LACKS    237   coverage   1.27% ..  24.24%
+    a threshold T reproduces the calendar iff 24.24% < T <= 13.85%
+    -> THE INTERVAL IS EMPTY. The groups OVERLAP by 10.40 points.
+       NO VALUE OF COVERAGE_MIN REPRODUCES THE CALENDAR.
+
+    THE BINDING CASES -- calendar dates too thinly covered to keep:
+      2003-03-22 Sat   13.85%  the calendar HAS it
+      2017-04-04 Tue   33.33%  the calendar HAS it
+      2016-07-06 Wed   59.52%  the calendar HAS it
+      2003-01-01 Wed   63.08%  the calendar HAS it
+    against the most heavily covered dates the calendar LACKS:
+      2026-05-28 Thu   24.24%  the calendar LACKS it
+      2026-05-01 Fri   24.24%  the calendar LACKS it
+      2026-04-14 Tue   24.24%  the calendar LACKS it
+
+====================================================================================================
+ MIDCAP150 (mid)
+====================================================================================================
+  148 constituent files   union 6,810 dates   2000-01-04 .. 2026-06-08
+
+  PER-YEAR IDENTITY AT COVERAGE_MIN = 0.5
+    year    active  58 cal  filtered  filt-only  cal-only
+      2000       2     250       249          0         1  <-- FAILS
+      2001       2     248       248          0         0
+      2002       8     251       251          0         0
+      2003      61     254       235          0        19  <-- FAILS
+      2004      66     254       254          0         0
+      2005      70     251       251          0         0
+      2006      75     250       250          0         0
+      2007      82     249       249          0         0
+      2008      84     246       246          0         0
+      2009      86     243       243          0         0
+      2010      93     252       252          0         0
+      2011      95     247       247          0         0
+      2012      97     251       251          0         0
+      2013      97     250       250          0         0
+      2014      97     244       244          0         0
+      2015     102     248       248          0         0
+      2016     106     248       248          0         0
+      2017     115     250       248          0         2  <-- FAILS
+      2018     117     246       246          0         0
+      2019     123     245       245          0         0
+      2020     125     252       252          0         0
+      2021     128     248       248          0         0
+      2022     131     248       248          0         0
+      2023     134     246       246          0         0
+      2024     141     249       249          0         0
+      2025     148     249       249          0         0
+      2026     148     105       105          0         0
+
+    FULL RANGE: filtered 6,552   tracked 6,574   filtered-only 0   calendar-only 22
+    IN WINDOW 2019-01-01 .. 2026-05-29: filtered 1,836   tracked 1,836   differences 0
+
+  EVERY DIFFERING DATE, LISTED. Not characterised, listed.
+    2000-01-03 Mon     ----  in the 58 CALENDAR, NOT IN THIS UNIVERSE'S UNION AT ALL (missing data, not a filtering decision)
+    2003-01-01 Wed   47.54%  in the 58 CALENDAR, ABSENT from filtered set
+    2003-01-02 Thu   47.54%  in the 58 CALENDAR, ABSENT from filtered set
+    2003-01-03 Fri   47.54%  in the 58 CALENDAR, ABSENT from filtered set
+    2003-01-06 Mon   47.54%  in the 58 CALENDAR, ABSENT from filtered set
+    2003-01-07 Tue   47.54%  in the 58 CALENDAR, ABSENT from filtered set
+    2003-01-08 Wed   47.54%  in the 58 CALENDAR, ABSENT from filtered set
+    2003-01-09 Thu   47.54%  in the 58 CALENDAR, ABSENT from filtered set
+    2003-01-10 Fri   47.54%  in the 58 CALENDAR, ABSENT from filtered set
+    2003-01-13 Mon   47.54%  in the 58 CALENDAR, ABSENT from filtered set
+    2003-01-14 Tue   47.54%  in the 58 CALENDAR, ABSENT from filtered set
+    2003-01-15 Wed   47.54%  in the 58 CALENDAR, ABSENT from filtered set
+    2003-01-16 Thu   47.54%  in the 58 CALENDAR, ABSENT from filtered set
+    2003-01-17 Fri   47.54%  in the 58 CALENDAR, ABSENT from filtered set
+    2003-01-20 Mon   49.18%  in the 58 CALENDAR, ABSENT from filtered set
+    2003-01-21 Tue   47.54%  in the 58 CALENDAR, ABSENT from filtered set
+    2003-01-22 Wed   47.54%  in the 58 CALENDAR, ABSENT from filtered set
+    2003-01-23 Thu   47.54%  in the 58 CALENDAR, ABSENT from filtered set
+    2003-01-24 Fri   47.54%  in the 58 CALENDAR, ABSENT from filtered set
+    2003-03-22 Sat    4.92%  in the 58 CALENDAR, ABSENT from filtered set
+    2017-04-04 Tue   37.39%  in the 58 CALENDAR, ABSENT from filtered set
+    2017-12-02 Sat    4.35%  in the 58 CALENDAR, ABSENT from filtered set
+
+  THE EMPTY-INTERVAL TEST -- settles ALL thresholds at once
+    dates the calendar HAS    6,573   coverage   4.35% .. 100.00%
+    dates the calendar LACKS    237   coverage   1.16% ..  47.30%
+    a threshold T reproduces the calendar iff 47.30% < T <= 4.35%
+    -> THE INTERVAL IS EMPTY. The groups OVERLAP by 42.95 points.
+       NO VALUE OF COVERAGE_MIN REPRODUCES THE CALENDAR.
+
+    THE BINDING CASES -- calendar dates too thinly covered to keep:
+      2017-12-02 Sat    4.35%  the calendar HAS it
+      2003-03-22 Sat    4.92%  the calendar HAS it
+      2017-04-04 Tue   37.39%  the calendar HAS it
+      2003-01-01 Wed   47.54%  the calendar HAS it
+    against the most heavily covered dates the calendar LACKS:
+      2026-05-28 Thu   47.30%  the calendar LACKS it
+      2026-05-01 Fri   47.30%  the calendar LACKS it
+      2026-04-14 Tue   47.30%  the calendar LACKS it
+
+====================================================================================================
+ VERDICT -- computed from the rows above, not written into this script
+====================================================================================================
+
+  n100   a reproducing threshold exists: False
+  mid    a reproducing threshold exists: False
+
+  DETERMINATION: THE DESIGN IS REFUTED IN BOTH UNIVERSES, AND IT IS NOT
+  A TUNING PROBLEM. The included and excluded coverage ranges overlap, so
+  no threshold separates them. Changing COVERAGE_MIN changes WHICH dates
+  are wrong; it cannot make none of them wrong.
+
+  WHAT THIS DOES NOT ESTABLISH:
+    - that the 58-derived calendar is CORRECT about the dates where they
+      disagree. No external NSE source was consulted. Several of the
+      binding dates are Saturdays and whether they were genuine sessions
+      is untested.
+    - that no decoupling is possible. This refutes ONE design, a single
+      global coverage threshold. Others were not measured.
+    - anything about panels, scores or published figures. No code that
+      touches them was run.
+
+  TRACKED CALENDAR UNCHANGED BY THIS RUN: True
+  wall clock 4 sec

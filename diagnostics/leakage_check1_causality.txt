@@ -1,0 +1,82 @@
+====================================================================================================
+ CHECK 1 -- FEATURE CAUSALITY -- NIFTY 100 (n100)
+====================================================================================================
+
+  symbols 99   panel rows 482,116
+  dates sampled 24 spread across 2019-01-01 .. 2026-05-29
+  cells compared per feature: 24 dates x 99 symbols x 2 corruptions = 4,752
+  corruption (a) replace: future rows overwritten with a synthetic random walk
+  corruption (b) shuffle: future rows permuted in time within each symbol
+  comparison: BIT-EXACT (np.array_equal with equal_nan)
+
+----------------------------------------------------------------------------------------------------
+ feature                    (a) replace   (b) shuffle   verdict
+----------------------------------------------------------------------------------------------------
+ mom_20                       bit-exact     bit-exact   causal
+ mom_120                      bit-exact     bit-exact   causal
+ mom_12_1                     bit-exact     bit-exact   causal
+ rev_5                        bit-exact     bit-exact   causal
+ rev_1                        bit-exact     bit-exact   causal
+ vol_20                       bit-exact     bit-exact   causal
+ vol_ratio                    bit-exact     bit-exact   causal
+ idio_vol_60                  bit-exact     bit-exact   causal
+ beta_60                      bit-exact     bit-exact   causal
+ downside_vol_60              bit-exact     bit-exact   causal
+ amihud_20                    bit-exact     bit-exact   causal
+ turnover_z                   bit-exact     bit-exact   causal
+ vol_price_div                bit-exact     bit-exact   causal
+ trend_consistency_20         bit-exact     bit-exact   causal
+ path_smooth_60               bit-exact     bit-exact   causal
+ dist_high_252                bit-exact     bit-exact   causal
+ rsi_14                       bit-exact     bit-exact   causal
+----------------------------------------------------------------------------------------------------
+
+  ALL 17 FEATURES BIT-EXACT UNDER BOTH CORRUPTIONS AT EVERY
+  SAMPLED DATE. No feature's day-t value moved when only future rows changed.
+
+  WHAT THIS DOES NOT SAY: dates are sampled, so a leak confined to dates
+  outside this sample would survive. It tests the feature stage only --
+  the training mask and the label are CHECK 2.
+
+
+====================================================================================================
+ CHECK 1 -- FEATURE CAUSALITY -- MIDCAP150 (mid)
+====================================================================================================
+
+  symbols 148   panel rows 596,822
+  dates sampled 24 spread across 2019-01-01 .. 2026-05-29
+  cells compared per feature: 24 dates x 148 symbols x 2 corruptions = 7,104
+  corruption (a) replace: future rows overwritten with a synthetic random walk
+  corruption (b) shuffle: future rows permuted in time within each symbol
+  comparison: BIT-EXACT (np.array_equal with equal_nan)
+
+----------------------------------------------------------------------------------------------------
+ feature                    (a) replace   (b) shuffle   verdict
+----------------------------------------------------------------------------------------------------
+ mom_20                       bit-exact     bit-exact   causal
+ mom_120                      bit-exact     bit-exact   causal
+ mom_12_1                     bit-exact     bit-exact   causal
+ rev_5                        bit-exact     bit-exact   causal
+ rev_1                        bit-exact     bit-exact   causal
+ vol_20                       bit-exact     bit-exact   causal
+ vol_ratio                    bit-exact     bit-exact   causal
+ idio_vol_60                  bit-exact     bit-exact   causal
+ beta_60                      bit-exact     bit-exact   causal
+ downside_vol_60              bit-exact     bit-exact   causal
+ amihud_20                    bit-exact     bit-exact   causal
+ turnover_z                   bit-exact     bit-exact   causal
+ vol_price_div                bit-exact     bit-exact   causal
+ trend_consistency_20         bit-exact     bit-exact   causal
+ path_smooth_60               bit-exact     bit-exact   causal
+ dist_high_252                bit-exact     bit-exact   causal
+ rsi_14                       bit-exact     bit-exact   causal
+----------------------------------------------------------------------------------------------------
+
+  ALL 17 FEATURES BIT-EXACT UNDER BOTH CORRUPTIONS AT EVERY
+  SAMPLED DATE. No feature's day-t value moved when only future rows changed.
+
+  WHAT THIS DOES NOT SAY: dates are sampled, so a leak confined to dates
+  outside this sample would survive. It tests the feature stage only --
+  the training mask and the label are CHECK 2.
+
+

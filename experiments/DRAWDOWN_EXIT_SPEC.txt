@@ -1,0 +1,754 @@
+PORTFOLIO DRAWDOWN EXIT -- SPECIFICATION
+================================================================================
+Written 2026-09-03, BEFORE any code and before any number is seen.
+
+REAL MONEY IS INTENDED TO RUN ON THIS. The spec is therefore written to survive
+that rather than to produce a favourable backtest. Where a choice exists it is
+named and justified; where a constant is underived it is labelled as such; where
+a claim cannot be established with the measurements this project has today, the
+spec says so instead of proposing a rule that pretends otherwise.
+
+================================================================================
+THE GOVERNING CONSTRAINT -- READ THIS BEFORE THE DESIGN
+================================================================================
+THE WINDOW CONTAINS ONE SEVERE DRAWDOWN. WHATEVER THESE FIVE THRESHOLDS SHOW,
+THEY ARE FIVE READINGS OF ONE EVENT.
+
+2019-01-01 to 2026-05-29 contains exactly one crash of the kind a drawdown exit
+exists for: March 2020. Everything else in the window is a shallower or slower
+decline. So:
+
+  - A THRESHOLD THAT LOOKS GOOD IS A THRESHOLD THAT HAPPENED TO FIT MARCH 2020.
+    Its apparent quality is a statement about one month's shape and speed, not
+    about drawdowns.
+  - THE NEXT DRAWDOWN WILL NOT HAVE 2020'S SHAPE OR SPEED. 2020 was a near-
+    vertical fall with a fast recovery. A slow grinding decline of the same depth
+    would trigger at a different time, sell into different liquidity, and re-enter
+    on a different path. Nothing here measures that case because the window does
+    not contain it.
+  - FIVE THRESHOLDS ON ONE CRASH IS ONE OBSERVATION, NOT FIVE. The five results
+    are not independent evidence; they are five parameterisations read off the
+    same episode, and they will covary because of it.
+  - A RULE THAT FIRES ONCE IN SEVEN YEARS IS A RULE TESTED ONCE, whatever its
+    summary metrics say. This is why section 6 requires the firing dates and the
+    flat periods to be reported per threshold, and why the report must state
+    plainly if the activity is a single cluster.
+
+THIS CONSTRAINT IS NOT A CAVEAT ON THE RESULT. IT IS THE CEILING ON WHAT THE
+RESULT CAN BE. It is placed here rather than in section 9 so that no reader
+reaches the numbers before reaching it.
+
+READ SECTION 8 NEXT. It states that the primary objective of
+this rule CANNOT BE JUDGED with any measurement that exists today, and that
+governs everything else in this document.
+
+
+================================================================================
+0. A CORRECTION TO THE SURVEY THAT PRECEDED THIS SPEC
+================================================================================
+The survey of 2026-09-03 stated that a portfolio drawdown rule "needs portfolio
+value every day, plus a peak carried across iterations. Neither exists." THE
+FIRST HALF WAS WRONG AND IT MATTERS, because it overstates the surface area.
+
+    test_exposure.py:242-245
+        mtm = sum(q * prices[s] for s, q in shares.items() if not isnan(...))
+        pv  = mtm + cash
+        eq.append(pv)
+
+pv IS COMPUTED EVERY DAY, for every date in the loop, OUTSIDE the audit guard,
+because eq needs it. What the survey correctly identified as missing is the PEAK:
+nothing carries a high-water mark across iterations, and eq is append-only -- the
+loop writes to it and never reads it back.
+
+So the daily portfolio value already exists. One scalar is missing.
+
+
+================================================================================
+1. PORTFOLIO-LEVEL. NOT POSITION-LEVEL.
+================================================================================
+THIS SPEC COVERS A PORTFOLIO-LEVEL RULE ONLY: one trigger on the value of the
+whole book, one action on the whole book.
+
+WHY PORTFOLIO-LEVEL IS THE ONE SPECIFIED HERE
+  (a) It is the rule that was asked for.
+  (b) It needs ONE new scalar of state (the peak). A position-level rule needs a
+      new per-position record, because `shares` is `{symbol: quantity}` and
+      NOTHING ELSE -- test_exposure.py:142 writes `shares[s] = shares.get(s,0)+q`
+      and :102 deletes. THE LOOP DOES NOT KNOW ANY ENTRY PRICE. The price paid
+      decrements cash and is then discarded.
+  (c) The two rules answer different questions. A portfolio rule asks "is the
+      strategy in trouble". A position rule asks "is this name in trouble". They
+      can fire in opposite directions on the same day.
+
+A POSITION-LEVEL STOP IS A DIFFERENT RULE AND IS NOT ADDRESSED BY THIS SPEC.
+Nothing here tests it, licenses it, or constitutes evidence about it. It would
+need its own pre-registration, its own state design (entry price, or a per-name
+running peak maintained daily), and its own trial charge. Do not read a result
+from this spec as bearing on it.
+
+
+================================================================================
+2. DRAWDOWN IS MEASURED FROM THE RUNNING PEAK OF PORTFOLIO VALUE
+================================================================================
+THE DEFINITION, FIXED HERE:
+
+    peak_t = max(pv_0 .. pv_t)            running high-water mark, all-time
+    dd_t   = pv_t / peak_t - 1            <= 0, in fraction
+    TRIGGER when dd_t <= -THRESHOLD
+
+pv_t is test_exposure.py:244's existing daily mark: holdings at that day's CLOSE
+plus cash. peak_t is the new state. The peak is ALL-TIME within the backtest
+window, not rolling and not reset on re-entry -- see 5.4 for why that choice is
+load-bearing rather than incidental.
+
+WHY THE PEAK AND NOT ENTRY
+  (a) IT IS WHAT MaxDD MEANS IN THIS PROJECT. engine_core.py:370 computes
+      `dd = ((eq - eq.cummax()) / eq.cummax()).min()`. A rule whose trigger uses
+      a different definition from the metric it is meant to influence would be
+      incoherent, and any comparison between them would be meaningless.
+  (b) "FROM ENTRY" IS NOT DEFINED AT PORTFOLIO LEVEL. The portfolio has no entry
+      date. It is continuously invested from day 1 with names rotating through
+      it. Entry is a position-level concept and belongs to the rule this spec
+      does not cover.
+  (c) IT IS THE INVESTOR'S EXPERIENCE. A holder's loss is measured against the
+      most their account was ever worth, not against a starting balance they
+      passed years ago.
+
+CONSEQUENCE, STATED PLAINLY: an all-time peak makes the rule HARDER to trigger
+late in a rising equity curve and easier after a long flat period. That is a real
+asymmetry and it is accepted deliberately, not overlooked.
+
+
+================================================================================
+3. EVALUATED DAILY, NOT AT REBALANCES
+================================================================================
+THE RULE IS EVALUATED ON EVERY TRADING DAY.
+
+WHY NOT REBALANCE-ONLY. At REBAL=20 a rebalance-only trigger can lag the breach
+by up to nineteen trading days. A drawdown rule that acts three weeks after the
+drawdown is not the rule anyone means, and its results would describe the
+rebalance clock as much as the drawdown.
+
+WHAT DAILY EVALUATION REQUIRES, AND THIS IS THE HONEST SURFACE AREA
+
+ 3.1 ONE NEW SCALAR: the running peak. pv already exists daily (section 0).
+
+ 3.2 A SECOND DECISION DAY-TYPE. Today the engine decides at exactly one place,
+     test_exposure.py:145, `if i % REBAL == 0 and i < len(dates) - 1`. Every
+     order originates there. A daily trigger introduces a decision that can fire
+     on ANY day, which the loop has never had.
+
+ 3.3 A SELL-ONLY ORDER PATH. Selling is expressible only through
+     `pending = (targets, keep)` (test_exposure.py:213), consumed on the next
+     day's open at :85-102, where `keep` is the set of names to RETAIN. A full
+     exit is therefore expressible as `pending = ({}, set())` -- empty targets,
+     empty keep -- which the existing :85-102 block already handles: every held
+     name is not in `keep`, so every one is sold at the next open. NO NEW ORDER
+     MECHANISM IS REQUIRED. This must be VERIFIED rather than assumed, and 4.3
+     says how.
+
+ 3.4 A COLLISION RULE. If the trigger fires on a day that is also a rebalance
+     day, two writes to `pending` compete. THE PRE-REGISTERED RESOLUTION: THE
+     EXIT WINS. The trigger is evaluated first and, if it fires, the rebalance
+     branch is skipped for that day. Stated now so it is not decided later with
+     results in view.
+
+ 3.5 A LATCH. `flat` -- a boolean carried across iterations. While flat, the
+     rebalance branch does not run and no buying occurs. Nothing in the loop can
+     represent "flat and waiting" today; expo_log is appended only at rebalances,
+     so Deployed% would otherwise misdescribe what the book did. WHILE FLAT, THE
+     RUN MUST APPEND THE REALISED EXPOSURE (0.0) so Deployed% stays truthful.
+
+ 3.6 DOWNSTREAM SURFACE, since the point is that this CHANGES numbers:
+     nt_strategy.py:450 mirrors the rebalance rule and nt_verify gates on 92-of-92
+     agreement; make_cash_series.py, make_stats_both.py and nt_attribution.py each
+     carry their own inline book. Four further implementations would diverge. THIS
+     SPEC DOES NOT PROPAGATE THE RULE TO ANY OF THEM. The measurement runs in a
+     separate script against a runtime-patched copy of the shipping engine's
+     behaviour, exactly as the cadence sweep did, and NO ENGINE FILE IS EDITED.
+
+
+================================================================================
+4. WHERE IT FILLS -- THE LEAKAGE QUESTION, AND IT IS NOT OPTIONAL
+================================================================================
+THE TRIGGER IS EVALUATED ON DAY t'S CLOSE. THE EXIT FILLS AT DAY t+1'S OPEN.
+
+    pv_t uses `prices = px.loc[dt]`, which is the CLOSE (test_exposure.py:242).
+    A strategy standing at day t's close cannot trade at that close. It can place
+    an order that fills at the next session's open, which is EXACTLY the
+    convention the engine already uses for every other order:
+    signal at close -> `pending` -> fill at `opens` the next day (:85-102).
+
+A TRIGGER COMPUTED FROM TODAY'S CLOSE THAT FILLED AT TODAY'S CLOSE WOULD BE
+LOOK-AHEAD. It would let the strategy exit at a price it could only know after
+the exit was possible. This is the same defect class as the purge leak repaired
+on 2026-09-02 and it is the single most likely way this rule could manufacture a
+result.
+
+ 4.1 THE LAST DAY. If the trigger fires on the final date of the window there is
+     no next open. PRE-REGISTERED: the exit is NOT executed and the book is
+     marked as it stands. No synthetic fill is invented.
+
+ 4.2 THE COST OF THE DELAY IS REAL AND IS NOT A FLAW. The book is still exposed
+     overnight and through the opening auction, and the exit fills at whatever
+     the open is -- with the same 15 bps slippage and Zerodha charges as any
+     other fill. If the gap goes against the strategy, the rule pays for it. THAT
+     IS THE POINT: the alternative is not a better rule, it is a fictional one.
+
+ 4.3 HOW THIS IS VERIFIED IN THE OUTPUT RATHER THAN ASSERTED. The exit fills are
+     tested exactly as diagnostics/checkB_execution_timing.txt tests the normal
+     fills, and the check is BLOCKING:
+
+       - Every exit fill is tested against FOUR candidate prices, not one: the
+         fill day's OPEN, the fill day's CLOSE, the previous session's CLOSE, and
+         the previous session's OPEN. Testing only "does it match the open" cannot
+         distinguish a correct fill from one matching everything.
+       - GATE: fills matching the fill day's open, at the reconstructed price
+         `round(open * (1 + 0.0015), 2)` for buys and `(1 - 0.0015)` for sells,
+         must be 100% less the rounding exceptions the existing check already
+         documents. FILLS EXECUTING AT ANY CLOSE MUST BE ZERO.
+       - GATE: every exit fill date must lie one session AFTER its trigger date on
+         the panel's own trading calendar. Not merely later -- exactly one
+         session later.
+       - The trigger date and the fill date are BOTH recorded per exit event, so
+         the gap is auditable rather than inferred.
+
+     IF EITHER GATE FAILS THE RUN STOPS and no result is quoted.
+
+
+================================================================================
+5. RE-ENTRY -- A FIXED, PRE-REGISTERED RULE
+================================================================================
+NOTHING IN THE LOOP CAN REPRESENT "FLAT AND WAITING" TODAY. The re-entry rule is
+therefore invented here, and it is fixed IN ADVANCE so it cannot be tuned once
+results are visible.
+
+THE RULE:
+
+    While flat, re-enter at the FIRST SCHEDULED REBALANCE (i % REBAL == 0) at
+    which BOTH hold:
+        (a) at least RE_ENTRY_WAIT trading days have elapsed since the exit
+            FILL date; and
+        (b) dd_t > -RE_ENTRY_DD  (the drawdown has recovered above that level)
+    On re-entry the normal rebalance logic runs unchanged: the book is rebuilt
+    from that day's scores at that day's exposure, and it fills at the next open.
+
+    RE_ENTRY_WAIT  = 20 trading days      UNDERIVED
+    RE_ENTRY_DD    = 0.5 x THRESHOLD      UNDERIVED
+
+BOTH CONSTANTS ARE UNDERIVED AND ARE LABELLED AS SUCH. No procedure produced
+them. 20 trading days is the existing REBAL, chosen so re-entry cannot occur
+faster than the strategy's own decision cycle. 0.5 x THRESHOLD is a round
+fraction, chosen so re-entry requires the drawdown to have HALVED rather than
+merely ticked up by one day's return -- which would produce an exit-and-re-enter
+oscillation that is a property of the rule's construction rather than of the
+market. NEITHER IS TUNED, AND NEITHER MAY BE TUNED AFTER RESULTS ARE SEEN. If a
+later reader wants different values, that is a new pre-registration with its own
+trial charge.
+
+ 5.1 RE-ENTRY IS AT A SCHEDULED REBALANCE, NOT ON AN ARBITRARY DAY. Re-entering
+     off-cycle would require the buy path to run outside i % REBAL == 0, which is
+     a second new decision day-type. The exit needs one; the re-entry does not.
+
+ 5.2 THE PEAK IS NOT RESET ON EXIT OR RE-ENTRY. It remains the all-time high of
+     pv. Resetting it would let the rule re-arm at a lower bar after every exit
+     and would make the trigger path-dependent on its own firing history. This is
+     a real design choice and it is stated rather than buried.
+
+ 5.3 WHILE FLAT, pv IS ALL CASH and dd_t therefore stops falling. The rule cannot
+     trigger again while flat, by construction.
+
+ 5.4 CASH EARNS NOTHING WHILE FLAT. CASH_YIELD = 0.0 (test_exposure.py:61) and
+     this spec does not change it. A flat book earns 0% and the drag is real and
+     charged.
+
+
+================================================================================
+6. EVERY THRESHOLD TO BE TESTED, LISTED BEFORE ANY RUN
+================================================================================
+ALL RESULTS ARE REPORTED, FAVOURABLE OR NOT. There is no "the interesting ones".
+
+    THRESHOLD in {0.10, 0.125, 0.15, 0.20, 0.25}     -- 5 values
+    ARM        v2 only -- inverse-vol, mode="breadth", THE SHIPPING ARM
+    UNIVERSES  n100 and mid, both, always
+    CADENCE    REBAL = 20, the shipping value, held fixed
+    CONTROL    the unmodified v2 arm, which must reproduce v34_comparison.csv
+               exactly on CAGR, Sharpe, MaxDD, AnnVol, Trades, TC and
+               FinalEquity, read from the CSV. IF THE CONTROL FAILS THE RUN STOPS.
+
+0.15 IS THE VALUE ASKED FOR. THE OTHER FOUR EXIST SO THAT 0.15 CANNOT BE READ AS
+A CHOSEN WINNER. A single threshold that looked good would be indistinguishable
+from a lucky one; a monotone or ragged response across five is diagnostic in a
+way one point never is. Two bracket it below (0.10, 0.125) and two above (0.20,
+0.25).
+
+WHY ONLY v2. It is the only arm that ships and the only arm with a measured CAGR
+noise floor. v1 has a floor but does not ship; v3 and v4 have NO measured floor
+at all and were rejected on their own measurement. Sweeping arms that cannot be
+judged would add trials and produce nothing readable.
+
+WHY ONE CADENCE. Crossing cadence with threshold is 25 cells and charges 25
+looks for a question nobody asked. REBAL=20 is what ships.
+
+REPORTED PER CELL: CAGR, dCAGR against the control, floor verdict, Sharpe, MaxDD,
+AnnVol, trades, TC, TC as % of final equity, final equity.
+
+AND, MANDATORY AND NOT OPTIONAL, THE TIMING OF EVERY FIRING -- because the
+governing constraint at the head of this spec cannot be checked without it:
+
+    - the DATE of every trigger and the DATE of every fill, listed in full, not
+      summarised;
+    - the number of trading days flat for each episode, and the total;
+    - days flat as a percentage of the 1,836-day window;
+    - the calendar-year distribution of triggers, so clustering is visible as a
+      table rather than left to be noticed;
+    - the realised return over each flat period -- what the book avoided, or
+      missed, while out of the market.
+
+THE REPORT MUST STATE EXPLICITLY WHETHER THE ACTIVITY IS A SINGLE CLUSTER. If
+every exit across every threshold falls in one episode, that sentence must appear
+in the report in those terms, next to the summary metrics and not below them. A
+threshold whose entire evidence is one month must not be presentable as though it
+had been tested across the window.
+
+
+================================================================================
+7. THE TRIAL DENOMINATOR
+================================================================================
+EXPERIMENTS.md's floor stands at 48 after entries 30, 31 and 32.
+
+    5 thresholds + the control = 6 NEW LOOKS, on the convention entries 30-32
+    used (universes are not multiplied; a value tested on both universes is one
+    look).
+
+    FLOOR BEFORE ...... 48
+    CHARGED HERE ...... +6
+    NEW FLOOR ......... 54
+
+THE CONTROL IS CHARGED, BY DECISION OF 2026-09-03. An earlier draft of this spec
+argued it should be free, on the grounds that the control is the unmodified arm
+rather than a point in the swept parameter. THAT ARGUMENT IS OVERRULED IN FAVOUR
+OF ONE CONVENTION. Entry 30 charged REBAL=20 although it was the incumbent, and
+a per-experiment judgement about what counts is exactly how a denominator drifts.
+This project's count has already undercounted three separate times and the error
+has run toward MORE looks every time; a rule that resolves ambiguity toward the
+higher number is the one that stays honest.
+
+NO RESULT FROM THIS WORK IS CORRECTED FOR THE DENOMINATOR, in common with every
+other result in this project.
+
+
+================================================================================
+8. THE RULE'S PRIMARY OBJECTIVE CANNOT BE JUDGED TODAY. READ THIS FIRST.
+================================================================================
+THE POINT OF A DRAWDOWN EXIT IS TO REDUCE DRAWDOWN. THERE IS NO MEASUREMENT IN
+THIS PROJECT THAT CAN TELL WHETHER IT DID.
+
+    - NO SEED NOISE FLOOR HAS EVER BEEN MEASURED FOR MaxDD, ON ANY ARM. Entry 29
+      measured the floor on CAGR only.
+    - The one measurement on the drawdown axis is NEGATIVE. Entry 28's shuffle
+      test could not distinguish MaxDD from a random-selection null:
+      p = 0.37 and 0.36 on n100, 0.20 and 0.44 on mid. Randomised scores
+      reproduced the drawdown profile.
+
+SO A RESULT OF THE FORM "MaxDD IMPROVED BY N POINTS" IS NOT INTERPRETABLE. It
+cannot be distinguished from noise, and the only evidence on that axis says the
+drawdown profile is a property of the mechanics rather than of selection.
+
+WHAT THIS MEANS FOR THE ACCEPT RULE, STATED PLAINLY:
+
+  8.1 THERE IS NO ACCEPT RULE IN THIS SPEC, AND NOTHING CAN BE PROMOTED BY IT.
+      Not "no accept rule yet". An accept rule gating on drawdown improvement
+      would rest on a floor that does not exist, and this project has already
+      recorded what that costs -- entry 28's purge deltas were judged against an
+      INVENTED 0.5-point floor, were reported, and were then retracted by entry
+      29 when the floor was measured at 0.97 and 1.39. THAT MISTAKE IS NOT
+      REPEATED HERE.
+
+  8.2 WHAT IS GATED IS ONLY CORRECTNESS. Three blocking gates, none of them
+      about whether the rule is good:
+        G1 the control reproduces the published v2 row exactly;
+        G2 the execution-timing check of 4.3 passes -- every exit fills at the
+           next open, zero at any close, every fill exactly one session after its
+           trigger;
+        G3 the daily reconciliation holds -- cash, holdings and equity tie out on
+           every one of the 1,836 days, as the shipping arm does.
+      A failure of any of these stops the run. Passing them says the measurement
+      is sound, NOT that the rule is.
+
+  8.3 WHAT MAY BE SAID ABOUT CAGR, AND ONLY CAGR. v2 has a measured floor --
+      0.97 on n100, 1.39 on mid. So the COST of the rule is measurable even
+      though its BENEFIT is not: a threshold whose CAGR falls by more than the
+      floor on both universes has been shown to cost return. That is a
+      one-directional statement and it is the only inferential claim this design
+      supports.
+
+  8.4 THE ASYMMETRY IS THE FINDING, AND IT SHOULD BE REPORTED AS SUCH. This
+      measurement can establish that a drawdown rule COSTS return; it cannot
+      establish that it BUYS anything. Anyone deciding to run it with real money
+      is making a judgement that is not supported by measurement in this
+      repository, and the spec says so in advance rather than after.
+
+  8.5 WHAT WOULD CHANGE THIS: a measured seed noise floor for MaxDD on v2, by
+      the method of entry 29. Cost, from that entry's measured rate: of order 130
+      minutes per universe. IT IS NOT PROPOSED HERE and this spec does not depend
+      on it. It is named so the reader knows what the missing measurement is and
+      what it would cost, rather than being left to infer that none exists.
+
+
+================================================================================
+9. WHAT THIS CANNOT ESTABLISH
+================================================================================
+
+ 9.1 CAPACITY, AND THIS RULE IS THE WORST CASE FOR THE PROJECT'S FILL MODEL.
+     Fills are synthetic against QUOTE_DEPTH = 10,000,000 shares at a FLAT 15 bps
+     slippage REGARDLESS OF ORDER SIZE. There is no L2 data anywhere in this
+     project, no market impact, no queue position, no partial fills.
+
+     AN EXIT RULE SELLS THE ENTIRE BOOK IN ONE SESSION. That is precisely where
+     the flat-slippage assumption fails hardest: a full liquidation is the
+     largest order the strategy ever places, it is placed into a falling market
+     by construction, and every name goes at once.
+
+     THE PROJECT ALREADY HAS A MEASURED INSTANCE OF THIS FAILING.
+     diagnostics/liquidity_participation.txt, on mid: of 985 fills, 22 exceed 10%
+     of the symbol's prior-20-day median volume, and the worst is a SELL --
+     2021-06-07 AIIL, 29,465 shares at Rs 9.59 against a 20-day median volume of
+     1,825 shares = 1,614.52% PARTICIPATION. Sixteen times the day's typical
+     volume, in one order, on the sell side. The under-Rs-10 band has a p90 of
+     282% and a p99 of 1,609%.
+     (That artefact was produced on the 1,842-day window and is pre-purge-fix, so
+     the exact fills are superseded; the ORDER OF MAGNITUDE is the point and it
+     is not sensitive to either change.)
+
+     A DRAWDOWN EXIT WOULD PLACE MANY SUCH ORDERS SIMULTANEOUSLY. NOTHING IN THIS
+     MEASUREMENT, OR ANYWHERE IN THIS REPOSITORY, CAN SAY WHAT THEY WOULD FILL
+     AT. Any backtested benefit from a full exit is an upper bound and should be
+     assumed unreachable in part.
+
+ 9.2 NOTHING ABOUT DRAWDOWN, per section 8.
+ 9.3 NOTHING ABOUT A POSITION-LEVEL STOP, per section 1.
+ 9.4 NOTHING ABOUT OTHER CADENCES, ARMS OR UNIVERSES. One arm, one cadence, two
+     universes, one window.
+ 9.5 NOTHING ABOUT SEED STABILITY. One ten-seed panel. Entry 29 established that
+     redrawing the seeds moves v2 by sd 0.97 to 1.39 CAGR points on its own, and
+     whether a threshold RANKING survives that is untested.
+ 9.6 NOTHING ABOUT REGIME. The window contains one severe crash (2020) and the
+     rule's behaviour will be dominated by it. Five thresholds on one crash is
+     one observation of the thing the rule exists for, not five.
+ 9.7 IT DOES NOT MAKE THE RULE SAFE TO RUN. It is one input to that decision and
+     it is silent on the objective the rule was built for.
+
+
+================================================================================
+10. SCOPE
+================================================================================
+IN SCOPE
+    One measurement script under results/, writing its own diagnostic plus a
+    per-cell CSV, the equity curves, and the trigger/fill event log.
+    Runtime patching only, in the pattern of results/rebal_cadence_sweep.py.
+    The predictions of section 11, judged in writing against the run.
+
+OUT OF SCOPE, EXPLICITLY
+    Editing test_exposure.py, engine_core.py, config.py, any engine_v2_final_*,
+    make_cash_series.py, make_stats_both.py or anything under nautilus/.
+    Changing CASH_YIELD, REBAL, TOP_N, BUFFER or any published constant.
+    Refitting or rescoring anything.
+    Adopting, promoting or recommending any threshold.
+    Measuring a MaxDD noise floor.
+    A position-level stop.
+
+
+================================================================================
+11. WRITTEN PREDICTION -- FROZEN 2026-09-03, BEFORE ANY CODE EXISTS
+================================================================================
+Written after the design was settled and BEFORE the measurement script was
+created. Nothing below has been informed by any output of this rule.
+
+D1  THE CONTROL REPRODUCES. The unmodified v2 arm matches the published row of
+    v34_comparison.csv exactly on CAGR, Sharpe, MaxDD, AnnVol, Trades, TC and
+    FinalEquity, both universes.
+    CONFIDENCE: near-certain. Same engine, same panel, same constants.
+
+D2  EXECUTION TIMING PASSES. Every exit fill matches the fill day's OPEN; ZERO
+    fills match any close; every fill lies exactly one session after its trigger.
+    CONFIDENCE: high, because the exit reuses the existing pending path rather
+    than a new one. IF THIS FAILS THE RULE IS LEAKING AND NO OTHER NUMBER
+    MATTERS.
+
+D3  DAILY RECONCILIATION HOLDS on all 1,836 days at every threshold.
+    CONFIDENCE: high.
+
+D4  EVERY THRESHOLD LOWERS CAGR ON BOTH UNIVERSES, and at 0.10 and 0.125 the
+    fall exceeds the v2 floor (0.97 n100, 1.39 mid) on both.
+    REASONING: the rule can only ever sell after a fall and re-buy after a
+    partial recovery, so it realises the fall and forgoes part of the rebound.
+    The 20-day re-entry wait guarantees it cannot participate in the first month
+    of any recovery, and 2020's recovery was fast.
+    CONFIDENCE: moderate-high.
+
+D5  MaxDD IMPROVES AT EVERY THRESHOLD ON BOTH UNIVERSES -- AND THIS PREDICTION
+    IS UNTESTABLE BY DESIGN. It is recorded so that a later reader can see it was
+    expected, NOT because confirming it would establish anything. There is no
+    measured noise floor for MaxDD on any arm and entry 28 could not distinguish
+    MaxDD from a random null. IF MaxDD IMPROVES, THAT IS NOT EVIDENCE THE RULE
+    WORKS. See section 8.
+
+D6  THE FIRING IS A SINGLE CLUSTER IN MARCH 2020 at thresholds 0.15, 0.20 and
+    0.25 on both universes -- one exit, one re-entry, nothing else in 1,836 days.
+    At 0.10 and 0.125 there are additional firings, most likely in 2022 and 2025,
+    but still in single digits.
+    CONFIDENCE: high on the cluster, low on the count at the tighter thresholds.
+    THIS IS THE PREDICTION THE GOVERNING CONSTRAINT AT THE HEAD OF THIS SPEC
+    RESTS ON. If it holds, every summary metric in this measurement is a
+    restatement of one month.
+
+D7  DAYS FLAT IS UNDER 10% OF THE WINDOW at 0.15 and above, on both universes.
+    CONFIDENCE: moderate.
+
+D8  THE TWO UNIVERSES AGREE IN SIGN ON THE CAGR CHANGE AT EVERY THRESHOLD.
+    CONFIDENCE: low-moderate, and this is A DEPARTURE FROM THIS PROJECT'S
+    PATTERN -- lesson 3 records that the universes disagree often, and entries 30
+    and 31 found disagreement at most cadences. The reason for predicting
+    agreement here is that both universes fell together in March 2020, so a rule
+    triggered by a shared macro event should act on both in the same direction.
+
+D9  NO THRESHOLD IMPROVES CAGR BY MORE THAN THE FLOOR ON BOTH UNIVERSES.
+    CONFIDENCE: high. Combined with D4, the expected reading is that the rule
+    costs return; whether it buys anything is not measurable here.
+
+THE PREDICTION MOST LIKELY TO BE WRONG: D8. Every prior sweep in this project has
+found the universes disagreeing somewhere, and predicting agreement is predicting
+against the base rate. D6's COUNT at 0.10 and 0.125 is the second most likely to
+be wrong; its CLUSTER claim is the one I would defend.
+
+WHAT WOULD FALSIFY THE EXERCISE RATHER THAN PRODUCE A RESULT: D1, D2 or D3
+failing. Those are correctness gates, not findings.
+
+================================================================================
+END OF SPEC
+================================================================================
+
+
+================================================================================
+12. REVISION 2 -- TIME-ONLY RE-ENTRY. Written 2026-09-03, AFTER revision 1's
+result was seen and BEFORE any revision-2 number exists.
+================================================================================
+
+WHY THERE IS A REVISION 2
+    Revision 1's re-entry condition was UNSATISFIABLE BY CONSTRUCTION. It
+    required drawdown to recover above -(0.5 x THRESHOLD) while the book was all
+    cash at 0% yield and the peak was never reset, so recovery was impossible and
+    the rule terminated the strategy: one exit, ZERO re-entries, 84% of the
+    window flat. EXPERIMENTS.md entry 33. The error was in section 5 of this
+    spec, not in the implementation.
+
+WHAT CHANGES, AND ONLY THIS
+    RE-ENTER at the first scheduled rebalance falling at least RE_ENTRY_WAIT
+    trading days after the exit FILL. THERE IS NO DRAWDOWN CONDITION ON RE-ENTRY.
+
+    Everything else is unchanged: the trigger, the peak definition (still
+    all-time, still never reset), close-trigger/next-open-fill, the collision
+    rule, arm v2, REBAL=20, both universes, the three correctness gates.
+
+THE GRID, FIXED BEFORE ANY RUN
+    THRESHOLD    in {0.10, 0.125, 0.15, 0.20, 0.25}
+    RE_ENTRY_WAIT in {5, 20, 40} trading days
+    = 15 cells per universe plus the control. The wait is swept so that it is not
+    a single chosen number, exactly as the thresholds are.
+
+TRIAL COUNT
+    15 cells + 1 control = 16 NEW LOOKS (universes not multiplied).
+    FLOOR BEFORE 54   CHARGED +16   NEW FLOOR 70.
+    The control is charged, by the convention adopted 2026-09-03.
+
+THE PEAK IS STILL NOT RESET, AND THAT IS NOW LOAD-BEARING IN A NEW WAY.
+    After an exit the book is cash; pv is frozen and the peak stays where it was,
+    so dd remains at roughly -THRESHOLD or worse. On re-entry the book is rebuilt
+    at that same pv. THE DRAWDOWN IS THEREFORE STILL BREACHED AT THE MOMENT OF
+    RE-ENTRY, and the trigger is evaluated again at that same day's close. THIS
+    IS THE WHIPSAW MECHANISM AND IT IS PREDICTED BELOW RATHER THAN DISCOVERED.
+
+--------------------------------------------------------------------------------
+WRITTEN PREDICTION E1-E8, FROZEN BEFORE THE SCRIPT IS MODIFIED
+--------------------------------------------------------------------------------
+
+E1  THE THREE GATES PASS. Control reproduces the published v2 row exactly; every
+    exit fills at the next session's open with zero at any close and a
+    trigger->fill offset of exactly 1; reconciliation holds on 1,836 days in
+    every cell. CONFIDENCE: near-certain -- unchanged machinery.
+
+E2  WHIPSAW. THIS IS THE HEADLINE PREDICTION AND THE OBVIOUS FAILURE MODE OF A
+    TIME-ONLY RE-ENTRY. Because the peak is never reset and cash earns nothing,
+    the portfolio re-enters while STILL in breach of its own threshold, and the
+    trigger fires again at that same day's close. The rule will therefore
+    OSCILLATE: re-enter at a rebalance, exit one day later, wait, re-enter at the
+    next rebalance, exit again -- and each cycle pays a FULL ROUND TRIP of
+    transaction costs on the ENTIRE book.
+    PREDICTED CONSEQUENCES, each checkable:
+      (a) firing counts in the HIGH SINGLE DIGITS to LOW TENS at 0.10-0.15,
+          not one;
+      (b) trade counts ABOVE the control at the tighter thresholds, despite the
+          book being flat much of the time;
+      (c) the oscillation persists until the market recovers to within THRESHOLD
+          of the old peak, which after March 2020 is a matter of months;
+      (d) days flat well below revision 1's 84%, because the book keeps
+          re-entering.
+    CONFIDENCE: high on the mechanism, moderate on the counts.
+
+E3  MORE FIRINGS AT SHORTER WAITS. Firing counts are ordered
+    WAIT=5 >= WAIT=20 >= WAIT=40 at every threshold, on both universes.
+    CONFIDENCE: high. A shorter wait cannot produce fewer opportunities to
+    re-enter. NOTE: 5 and 20 may TIE, because re-entry is only possible at a
+    scheduled rebalance and REBAL=20 -- a 5-day wait and a 20-day wait can land
+    on the same rebalance. A tie is not a failure of this prediction; an
+    INVERSION is.
+
+E4  0.20 AND 0.25 STILL NEVER FIRE, AT ANY WAIT, ON EITHER UNIVERSE, AND ARE
+    THEREFORE IDENTICAL TO THE CONTROL IN EVERY COLUMN. The control's own MaxDD
+    is -19.96 on n100 and -18.93 on mid, so a 20% trigger is never reached on a
+    path that never diverges from the control. CONFIDENCE: near-certain, and it
+    is a logical consequence rather than a guess. IF EITHER FIRES, MY MODEL OF
+    THE RULE IS WRONG.
+
+E5  EVERY FIRING THRESHOLD LOWERS CAGR ON BOTH UNIVERSES BY MORE THAN THE
+    MEASURED FLOOR (0.97 n100, 1.39 mid). CONFIDENCE: high. The rule sells after
+    falls and buys after partial recoveries, and now pays repeated round trips
+    for the privilege.
+
+E6  REVISION 2 IS BETTER THAN REVISION 1 ON CAGR AT EVERY FIRING CELL, because
+    revision 1 sat in cash for 84% of the window and missed the entire recovery.
+    "Better" here means less catastrophic, NOT good. CONFIDENCE: moderate-high.
+    IF REVISION 2 IS WORSE, whipsaw costs more than sitting out a bull market,
+    which would be a genuine finding.
+
+E7  EVERY TRIGGER IS STILL WITHIN 2020. The governing constraint is unchanged:
+    the window contains one severe drawdown. Repeated firings within the 2020
+    episode do NOT constitute repeated tests of the rule.
+    CONFIDENCE: moderate-high. Some chance a 0.10 threshold catches 2022 or 2025.
+
+E8  THE UNIVERSES AGREE IN SIGN ON THE CAGR CHANGE AT EVERY FIRING CELL.
+    CONFIDENCE: moderate. Same reasoning as revision 1's D8, which held.
+
+MOST LIKELY TO BE WRONG: E2's COUNTS (b) and (d) -- the mechanism I am confident
+about, the magnitudes I am not. E6 is the second most likely.
+
+NOTHING IS PROMOTED BY THIS REVISION EITHER. MaxDD still has NO measured noise
+floor on any arm, so the rule's PRIMARY OBJECTIVE REMAINS UNJUDGEABLE. Only CAGR
+cost is inferable. Sections 8 and 9 apply unchanged.
+
+
+================================================================================
+13. REVISION 3 -- RESET THE PEAK AT RE-ENTRY. Written 2026-09-03, AFTER revision
+2's result and BEFORE any revision-3 number exists.
+================================================================================
+
+THE ONE CAUSE BEHIND BOTH PRIOR FAILURES
+    REVISIONS 1 AND 2 HAVE ONE ROOT CAUSE AND TWO SYMPTOMS: THE PEAK IS NEVER
+    RESET, so after the March 2020 breach the rule is permanently in breach and
+    can never clear.
+      revision 1  could not re-enter -- drawdown could not recover while the book
+                  sat in cash at 0% against a frozen peak. One exit, zero
+                  re-entries, 84% flat. Entry 33.
+      revision 2  re-entered on a timer while STILL in breach and exited again the
+                  next close. 77 exits, six years of oscillation, and WORSE than
+                  revision 1 on n100. Entry 34.
+
+WHAT CHANGES, AND ONLY THIS
+    ON RE-ENTRY, THE PEAK IS RESET TO THAT DAY'S PORTFOLIO VALUE. The high-water
+    mark starts fresh from the value at which the book re-enters, and drawdown is
+    measured from the new peak thereafter.
+
+    Everything else is unchanged: exit on breach, trigger on the close, fill at
+    the next open, time-based re-entry at the first scheduled rebalance at least
+    RE_ENTRY_WAIT trading days after the exit fill, waits {5, 20, 40}, thresholds
+    {0.10, 0.125, 0.15, 0.20, 0.25}, arm v2, REBAL=20, both live universes, the
+    three blocking correctness gates.
+
+--------------------------------------------------------------------------------
+WHAT RESETTING THE PEAK GIVES UP -- STATED BEFORE THE RUN, NOT AFTER
+--------------------------------------------------------------------------------
+THE RULE STOPS MEASURING DRAWDOWN FROM THE STRATEGY'S ALL-TIME HIGH.
+
+    A book that falls THRESHOLD, exits, re-enters at the lower value, and falls
+    THRESHOLD again has lost far more than THRESHOLD from its TRUE peak -- and the
+    rule never sees a second breach OF THAT SIZE relative to the original high.
+    At a 15% threshold, two consecutive resets take the book to 0.85 x 0.85 =
+    0.7225 of the original peak, a 27.75% true drawdown, while the rule reports
+    two ordinary 15% breaches. THREE resets reach 38.6%. THE RULE'S OWN NOTION OF
+    DRAWDOWN DRIFTS DOWNWARD WITH EVERY EXIT.
+
+    THIS IS A REAL LOSS OF PROTECTION AND IT IS ACCEPTED DELIBERATELY. What is
+    bought is termination of the degenerate behaviour: a rule that can clear its
+    breach and resume. What is sold is the guarantee that the trigger relates to
+    the investor's actual peak-to-trough experience. THE RULE AFTER THIS CHANGE
+    LIMITS THE LOSS PER EPISODE, NOT THE LOSS OVERALL.
+
+    IT ALSO BREAKS THE COHERENCE ARGUED FOR IN SECTION 2. That section chose the
+    all-time peak partly because it matches engine_core.py:370's MaxDD, so the
+    trigger and the reported metric meant the same thing. AFTER REVISION 3 THEY DO
+    NOT. The reported MaxDD is still all-time; the trigger is not. Any comparison
+    between the two must account for that, and none is drawn here.
+
+--------------------------------------------------------------------------------
+TRIAL COUNT
+--------------------------------------------------------------------------------
+    15 cells + 1 control = 16 NEW LOOKS (universes not multiplied).
+    FLOOR BEFORE 70   CHARGED +16   NEW FLOOR 86.
+    The control is charged, by the convention adopted 2026-09-03.
+
+--------------------------------------------------------------------------------
+WRITTEN PREDICTION F1-F8, FROZEN BEFORE THE SCRIPT IS MODIFIED
+--------------------------------------------------------------------------------
+
+F1  THE THREE GATES PASS, unchanged machinery. CONFIDENCE: near-certain.
+
+F2  THE OSCILLATION STOPS. Firing counts fall by at least an order of magnitude
+    against revision 2's 77 exits -- PREDICTED IN THE LOW SINGLE DIGITS per cell,
+    typically 1 to 4 exits. After a reset the book re-enters at a fresh peak and
+    is no longer in breach, so it cannot exit again until a NEW decline of
+    THRESHOLD occurs. CONFIDENCE: high on the direction, moderate on the counts.
+
+F3  DAYS FLAT COLLAPSES from revision 2's ~75-81% to under 15% of the window at
+    every firing cell. CONFIDENCE: moderate-high. The book only sits out
+    RE_ENTRY_WAIT days per episode, and there are few episodes.
+
+F4  CAGR IMPROVES SUBSTANTIALLY AGAINST BOTH PRIOR REVISIONS at every firing
+    cell, on both universes, BUT STILL FALLS SHORT OF THE CONTROL BY MORE THAN THE
+    MEASURED FLOOR (0.97 n100, 1.39 mid). Reasoning: the rule still sells after
+    falls and rebuys after waits, and 2020's recovery was fast enough that any
+    time spent out of it is expensive. CONFIDENCE: high on "better than revisions
+    1 and 2", moderate on "still below the control".
+
+F5  0.20 AND 0.25 STILL NEVER FIRE ON EITHER UNIVERSE AT ANY WAIT, and remain
+    identical to the control in every column. The control's own MaxDD is -19.96
+    (n100) and -18.93 (mid), and a path that never diverges cannot reach -20%.
+    CONFIDENCE: near-certain, a logical consequence. IF EITHER FIRES, MY MODEL OF
+    THE RULE IS WRONG.
+
+F6  THE PEAK RESET DOES NOT MATTER OVER THIS WINDOW, IN THE SENSE THAT MATTERS
+    FOR SAFETY. Predicted: NO cell exhibits two or more exits inside a single
+    decline, so the compounding loss described above does not occur here. The
+    window's one severe drawdown is a single fast fall followed by a fast
+    recovery, not a staircase, so consecutive resets should not chain.
+    CONFIDENCE: moderate. THIS IS A PREDICTION ABOUT THE WINDOW, NOT ABOUT THE
+    RULE. If it holds it says nothing reassuring about a slow grinding decline,
+    which this window does not contain.
+
+F7  REPORTED MaxDD WORSENS RELATIVE TO REVISION 1 AT SOME CELLS, because the book
+    is invested more of the time and therefore exposed to more of the fall.
+    REPORTED, NOT JUDGED -- MaxDD has no measured floor on any arm.
+
+F8  THE UNIVERSES AGREE IN SIGN ON THE CAGR CHANGE AT EVERY FIRING CELL.
+    CONFIDENCE: moderate. Held in revisions 1 and 2.
+
+MOST LIKELY TO BE WRONG: F4's second half. If the peak reset works as intended,
+the rule may cost less than the floor at the wider firing thresholds, and a cell
+INSIDE the floor is entirely possible. F6 is the second most likely, and its
+failure would be the more important -- a chained reset in this window would mean
+the give-up above is not theoretical.
+
+NOTHING IS PROMOTED BY THIS REVISION EITHER. MaxDD still has NO measured noise
+floor, so the rule's PRIMARY OBJECTIVE REMAINS UNJUDGEABLE. Sections 8 and 9
+apply unchanged, and the governing constraint at the head of this spec applies in
+full: the window contains ONE severe drawdown.

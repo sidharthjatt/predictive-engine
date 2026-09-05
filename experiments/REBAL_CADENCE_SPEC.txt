@@ -1,0 +1,445 @@
+REBALANCE CADENCE SWEEP -- IS A CADENCE SWITCH WORTH BUILDING?
+================================================================================
+Written 2026-09-03, BEFORE any code is written and before any number is seen.
+
+WHY
+    REBAL is ALREADY counted in trading rows. results/test_exposure.py:145 reads
+
+        if i % REBAL == 0 and i < len(dates) - 1:
+
+    where i indexes the panel's own trading calendar, so REBAL = 20 already means
+    twenty TRADING ROWS, not one calendar month. The 92 rebalances over 1,836
+    trading days follow arithmetically and are not a count of months.
+
+    THEREFORE NO REFACTOR IS NEEDED TO MEASURE THIS. Whether a cadence SWITCH is
+    worth building is a question about value, not about feasibility, and this
+    measurement answers the value question before any surface area is touched.
+    The surface area, if it ever matters, is surveyed separately: REBAL is
+    declared independently in ten places and config.py has none of them.
+
+    THIS IS NOT THE CALENDAR-DAY DEFECT AGAIN. The 32-calendar-day purge against
+    a 20-trading-row label was a UNIT MISMATCH. There is no unit mismatch here:
+    the cadence is already in rows. Nothing in this measurement fixes anything.
+
+
+================================================================================
+PART 1 -- WHICH ENGINE, AND WHY THE OBVIOUS ROUTE IS WRONG
+================================================================================
+
+engine_core.backtest ACCEPTS rebal AND CANNOT PRODUCE v2.
+    engine_core.py:288 is `def backtest(px, op, sc, dates, pc, top_n=TOP_N,
+    buffer_rank=BUFFER, rebal=REBAL, sizing="equal")`. It takes the parameter,
+    but it HAS NO BREADTH MODE -- there is no exposure scaling anywhere in it,
+    only sizing="equal"/"invvol", so every book it produces is always-invested.
+    It cannot express v2.
+
+    It is also a DIFFERENT IMPLEMENTATION from the one that ships, landing 1.80
+    CAGR points from it on the 58 -- KNOWN_ISSUES.md, "There are FIVE
+    reimplementations of the backtest, not two". Measuring cadence there would
+    measure a different arm on a different engine and the control at REBAL = 20
+    would fail.
+
+THE SHIPPING ENGINE HAS THE BREADTH MODE AND NO PARAMETER.
+    test_exposure.backtest_exposure carries mode="breadth" and reads the
+    MODULE-LEVEL REBAL (test_exposure.py:56) inside its loop at line 145. It is
+    a global lookup at execution time.
+
+THE METHOD: SET THE MODULE ATTRIBUTE AT RUNTIME. NO FILE IS EDITED.
+    The measurement script imports test_exposure and assigns
+    test_exposure.REBAL before each call. test_exposure.py is NOT modified, and
+    neither is config.py, any engine, or anything under nautilus/. The constant's
+    value on disk stays 20.
+
+    This is the pattern purge_fix_measure.py used when the corrected purge lived
+    only in a measurement script. It is stated here because a reader finding a
+    cadence sweep must be able to see that the shipping code was untouched.
+
+    THE MECHANISM IS ASSERTED, NOT ASSUMED. The script asserts
+    test_exposure.REBAL equals the intended value immediately before each call,
+    and the control (PART 3) is what proves the override reaches the loop.
+
+
+================================================================================
+PART 2 -- THREE THINGS STATED BEFORE ANY NUMBER
+================================================================================
+
+2.1 HORIZON STAYS AT 20 THROUGHOUT. THE MISMATCH IS DELIBERATE.
+    The label is a forward 20-trading-row cross-sectional percentile
+    (engine_core.py:189, :278). It is NOT changed, at any cadence.
+
+    So at REBAL = 5 the model predicts twenty rows forward while the book turns
+    over in five, and at REBAL = 40 the book holds for twice the horizon the
+    model was fitted to predict. THIS IS A KNOWN AND INTENDED CONFOUND. Cadence
+    is being measured ALONE, with the label held fixed.
+
+    CONSEQUENCE FOR HOW THE RESULT MAY BE READ. A cadence that scores well here
+    has NOT been shown to be a better cadence -- it has been shown to be better
+    AT A 20-ROW LABEL. A joint cadence-and-horizon result would require refitting
+    the model at each horizon, which this measurement does not do and does not
+    approximate. Nothing here is an optimised cadence, and no result may be
+    quoted as one.
+
+    HORIZON and REBAL are INDEPENDENT in the code today -- declared as two
+    separate literals on engine_core.py:90, with neither appearing in any
+    expression involving the other. Their equality at 20 is a coincidence of
+    value, not a construction. This measurement breaks that coincidence
+    deliberately and does not repair it.
+
+2.2 THE TRIAL DENOMINATOR. THIS SWEEP ADDS TO IT.
+    EXPERIMENTS.md currently lists 29 entries, 28 run, and states "Treat 28 as a
+    floor, not a measurement."
+
+    THIS IS A FOUR-POINT SWEEP ON THE SHIPPING ARM. Two readings exist and the
+    conservative one is taken:
+
+      - charitable: one experiment, +1, denominator 29
+      - CONSERVATIVE, AND THE ONE ADOPTED: four looks at the same data, +4,
+        denominator 32
+
+    The conservative reading is taken because the project's own record says the
+    count has understated at least three times and that the error always runs
+    toward MORE looks -- and because EXP14 was already charged four trials for
+    four candidate features under exactly this reasoning.
+
+    REBAL = 20 IS THE INCUMBENT AND IS STILL CHARGED. It is a control, not a
+    free observation; the sweep still looked at the data with it in hand. An
+    argument for charging 3 rather than 4 is available and is NOT taken.
+
+    NO RESULT FROM THIS SWEEP IS CORRECTED FOR THE DENOMINATOR, in common with
+    every other result in this project. That is a limitation, stated, not
+    repaired here.
+
+2.3 THE NOISE FLOOR. STATED BEFORE THE NUMBERS, NOT AFTER.
+    EXPERIMENTS.md entry 29 measured the seed noise floor on the shipping arm at
+    K = 10:
+
+        n100 v2   sd 0.97 CAGR points, range 4.17 across 50 ten-seed draws
+        mid  v2   sd 1.39 CAGR points, range 6.12
+
+    ANY CAGR DIFFERENCE BETWEEN TWO CADENCES SMALLER THAN 0.97 (n100) OR 1.39
+    (mid) IS NOT A FINDING. It will be reported as INSIDE THE FLOOR and must not
+    be described as better or worse, in either direction.
+
+    THERE IS NO MEASURED NOISE FLOOR FOR MaxDD AT ALL, and the one measurement
+    on that axis -- entry 28's shuffle test -- could not distinguish MaxDD from
+    a random-selection null (p 0.37/0.36 on n100, 0.20/0.44 on mid). NO DRAWDOWN
+    DIFFERENCE BETWEEN CADENCES MAY BE READ AS AN EFFECT. Drawdown is reported
+    because it was asked for, and for no other purpose.
+
+    TRADE COUNT AND TC ARE NOT SUBJECT TO THE CAGR FLOOR. They are close to
+    deterministic given a score panel: they follow from the cadence and the
+    buffer rule. Differences there are real differences in turnover. They are
+    still not, on their own, a reason to prefer a cadence.
+
+
+================================================================================
+PART 3 -- THE CONTROL, AND THE STOP CONDITION
+================================================================================
+
+REBAL = 20 MUST REPRODUCE THE PUBLISHED v2 FIGURE EXACTLY.
+    Compared against results_{n100,mid}/metrics/v34_comparison.csv, row
+    "v2 invvol, breadth-scaled", READ FROM THE CSV rather than typed into the
+    script: CAGR, Sharpe, MaxDD, Trades and TC_Rs.
+
+    Expected, for the record, read from those files today:
+        n100 v2   CAGR 25.78  Sharpe 1.87  MaxDD -19.96  Trades 978  TC 245,816
+        mid  v2   CAGR 29.71  Sharpe 2.03  MaxDD -18.93  Trades 963  TC 229,916
+
+    IF THE CONTROL DOES NOT REPRODUCE, THE RUN STOPS AND THE FAILURE IS THE
+    REPORT. No cadence number is quoted from a harness that cannot reproduce the
+    shipping arm. This is the stop condition and it is not negotiable at run
+    time.
+
+    The control also proves the runtime override reaches the loop: at REBAL = 20
+    the override sets the value it already had, so a reproduction confirms the
+    harness is faithful, and the other three points differ from it only by the
+    attribute assignment.
+
+
+================================================================================
+PART 4 -- DESIGN
+================================================================================
+
+ARM            v2 only -- inverse-vol sizing, mode="breadth". The shipping arm.
+UNIVERSES      n100 and mid, both live universes. Never one alone.
+CADENCES       REBAL in {5, 10, 20, 40}   -- 8 backtests total
+PANELS         THE EXISTING SCORE PANELS. v_{n100,mid}_expanding_cache.csv.
+               NO REFIT. NO RESCORE. The model is untouched; only the book's
+               rebalance clock changes.
+WINDOW         2019-01-01 .. 2026-05-29, 1,836 trading days, from config.
+EVERYTHING ELSE HELD: HORIZON 20, TOP_N 8, BUFFER 16, VOL_WIN 60, SEEDS the
+               production ten, SLIPPAGE 0.0015, CASH_YIELD 0.0, the 0.98 factor.
+
+REPORTED PER CADENCE PER UNIVERSE
+    CAGR%, Sharpe, MaxDD%, trade count, total TC in rupees, and the NUMBER OF
+    REBALANCES -- computed from the run as the count of i with i % REBAL == 0 and
+    i < len(dates) - 1, not asserted.
+
+    Also reported, because they cost nothing and bear on the reading: TC as a
+    share of final equity, and TC per rebalance.
+
+EXPECTED REBALANCE COUNTS, arithmetic on 1,836 days, stated in advance so a
+disagreement is visible: REBAL 5 -> 367, 10 -> 184, 20 -> 92, 40 -> 46.
+
+NO ACCEPT RULE. NOTHING IS PROMOTED BY THIS MEASUREMENT.
+    There is no gate and no criterion by which a cadence wins. This is a survey
+    of a parameter's effect, not a selection procedure. If a cadence looks
+    better, the outcome is "worth a pre-registered experiment", never "adopt it".
+    Adopting a cadence on the strength of a four-point sweep, on the arm the
+    sweep was run on, with the label mismatched, is precisely the mistake the
+    trial-count discipline in this project exists to prevent.
+
+
+================================================================================
+PART 5 -- WRITTEN PREDICTION, BEFORE ANY NUMBER
+================================================================================
+
+RECORDED SO IT CAN BE JUDGED WRONG. Confidence is stated per item.
+
+P1  CONTROL. REBAL = 20 reproduces the published v2 figures exactly on both
+    universes -- all five quantities, to the precision the CSV carries.
+    CONFIDENCE: near-certain. It is the same code, the same panel and the same
+    constant value. If it fails, the harness is wrong, not the finding.
+
+P2  REBALANCE COUNTS come out 367 / 184 / 92 / 46. CONFIDENCE: near-certain,
+    it is arithmetic. Stated so that a disagreement flags a harness fault.
+
+P3  TRADE COUNT AND TC RISE STEEPLY AS CADENCE SHORTENS, but SUBLINEARLY in the
+    number of rebalances. Four times the rebalances will NOT give four times the
+    trades, because BUFFER = 16 is a hysteresis band: a name inside the band is
+    held, and at a shorter cadence more rebalances find the book already
+    correct. PREDICTED at REBAL = 5: between 2x and 3.5x the trades of REBAL =
+    20, i.e. roughly 2,000-3,400 on n100, NOT ~3,900. CONFIDENCE: moderate on
+    the mechanism, low on the range.
+
+P4  CAGR FALLS AT REBAL = 5 ON BOTH UNIVERSES, and the fall is LARGER than the
+    seed floor -- more than 0.97 on n100 and 1.39 on mid. Reasoning: TC is
+    currently 245,816 on n100, about 4.5% of final equity; two to three times
+    that is a drag of several CAGR points, and the fresher scores must overcome
+    it. CONFIDENCE: moderate. THIS IS THE PREDICTION MOST LIKELY TO BE WRONG,
+    because the scores DO vary daily within a scored month -- score_monthly
+    predicts every row, not one value per month -- so a shorter cadence acts on
+    genuinely fresher information rather than on noise.
+
+P5  REBAL = 40 LANDS INSIDE THE SEED FLOOR OF REBAL = 20 on at least one
+    universe. Reasoning: halving the rebalance count roughly halves TC, worth
+    perhaps a point, while a 40-row hold against a 20-row label costs staleness;
+    the two partly cancel. CONFIDENCE: low. A directional guess.
+
+P6  THE TWO UNIVERSES DISAGREE ON THE SIGN of at least one cadence's CAGR change
+    against REBAL = 20. CONFIDENCE: moderate, and it is a prediction about this
+    project rather than about cadence -- lesson 3 in HANDOFF_SUMMARY section 9
+    records that the universes disagree often enough that one alone would have
+    produced the wrong conclusion, and the pro-vol measurement is the standing
+    example.
+
+P7  NO CADENCE BEATS REBAL = 20 BY MORE THAN THE SEED FLOOR ON BOTH UNIVERSES
+    SIMULTANEOUSLY. CONFIDENCE: moderate. If this is WRONG it is the only
+    outcome in this spec that would justify a pre-registered follow-up, and it
+    would still not justify adopting anything.
+
+WHAT WOULD FALSIFY THE WHOLE EXERCISE: P1 failing. Everything else is a result.
+
+
+================================================================================
+PART 6 -- WHAT THIS WILL NOT ESTABLISH
+================================================================================
+
+ 1. NOT AN OPTIMAL CADENCE. The label is pinned at 20 rows. See 2.1.
+ 2. NOT A JOINT CADENCE-HORIZON RESULT. No refit is performed at any cadence.
+ 3. NOTHING ABOUT DRAWDOWN. No measured noise floor exists for MaxDD. See 2.3.
+ 4. NOTHING ABOUT CAPACITY OR IMPACT. Fills are synthetic against a 10,000,000
+    share quote depth with flat 15 bps slippage regardless of size. A cadence
+    that trades three times as often is NOT shown to be executable three times
+    as often, and this measurement cannot speak to that at all.
+ 5. NOTHING ABOUT THE SEED DEPENDENCE OF THE CADENCE EFFECT. One ten-seed panel
+    is used. Whether a cadence ranking survives redrawing the seeds is untested,
+    and entry 29 established that redrawing them moves the shipping arm by
+    sd 0.97 to 1.39 CAGR points on its own.
+ 6. NOTHING ABOUT THE RETIRED 58 AND 74. Not measured, not touched.
+ 7. IT DOES NOT MAKE THE SWITCH WORTH BUILDING OR NOT WORTH BUILDING BY ITSELF.
+    It supplies one input to that decision.
+
+
+================================================================================
+PART 7 -- SCOPE
+================================================================================
+
+IN SCOPE
+    One measurement script under results/, writing its own diagnostic.
+    Runtime assignment of test_exposure.REBAL inside that script only.
+    The predictions above, judged in writing against the run.
+
+OUT OF SCOPE, EXPLICITLY
+    Editing test_exposure.py, config.py, engine_core.py, any engine_v2_final_*,
+    or anything under nautilus/.
+    Changing the value of REBAL anywhere on disk.
+    Refitting or rescoring anything.
+    Any cadence switch, parameter plumbing or centralisation of REBAL.
+    Adopting, promoting or recommending any cadence.
+
+================================================================================
+END OF SPEC
+================================================================================
+
+
+================================================================================
+PART 8 -- EXTENSION TO ALL FOUR ARMS. Written 2026-09-03, AFTER the v2 result
+was seen and BEFORE any four-arm number exists.
+================================================================================
+
+WHAT CHANGES. The same sweep over v1, v2, v3 and v4 rather than v2 alone.
+    v1  invvol + mode="none"      always invested
+    v2  invvol + mode="breadth"   THE SHIPPING ARM
+    v3  provol + mode="none"
+    v4  provol + mode="breadth"
+    REBAL in {5, 10, 20, 40}, both live universes = 32 cells, 8 controls.
+
+METHOD, CONSTRAINTS AND RULES ARE UNCHANGED FROM PARTS 1-4.
+    Runtime assignment of test_exposure.REBAL only; no file on disk modified.
+    Existing panels, no refit. REBAL=20 is the control FOR EVERY ARM and must
+    reproduce that arm's published row of v34_comparison.csv exactly. IF ANY OF
+    THE EIGHT CONTROLS FAILS THE RUN STOPS and the failure is the report.
+
+THREE THINGS RESTATED BEFORE ANY NUMBER
+
+8.1 HORIZON STAYS AT 20 ROWS IN EVERY CELL. No arm is refitted at any cadence.
+    NO CELL IN THIS GRID IS AN OPTIMISED CADENCE FOR ITS ARM. A cell that scores
+    well has been shown to score well AT A 20-ROW LABEL and nothing more.
+
+8.2 THE TRIAL DENOMINATOR, NOT UNDERCOUNTED.
+    Entry 30 already charged FOUR looks for the v2 sweep, taking the floor from
+    28 to 32. This extension adds v1, v3 and v4 at four cadences each =
+    TWELVE new looks. v2's four cells are re-run identically and are NOT charged
+    again -- they are the same measurement, not a new look.
+        floor before this run ....... 32
+        charged by this extension ... +12
+        NEW FLOOR ................... 44
+    No result here is corrected for that denominator, in common with every other
+    result in this project.
+
+8.3 v3 AND v4 DO NOT SHIP AND A FAVOURABLE CADENCE CELL IS NOT A ROUTE TO
+    PROMOTING THEM. Pro-vol was measured under experiments/V34_SPEC.txt and IS
+    NOT SUPPORTED: on n100 it lowered CAGR by 2.92 AND lowered Sharpe by 0.46
+    against v2, and the two universes disagree on the sign of the CAGR change.
+    v3 against v1 is UNTESTABLE rather than failed -- the arms hold different
+    subsets, so any difference mixes sizing with composition. NOTHING IN A
+    CADENCE SWEEP REOPENS THAT. A good v3 or v4 cell is a cadence observation on
+    an arm already rejected on its own measurement, and must be read that way.
+
+THE NOISE FLOOR APPLIES PER UNIVERSE AS BEFORE: 0.97 on n100, 1.39 on mid, CAGR
+ONLY. It was measured on v1 and v2; entry 29 gives sd 1.74 (n100 v1) and 2.14
+(mid v1), BOTH LARGER than the v2 floors used here. NO FLOOR WAS EVER MEASURED
+FOR v3 OR v4. Applying the v2 floor to them is a CHOICE and it is the LENIENT
+one -- it will call differences findings that a properly measured floor might
+not. This is stated so no v3/v4 difference is over-read.
+
+MaxDD HAS NO MEASURED FLOOR AT ALL, ON ANY ARM. No drawdown comparison across
+any cell in this grid may be read as an effect.
+
+WRITTEN PREDICTION, BEFORE ANY FOUR-ARM NUMBER
+
+Q1  All EIGHT controls reproduce their published rows exactly.
+    CONFIDENCE: near-certain. Same code, same panels, same constant.
+
+Q2  Rebalance counts are 367 / 184 / 92 / 46 in every cell, identical across
+    arms -- the clock does not depend on the arm. CONFIDENCE: near-certain.
+
+Q3  THE ALWAYS-INVESTED ARMS TRADE FEWER TIMES THAN THE BREADTH ARMS AT EVERY
+    CADENCE, on both universes. At REBAL=20 today: n100 v1 813 and v3 788
+    against v2 978 and v4 980; mid v1 833 and v3 792 against v2 963 and v4 961.
+    CONFIDENCE: moderate-high. The mechanism is the funding defect -- v1/v3 hit
+    cash-short skips far more often (121/140 against 5/4 on n100), so they fail
+    to fill and therefore trade less.
+
+Q4  REBAL=5 IS WORSE THAN REBAL=20 ON ALL FOUR ARMS ON n100, by more than the
+    0.97 floor. CONFIDENCE: moderate-high. TC reached 12.69% of final equity on
+    v2 at that cadence; the always-invested arms deploy ~100% against v2's 56.6%,
+    so their turnover cost should be larger still in rupees.
+
+Q5  ON mid, REBAL=40 BEATS REBAL=20 ON MORE THAN ONE ARM. CONFIDENCE: moderate.
+    v2 gave +3.01 there. If that is a property of the mid panel rather than of
+    v2's exposure rule, it should appear on v1, v3 or v4 as well. IF IT APPEARS
+    ONLY ON v2, the effect is specific to the breadth arm and my reading of it
+    is wrong.
+
+Q6  THE TWO UNIVERSES DISAGREE ON THE SIGN OF THE REBAL=40 EFFECT ON AT LEAST
+    TWO OF THE FOUR ARMS. CONFIDENCE: moderate. v2 already disagrees (-3.52
+    against +3.01) and lesson 3 is that they disagree often.
+
+Q7  NO CELL BEATS ITS OWN ARM'S REBAL=20 CONTROL BY MORE THAN THE FLOOR ON BOTH
+    UNIVERSES SIMULTANEOUSLY -- i.e. Q7 of PART 5 extends to all four arms.
+    CONFIDENCE: moderate. This is the prediction whose failure would matter
+    most, and even then it would justify a pre-registered follow-up and nothing
+    else.
+
+Q8  THE ARM RANKING AT REBAL=20 IS NOT PRESERVED AT EVERY CADENCE. Today it is
+    v1 > v3 > v2 > v4 on n100 and v3 > v1 > v4 > v2 on mid. CONFIDENCE:
+    moderate. If the ranking IS preserved everywhere, cadence is acting as a
+    level shift rather than interacting with the arm, which would itself be the
+    finding.
+
+NO ACCEPT RULE. NOTHING IS PROMOTED. Unchanged from PART 4.
+
+
+================================================================================
+PART 9 -- THE AUDIT FLAG AS A TEST OF THE ENGINE. Written 2026-09-03, BEFORE the
+audit path is wired into the sweep and BEFORE any comparison is run.
+================================================================================
+
+WHY THIS IS A TEST AND NOT A FEATURE REQUEST
+    test_exposure.backtest_exposure carries this docstring:
+
+        "audit=None reproduces the original code path exactly: no overhead, and
+         the official numbers are unchanged."
+
+    THAT IS A COMMENT. IT HAS NEVER BEEN VERIFIED. It has been asserted for as
+    long as the parameter has existed, and HANDOFF_SUMMARY section 9 lesson 10
+    says in terms: verify whether a diagnostic flag changes the numbers it
+    observes, rather than assuming it.
+
+    The cadence sweep now has a clean baseline -- a grid and 40 equity curves
+    produced with audit=None -- so wiring audit in is a controlled A/B on the
+    shipping engine at no extra cost.
+
+BASELINE, FIXED BEFORE THE CHANGE
+    diagnostics/rebal_cadence_sweep.txt    16,287 bytes
+    diagnostics/rebal_cadence_equity.csv    1,346,406 bytes   1,836 x 40
+    diagnostics/rebal_cadence_cells.csv     4,099 bytes       40 x 17
+    Copies retained for the comparison. The grid was already proved
+    byte-identical across the run that ADDED those two CSVs, so the baseline is
+    known stable under a pure-output change.
+
+WRITTEN PREDICTION
+
+R1  THE GRID IS BYTE-IDENTICAL. diagnostics/rebal_cadence_sweep.txt with audit
+    enabled matches the baseline byte for byte, all 214 lines, including all 40
+    cells and all 8 controls.
+
+R2  ALL 40 EQUITY CURVES MATCH TO FULL PRECISION. Every one of the 40 columns of
+    rebal_cadence_equity.csv, on all 1,836 rows, equals the baseline exactly --
+    max absolute difference 0.0, not "small".
+
+R3  TRADE COUNTS AND TC ARE UNCHANGED IN ALL 40 CELLS.
+
+CONFIDENCE: high but NOT certain, and the residual doubt is the point. Reading
+the code, every audit block is guarded by `if audit is not None` and appends to
+lists without touching shares, cash, pending or eq. The one place it computes
+anything is pv_now at test_exposure.py:216, which is a local read. So the
+prediction is that it is inert. IT HAS NEVER BEEN CHECKED, AND A CODE READING IS
+NOT A MEASUREMENT.
+
+STOP CONDITION, AND IT IS NOT NEGOTIABLE AT RUN TIME
+    IF ANY OF R1, R2 OR R3 FAILS -- one cell, one curve, one trade -- THE WORK
+    STOPS. The difference is NOT absorbed, NOT adjusted for, and NOT explained
+    away. It is reported as a FINDING ABOUT backtest_exposure: the audit flag
+    changes what it observes, which is a defect in the SHIPPING ENGINE and not in
+    this sweep. Every published figure in this project comes from that function,
+    and several were produced with audit ENABLED (the v34 and v2FINAL runs pass
+    audit dicts) while others were not.
+
+WHAT A PASS ESTABLISHES, AND ITS CEILING
+    That the claim holds ON THESE 40 CELLS, on these two panels, in this window.
+    It does not prove inertness in general, and it says nothing about the other
+    four inline reimplementations of the backtest. It converts a comment into a
+    measurement with a stated scope, which is the whole of the claim.

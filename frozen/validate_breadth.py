@@ -69,7 +69,8 @@ def main():
             ps = pd.read_csv(src, parse_dates=["date"])
         else:
             print(f"   scoring seed set {si+1}/3 ...", flush=True)
-            ps = score_monthly(raw, seeds)
+            # FROZEN: retired universe, provenance of the 58 breadth result.
+            ps = score_monthly(raw, seeds, purge_mode="calendar")
             ps[["date", "symbol", "open", "close", "score"]].to_csv(cache, index=False)
         px = ps.pivot_table(index="date", columns="symbol", values="close").ffill()
         op = ps.pivot_table(index="date", columns="symbol", values="open").ffill()

@@ -1,0 +1,378 @@
+========================================================================================================================
+ PORTFOLIO DRAWDOWN EXIT -- REVISION 3, PEAK RESET AT RE-ENTRY
+========================================================================================================================
+
+  spec  experiments/DRAWDOWN_EXIT_SPEC.txt section 13 (F1-F8 frozen before this file changed)
+  patches applied to the SHIPPING function's own source: INIT, REBAL, TRIGGER, RETURN
+  patched source SHA256 46ccd107208e688d04f19d5a1360c02f978af2561425f1030f74bfe327860fba
+  thresholds [0.1, 0.125, 0.15, 0.2, 0.25]
+  re-entry waits [5, 20, 40] trading days -- SWEPT so the wait is not a single chosen number
+  grid 15 cells per universe + control   arm v2   REBAL=20   both live universes
+
+  WHAT CHANGED FROM REVISION 2. THE PEAK IS NOW RESET to the portfolio
+  value at re-entry. Revisions 1 and 2 failed from ONE cause -- the peak was
+  never reset, so after the March 2020 breach the rule was permanently in
+  breach: rev 1 could never re-enter (entry 33), rev 2 re-entered while
+  still in breach and oscillated for six years (entry 34).
+
+  WHAT THE RESET GIVES UP, STATED BEFORE THE NUMBERS. Drawdown is no longer
+  measured from the strategy's ALL-TIME high. A book that falls THRESHOLD,
+  re-enters, and falls THRESHOLD again has lost far more than THRESHOLD from
+  its true peak while the rule sees two ordinary breaches: at 15%, two
+  resets reach a 27.75% true drawdown, three reach 38.6%. THE RULE NOW
+  LIMITS THE LOSS PER EPISODE, NOT THE LOSS OVERALL. It also breaks the
+  coherence argued for in spec section 2: reported MaxDD is still all-time,
+  the trigger is not, and no comparison between them is drawn here.
+
+  ====================================================================================================================
+  THE GOVERNING CONSTRAINT IS UNCHANGED. The window contains ONE severe
+  drawdown (March 2020). REPEATED FIRINGS WITHIN THAT ONE EPISODE ARE NOT
+  REPEATED TESTS OF THE RULE. Whatever this grid shows, it is readings of
+  one event.
+
+  NO ACCEPT RULE. NOTHING CAN BE PROMOTED. MaxDD has NO measured noise floor
+  on any arm and entry 28 could not distinguish it from a random null, so the
+  rule's PRIMARY OBJECTIVE REMAINS UNJUDGEABLE. Only CAGR cost is inferable:
+  measured floors n100 0.97, mid 1.39.
+  ====================================================================================================================
+
+========================================================================================================================
+ NIFTY 100 (n100)   1,836 trading days   2019-01-01 .. 2026-05-29
+========================================================================================================================
+
+  GATE G1 -- control (DD_THRESHOLD=None) vs the published v2 row, read from the CSV
+    CAGR%     patched           25.78   published           25.78   MATCH
+    Sharpe    patched            1.86   published            1.86   MATCH
+    MaxDD%    patched          -19.87   published          -19.87   MATCH
+    AnnVol%   patched           12.97   published           12.97   MATCH
+    Trades    patched             978   published             978   MATCH
+    TC_Rs     patched          245987   published          245987   MATCH
+    FinalEq   patched      5465013.26   published      5465013.26   MATCH
+    G1 PASS
+
+  GATE G2 -- execution timing of every exit fill, four candidate prices
+    threshold 0.1  wait 5
+      exit fills tested    36   at the fill day's OPEN    36   NOT at the open   0   at a CLOSE and not the open   0   trigger->fill offsets [1]   PASS
+    threshold 0.1  wait 20
+      exit fills tested    36   at the fill day's OPEN    36   NOT at the open   0   at a CLOSE and not the open   0   trigger->fill offsets [1]   PASS
+    threshold 0.1  wait 40
+      exit fills tested    36   at the fill day's OPEN    36   NOT at the open   0   at a CLOSE and not the open   0   trigger->fill offsets [1]   PASS
+    threshold 0.125  wait 5
+      exit fills tested     9   at the fill day's OPEN     9   NOT at the open   0   at a CLOSE and not the open   0   trigger->fill offsets [1]   PASS
+    threshold 0.125  wait 20
+      exit fills tested     9   at the fill day's OPEN     9   NOT at the open   0   at a CLOSE and not the open   0   trigger->fill offsets [1]   PASS
+    threshold 0.125  wait 40
+      exit fills tested     9   at the fill day's OPEN     9   NOT at the open   0   at a CLOSE and not the open   0   trigger->fill offsets [1]   PASS
+    threshold 0.15  wait 5
+      exit fills tested     9   at the fill day's OPEN     9   NOT at the open   0   at a CLOSE and not the open   0   trigger->fill offsets [1]   PASS
+    threshold 0.15  wait 20
+      exit fills tested     9   at the fill day's OPEN     9   NOT at the open   0   at a CLOSE and not the open   0   trigger->fill offsets [1]   PASS
+    threshold 0.15  wait 40
+      exit fills tested     9   at the fill day's OPEN     9   NOT at the open   0   at a CLOSE and not the open   0   trigger->fill offsets [1]   PASS
+    G2 PASS
+
+  GATE G3 -- daily reconciliation, cash + holdings = equity
+      days 1,836   (a) mtm+cash vs total: 0 over budget   (b) holdings vs mtm: 0 over budget   (c) total vs equity curve: max 0.004999   PASS
+      days 1,836   (a) mtm+cash vs total: 0 over budget   (b) holdings vs mtm: 0 over budget   (c) total vs equity curve: max 0.004991   PASS
+      days 1,836   (a) mtm+cash vs total: 0 over budget   (b) holdings vs mtm: 0 over budget   (c) total vs equity curve: max 0.004957   PASS
+      days 1,836   (a) mtm+cash vs total: 0 over budget   (b) holdings vs mtm: 0 over budget   (c) total vs equity curve: max 0.004997   PASS
+      days 1,836   (a) mtm+cash vs total: 0 over budget   (b) holdings vs mtm: 0 over budget   (c) total vs equity curve: max 0.004974   PASS
+      days 1,836   (a) mtm+cash vs total: 0 over budget   (b) holdings vs mtm: 0 over budget   (c) total vs equity curve: max 0.004974   PASS
+      days 1,836   (a) mtm+cash vs total: 0 over budget   (b) holdings vs mtm: 0 over budget   (c) total vs equity curve: max 0.004994   PASS
+      days 1,836   (a) mtm+cash vs total: 0 over budget   (b) holdings vs mtm: 0 over budget   (c) total vs equity curve: max 0.004982   PASS
+      days 1,836   (a) mtm+cash vs total: 0 over budget   (b) holdings vs mtm: 0 over budget   (c) total vs equity curve: max 0.004982   PASS
+      days 1,836   (a) mtm+cash vs total: 0 over budget   (b) holdings vs mtm: 0 over budget   (c) total vs equity curve: max 0.004997   PASS
+      days 1,836   (a) mtm+cash vs total: 0 over budget   (b) holdings vs mtm: 0 over budget   (c) total vs equity curve: max 0.004999   PASS
+      days 1,836   (a) mtm+cash vs total: 0 over budget   (b) holdings vs mtm: 0 over budget   (c) total vs equity curve: max 0.004999   PASS
+      days 1,836   (a) mtm+cash vs total: 0 over budget   (b) holdings vs mtm: 0 over budget   (c) total vs equity curve: max 0.004999   PASS
+      days 1,836   (a) mtm+cash vs total: 0 over budget   (b) holdings vs mtm: 0 over budget   (c) total vs equity curve: max 0.004999   PASS
+      days 1,836   (a) mtm+cash vs total: 0 over budget   (b) holdings vs mtm: 0 over budget   (c) total vs equity curve: max 0.004999   PASS
+      days 1,836   (a) mtm+cash vs total: 0 over budget   (b) holdings vs mtm: 0 over budget   (c) total vs equity curve: max 0.004999   PASS
+    G3 PASS  (control + 15 cells)
+
+========================================================================================================================
+ MIDCAP150 (mid)   1,836 trading days   2019-01-01 .. 2026-05-29
+========================================================================================================================
+
+  GATE G1 -- control (DD_THRESHOLD=None) vs the published v2 row, read from the CSV
+    CAGR%     patched            29.7   published            29.7   MATCH
+    Sharpe    patched            2.03   published            2.03   MATCH
+    MaxDD%    patched          -18.88   published          -18.88   MATCH
+    AnnVol%   patched           13.51   published           13.51   MATCH
+    Trades    patched             963   published             963   MATCH
+    TC_Rs     patched          229837   published          229837   MATCH
+    FinalEq   patched      6862643.48   published      6862643.48   MATCH
+    G1 PASS
+
+  GATE G2 -- execution timing of every exit fill, four candidate prices
+    threshold 0.1  wait 5
+      exit fills tested    27   at the fill day's OPEN    27   NOT at the open   0   at a CLOSE and not the open   0   trigger->fill offsets [1]   PASS
+    threshold 0.1  wait 20
+      exit fills tested    27   at the fill day's OPEN    27   NOT at the open   0   at a CLOSE and not the open   0   trigger->fill offsets [1]   PASS
+    threshold 0.1  wait 40
+      exit fills tested    27   at the fill day's OPEN    27   NOT at the open   0   at a CLOSE and not the open   0   trigger->fill offsets [1]   PASS
+    threshold 0.125  wait 5
+      exit fills tested    10   at the fill day's OPEN    10   NOT at the open   0   at a CLOSE and not the open   0   trigger->fill offsets [1]   PASS
+    threshold 0.125  wait 20
+      exit fills tested    10   at the fill day's OPEN    10   NOT at the open   0   at a CLOSE and not the open   0   trigger->fill offsets [1]   PASS
+    threshold 0.125  wait 40
+      exit fills tested    10   at the fill day's OPEN    10   NOT at the open   0   at a CLOSE and not the open   0   trigger->fill offsets [1]   PASS
+    threshold 0.15  wait 5
+      exit fills tested    10   at the fill day's OPEN    10   NOT at the open   0   at a CLOSE and not the open   0   trigger->fill offsets [1]   PASS
+    threshold 0.15  wait 20
+      exit fills tested    10   at the fill day's OPEN    10   NOT at the open   0   at a CLOSE and not the open   0   trigger->fill offsets [1]   PASS
+    threshold 0.15  wait 40
+      exit fills tested    10   at the fill day's OPEN    10   NOT at the open   0   at a CLOSE and not the open   0   trigger->fill offsets [1]   PASS
+    G2 PASS
+
+  GATE G3 -- daily reconciliation, cash + holdings = equity
+      days 1,836   (a) mtm+cash vs total: 0 over budget   (b) holdings vs mtm: 0 over budget   (c) total vs equity curve: max 0.004932   PASS
+      days 1,836   (a) mtm+cash vs total: 0 over budget   (b) holdings vs mtm: 0 over budget   (c) total vs equity curve: max 0.004902   PASS
+      days 1,836   (a) mtm+cash vs total: 0 over budget   (b) holdings vs mtm: 0 over budget   (c) total vs equity curve: max 0.004937   PASS
+      days 1,836   (a) mtm+cash vs total: 0 over budget   (b) holdings vs mtm: 0 over budget   (c) total vs equity curve: max 0.004958   PASS
+      days 1,836   (a) mtm+cash vs total: 0 over budget   (b) holdings vs mtm: 0 over budget   (c) total vs equity curve: max 0.004985   PASS
+      days 1,836   (a) mtm+cash vs total: 0 over budget   (b) holdings vs mtm: 0 over budget   (c) total vs equity curve: max 0.004985   PASS
+      days 1,836   (a) mtm+cash vs total: 0 over budget   (b) holdings vs mtm: 0 over budget   (c) total vs equity curve: max 0.004987   PASS
+      days 1,836   (a) mtm+cash vs total: 0 over budget   (b) holdings vs mtm: 0 over budget   (c) total vs equity curve: max 0.004982   PASS
+      days 1,836   (a) mtm+cash vs total: 0 over budget   (b) holdings vs mtm: 0 over budget   (c) total vs equity curve: max 0.004982   PASS
+      days 1,836   (a) mtm+cash vs total: 0 over budget   (b) holdings vs mtm: 0 over budget   (c) total vs equity curve: max 0.004999   PASS
+      days 1,836   (a) mtm+cash vs total: 0 over budget   (b) holdings vs mtm: 0 over budget   (c) total vs equity curve: max 0.004932   PASS
+      days 1,836   (a) mtm+cash vs total: 0 over budget   (b) holdings vs mtm: 0 over budget   (c) total vs equity curve: max 0.004932   PASS
+      days 1,836   (a) mtm+cash vs total: 0 over budget   (b) holdings vs mtm: 0 over budget   (c) total vs equity curve: max 0.004932   PASS
+      days 1,836   (a) mtm+cash vs total: 0 over budget   (b) holdings vs mtm: 0 over budget   (c) total vs equity curve: max 0.004932   PASS
+      days 1,836   (a) mtm+cash vs total: 0 over budget   (b) holdings vs mtm: 0 over budget   (c) total vs equity curve: max 0.004932   PASS
+      days 1,836   (a) mtm+cash vs total: 0 over budget   (b) holdings vs mtm: 0 over budget   (c) total vs equity curve: max 0.004932   PASS
+    G3 PASS  (control + 15 cells)
+
+========================================================================================================================
+ ALL CORRECTNESS GATES PASS ON BOTH UNIVERSES
+========================================================================================================================
+
+========================================================================================================================
+ NIFTY 100 (n100) -- RESULTS
+========================================================================================================================
+
+   thresh  wait   CAGR%   dCAGR    floor  Sharpe   MaxDD%  AnnVol%  trades      TC Rs   FinalEquity  fires  exits  reent  days flat  %flat
+  control     -   25.78   +0.00  control    1.86   -19.87    12.97     978    245,987     5,465,013      0      0      0          0    0.0
+      0.1     5   24.17   -1.61  outside    1.81   -19.08    12.59     963    234,075     4,969,932      8      4      4         80    4.4
+      0.1    20   23.04   -2.74  outside    1.74   -19.08    12.55     951    220,372     4,644,252      8      4      4        100    5.4
+      0.1    40   23.70   -2.08  outside    1.86   -15.66    12.05     907    219,333     4,832,896      8      4      4        180    9.8
+    0.125     5   26.09   +0.31   INSIDE    1.90   -18.46    12.82     980    250,678     5,566,632      2      1      1         21    1.1
+    0.125    20   26.09   +0.31   INSIDE    1.90   -18.46    12.82     980    250,678     5,566,632      2      1      1         21    1.1
+    0.125    40   26.25   +0.47   INSIDE    1.94   -15.01    12.64     972    251,958     5,619,544      2      1      1         41    2.2
+     0.15     5   25.14   -0.64   INSIDE    1.83   -22.92    12.90     980    237,893     5,264,004      2      1      1         20    1.1
+     0.15    20   25.14   -0.64   INSIDE    1.83   -22.92    12.90     980    237,893     5,264,004      2      1      1         20    1.1
+     0.15    40   25.30   -0.48   INSIDE    1.87   -19.67    12.71     972    239,074     5,315,405      2      1      1         40    2.2
+      0.2     5   25.78   +0.00   INSIDE    1.86   -19.87    12.97     978    245,987     5,465,013      0      0      0          0    0.0
+      0.2    20   25.78   +0.00   INSIDE    1.86   -19.87    12.97     978    245,987     5,465,013      0      0      0          0    0.0
+      0.2    40   25.78   +0.00   INSIDE    1.86   -19.87    12.97     978    245,987     5,465,013      0      0      0          0    0.0
+     0.25     5   25.78   +0.00   INSIDE    1.86   -19.87    12.97     978    245,987     5,465,013      0      0      0          0    0.0
+     0.25    20   25.78   +0.00   INSIDE    1.86   -19.87    12.97     978    245,987     5,465,013      0      0      0          0    0.0
+     0.25    40   25.78   +0.00   INSIDE    1.86   -19.87    12.97     978    245,987     5,465,013      0      0      0          0    0.0
+
+  'fires' is the TOTAL number of rule actions (exits + re-entries).
+  dCAGR is against the control. INSIDE means smaller than the measured
+  CAGR floor of 0.97 and IS NOT A FINDING in either direction.
+  MaxDD AND Sharpe CARRY NO MEASURED FLOOR. No difference in those
+  columns may be read as an effect. Spec section 8.
+
+  EVERY EXIT AND EVERY RE-ENTRY, WITH DATES AND DAYS FLAT PER EPISODE
+
+    threshold 0.1  wait 5  --  4 exit(s), 4 re-entry(ies)
+      EXIT     trigger 2020-03-12 (close)  fill 2020-03-13 (next open)  dd  -11.30%  held  9  pv    1,105,316
+      REENTRY  2020-04-22                                dd  -14.92%  pv    1,060,193  FLAT 24 trading day(s)
+      EXIT     trigger 2022-03-07 (close)  fill 2022-03-08 (next open)  dd  -10.50%  held  9  pv    2,083,638
+      REENTRY  2022-03-24                                dd  -10.85%  pv    2,075,414  FLAT 11 trading day(s)
+      EXIT     trigger 2025-01-13 (close)  fill 2025-01-14 (next open)  dd  -10.06%  held  9  pv    4,642,021
+      REENTRY  2025-02-13                                dd   -9.82%  pv    4,654,300  FLAT 23 trading day(s)
+      EXIT     trigger 2026-02-01 (close)  fill 2026-02-02 (next open)  dd  -10.59%  held  9  pv    4,966,122
+      REENTRY  2026-03-05                                dd  -10.71%  pv    4,959,769  FLAT 22 trading day(s)
+
+    threshold 0.1  wait 20  --  4 exit(s), 4 re-entry(ies)
+      EXIT     trigger 2020-03-12 (close)  fill 2020-03-13 (next open)  dd  -11.30%  held  9  pv    1,105,316
+      REENTRY  2020-04-22                                dd  -14.92%  pv    1,060,193  FLAT 24 trading day(s)
+      EXIT     trigger 2022-03-07 (close)  fill 2022-03-08 (next open)  dd  -10.50%  held  9  pv    2,083,638
+      REENTRY  2022-04-25                                dd  -10.85%  pv    2,075,414  FLAT 31 trading day(s)
+      EXIT     trigger 2025-01-13 (close)  fill 2025-01-14 (next open)  dd  -10.04%  held  9  pv    4,341,232
+      REENTRY  2025-02-13                                dd   -9.80%  pv    4,352,648  FLAT 23 trading day(s)
+      EXIT     trigger 2026-02-01 (close)  fill 2026-02-02 (next open)  dd  -10.56%  held  9  pv    4,640,245
+      REENTRY  2026-03-05                                dd  -10.68%  pv    4,634,298  FLAT 22 trading day(s)
+
+    threshold 0.1  wait 40  --  4 exit(s), 4 re-entry(ies)
+      EXIT     trigger 2020-03-12 (close)  fill 2020-03-13 (next open)  dd  -11.30%  held  9  pv    1,105,316
+      REENTRY  2020-05-21                                dd  -14.92%  pv    1,060,193  FLAT 44 trading day(s)
+      EXIT     trigger 2022-03-07 (close)  fill 2022-03-08 (next open)  dd  -10.49%  held  9  pv    2,103,039
+      REENTRY  2022-05-24                                dd  -10.84%  pv    2,094,741  FLAT 51 trading day(s)
+      EXIT     trigger 2025-01-13 (close)  fill 2025-01-14 (next open)  dd  -10.05%  held  9  pv    4,552,972
+      REENTRY  2025-03-17                                dd   -9.81%  pv    4,564,984  FLAT 43 trading day(s)
+      EXIT     trigger 2026-02-01 (close)  fill 2026-02-02 (next open)  dd  -10.55%  held  9  pv    4,844,461
+      REENTRY  2026-04-07                                dd  -10.67%  pv    4,838,262  FLAT 42 trading day(s)
+
+    threshold 0.125  wait 5  --  1 exit(s), 1 re-entry(ies)
+      EXIT     trigger 2020-03-17 (close)  fill 2020-03-18 (next open)  dd  -14.55%  held  9  pv    1,064,871
+      REENTRY  2020-04-22                                dd  -14.27%  pv    1,068,295  FLAT 21 trading day(s)
+
+    threshold 0.125  wait 20  --  1 exit(s), 1 re-entry(ies)
+      EXIT     trigger 2020-03-17 (close)  fill 2020-03-18 (next open)  dd  -14.55%  held  9  pv    1,064,871
+      REENTRY  2020-04-22                                dd  -14.27%  pv    1,068,295  FLAT 21 trading day(s)
+
+    threshold 0.125  wait 40  --  1 exit(s), 1 re-entry(ies)
+      EXIT     trigger 2020-03-17 (close)  fill 2020-03-18 (next open)  dd  -14.55%  held  9  pv    1,064,871
+      REENTRY  2020-05-21                                dd  -14.27%  pv    1,068,295  FLAT 41 trading day(s)
+
+    threshold 0.15  wait 5  --  1 exit(s), 1 re-entry(ies)
+      EXIT     trigger 2020-03-18 (close)  fill 2020-03-19 (next open)  dd  -17.09%  held  9  pv    1,033,180
+      REENTRY  2020-04-22                                dd  -18.97%  pv    1,009,735  FLAT 20 trading day(s)
+
+    threshold 0.15  wait 20  --  1 exit(s), 1 re-entry(ies)
+      EXIT     trigger 2020-03-18 (close)  fill 2020-03-19 (next open)  dd  -17.09%  held  9  pv    1,033,180
+      REENTRY  2020-04-22                                dd  -18.97%  pv    1,009,735  FLAT 20 trading day(s)
+
+    threshold 0.15  wait 40  --  1 exit(s), 1 re-entry(ies)
+      EXIT     trigger 2020-03-18 (close)  fill 2020-03-19 (next open)  dd  -17.09%  held  9  pv    1,033,180
+      REENTRY  2020-05-21                                dd  -18.97%  pv    1,009,735  FLAT 40 trading day(s)
+
+    threshold 0.2  wait 5  --  0 exit(s), 0 re-entry(ies)
+      NEVER FIRED in 1,836 trading days
+
+    threshold 0.2  wait 20  --  0 exit(s), 0 re-entry(ies)
+      NEVER FIRED in 1,836 trading days
+
+    threshold 0.2  wait 40  --  0 exit(s), 0 re-entry(ies)
+      NEVER FIRED in 1,836 trading days
+
+    threshold 0.25  wait 5  --  0 exit(s), 0 re-entry(ies)
+      NEVER FIRED in 1,836 trading days
+
+    threshold 0.25  wait 20  --  0 exit(s), 0 re-entry(ies)
+      NEVER FIRED in 1,836 trading days
+
+    threshold 0.25  wait 40  --  0 exit(s), 0 re-entry(ies)
+      NEVER FIRED in 1,836 trading days
+
+    TRIGGER YEARS, all cells pooled:
+      2020: 9
+      2022: 3
+      2025: 3
+      2026: 3
+
+    IS ALL THE ACTIVITY A SINGLE CLUSTER? NO
+
+========================================================================================================================
+ MIDCAP150 (mid) -- RESULTS
+========================================================================================================================
+
+   thresh  wait   CAGR%   dCAGR    floor  Sharpe   MaxDD%  AnnVol%  trades      TC Rs   FinalEquity  fires  exits  reent  days flat  %flat
+  control     -   29.70   +0.00  control    2.03   -18.88    13.51     963    229,837     6,862,643      0      0      0          0    0.0
+      0.1     5   29.22   -0.48   INSIDE    2.01   -18.76    13.43     969    226,769     6,675,858      6      3      3         50    2.7
+      0.1    20   29.26   -0.44   INSIDE    2.02   -18.76    13.39     943    224,618     6,689,376      6      3      3         90    4.9
+      0.1    40   27.12   -2.58  outside    1.93   -18.29    13.13     913    205,115     5,913,267      6      3      3        150    8.2
+    0.125     5   30.22   +0.52   INSIDE    2.07   -14.83    13.42     953    236,257     7,068,529      2      1      1         22    1.2
+    0.125    20   30.22   +0.52   INSIDE    2.07   -14.83    13.42     953    236,257     7,068,529      2      1      1         22    1.2
+    0.125    40   29.87   +0.17   INSIDE    2.07   -14.34    13.28     941    230,813     6,928,218      2      1      1         42    2.3
+     0.15     5   29.07   -0.63   INSIDE    1.99   -20.30    13.53     953    222,443     6,619,450      2      1      1         20    1.1
+     0.15    20   29.07   -0.63   INSIDE    1.99   -20.30    13.53     953    222,443     6,619,450      2      1      1         20    1.1
+     0.15    40   28.74   -0.96   INSIDE    1.99   -19.85    13.40     941    217,597     6,495,565      2      1      1         40    2.2
+      0.2     5   29.70   +0.00   INSIDE    2.03   -18.88    13.51     963    229,837     6,862,643      0      0      0          0    0.0
+      0.2    20   29.70   +0.00   INSIDE    2.03   -18.88    13.51     963    229,837     6,862,643      0      0      0          0    0.0
+      0.2    40   29.70   +0.00   INSIDE    2.03   -18.88    13.51     963    229,837     6,862,643      0      0      0          0    0.0
+     0.25     5   29.70   +0.00   INSIDE    2.03   -18.88    13.51     963    229,837     6,862,643      0      0      0          0    0.0
+     0.25    20   29.70   +0.00   INSIDE    2.03   -18.88    13.51     963    229,837     6,862,643      0      0      0          0    0.0
+     0.25    40   29.70   +0.00   INSIDE    2.03   -18.88    13.51     963    229,837     6,862,643      0      0      0          0    0.0
+
+  'fires' is the TOTAL number of rule actions (exits + re-entries).
+  dCAGR is against the control. INSIDE means smaller than the measured
+  CAGR floor of 1.39 and IS NOT A FINDING in either direction.
+  MaxDD AND Sharpe CARRY NO MEASURED FLOOR. No difference in those
+  columns may be read as an effect. Spec section 8.
+
+  EVERY EXIT AND EVERY RE-ENTRY, WITH DATES AND DAYS FLAT PER EPISODE
+
+    threshold 0.1  wait 5  --  3 exit(s), 3 re-entry(ies)
+      EXIT     trigger 2020-03-12 (close)  fill 2020-03-13 (next open)  dd  -12.44%  held 10  pv      950,776
+      REENTRY  2020-04-22                                dd  -17.85%  pv      892,062  FLAT 24 trading day(s)
+      EXIT     trigger 2022-05-11 (close)  fill 2022-05-12 (next open)  dd  -10.93%  held  9  pv    2,070,065
+      REENTRY  2022-05-24                                dd  -11.73%  pv    2,051,386  FLAT 8 trading day(s)
+      EXIT     trigger 2025-02-14 (close)  fill 2025-02-17 (next open)  dd  -10.12%  held  8  pv    5,612,536
+      REENTRY  2025-03-17                                dd  -10.40%  pv    5,595,239  FLAT 18 trading day(s)
+
+    threshold 0.1  wait 20  --  3 exit(s), 3 re-entry(ies)
+      EXIT     trigger 2020-03-12 (close)  fill 2020-03-13 (next open)  dd  -12.44%  held 10  pv      950,776
+      REENTRY  2020-04-22                                dd  -17.85%  pv      892,062  FLAT 24 trading day(s)
+      EXIT     trigger 2022-05-11 (close)  fill 2022-05-12 (next open)  dd  -10.93%  held  9  pv    2,070,065
+      REENTRY  2022-06-21                                dd  -11.73%  pv    2,051,386  FLAT 28 trading day(s)
+      EXIT     trigger 2025-02-14 (close)  fill 2025-02-17 (next open)  dd  -10.09%  held  8  pv    5,672,239
+      REENTRY  2025-04-17                                dd  -10.36%  pv    5,654,818  FLAT 38 trading day(s)
+
+    threshold 0.1  wait 40  --  3 exit(s), 3 re-entry(ies)
+      EXIT     trigger 2020-03-12 (close)  fill 2020-03-13 (next open)  dd  -12.44%  held 10  pv      950,776
+      REENTRY  2020-05-21                                dd  -17.85%  pv      892,062  FLAT 44 trading day(s)
+      EXIT     trigger 2022-05-11 (close)  fill 2022-05-12 (next open)  dd  -10.91%  held  9  pv    2,035,064
+      REENTRY  2022-07-19                                dd  -11.71%  pv    2,016,710  FLAT 48 trading day(s)
+      EXIT     trigger 2025-02-14 (close)  fill 2025-02-17 (next open)  dd  -10.08%  held  8  pv    5,504,097
+      REENTRY  2025-05-19                                dd  -10.36%  pv    5,487,178  FLAT 58 trading day(s)
+
+    threshold 0.125  wait 5  --  1 exit(s), 1 re-entry(ies)
+      EXIT     trigger 2020-03-16 (close)  fill 2020-03-17 (next open)  dd  -13.89%  held 10  pv      935,047
+      REENTRY  2020-04-22                                dd  -13.88%  pv      935,152  FLAT 22 trading day(s)
+
+    threshold 0.125  wait 20  --  1 exit(s), 1 re-entry(ies)
+      EXIT     trigger 2020-03-16 (close)  fill 2020-03-17 (next open)  dd  -13.89%  held 10  pv      935,047
+      REENTRY  2020-04-22                                dd  -13.88%  pv      935,152  FLAT 22 trading day(s)
+
+    threshold 0.125  wait 40  --  1 exit(s), 1 re-entry(ies)
+      EXIT     trigger 2020-03-16 (close)  fill 2020-03-17 (next open)  dd  -13.89%  held 10  pv      935,047
+      REENTRY  2020-05-21                                dd  -13.88%  pv      935,152  FLAT 42 trading day(s)
+
+    threshold 0.15  wait 5  --  1 exit(s), 1 re-entry(ies)
+      EXIT     trigger 2020-03-18 (close)  fill 2020-03-19 (next open)  dd  -17.11%  held 10  pv      900,058
+      REENTRY  2020-04-22                                dd  -19.42%  pv      875,013  FLAT 20 trading day(s)
+
+    threshold 0.15  wait 20  --  1 exit(s), 1 re-entry(ies)
+      EXIT     trigger 2020-03-18 (close)  fill 2020-03-19 (next open)  dd  -17.11%  held 10  pv      900,058
+      REENTRY  2020-04-22                                dd  -19.42%  pv      875,013  FLAT 20 trading day(s)
+
+    threshold 0.15  wait 40  --  1 exit(s), 1 re-entry(ies)
+      EXIT     trigger 2020-03-18 (close)  fill 2020-03-19 (next open)  dd  -17.11%  held 10  pv      900,058
+      REENTRY  2020-05-21                                dd  -19.42%  pv      875,013  FLAT 40 trading day(s)
+
+    threshold 0.2  wait 5  --  0 exit(s), 0 re-entry(ies)
+      NEVER FIRED in 1,836 trading days
+
+    threshold 0.2  wait 20  --  0 exit(s), 0 re-entry(ies)
+      NEVER FIRED in 1,836 trading days
+
+    threshold 0.2  wait 40  --  0 exit(s), 0 re-entry(ies)
+      NEVER FIRED in 1,836 trading days
+
+    threshold 0.25  wait 5  --  0 exit(s), 0 re-entry(ies)
+      NEVER FIRED in 1,836 trading days
+
+    threshold 0.25  wait 20  --  0 exit(s), 0 re-entry(ies)
+      NEVER FIRED in 1,836 trading days
+
+    threshold 0.25  wait 40  --  0 exit(s), 0 re-entry(ies)
+      NEVER FIRED in 1,836 trading days
+
+    TRIGGER YEARS, all cells pooled:
+      2020: 9
+      2022: 3
+      2025: 3
+
+    IS ALL THE ACTIVITY A SINGLE CLUSTER? NO
+
+  OUTPUTS
+    drawdown_exit_cells.csv                 3,553 bytes
+    drawdown_exit_events.csv                3,856 bytes
+    drawdown_exit_equity.csv            1,095,057 bytes
+
+  TRIAL COUNT: 15 cells + the control = 16 new looks. FLOOR 54 -> 70.
+
+  CAPACITY IS NOT MEASURED AND WHIPSAW MAKES IT WORSE, NOT BETTER. Each
+  oscillation sells the ENTIRE book and rebuys it, against a synthetic
+  QUOTE_DEPTH of 10,000,000 shares at flat 15 bps regardless of order size.
+  diagnostics/liquidity_participation.txt records a mid SELL at 1,614.52% of
+  its symbol's prior-20-day median volume. NOTHING HERE CAN SAY WHAT
+  REPEATED FULL LIQUIDATIONS IN MARCH 2020 WOULD ACTUALLY HAVE FILLED AT.
+
+  wall clock 8 sec

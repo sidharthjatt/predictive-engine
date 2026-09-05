@@ -1,0 +1,214 @@
+======================================================================================================================
+ REBALANCE CADENCE GRID -- ALL FOUR ARMS, BOTH LIVE UNIVERSES
+======================================================================================================================
+
+  spec        experiments/REBAL_CADENCE_SPEC.txt (PART 8 for the extension)
+  grid        4 arms x 5 cadences x 2 universes = 40 cells, 8 controls
+  REBAL on disk (unchanged by this run): 20
+  engine      test_exposure.backtest_exposure -- the shipping engine
+  panels      existing score caches. NO REFIT, NO RESCORE.
+
+  ==================================================================================================================
+  STATED IN THE TABLE, NOT IN A FOOTNOTE:
+
+  (a) HORIZON IS 20 TRADING ROWS IN EVERY CELL OF THIS GRID. No arm is
+      refitted at any cadence. NO CELL IS AN OPTIMISED CADENCE FOR ITS ARM.
+      At REBAL=5 the model predicts 20 rows forward while the book turns
+      over in 5; at REBAL=40 it holds for twice the horizon it was fitted to.
+
+  (b) NO FLOOR WAS EVER MEASURED FOR SHARPE, ON ANY ARM. The Sharpe column
+      is shown because it was asked for. NO SHARPE DIFFERENCE ACROSS ANY
+      CELLS IN THIS GRID MAY BE READ AS AN EFFECT.
+
+  (c) NO FLOOR EXISTS FOR MaxDD EITHER. Entry 28's shuffle test could not
+      distinguish MaxDD from a random-selection null (p 0.37/0.36 on n100,
+      0.20/0.44 on mid). NO DRAWDOWN DIFFERENCE ACROSS ANY CELLS IN THIS
+      GRID MAY BE READ AS AN EFFECT. Same treatment as Sharpe.
+
+  (d) CAGR FLOORS ARE PER ARM AND TWO ARMS HAVE NONE:
+        v1   n100 1.74  mid 2.14                 measured, entry 29
+        v2   n100 0.97  mid 1.39                 measured, entry 29
+        v3   no measurement exists               NEVER MEASURED -- verdict UNKNOWN, not borrowed
+        v4   no measurement exists               NEVER MEASURED -- verdict UNKNOWN, not borrowed
+      UNKNOWN IS NOT A NEAR-MISS. It means no floor was ever measured for
+      that arm, so whether the cell is an effect or noise IS NOT ESTABLISHED
+      BY THIS GRID, in either direction.
+  ==================================================================================================================
+
+======================================================================================================================
+ NIFTY 100 (n100)   1,836 trading days   2019-01-01 .. 2026-05-29
+======================================================================================================================
+
+  CONTROLS -- REBAL=20 against each arm's published row of v34_comparison.csv, read from the file:
+    v1  CAGR% OK  Sharpe OK  MaxDD% OK  AnnVol% OK  Trades OK  TC_Rs OK  FinalEq OK
+    v2  CAGR% OK  Sharpe OK  MaxDD% OK  AnnVol% OK  Trades OK  TC_Rs OK  FinalEq OK
+    v3  CAGR% OK  Sharpe OK  MaxDD% OK  AnnVol% OK  Trades OK  TC_Rs OK  FinalEq OK
+    v4  CAGR% OK  Sharpe OK  MaxDD% OK  AnnVol% OK  Trades OK  TC_Rs OK  FinalEq OK
+    ALL 4 CONTROLS REPRODUCE
+
+  FULL GRID -- every metric, all 20 cells.  Read across a row for one arm, down a column for one cadence.
+  dCAGR is against THAT ARM'S OWN REBAL=20 control.
+  floor verdict: outside / INSIDE / UNKNOWN (no floor measured for that arm).
+
+  arm  REBAL rebals |   CAGR%   dCAGR    floor | Sharpe  MaxDD% AnnVol% | trades      TC Rs TC/eq%   FinalEquity
+  --------------------------------------------------------------------------------------------------------------
+  v1       5    367 |   27.62   -7.28  outside |   1.38  -26.64   19.27 |  1,809    800,281  13.15     6,088,072
+  v1      10    184 |   33.38   -1.52   INSIDE |   1.62  -31.99   19.28 |  1,173    632,415   7.49     8,438,955
+  v1      20     92 |   34.90   +0.00  control |   1.63  -35.25   19.93 |    819    506,530   5.52     9,178,663
+  v1      40     46 |   30.29   -4.61  outside |   1.50  -35.18   19.11 |    457    241,478   3.40     7,094,573
+  v1      60     31 |   28.13   -6.77  outside |   1.40  -31.13   19.43 |    307    128,729   2.05     6,269,639
+  --------------------------------------------------------------------------------------------------------------
+  v2       5    367 |   17.69   -8.09  outside |   1.38  -18.52   12.58 |  2,439    424,092  12.69     3,342,138
+  v2      10    184 |   22.61   -3.17  outside |   1.72  -18.68   12.55 |  1,524    312,793   6.91     4,524,949
+  v2      20     92 |   25.78   +0.00  control |   1.86  -19.87   12.97 |    978    245,987   4.50     5,465,013 <- ships
+  v2      40     46 |   22.29   -3.49  outside |   1.68  -25.56   12.66 |    533    111,320   2.51     4,437,040
+  v2      60     31 |   19.48   -6.30  outside |   1.48  -15.62   12.78 |    362     69,031   1.85     3,737,337
+  --------------------------------------------------------------------------------------------------------------
+  v3       5    367 |   32.01   +3.91  UNKNOWN |   1.35  -30.11   22.91 |  1,808    905,436  11.58     7,818,386
+  v3      10    184 |   35.00   +6.90  UNKNOWN |   1.45  -37.59   22.90 |  1,152    653,977   7.08     9,232,234
+  v3      20     92 |   28.10   +0.00  control |   1.20  -45.40   23.28 |    788    379,419   6.06     6,259,764
+  v3      40     46 |   31.21   +3.11  UNKNOWN |   1.36  -39.78   22.13 |    432    232,716   3.11     7,476,790
+  v3      60     31 |   29.29   +1.19  UNKNOWN |   1.22  -39.65   23.73 |    302    138,113   2.06     6,702,670
+  --------------------------------------------------------------------------------------------------------------
+  v4       5    367 |   20.47   -2.42  UNKNOWN |   1.31  -22.52   15.34 |  2,437    437,128  11.00     3,972,835
+  v4      10    184 |   23.93   +1.04  UNKNOWN |   1.50  -22.02   15.38 |  1,532    311,128   6.35     4,896,998
+  v4      20     92 |   22.89   +0.00  control |   1.41  -22.05   15.71 |    980    216,305   4.70     4,601,213
+  v4      40     46 |   24.27   +1.38  UNKNOWN |   1.50  -28.41   15.53 |    529    117,331   2.35     4,998,061
+  v4      60     31 |   18.65   -4.24  UNKNOWN |   1.23  -25.66   15.03 |    358     63,460   1.79     3,549,222
+  --------------------------------------------------------------------------------------------------------------
+  Sharpe, MaxDD% and AnnVol% carry NO measured floor on any arm. See (b), (c).
+
+======================================================================================================================
+ MIDCAP150 (mid)   1,836 trading days   2019-01-01 .. 2026-05-29
+======================================================================================================================
+
+  CONTROLS -- REBAL=20 against each arm's published row of v34_comparison.csv, read from the file:
+    v1  CAGR% OK  Sharpe OK  MaxDD% OK  AnnVol% OK  Trades OK  TC_Rs OK  FinalEq OK
+    v2  CAGR% OK  Sharpe OK  MaxDD% OK  AnnVol% OK  Trades OK  TC_Rs OK  FinalEq OK
+    v3  CAGR% OK  Sharpe OK  MaxDD% OK  AnnVol% OK  Trades OK  TC_Rs OK  FinalEq OK
+    v4  CAGR% OK  Sharpe OK  MaxDD% OK  AnnVol% OK  Trades OK  TC_Rs OK  FinalEq OK
+    ALL 4 CONTROLS REPRODUCE
+
+  FULL GRID -- every metric, all 20 cells.  Read across a row for one arm, down a column for one cadence.
+  dCAGR is against THAT ARM'S OWN REBAL=20 control.
+  floor verdict: outside / INSIDE / UNKNOWN (no floor measured for that arm).
+
+  arm  REBAL rebals |   CAGR%   dCAGR    floor | Sharpe  MaxDD% AnnVol% | trades      TC Rs TC/eq%   FinalEquity
+  --------------------------------------------------------------------------------------------------------------
+  v1       5    367 |   41.58   -4.29  outside |   1.74  -37.23   21.71 |  1,864  1,328,987  10.12    13,131,927
+  v1      10    184 |   44.47   -1.40   INSIDE |   1.83  -35.57   21.81 |  1,246  1,060,378   6.95    15,250,882
+  v1      20     92 |   45.87   +0.00  control |   1.84  -34.49   22.22 |    835    681,739   4.16    16,377,112
+  v1      40     46 |   42.04   -3.83  outside |   1.78  -35.09   21.31 |    456    334,627   2.49    13,453,178
+  v1      60     31 |   42.98   -2.89  outside |   1.73  -37.75   22.48 |    318    308,020   2.18    14,126,210
+  --------------------------------------------------------------------------------------------------------------
+  v2       5    367 |   27.92   -1.78  outside |   1.90  -16.59   13.65 |  2,470    568,928   9.19     6,192,253
+  v2      10    184 |   30.05   +0.35   INSIDE |   1.96  -16.45   14.19 |  1,577    410,765   5.87     6,998,881
+  v2      20     92 |   29.70   +0.00  control |   2.03  -18.88   13.51 |    963    229,837   3.35     6,862,643 <- ships
+  v2      40     46 |   32.74   +3.04  outside |   2.12  -18.02   14.07 |    560    153,874   1.89     8,143,918
+  v2      60     31 |   32.87   +3.17  outside |   2.02  -23.74   14.85 |    371    119,640   1.46     8,206,510
+  --------------------------------------------------------------------------------------------------------------
+  v3       5    367 |   42.64   -7.06  UNKNOWN |   1.61  -30.44   24.27 |  1,822  1,510,952  10.89    13,879,462
+  v3      10    184 |   50.79   +1.09  UNKNOWN |   1.79  -39.54   25.06 |  1,217  1,388,913   6.63    20,945,482
+  v3      20     92 |   49.70   +0.00  control |   1.80  -35.61   24.51 |    790    816,881   4.12    19,850,476
+  v3      40     46 |   58.42   +8.72  UNKNOWN |   2.08  -28.58   23.91 |    450    680,242   2.25    30,180,837
+  v3      60     31 |   45.20   -4.50  UNKNOWN |   1.68  -41.70   24.29 |    296    315,461   1.99    15,829,926
+  --------------------------------------------------------------------------------------------------------------
+  v4       5    367 |   29.44   -2.87  UNKNOWN |   1.76  -19.02   15.57 |  2,466    584,624   8.65     6,761,986
+  v4      10    184 |   36.23   +3.92  UNKNOWN |   2.01  -15.96   16.36 |  1,575    506,037   5.13     9,873,169
+  v4      20     92 |   32.31   +0.00  control |   1.92  -17.45   15.47 |    961    253,116   3.18     7,951,677
+  v4      40     46 |   40.62   +8.31  UNKNOWN |   2.18  -21.60   16.56 |    558    209,724   1.68    12,488,835
+  v4      60     31 |   34.77   +2.46  UNKNOWN |   1.88  -26.98   16.95 |    371    129,730   1.42     9,116,956
+  --------------------------------------------------------------------------------------------------------------
+  Sharpe, MaxDD% and AnnVol% carry NO measured floor on any arm. See (b), (c).
+
+======================================================================================================================
+ CROSS-UNIVERSE SUMMARY -- computed from the rows above
+======================================================================================================================
+
+  A cell is a MEASURED DIFFERENCE only if it is outside a MEASURED floor on
+  BOTH universes with the SAME SIGN. A cell on an arm with no measured floor
+  CANNOT QUALIFY, because there is nothing to compare it against.
+
+  arm  REBAL |  n100 dCAGR  verdict |  mid dCAGR  verdict | status
+  v1       5 |       -7.28  outside |      -4.29  outside | MEASURED DIFFERENCE, worse
+  v1      10 |       -1.52   INSIDE |      -1.40   INSIDE | no
+  v1      40 |       -4.61  outside |      -3.83  outside | MEASURED DIFFERENCE, worse
+  v1      60 |       -6.77  outside |      -2.89  outside | MEASURED DIFFERENCE, worse
+  v2       5 |       -8.09  outside |      -1.78  outside | MEASURED DIFFERENCE, worse
+  v2      10 |       -3.17  outside |      +0.35   INSIDE | no
+  v2      40 |       -3.49  outside |      +3.04  outside | no
+  v2      60 |       -6.30  outside |      +3.17  outside | no
+  v3       5 |       +3.91  UNKNOWN |      -7.06  UNKNOWN | NOT ESTABLISHED -- no floor for this arm
+  v3      10 |       +6.90  UNKNOWN |      +1.09  UNKNOWN | NOT ESTABLISHED -- no floor for this arm
+  v3      40 |       +3.11  UNKNOWN |      +8.72  UNKNOWN | NOT ESTABLISHED -- no floor for this arm
+  v3      60 |       +1.19  UNKNOWN |      -4.50  UNKNOWN | NOT ESTABLISHED -- no floor for this arm
+  v4       5 |       -2.42  UNKNOWN |      -2.87  UNKNOWN | NOT ESTABLISHED -- no floor for this arm
+  v4      10 |       +1.04  UNKNOWN |      +3.92  UNKNOWN | NOT ESTABLISHED -- no floor for this arm
+  v4      40 |       +1.38  UNKNOWN |      +8.31  UNKNOWN | NOT ESTABLISHED -- no floor for this arm
+  v4      60 |       -4.24  UNKNOWN |      +2.46  UNKNOWN | NOT ESTABLISHED -- no floor for this arm
+
+  CELLS WITH A MEASURED VERDICT ON BOTH UNIVERSES: 4
+    v1 REBAL=5   n100 -7.28   mid -4.29   WORSE than its own control on both
+    v1 REBAL=40   n100 -4.61   mid -3.83   WORSE than its own control on both
+    v1 REBAL=60   n100 -6.77   mid -2.89   WORSE than its own control on both
+    v2 REBAL=5   n100 -8.09   mid -1.78   WORSE than its own control on both
+    of which BETTER than their own control on both universes: 0
+    NONE. No cell with a measured floor beats its own control on both.
+
+  CELLS WHERE THE VERDICT IS NOT ESTABLISHED: 8
+    All are v3 or v4, which have NO MEASURED FLOOR. Whether any of these is
+    an effect or noise IS NOT ESTABLISHED BY THIS GRID, in either direction.
+    v3 REBAL=5   n100 +3.91   mid -7.06   UNKNOWN
+    v3 REBAL=10   n100 +6.90   mid +1.09   UNKNOWN
+    v3 REBAL=40   n100 +3.11   mid +8.72   UNKNOWN
+    v3 REBAL=60   n100 +1.19   mid -4.50   UNKNOWN
+    v4 REBAL=5   n100 -2.42   mid -2.87   UNKNOWN
+    v4 REBAL=10   n100 +1.04   mid +3.92   UNKNOWN
+    v4 REBAL=40   n100 +1.38   mid +8.31   UNKNOWN
+    v4 REBAL=60   n100 -4.24   mid +2.46   UNKNOWN
+
+  WHAT THE PER-ARM FLOOR CORRECTION CHANGED, against the earlier run that
+  applied v2's floor to every arm:
+    v1 REBAL=10 n100  dCAGR  -1.52: was 'outside' under v2's floor -> now 'INSIDE'
+    v1 REBAL=10 mid   dCAGR  -1.40: was 'outside' under v2's floor -> now 'INSIDE'
+    v3 REBAL=5 n100  dCAGR  +3.91: was 'outside' under v2's floor -> now 'UNKNOWN'
+    v3 REBAL=5 mid   dCAGR  -7.06: was 'outside' under v2's floor -> now 'UNKNOWN'
+    v3 REBAL=10 n100  dCAGR  +6.90: was 'outside' under v2's floor -> now 'UNKNOWN'
+    v3 REBAL=10 mid   dCAGR  +1.09: was 'INSIDE' under v2's floor -> now 'UNKNOWN'
+    v3 REBAL=40 n100  dCAGR  +3.11: was 'outside' under v2's floor -> now 'UNKNOWN'
+    v3 REBAL=40 mid   dCAGR  +8.72: was 'outside' under v2's floor -> now 'UNKNOWN'
+    v3 REBAL=60 n100  dCAGR  +1.19: was 'outside' under v2's floor -> now 'UNKNOWN'
+    v3 REBAL=60 mid   dCAGR  -4.50: was 'outside' under v2's floor -> now 'UNKNOWN'
+    v4 REBAL=5 n100  dCAGR  -2.42: was 'outside' under v2's floor -> now 'UNKNOWN'
+    v4 REBAL=5 mid   dCAGR  -2.87: was 'outside' under v2's floor -> now 'UNKNOWN'
+    v4 REBAL=10 n100  dCAGR  +1.04: was 'outside' under v2's floor -> now 'UNKNOWN'
+    v4 REBAL=10 mid   dCAGR  +3.92: was 'outside' under v2's floor -> now 'UNKNOWN'
+    v4 REBAL=40 n100  dCAGR  +1.38: was 'outside' under v2's floor -> now 'UNKNOWN'
+    v4 REBAL=40 mid   dCAGR  +8.31: was 'outside' under v2's floor -> now 'UNKNOWN'
+    v4 REBAL=60 n100  dCAGR  -4.24: was 'outside' under v2's floor -> now 'UNKNOWN'
+    v4 REBAL=60 mid   dCAGR  +2.46: was 'outside' under v2's floor -> now 'UNKNOWN'
+
+  THE ONLY ARM WITH A TRUSTWORTHY VERDICT IS v2.
+  It is the shipping arm and the only one whose own floor was measured and
+  applied here. v1 has a measured floor too, but v1 does not ship.
+  v2's VERDICT: NO CADENCE BEATS REBAL=20 ON BOTH UNIVERSES.
+    v2 REBAL=5   n100 -8.09 (outside)   mid -1.78 (outside)
+    v2 REBAL=10  n100 -3.17 (outside)   mid +0.35 (INSIDE)
+    v2 REBAL=40  n100 -3.49 (outside)   mid +3.04 (outside)
+    v2 REBAL=60  n100 -6.30 (outside)   mid +3.17 (outside)
+
+  CAPACITY IS NOT MEASURED HERE AND BEARS ON EVERY FAVOURABLE CELL.
+  Fills are synthetic against a QUOTE_DEPTH of 10,000,000 shares at flat
+  15 bps slippage regardless of order size. No L2 data exists anywhere in
+  this project, no market impact, no queue position. mid already has a
+  measured liquidity problem -- one order reached 1,614% of that symbol's
+  prior 20-day median volume. A CADENCE THAT TRADES DIFFERENTLY IS NOT SHOWN
+  TO BE EXECUTABLE DIFFERENTLY, IN EITHER DIRECTION.
+
+  v3 AND v4 DO NOT SHIP AND NOTHING HERE REOPENS THAT. Pro-vol was measured
+  under V34_SPEC.txt and is not supported.
+
+  TRIAL COUNT: +12 new looks (v1, v3, v4 x 4 cadences). FLOOR 32 -> 44.
+
+  REBAL ON DISK AFTER THIS RUN: 20 (never written).
+  wall clock 10 sec
