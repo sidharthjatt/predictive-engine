@@ -31,7 +31,12 @@ from matplotlib.ticker import PercentFormatter
 warnings.filterwarnings("ignore")
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-import config, config_mid, config_n100
+import config
+from universes.registry import REGISTRY
+
+# config_mid / config_n100 are imported INSIDE main(), under the guard that checks
+# the universe is registered. At module level, deleting either would make this step
+# unimportable rather than skippable.
 import survivorship as sv
 def cum(s): return (s / s.iloc[0] - 1) * 100
 def dd(s):  return (s / s.cummax() - 1) * 100
@@ -62,30 +67,94 @@ def main():
     other statement moved, constants included, so no dependency chain is split.
     """
     CAP = 1_000_000
-    OUT = config_n100.METRICS_DIR_N100 / "chart_COMBINED_n100_mid.png"
-    UNIV = [
-        ("n100", config_n100.METRICS_DIR_N100, config_n100.INDEX_FILE_N100,
-         "NIFTY100", len(config_n100.SYMBOLS_N100), "#c0392b", "#2e6da4", "#3a9d3a", "#000000"),
-        ("mid", config_mid.METRICS_DIR_MID, config_mid.INDEX_FILE_MID,
-         "NIFTYMIDCAP150", len(config_mid.SYMBOLS_MID), "#e377c2", "#17becf", "#8fd08f", "#7f7f7f"),
+
+    # THIS STEP IS AN OVERLAY OF TWO UNIVERSES, AND ONE IS NOT AN OVERLAY.
+    # Its entire purpose is the side-by-side comparison; with a single series it
+    # would reproduce that universe's own v2FINAL chart under a name claiming to
+    # combine two. So below two registered universes it does not run, and says so.
+    # That is a deliberate difference from make_final_chart_fair.py, which compares
+    # strategy against benchmark and stays meaningful with one universe.
+    #
+    # ORDER IS THE DECLARATION ORDER BELOW (n100, then mid) AND IS LOAD-BEARING:
+    # it sets the plotting order and the derived filename. It is written here
+    # rather than taken from REGISTRY iteration for that reason.
+    SPEC = [
+        ("n100", "NIFTY100",       "#c0392b", "#2e6da4", "#3a9d3a", "#000000"),
+        ("mid",  "NIFTYMIDCAP150", "#e377c2", "#17becf", "#8fd08f", "#7f7f7f"),
     ]
+    present = [row for row in SPEC if row[0] in REGISTRY]
+    if len(present) < 2:
+        have = ", ".join(r[0] for r in present) or "none"
+        print("=" * 108)
+        print(" COMBINED chart SKIPPED -- it overlays two universes and fewer than two "
+              "are registered.")
+        print(f" registered here: {have}.  A one-series 'combined' chart would just "
+              "restate that universe's")
+        print(" own v2FINAL chart under a name that claims to combine two, so nothing "
+              "is written.")
+        print("=" * 108)
+        return
+
+    # THE FOUR INPUT PATHS ARE SPELLED OUT PER UNIVERSE, IN THE DOTTED FORM, so
+    # check_pipeline_order resolves each to the right directory. Written as
+    # `M / "v2FINAL_equity.csv"` inside the loop below they cannot be: the loop
+    # variable is one name for two directories, and the scanner is static. Before
+    # this, the whole file resolved to results_n100 by accident -- one metrics dir
+    # appeared in an assignment and became the default -- so mid's reads were
+    # attributed to n100's directory and collapsed onto the same keys. These are
+    # the real paths the loop uses, not decoration.
+    FILES = {}
+    if "n100" in REGISTRY:
+        import config_n100
+        FILES["n100"] = (config_n100.METRICS_DIR_N100 / "v2FINAL_equity.csv",
+                         config_n100.METRICS_DIR_N100 / "v2FINAL_params.json",
+                         config_n100.METRICS_DIR_N100 / "daily_trades_n100.csv",
+                         config_n100.METRICS_DIR_N100 / "daily_trades_v1_n100.csv",
+                         config_n100.INDEX_FILE_N100, len(config_n100.SYMBOLS_N100))
+    if "mid" in REGISTRY:
+        import config_mid
+        FILES["mid"] = (config_mid.METRICS_DIR_MID / "v2FINAL_equity.csv",
+                        config_mid.METRICS_DIR_MID / "v2FINAL_params.json",
+                        config_mid.METRICS_DIR_MID / "daily_trades_mid.csv",
+                        config_mid.METRICS_DIR_MID / "daily_trades_v1_mid.csv",
+                        config_mid.INDEX_FILE_MID, len(config_mid.SYMBOLS_MID))
+
+    UNIV = []
+    for tag, idxname, c_v2, c_v1, c_bh, c_ix in present:
+        eqf, pjf, tr2, tr1, idxfile, nsym = FILES[tag]
+        UNIV.append((tag, eqf, pjf, tr2, tr1, idxfile, idxname, nsym,
+                     c_v2, c_v1, c_bh, c_ix))
+
+    # THE FILENAME NAMES WHAT IS ACTUALLY ON THE CHART. It was the literal
+    # "chart_COMBINED_n100_mid.png"; a file with that name containing only mid is
+    # worse than no file. Derived from the universes actually plotted, in plotting
+    # order, so with n100 and mid present it still resolves to exactly
+    # chart_COMBINED_n100_mid.png -- byte-identical output, honest name.
+    # UNIV rows are (tag, eq, params, trades_v2, trades_v1, indexfile, indexname,
+    # nsym, 4 colours). Named here because the row grew when the four input paths
+    # became explicit, and a positional read of the old layout printed a PosixPath
+    # where the index name belonged.
+    I_TAG, I_EQ, I_IDXNAME = 0, 1, 6
+    OUT = UNIV[0][I_EQ].parent / (
+        "chart_COMBINED_" + "_".join(u[I_TAG] for u in UNIV) + ".png")
     print("=" * 108)
-    print(" COMBINED -- NIFTY 100 and MIDCAP150. Every number printed before plotting.")
-    print(" 58 and 74 are out of scope and are not on this chart.")
+    print(" COMBINED -- " + " and ".join(u[I_IDXNAME] for u in UNIV)
+          + ". Every number printed before plotting.")
+    print(" Universes outside this overlay are out of scope and are not on this chart.")
     print("=" * 108)
     print(f"\n  SURVIVORSHIP: {sv.describe_state()}")
     series = []
-    for tag, M, idxfile, idxname, nsym, c_v2, c_v1, c_bh, c_ix in UNIV:
-        eq = pd.read_csv(M / "v2FINAL_equity.csv", parse_dates=["date"]).set_index("date")
-        params = json.loads((M / "v2FINAL_params.json").read_text())
+    for tag, eqf, pjf, tr2, tr1, idxfile, idxname, nsym, c_v2, c_v1, c_bh, c_ix in UNIV:
+        eq = pd.read_csv(eqf, parse_dates=["date"]).set_index("date")
+        params = json.loads(pjf.read_text())
         inv = params["avg_exposure_pct"]
         raw = (config.read_price_csv(idxfile)[["date", "close"]].dropna()
                .set_index("date")["close"].sort_index())
         s_ = raw.reindex(eq.index.union(raw.index)).ffill().reindex(eq.index)
         index = CAP * s_ / s_.iloc[0]
 
-        b_v2 = before_tc(eq["strategy"], M / f"daily_trades_{tag}.csv")
-        b_v1 = before_tc(eq["baseline_invvol"], M / f"daily_trades_v1_{tag}.csv")
+        b_v2 = before_tc(eq["strategy"], tr2)
+        b_v1 = before_tc(eq["baseline_invvol"], tr1)
 
         print(f"\n  {tag.upper()}  ({nsym} constituents, {idxname} excluded by name)  "
               f"window {eq.index[0].date()} -> {eq.index[-1].date()}  inv {inv}%")

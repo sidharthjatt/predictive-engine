@@ -423,18 +423,42 @@ def main():
     guard whether or not a main() exists. The first full in-process run stopped
     here with AttributeError. The statements below are the guard's, in order.
     """
-    import config, config74, config_mid
+    import config
+    from universes.registry import REGISTRY
     print("Building forensic daily logs...")
-    build(config.METRICS_DIR, "58")
-    build(config74.METRICS_DIR_74, "74")
-    # MidCap150 uses the same build() and therefore the same four-section format;
-    # only the metrics folder and the tag differ. The 58 and 74 logs are produced
-    # by the identical code path and are unchanged by this addition.
-    build(config_mid.METRICS_DIR_MID, "mid")
-    # Nifty 100 (fourth universe) uses the identical build(), so it gets the same
-    # four sections and the same daily reconciliation as every other universe.
-    import config_n100
-    build(config_n100.METRICS_DIR_N100, "n100")
+
+    # FOUR INDEPENDENT LOGS, ONE PER UNIVERSE. build() is the same code for all of
+    # them -- only the metrics folder and the tag differ -- and DAILY_LOG_{tag}.txt
+    # has no consumer, so nothing downstream depends on any particular one being
+    # present. Each is therefore guarded on its own universe and skipped with a
+    # reason rather than taking the others down with it.
+    #
+    # Each config is imported INSIDE its guard: at module level, a deleted
+    # config_n100.py would make this step unimportable and cost the other three
+    # their logs.
+    #
+    # The literals stay literal. check_pipeline_order resolves this file's
+    # DAILY_LOG_{tag}.txt through the config.METRICS_DIR* names in the text; a loop
+    # over REGISTRY would read the same at runtime and leave the checker blind.
+    if "58" in REGISTRY:
+        build(config.METRICS_DIR, "58")
+    else:
+        print("  58 not in the registry -- skipping its daily log")
+    if "74" in REGISTRY:
+        import config74
+        build(config74.METRICS_DIR_74, "74")
+    else:
+        print("  74 not in the registry -- skipping its daily log")
+    if "mid" in REGISTRY:
+        import config_mid
+        build(config_mid.METRICS_DIR_MID, "mid")
+    else:
+        print("  mid not in the registry -- skipping its daily log")
+    if "n100" in REGISTRY:
+        import config_n100
+        build(config_n100.METRICS_DIR_N100, "n100")
+    else:
+        print("  n100 not in the registry -- skipping its daily log")
 
 
 if __name__ == "__main__":
