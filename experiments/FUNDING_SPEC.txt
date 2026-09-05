@@ -1,0 +1,291 @@
+================================================================================
+FUNDING_SPEC.txt -- closing the new-position funding gap without resizing the book
+Pre-registered 2026-09-05. Gates and predictions written BEFORE the model was run.
+================================================================================
+
+WHY THIS SPEC EXISTS AT ALL
+--------------------------------------------------------------------------------
+KNOWN_ISSUES.md, entry "New positions are funded from cash alone", closed on
+2026-09-04 with "not implemented". That decision was correct on its own terms:
+five funding models had been measured, the two that closed the gap (C and D) cost
+2.3 to 6.7 CAGR points on every universe, and choosing one of the remaining three
+AFTER seeing their numbers would have been fitting the strategy to the result.
+
+That entry also wrote down the only condition under which the question could be
+reopened:
+
+    "If it is taken up, it belongs in experiments/ as a pre-registration with its
+     gates written first."
+
+This is that pre-registration. It is taken up on instruction, and it proposes a
+SIXTH model that is not any of A, B, B2, C or D.
+
+
+THE DEFECT, RESTATED IN ONE PARAGRAPH
+--------------------------------------------------------------------------------
+`results/test_exposure.py` sizes every new position against the WHOLE portfolio:
+
+    port_val   = value of held positions + cash
+    invest_val = port_val * exposure * 0.98
+    target_i   = invest_val * w_i          , sum(w over TOP_N) = 1.0
+
+but it funds those positions out of CASH ALONE, because a name already held is
+skipped by the buy loop and never resized. Buffer names -- held because their rank
+is still inside BUFFER, which is what stops the book churning -- carry no target
+weight and yet hold capital. So whenever a buffer name is held the book is
+over-committed by construction, the score-descending buy loop exhausts cash, and
+the LOWEST-ranked of the TOP_N are dropped and logged `cash short (before TC)`.
+
+Measured baseline, this repo at 9bc0b96, window and panels as shipped:
+
+    universe  arm  CAGR%   MeanNamesHeld  CashShortSkips
+    mid       v1   45.87   8.00            92
+    mid       v3   49.70   7.58           125
+    n100      v1   34.90   8.02           118
+    n100      v3   28.10   7.65           142
+    58        v1   24.62   8.21           135
+    58        v3   23.47   7.77           165
+
+`qty < 1 after sizing` is ZERO in all six cells, so this is cash exhaustion and
+not a rounding-to-zero effect.
+
+
+THE MODEL BEING TESTED -- E, "PRO-RATA ENTRANT SCALING"
+--------------------------------------------------------------------------------
+The instruction is to close the gap WITHOUT abandoning the whole-portfolio sizing
+base. Every previously measured model changed the base or the book:
+
+    A   trims over-target top-N names          -> sells to fund
+    B   full target weight, top-ups first      -> resizes held names
+    B2  full target weight, entrants first     -> resizes held names
+    C   also trims buffer names                -> sells drifted-up winners
+    D   strict target weight, no buffer        -> dissolves the buffer entirely
+
+E changes NEITHER. It leaves `invest_val` exactly as it is, leaves every held
+position untouched, and keeps the buffer. It changes ONE thing: when the entrant
+block does not fit in cash, the entrants are scaled down TOGETHER instead of the
+tail being dropped one at a time.
+
+    E = the entrants at this rebalance: names in the target set, not already
+        held, with a usable open price.
+    T = invest_val * sum(w_i for i in E)        the whole-portfolio commitment
+    A = cash * 0.98                             what is actually fundable
+    f = 1.0 if T <= A else A / T
+    q_i = int((invest_val * w_i * f) // price_i)
+
+The 0.98 is the SAME haircut the function already applies to `invest_val`. No new
+constant is introduced and nothing is tuned.
+
+WHAT E PRESERVES, EXPLICITLY
+    - The whole-portfolio sizing base. `invest_val` is unchanged; f rescales the
+      entrant block, it does not re-derive the weights from cash.
+    - The RELATIVE inverse-vol (or pro-vol, or equal) proportions among entrants.
+      f is a single scalar applied to all of them, so w_i : w_j is preserved.
+    - "No held position is ever topped up or resized" -- experiments/V34_SPEC.txt
+      line 125. E never sells and never tops up. That rule survives intact.
+    - The buffer. No buffer name is trimmed or dropped.
+    - Byte-identical behaviour whenever cash is sufficient: f is 1.0 and the code
+      path is the existing one.
+
+WHAT E COSTS, STATED IN ADVANCE
+    A cash-constrained rebalance now fills all TOP_N names at BELOW target size
+    rather than filling the top few at full size and dropping the tail. That is a
+    real change in the portfolio, not a bookkeeping fix, and it is the trade-off
+    this measurement exists to price.
+
+
+HOW IT SHIPS
+--------------------------------------------------------------------------------
+`backtest_exposure` gains `funding="cash"` (the current rule, and the default) or
+`funding="prorata"`. The default path is unchanged BY CONSTRUCTION -- f is not
+computed at all when funding="cash" -- so every published number stays where it is
+and the seven identity gates that read v34_comparison.csv keep passing.
+
+`nautilus/nt_strategy.py` mirrors the sizing rule and must not drift from this
+file. It is NOT updated by this spec, and it does not need to be: the default is
+unchanged, so the mirror is still exact. If the default is ever flipped, the port
+must be updated in the same commit.
+
+
+GATES -- WRITTEN BEFORE THE MODEL WAS RUN
+--------------------------------------------------------------------------------
+Six cells: {mid, n100, 58} x {v1, v3}. v1 is the shipping arm; v3 is the arm that
+hits the defect hardest. The breadth arms v2/v4 are excluded because breadth masks
+the defect (7 and 1 skips against 119 and 92) and would dilute the measurement.
+
+G1  THE DEFECT CLOSES.
+    Total UNFILLED BUY TARGETS -- `cash short (before TC)` plus `cash short
+    (incl TC)` plus `qty < 1 after sizing` -- falls by at least 90% against
+    baseline in every one of the six cells.
+    Counting qty<1 here is deliberate: a target dropped for being too small is
+    just as unfilled as one dropped for lack of cash, and scaling entrants down
+    is exactly the change that could convert the first failure into the second.
+    A gate that counted only cash-short skips could be passed by moving the
+    failure rather than removing it.
+
+G2  THE BOOK FILLS.
+    MeanNamesHeld >= TOP_N in every cell. Baseline fails this on four of six
+    (mid v3 7.58, n100 v1 8.02 marginal, n100 v3 7.65, 58 v3 7.77); it is the
+    failure results/validate_engine.py reports as T1 on mid.
+
+G3  PERFORMANCE DOES NOT DEGRADE BEYOND NOISE.
+    CAGR change > -0.97 points in every cell. 0.97 is the LOW end of the seed-noise
+    band this project measured at sd 0.97-2.14 (EXPERIMENTS.md entry 29). The low
+    end is used because it makes the gate HARDER to pass; taking the high end would
+    let a real 2-point loss hide inside a band chosen after the fact.
+
+G4  CHURN DOES NOT EXPLODE.
+    Trade count rises by at most 10% in every cell. Models B, B2, C and D cost
+    +23% to +50%. E adds no sells and no top-ups, so it can only add the fills that
+    were previously skipped.
+
+G5  THE DEFAULT IS UNTOUCHED.
+    funding="cash" reproduces the baseline equity curve of all six cells exactly,
+    to the last float. Not "close" -- identical.
+
+DECISION RULE, FIXED NOW
+    G5 is unconditional. It failing is a bug in the change, not a result.
+    G1-G4 all pass  -> E is a candidate to become the default. Flipping the default
+                       is a SEPARATE act with its own blast radius (it moves every
+                       published v1-v4 figure, requires a full pipeline re-run, and
+                       re-baselines seven identity gates), and it is NOT authorised
+                       by this spec.
+    Any of G1-G4 fails -> E is recorded in KNOWN_ISSUES.md alongside A, B, B2, C
+                       and D as a sixth measured model that did not close the gap
+                       for free. The parameter stays, defaulted off, so the next
+                       person does not have to rebuild it to re-measure.
+
+
+PREDICTIONS -- WRITTEN BEFORE THE RUN, RECORDED SO THEY CAN BE WRONG
+--------------------------------------------------------------------------------
+P1  G1 passes and cash-short skips go to ZERO, not merely down. f is chosen so the
+    entrant block fits in cash by construction, and integer flooring only frees
+    more cash, so the sequential guard should never fire.
+
+P2  `qty < 1 after sizing` stays at zero or in single digits. An entrant slice is
+    about one eighth of 98% of the portfolio; on a book that starts at Rs 1,000,000
+    and grows, even f = 0.2 leaves a slice far above any single share price in
+    these universes. If this prediction is wrong, G1 catches it, which is why G1
+    counts qty<1.
+
+P3  G2 passes in all six cells.
+
+P4  CAGR falls slightly in most cells rather than rising. The names that were being
+    dropped are the LOWEST-ranked of the TOP_N, so buying them dilutes the average
+    rank of the book. The defect was, accidentally, a mild rank filter. Predicted
+    range -1.5 to +0.5 points, which means G3 is NOT expected to pass everywhere.
+    The honest prior is that this closes a bookkeeping gap at a small real cost.
+
+P5  Trade count rises 2-8%.
+
+P6  Volatility and MaxDD move by less than their own noise. E changes position
+    SIZES at constrained rebalances, not which names are selected; selection is
+    rank-based and untouched.
+
+If the outcome contradicts these, the contradiction is recorded as a contradiction
+of a written prediction, in the manner of V34_SPEC.txt, and not presented as
+something that was expected all along.
+
+
+WHAT IS NOT BEING DONE
+--------------------------------------------------------------------------------
+    - No held position is topped up, resized, trimmed or force-sold.
+    - The buffer is not narrowed, widened or dissolved.
+    - TOP_N, BUFFER, REBAL, VOL_WIN, SLIPPAGE and the 0.98 haircut are not tuned.
+      No second model is tried if E fails; a second model needs a second spec.
+    - The default is not flipped. No published artefact is regenerated.
+    - nautilus/nt_strategy.py is not modified.
+    - The breadth arms are not measured, for the reason given under GATES.
+
+
+================================================================================
+RESULT -- run 2026-09-05, after the gates above were written
+================================================================================
+Six cells, this repo's own panels, window as shipped. Baseline is funding="cash"
+on the same process, same panel, same call.
+
+ universe arm   CAGR%  ->  CAGR%   dCAGR  dSharpe  dMaxDD  held  -> held  unfilled -> unfilled  trades
+ mid      v1    45.87      41.42   -4.45   -0.12   +1.08   8.00     9.18    92          0        +16.0%
+ mid      v3    49.70      42.91   -6.79   -0.19   -1.13   7.58     9.18   125          0        +22.7%
+ n100     v1    34.90      33.25   -1.65   -0.05   -1.80   8.02     9.56   118          0        +21.6%
+ n100     v3    28.10      26.76   -1.34   -0.03   +5.15   7.65     9.56   142          0        +26.4%
+ 58       v1    24.62      22.06   -2.56   -0.10   +0.61   8.21     9.98   135          0        +28.0%
+ 58       v3    23.47      22.91   -0.56    0.00   +0.70   7.77     9.98   165          0        +39.2%
+
+GATE OUTCOMES
+    G5  PASS   funding="cash" reproduces all six baseline equity curves byte for
+               byte. Diffed as files, not compared as metrics.
+    G1  PASS   Unfilled buy targets go to ZERO in all six cells, not merely down
+               90%. `qty < 1 after sizing` stays at zero, so the failure was
+               removed rather than moved.
+    G2  PASS   Mean names held rises into [TOP_N, BUFFER] in all six cells:
+               9.18, 9.18, 9.56, 9.56, 9.98, 9.98. This clears the T1 failure
+               results/validate_engine.py reports on mid.
+    G3  FAIL   Five of six cells. dCAGR is -4.45, -6.79, -1.65, -1.34 and -2.56
+               against a bar of -0.97. Only 58 v3 (-0.56) passes.
+    G4  FAIL   Six of six cells. Trades rise 16.0% to 39.2% against a bar of 10%.
+
+DECISION RULE FIRES AS WRITTEN: G3 and G4 fail, so E is NOT a candidate to become
+the default. It is recorded as the sixth measured funding model. `funding="prorata"`
+stays in the code, defaulted off, so the next person can re-measure it without
+rebuilding it.
+
+
+PREDICTIONS SCORED
+--------------------------------------------------------------------------------
+P1  CORRECT.     Cash-short skips went to zero, not merely down.
+P2  CORRECT.     `qty < 1 after sizing` stayed at zero in all six cells.
+P3  CORRECT.     G2 passed everywhere.
+P4  CONTRADICTED IN MAGNITUDE, CORRECT IN SIGN. The predicted range was -1.5 to
+    +0.5 CAGR points. The realised range is -0.56 to -6.79, and five of six cells
+    fall outside the predicted band. The direction was right and the size was not,
+    by a factor of four on mid. The prediction was too optimistic and is recorded
+    as wrong rather than reinterpreted.
+P5  CONTRADICTED. Predicted +2-8% trades; realised +16% to +39%. Filling the tail
+    of the buy loop does not just add those fills -- the names bought small are
+    then sold when they leave BUFFER, so each recovered buy carries a later sell,
+    and a fuller book turns over more.
+P6  HALF CORRECT. Annualised volatility moved by less than 0.5 points in every
+    cell, as predicted. MaxDD did not: it moved by up to 5.15 points (n100 v3,
+    -45.40 to -40.25, an IMPROVEMENT). Position sizes alone move drawdown more
+    than the prediction allowed for.
+
+
+WHY IT COSTS SO MUCH -- IT IS NOT CASH DRAG
+--------------------------------------------------------------------------------
+The obvious explanation for a CAGR loss is that scaling entrants down leaves money
+uninvested. IT DOES NOT. Mean invested percentage, measured from the same audits:
+
+    universe arm   cash    prorata   delta
+    mid      v1    94.46    96.35    +1.89
+    mid      v3    95.60    96.88    +1.28
+    n100     v1    94.16    96.89    +2.73
+    n100     v3    95.12    97.10    +1.98
+    58       v1    94.01    96.66    +2.65
+    58       v3    95.98    97.09    +1.12
+
+Deployment RISES in every cell. The book is both fuller in names and more fully
+invested, and it still earns less. So the loss is DILUTION, not drag: the same
+capital is spread over 9.2-10.0 names instead of 7.6-8.2, and the marginal names
+are the lowest-ranked of the target set. The funding gap was, accidentally, a
+concentration filter, and the concentration was worth more than the names it cost.
+
+That is the same finding model D produced by dissolving the buffer, reached by a
+completely different route, and it is the strongest evidence so far that the gap
+is not a defect with a free repair.
+
+
+AN UNPLANNED RESULT WORTH RECORDING
+--------------------------------------------------------------------------------
+Under prorata, v1 and v3 hold the SAME NUMBER OF NAMES and make the SAME NUMBER OF
+TRADES within each universe -- 9.18/9.18 and 969/969 on mid, 9.56/9.56 and 996/996
+on n100, 9.98/9.98 and 945/945 on the 58. Under the cash rule they did not
+(8.00 vs 7.58, 835 vs 790).
+
+This CONFIRMS the diagnosis in KNOWN_ISSUES.md that inverse-vol and pro-vol "did
+not hold the same portfolio". That divergence was entirely an artefact of the
+funding gap: selection is rank-based and identical across sizing rules, so once
+every target is actually filled, the two arms hold exactly the same names and
+differ only in position size, which is what a sizing rule is supposed to differ in.
+Nothing was gated on this and it was not predicted; it is recorded because it
+independently corroborates the mechanism the gates were built around.

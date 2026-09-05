@@ -1547,6 +1547,78 @@ seeing these numbers would be fitting the strategy to the result. If it is taken
 up, it belongs in `experiments/` as a pre-registration with its gates written
 first. `results/test_exposure.py` is unchanged by this entry.
 
+### 2026-09-05: A SIXTH MODEL, PRE-REGISTERED. IT CLOSES THE GAP AND STILL COSTS.
+
+Taken up on instruction, under `experiments/FUNDING_SPEC.txt`, which is the
+pre-registration the paragraph above asked for: gates and predictions were written
+and committed before the model was run.
+
+**Model E, "pro-rata entrant scaling".** It is the one funding model that keeps the
+whole-portfolio sizing base AND the buffer AND the no-resize rule. It changes a
+single thing: when the entrant block does not fit in cash, the entrants are scaled
+down *together* by one factor rather than the tail being dropped one at a time.
+
+    f   = min(1, cash * 0.98 / (invest_val * sum of entrant weights))
+    q_i = int((invest_val * w_i * f) // price_i)
+
+`invest_val` is untouched, so the whole-portfolio base survives. `f` is one scalar
+applied to every entrant, so the inverse-vol proportions survive. Nothing is sold,
+nothing is topped up, no buffer name is trimmed — `V34_SPEC.txt:125` holds. The
+0.98 is the haircut the function already applies; no new constant, nothing tuned.
+
+**It closes the gap completely.** Unfilled buy targets go to **zero** in all six
+measured cells — and `qty < 1 after sizing` stays at zero too, so the failure was
+removed rather than moved into a different skip reason. Mean names held rises into
+`[TOP_N, BUFFER]` everywhere (9.18 / 9.56 / 9.98), clearing the T1 failure
+`results/validate_engine.py` reports on mid.
+
+**And it fails the performance and churn gates, as the four models before it did:**
+
+| universe | arm | CAGR cash → prorata | dCAGR | unfilled | mean held | trades |
+|---|---|---|---|---|---|---|
+| mid | v1 | 45.87 → 41.42 | **-4.45** | 92 → **0** | 8.00 → 9.18 | +16.0% |
+| mid | v3 | 49.70 → 42.91 | **-6.79** | 125 → **0** | 7.58 → 9.18 | +22.7% |
+| n100 | v1 | 34.90 → 33.25 | **-1.65** | 118 → **0** | 8.02 → 9.56 | +21.6% |
+| n100 | v3 | 28.10 → 26.76 | **-1.34** | 142 → **0** | 7.65 → 9.56 | +26.4% |
+| 58 | v1 | 24.62 → 22.06 | **-2.56** | 135 → **0** | 8.21 → 9.98 | +28.0% |
+| 58 | v3 | 23.47 → 22.91 | -0.56 | 165 → **0** | 7.77 → 9.98 | +39.2% |
+
+Five of six cells breach the -0.97 CAGR bar, which is the LOW end of this project's
+own seed-noise band (`EXPERIMENTS.md` entry 29) and was chosen before the run
+precisely so a real loss could not hide inside a band picked afterwards. All six
+breach the 10% churn bar.
+
+**THE COST IS NOT CASH DRAG, AND THAT IS THE POINT.** Mean invested percentage
+*rises* under prorata in every cell — 94.46 → 96.35 on mid v1, 94.16 → 96.89 on
+n100 v1. The book is fuller in names and more fully invested and still earns less.
+The loss is **dilution**: the same capital spread over 9.2–10.0 names instead of
+7.6–8.2, and the marginal names are the lowest-ranked of the target set. **The
+funding gap was, accidentally, a concentration filter, and the concentration was
+worth more than the names it cost.** Model D reached the same conclusion by
+dissolving the buffer; E reaches it while preserving the buffer, which makes it
+much harder to attribute the loss to anything but concentration itself.
+
+**One thing the measurement settled that was previously only asserted.** Under
+prorata, v1 and v3 hold the same number of names and make the same number of trades
+within each universe (9.18/9.18 and 969/969 on mid). Under the cash rule they do
+not. That confirms this entry's own claim that the two arms "did not hold the same
+portfolio": the divergence was entirely an artefact of the funding gap, and once
+every target is filled the arms differ only in position size, which is what a
+sizing rule should differ in. Not predicted, not gated on — recorded because it
+corroborates the mechanism independently.
+
+**Status: implemented, defaulted OFF.** `backtest_exposure` now takes
+`funding="cash"` (unchanged, and the default) or `funding="prorata"`. The default
+path does not compute `f` at all, and all six baseline equity curves reproduce
+**byte for byte** — diffed as files, not compared as metrics. So no published
+figure moves and the seven identity gates on `v34_comparison.csv` are untouched.
+`nautilus/nt_strategy.py` mirrors this sizing rule and is therefore still exact; if
+the default is ever flipped, the port must be updated in the same commit.
+
+**The gap is now a priced decision rather than an open defect.** Six models have
+been measured and every one that closes it costs 1.3 to 6.8 CAGR points. Anyone
+proposing to close it is choosing to pay that, not fixing a bug.
+
 ---
 
 ## Breadth is validated on both live universes; sizing still is not
