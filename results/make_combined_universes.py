@@ -1,0 +1,365 @@
+"""
+make_combined_universes.py -- ONE combined chart across whichever universes this
+run selected.
+
+WHAT REPLACED WHAT
+    This file was make_combined_n100_mid.py, and it was hardcoded to exactly two
+    universes. Its SPEC named n100 and mid as literals, so the project could not
+    compare any other pair -- 58 against mid, or all four -- without editing the
+    step. It now takes the selection and compares exactly that.
+
+    THE n100+mid OUTPUT DID NOT MOVE. With those two selected this writes
+    chart_COMBINED_n100_mid.png, byte for byte the file the old step wrote, into
+    the same directory. That is a verified property, not an intention: the
+    rename would otherwise be a silent way to change a published figure.
+
+THE RULE ABOUT HOW MANY UNIVERSES
+    N == 1  nothing is written. A one-series "combined" chart restates that
+            universe's own v2FINAL chart under a name claiming to combine
+            several, and a file that misdescribes itself is worse than no file.
+    N >= 2  exactly ONE chart, across exactly those N. Not one per pair, and
+            never a universe that was not selected.
+
+SELECTION, NOT REGISTRATION
+    It asks universes/registry.selected_tags(), not REGISTRY. `--universe mid,58`
+    leaves 74 registered and unselected; plotting it would put a universe on the
+    page that nobody asked for. Run on its own with no selection set, the default
+    is every registered universe, which is what the old step saw.
+
+WHAT IS PLOTTED, PER UNIVERSE
+    v1 (inverse-vol, always invested), v2 (breadth-scaled), the own-universe
+    equal-weight buy&hold, and -- only where the universe HAS one -- the published
+    cap-weighted index. Before-TC and after-TC CAGR are both in the legend, so the
+    cost drag is visible rather than implied.
+
+    THE RETIRED 58 AND 74 HAVE NO PUBLISHED INDEX. registry.index_file is None for
+    them, which is a fact about those universes and not a missing path, so they
+    contribute three lines instead of four. Inventing a benchmark for them -- an
+    equal-weighted basket labelled as an index -- is the exact error this project
+    already made once and corrected.
+
+THE TWO BENCHMARKS ARE NOT INTERCHANGEABLE
+    The cap-weighted index is investable and is NOT survivorship-biased -- it is the
+    published series. The equal-weight buy&hold is the right yardstick for a
+    strategy picking from the universe, but it is neither investable nor achievable,
+    because these universes are today's members backfilled. Both are shown, labelled
+    for what they are.
+
+Every headline number is printed before anything is plotted.
+Reads only. Writes one PNG.
+"""
+import sys, json, warnings
+from pathlib import Path
+import numpy as np, pandas as pd
+import matplotlib; matplotlib.use("Agg")
+import matplotlib.pyplot as plt
+from matplotlib.ticker import PercentFormatter
+warnings.filterwarnings("ignore")
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+import config
+from universes.registry import REGISTRY, selected_tags, report_order
+
+import survivorship as sv
+def cum(s): return (s / s.iloc[0] - 1) * 100
+def dd(s):  return (s / s.cummax() - 1) * 100
+def cagr(s):
+    y = (s.index[-1] - s.index[0]).days / 365.25
+    return ((s.iloc[-1] / s.iloc[0]) ** (1 / y) - 1) * 100
+def sharpe(s):
+    r = s.pct_change().dropna()
+    return r.mean() / r.std() * np.sqrt(252) if r.std() > 0 else 0.0
+def before_tc(eq, log):
+    """CAGR with the cost drag removed from the realised path. Not a zero-cost re-run."""
+    if not Path(log).exists():
+        return None, 0.0, 0
+    tr = pd.read_csv(log, parse_dates=["date"])
+    tc = tr.groupby("date")["tc"].sum().reindex(eq.index).fillna(0.0)
+    g = (1 + eq.pct_change().fillna(0.0) + (tc / eq.shift(1)).fillna(0.0)).cumprod() * eq.iloc[0]
+    return cagr(g), tc.sum(), len(tr)
+
+
+# ---------------------------------------------------------------------------
+# PER-UNIVERSE PRESENTATION. Paths and index files come from the registry; only
+# what is genuinely presentational lives here.
+# ---------------------------------------------------------------------------
+# DISPLAY IS NOT index_name AND NOT label. The chart title has always said
+# "NIFTY 100" (with a space) and "MIDCAP150" (without the NIFTY prefix), while
+# registry.index_name holds the FILE's name, "NIFTY100" and "NIFTYMIDCAP150",
+# which is what the per-universe legend rows use. Deriving one from the other
+# would silently retitle a published chart, so both are written down.
+DISPLAY = {"n100": "NIFTY 100", "mid": "MIDCAP150",
+           "58": "58 (retired)", "74": "74 (retired)"}
+
+# FOUR COLOURS PER UNIVERSE: v2, v1, buy&hold, index. n100's and mid's are the
+# exact values the two-universe chart used and must not change. 58 and 74 are new
+# here and are chosen not to collide with those eight; their fourth entry is
+# unused, because neither has a published index.
+COLOURS = {
+    "n100": ("#c0392b", "#2e6da4", "#3a9d3a", "#000000"),
+    "mid":  ("#e377c2", "#17becf", "#8fd08f", "#7f7f7f"),
+    "58":   ("#ff7f0e", "#9467bd", "#8c564b", "#555555"),
+    "74":   ("#bcbd22", "#76b7b2", "#b07aa1", "#999999"),
+}
+
+# THE LIQUIDITY PARAGRAPH IS A PER-UNIVERSE MEASUREMENT, NOT CHART FURNITURE.
+# It used to be one hardcoded block naming n100 and mid, which is why the chart
+# could not be drawn for any other set without quoting numbers from universes that
+# were not on it. Each note is that universe's own measured result; a universe with
+# no note contributes nothing rather than a placeholder.
+LIQUIDITY = {
+    "n100": ("n100: 3 of 997 fills exceed 10% of prior-20-day median volume, and "
+             "ZERO do on the 60-day window; modelling\nrealistic depth (10% of "
+             "median daily volume per level, three levels) costs 0.01 CAGR points, "
+             "25.43% -> 25.42%, Sharpe unchanged at 1.88."),
+    "mid":  ("mid: 22 of 985 fills exceed 10%, the largest being 1,614% on AIIL; "
+             "the same depth model costs 1.80 CAGR points, 29.16% -> 27.36%, "
+             "Sharpe 2.00 -> 1.90."),
+}
+
+_COUNT_WORD = {2: "both", 3: "all three", 4: "all four"}
+
+
+def _joined(items):
+    """'a', 'a and b', 'a, b and c' -- the form the two-universe title used."""
+    items = list(items)
+    if len(items) <= 1:
+        return "".join(items)
+    return ", ".join(items[:-1]) + " and " + items[-1]
+
+
+def main():
+    """The step, as a function, so run.py can call it in process."""
+    CAP = 1_000_000
+
+    # WHICHEVER UNIVERSES THIS RUN SELECTED, IN REPORT ORDER. report_order puts
+    # n100 before mid, which is what makes the derived filename resolve to the
+    # published chart_COMBINED_n100_mid.png rather than renaming it.
+    tags = report_order(t for t in selected_tags() if t in REGISTRY)
+
+    if len(tags) < 2:
+        have = ", ".join(tags) or "none"
+        print("=" * 108)
+        print(" COMBINED chart SKIPPED -- it overlays two or more universes and "
+              f"only {len(tags)} is selected.")
+        print(f" selected here: {have}.  A one-series 'combined' chart would just "
+              "restate that universe's")
+        print(" own v2FINAL chart under a name that claims to combine several, so "
+              "nothing is written.")
+        print("=" * 108)
+        return
+
+    # THE FOUR INPUT PATHS ARE SPELLED OUT PER UNIVERSE, IN THE DOTTED FORM, so
+    # check_pipeline_order resolves each read to the right directory. This is the
+    # shape the two-universe step used and it is kept for its reason, not its
+    # history: the scanner is STATIC. Written generically as
+    # `Path(u.metrics_dir) / f"daily_trades_{t}.csv"` the whole block runs
+    # perfectly and resolves to nothing -- measured, 34 resolved cross-step
+    # dependencies down to 26, with the step's own reads listed as
+    # `?/metrics/daily_trades_{t}.csv`. Neither the directory nor the placeholder
+    # can be expanded from a loop variable.
+    #
+    # THE GUARD IS WRITTEN AROUND THE LITERALS, NOT IN PLACE OF THEM -- the same
+    # rule make_daily_audit.py states -- so selection still decides what is read
+    # while the literals stay visible to the scanner.
+    #
+    # A NEW UNIVERSE NEEDS A BLOCK HERE. That is the same obligation
+    # registry.REPORT_ORDER already imposes; and because FILES is looked up with
+    # [t] below, a missing block is a KeyError naming the tag rather than a chart
+    # quietly one universe short.
+    FILES = {}
+    if "n100" in tags:
+        import config_n100
+        FILES["n100"] = (config_n100.METRICS_DIR_N100 / "v2FINAL_equity.csv",
+                         config_n100.METRICS_DIR_N100 / "v2FINAL_params.json",
+                         config_n100.METRICS_DIR_N100 / "daily_trades_n100.csv",
+                         config_n100.METRICS_DIR_N100 / "daily_trades_v1_n100.csv")
+    if "mid" in tags:
+        import config_mid
+        FILES["mid"] = (config_mid.METRICS_DIR_MID / "v2FINAL_equity.csv",
+                        config_mid.METRICS_DIR_MID / "v2FINAL_params.json",
+                        config_mid.METRICS_DIR_MID / "daily_trades_mid.csv",
+                        config_mid.METRICS_DIR_MID / "daily_trades_v1_mid.csv")
+    if "58" in tags:
+        FILES["58"] = (config.METRICS_DIR / "v2FINAL_equity.csv",
+                       config.METRICS_DIR / "v2FINAL_params.json",
+                       config.METRICS_DIR / "daily_trades_58.csv",
+                       config.METRICS_DIR / "daily_trades_v1_58.csv")
+    if "74" in tags:
+        import config74
+        FILES["74"] = (config74.METRICS_DIR_74 / "v2FINAL_equity.csv",
+                       config74.METRICS_DIR_74 / "v2FINAL_params.json",
+                       config74.METRICS_DIR_74 / "daily_trades_74.csv",
+                       config74.METRICS_DIR_74 / "daily_trades_v1_74.csv")
+
+    UNIV = []
+    for t in tags:
+        u = REGISTRY[t]
+        eqf, pjf, tr2, tr1 = FILES[t]
+        UNIV.append({
+            "tag": t, "u": u, "M": Path(eqf).parent,
+            "eqf": eqf, "pjf": pjf, "tr2": tr2, "tr1": tr1,
+            "idxfile": u.index_file, "idxname": u.index_name,
+            "display": DISPLAY.get(t, t),
+            "colours": COLOURS.get(t, ("#1f77b4", "#7f7f7f", "#2ca02c", "#000000")),
+        })
+
+    # THE FILENAME NAMES WHAT IS ACTUALLY ON THE CHART, in plotting order. With
+    # n100 and mid selected this is exactly chart_COMBINED_n100_mid.png.
+    OUT = UNIV[0]["M"] / ("chart_COMBINED_" + "_".join(u["tag"] for u in UNIV) + ".png")
+
+    print("=" * 108)
+    print(" COMBINED -- " + _joined([u["display"] for u in UNIV])
+          + ". Every number printed before plotting.")
+    unsel = [t for t in REGISTRY if t not in tags]
+    if unsel:
+        print(f" Universes outside this selection ({', '.join(unsel)}) are not on "
+              "this chart.")
+    else:
+        print(" Every registered universe is on this chart.")
+    print("=" * 108)
+    print(f"\n  SURVIVORSHIP: {sv.describe_state()}")
+
+    series = []
+    for row in UNIV:
+        t = row["tag"]
+        eq = pd.read_csv(row["eqf"], parse_dates=["date"]).set_index("date")
+        params = json.loads(row["pjf"].read_text())
+        inv = params["avg_exposure_pct"]
+        c_v2, c_v1, c_bh, c_ix = row["colours"]
+
+        b_v2 = before_tc(eq["strategy"], row["tr2"])
+        b_v1 = before_tc(eq["baseline_invvol"], row["tr1"])
+
+        # THE INDEX LINE ONLY WHERE THE UNIVERSE HAS A PUBLISHED INDEX.
+        index = None
+        if row["idxfile"] is not None:
+            raw = (config.read_price_csv(row["idxfile"])[["date", "close"]].dropna()
+                   .set_index("date")["close"].sort_index())
+            s_ = raw.reindex(eq.index.union(raw.index)).ffill().reindex(eq.index)
+            index = CAP * s_ / s_.iloc[0]
+
+        nsym = len(row["u"].symbols()) if row["u"].symbols() is not None else None
+        head = (f"\n  {t.upper()}  "
+                + (f"({nsym} constituents, {row['idxname']} excluded by name)  "
+                   if nsym is not None else "(directory-defined basket)  ")
+                + f"window {eq.index[0].date()} -> {eq.index[-1].date()}  inv {inv}%")
+        print(head)
+        print(f"    {'series':<46}{'before TC':>11}{'after TC':>10}{'Sharpe':>8}{'MaxDD%':>9}")
+        printable = [(f"{t} v2 (breadth)", eq["strategy"], b_v2[0]),
+                     (f"{t} v1 (inv-vol)", eq["baseline_invvol"], b_v1[0]),
+                     (f"{t} buy&hold (equal-weight universe)", eq["buyhold"], None)]
+        if index is not None:
+            printable.append((f"{row['idxname']} (cap-weighted index)", index, None))
+        for lab, s2, b in printable:
+            bt = f"{b:>10.2f}%" if b is not None else f"{'--':>11}"
+            print(f"    {lab:<46}{bt}{cagr(s2):>9.2f}%{sharpe(s2):>8.2f}{dd(s2).min():>8.2f}%")
+        print(f"    v2 trades {b_v2[2]}, TC Rs {b_v2[1]:,.0f}   |   "
+              f"v1 trades {b_v1[2]}, TC Rs {b_v1[1]:,.0f}")
+
+        series += [
+            (f"{t} v2 (breadth)  [inv {inv}%]", eq["strategy"], c_v2, "-",
+             f"CAGR {b_v2[0]:.2f}% before TC / {cagr(eq['strategy']):.2f}% after TC"
+             f"  [{b_v2[2]} trades, Rs {b_v2[1]:,.0f}]"),
+            (f"{t} v1 (inv-vol)  [inv 100%]", eq["baseline_invvol"], c_v1, "-",
+             f"CAGR {b_v1[0]:.2f}% before TC / {cagr(eq['baseline_invvol']):.2f}% after TC"
+             f"  [{b_v1[2]} trades, Rs {b_v1[1]:,.0f}]"),
+            (f"{t} buy&hold (equal-weight universe)  [inv 100%]", eq["buyhold"], c_bh, "--",
+             f"CAGR {cagr(eq['buyhold']):.2f}%  (buy once, hold: no TC)"),
+        ]
+        if index is not None:
+            series.append(
+                (f"{row['idxname']} (cap-weighted index)  [inv 100%]", index, c_ix, ":",
+                 f"CAGR {cagr(index):.2f}%  (index level, not a portfolio: no TC)"))
+
+    sub = _subtitle(UNIV, tags, unsel)
+    fig, ax = plt.subplots(2, 1, figsize=(17, 12), height_ratios=[2, 1])
+    for lab, s2, c, ls, extra in series:
+        ax[0].plot(s2.index, cum(s2), lw=1.9, color=c, ls=ls, label=f"{lab}  {extra}")
+    ax[0].axhline(0, color="k", lw=.6, alpha=.5)
+    ax[0].set_ylabel("Cumulative return (%)")
+    ax[0].yaxis.set_major_formatter(PercentFormatter(decimals=0))
+    ax[0].set_title(sub, fontsize=9)
+    ax[0].legend(loc="upper left", fontsize=8); ax[0].grid(alpha=.3)
+    for lab, s2, c, ls, _ in series:
+        ax[1].plot(s2.index, dd(s2), lw=1.3, color=c, ls=ls,
+                   label=f"{lab.split('  [')[0]} (max {dd(s2).min():.1f}%)")
+    ax[1].set_ylabel("Drawdown (%)")
+    ax[1].yaxis.set_major_formatter(PercentFormatter(decimals=0))
+    ax[1].legend(loc="lower left", fontsize=7.5, ncol=2); ax[1].grid(alpha=.3)
+    plt.tight_layout()
+    plt.savefig(OUT, dpi=150, bbox_inches="tight")
+    print(f"\n  saved -> {OUT}")
+
+
+def _subtitle(UNIV, tags, unsel):
+    """The chart's own description of what is on it, derived from what is on it.
+
+    EVERY CLAUSE IS CONDITIONAL ON THE UNIVERSES ACTUALLY PLOTTED. The old block
+    was one hardcoded string naming n100 and mid, including a liquidity paragraph
+    quoting their measured numbers, so drawing any other set would have printed
+    claims about universes that were not on the page.
+
+    With n100 and mid selected this reproduces that string exactly, which is
+    checked by byte-comparing the PNG rather than by reading the code.
+    """
+    n = len(UNIV)
+    word = _COUNT_WORD.get(n, f"all {n}")
+    has_index = [u for u in UNIV if u["idxfile"] is not None]
+
+    line1 = (_joined([u["display"] for u in UNIV])
+             + " -- v1, v2, own-universe equal-weight buy&hold, and the "
+             + ("published cap-weighted index for each"
+                if len(has_index) == n else
+                "published cap-weighted index where the universe has one")
+             + "\n")
+
+    line2 = ("ALL STRATEGY NUMBERS AFTER TC (Zerodha + 0.15% slippage); before-TC "
+             "also shown in the legend.")
+    if unsel:
+        # Reproduces "  58 and 74 are out of scope and are not plotted." including
+        # the double space that separated the two sentences.
+        if len(unsel) > 1:
+            line2 += f"  {_joined(unsel)} are out of scope and are not plotted."
+        else:
+            line2 += f"  {unsel[0]} is out of scope and is not plotted."
+    line2 += "\n"
+
+    line3 = ""
+    if has_index:
+        line3 = ("The cap-weighted index is investable and is NOT survivorship-biased. ")
+    line3 += ("The equal-weight buy&hold is neither investable nor achievable: "
+              f"{word} universes are\n"
+              "today's index members backfilled, so names dropped or delisted during "
+              "the window are absent entirely and both strategy and buy&hold are "
+              "inflated.\n")
+
+    # LIQUIDITY BELONGS HERE MOST OF ALL.
+    #   Each universe's individual chart carries its own liquidity line, but this
+    #   is the only page where they appear together, and the contrast is the whole
+    #   point: the same depth model costs n100 0.01 CAGR points and mid 1.80.
+    #   Reading mid's 29.18% next to n100's 25.36% without that is reading a gap of
+    #   3.8 points that realistic execution more than halves.
+    notes = [LIQUIDITY[u["tag"]] for u in UNIV if u["tag"] in LIQUIDITY]
+    liq = ("LIQUIDITY, at Rs 10,00,000 starting capital. " + "\n".join(notes) + "\n"
+           if notes else "")
+
+    # WINDOWS THAT DO NOT END TOGETHER ARE SAID SO, ON THE CHART.
+    # The live pair ends 2026-05-29, the 58 runs to 2026-06-08 and the 74 stops
+    # 2025-12-23. Comparing cumulative returns across universes that stop on
+    # different days is partly reading a calendar difference, and a reader should
+    # not have to open another file to discover that. Empty when they agree, which
+    # is why the n100+mid chart is unchanged.
+    ends = {u["tag"]: pd.read_csv(u["eqf"], parse_dates=["date"])["date"].iloc[-1]
+            for u in UNIV}
+    win = ""
+    if len({e.date() for e in ends.values()}) > 1:
+        win = ("WINDOWS DIFFER and the lines therefore stop on different days: "
+               + ", ".join(f"{t} to {e.date()}" for t, e in ends.items())
+               + ". Cross-universe CAGR here is not like-for-like.\n")
+
+    return line1 + line2 + line3 + liq + win + sv.describe_state()
+
+
+if __name__ == "__main__":
+    main()

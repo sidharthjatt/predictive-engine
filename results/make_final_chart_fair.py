@@ -46,7 +46,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import config
 import survivorship as sv
-from universes.registry import REGISTRY
+from universes.registry import REGISTRY, selected_tags
 
 # config74 is imported inside main() under the 74's guard. At module level a
 # deleted config74.py would make this step unimportable, taking the 58's half of
@@ -261,11 +261,19 @@ def main():
         df=CMP[u]; row=df[df["Config"].str.contains("Inverse-vol" if v1 else "breadth scaling")]
         return int(row["Trades"].iloc[0]), float(row["TC_Rs"].iloc[0])
     # ---------------------------------------------------------------- universes
-    # WHICHEVER OF 58 AND 74 IS REGISTERED. Unlike the combined n100/mid chart,
-    # this one compares STRATEGY AGAINST BENCHMARK, which stays meaningful with a
-    # single universe -- so it runs on what remains and only skips when both are
-    # gone. Registry order is preserved, so with both present every series, colour
-    # and label is in exactly the position it was.
+    # WHICHEVER OF 58 AND 74 THIS RUN SELECTED. Registration is not selection:
+    # `--universe mid,58` leaves 74 registered but nobody asked for it, and putting
+    # it on this chart would report a universe the caller did not select. SEL is the
+    # selection intersected with the registry, so a removed universe is still gone
+    # and an unselected one is now gone too. With no selection set -- this step run
+    # on its own -- it is every registered universe, which is what the guards below
+    # tested before, so the default output does not move.
+    # Unlike make_combined_universes.py, this one compares STRATEGY AGAINST
+    # BENCHMARK, which stays meaningful with a SINGLE universe -- so it runs on
+    # whatever of the two remains and only skips when both are gone. Registry order
+    # is preserved, so with both present every series, colour and label is in
+    # exactly the position it was.
+    SEL = set(selected_tags())
     COLOURS={"58":("#ff9999","#7fb3e0","#8fd08f"),
              "74":("#c0392b","#2e6da4","#3a9d3a")}
     # M58 / M74 ARE ASSIGNED IN THE PLAIN `VAR = config*.METRICS_DIR*` SHAPE, and
@@ -276,7 +284,7 @@ def main():
     # dict still exists for iteration; the literals exist for the checker.
     METRICS={}
     EQF={}; CMPF={}; CASHF={}; TRF={}
-    if "58" in REGISTRY:
+    if "58" in SEL:
         M58=config.METRICS_DIR
         METRICS["58"]=M58
         EQF["58"]=M58/"v2FINAL_equity.csv"
@@ -284,7 +292,7 @@ def main():
         CASHF["58"]=M58/"cash_series_58.csv"
         TRF["58 v2"]=M58/"daily_trades_58.csv"
         TRF["58 v1"]=M58/"daily_trades_v1_58.csv"
-    if "74" in REGISTRY:
+    if "74" in SEL:
         import config74
         M74=config74.METRICS_DIR_74
         METRICS["74"]=M74
@@ -295,7 +303,7 @@ def main():
         TRF["74 v1"]=M74/"daily_trades_v1_74.csv"
     if not METRICS:
         print("="*94)
-        print(" FINAL fair chart SKIPPED -- neither 58 nor 74 is registered.")
+        print(" FINAL fair chart SKIPPED -- neither 58 nor 74 is in this run's selection.")
         print(" This step compares those two retired universes against the NIFTY100")
         print(" index; with both removed there is nothing to chart and no")
         print(" fair_comparison_table.csv is written. make_final_summary.py, which")
@@ -413,10 +421,11 @@ def main():
     # index CAGR by 2.4 points. With one universe there is no second window to match
     # to and the "matched" chart would be a byte-for-byte duplicate of the full one
     # under a name promising a comparison it does not contain -- the same reason the
-    # combined n100/mid chart skips below two universes.
+    # combined chart skips below two universes.
     if len(TAGS) < 2:
         print("\n" + "="*94)
-        print(f" MATCHED-WINDOW chart SKIPPED -- only {TAGS[0]} is registered, so there is")
+        print(f" MATCHED-WINDOW chart SKIPPED -- only {TAGS[0]} is in this run's "
+              "selection, so there is")
         print(" no second window to match to. The full-window chart above is the whole")
         print(" comparison; no _matched.png is written.")
         print("="*94)

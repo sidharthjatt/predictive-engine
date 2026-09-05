@@ -110,6 +110,13 @@ class Universe:
     purge_mode: str               # "calendar" (frozen, defective) | "trading"
     frozen: bool                  # retired: published numbers must not move
     index_name: Optional[str]     # published index, excluded from the universe
+    # THE PUBLISHED INDEX PRICE FILE, or None where the universe has no published
+    # index at all. index_name has always recorded that a universe HAS one; this
+    # records WHERE it is, so a step that plots the cap-weighted benchmark can ask
+    # the universe instead of importing that universe's config module by name.
+    # None for the retired 58 and 74: they are directory-defined baskets with no
+    # published index series, which is a fact about them and not a missing path.
+    index_file: Optional[Path]
     year_range: Optional[Tuple[int, int]]      # frozen universes cut by year
     date_range: Optional[Tuple[object, object]]  # live universes cut by date
     _symbols: Optional[Callable]  # authoritative symbol list, where one exists
@@ -165,7 +172,7 @@ _58 = Universe(
     raw_cache=config.METRICS_DIR / "raw_panel_cache.csv",
     nautilus_scores="scores_58.parquet",
     nautilus_end="2026-06-08",
-    purge_mode="calendar", frozen=True, index_name=None,
+    purge_mode="calendar", frozen=True, index_name=None, index_file=None,
     year_range=(2019, 2026), date_range=None, _symbols=None,
     _prepare=None
 )
@@ -182,7 +189,7 @@ if config74 is not None:
         raw_cache=config74.METRICS_DIR_74 / "raw_panel74_cache.csv",
         nautilus_scores="scores_74.parquet",
         nautilus_end="2025-12-23",
-        purge_mode="calendar", frozen=True, index_name=None,
+        purge_mode="calendar", frozen=True, index_name=None, index_file=None,
         year_range=(2019, 2025), date_range=None, _symbols=None,
         _prepare=None
     )
@@ -201,6 +208,7 @@ if config_mid is not None:
         nautilus_end=str(config.BT_END_DATE.date()),
         purge_mode="trading", frozen=False,
         index_name=config_mid.INDEX_NAME_MID,
+        index_file=config_mid.INDEX_FILE_MID,
         year_range=None, date_range=(config.BT_START_DATE, config.BT_END_DATE),
         _symbols=lambda: set(config_mid.SYMBOLS_MID),
         _prepare=config_mid.ensure_constituents_dir
@@ -220,6 +228,7 @@ if config_n100 is not None:
         nautilus_end=str(config.BT_END_DATE.date()),
         purge_mode="trading", frozen=False,
         index_name=config_n100.INDEX_NAME_N100,
+        index_file=config_n100.INDEX_FILE_N100,
         year_range=None, date_range=(config.BT_START_DATE, config.BT_END_DATE),
         _symbols=lambda: set(config_n100.SYMBOLS_N100),
         _prepare=config_n100.ensure_constituents_dir
@@ -241,6 +250,104 @@ REGISTRY = {u.tag: u for u in (_58, _74, _MID, _N100) if u is not None}
 # verify_v34_arms.py's report, which is how this note came to exist.
 LIVE = [u for u in REGISTRY.values() if not u.frozen]
 FROZEN = [u for u in REGISTRY.values() if u.frozen]
+
+
+# ---------------------------------------------------------------------------
+# REPORTING ORDER -- the sequence a MULTI-UNIVERSE report puts universes in.
+# ---------------------------------------------------------------------------
+# THIS IS NOT REGISTRY ORDER AND MUST NOT BE. Registry order is declaration order
+# (58, 74, mid, n100) and it is the right answer for selection, where the question
+# is "which universes", a set. It is the WRONG answer for a report, where position
+# is visible in a filename, a legend and a colour assignment.
+#
+# n100 BEFORE mid, because every study script in this repository iterates n100
+# first -- the note on LIVE above says so -- and the published combined chart is
+# chart_COMBINED_n100_mid.png. Sorting these two the other way would rename a
+# figure that is already referenced in docs/README.md.
+#
+# LIVE BEFORE RETIRED, because the live pair is the project's current scope and a
+# combined chart that leads with a retired universe misstates what is being
+# reported. Within the retired pair, declaration order: 58 then 74.
+#
+# A TAG ABSENT FROM REGISTRY IS SIMPLY SKIPPED, so this stays correct as universes
+# are removed. A registered tag absent from THIS tuple would be dropped silently
+# from every combined report, which is why report_order() raises on one instead.
+REPORT_ORDER = ("n100", "mid", "58", "74")
+
+
+# ---------------------------------------------------------------------------
+# WHAT THIS RUN SELECTED -- registration and selection are NOT the same thing.
+# ---------------------------------------------------------------------------
+# REGISTRY answers "which universes EXIST in this checkout". A run answers a
+# narrower question: "which universes did the caller ASK FOR". Until now the two
+# were conflated, because every multi-universe step gated on `"74" in REGISTRY`.
+# That is correct for a REMOVED universe and wrong for an UNSELECTED one:
+# `run.py --universe mid,58` would still put 74 on the fair-comparison chart,
+# because 74 is registered even though nobody asked for it.
+#
+# A REPORT MUST NEVER SHOW A UNIVERSE THE CALLER DID NOT SELECT. So selection is
+# recorded here, next to the registry, and the steps that build multi-universe
+# output ask `selected_tags()` instead of `REGISTRY`.
+#
+# THE DEFAULT IS EVERY REGISTERED UNIVERSE, which is exactly what those steps saw
+# before this existed. So a step run on its own -- `python results/<step>.py`, a
+# test, an import from a notebook -- behaves as it always did, and a full
+# `--universe all` run is unchanged. Verified byte-identical on all 281 artefacts.
+_SELECTED = None
+
+
+def set_selection(tags):
+    """Record which universes this run selected. Called once by run.py.
+
+    Unknown tags raise: silently narrowing a selection to nothing is how a run
+    produces no output and reports success. Passing None restores the default.
+    """
+    global _SELECTED
+    if tags is None:
+        _SELECTED = None
+        return
+    want = [t.tag if hasattr(t, "tag") else t for t in tags]
+    unknown = [t for t in want if t not in REGISTRY]
+    if unknown:
+        raise KeyError(f"cannot select unregistered universe(s) {', '.join(unknown)}; "
+                       f"registered: {', '.join(REGISTRY)}")
+    _SELECTED = [t for t in REGISTRY if t in set(want)]
+
+
+def selected_tags():
+    """The tags this run is working on, in REGISTRY order.
+
+    Defaults to every registered universe when nothing has set a selection.
+    Intersected with REGISTRY on every call, so a universe removed after the
+    selection was set cannot come back through this door.
+    """
+    if _SELECTED is None:
+        return list(REGISTRY)
+    return [t for t in _SELECTED if t in REGISTRY]
+
+
+def selected():
+    """selected_tags() as Universe objects."""
+    return [REGISTRY[t] for t in selected_tags()]
+
+
+def report_order(tags):
+    """`tags` in REPORT_ORDER sequence. Accepts any iterable of tags or Universes.
+
+    Raises on a registered tag this tuple does not name, rather than dropping it:
+    a new universe added to REGISTRY and forgotten here would otherwise vanish from
+    every multi-universe chart with no error, which is the failure mode the whole
+    registry exists to prevent.
+    """
+    want = [t.tag if hasattr(t, "tag") else t for t in tags]
+    missing = [t for t in want if t not in REPORT_ORDER]
+    if missing:
+        raise KeyError(
+            f"universes/registry.REPORT_ORDER does not name {', '.join(missing)}. "
+            "Every registered universe must have a position there, or it would be "
+            "dropped from combined reports without an error. Add it.")
+    seen = set(want)
+    return [t for t in REPORT_ORDER if t in seen]
 
 
 def get(tag):

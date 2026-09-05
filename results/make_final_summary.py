@@ -8,7 +8,7 @@ from pathlib import Path
 import pandas as pd
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import config
-from universes.registry import REGISTRY
+from universes.registry import REGISTRY, selected_tags
 
 # config74 WAS IMPORTED HERE AND NEVER USED -- M74 was assigned from it and read
 # nowhere. Dropped rather than guarded: an import that exists only to be assigned
@@ -26,13 +26,16 @@ def main():
 
     # THIS STEP IS DOWNSTREAM OF make_final_chart_fair.py AND SKIPS WITH IT.
     # That step writes fair_comparison_table.csv and skips entirely when neither 58
-    # nor 74 is registered; with no table there is nothing to summarise. The two
+    # nor 74 is SELECTED; with no table there is nothing to summarise. The two
     # conditions are checked independently rather than one inferred from the other,
     # so a missing table for any OTHER reason still reports honestly instead of
     # crashing inside pandas.
-    if not ({"58", "74"} & set(REGISTRY)):
-        print("FINAL summary SKIPPED -- neither 58 nor 74 is registered, so "
-              "make_final_chart_fair.py wrote no fair_comparison_table.csv.")
+    # SELECTION, NOT REGISTRATION -- the same condition make_final_chart_fair.py
+    # now uses, so the two cannot disagree about whether a table was written.
+    if not ({"58", "74"} & set(selected_tags())):
+        print("FINAL summary SKIPPED -- neither 58 nor 74 is in this run's "
+              "selection, so make_final_chart_fair.py wrote no "
+              "fair_comparison_table.csv.")
         return
     src = M58 / "fair_comparison_table.csv"
     if not src.exists():

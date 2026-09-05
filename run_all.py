@@ -214,7 +214,14 @@ REQUIRED_INPUTS = {
         (ROOT / "results_n100" / "metrics" / "daily_trades_v1_n100.csv",
          "STEP 10f engine_v2_final_n100.py"),
     ],
-    "make_combined_n100_mid.py": [
+    # THE COMBINED STEP READS EVERY SELECTED UNIVERSE'S TRADE LOG, and the two
+    # retired universes' logs are written by STEP 12 make_daily_audit.py. That is
+    # why this step moved from STEP 10i to STEP 12b: at 10i the 58 and 74 logs did
+    # not exist yet, so a combined chart over those universes could not have been
+    # drawn at all. The mid and n100 edges are declared because a full run always
+    # has both; the 58/74 edges are NOT declared here because those universes can
+    # legitimately be absent from a selection, and check_inputs is a hard failure.
+    "make_combined_universes.py": [
         (ROOT / "results_mid" / "metrics" / "daily_trades_mid.csv",
          "STEP 10c make_mid_audit.py"),
         (ROOT / "results_n100" / "metrics" / "daily_trades_n100.csv",
@@ -272,9 +279,16 @@ PIPELINE_ORDER = [
     ("STEP 10f", "engine_v2_final_n100.py"),
     ("STEP 10g", "make_n100_audit.py"),
     ("STEP 10h", "make_n100_chart.py"),
-    ("STEP 10i", "make_combined_n100_mid.py"),
     ("STEP 11", "make_cash_series.py"),
     ("STEP 12", "make_daily_audit.py"),
+    # MOVED FROM STEP 10i, and the move is load-bearing rather than cosmetic.
+    # The combined chart is now generic over the selection, so it may need the 58's
+    # and the 74's per-trade logs -- and those are written by STEP 12 immediately
+    # above. At 10i they did not exist, which is why the old step could only ever
+    # combine mid and n100. Its mid and n100 inputs are written at 10c and 10g, so
+    # they are still upstream; nothing consumes the chart, so nothing downstream
+    # moved. Output verified byte-identical across the move.
+    ("STEP 12b", "make_combined_universes.py"),
     ("STEP 13", "make_final_chart_fair.py"),
     ("STEP 14", "make_final_summary.py"),
     ("STEP 15", "make_daily_log.py"),

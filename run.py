@@ -96,7 +96,10 @@ STEP_UNIVERSES = {
     "engine_v2_final_n100.py":    ("n100",),
     "make_n100_audit.py":         ("n100",),
     "make_n100_chart.py":         ("n100",),
-    "make_combined_n100_mid.py":  ("mid", "n100"),
+    # SERVES EVERY UNIVERSE. It draws one comparison across whichever of them the
+    # run selected, so it is selected whenever ANY universe is -- and then decides
+    # for itself, from the selection, whether there are enough to compare.
+    "make_combined_universes.py":  ("58", "74", "mid", "n100"),
     "make_cash_series.py":        ("58", "74"),
     "make_daily_audit.py":        ("58", "74"),
     "make_final_chart_fair.py":   ("58", "74"),
@@ -153,11 +156,37 @@ def show(p):
 
 
 def resolve_universes(name):
+    """ANY SUBSET OF THE REGISTERED UNIVERSES, size 1 to 4.
+
+    Accepts "all" (every registered universe), a single tag, or a comma-separated
+    list -- "mid,58". Whitespace around a tag is tolerated because a shell quoting
+    a list is the normal way this gets typed.
+
+    THE RESULT IS ALWAYS IN REGISTRY ORDER, NOT IN THE ORDER TYPED. Selection must
+    name a SET, not a sequence: `--universe mid,58` and `--universe 58,mid` are the
+    same request and must produce the same artefacts, or the filename of a combined
+    comparison would depend on typing order and two runs of the same selection
+    would leave two files. Reporting order is a separate decision and lives in
+    universes/registry.REPORT_ORDER, which the steps that care consult.
+
+    A REPEATED TAG IS NOT AN ERROR, it is the same set: `--universe mid,mid` is mid.
+    Deduplication happens through REGISTRY iteration below, so it cannot produce a
+    universe twice on one chart.
+    """
     if name in ("all", None):
         return list(REGISTRY.values())
-    if name not in REGISTRY:
-        raise SystemExit(f"unknown universe {name!r}; known: {', '.join(REGISTRY)}")
-    return [REGISTRY[name]]
+    want = [t.strip() for t in str(name).split(",") if t.strip()]
+    if not want:
+        raise SystemExit("--universe was empty; give a tag, a comma-separated list, "
+                         f"or 'all'. known: {', '.join(REGISTRY)}")
+    unknown = [t for t in want if t not in REGISTRY]
+    if unknown:
+        # NAMES EVERY UNKNOWN TAG, not just the first. Typing three tags and being
+        # told about one typo at a time is three runs to learn one thing.
+        raise SystemExit(f"unknown universe(s) {', '.join(repr(t) for t in unknown)}; "
+                         f"known: {', '.join(REGISTRY)}")
+    sel = set(want)
+    return [u for t, u in REGISTRY.items() if t in sel]
 
 
 def resolve_arms(name):
@@ -294,7 +323,8 @@ def print_plan(plan, args, show_paths=False):
 def main(argv=None):
     ap = argparse.ArgumentParser(description="Run the pipeline for one universe/arm combination.")
     ap.add_argument("--universe", default="all",
-                    help="universe tag, or 'all' (default). " + ", ".join(REGISTRY))
+                    help="universe tag, a comma-separated subset (e.g. mid,58), or "
+                         "'all' (default). known: " + ", ".join(REGISTRY))
     ap.add_argument("--arm", default="all",
                     help="arm name, or 'all' (default). " + ", ".join(ARMS))
     ap.add_argument("--steps", default="all", choices=("all", "pipeline", "arms"),
@@ -325,6 +355,14 @@ def execute(plan, args):
     mod = plan.get("_run_all")
     if mod is None:
         _, mod, _ = pipeline_steps(plan["universes"])
+
+    # TELL THE STEPS WHAT WAS SELECTED, not just what is registered.
+    # A step that builds MULTI-UNIVERSE output cannot get this from REGISTRY: with
+    # `--universe mid,58` the registry still holds 74, and the fair-comparison
+    # chart would put a universe on the page that nobody asked for. Set once, here,
+    # before any step runs, so every step sees the same answer.
+    import universes.registry as _reg
+    _reg.set_selection([u.tag for u in plan["universes"]])
 
     # SAFETY 1 -- the determinism pin is already set, at the top of this file,
     # before any numeric import. Nothing to do here; it is listed so the four are
