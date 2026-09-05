@@ -1892,9 +1892,51 @@ code reads*.
 
 ---
 
+## A full run no longer refreshes chart_COMBINED_n100_mid.png
+
+Recorded 2026-09-06, when `make_combined_n100_mid.py` became
+`make_combined_universes.py` and started comparing whichever universes the run
+selected instead of a hardcoded pair.
+
+**The behaviour change, stated plainly.** The combined chart's filename is derived
+from the selection, so:
+
+    --universe n100,mid   ->  chart_COMBINED_n100_mid.png     (the published figure)
+    --universe all        ->  chart_COMBINED_n100_mid_58_74.png
+    --universe mid,58     ->  chart_COMBINED_mid_58.png
+    --universe mid        ->  nothing; one universe is not a comparison
+
+`--universe all` is the default, and it used to write
+`chart_COMBINED_n100_mid.png`. It now writes the four-universe file instead. **The
+two-universe figure is not overwritten, not deleted, and not refreshed** -- it is
+simply not what a four-universe selection produces.
+
+**THE PUBLISHED FIGURE ITSELF DID NOT MOVE.** `--universe n100,mid` reproduces
+`chart_COMBINED_n100_mid.png` byte for byte against the pre-change baseline;
+verified as a file comparison, twice, in the session that made the change. What
+changed is which invocation produces it, not what it contains.
+
+**Why this is a trap.** `docs/README.md` embeds the two-universe chart, and the
+project's habit is to run `--universe all`. After such a run the docs copy is stale
+and nothing says so, because the file it points at was not touched rather than
+rewritten with different numbers. `docs/README.md` now carries this warning next to
+the table; regenerate that figure with `--universe n100,mid`.
+
+**Not resolved by choosing for the reader.** Making `--universe all` emit both the
+four-universe chart and the n100+mid one would contradict the rule the step is
+built on -- one comparison across exactly the selected set -- and would put a file
+on disk that no selection asked for. Recorded instead.
+
+**Caveat on the byte-identity claim above.** It is a SAME-SESSION result, and the
+next entry records that this specific PNG has drifted by two pixels of height
+ACROSS sessions on identical inputs. The comparison here is therefore valid against
+that known limit and no stronger: it shows the rename and the genericisation
+changed nothing, not that the file is reproducible next month.
+
 ## chart_COMBINED_n100_mid.png is not byte-reproducible across sessions
 
-Found 2026-09-04. `make_combined_n100_mid.py` saves with `bbox_inches="tight"`, and
+Found 2026-09-04. The step that draws it -- `make_combined_universes.py`, which was
+`make_combined_n100_mid.py` until 2026-09-06 -- saves with `bbox_inches="tight"`, and
 the tight bounding box has been observed to differ by two pixels of height (1764 vs
 1766) between sessions on identical inputs and identical code. The same file run
 twice in one session is stable, so this is not run-to-run noise -- it drifts across

@@ -13,7 +13,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from _frozen_guard import guard as _frozen_guard
 import config
 from engine_core import precompute
-from universes.registry import REGISTRY
+from universes.registry import REGISTRY, selected_tags
 
 # config74 IS IMPORTED INSIDE main(), UNDER THE 74's GUARD, not here. A top-level
 # import makes this whole module unloadable once config74.py is deleted, which
@@ -102,15 +102,23 @@ def main():
     # being absent has no bearing on the other, so each is guarded on its own and
     # says so rather than being skipped silently.
     done = []
-    if "58" in REGISTRY:
+    # SELECTION, NOT REGISTRATION. `--universe 58` leaves 74 registered but
+    # unselected, and this step used to do 74's work anyway -- writing artefacts
+    # for a universe the caller did not ask for. selected_tags() defaults to every
+    # registered universe, so a standalone run of this file is unchanged.
+    # The literal REGISTRY["<tag>"] subscripts below are kept deliberately:
+    # check_pipeline_order reads them to resolve this step's outputs, and only the
+    # GUARD moved to the selection, not the subscript.
+    SEL = set(selected_tags())
+    if "58" in SEL:
         print("Building 58 cash series...")
         c58=run_with_cash(cache("/tmp/v5_expanding.csv","results/metrics/v5_expanding_cache.csv"),2026)
         c58.to_csv(config.METRICS_DIR/"cash_series_58.csv")
         print(f"  58 avg cash%: {c58.cash_pct.mean():.1f}%")
         done.append("cash_series_58.csv")
     else:
-        print("  58 not in the registry -- skipping its cash series")
-    if "74" in REGISTRY:
+        print("  58 not selected for this run -- skipping its cash series")
+    if "74" in SEL:
         import config74
         print("Building 74 cash series...")
         c74=run_with_cash(cache("/tmp/v74_expanding.csv","results74/metrics/v74_expanding_cache.csv"),2025)
@@ -118,8 +126,8 @@ def main():
         print(f"  74 avg cash%: {c74.cash_pct.mean():.1f}%")
         done.append("cash_series_74.csv")
     else:
-        print("  74 not in the registry -- skipping its cash series")
-    print("Done -> " + (", ".join(done) if done else "nothing (no registered universe)"))
+        print("  74 not selected for this run -- skipping its cash series")
+    print("Done -> " + (", ".join(done) if done else "nothing (neither 58 nor 74 selected)"))
 
 
 if __name__ == "__main__":

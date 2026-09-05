@@ -424,7 +424,7 @@ def main():
     here with AttributeError. The statements below are the guard's, in order.
     """
     import config
-    from universes.registry import REGISTRY
+    from universes.registry import REGISTRY, selected_tags
     print("Building forensic daily logs...")
 
     # FOUR INDEPENDENT LOGS, ONE PER UNIVERSE. build() is the same code for all of
@@ -440,25 +440,33 @@ def main():
     # The literals stay literal. check_pipeline_order resolves this file's
     # DAILY_LOG_{tag}.txt through the config.METRICS_DIR* names in the text; a loop
     # over REGISTRY would read the same at runtime and leave the checker blind.
-    if "58" in REGISTRY:
+    # SELECTION, NOT REGISTRATION. `--universe 58` leaves 74 registered but
+    # unselected, and this step used to do 74's work anyway -- writing artefacts
+    # for a universe the caller did not ask for. selected_tags() defaults to every
+    # registered universe, so a standalone run of this file is unchanged.
+    # The literal REGISTRY["<tag>"] subscripts below are kept deliberately:
+    # check_pipeline_order reads them to resolve this step's outputs, and only the
+    # GUARD moved to the selection, not the subscript.
+    SEL = set(selected_tags())
+    if "58" in SEL:
         build(config.METRICS_DIR, "58")
     else:
-        print("  58 not in the registry -- skipping its daily log")
-    if "74" in REGISTRY:
+        print("  58 not selected for this run -- skipping its daily log")
+    if "74" in SEL:
         import config74
         build(config74.METRICS_DIR_74, "74")
     else:
-        print("  74 not in the registry -- skipping its daily log")
-    if "mid" in REGISTRY:
+        print("  74 not selected for this run -- skipping its daily log")
+    if "mid" in SEL:
         import config_mid
         build(config_mid.METRICS_DIR_MID, "mid")
     else:
-        print("  mid not in the registry -- skipping its daily log")
-    if "n100" in REGISTRY:
+        print("  mid not selected for this run -- skipping its daily log")
+    if "n100" in SEL:
         import config_n100
         build(config_n100.METRICS_DIR_N100, "n100")
     else:
-        print("  n100 not in the registry -- skipping its daily log")
+        print("  n100 not selected for this run -- skipping its daily log")
 
 
 if __name__ == "__main__":

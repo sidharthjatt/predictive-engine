@@ -20,7 +20,7 @@ for _p in (str(ROOT), str(ROOT / "results")):
         sys.path.insert(0, _p)
 
 import audit_step
-from universes.registry import REGISTRY
+from universes.registry import REGISTRY, selected_tags
 
 
 def main():
@@ -36,14 +36,22 @@ def main():
     # `if`. Rewriting this as a loop over REGISTRY would run correctly and blind the
     # checker, which is the failure this comment has existed to prevent since S5.
     # Verified by scanning this file before and after: identical edge set.
-    if "58" in REGISTRY:
+    # SELECTION, NOT REGISTRATION. `--universe 58` leaves 74 registered but
+    # unselected, and this step used to do 74's work anyway -- writing artefacts
+    # for a universe the caller did not ask for. selected_tags() defaults to every
+    # registered universe, so a standalone run of this file is unchanged.
+    # The literal REGISTRY["<tag>"] subscripts below are kept deliberately:
+    # check_pipeline_order reads them to resolve this step's outputs, and only the
+    # GUARD moved to the selection, not the subscript.
+    SEL = set(selected_tags())
+    if "58" in SEL:
         audit_step.run(REGISTRY["58"])
     else:
-        print("  58 not in the registry -- skipping its audit")
-    if "74" in REGISTRY:
+        print("  58 not selected for this run -- skipping its audit")
+    if "74" in SEL:
         audit_step.run(REGISTRY["74"])
     else:
-        print("  74 not in the registry -- skipping its audit")
+        print("  74 not selected for this run -- skipping its audit")
 
 
 if __name__ == "__main__":
