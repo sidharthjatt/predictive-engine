@@ -232,10 +232,17 @@ def backtest_exposure(px, op, sc, dates, pc, mom20, port_vol=None,
                 # reciprocal, so a high-vol name gets the LARGE position. Same guard,
                 # same normalisation, same fallback -- only the numerator differs.
                 # Mirrored in nautilus/nt_strategy.py; the two must not drift.
+                # v IS READ BY THE AUDIT BLOCK BELOW, ON EVERY PATH, so it is
+                # bound here rather than inside the else. It used to be bound only
+                # where it was USED FOR SIZING, which made sizing="equal" with an
+                # audit dict raise UnboundLocalError at the vol60 column -- the one
+                # sizing rule that could not be measured was the simplest one.
+                # Hoisting changes nothing for invvol/provol: same expression, same
+                # dt, one line earlier, and nothing in between touches v or pc.
+                v = pc["vol"].loc[dt]
                 if sizing == "equal":
                     w = {s: 1.0 / len(top) for s in top}
                 else:
-                    v = pc["vol"].loc[dt]
                     w = {}
                     for s in top:
                         vs = v.get(s, np.nan)
