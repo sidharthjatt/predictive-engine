@@ -30,8 +30,16 @@ THE STALE-CONFIG RISK, AND HOW IT IS PROVEN ABSENT
     be compared against an inverse-vol reference and would fail for a reason that
     has nothing to do with the port.
 
-Nothing is hardcoded: the 92 comes from the run's own rebalance count.
-Reads the panels, writes nothing in the repository.
+Nothing is hardcoded: the 92 comes from the run's own rebalance count. The four
+arms come from arms/registry.py, so an arm added there is verified here with no
+edit to this file.
+
+Reads the panels and writes NOTHING TRACKED. It is not side-effect free, and the
+docstring used to say "writes nothing in the repository", which was wrong: each
+nt_run.run() call writes orders.csv / fills.csv / positions.csv. Those go to
+nautilus/reports/{universe}/{arm}/ -- gitignored, and per-arm since 2026-09-04,
+before which all four arms of a universe overwrote one directory and only the
+last survived.
 
     python3 verify_v34_arms.py                 # both universes, four arms each
     python3 verify_v34_arms.py --universe=mid  # one universe

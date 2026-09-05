@@ -10,7 +10,13 @@ currently wrong.
 ## There are FIVE reimplementations of the backtest, not two
 
 Found 2026-08-28 as two. Corrected to four on 2026-08-29, then to **five** later
-the same day by the `run_all.py` audit. Open.
+the same day by the `run_all.py` audit. **Four as of 2026-09-04**: the retired
+audit engine was deleted in S2 (commit `9ced314`), after its output was confirmed
+to have no consumers. The other four stand.
+
+The count going DOWN does not retire this entry. The lesson below is about how
+the count was arrived at, not about its value, and deleting one dead engine does
+nothing about the three live ones.
 
 **The count has now been wrong twice, in the same direction.** It was titled "The
 validated engine and the shipping engine are two different implementations", then
@@ -24,7 +30,7 @@ fifth. **Treat five as a floor.**
 | validated | `engine_core.backtest` | the four-test suite, `validate_sizing.py`, the jackknife scripts, `mid_topn_test.py`, `param_surface.py` |
 | shipping | `test_exposure.backtest_exposure` | `engine_v2_final_*.py`, every published v1/v2/v3/v4 number, `validate_breadth_live.py`, the Nautilus port's reference |
 | port reference | `nt_attribution.py`'s inline book | `nt_verify.py`, the 92-of-92 correctness gate |
-| retired audit | `results/make_stats_both.py`'s inline book | nothing reads its output — see below |
+| ~~retired audit~~ | ~~`results/make_stats_both.py`'s inline book~~ | **DELETED 2026-09-04 (S2, `9ced314`)** — had no consumers; see below |
 | cash series | `results/make_cash_series.py:42-70` inline book | **`run_all.py` STEP 13 → STEP 14** — see its own entry below |
 
 The port reference is a deliberate re-implementation: `nt_verify` compares the
@@ -32,10 +38,12 @@ Nautilus port against it, and a reference that imported the engine it is checkin
 would prove nothing. It is counted here because it is a fourth place the rules are
 written down, not because its existence is a mistake.
 
-`make_stats_both.py` and `make_cash_series.py` are counted for the opposite
-reason: nothing justifies either, and **both have already drifted** — the same
-`CASH_Y = 0.06` in each. The difference between them is that
-`make_stats_both.py`'s output is dead and `make_cash_series.py`'s is not.
+`make_stats_both.py` and `make_cash_series.py` were counted for the opposite
+reason: nothing justified either, and **both had already drifted** — the same
+`CASH_Y = 0.06` in each. The difference between them was that
+`make_stats_both.py`'s output was dead and `make_cash_series.py`'s is not, which
+is why only the first one could simply be deleted. **`make_cash_series.py`'s 6%
+is still there** (`frozen/make_cash_series.py:84`) and still reaches a consumer.
 
 Arguably six: `nt_strategy.py` expresses the same rules a third time in Nautilus
 terms. It is listed separately because it is the artefact *under test* — its
@@ -66,17 +74,54 @@ published numbers. So:
 
 - The 2026-08-28 result "n100 passes 4 of 4, mid passes 1 of 4" is a statement
   about the validation engine, not about the shipping engine.
-- No test anywhere compares the two implementations directly. Their agreement is
-  assumed, and the one place it was measured they were 1.80 points apart.
 - `validate_sizing.py` already records that it cannot gate its baseline against a
   production artefact for exactly this reason. That limitation was written down;
   the broader consequence — that the validation does not cover what ships — was
-  not, until now.
+  not, until then.
 
-### The fourth one has drifted, on three constants at once
+**CLOSED 2026-09-04 by `results/validate_engine.py`.** The four tests now run
+against `test_exposure.backtest_exposure` — the engine that produces the
+published numbers — and record their verdicts in
+`diagnostics/validate_engine_{58,mid,n100}.txt`. The claim above that "no test
+anywhere compares the two implementations directly" no longer holds, and neither
+does "the validation does not cover what ships". `engine_core`'s own
+`FINAL_val_*.csv` are untouched and still describe `engine_core.backtest`, so
+both sets of verdicts exist side by side and each says which engine it is about.
 
-`results/make_stats_both.py` reimplements the backtest inline — it does not import
-`backtest_exposure` — and it disagrees with production on three constants:
+**The shipping engine's verdicts are not the validation engine's, and the
+difference is the point of this entry:**
+
+| | 58 (retired) | mid | n100 |
+|---|---|---|---|
+| shipping engine, 2026-09-04 | **4 of 4** | **0 of 4** | **4 of 4** |
+| mean book / trades | 8.15 / 734 | 7.98 / 845 | 8.01 / 831 |
+| Sharpe, equal → invvol | 1.24 → 1.24 | 1.87 → **1.81** | 1.45 → 1.62 |
+
+mid goes from "1 of 4" on the validation engine to **0 of 4** on the engine that
+ships, and each of the four fails for its own reason rather than from one common
+cause — T1 by 0.02 on mean book (7.98 against a [8, 16] range), T2 on 0 of 3 seed
+sets, T3 in the 2019-2022 half, T4 on the vol window. The Sharpe column says why:
+**on mid, inverse-vol does not beat equal-rupee** — 1.87 → 1.81 — so the tests
+that ask "does inverse-vol still win" correctly answer no. Corroborated
+independently on 2026-09-05: an equal-weight arm run through `run.py` on mid
+returns 50.73% CAGR against inverse-vol's 45.87%.
+
+T1 was redefined for this engine and the redefinition is not cosmetic:
+`engine_core`'s T1 asserted mean positions within 0.2 of `TOP_N`, which tested for
+a slot cap the shipping engine does not have. Its book floats in
+`[TOP_N, BUFFER]` by design. Applying the old T1 unchanged would have failed the
+shipping engine for working correctly.
+
+### The fourth one had drifted, on three constants at once — RESOLVED BY DELETION
+
+**`results/make_stats_both.py` was deleted on 2026-09-04 in S2 (`9ced314`), after
+its zero-consumer status was re-verified rather than taken from the 2026-08-29
+grep below. Its three orphaned outputs were removed with it.** The analysis is
+kept because it is the evidence the deletion rested on, and because the
+`make_cash_series.py` entry further down is still open and refers back to it.
+
+It reimplemented the backtest inline — it did not import `backtest_exposure` —
+and it disagreed with production on three constants:
 
 | | `make_stats_both.py` | everywhere else |
 |---|---|---|
@@ -88,8 +133,8 @@ The divergence is visible on disk, same universe and same window: its
 74's own engine, `engine_v2_final74.py`, imports the real `CASH_YIELD` and prints
 "Idle cash earns 0%", so the 6% is this script's alone.
 
-It runs as **STEP 10 of `run_all.py`** (`run_all.py:275`), so it executes on every
-full pipeline run.
+It ran as **STEP 10 of `run_all.py`** (`run_all.py:275`), so it executed on every
+full pipeline run. It is no longer in `PIPELINE_ORDER`; the pipeline is 31 steps.
 
 **WHY IT IS NOT URGENT, WRITTEN DOWN SO THE NEXT READER NEED NOT RE-DERIVE IT.**
 It is retired-universe only. Its docstring says "58 & 74" but there is no 58 call —
@@ -108,13 +153,15 @@ this file, `EXPERIMENTS.md`, or any diagnostics file. Verified by grep on
 So it has been generating figures at 12/24 for as long as the repository has
 existed, and nobody has ever been shown one.
 
-**IT IS NOT A ONE-LINE FIX, AND THAT IS WHY IT IS RECORDED RATHER THAN CORRECTED.**
-Editing `12, 24` to `8, 16` would leave the 6% cash yield in place and produce a
-**third** set of numbers, agreeing with neither the current artefact nor the 74's
-official run. A real fix has to decide the cash yield too, and it moves a retired
-universe's artefacts, which the freeze policy governs. It is also a fourth engine:
-correcting its constants does not stop it from drifting again, only deleting it or
-making it import the shipping engine would.
+**IT WAS NOT A ONE-LINE FIX, AND THAT IS WHY IT WAS RECORDED RATHER THAN
+CORRECTED — AND THEN DELETED.** Editing `12, 24` to `8, 16` would have left the 6%
+cash yield in place and produced a **third** set of numbers, agreeing with neither
+the current artefact nor the 74's official run. A real fix had to decide the cash
+yield too, and it moves a retired universe's artefacts, which the freeze policy
+governs. It was also a fourth engine: correcting its constants would not have
+stopped it drifting again — only deleting it or making it import the shipping
+engine would. **Deletion is the option that was taken**, which is available
+precisely because nothing read its output.
 
 **How it survived.** `TOP_N` and `BUFFER` are defined by literal in ten places with
 no single definition, so nothing could have caught it. `config_n100.py:8` and
@@ -247,11 +294,12 @@ Found 2026-08-29 by the `run_all.py` audit. Open.
 
 against `CASH_YIELD = 0.0` in `results/test_exposure.py:61` and everywhere else.
 It is applied at line 42 as `cd=(1+CASH_Y)**(1/252)-1` and compounded onto cash
-every day of the run. It is the **same 6% literal** that `make_stats_both.py:15`
-carries, in a second script.
+every day of the run. It was the **same 6% literal** that `make_stats_both.py:15`
+carried, in a second script — that script is gone, this one is not.
 
 **UNLIKE `make_stats_both.py`, THIS OUTPUT IS LIVE.** That is the whole
-difference between the two, and it is why this has its own entry.
+difference between the two, and it is why this has its own entry, and why this
+one could not be closed by deleting it. **Still open.**
 
 | step | what happens |
 |---|---|
