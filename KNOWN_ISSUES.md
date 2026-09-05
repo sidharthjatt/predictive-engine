@@ -1892,6 +1892,61 @@ code reads*.
 
 ---
 
+## --arm subsets the v34 MEASUREMENT only; v1/v2 still ship in every run
+
+Recorded 2026-09-06, when `--arm` gained subset selection. This entry states the
+boundary deliberately, because the obvious reading of "unselected arms must not
+appear in outputs" is not what the code does, and the reason is structural.
+
+**WHAT --arm NOW CONTROLS.** Any subset of `{v1, v2, v3, v4}`, defaulting to all
+four. It selects:
+
+    runs/<universe>/<arm>/          one directory per selected combination
+    v34_comparison_<sel>.csv        only the selected arms, plus buy & hold
+    v34_subperiods_<sel>.csv
+    v34_equity_<sel>.csv            one column per selected arm
+    v34_params_<sel>.json           its `arms` map lists only what was measured
+    chart_v34_<sel>.png             title and colours derived from the selection
+
+A FULL selection writes the canonical unsuffixed `v34_*` files exactly as before.
+
+**WHAT IT DOES NOT CONTROL, AND WHY.** `v1` and `v2` are not only measurement
+arms. They are the SHIPPING strategy and its always-invested control, computed by
+each engine and written as the `strategy` and `baseline_invvol` COLUMNS of
+`v2FINAL_equity.csv`. So on any run at all:
+
+  - `v2FINAL_*` is written with both, regardless of `--arm`;
+  - the daily audit trail is v2's — `audit_step.run()` hardcodes `mode="breadth"`
+    and ASSERTS its equity against `v2FINAL_equity.csv["strategy"]`, and
+    `make_daily_log.py` is headed "v2 FINAL (breadth-scaled)";
+  - the combined chart, `make_final_chart_fair.py` and `make_final_summary.py` read
+    those two columns and know nothing of v3/v4, which live in a different file.
+
+**So `--arm v3` still produces artefacts showing v1 and v2.** That is the honest
+statement of the current boundary. Making it otherwise means restructuring
+`v2FINAL_equity.csv` into per-arm columns and re-pointing eight consumers, which
+moves published artefacts and is deferred to its own step.
+
+**THE CANONICAL v34 TABLE IS NEVER OVERWRITTEN BY A SUBSET, and that protects
+seven gates.** `purge_fix_measure`, `seed_noise_measure`, `seed_noise_report`,
+`shuffle_test`, `validate_topn`, `rebal_cadence_sweep` and `drawdown_exit_measure`
+all read `v34_comparison.csv`, and six assert their own control against its **v2
+row**. A two-arm subset overwriting that file would leave all six comparing against
+a table without their reference, and they would fail later, elsewhere, as a missing
+row rather than as this run's doing. A subset writes its own selection-named file
+and leaves the canonical one alone — the same rule the universe work adopted.
+
+**`make_v34_report.py` is unaffected and intentionally so.** It is not a pipeline
+step; it reads the canonical four-arm table and quotes `V34_SPEC.txt` predictions
+that compare v2 against v4 and v1 against v3. Those comparisons have no meaning on
+a subset, and since a subset never overwrites the canonical table, the report keeps
+reading the four-arm measurement it was written for.
+
+**Frozen universes have no v3/v4 at all.** `arm_steps()` drops those combinations,
+and as of this change the run announces them under a NOT RUN heading instead of
+silently doing three of the four things it was asked for — which is what
+`--universe mid,58 --arm v1,v3` did before.
+
 ## The combined chart is per-selection, and the published pair chart is always drawn
 
 Recorded 2026-09-06, when `make_combined_n100_mid.py` became

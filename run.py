@@ -59,7 +59,7 @@ for _p in (str(ROOT), str(ROOT / "results"), str(ROOT / "frozen"), str(ROOT / "n
 
 import paths                                        # noqa: E402
 from universes.registry import REGISTRY             # noqa: E402
-from arms.registry import ARMS                      # noqa: E402
+from arms.registry import ARMS, SHIPPING as SHIPPING_ARMS                      # noqa: E402
 
 # ---------------------------------------------------------------------------
 # WHICH PIPELINE STEPS BELONG TO WHICH UNIVERSE
@@ -190,11 +190,32 @@ def resolve_universes(name):
 
 
 def resolve_arms(name):
+    """ANY SUBSET OF THE FOUR ARMS, size 1 to 4.
+
+    Accepts "all" (every arm), a single name, or a comma-separated list --
+    "v1,v3". Exactly the shape --universe takes, and for the same reasons:
+
+    THE RESULT IS ALWAYS IN ARMS ORDER, NOT IN THE ORDER TYPED, so `--arm v3,v1`
+    and `--arm v1,v3` are the same request and produce the same artefacts. A
+    selection names a SET; if order were preserved the derived filename of a
+    subset measurement would depend on typing order.
+
+    A REPEATED NAME IS NOT AN ERROR, it is the same set. Deduplication happens
+    through ARMS iteration below, so an arm cannot appear twice in one table.
+    """
     if name in ("all", None):
         return list(ARMS.values())
-    if name not in ARMS:
-        raise SystemExit(f"unknown arm {name!r}; known: {', '.join(ARMS)}")
-    return [ARMS[name]]
+    want = [t.strip() for t in str(name).split(",") if t.strip()]
+    if not want:
+        raise SystemExit("--arm was empty; give an arm name, a comma-separated "
+                         f"list, or 'all'. known: {', '.join(ARMS)}")
+    unknown = [t for t in want if t not in ARMS]
+    if unknown:
+        # Every unknown name at once, not one per run.
+        raise SystemExit(f"unknown arm(s) {', '.join(repr(t) for t in unknown)}; "
+                         f"known: {', '.join(ARMS)}")
+    sel = set(want)
+    return [a for n, a in ARMS.items() if n in sel]
 
 
 def pipeline_steps(unis):
@@ -326,7 +347,8 @@ def main(argv=None):
                     help="universe tag, a comma-separated subset (e.g. mid,58), or "
                          "'all' (default). known: " + ", ".join(REGISTRY))
     ap.add_argument("--arm", default="all",
-                    help="arm name, or 'all' (default). " + ", ".join(ARMS))
+                    help="arm name, a comma-separated subset (e.g. v1,v3), or "
+                         "'all' (default). known: " + ", ".join(ARMS))
     ap.add_argument("--steps", default="all", choices=("all", "pipeline", "arms"),
                     help="which kinds of step to run (default all)")
     ap.add_argument("--rebal", type=int, default=None,
@@ -363,6 +385,12 @@ def execute(plan, args):
     # before any step runs, so every step sees the same answer.
     import universes.registry as _reg
     _reg.set_selection([u.tag for u in plan["universes"]])
+    # THE SAME FOR ARMS. run_v34 is reached through the ENGINE, a pipeline step
+    # selected by universe, so it cannot be handed the arm selection as an
+    # argument the way run_arm is -- it has to read it. Set here, once, beside
+    # the universe selection.
+    import arms.registry as _arms
+    _arms.set_selection([a.name for a in plan["arms"]])
 
     # SAFETY 1 -- the determinism pin is already set, at the top of this file,
     # before any numeric import. Nothing to do here; it is listed so the four are
@@ -428,6 +456,23 @@ def execute(plan, args):
                                               f"inside the step; not covered by the guard]")):
             importlib.import_module(Path(scr).stem).main()
         print(f"    [{label} done in {(time.time()-t0)/60:.1f} min]")
+
+    # A DROPPED COMBINATION IS ANNOUNCED, NOT SILENTLY OMITTED.
+    # arm_steps() separates the (universe, arm) pairs that cannot run -- a frozen
+    # universe has no v3/v4 path at all -- from the ones that can. print_plan
+    # showed them under SKIPPED, but only on --list/--dry-run: an actual
+    # `--universe mid,58 --arm v1,v3` ran three of its four combinations and said
+    # nothing about the fourth. A selection that quietly does less than it was
+    # asked is the failure this project keeps finding; it is reported here, in the
+    # run's own log, where the person who asked for it will read it.
+    if plan["skipped"]:
+        print("\n" + "=" * 90)
+        print(f"NOT RUN ({len(plan['skipped'])}) -- frozen universes run only the "
+              f"shipping arms ({', '.join(a.name for a in SHIPPING_ARMS)}):")
+        for u, a in plan["skipped"]:
+            print(f"    {u.tag:<6} {a.name:<4} {u.tag} is frozen (retired) and has no "
+                  f"{a.name} path -- its engine never calls v34_common")
+        print("=" * 90, flush=True)
 
     for u, a in plan["arm_runs"]:
         print("\n" + "=" * 90)

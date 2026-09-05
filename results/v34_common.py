@@ -185,42 +185,57 @@ def run_v34(M, universe_label, universe_tag, px, op, sc, bd, pc, mom20, port_vol
     # is safe: passing an audit dict was verified to leave the equity curve, the
     # transaction cost and the trade count bit-identical, so the reported v2 row
     # still comes from the caller's original curve, not from this run.
+    import arms.registry as arm_reg
+    sel = set(arm_reg.selected_names())
+
+    # GATED ON v2 BEING SELECTED, like v3 and v4 below. Its only purpose is v2's
+    # MeanNamesHeld / CashShortSkips columns; with v2 deselected there is no v2
+    # row to carry them and this is a whole backtest run for a discarded result.
     a2 = _blank()
-    backtest_exposure(px, op, sc, bd, pc, mom20, port_vol, mode="breadth",
-                      target_vol=tv, sizing="invvol", audit=a2)
+    if "v2" in sel:
+        backtest_exposure(px, op, sc, bd, pc, mom20, port_vol, mode="breadth",
+                          target_vol=tv, sizing="invvol", audit=a2)
 
     # --- the two new arms, same panel and dates as v1/v2 ---
+    # COMPUTED ONLY IF SELECTED. A run that asked for v1 and v3 has no use for
+    # v4's curve, and running it would put a number in the process that must then
+    # be filtered out of four separate artefacts -- the kind of thing that leaks.
+    # ARM_SEL is read at CALL time, not at import, so run.py setting it after this
+    # module is imported still takes effect.
     a3, a4 = _blank(), _blank()
-    v3_eq, v3_tc, v3_n, _ = backtest_exposure(px, op, sc, bd, pc, mom20, port_vol,
-                                              mode="none", target_vol=tv,
-                                              sizing="provol", audit=a3)
-    v4_eq, v4_tc, v4_n, v4_expo = backtest_exposure(px, op, sc, bd, pc, mom20,
-                                                    port_vol, mode="breadth",
-                                                    target_vol=tv, sizing="provol",
-                                                    audit=a4)
+    v3_eq = v3_tc = v3_n = None
+    v4_eq = v4_tc = v4_n = None
+    v4_expo = 0.0
+    if "v3" in sel:
+        v3_eq, v3_tc, v3_n, _ = backtest_exposure(px, op, sc, bd, pc, mom20, port_vol,
+                                                  mode="none", target_vol=tv,
+                                                  sizing="provol", audit=a3)
+    if "v4" in sel:
+        v4_eq, v4_tc, v4_n, v4_expo = backtest_exposure(px, op, sc, bd, pc, mom20,
+                                                        port_vol, mode="breadth",
+                                                        target_vol=tv, sizing="provol",
+                                                        audit=a4)
     bh = start_capital * (1 + px.pct_change().loc[bd].mean(axis=1).fillna(0)).cumprod()
 
-    curves = [
-        ("v1 invvol, 100% invested", v1_eq, 100.0),
-        ("v2 invvol, breadth-scaled", v2_eq, v2_expo * 100),
-        ("v3 provol, 100% invested", v3_eq, 100.0),
-        ("v4 provol, breadth-scaled", v4_eq, v4_expo * 100),
-        ("buy & hold equal-weight", bh, 100.0),
+    # ONE TABLE DRIVES CURVES, AUDITS, ROWS AND THE EQUITY COLUMNS, so an arm
+    # cannot be filtered out of one of them and left in another. Order is ARMS
+    # order, which is the order the four-arm table has always been written in.
+    ARM_DEF = [
+        ("v1", "v1 invvol, 100% invested",  "v1_invvol_none",    v1_eq, v1_tc, v1_n, 100.0,          v1_audit),
+        ("v2", "v2 invvol, breadth-scaled", "v2_invvol_breadth", v2_eq, v2_tc, v2_n, v2_expo * 100,  a2),
+        ("v3", "v3 provol, 100% invested",  "v3_provol_none",    v3_eq, v3_tc, v3_n, 100.0,          a3),
+        ("v4", "v4 provol, breadth-scaled", "v4_provol_breadth", v4_eq, v4_tc, v4_n, v4_expo * 100,  a4),
     ]
+    ARM_ON = [a for a in ARM_DEF if a[0] in sel]
 
-    audits = {"v1 invvol, 100% invested": v1_audit,
-              "v2 invvol, breadth-scaled": a2,
-              "v3 provol, 100% invested": a3,
-              "v4 provol, breadth-scaled": a4}
-    audits = {k: v for k, v in audits.items() if v is not None}
+    curves = [(lab, eq, dep) for _, lab, _, eq, _, _, dep, _ in ARM_ON] \
+        + [("buy & hold equal-weight", bh, 100.0)]
 
-    rows = [
-        arm_row(v1_eq, "v1 invvol, 100% invested", v1_tc, v1_n, 100.0),
-        arm_row(v2_eq, "v2 invvol, breadth-scaled", v2_tc, v2_n, v2_expo * 100),
-        arm_row(v3_eq, "v3 provol, 100% invested", v3_tc, v3_n, 100.0),
-        arm_row(v4_eq, "v4 provol, breadth-scaled", v4_tc, v4_n, v4_expo * 100),
-        arm_row(bh, "buy & hold equal-weight", 0, 0, 100.0),
-    ]
+    audits = {lab: au for _, lab, _, _, _, _, _, au in ARM_ON if au is not None}
+
+    rows = [arm_row(eq, lab, tc, n, dep)
+            for _, lab, _, eq, tc, n, dep, _ in ARM_ON] \
+        + [arm_row(bh, "buy & hold equal-weight", 0, 0, 100.0)]
     for r in rows:
         if r["Config"] in audits:
             mh, nsk = held_and_skips(audits[r["Config"]])
@@ -232,27 +247,43 @@ def run_v34(M, universe_label, universe_tag, px, op, sc, bd, pc, mom20, port_vol
             # coerce the column to float and render it as NaN.
             r["MeanNamesHeld"] = ""
             r["CashShortSkips"] = ""
+    # THE CANONICAL v34_* FILES ARE WRITTEN ONLY ON A FULL FOUR-ARM SELECTION.
+    # SFX is "" then, so those paths and their contents are exactly what they have
+    # always been. A subset writes v34_comparison_v1_v3.csv and friends beside
+    # them and leaves the canonical files untouched.
+    #
+    # THIS IS NOT TIDINESS, IT PROTECTS SEVEN GATES. purge_fix_measure,
+    # seed_noise_measure, seed_noise_report, shuffle_test, validate_topn,
+    # rebal_cadence_sweep and drawdown_exit_measure all read v34_comparison.csv,
+    # and six of them assert their own control run against its v2 ROW. A two-arm
+    # subset overwriting that file would leave every one of them comparing against
+    # a table that no longer holds their reference -- and they would discover it
+    # later, in a different script, as a missing row rather than as this run's
+    # doing. The universe work set the same precedent: a narrower selection writes
+    # its own file rather than silently rewriting the published one.
+    SFX = arm_reg.selection_suffix()
     comp = pd.DataFrame(rows)
-    comp.to_csv(M / "v34_comparison.csv", index=False)
+    comp.to_csv(M / f"v34_comparison{SFX}.csv", index=False)
 
     subs = sub_rows(curves, halves, audits)
-    subs.to_csv(M / "v34_subperiods.csv", index=False)
+    subs.to_csv(M / f"v34_subperiods{SFX}.csv", index=False)
 
-    pd.DataFrame({"date": bd,
-                  "v1_invvol_none": v1_eq.values,
-                  "v2_invvol_breadth": v2_eq.values,
-                  "v3_provol_none": v3_eq.values,
-                  "v4_provol_breadth": v4_eq.values,
-                  "buyhold": bh.values}).to_csv(M / "v34_equity.csv", index=False)
+    eq_cols = {"date": bd}
+    for _, _, col, eq, _, _, _, _ in ARM_ON:
+        eq_cols[col] = eq.values
+    eq_cols["buyhold"] = bh.values
+    pd.DataFrame(eq_cols).to_csv(M / f"v34_equity{SFX}.csv", index=False)
 
-    (M / "v34_params.json").write_text(json.dumps({
+    (M / f"v34_params{SFX}.json").write_text(json.dumps({
         "universe": universe_label,
         "universe_tag": universe_tag,
         "window_start": str(bd[0].date()),
         "window_end": str(bd[-1].date()),
         "trading_days": int(len(bd)),
-        "arms": {"v1": "invvol + mode=none", "v2": "invvol + mode=breadth",
-                 "v3": "provol + mode=none", "v4": "provol + mode=breadth"},
+        # ONLY THE ARMS THIS RUN ACTUALLY MEASURED. On a full selection this is
+        # the same four entries in the same order it has always carried.
+        "arms": {n: f"{arm_reg.ARMS[n].sizing} + mode={arm_reg.ARMS[n].mode}"
+                 for n, _, _, _, _, _, _, _ in ARM_ON},
         "reference": "equal-weight buy & hold of the same universe, same panel",
         "constants": consts,
         "git_state": _git_state(),
@@ -262,8 +293,12 @@ def run_v34(M, universe_label, universe_tag, px, op, sc, bd, pc, mom20, port_vol
 
     # --- chart: four arms plus the reference on one axis ---
     fig, ax = plt.subplots(2, 1, figsize=(14, 9), height_ratios=[2, 1])
-    style = [("#1f77b4", "-"), ("#d62728", "-"),
-             ("#2ca02c", "-"), ("#9467bd", "-"), ("#7f7f7f", "--")]
+    # COLOUR IS KEYED TO THE ARM, NOT TO POSITION. Zipping a fixed five-colour
+    # list against `curves` gave v3 v2's colour the moment v2 was deselected, so
+    # the same arm changed colour between two charts in the same directory.
+    ARM_STYLE = {"v1": ("#1f77b4", "-"), "v2": ("#d62728", "-"),
+                 "v3": ("#2ca02c", "-"), "v4": ("#9467bd", "-")}
+    style = [ARM_STYLE[n] for n, *_ in ARM_ON] + [("#7f7f7f", "--")]
     for (lab, eq, dep), (c, ls) in zip(curves, style):
         m = metrics(eq, lab)
         ax[0].plot(eq.index, (eq / eq.iloc[0] - 1) * 100, lw=1.8, color=c, ls=ls,
@@ -272,13 +307,29 @@ def run_v34(M, universe_label, universe_tag, px, op, sc, bd, pc, mom20, port_vol
     ax[0].axhline(0, color="k", lw=.6, alpha=.5)
     ax[0].set_ylabel("Cumulative return (%)")
     ax[0].yaxis.set_major_formatter(PercentFormatter(decimals=0))
+    # THE TITLE DESCRIBES THE ARMS ON THE CHART, DERIVED RATHER THAN ASSERTED.
+    # It used to say "four ... v1/v3 hold 100% invested; v2/v4 scale exposure by
+    # breadth" as a literal, which is a false statement on any subset. Derived
+    # from ARM_ON it reproduces that sentence exactly when all four are present --
+    # the always-invested arms ARE v1 and v3, the breadth-scaled ones ARE v2 and
+    # v4 -- and tells the truth when they are not.
+    _CNT = {1: "one", 2: "two", 3: "three", 4: "four"}
+    _flat = "/".join(n for n, *_ in ARM_ON if arm_reg.ARMS[n].mode == "none")
+    _brd = "/".join(n for n, *_ in ARM_ON if arm_reg.ARMS[n].mode == "breadth")
+    _how = "; ".join(x for x in (f"{_flat} hold 100% invested" if _flat else "",
+                                 f"{_brd} scale exposure by breadth" if _brd else "")
+                     if x)
+    _sizings = {arm_reg.ARMS[n].sizing for n, *_ in ARM_ON}
+    _size_note = (" Sizing is the only other difference: 1/vol against vol."
+                  if len(_sizings) > 1 else
+                  f" All arms here size {'1/vol' if 'invvol' in _sizings else 'by vol'}.")
     ax[0].set_title(
-        f"{universe_label} -- four sizing/exposure arms plus equal-weight buy & hold\n"
+        f"{universe_label} -- {_CNT.get(len(ARM_ON), len(ARM_ON))} sizing/exposure "
+        f"arm{'s' if len(ARM_ON) != 1 else ''} plus equal-weight buy & hold\n"
         f"WINDOW {bd[0].date()} to {bd[-1].date()}, {len(bd)} trading days -- every "
         f"CAGR, Sharpe, drawdown and TRADE COUNT here is on that window and no other.\n"
         f"All figures after Zerodha costs plus 0.15% slippage.\n"
-        f"v1/v3 hold 100% invested; v2/v4 scale exposure by breadth. "
-        f"Sizing is the only other difference: 1/vol against vol.", fontsize=9)
+        f"{_how}.{_size_note}", fontsize=9)
     ax[0].legend(loc="upper left", fontsize=8)
     ax[0].grid(alpha=.3)
 
@@ -291,7 +342,7 @@ def run_v34(M, universe_label, universe_tag, px, op, sc, bd, pc, mom20, port_vol
     ax[1].legend(loc="lower left", fontsize=7.5, ncol=2)
     ax[1].grid(alpha=.3)
     plt.tight_layout()
-    plt.savefig(M / "chart_v34.png", dpi=150, bbox_inches="tight")
+    plt.savefig(M / f"chart_v34{SFX}.png", dpi=150, bbox_inches="tight")
     plt.close()
 
     return comp, subs, curves
