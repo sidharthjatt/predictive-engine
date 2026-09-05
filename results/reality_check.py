@@ -24,6 +24,7 @@ import pandas as pd
 from scipy.stats import spearmanr
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 import config
+import arms.registry as arm_reg
 from engine_core import TOP_N
 
 M = config.METRICS_DIR
@@ -60,7 +61,11 @@ def main():
     v2f = M / "v2FINAL_equity.csv"
     if v2f.exists():
         v2 = pd.read_csv(v2f, parse_dates=["date"]).set_index("date")
-        fv2 = v2["strategy"].iloc[-1]
+        # ASKED FOR BY ARM NAME. Note that `eq["strategy"]` a few lines above is a
+        # DIFFERENT FILE -- FINAL_equity.csv, the validation engine's -- which
+        # still legitimately has a column called `strategy` and is not touched by
+        # the per-arm layout. Two files, one column name; only this one moves.
+        fv2 = arm_reg.equity_series(v2, "v2").iloc[-1]
         print("\n" + "=" * 90)
         print("1b. THE OFFICIAL SYSTEM  (v2, breadth-scaled -- quote THIS one)")
         print("=" * 90)

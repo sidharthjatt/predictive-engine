@@ -146,6 +146,40 @@ def get(name):
             f"unknown arm {name!r}; known: {', '.join(ARMS)}") from None
 
 
+# ---------------------------------------------------------------------------
+# READING AN ARM'S CURVE OUT OF v2FINAL_equity.csv
+# ---------------------------------------------------------------------------
+# That file was written with columns named for what a curve was FOR, not for
+# which arm it IS: `strategy` is v2 and `baseline_invvol` is v1. Nothing could
+# ask it for v3 or v4, because those names have no slot. The live engines now
+# also write the arm-keyed names (Arm.equity_column), and every reader goes
+# through equity_series() below.
+#
+# THE FROZEN 58 AND 74 STILL WRITE ONLY THE OLD NAMES, and always will: their
+# engines are those universes' provenance and are not modified. So the lookup
+# tries the arm-keyed name and falls back to the legacy one. That fallback is not
+# a transition shim to be deleted later -- it is how a frozen universe's file is
+# read, permanently.
+LEGACY_EQUITY_COLUMN = {"v1": "baseline_invvol", "v2": "strategy"}
+
+
+def equity_series(df, arm):
+    """One arm's equity curve from a v2FINAL_equity.csv frame, or None.
+
+    None means "this file does not carry that arm" -- asking a frozen universe
+    for v3 is a legitimate question with the answer "there isn't one", and the
+    caller decides whether that is a skip or an error. Raising here would make
+    every caller wrap it in a try.
+    """
+    name = arm.name if hasattr(arm, "name") else arm
+    if name not in ARMS:
+        raise KeyError(f"unknown arm {name!r}; known: {', '.join(ARMS)}")
+    for col in (ARMS[name].equity_column, LEGACY_EQUITY_COLUMN.get(name)):
+        if col is not None and col in df.columns:
+            return df[col]
+    return None
+
+
 _BY_PARAMS = {(a.mode, a.sizing): a for a in ARMS.values()}
 
 

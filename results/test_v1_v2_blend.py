@@ -11,6 +11,7 @@ from pathlib import Path
 import numpy as np, pandas as pd
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import config, config74
+import arms.registry as arm_reg
 
 def metrics(eq):
     r = eq.pct_change().dropna()
@@ -22,8 +23,8 @@ def metrics(eq):
 
 def run(mdir, label, inv_v2=0.646):
     eq = pd.read_csv(Path(mdir)/"v2FINAL_equity.csv", parse_dates=["date"]).set_index("date")
-    r1 = eq["baseline_invvol"].pct_change().fillna(0)   # v1
-    r2 = eq["strategy"].pct_change().fillna(0)          # v2
+    r1 = arm_reg.equity_series(eq, "v1").pct_change().fillna(0)   # v1
+    r2 = arm_reg.equity_series(eq, "v2").pct_change().fillna(0)   # v2
     print(f"\n{'#'*76}\n{label}\n{'#'*76}")
     print(f"  {'mix (v1/v2)':<14} {'CAGR':>7} {'Sharpe':>7} {'MaxDD':>8} {'Calmar':>7} {'~invested':>10}")
     for w in [0.0, 0.25, 0.50, 0.75, 1.0]:

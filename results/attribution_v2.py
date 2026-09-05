@@ -37,6 +37,7 @@ sys.path.insert(0, str(ROOT)); sys.path.insert(0, str(ROOT / "results"))
 import datetime as _dt
 import numpy as np
 import pandas as pd
+import arms.registry as arm_reg
 import config, config_mid, config_n100
 from universes.registry import REGISTRY
 
@@ -96,7 +97,7 @@ def run(uni, md, tag, label, W):
     per["share"] = per["net"] / tot * 100
     per = per.sort_values("net", ascending=False)
 
-    fin = float(eq["strategy"].iloc[-1])
+    fin = float(arm_reg.equity_series(eq, "v2").iloc[-1])
     W("=" * 104)
     W(f" PER-SYMBOL ATTRIBUTION -- v2 (breadth), the SHIPPING arm -- {label} ({uni})")
     W("=" * 104)

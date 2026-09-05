@@ -1892,6 +1892,74 @@ code reads*.
 
 ---
 
+## --arm reaches the published outputs; two gaps remain, both recorded
+
+Implemented 2026-09-06 under `experiments/ARM_SUBSET_SPEC.txt`. This supersedes
+the boundary the entry below describes -- that entry is kept because it is the
+record of why the boundary existed.
+
+**WHAT NOW FOLLOWS THE ARM SELECTION.** `v2FINAL_equity.csv` carries arm-keyed
+columns (`v1_invvol_none`, `v2_invvol_breadth`) on the live universes; all nine
+readers go through `arms/registry.equity_series`; the combined chart, the fair
+chart and the final summary plot the selected arms; and a per-arm audit trail is
+built for every selected arm -- `daily_*_<tag>_<arm>.csv` -- each reconciled
+against the engine's own recorded curve for that arm.
+
+**THE FROZEN 58 AND 74 STILL WRITE `strategy`/`baseline_invvol`, permanently.**
+Their engines are those universes' provenance and are not modified, so
+`equity_series`' fallback is not a transition shim awaiting deletion -- it is how
+a frozen universe's file is read.
+
+**NARROWING, NOT WIDENING.** The combined and fair charts compare through the
+SHIPPING arms (v2 and its v1 control). A selection narrows them; it never widens
+them. Plotting every selected arm would put four lines per universe on the
+published figures under the default `--arm all`, changing a published figure as a
+side effect of a structural change, which the spec forbids (G1). So `--arm v3`
+draws neither chart and says why: v3 and v4 are measurement arms and their
+comparison is `chart_v34`. **A narrowed arm selection writes suffixed files** --
+`chart_COMBINED_n100_mid_v2.png`, `fair_comparison_table_v1.csv` -- and leaves the
+published ones untouched, the same rule the universe axis uses.
+
+### GAP 1: make_mid_chart.py and make_n100_chart.py are NOT arm-aware
+
+The two per-universe published charts still plot v1 and v2 unconditionally. They
+were not converted, and that is the honest state.
+
+### GAP 2: daily_trades_v1_<tag>.csv is written even when v1 is not selected
+
+`--arm v2` still produces a file named for v1. **Gating it was tried and
+reverted**, and the reason is worth recording: STEP 10d `make_<tag>_chart.py`
+declares that file in `run_all.REQUIRED_INPUTS` as a hard edge, so a gated write
+makes `--arm v2` die at `check_inputs` with a missing file. Removing the edge
+would weaken the static contract and cost the checker a resolved dependency, which
+the spec's G6 forbids. The two gaps are the same gap: closing GAP 2 requires
+closing GAP 1 first.
+
+### The gate results, in full
+
+    G1  default reproduces the baseline    280 of 282 byte-identical, nothing
+                                           missing; the two exceptions are the
+                                           v2FINAL_equity.csv files, whose columns
+                                           this change is about
+    G2  curves untouched                   every new column .equals() the old one
+                                           it replaced, exactly, on both universes
+    G3  seven identity gates               NOT re-baselined and did not need to be:
+                                           they read v34_comparison.csv, which is
+                                           byte-identical, so they cannot see this
+                                           change. purge_fix_measure re-run: ok
+    G4  v34 measurement untouched          v34_comparison/equity/chart identical
+    G5  Nautilus                           92 of 92 on all eight combinations
+    G6  static checker                     42 resolved / 9 unresolved / 0 inversions
+    G7  no unselected arm leaks            clean except GAP 2
+    G8  frozen universes                   every 58 and 74 artefact identical
+
+**G6 FAILED FIRST AND WAS FIXED, WHICH THE SPEC PREDICTED (P4).** Routing
+`fair_comparison_table.csv` through a computed `TABLE_NAME`, and `v2FINAL_equity.csv`
+through `Path(M) / "..."` instead of `M / "..."`, made three edges vanish from the
+scanner while the code ran perfectly: 42 resolved fell to 40. The canonical names
+are now written as literals on the common path, with the suffixed form only in the
+`else` branch.
+
 ## --arm subsets the v34 MEASUREMENT only; v1/v2 still ship in every run
 
 Recorded 2026-09-06, when `--arm` gained subset selection. This entry states the

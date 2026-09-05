@@ -47,6 +47,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import config
 import survivorship as sv
 from universes.registry import REGISTRY, selected_tags
+import arms.registry as arm_reg
 
 # config74 is imported inside main() under the 74's guard. At module level a
 # deleted config74.py would make this step unimportable, taking the 58's half of
@@ -101,7 +102,9 @@ def main():
         baseline.
         """
         tags=list(EQ)
-        sX={t:cagr(EQ[t]["strategy"]) for t in tags}
+        # Same rule as build_series: derived from the frames passed in, because
+        # subtitle() is also called with the matched-window frames.
+        sX={t:cagr(arm_reg.equity_series(EQ[t],"v2")) for t in tags}
         hX={t:cagr(EQ[t]["buyhold"]) for t in tags}
         nX={t:cagr(index_on(EQ[t].index)) for t in tags}
         ends={EQ[t].index[-1] for t in tags}
@@ -162,11 +165,23 @@ def main():
         for t in EQ:
             c_v2,c_v1,c_bh = COLOURS[t]
             e=EQ[t]
+            # DERIVED FROM THE FRAME PASSED IN, NOT FROM THE MODULE-LEVEL ARM_EQ.
+            # This function is called twice: once with the full frames and once
+            # with frames truncated to the matched window. Reading the full-window
+            # series here would draw the matched chart over the wrong dates while
+            # its title said otherwise.
+            # COLOUR AND CASH SERIES KEYED TO THE ARM. v2 takes the first colour
+            # and carries the cash panel because only it is breadth-scaled; v1
+            # takes the second and is always fully invested. With both plotted
+            # every line keeps the colour it has always had.
+            _AC = {"v2": (c_v2, CASH[t], f"[inv {iX[t]:.0f}%]"),
+                   "v1": (c_v1, None, "[inv 100%]")}
+            _AD = {"v2": "breadth", "v1": "inv-vol"}
+            out += [(f"{t} {n} ({_AD[n]})  {_AC[n][2]}",
+                     arm_reg.equity_series(e, n), _AC[n][0], "-", _AC[n][1],
+                     traded(arm_reg.equity_series(e, n), f"{t} {n}"))
+                    for n in plot_arms]
             out += [
-             (f"{t} v2 (breadth)  [inv {iX[t]:.0f}%]", e["strategy"], c_v2,"-", CASH[t],
-              traded(e["strategy"],f"{t} v2")),
-             (f"{t} v1 (inv-vol)  [inv 100%]", e["baseline_invvol"], c_v1,"-", None,
-              traded(e["baseline_invvol"],f"{t} v1")),
              (f"{t} buy&hold (equal-weight universe)  [inv 100%]", e["buyhold"], c_bh,"-", None,
               f"CAGR {cagr(e['buyhold']):.2f}%  {NOTC_BH}"),
             ]
@@ -274,6 +289,22 @@ def main():
     # is preserved, so with both present every series, colour and label is in
     # exactly the position it was.
     SEL = set(selected_tags())
+    # THE SHIPPING ARMS THIS RUN SELECTED. Same rule as make_combined_universes:
+    # this chart compares STRATEGY AGAINST BENCHMARK through v2 and its v1
+    # control, so a selection narrows it and never widens it. Widening would put
+    # v3/v4 on a published figure as a side effect of the default --arm all, which
+    # experiments/ARM_SUBSET_SPEC.txt forbids (G1).
+    PLOT_ARMS = ("v2", "v1")
+    plot_arms = [a for a in PLOT_ARMS if a in set(arm_reg.selected_names())]
+    if not plot_arms:
+        print("="*94)
+        print(" FINAL fair chart SKIPPED -- it compares the SHIPPING arms (v2, v1)")
+        print(f" against the NIFTY100 index, and this run selected none of them "
+              f"({', '.join(arm_reg.selected_names())}).")
+        print(" No fair_comparison_table.csv is written; make_final_summary.py,")
+        print(" which reads it, skips for the same reason.")
+        print("="*94)
+        return
     COLOURS={"58":("#ff9999","#7fb3e0","#8fd08f"),
              "74":("#c0392b","#2e6da4","#3a9d3a")}
     # M58 / M74 ARE ASSIGNED IN THE PLAIN `VAR = config*.METRICS_DIR*` SHAPE, and
@@ -313,8 +344,16 @@ def main():
 
     TAGS=list(METRICS)
     OUT_DIR=METRICS[TAGS[0]]
-    CHART_NAME="chart_FINAL_"+"_".join(TAGS)+"_N100.png"
-    MATCHED_NAME="chart_FINAL_"+"_".join(TAGS)+"_N100_matched.png"
+    # THE ARM SUFFIX, ON THE SAME RULE AS THE UNIVERSE ONE. Both shipping arms
+    # plotted -> no suffix, and these are the published filenames. A narrower arm
+    # selection writes its own files and leaves the published ones alone --
+    # without this, `--arm v1` overwrote fair_comparison_table.csv with a table
+    # that had no v2 row in it, which is precisely the silent degradation the
+    # canonical-vs-subset rule exists to prevent.
+    ASFX = "" if set(plot_arms) == set(PLOT_ARMS) else "_" + "_".join(plot_arms)
+    CHART_NAME="chart_FINAL_"+"_".join(TAGS)+"_N100"+ASFX+".png"
+    MATCHED_NAME="chart_FINAL_"+"_".join(TAGS)+"_N100"+ASFX+"_matched.png"
+    TABLE_NAME="fair_comparison_table"+ASFX+".csv"
 
     # ------------------------------------------------- the benchmark, and what it is NOT
     # NIFTY100 HERE IS A PRICE FILE, NOT THE n100 UNIVERSE. They share four
@@ -345,6 +384,10 @@ def main():
     idx_raw=(config.read_price_csv(N100/INDEX_FILE)[["date","close"]].dropna()
              .set_index("date")["close"].sort_index())
     EQ={t:pd.read_csv(EQF[t],parse_dates=["date"]).set_index("date") for t in TAGS}
+    # ARMS BY NAME. The 58 and 74 are frozen and still write only the legacy
+    # `strategy`/`baseline_invvol` columns, which equity_series falls back to, so
+    # this reads their files unchanged while being able to name any arm.
+    ARM_EQ={t:{n:arm_reg.equity_series(EQ[t],n) for n in ("v1","v2")} for t in TAGS}
     CASHDF={t:pd.read_csv(CASHF[t],parse_dates=["date"]).set_index("date") for t in TAGS}
     CASH={t:CASHDF[t].cash_pct for t in TAGS}
     TC_SRC={k:tc_from_log(v) for k,v in TRF.items()}
@@ -377,15 +420,20 @@ def main():
     EQ_FOR={}
     B={}
     for t in TAGS:
-        EQ_FOR[f"{t} v2"]=EQ[t]["strategy"]; EQ_FOR[f"{t} v1"]=EQ[t]["baseline_invvol"]
-        B[f"{t} v2"]=before_tc(EQ[t]["strategy"],TC_SRC[f"{t} v2"][0])
-        B[f"{t} v1"]=before_tc(EQ[t]["baseline_invvol"],TC_SRC[f"{t} v1"][0])
+        for n in plot_arms:
+            EQ_FOR[f"{t} {n}"]=ARM_EQ[t][n]
+            B[f"{t} {n}"]=before_tc(ARM_EQ[t][n],TC_SRC[f"{t} {n}"][0])
     # THREE STRATEGY ROWS PER UNIVERSE FIRST, THEN ONE INDEX ROW PER UNIVERSE
     # WINDOW -- the order the two hand-written blocks produced, preserved so the
     # table is row-for-row identical when both universes are present.
+    _AD = {"v2": "breadth", "v1": "inv-vol"}
     for t in TAGS:
-        addrow(f"{t} v2 (breadth)",EQ[t]["strategy"],CASH[t].mean(),B[f"{t} v2"][0])
-        addrow(f"{t} v1 (inv-vol)",EQ[t]["baseline_invvol"],0.0,B[f"{t} v1"][0])
+        # ROWS FOR THE SELECTED SHIPPING ARMS, in the order the table has always
+        # carried them (v2 then v1). fair_comparison_table.csv is read by
+        # make_final_summary.py, whose `meta` map is keyed on these exact labels.
+        for n in plot_arms:
+            addrow(f"{t} {n} ({_AD[n]})", ARM_EQ[t][n],
+                   CASH[t].mean() if n == "v2" else 0.0, B[f"{t} {n}"][0])
         addrow(f"{t} buy&hold (equal-weight universe)",EQ[t]["buyhold"],0.0)
     for t in TAGS:
         addrow(f"NIFTY100 (cap-weighted index, {t} win)",index_on(EQ[t].index),0.0)
@@ -396,7 +444,11 @@ def main():
     print(f"    {'series':<8} {'trades':>7} {'cum TC Rs':>11} {'before TC':>10} {'after TC':>9} "
           f"{'drag':>7}   vs v2FINAL_comparison.csv")
     ok=True
-    for k in [f"{t} {v}" for t in TAGS for v in ("v2","v1")]:
+    # THE SELECTED SHIPPING ARMS, not a hardcoded ("v2","v1"). B and TC_SRC are
+    # populated for those arms only, so naming both unconditionally raised a
+    # KeyError on `--arm v1` -- the reconciliation is over what was actually
+    # plotted.
+    for k in [f"{t} {v}" for t in TAGS for v in plot_arms]:
         b,tot=B[k]; n=len(TC_SRC[k][1])
         a=cagr(EQ_FOR[k])
         rn,rt=reported(k.split()[0], k.endswith("v1"))
@@ -404,7 +456,7 @@ def main():
         ok &= match
         print(f"    {k:<8} {n:>7} {tot:>11,.0f} {b:>9.2f}% {a:>8.2f}% {b-a:>6.2f}pp   "
               f"{rn} / Rs {rt:,.0f}  {'MATCH' if match else '*** MISMATCH ***'}")
-    print(f"    -> all {len(TAGS)*2} reconcile: {ok}")
+    print(f"    -> all {len(TAGS)*len(plot_arms)} reconcile: {ok}")
     print("    Both sides are engine output: the per-trade logs and v2FINAL_comparison.csv")
     print("    are written by the same run, so this checks the log belongs to the curve.")
     print("    58/74 buy&hold: 0 trades, Rs 0 -- bought once and held.")
@@ -439,7 +491,8 @@ def main():
         mrows=[]
         pairs=[]
         for t in TAGS:
-            pairs += [(f"{t} v2",EQm[t]["strategy"]),(f"{t} buy&hold",EQm[t]["buyhold"])]
+            pairs += [(f"{t} v2",arm_reg.equity_series(EQm[t],"v2")),
+                      (f"{t} buy&hold",EQm[t]["buyhold"])]
         pairs.append(("NIFTY100 index",index_on(EQm[TAGS[0]].index)))
         for lab,s in pairs:
             mrows.append({"Series":lab,"CAGR%":round(cagr(s),2),"MaxDD%":round(dd(s).min(),2)})
@@ -454,10 +507,20 @@ def main():
     # only through OUT_DIR it resolved to nothing and STEP 14's dependency became
     # invisible. The else-branch is the same write for a 58-less run.
     if "58" in METRICS:
-        tbl.to_csv(M58/"fair_comparison_table.csv",index=False)
+        # THE CANONICAL NAME IS WRITTEN AS A LITERAL on the common path.
+        # check_pipeline_order reads `M58 / "fair_comparison_table.csv"` out of the
+        # source to resolve STEP 13 -> STEP 14; routing it through TABLE_NAME made
+        # that edge disappear from the inventory while the code ran perfectly.
+        if ASFX == "":
+            tbl.to_csv(M58/"fair_comparison_table.csv",index=False)
+        else:
+            tbl.to_csv(M58/TABLE_NAME,index=False)
     else:
-        tbl.to_csv(OUT_DIR/"fair_comparison_table.csv",index=False)
-    print("\nsaved -> fair_comparison_table.csv")
+        if ASFX == "":
+            tbl.to_csv(OUT_DIR/"fair_comparison_table.csv",index=False)
+        else:
+            tbl.to_csv(OUT_DIR/TABLE_NAME,index=False)
+    print(f"\nsaved -> {TABLE_NAME}")
 
 
 if __name__ == "__main__":

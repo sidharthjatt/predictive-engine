@@ -30,7 +30,8 @@ import matplotlib.pyplot as plt
 from matplotlib.ticker import PercentFormatter
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-import config, config_mid
+import config
+import arms.registry as arm_reg, config_mid
 import survivorship as sv
 def _window_label(eq=None):
     """One line naming the window every figure on the chart belongs to.
@@ -90,6 +91,12 @@ def main():
     CAP = 1_000_000
     CUT = pd.Timestamp("2019-01-01")
     eq = pd.read_csv(M/"v2FINAL_equity.csv", parse_dates=["date"]).set_index("date")
+    # THE TWO ARMS THIS CHART SHOWS, ASKED FOR BY NAME rather than by the column
+    # each happened to be stored under. arms/registry.equity_series falls back to
+    # the legacy `strategy`/`baseline_invvol` names, so this reads a frozen
+    # universe's file too.
+    _v2 = arm_reg.equity_series(eq, "v2")
+    _v1 = arm_reg.equity_series(eq, "v1")
     params = json.loads((M/"v2FINAL_params.json").read_text())
     inv = params["avg_exposure_pct"]
     idx_raw = (config.read_price_csv(config_mid.INDEX_FILE_MID)[["date","close"]].dropna()
@@ -121,13 +128,13 @@ def main():
     print(f"    2019-01-01 -> 2026-06-08: {_w.iloc[0]:,.2f} -> {_w.iloc[-1]:,.2f} = "
           f"{_w.iloc[-1]/_w.iloc[0]:.4f}x = CAGR {((_w.iloc[-1]/_w.iloc[0])**(1/_y)-1)*100:.4f}%")
     print( "    expected                : 6,342 -> 21,926 = 3.46x = 18.16% CAGR")
-    b_v2 = before_tc(eq["strategy"], M/"daily_trades_mid.csv")
-    b_v1 = before_tc(eq["baseline_invvol"], M/"daily_trades_v1_mid.csv")
+    b_v2 = before_tc(_v2, M/"daily_trades_mid.csv")
+    b_v1 = before_tc(_v1, M/"daily_trades_v1_mid.csv")
     print("\n  HEADLINE NUMBERS")
     print(f"    {'series':<42} {'before TC':>10} {'after TC':>9} "
           f"{'Sharpe':>7} {'MaxDD%':>8} {'inv%':>5}")
-    rows = [("mid v2 (breadth)", eq["strategy"], b_v2[0], inv),
-            ("mid v1 (inv-vol)", eq["baseline_invvol"], b_v1[0], 100),
+    rows = [("mid v2 (breadth)", _v2, b_v2[0], inv),
+            ("mid v1 (inv-vol)", _v1, b_v1[0], 100),
             ("mid buy&hold (equal-weight universe)", eq["buyhold"], None, 100),
             ("NIFTYMIDCAP150 (cap-weighted index)", index, None, 100)]
     for lab, s_, b, iv in rows:
@@ -218,11 +225,11 @@ def main():
            # drift out of date if the mode ever changes.
            + sv.describe_state())
     series = [
-     (f"mid v2 (breadth)  [inv {inv}%]", eq["strategy"], "#c0392b", "-",
-      f"CAGR {b_v2[0]:.2f}% before TC / {cagr(eq['strategy']):.2f}% after TC"
+     (f"mid v2 (breadth)  [inv {inv}%]", _v2, "#c0392b", "-",
+      f"CAGR {b_v2[0]:.2f}% before TC / {cagr(_v2):.2f}% after TC"
       f"  [{b_v2[2]} trades, Rs {b_v2[1]:,.0f}]"),
-     ("mid v1 (inv-vol)  [inv 100%]", eq["baseline_invvol"], "#2e6da4", "-",
-      f"CAGR {b_v1[0]:.2f}% before TC / {cagr(eq['baseline_invvol']):.2f}% after TC"
+     ("mid v1 (inv-vol)  [inv 100%]", _v1, "#2e6da4", "-",
+      f"CAGR {b_v1[0]:.2f}% before TC / {cagr(_v1):.2f}% after TC"
       f"  [{b_v1[2]} trades, Rs {b_v1[1]:,.0f}]"),
      ("mid buy&hold (equal-weight universe, NOT investable)  [inv 100%]", eq["buyhold"],
       "#3a9d3a", "-", f"CAGR {cagr(eq['buyhold']):.2f}%  (buy once, hold: no TC)"),
