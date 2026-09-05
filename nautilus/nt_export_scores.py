@@ -115,7 +115,21 @@ def main():
     print("Exporting model scores for the Nautilus execution layer...")
     rows = {}
     for tag, u in REGISTRY.items():
-        rows[tag] = len(export(Path(u.score_cache), paths.nautilus_scores(u), u.label))
+        # config.require_cache, LIKE EVERY OTHER CONSUMER OF A PERMANENT PANEL.
+        # v34_common, validate_engine, make_mid_chart, engine_v2_final_mid/n100
+        # and eight study scripts all resolve the two locations through it; this
+        # file was the one hold-out, reading u.score_cache with no fallback, and
+        # that is what crashed the first cold run at STEP 16.
+        #
+        # THIS IS THE GUARD, NOT THE FIX. require_cache prefers the PERMANENT copy,
+        # so on a run that rebuilt panels it would happily read a stale one -- the
+        # third failure named in its own docstring. STEP 15b persisting the panels
+        # before this step is what makes the permanent copy the fresh one. The
+        # fallback only matters if that ordering is ever broken again, and then it
+        # produces correct output from /tmp instead of stopping the pipeline.
+        src = config.require_cache(u.score_cache, str(u.score_tmp),
+                                   what=f"{u.label} score panel")
+        rows[tag] = len(export(Path(src), paths.nautilus_scores(u), u.label))
     print(f"\n{'=' * 66}")
     print("Done. " + " | ".join(f"{t}: {n:,} rows" for t, n in rows.items()))
     print("These files are the ONLY input the Nautilus strategy takes from the model.")

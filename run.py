@@ -102,6 +102,10 @@ STEP_UNIVERSES = {
     "make_final_chart_fair.py":   ("58", "74"),
     "make_final_summary.py":      ("58", "74"),
     "make_daily_log.py":          ("58", "74", "mid", "n100"),
+    # SERVES EVERY UNIVERSE, so a selective run persists its panels too. Listed
+    # against all four rather than left unmapped: `--universe mid` must still
+    # reach STEP 15b, or that path reproduces the very bug 15b exists to fix.
+    "save_caches_step.py":        ("58", "74", "mid", "n100"),
     "nt_export_scores.py":        ("58", "74", "mid", "n100"),
 }
 
@@ -382,9 +386,11 @@ def execute(plan, args):
         print(comp.to_string(index=False))
         print(f"    -> {show(out)}/   [{(time.time()-t0)/60:.1f} min]")
 
-    # SAFETY 3, second half -- persist the panels so the next run need not rebuild.
-    if plan["pipeline"]:
-        mod["save_permanent_caches"]()
+    # SAFETY 3, second half -- persisting the panels IS STEP 15b now, inside the
+    # loop above and ahead of STEP 16, which reads them. It ran here, after the
+    # whole loop AND after the arm runs, which put it after its own consumer: on a
+    # cold run STEP 16 died with "v5_expanding_cache.csv missing". Nothing is
+    # called here any more; the ordering is expressed in PIPELINE_ORDER.
 
     print("\n" + "=" * 90)
     print(f"DONE in {(time.time()-t_start)/60:.1f} min   "
