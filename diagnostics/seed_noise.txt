@@ -1,0 +1,33 @@
+====================================================================================================
+ SEED NOISE FLOOR -- NIFTY 100 (n100)
+====================================================================================================
+
+  seeds fitted 40  (first 10 = production set, rest new)
+  purge: CURRENT production, 32 calendar days -- deliberately not the
+         corrected one, so the shipped result is one draw of this distribution
+  sub-ensembles: K in [1, 2, 3, 5, 10, 20, 40], 50 random subsets per K (K=40 has one)
+
+  IDENTITY GATE -- production 10 seeds vs v34_comparison.csv: MISMATCH
+    CAGR%    from store     26.21   recorded     25.78
+    Sharpe   from store      1.92   recorded      1.86
+    MaxDD%   from store    -17.69   recorded    -19.87
+
+  NO SPREAD IS REPORTED. The store does not reproduce the shipped result.
+
+====================================================================================================
+ SEED NOISE FLOOR -- MIDCAP150 (mid)
+====================================================================================================
+
+  seeds fitted 40  (first 10 = production set, rest new)
+  purge: CURRENT production, 32 calendar days -- deliberately not the
+         corrected one, so the shipped result is one draw of this distribution
+  sub-ensembles: K in [1, 2, 3, 5, 10, 20, 40], 50 random subsets per K (K=40 has one)
+
+  IDENTITY GATE -- production 10 seeds vs v34_comparison.csv: MISMATCH
+    CAGR%    from store     29.95   recorded     29.70
+    Sharpe   from store      2.04   recorded      2.03
+    MaxDD%   from store    -16.82   recorded    -18.88
+
+  NO SPREAD IS REPORTED. The store does not reproduce the shipped result.
+
+WALL CLOCK (in-script): 0 min 1 sec

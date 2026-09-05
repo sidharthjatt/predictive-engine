@@ -1,0 +1,52 @@
+====================================================================================================
+ SHUFFLE TEST -- MIDCAP150 (mid)
+====================================================================================================
+
+  score panel   /Users/sidharthchoudhary/Downloads/algo_trading_project/results_mid/metrics/v_mid_expanding_cache.csv
+  symbol set    148 names, asserted equal to the configured universe
+  window        2019-01-01 .. 2026-05-29   1836 trading days
+  engine        test_exposure.backtest_exposure (SHIPPING)
+  null          100 cross-sectional score permutations, seeds 0..99
+  bar           p < 0.05 on CAGR, one-sided, fixed in the spec
+
+  IDENTITY GATE -- the real v2 arm must reproduce the shipped v2
+    CAGR%    this run     29.70   shipped     29.70   ok
+    Sharpe   this run      2.03   shipped      2.03   ok
+    MaxDD%   this run    -18.88   shipped    -18.88   ok
+
+  equal-weight buy & hold (100% invested, same panel and window):
+    CAGR 27.77%   Sharpe 1.50   MaxDD -36.40%
+
+----------------------------------------------------------------------------------------------------
+ CAGR -- THE GATED STATISTIC
+----------------------------------------------------------------------------------------------------
+ arm       real  null med  null p5  null p95  null max   beat        p   effect  gated
+ v1       45.87     15.91     8.42     23.97     30.12      0   0.0099   +29.96    yes
+ v2       29.70     11.23     7.27     16.04     18.90      0   0.0099   +18.47    yes
+ v3       49.70     16.96     8.27     24.99     29.83      0   0.0099   +32.74     no
+ v4       32.31     12.30     6.69     17.24     21.29      0   0.0099   +20.01     no
+
+----------------------------------------------------------------------------------------------------
+ REPORTED, NOT GATED -- Sharpe and MaxDD
+----------------------------------------------------------------------------------------------------
+ arm     realSh  nullSh med    p(Sh)   realDD  nullDD med    p(DD)  deploy%
+ v1        1.84        0.88   0.0099   -34.49      -38.14   0.2079    100.0
+ v2        2.03        1.04   0.0099   -18.88      -19.81   0.4455     54.1
+ v3        1.80        0.82   0.0099   -35.61      -44.74   0.0990    100.0
+ v4        1.92        0.98   0.0099   -17.45      -23.12   0.0891     54.1
+
+  PREDICTION 3, TESTED -- does the null keep breadth's drawdown advantage?
+    The spec predicted it would, because exposure is score-independent.
+    shuffled v1 median MaxDD -38.14   shuffled v2 median MaxDD -19.81
+    the prediction is BORNE OUT on mid.
+
+  PREDICTION 4, REPORTED, NOT GATED -- do the MECHANICS carry return?
+    shuffled v1 median CAGR   15.91  vs buy & hold  27.77   below
+    shuffled v2 median CAGR   11.23  vs buy & hold  27.77   below
+    shuffled v3 median CAGR   16.96  vs buy & hold  27.77   below
+    shuffled v4 median CAGR   12.30  vs buy & hold  27.77   below
+    NOTE, AND IT MATTERS FOR HOW THIS IS READ: the breadth arms deploy
+    about 54% while buy & hold is 100% invested, so a
+    breadth arm below buy & hold on CAGR is not evidence of anything on
+    its own. The null, which holds deployment identical, is the comparison
+    that controls for this. Buy & hold is context, not a benchmark here.

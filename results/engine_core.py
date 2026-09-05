@@ -406,12 +406,64 @@ def _fit_seed(sd, Xtr, ytr, Xte, n_jobs=1):
     return m.predict(Xte)
 
 
-def score_monthly(raw, seeds, purge=PURGE):
+# EMBARGO for the trading-row purge, in TRADING ROWS. See score_monthly.
+PURGE_EMBARGO = 2
+
+
+def score_monthly(raw, seeds, purge=PURGE, purge_mode="trading"):
+    """Monthly expanding-window scoring with a purged training set.
+
+    PURGE_MODE -- "trading" (default, CORRECT) or "calendar" (legacy, FROZEN USE).
+
+    THE DEFECT THE "trading" MODE FIXES, measured 2026-09-01 and recorded in
+    diagnostics/LEAKAGE_AUDIT.txt:
+        The legacy cut is `first_scored - Timedelta(days=32)`. That is 32 CALENDAR
+        days. The label is `close.shift(-HORIZON)`, which is 20 TRADING ROWS.
+        Twenty trading rows span about 28 calendar days normally and MORE across a
+        holiday cluster, so the margin is roughly four days and IT VARIES. Measured
+        on both live universes: the label reached INTO the scored month in 7 of 126
+        months and touched its first day in 21 more -- the same 7 and 21 on both,
+        because the cause is the shared NSE holiday calendar.
+
+    THE CORRECTION, entirely in trading rows on the panel's own calendar:
+        j_max = i_first - HORIZON - PURGE_EMBARGO ;  cut = cal[j_max]
+    so gap = i_first - (j + HORIZON) >= PURGE_EMBARGO BY CONSTRUCTION. It cannot
+    underflow, because a holiday shifts the date but never the row count.
+
+    THE EMBARGO IS 2 ROWS. One clears the scored month. The second clears the
+    close at i_first - 1, which is the BASE PRICE of the scored period's first
+    return -- the strategy signals at a close and fills at the next open, so a
+    label observing that close has observed the scored period's starting price.
+    It is not larger: a bigger embargo removes training rows, which would change
+    results for a reason unrelated to leakage.
+
+    WHY "calendar" STILL EXISTS. The retired 58 and 74 are frozen and their
+    published numbers must not move. Their builders pin purge_mode="calendar"
+    explicitly. THE DEFAULT IS THE CORRECT MODE so that anything new gets it
+    right; legacy behaviour must now be asked for by name.
+
+    THE HEADLINE MOVES UNDER "trading", AND THE MOVE IS NOT AN IMPROVEMENT. It is
+    not distinguishable from re-fit variation -- see EXPERIMENTS.md entry 29,
+    which measured the seed noise floor at sd 0.97 to 2.14 CAGR points against a
+    purge effect of -0.12 and -0.52. The new numbers are the CORRECT ones to
+    carry, not better ones.
+    """
+    if purge_mode not in ("trading", "calendar"):
+        raise ValueError(f"purge_mode must be 'trading' or 'calendar', got {purge_mode!r}")
     p = raw.sort_values(["date", "symbol"]).reset_index(drop=True).copy()
     p["score"] = np.nan
     p["ym"] = p["date"].dt.to_period("M")
+    _cal = np.array(sorted(p["date"].unique()))
+    _pos = {d: i for i, d in enumerate(_cal)}
     for ym in sorted(p.loc[p["date"].dt.year >= 2016, "ym"].unique()):
-        cut = p.loc[p.ym == ym, "date"].min() - pd.Timedelta(days=purge)
+        _first = p.loc[p.ym == ym, "date"].min()
+        if purge_mode == "calendar":
+            cut = _first - pd.Timedelta(days=purge)
+        else:
+            _j = _pos[np.datetime64(_first)] - HORIZON - PURGE_EMBARGO
+            if _j < 0:
+                continue
+            cut = pd.Timestamp(_cal[_j])
         tr = (p["date"] <= cut) & p["y_rank"].notna()
         # Only scorable rows are predicted. The panel now carries price-only rows
         # whose features are NaN; scoring those would feed NaN into the model and
@@ -519,7 +571,8 @@ def main():
             ps = pd.read_csv(cache, parse_dates=["date"])
         else:
             print(f"      scoring seed set {si+1}/3 ...", flush=True)
-            ps = score_monthly(raw, seeds)
+            # FROZEN: engine_core.main() is the retired 58.
+            ps = score_monthly(raw, seeds, purge_mode="calendar")
             ps[["date", "symbol", "open", "close", "score"]].to_csv(cache, index=False)
         pxs = ps.pivot_table(index="date", columns="symbol", values="close").ffill()
         ops = ps.pivot_table(index="date", columns="symbol", values="open").ffill()

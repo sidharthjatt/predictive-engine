@@ -58,31 +58,86 @@ RETIRED UNIVERSES ARE FROZEN ON THE OLD WINDOW BY DECISION. The 58 and the 74
 keep their year cut so their published numbers do not move. Ten sites carry the
 comment "WINDOW FROZEN: retired universe" -- one grep finds them all.
 
+THIS SECTION IS ONE REVISION BEHIND, AND IS LEFT THAT WAY DELIBERATELY. It
+records the 2026-08-28 window change, and its before/after columns are correct
+FOR THAT CHANGE. The purge correction of 2026-09-02 moved the numbers again.
+Section 2 carries the current values. This section is not edited, because it is
+the record of what the window change did rather than a statement of today's
+headline.
+
 ================================================================================
 ## 2. OFFICIAL NUMBERS (Rs 10,00,000 start, after TC, before tax, zero cash yield)
 ================================================================================
 
-Read from results_*/metrics/v34_comparison.csv, window above.
+Read from results_*/metrics/v34_comparison.csv, regenerated 2026-09-02 after the
+purge correction. Window 2019-01-01 to 2026-05-29, 1,836 trading days.
 
 NIFTY 100 (99 constituents)
     arm                          CAGR%  Sharpe  MaxDD%  AnnVol%  Deployed%  Final Rs
-    v1 invvol, 100% invested     35.13    1.65  -35.32    19.71      100.0  92,94,664
-    v2 invvol, breadth-scaled    25.49    1.88  -18.64    12.71       56.6  53,75,021
-    v3 provol, 100% invested     27.91    1.21  -35.28    22.92      100.0  61,91,296
-    v4 provol, breadth-scaled    23.89    1.49  -19.07    15.42       56.6  48,86,777
+    v1 invvol, 100% invested     35.01    1.64  -35.50    19.81      100.0  92,36,608
+    v2 invvol, breadth-scaled    25.78    1.87  -19.96    12.96       56.6  54,65,550
+    v3 provol, 100% invested     29.09    1.23  -45.58    23.39      100.0  66,25,976
+    v4 provol, breadth-scaled    22.86    1.41  -22.08    15.71       56.6  45,94,334
     equal-weight buy & hold      23.74    1.32  -36.52    17.57      100.0  48,45,781
 
 MIDCAP150 (148 constituents)
     arm                          CAGR%  Sharpe  MaxDD%  AnnVol%  Deployed%  Final Rs
-    v1 invvol, 100% invested     45.87    1.83  -34.78    22.38      100.0 1,63,83,771
-    v2 invvol, breadth-scaled    30.22    2.06  -18.98    13.49       54.1  70,69,593
-    v3 provol, 100% invested     48.98    1.78  -32.64    24.51      100.0 1,91,49,978
-    v4 provol, breadth-scaled    32.74    1.92  -17.45    15.63       54.1  81,45,635
+    v1 invvol, 100% invested     45.92    1.84  -34.68    22.24      100.0 1,64,19,894
+    v2 invvol, breadth-scaled    29.71    2.03  -18.93    13.51       54.1  68,64,240
+    v3 provol, 100% invested     49.54    1.79  -35.76    24.53      100.0 1,96,91,257
+    v4 provol, breadth-scaled    32.31    1.92  -17.50    15.48       54.1  79,52,034
     equal-weight buy & hold      27.77    1.50  -36.40    17.61      100.0  61,47,717
 
 v2 is the shipping configuration. The equal-weight buy & hold is NOT investable:
 it is today's index members backfilled, so it carries the same survivorship
 inflation the strategy does.
+
+THESE NUMBERS MOVED ON 2026-09-02 AND THE MOVE IS NOT AN IMPROVEMENT. The purge
+was corrected because the calendar-day cut is wrong by construction and can
+underflow across a holiday cluster, NOT because of any return impact. The
+shipping arm moved +0.29 on n100 and -0.51 on mid, in opposite directions, and
+both sit inside the measured seed noise floor of sd 0.97 and sd 1.39
+(EXPERIMENTS.md entry 29). They are the correct numbers to carry, not better
+ones.
+
+--------------------------------------------------------------------------------
+THERE IS NO MEASURED NOISE FLOOR FOR MaxDD. NO DRAWDOWN DIFFERENCE IN THIS
+DOCUMENT MAY BE READ AS AN EFFECT.
+--------------------------------------------------------------------------------
+    The seed noise floor was measured on CAGR ONLY -- sd 0.97 on n100 v2 and 1.39
+    on mid v2, across 50 ten-seed sub-ensembles. NOTHING EQUIVALENT EXISTS FOR
+    DRAWDOWN.
+
+    The nearest thing to a measurement on that axis is the shuffle test
+    (EXPERIMENTS.md entry 28), and it is a NEGATIVE one: MaxDD was NOT
+    distinguishable from its permutation null, at p 0.37 and 0.36 on n100 and
+    0.20 and 0.44 on mid. Drawdown could not be told apart from random selection.
+
+    MaxDD MOVED MORE THAN CAGR IN SEVERAL ARMS at the purge correction:
+        n100 v2   -18.64 -> -19.96   moved 1.32 points, against 0.29 of CAGR
+        n100 v4   -19.07 -> -22.08   moved 3.01 points
+        mid  v3   -32.64 -> -35.76   moved 3.12 points
+        n100 v3   -35.28 -> -45.58   moved 10.30 points
+    NONE OF THESE IS A FINDING. Nobody can presently tell an effect from noise on
+    drawdown, so a drawdown difference between two arms, or between two revisions
+    of the same arm, carries no weight in either direction.
+
+    n100 v3's 10.30-point move is three times any other arm's and IS NOT BEING
+    INVESTIGATED. v3 is a pro-vol arm that does not ship and was rejected on its
+    own measurement (section 3). It is listed so that a later reader does not
+    mistake an uncommented ten-point move for something that went unnoticed.
+
+--------------------------------------------------------------------------------
+INTEGRITY CHECK: BUY & HOLD DID NOT MOVE.
+--------------------------------------------------------------------------------
+    Equal-weight buy & hold is identical before and after the purge correction --
+    23.74 / 1.32 / -36.52 on n100 and 27.77 / 1.50 / -36.40 on mid, to the decimal
+    on CAGR, Sharpe and MaxDD alike. It does not depend on model scores, so it
+    MUST NOT move, and it did not. Every strategy arm did.
+
+    That is the expected signature of a change confined to the scoring stage, and
+    it is the one check available that the purge correction touched only what
+    depends on scores.
 
 ================================================================================
 ## 3. PRO-VOL WAS MEASURED AND IS NOT SUPPORTED
@@ -100,27 +155,28 @@ higher volatility, deeper MaxDD, Sharpe equal or lower.
 
 v4 vs v2 -- THE ONE CLEAN CONTRAST (same portfolio, only the weights differ):
 
-    n100   CAGR 25.49 -> 23.89  (-1.60)   Sharpe 1.88 -> 1.49  (-0.39)
-           vol  12.71 -> 15.42  (+2.71)   MaxDD -18.64 -> -19.07 (deeper)
-    mid    CAGR 30.22 -> 32.74  (+2.52)   Sharpe 2.06 -> 1.92  (-0.14)
-           vol  13.49 -> 15.63  (+2.14)   MaxDD -18.98 -> -17.45 (shallower)
+    n100   CAGR 25.78 -> 22.86  (-2.92)   Sharpe 1.87 -> 1.41  (-0.46)
+    mid    CAGR 29.71 -> 32.31  (+2.60)   Sharpe 2.03 -> 1.92  (-0.11)
 
-ON n100 THE PREDICTION IS CONTRADICTED, and it is recorded as a contradiction of
-a written prediction rather than as something that was expected. Pro-vol lowered
-CAGR by 1.60 points AND lowered Sharpe by 0.39 AND raised volatility AND deepened
-drawdown. Nothing was bought with the extra risk. On mid the CAGR claim held but
-the drawdown claim did not -- MaxDD came out shallower, not deeper.
+ON n100 THE WRITTEN PREDICTION IS STILL CONTRADICTED. Pro-vol lowered CAGR by
+2.92 points AND lowered Sharpe by 0.46. Nothing was bought with the extra risk.
+On mid the CAGR claim still held.
 
-THE TWO UNIVERSES DISAGREE on the sign of the CAGR change and on the sign of the
-drawdown change. They agree only that pro-vol raises volatility and lowers
-Sharpe. The disagreement IS the finding and is not resolved toward mid.
+THE TWO UNIVERSES STILL DISAGREE ON THE SIGN OF THE CAGR CHANGE. That was the
+finding in the original measurement and it survives the purge correction
+unchanged. They agree only that pro-vol lowers Sharpe.
+
+THE DRAWDOWN HALF OF THE ORIGINAL COMPARISON HAS BEEN WITHDRAWN. It read the
+direction of a MaxDD difference as a result. There is no measured noise floor for
+drawdown -- see section 2 -- so no such reading is supportable, in this contrast
+or any other.
 
 v3 vs v1 -- UNTESTABLE, NOT FAILED. This is a different outcome from a failed
 prediction and must not be collapsed into one. The two arms target the same eight
-names (verified identical on all 92 rebalances) but hold different subsets:
+names but hold different subsets, measured on the current artefacts:
 
-    n100   mean names held  v1 8.01 vs v3 7.78   cash-short skips  119 vs 140
-    mid    mean names held  v1 8.04 vs v3 7.63   cash-short skips   92 vs 129
+    n100   mean names held  v1 7.99 vs v3 7.65   cash-short skips  121 vs 140
+    mid    mean names held  v1 7.99 vs v3 7.58   cash-short skips   93 vs 125
 
 Any v3-v1 difference mixes sizing with a portfolio-composition effect this design
 cannot separate. No verdict is drawn in either direction.
@@ -177,10 +233,18 @@ NO ARM IS PROMOTED. Inverse-vol sizing is unchanged and v2 still ships.
     Both pass, so the spec's split-result clause did not fire.
 
     AND IT COVERS PRODUCTION, WHICH THE SIZING VALIDATION DOES NOT. It imports
-    test_exposure.backtest_exposure -- the shipping engine -- and its breadth arm
-    returns CAGR 25.49 / Sharpe 1.88 / MaxDD -18.64 on n100 and 30.22 / 2.06 /
-    -18.98 on mid, identical to v2 in v34_comparison.csv on all three headline
-    figures in both universes. validate_sizing.py runs on engine_core.backtest,
+    test_exposure.backtest_exposure -- the shipping engine.
+
+    ITS IDENTITY WITH v2 NO LONGER HOLDS, AND THAT IS NOT A NEW DEFECT. When run
+    on 2026-08-29 its breadth arm returned CAGR 25.49 / Sharpe 1.88 / MaxDD -18.64
+    on n100 and 30.22 / 2.06 / -18.98 on mid, identical to v2 at that time. v2 has
+    since moved to 25.78 / 1.87 / -19.96 and 29.71 / 2.03 / -18.93 under the purge
+    correction, and the suite has not been re-run.
+
+    THE PASS STANDS; THE IDENTITY CLAIM DOES NOT, until it is re-run. Re-running
+    it rescores three seed sets per universe. ESTIMATED at of order 100 minutes
+    from entry 29's measured per-universe rate -- THIS IS AN ESTIMATE, NOT A
+    MEASURED COST, and no run of this suite has been timed. validate_sizing.py runs on engine_core.backtest,
     a structurally different implementation that lands 1.80 CAGR points away from
     the shipping engine on the 58 -- see "There are FIVE reimplementations of the
     backtest, not two" in KNOWN_ISSUES.md -- so its result
@@ -262,6 +326,11 @@ THE OUTCOME HAS TWO HALVES. READ BOTH OR NEITHER.
     MEASUREMENT TOP_N=12 HAD THE SHALLOWER MaxDD IN BOTH UNIVERSES -- -15.99
     against -18.64 on n100, -16.65 against -18.98 on mid -- on a dimension the
     rule does not gate.
+
+    THOSE FOUR FIGURES ARE PRE-PURGE-FIX and the comparison has not been re-run.
+    They are also drawdown figures, so section 2's rule applies to them in full:
+    there is no measured noise floor for MaxDD and this difference cannot be read
+    as an effect.
 
     That is NOT a claim that 12 is better: its Sharpe is lower in every period
     and its turnover is 40.8% and 48.1% higher. And NO DRAWDOWN CRITERION WAS
@@ -375,13 +444,41 @@ TWO MECHANICS OFTEN MISUNDERSTOOD:
 ## 6. CORRECTNESS -- WHAT IS ACTUALLY PROVEN
 ================================================================================
 
-NAUTILUS GATE, 2026-08-28: diagnostics/verify_v34_arms.txt
-    All FOUR arms VERIFIED at 92 of 92 rebalances on BOTH universes, on the new
-    window. The sizing rule in force was asserted on both the port
-    (nt_strategy.SIZING) and the reference side (nt_attribution.SIZING) before
-    each arm and printed beside its result, read back from the modules rather
-    than from the loop variable, so no arm can have been measured under a stale
-    global.
+NAUTILUS GATE, RE-RUN 2026-09-02 AFTER THE PURGE CORRECTION.
+    VERIFIED at 92 of 92 rebalances on BOTH universes, on the 0.01 tick grid,
+    against the open-valued reference. The ARM A control returns 92 of 92 against
+    the reference's own holdings. Fill counts agree, reference 978 and port 978 on
+    n100.
+
+    The two differences that remain at the real 0.05 grid are the two already
+    documented: the reference values the portfolio at the execution day's CLOSE,
+    which a strategy standing at 09:15 cannot know; and quantity is a floor
+    division by a tick-snapped price, where one 0.05 tick is 0.19% of a Rs 27
+    share. Neither is a bug.
+
+    THE EARLIER GATE OF 2026-08-28 covered all four arms with the sizing rule
+    asserted on both the port and the reference side before each arm. That run was
+    on pre-purge-fix scores. The 2026-09-02 re-run covers the shipping
+    configuration on the current scores.
+
+EXECUTION TIMING, VERIFIED AGAINST THE FILL RECORD FOR THE FIRST TIME, 2026-09-02:
+    diagnostics/checkB_execution_timing.txt
+    Every fill was tested against four candidate prices, not one -- the fill day's
+    open, the fill day's close, the previous session's close and the previous
+    session's open -- so "matches the open" could be told apart from "matches
+    everything".
+
+        n100   977 of 978 at the fill day's OPEN.  ZERO at any close.
+        mid    961 of 963 at the fill day's OPEN.  ZERO at any close.
+
+    All 1,941 fills fall on the panel's own trading calendar and one session after
+    a recorded decision date, so each is at the RIGHT open rather than merely at an
+    open. The three exceptions are two one-paisa rounding misses and one symbol
+    with no panel price under its post-rename ticker.
+
+    This is the claim engine_core's leakage checklist asserted as a hardcoded PASS
+    until 2026-08-29. It is now the only one of those six rows with a direct
+    artefact behind it.
 
 RECONCILIATION: mid and n100 both report cash, equity and share counts tying out
 on 1,836 of 1,836 days, ALL OK, plus "equity vs official v2FINAL_equity.csv:
@@ -407,6 +504,36 @@ beside it because a summary of a prereg is not the prereg.
 The true trial count is AT LEAST 25 and the pre-registrations' own running count
 drifted -- it understates by at least two. Every multiple-testing argument in this
 project was made against a denominator that is too small.
+
+    ------------------------------------------------------------------------
+    CORRECTION, 2026-09-02. THIS SECTION'S COUNTS ARE STALE AND ARE LEFT
+    STANDING RATHER THAN OVERWRITTEN.
+    ------------------------------------------------------------------------
+    The paragraphs above say "27 numbered entries, 26 run" and "AT LEAST 25".
+    Both are one revision behind. Read from EXPERIMENTS.md itself:
+
+        entries listed ....................... 29
+        entries actually run ................. 28
+        acceptances .......................... 1, unchanged (entry 10)
+        floor on the true number of looks .... 28
+
+    Entries 28 (the shuffle test) and 29 (the seed noise floor) were added on
+    2026-09-01 and 2026-09-02 and are not counted above. EXPERIMENTS.md's own
+    trial-count section now reads "This file lists 29 entries, of which 28 were
+    actually run" and "Treat 28 as a floor, not a measurement."
+
+    THIS DOCUMENT ALREADY CONTRADICTED ITSELF ON THIS POINT. Section 10 states
+    "THE TRIAL DENOMINATOR IS AT LEAST 29". That figure is the later one and is
+    the one to carry; it is not amended here. Section 7 is the stale half.
+
+    NOTHING ABOUT ANY VERDICT CHANGES. The direction of the discrepancy is the
+    one that always mattered -- MORE looks, never fewer -- so every
+    multiple-testing argument in this project remains too generous rather than
+    too strict. The one acceptance stays an acceptance.
+
+    UNLIKE SECTION 1, THIS STALENESS IS NOT DELIBERATE. Section 1 is held one
+    revision behind by design and says so, because it is the record of what the
+    window change did. Section 7 has no such reason; it is simply out of date.
 
 The exposure and portfolio-construction family is closed after eight attempts.
 EXP22's premise was refuted rather than rejected: no position ever reached 20% of
@@ -472,30 +599,155 @@ NOT STARTED, and each needs its own pre-registration:
 
 "The system builds 17 features from daily price and volume, normalises them
 cross-sectionally, and ranks stocks every month with a LightGBM 10-seed ensemble
-using a 32-day purge and an expanding walk-forward window. It buys the top 8, sets
-total exposure from market breadth, sizes positions by inverse volatility, and
-executes close-signal / next-open-fill with real Zerodha costs.
+using a purge expressed in trading rows and an expanding walk-forward window. It
+buys the top 8, sets total exposure from market breadth, sizes positions by
+inverse volatility, and executes close-signal / next-open-fill with real Zerodha
+costs.
 
-On Nifty 100 it returns 25.49% CAGR at Sharpe 1.88 with an 18.6% maximum drawdown,
-against 23.74% and 1.32 at 36.5% for an equal-weight hold of the same names. On
-MidCap150, 30.22% at 2.06 with 19.0%, against 27.77% and 1.50 at 36.4%. The
-drawdown is roughly half the benchmark's in both, which is the defensible result;
-the return edge is about two points and rests heavily on a few names.
+On Nifty 100 it returns 25.78% CAGR at Sharpe 1.87, against 23.74% and 1.32 for
+an equal-weight hold of the same names. On MidCap150, 29.71% at 2.03, against
+27.77% and 1.50. Maximum drawdown is roughly half the benchmark's in both, but
+see the drawdown caveat below before making anything of that.
 
 Every trading day reconciles -- cash, equity and share counts tie out on 1,836 of
-1,836 days -- and the execution layer is ported to NautilusTrader, where all four
-sizing arms verify against the research engine on 92 of 92 rebalances at zero
-tolerance on share counts.
+1,836 days -- and the execution layer is ported to NautilusTrader, which verifies
+against the research engine at 92 of 92 rebalances. Execution timing is confirmed
+against the fill record: 977 of 978 and 961 of 963 fills at the next session's
+open, none at any close. Randomised scores reproduce none of the return: 0 of 100
+permutations beat the real arm.
 
-Caveats, and they are real: survivorship bias, since the universe is today's index
-members backfilled and point-in-time membership only reaches 2024. No capital
-gains tax. No significance test has ever been run on the edge -- not that it
-failed one, nobody ran one. Inverse-vol sizing validates on Nifty 100 and fails
-three of four tests on MidCap150 -- and that validation runs on a different engine
-from the one that ships, so it does not cover production. Breadth exposure passes
-3 of 3 on both live universes on a suite that DOES run the shipping engine and
-reproduces v2 exactly. To make this a product it needs a less efficient universe
-or new data, not more tuning."
+Caveats, and they are real.
+  - SURVIVORSHIP. The universe is today's index members backfilled, and
+    point-in-time membership only reaches 2024-03-28 against a 2019 start. Not
+    quantified, and not quantifiable with the data on disk.
+  - NO OUT-OF-SAMPLE DATA. Training for the last scored month reaches inside the
+    reported window. No part of 2019-2026 was held back from fitting as a whole.
+  - THE HEADLINE IS NOT STABLE TO BETTER THAN ABOUT A POINT. Redrawing the ten
+    seeds gives a standard deviation of 0.97 on n100 v2 and 1.39 on mid. A one-bit
+    float difference moved n100 v2 by 0.66 points.
+  - NO NOISE FLOOR EXISTS FOR DRAWDOWN AT ALL. The one measurement on that axis
+    found MaxDD indistinguishable from a random-selection null. No drawdown
+    comparison in this project should be read as an effect.
+  - THE TRIAL DENOMINATOR IS AT LEAST 29 and no result is corrected for it.
+  - No capital gains tax, no market impact, synthetic fills.
+  - Inverse-vol sizing validates on Nifty 100 and fails three of four tests on
+    MidCap150, on a different engine from the one that ships.
+
+To make this a product it needs a less efficient universe or new data, not more
+tuning."
+
+================================================================================
+## 11. WHAT WAS MEASURED SINCE 2026-08-29
+================================================================================
+
+PER-SYMBOL ATTRIBUTION, SHIPPING ARM. diagnostics/attribution_v2.txt
+    Realised P&L by FIFO round-trip matching of the trade logs. No refit.
+
+        n100   93 symbols, 484 round trips, 60.1% win rate
+               top 1 MAZDOCK 11.67%   top 5 39.61%   top 10 61.24%
+        mid   122 symbols, 477 round trips, 57.4% win rate
+               top 1 TATAINVEST 9.49%  top 5 43.48%   top 10 68.94%
+
+    MID IS ROUGHLY 8 POINTS MORE CONCENTRATED THAN n100 at both the top-5 and
+    top-10 cuts, on a universe 50% larger. First time either universe's
+    concentration has been quantified. Realised P&L explains about 99% of the
+    equity gain in both, so the shares are readable, but they are shares OF
+    REALISED P&L and not of the equity gain.
+
+    The record's older concentration claim names LLOYDSME, which measures sixth
+    at 7.24%. See KNOWN_ISSUES.md.
+
+SAME-MACHINE DETERMINISM, VERIFIED 2026-09-02.
+    Two complete scoring runs from a clean cache, both universes, 74 minutes.
+
+        score panels and feature panels   BYTE-IDENTICAL, ~445 MB, SHA256
+        all four arms, both universes     identical to four decimal places
+
+    Thread counts are pinned at run_all.py:68 -- OMP, MKL, OPENBLAS, VECLIB and
+    NUMEXPR all set to 1, PYTHONHASHSEED to 0 -- before any numeric library is
+    imported. Children inherit at spawn. THE PIN CHANGED NO NUMBER: the pinned
+    runs are byte-identical to the caches built before it existed.
+
+    THIS IS SAME-MACHINE ONLY. Cross-machine reproducibility is not established
+    and should not be expected: LightGBM is absent from requirements.txt, and a
+    one-bit float difference is enough to move the headline.
+
+    A step run STANDALONE does not pass through run_all.py and gets machine
+    defaults. That gap is open.
+
+    ------------------------------------------------------------------------
+    CORRECTION AND ADDITION, 2026-09-02. THE SENTENCE ABOVE IS LEFT STANDING.
+    ------------------------------------------------------------------------
+    "LightGBM is absent from requirements.txt" was true when written and is no
+    longer true. requirements.txt was rewritten from the code the same day:
+    lightgbm is now listed and PINNED EXACTLY at 4.6.0, and scikit-learn,
+    scipy and pyarrow were added. torch, gymnasium and stable-baselines3 were
+    removed after confirming from the code that nothing imports them.
+    See KNOWN_ISSUES.md.
+
+    THE CONCLUSION OF THAT SENTENCE IS UNCHANGED. Cross-machine
+    reproducibility is STILL not established and should still not be expected.
+    A pinned lightgbm removes one known cause; it does not demonstrate the
+    absence of the others, and a one-bit float difference is still enough to
+    move the headline. Nothing has been run on a second machine.
+
+    ------------------------------------------------------------------------
+    THE VERSIONS THE NUMBERS IN SECTION 2 WERE PRODUCED UNDER.
+    PROVENANCE, NOT A PIN. Only lightgbm is pinned.
+    ------------------------------------------------------------------------
+        Python           3.12.13     (./venv/bin/python)
+        lightgbm         4.6.0       PINNED in requirements.txt
+        scikit-learn     1.9.0
+        numpy            2.2.6
+        pandas           2.3.3
+        scipy            1.18.0
+        matplotlib       3.11.0
+        joblib           1.5.3
+        pyarrow          24.0.0
+        nautilus_trader  1.228.0
+        openpyxl         3.1.5
+
+    Read from the venv's installed distribution metadata on 2026-09-02, not
+    from requirements.txt and not from memory.
+
+    WHY IT IS RECORDED HERE RATHER THAN ONLY IN requirements.txt. A reader of
+    section 2 is reading NUMBERS, and the arithmetic that produced them belongs
+    beside them. requirements.txt says what to install; this says what actually
+    ran.
+
+    WHAT THIS BLOCK DOES NOT CLAIM. It does not claim these versions are
+    sufficient to reproduce section 2. They are necessary. Sufficiency has
+    never been tested, because it has never been tried on another machine.
+
+    THE INTERPRETER IS PART OF THE PROVENANCE, NOT AN ASIDE. run_all.py spawns
+    every step with sys.executable, so the launch command determines the
+    interpreter for all 32 steps. `python3` on this machine is 3.11 with no
+    lightgbm -- below nautilus_trader's own 3.12 floor as well. The pipeline
+    must be launched as ./venv/bin/python run_all.py. run_all.py's docstring
+    said `python3` until 2026-09-02 and was corrected; KNOWN_ISSUES.md records
+    that nothing verifies the project's other documented commands.
+
+THE THREE WINDOWS, AND WHY THEY MATTER.
+    RAW DATA        n100 2000-01-03 .. 2026-06-08   mid 2000-01-04 .. 2026-06-08
+    TRAINING        first scored month 2016-01: n100 2001-01-03 .. 2015-12-01
+                    last  scored month 2026-06: n100 2001-01-03 .. 2026-04-28
+                    (mid starts 2001-05-02; the early end is FIXED, the late end
+                    moves -- that is what expanding means)
+    SCORED/REPORTED 2019-01-01 .. 2026-05-29, 1,836 trading days
+
+    EVERY HEADLINE FIGURE -- CAGR, Sharpe, trade counts and the buy & hold
+    comparison -- IS ON THE SCORED WINDOW AND NOTHING ELSE.
+
+    THE CONSEQUENCE THAT MATTERS. The training sample for the last scored month
+    reaches 2026-04-28, which is INSIDE the reported window. This is correct for
+    an expanding walk-forward -- each month is scored by a model fitted only on
+    earlier data -- but it means NO PART OF THE REPORTED WINDOW WAS HELD BACK FROM
+    THE FITTING PROCESS AS A WHOLE. That is the concrete reason "no out-of-sample
+    data" is an open item; see section 8 and the leakage-side summary in
+    EXPERIMENTS.md.
+
+    THE SHORTFALL AT THE END IS A WINDOW CHOICE, NOT A DATA LIMIT. The raw files
+    run to 2026-06-08, ten days past the window end of 2026-05-29.
 
 ================================================================================
 END OF HANDOFF

@@ -26,7 +26,7 @@ import config
 
 M = config.METRICS_DIR
 OUT = M / "per_stock_charts"
-OUT.mkdir(exist_ok=True)
+OUT.mkdir(parents=True, exist_ok=True)  # parents=True: robust for standalone / fresh checkout
 # WINDOW FROZEN: retired universe -- serves only the retired 58/74. Their published
 # numbers must not move, so this window is deliberately left on the old
 # year cut while the live universes moved to config.BT_START_DATE/BT_END_DATE.

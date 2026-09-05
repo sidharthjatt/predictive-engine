@@ -63,6 +63,16 @@ RESULTS_DIR = PROJECT_ROOT / "results"
 EQUITY_CURVES_DIR = RESULTS_DIR / "equity_curves"
 METRICS_DIR = RESULTS_DIR / "metrics"
 
+# CREATE THE OUTPUT DIRECTORIES AT IMPORT, so a FRESH CHECKOUT works from ANY
+# entry point -- run_all.py or a script run standalone -- rather than only when
+# these directories happen to survive from a previous run on this machine.
+# config74.py, config_mid.py and config_n100.py already do this for their own
+# metrics dirs; config.py did NOT, so STEP 2 (engine_core) crashed on the first
+# to_csv into a non-existent results/metrics on the first fresh run ever
+# attempted (2026-09-03). See KNOWN_ISSUES.md.
+METRICS_DIR.mkdir(parents=True, exist_ok=True)
+EQUITY_CURVES_DIR.mkdir(parents=True, exist_ok=True)
+
 # ---------------------------------------------------------------------------
 # BACKTEST WINDOW -- the single definition. Every live site imports these.
 # ---------------------------------------------------------------------------
@@ -240,7 +250,14 @@ def require_cache(perm, tmp=None, what="score panel"):
         f"{what} not found.\n"
         f"  looked for permanent : {perm}\n"
         f"  looked for working   : {tmp}\n"
-        f"  Neither exists. Run `python3 run_all.py` to build them; the permanent\n"
-        f"  copy is written at the END of that run, so a script reading the\n"
-        f"  permanent path cannot run standalone before the first full pipeline."
+        f"  Neither exists. Run `./venv/bin/python run_all.py` to build them; the\n"
+        f"  permanent copy is written at the END of that run, so a script reading\n"
+        f"  the permanent path cannot run standalone before the first full\n"
+        f"  pipeline.\n"
+        f"  THE INTERPRETER MATTERS. run_all.py spawns every step with\n"
+        f"  sys.executable, so whatever launches it is used for all 32 steps.\n"
+        f"  `python3` is not interchangeable here: on the machine this project\n"
+        f"  was built on it is Python 3.11 with no lightgbm, and below\n"
+        f"  nautilus_trader's 3.12 floor. Corrected 2026-09-02; this message\n"
+        f"  previously named `python3`."
     )

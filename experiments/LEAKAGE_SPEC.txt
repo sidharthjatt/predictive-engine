@@ -1,0 +1,266 @@
+LEAKAGE AUDIT -- IS THE MODEL SEEING THE FUTURE ANYWHERE?
+================================================================================
+Written 2026-09-01, BEFORE any check is written and before any result is seen.
+
+WHY THIS EXISTS, AND WHY THE SHUFFLE TEST DOES NOT ANSWER IT
+    EXPERIMENTS.md entry 28 passed at p = 0.0099 with 0 of 100 permutations
+    beating the real arm. THAT RESULT IS CONSISTENT WITH REAL EDGE AND WITH
+    LEAKAGE, AND CANNOT SEPARATE THEM.
+
+    A feature that looks into the future produces genuinely good scores. The
+    shuffle destroys the symbol-to-score mapping, so it detects whether the
+    scores carry information. It has no way to ask WHERE that information came
+    from. A leaking model passes the shuffle test loudly -- more loudly than an
+    honest one.
+
+    So a strong shuffle result raises the value of this audit rather than
+    lowering it.
+
+MEASURE, DO NOT REASON. Every statement in the report must come from a
+computation on the panel. Where a check cannot be run with what is on disk, the
+report says so plainly and says what is missing, rather than substituting an
+argument.
+
+NOTHING IS FIXED. This audit REPORTS. Any repair is a separate decision with its
+own spec. A found leak is worth more than a clean report.
+
+
+================================================================================
+CHECK 1 -- FEATURE CAUSALITY, MEASURED
+================================================================================
+THE TEST
+    For each of the 17 features in FEATS_V2, and for a sample of dates t across
+    the window: compute the feature at day t on the real panel; then CORRUPT every
+    row strictly after t and recompute the feature at day t; compare.
+
+    BIT-EXACT COMPARISON. Not "close", not a tolerance. A causal feature cannot
+    move at all when only future rows change.
+
+CORRUPTION
+    Two independent corruptions, because one could coincidentally leave a value
+    unchanged:
+      (a) REPLACE   rows after t get prices drawn from noise
+      (b) SHUFFLE   rows after t are permuted in time
+    A feature must be bit-exact under BOTH to pass.
+
+TWO LEVELS, BECAUSE FEATURES ARE BUILT AT TWO LEVELS
+    add_stock_features runs PER SYMBOL. add_market_relative_features runs at PANEL
+    level and is where beta_60 and idio_vol_60 obtain a market return. A
+    per-symbol-only test would not see a leak entering through the market series,
+    so the corruption is applied to the WHOLE PANEL and both stages are recomputed.
+
+SAMPLING
+    Dates spread across the window rather than clustered, and at least 20 of them,
+    so that a feature which leaks only near a boundary is not missed by a lucky
+    sample. Symbols: enough that a per-symbol quirk does not carry the result.
+    Exact counts are reported with the result.
+
+REPORTED
+    THE LIST, PER FEATURE, NOT A SUMMARY VERDICT. For each of the 17: bit-exact
+    under (a), bit-exact under (b), and if not, the magnitude and the dates where
+    it moved. A single feature failing is a finding and is named.
+
+WRITTEN PREDICTION
+    I expect most of the 17 to be bit-exact. I have NOT read the feature
+    implementations at the time of writing this, deliberately, so the prediction
+    is a real one.
+
+    The three I consider most at risk, from their NAMES alone:
+      turnover_z       -- a "z" suffix implies a standardisation. If its mean and
+                          standard deviation are taken over a symbol's WHOLE
+                          history rather than a trailing window, the day-t value
+                          embeds future data. THIS IS MY SINGLE MOST LIKELY
+                          FAILURE.
+      dist_high_252    -- distance from a 252-day high. Correct if rolling(252),
+                          leaking if expanding or whole-sample.
+      vol_ratio        -- a ratio of two volatility measures; leaks if either
+                          side is normalised over the full sample.
+
+    Stated probability that at least one of the 17 fails: I put it near even. I
+    would not be surprised by 17 of 17 clean and I would not be surprised by one
+    failure.
+
+
+================================================================================
+CHECK 2 -- THE TRAINING MASK AND WHETHER THE PURGE PURGES
+================================================================================
+WHAT THE CODE DOES, READ FROM SOURCE BEFORE THE CHECK WAS DESIGNED
+    engine_core.score_monthly:413-415
+
+        cut = p.loc[p.ym == ym, "date"].min() - pd.Timedelta(days=purge)
+        tr  = (p["date"] <= cut) & p["y_rank"].notna()
+
+    and the label at engine_core:189
+
+        d["fwd_ret"] = d["close"].shift(-horizon) / d["close"] - 1
+
+    THE UNITS DO NOT MATCH, AND THAT IS THE WHOLE POINT OF THIS CHECK.
+    PURGE = 32 is CALENDAR days (pd.Timedelta(days=32)). HORIZON = 20 is TRADING
+    ROWS (shift(-20)). Twenty trading rows span about 28 calendar days in a normal
+    month and MORE across a holiday cluster. The margin is therefore small and
+    VARIABLE, and whether it is ever negative is an empirical question.
+
+THE TEST
+    For every scoring month in the walk:
+      1. Dump the actual set of dates present in the training sample.
+      2. Assert no training row is dated on or after the scoring month's first
+         date. Report any violation with the dates.
+      3. For the LATEST training row, compute where its label actually reaches --
+         the date of the row HORIZON trading rows later, per symbol, on the real
+         calendar. This is the date the label observes.
+      4. GAP = (scoring month's first date) minus (the date the label observes),
+         in trading days and in calendar days.
+
+    THE MINIMUM GAP ACROSS ALL SCORING MONTHS IS THE ANSWER.
+
+        gap > 0    the purge holds: no label observed data from the scored month
+        gap = 0    the label observes the first scored day
+        gap < 0    THE LABEL REACHES INTO THE SCORED MONTH. That is leakage, and
+                   its size is the number of days by which it overlaps.
+
+    Reported per month, not only as a minimum, so a single bad month is visible.
+
+REPORTED ALSO
+    The number of training rows per month, the latest training date per month, and
+    the distribution of gaps. The purge's NOMINAL value (32 calendar days) beside
+    its REALISED effect in trading days.
+
+WRITTEN PREDICTION
+    The gap is POSITIVE BUT SMALL -- I expect a median of roughly 2 to 5 trading
+    days. I expect the MINIMUM to be at or near zero, and I think there is a
+    material chance it is NEGATIVE in at least one month, because a 32-calendar-day
+    purge against a 20-trading-row label leaves about 4 calendar days of margin in
+    a clean month and a holiday cluster can consume that.
+
+    IF THE MINIMUM IS NEGATIVE, THAT IS A REAL LEAK, it is small and bounded, and
+    it is reported as a leak without softening.
+
+
+================================================================================
+CHECK 3 -- NORMALISATION SCOPE
+================================================================================
+THE TEST
+    Enumerate EVERY scaling, ranking, percentile or standardisation applied to a
+    feature or to the label, anywhere between the raw CSV and the model's input.
+    For each, state from the code:
+
+        WHERE     file and line
+        WHAT      the operation
+        SCOPE     per-day cross-sectional / per-training-window / whole-panel
+        VERDICT   whole-panel scope on anything the model sees is a LEAK
+
+    Per-day cross-sectional is safe: it uses only same-day peers, which is
+    contemporaneous information, not future information. Per-training-window is
+    safe. WHOLE-PANEL IS NOT, because the statistic is fitted using rows the model
+    should not have seen.
+
+    Found by grep over the feature and panel modules for the operations
+    themselves -- mean, std, rank, quantile, transform, scale, normalize,
+    expanding, cumulative -- rather than by reading for intent.
+
+RELATIONSHIP TO CHECK 1
+    Check 1 would CATCH a whole-panel normalisation automatically, because
+    corrupting future rows would move the day-t value. Check 3 is run anyway and
+    independently: it locates the code, and it catches a scope error in a place
+    Check 1 does not sample. Agreement between the two is itself information; a
+    disagreement is a finding about the audit and is reported as one.
+
+WRITTEN PREDICTION
+    cross_sectional_normalize groups by date (features_v2.py:194-206) and y_rank
+    groups by date (engine_core.py:277-279), so BOTH are per-day and safe. My
+    prediction is that the panel-level normalisation is clean and that if a
+    whole-panel statistic exists it is INSIDE a feature, in add_stock_features --
+    which is the same suspicion as turnover_z in Check 1.
+
+
+================================================================================
+CHECK 4 -- CORPORATE ACTIONS
+================================================================================
+STATED IN ADVANCE, FROM SOURCE
+    engine_core.build_panel:180 selects
+
+        raw[["date", "open", "high", "low", "close", "volume"]]
+
+    The raw CSVs carry BOTH close AND adj_close. THE PANEL USES close AND IGNORES
+    adj_close. Whether close is itself adjusted is NOT stated anywhere and is the
+    first thing this check measures.
+
+THE TEST
+    1. Measure how often close and adj_close differ, per universe: number of rows,
+       number of symbols, and the size of the differences. If they never differ,
+       one of them is redundant; if they differ often, the panel is built on the
+       column that is NOT the adjusted one.
+    2. Find the top 20 largest single-day returns, positive and negative, per
+       universe, on the panel as the engine builds it.
+    3. For each, report the date, symbol, magnitude, whether the EXTREME_RET guard
+       masked it, and whether adj_close shows the same move.
+
+       THE ADJUSTED COLUMN IS THE INSTRUMENT. If close falls 50% on a day when
+       adj_close does not, that is an unadjusted corporate action in the column
+       the engine trades on. That is a MEASUREMENT, not an inference from the
+       round number.
+
+WHAT IS MISSING, STATED NOW RATHER THAN AS AN EXCUSE LATER
+    THERE IS NO CORPORATE-ACTION DATASET ON DISK. data/reference/ holds NSE
+    circulars, a press-release manifest and the symbol-rename map, and nothing
+    else. So "check them against known corporate actions" CANNOT be done against
+    an authoritative split and bonus list. It can be done against adj_close, which
+    is a proxy of unknown provenance.
+
+    THE REPORT WILL SAY WHICH CLAIMS REST ON adj_close AND THAT ITS PROVENANCE IS
+    UNVERIFIED. Confirming any individual split against NSE would be a manual
+    lookup per name and is out of scope here; the report will name the candidates
+    so that lookup is possible.
+
+THE GUARD, AND ITS GAP
+    features_v2.py sets EXTREME_RET_HI = 0.55 and EXTREME_RET_LO = -0.35 and NaNs
+    returns outside that band. Its own comment states that close-derived features
+    still span the level shift on surviving rows.
+
+    ARITHMETIC CONSEQUENCE, TO BE CONFIRMED BY MEASUREMENT: a 2-for-1 split is a
+    -50% move and IS caught. A 5-for-4 bonus is -20% and IS NOT. So the guard
+    catches large splits and misses small ones by construction. The check measures
+    how many extreme moves fall in the UNCAUGHT band, -35% to -20%.
+
+WRITTEN PREDICTION
+    1. close and adj_close DIFFER on a material number of rows, and the panel is
+       therefore built on unadjusted or differently-adjusted prices.
+    2. The top negative single-day returns contain corporate actions rather than
+       market moves.
+    3. Some fall in the -20% to -35% band that the guard does not catch.
+    4. THIS IS NOT LEAKAGE. It is a data-correctness problem and it can push CAGR
+       in EITHER direction. It is in this audit because it is the other way a
+       backtest produces returns that are not real, and it is reported separately
+       from the three leakage checks rather than blended with them.
+
+
+================================================================================
+WHAT THIS AUDIT CANNOT DO
+================================================================================
+ 1. IT CANNOT PROVE THE ABSENCE OF LEAKAGE. It tests four specific mechanisms. A
+    clean result means these four are clean, not that the model is honest.
+ 2. IT DOES NOT ADDRESS SURVIVORSHIP. Separate, unmeasurable today, recorded in
+    diagnostics/membership/STATUS.md.
+ 3. IT DOES NOT ADDRESS THE TRIAL DENOMINATOR.
+ 4. CHECK 1 SAMPLES DATES. A leak confined to dates outside the sample survives.
+ 5. CHECK 4 HAS NO AUTHORITATIVE CORPORATE-ACTION SOURCE, as stated above.
+
+
+================================================================================
+OUTPUTS
+================================================================================
+    diagnostics/leakage_check1_causality.txt      per-feature, both corruptions
+    diagnostics/leakage_check2_purge.txt          per-month gaps, and the minimum
+    diagnostics/leakage_check3_normalisation.txt  every step, with code locations
+    diagnostics/leakage_check4_corpactions.txt    close vs adj_close, top moves
+    diagnostics/LEAKAGE_AUDIT.txt                 the four results together
+
+English only. No verdict string is hardcoded; every per-feature and per-month
+outcome is computed from the run that prints it.
+
+IF A CHECK FAILS IT IS REPORTED PLAINLY, IN THE SAME SENTENCE STRUCTURE AS A PASS,
+AND NOTHING IS FIXED IN THIS TASK.
+
+================================================================================
+END OF SPEC
+================================================================================

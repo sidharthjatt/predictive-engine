@@ -1,0 +1,166 @@
+TWO CHECKS ON DATA ALREADY ON DISK
+================================================================================
+Written 2026-09-02, BEFORE any code is written and before any result is seen.
+Both are REPORT-ONLY. Nothing is corrected.
+
+
+================================================================================
+CHECK A -- WHICH COLUMN CARRIES THE BAD VALUE, close OR adj_close?
+================================================================================
+WHAT IS ALREADY ESTABLISHED
+    diagnostics/leakage_check4_corpactions.txt measured that close and adj_close
+    disagree on 702 of 173,612 rows on n100 (0.404%) and 1,205 of 246,088 on mid
+    (0.490%), and that 89% and 92% of those disagreements are ISOLATED SINGLE
+    DAYS with a longest run of 5. A dividend or split adjustment restates every
+    row before the ex-date, producing one long contiguous block. A median block
+    length of ONE is the opposite signature: sporadic bad values.
+
+    WHAT WAS NOT ESTABLISHED IS WHICH COLUMN IS WRONG. That matters and it is not
+    symmetric: engine_core.build_panel:180 selects close and ignores adj_close,
+    so A BAD VALUE IN close IS IN THE FEATURES AND IN THE RETURNS, while a bad
+    value in adj_close is inert.
+
+THE DECISIVE TEST -- OHLC INTERNAL CONSISTENCY, NO EXTERNAL TRUTH REQUIRED
+    The raw CSVs carry open, high, low, close AND adj_close on every row. A
+    closing price must lie within that session's own range:
+
+        low <= close <= high
+
+    IF close[d] FALLS OUTSIDE [low[d], high[d]], close IS BAD, PROVABLY, from the
+    row itself. The same test is applied to adj_close on the same rows. This
+    needs no corporate-action data and no external source, which is precisely why
+    it is the primary test -- Check 4 was limited by having neither.
+
+    The bounds are taken from the SAME row, so an adjustment applied to close but
+    not to high/low would also show here. That ambiguity is reported if it
+    arises rather than assumed away.
+
+THE CORROBORATING TEST -- SPIKE AND REVERT
+    A single bad price produces a large move on day d and a near-equal opposite
+    move on d+1, because the series returns to its true level. A real price move
+    does not revert by construction.
+
+    For every disagreement day, on each column independently:
+        r(d), r(d+1), and the reversal ratio  -r(d+1) / r(d)
+    A ratio near +1 with a large |r(d)| is the signature of a bad value on d.
+
+    THIS IS CORROBORATING, NOT DECISIVE. A genuine one-day crash followed by a
+    genuine rebound also reverts. It is reported beside the bounds test and is
+    never used alone to condemn a value.
+
+REPORTED
+    Per universe: the count of disagreement rows whose close violates its own
+    OHLC bounds, and the count whose adj_close does; the symbols and dates;
+    the magnitude of each violation in percent of price; and the same rows'
+    reversal ratios. Every violating row is listed if there are fewer than 40,
+    otherwise the worst 40 by magnitude with the full set written to CSV.
+
+    AND, BECAUSE IT IS THE CONSEQUENCE THAT MATTERS: for any bad value found in
+    close, whether that row lies inside the backtest window, and whether the
+    EXTREME_RET guard (EXTREME_RET_LO = -0.35, HI = 0.55) would have masked the
+    return it produces.
+
+WRITTEN PREDICTION
+    1. MOST DISAGREEMENT ROWS WILL VIOLATE NO BOUNDS IN EITHER COLUMN. A
+       dividend-adjusted adj_close sits legitimately outside that day's raw
+       high/low, so if adj_close is a genuine adjusted series I expect MANY
+       adj_close bounds violations and FEW close violations.
+    2. I EXPECT THE BAD VALUES TO BE IN adj_close, NOT close. Check 4 already
+       found adj_close moving the wrong way on well-known event dates -- ADANIENT
+       2023-02-03 close -26.1% against adj_close +1.2%, YESBANK 2020-03-09 close
+       -21.0% against adj_close +31.6%. On those dates the close series matches
+       what the market did.
+    3. IF ANY close VALUE VIOLATES ITS OWN BOUNDS, THAT IS A BAD VALUE IN THE
+       TRADED COLUMN and it is reported first, before anything else in Check A.
+       I expect this count to be small. I do not expect it to be zero.
+
+
+================================================================================
+CHECK B -- EXECUTION TIMING, FROM THE FILL RECORD
+================================================================================
+THE CLAIM UNDER TEST
+    The design is signal at the CLOSE of day t, fill at the OPEN of day t+1.
+    HANDOFF_SUMMARY states it; engine_core's leakage checklist asserted it as a
+    hardcoded PASS until 2026-08-29, when that label was changed to NOT CHECKED
+    BY THIS RUN. NOTHING HAS EVER VERIFIED IT AGAINST THE FILL RECORD.
+
+THE EVIDENCE
+    nautilus/reports/{n100,mid}/fills.csv, written by the Nautilus port. 977 and
+    973 fills respectively. Each row carries instrument_id, order_side, last_qty,
+    last_px and ts_event.
+
+    THE FILL PRICE IS THE INSTRUMENT. If a fill executed at the next session's
+    open, last_px must reconstruct from that session's open. If it executed at
+    the signal day's close, or at the fill day's close, it will reconstruct from
+    those instead. The three are different numbers on almost every row, so the
+    test discriminates.
+
+RECONSTRUCTION, STATED BEFORE RUNNING
+    The port applies slippage against the trade and rounds to a 0.05 tick grid
+    (nt_verify.py:120 and :163 both pass tick_round=True). So for a fill on
+    date d, symbol s:
+
+        expected_BUY  = tick(open[s, d] * (1 + SLIPPAGE))
+        expected_SELL = tick(open[s, d] * (1 - SLIPPAGE))
+
+    with SLIPPAGE = 0.0015 and tick() rounding to the nearest 0.05.
+
+    EACH FILL IS TESTED AGAINST FOUR CANDIDATES, not one:
+        (a) that day's OPEN      -- the design
+        (b) that day's CLOSE     -- would mean same-day close execution
+        (c) the PREVIOUS session's CLOSE -- would mean signal-day close execution
+        (d) the PREVIOUS session's OPEN
+    and the report says which candidate each fill matches. A test that only
+    checked (a) could not distinguish "matches the open" from "matches everything
+    because the tolerance is loose".
+
+    TOLERANCE: half a tick, 0.025, because the grid itself is 0.05. Stated in
+    advance and not widened afterwards.
+
+ALSO CHECKED
+    1. Every fill date is a trading day on the panel's own calendar.
+    2. Every fill date is the session immediately AFTER a rebalance decision date,
+       read from daily_decisions_*.csv -- so the fill is not merely at an open,
+       but at the RIGHT open.
+    3. No fill is dated before the first decision or after the window ends.
+
+REPORTED
+    Count checked, count matching each of the four candidates, and EVERY
+    exception with its date, symbol, side, fill price and the four candidate
+    prices. If the count of exceptions is zero, that is stated as a count and not
+    as a verdict word.
+
+WRITTEN PREDICTION
+    1. Essentially all fills match candidate (a), the fill day's open. Confidence
+       high -- the Nautilus port already verifies against the research engine at
+       92 of 92 rebalances, which would be hard to achieve on the wrong price.
+    2. A SMALL NUMBER OF ROWS MAY BE AMBIGUOUS, matching more than one candidate,
+       where open and close are within half a tick of each other on a quiet day
+       in a low-priced name. That is a limitation of the instrument, not an
+       exception, and is reported as a separate count.
+    3. I expect zero fills matching (b) or (c) alone. If any exist, THAT IS AN
+       EXECUTION-TIMING DEFECT and it is reported first.
+
+
+================================================================================
+WHAT THESE TWO CHECKS CANNOT DO
+================================================================================
+ 1. Check A cannot say which value is CORRECT, only which is internally
+    inconsistent. A row where both columns satisfy their bounds but disagree is
+    unresolved by this method and is counted as such.
+ 2. Check A has no corporate-action source. Unchanged from Check 4.
+ 3. Check B tests the PORT's fills. The port is verified against the research
+    engine elsewhere, but this check does not re-verify that link, so it speaks
+    directly to the port and only indirectly to the research engine.
+ 4. Neither check addresses leakage, survivorship or the trial denominator.
+
+OUTPUTS
+    diagnostics/checkA_close_bad_values.txt
+    diagnostics/checkB_execution_timing.txt
+    results_{uni}/metrics/checkA_disagreements.csv   every disagreement row
+
+English only. No verdict string is hardcoded. NOTHING IS CORRECTED.
+
+================================================================================
+END OF SPEC
+================================================================================

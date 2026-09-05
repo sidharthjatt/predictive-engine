@@ -1,0 +1,84 @@
+====================================================================================================
+ CHECK 2 -- TRAINING MASK AND PURGE -- NIFTY 100 (n100)
+====================================================================================================
+
+  panel raw_panel_n100_cache.csv   rows 479,333   symbols 99
+  PURGE = 32 CALENDAR days      HORIZON = 20 TRADING rows
+  panel trading days 6574  2000-01-03 .. 2026-06-08
+
+  scoring months measured: 126
+
+  DIRECT BREACH -- any training row dated on or after the scored month:
+    NONE. In every month, every training row predates the scored month.
+
+  WHERE THE LABEL ACTUALLY REACHES -- gap distribution, in TRADING days
+    min -2   p5 -1   median 2   p95 4   max 4
+    calendar days: min -2   median 3   max 6
+
+    months with gap <  0 (label reaches INTO the scored month): 7
+    months with gap == 0 (label observes the first scored day):  21
+    months with gap >  0 (purge holds):                          98
+
+    THE PURGE DOES NOT HOLD IN THESE MONTHS:
+      2016-05  first scored 2016-05-02  latest train 2016-03-31  label observes 2016-05-03  overlap 1 trading days
+      2018-04  first scored 2018-04-02  latest train 2018-03-01  label observes 2018-04-03  overlap 1 trading days
+      2019-09  first scored 2019-09-03  latest train 2019-08-02  label observes 2019-09-04  overlap 1 trading days
+      2020-05  first scored 2020-05-04  latest train 2020-04-01  label observes 2020-05-06  overlap 2 trading days
+      2021-05  first scored 2021-05-03  latest train 2021-04-01  label observes 2021-05-04  overlap 1 trading days
+      2023-05  first scored 2023-05-02  latest train 2023-03-31  label observes 2023-05-04  overlap 2 trading days
+      2026-05  first scored 2026-05-04  latest train 2026-04-02  label observes 2026-05-05  overlap 1 trading days
+
+  THE TIGHTEST MONTHS (smallest gaps):
+  month     first scored  latest train  label observes   gap td  gap cal
+  2020-05   2020-05-04    2020-04-01    2020-05-06           -2       -2
+  2023-05   2023-05-02    2023-03-31    2023-05-04           -2       -2
+  2016-05   2016-05-02    2016-03-31    2016-05-03           -1       -1
+  2018-04   2018-04-02    2018-03-01    2018-04-03           -1       -1
+  2019-09   2019-09-03    2019-08-02    2019-09-04           -1       -1
+  2021-05   2021-05-03    2021-04-01    2021-05-04           -1       -1
+  2026-05   2026-05-04    2026-04-02    2026-05-05           -1       -1
+  2016-10   2016-10-03    2016-09-01    2016-10-03            0        0
+
+
+====================================================================================================
+ CHECK 2 -- TRAINING MASK AND PURGE -- MIDCAP150 (mid)
+====================================================================================================
+
+  panel raw_panel_mid_cache.csv   rows 589,269   symbols 148
+  PURGE = 32 CALENDAR days      HORIZON = 20 TRADING rows
+  panel trading days 6573  2000-01-04 .. 2026-06-08
+
+  scoring months measured: 126
+
+  DIRECT BREACH -- any training row dated on or after the scored month:
+    NONE. In every month, every training row predates the scored month.
+
+  WHERE THE LABEL ACTUALLY REACHES -- gap distribution, in TRADING days
+    min -2   p5 -1   median 2   p95 4   max 4
+    calendar days: min -2   median 3   max 6
+
+    months with gap <  0 (label reaches INTO the scored month): 7
+    months with gap == 0 (label observes the first scored day):  21
+    months with gap >  0 (purge holds):                          98
+
+    THE PURGE DOES NOT HOLD IN THESE MONTHS:
+      2016-05  first scored 2016-05-02  latest train 2016-03-31  label observes 2016-05-03  overlap 1 trading days
+      2018-04  first scored 2018-04-02  latest train 2018-03-01  label observes 2018-04-03  overlap 1 trading days
+      2019-09  first scored 2019-09-03  latest train 2019-08-02  label observes 2019-09-04  overlap 1 trading days
+      2020-05  first scored 2020-05-04  latest train 2020-04-01  label observes 2020-05-06  overlap 2 trading days
+      2021-05  first scored 2021-05-03  latest train 2021-04-01  label observes 2021-05-04  overlap 1 trading days
+      2023-05  first scored 2023-05-02  latest train 2023-03-31  label observes 2023-05-04  overlap 2 trading days
+      2026-05  first scored 2026-05-04  latest train 2026-04-02  label observes 2026-05-05  overlap 1 trading days
+
+  THE TIGHTEST MONTHS (smallest gaps):
+  month     first scored  latest train  label observes   gap td  gap cal
+  2020-05   2020-05-04    2020-04-01    2020-05-06           -2       -2
+  2023-05   2023-05-02    2023-03-31    2023-05-04           -2       -2
+  2016-05   2016-05-02    2016-03-31    2016-05-03           -1       -1
+  2018-04   2018-04-02    2018-03-01    2018-04-03           -1       -1
+  2019-09   2019-09-03    2019-08-02    2019-09-04           -1       -1
+  2021-05   2021-05-03    2021-04-01    2021-05-04           -1       -1
+  2026-05   2026-05-04    2026-04-02    2026-05-05           -1       -1
+  2016-10   2016-10-03    2016-09-01    2016-10-03            0        0
+
+

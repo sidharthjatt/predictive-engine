@@ -1,0 +1,104 @@
+====================================================================================================
+ PURGE FIX -- NIFTY 100 (n100)
+====================================================================================================
+
+  PURGE VERIFICATION -- gap in TRADING ROWS, all scoring months
+    current    months  126   min  -2   median   2.0   max   4   months<=0  28   train rows total 41,380,868
+    corrected  months  126   min   2   median   2.0   max   2   months<=0   0   train rows total 41,376,648
+    EMBARGO = 2. corrected minimum >= embargo: YES
+
+  IDENTITY GATE -- current-purge v2 vs v34_comparison.csv: ok
+    CAGR%    this run     25.78   recorded     25.78
+    Sharpe   this run      1.86   recorded      1.86
+    MaxDD%   this run    -19.87   recorded    -19.87
+
+----------------------------------------------------------------------------------------------------
+ HEADLINE -- current purge (32 calendar days) vs corrected (trading rows)
+----------------------------------------------------------------------------------------------------
+ arm   CAGR cur  CAGR new   dCAGR  Sh cur  Sh new    dSh   DD cur   DD new    dDD  trd cur  trd new
+ v1       34.90     36.55   +1.65    1.63    1.74  +0.11   -35.25   -35.82  -0.57      819      805
+ v2       25.78     26.09   +0.31    1.86    1.90  +0.04   -19.87   -17.70  +2.17      978      969
+ v3       28.10     28.46   +0.36    1.20    1.20  +0.00   -45.40   -46.60  -1.20      788      772
+ v4       22.89     25.43   +2.54    1.41    1.57  +0.16   -22.05   -20.48  +1.57      980      971
+
+----------------------------------------------------------------------------------------------------
+ PER YEAR -- return %, current vs corrected. AFFECTED = a leaking month
+ falls in that year (2019, 2020, 2021, 2023, 2026 inside the window).
+----------------------------------------------------------------------------------------------------
+  v1
+    year      current  corrected     diff   flag
+    2019        22.77      18.29    -4.48   AFFECTED
+    2020        39.60      36.14    -3.46   AFFECTED
+    2021        74.50      72.59    -1.91   AFFECTED
+    2022        17.25      22.58    +5.33   
+    2023        69.01      76.33    +7.32   AFFECTED
+    2024        28.87      39.21   +10.34   
+    2025        14.52      16.36    +1.84   
+    2026         1.98      -0.25    -2.23   AFFECTED
+  v2
+    year      current  corrected     diff   flag
+    2019        14.39      14.20    -0.19   AFFECTED
+    2020        25.99      22.47    -3.52   AFFECTED
+    2021        54.28      51.94    -2.34   AFFECTED
+    2022        10.68      13.81    +3.13   
+    2023        59.84      59.28    -0.56   AFFECTED
+    2024        24.45      27.66    +3.21   
+    2025        11.02      15.31    +4.29   
+    2026        -1.48      -3.64    -2.16   AFFECTED
+
+  IS THE DIFFERENCE CONCENTRATED IN THE AFFECTED YEARS?
+    v1  mean |diff| in AFFECTED years 3.88   in unaffected years 5.84   ratio 0.66
+    v2  mean |diff| in AFFECTED years 1.75   in unaffected years 3.54   ratio 0.50
+
+====================================================================================================
+ PURGE FIX -- MIDCAP150 (mid)
+====================================================================================================
+
+  PURGE VERIFICATION -- gap in TRADING ROWS, all scoring months
+    current    months  126   min  -2   median   2.0   max   4   months<=0  28   train rows total 47,728,503
+    corrected  months  126   min   2   median   2.0   max   2   months<=0   0   train rows total 47,722,823
+    EMBARGO = 2. corrected minimum >= embargo: YES
+
+  IDENTITY GATE -- current-purge v2 vs v34_comparison.csv: ok
+    CAGR%    this run     29.70   recorded     29.70
+    Sharpe   this run      2.03   recorded      2.03
+    MaxDD%   this run    -18.88   recorded    -18.88
+
+----------------------------------------------------------------------------------------------------
+ HEADLINE -- current purge (32 calendar days) vs corrected (trading rows)
+----------------------------------------------------------------------------------------------------
+ arm   CAGR cur  CAGR new   dCAGR  Sh cur  Sh new    dSh   DD cur   DD new    dDD  trd cur  trd new
+ v1       45.87     44.33   -1.54    1.84    1.82  -0.02   -34.49   -31.06  +3.43      835      829
+ v2       29.70     29.41   -0.29    2.03    2.03  +0.00   -18.88   -16.37  +2.51      963      975
+ v3       49.70     48.37   -1.33    1.80    1.79  -0.01   -35.61   -31.01  +4.60      790      782
+ v4       32.31     31.86   -0.45    1.92    1.90  -0.02   -17.45   -16.26  +1.19      961      973
+
+----------------------------------------------------------------------------------------------------
+ PER YEAR -- return %, current vs corrected. AFFECTED = a leaking month
+ falls in that year (2019, 2020, 2021, 2023, 2026 inside the window).
+----------------------------------------------------------------------------------------------------
+  v1
+    year      current  corrected     diff   flag
+    2019        -1.89      -6.26    -4.37   AFFECTED
+    2020        47.06      61.64   +14.58   AFFECTED
+    2021       108.02      94.40   -13.62   AFFECTED
+    2022        18.59      23.88    +5.29   
+    2023       106.21      96.24    -9.97   AFFECTED
+    2024        77.41      66.58   -10.83   
+    2025        13.26      14.97    +1.71   
+    2026         6.64       6.66    +0.02   AFFECTED
+  v2
+    year      current  corrected     diff   flag
+    2019         0.36      -1.70    -2.06   AFFECTED
+    2020        27.72      35.99    +8.27   AFFECTED
+    2021        72.37      68.97    -3.40   AFFECTED
+    2022         7.06       6.14    -0.92   
+    2023        68.26      62.62    -5.64   AFFECTED
+    2024        47.70      44.42    -3.28   
+    2025        13.30      13.56    +0.26   
+    2026         0.18       2.57    +2.39   AFFECTED
+
+  IS THE DIFFERENCE CONCENTRATED IN THE AFFECTED YEARS?
+    v1  mean |diff| in AFFECTED years 8.51   in unaffected years 5.94   ratio 1.43
+    v2  mean |diff| in AFFECTED years 4.35   in unaffected years 1.49   ratio 2.93
+

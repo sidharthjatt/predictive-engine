@@ -1,0 +1,78 @@
+====================================================================================================
+ CHECK A -- WHICH COLUMN CARRIES THE BAD VALUE -- NIFTY 100 (n100)
+====================================================================================================
+
+  rows in file set        482,116
+  close/adj_close disagree 2,690   of which inside the backtest window 702
+
+  PRIMARY TEST -- does the value sit inside its OWN session's high/low?
+    close      outside its own [low, high] : 0 of 2,690
+    adj_close  outside its own [low, high] : 178 of 2,690
+    neither out of bounds                  : 2,512
+    both out of bounds                     : 0
+
+  NO close VALUE ON ANY DISAGREEMENT ROW FALLS OUTSIDE ITS OWN SESSION'S
+  RANGE. By this test the traded column is internally consistent on every
+  row where the two columns disagree.
+
+  adj_close out of bounds on 178 rows. Worst 10 by magnitude:
+      symbol        date          adj_close       low      high   viol%
+      MAZDOCK       2017-12-04         0.00     86.00    108.508600000000000.00
+      MAZDOCK       2018-01-01         0.00     86.00    108.508600000000000.00
+      MAZDOCK       2018-02-05         0.00     86.00    108.508600000000000.00
+      MAZDOCK       2018-03-05         0.00     86.00    108.508600000000000.00
+      MAZDOCK       2018-04-02         0.00     86.00    108.508600000000000.00
+      MAZDOCK       2018-05-07         0.00     86.00    108.508600000000000.00
+      MAZDOCK       2018-06-04         0.00     86.00    108.508600000000000.00
+      MAZDOCK       2018-07-02         0.00     86.00    108.508600000000000.00
+      VEDL          2003-01-01         0.00      0.04      0.214180000000.00
+      VEDL          2003-01-02         0.00      0.04      0.214180000000.00
+
+  CORROBORATING TEST -- spike and revert on the disagreement day
+    A ratio near +1 with a large |r(d)| is the signature of a bad value.
+    It is NOT decisive: a genuine crash and rebound looks identical.
+    close      rows with |r(d)| > 5%:  2476   of which reversal ratio in [0.7, 1.3]:   153 (6%)
+    adj_close  rows with |r(d)| > 5%:  2493   of which reversal ratio in [0.7, 1.3]:   149 (6%)
+
+  every disagreement row written to metrics/checkA_disagreements.csv
+
+
+====================================================================================================
+ CHECK A -- WHICH COLUMN CARRIES THE BAD VALUE -- MIDCAP150 (mid)
+====================================================================================================
+
+  rows in file set        596,822
+  close/adj_close disagree 3,503   of which inside the backtest window 1,205
+
+  PRIMARY TEST -- does the value sit inside its OWN session's high/low?
+    close      outside its own [low, high] : 0 of 3,503
+    adj_close  outside its own [low, high] : 41 of 3,503
+    neither out of bounds                  : 3,462
+    both out of bounds                     : 0
+
+  NO close VALUE ON ANY DISAGREEMENT ROW FALLS OUTSIDE ITS OWN SESSION'S
+  RANGE. By this test the traded column is internally consistent on every
+  row where the two columns disagree.
+
+  adj_close out of bounds on 41 rows. Worst 10 by magnitude:
+      symbol        date          adj_close       low      high   viol%
+      ASHOKLEY      2003-03-19         0.00      0.05      0.055140000000.00
+      ASHOKLEY      2003-04-16         0.00      0.05      0.105140000000.00
+      ASHOKLEY      2003-04-21         0.00      0.05      0.055140000000.00
+      ASHOKLEY      2003-04-23         0.00      0.05      0.155140000000.00
+      ASHOKLEY      2003-04-25         0.00      0.05      0.105140000000.00
+      ASHOKLEY      2003-04-29         0.00      0.05      0.105140000000.00
+      ASHOKLEY      2003-04-30         0.00      0.05      0.105140000000.00
+      ASHOKLEY      2003-05-02         0.00      0.05      0.105140000000.00
+      ASHOKLEY      2003-02-28         0.00      0.03      0.042570000000.00
+      ASHOKLEY      2003-03-03         0.00      0.03      0.042570000000.00
+
+  CORROBORATING TEST -- spike and revert on the disagreement day
+    A ratio near +1 with a large |r(d)| is the signature of a bad value.
+    It is NOT decisive: a genuine crash and rebound looks identical.
+    close      rows with |r(d)| > 5%:  3435   of which reversal ratio in [0.7, 1.3]:   167 (5%)
+    adj_close  rows with |r(d)| > 5%:  3452   of which reversal ratio in [0.7, 1.3]:   162 (5%)
+
+  every disagreement row written to metrics/checkA_disagreements.csv
+
+

@@ -266,8 +266,21 @@ were deleted.
 
 ## Running it
 
-Python 3.12 or later — `nautilus_trader` requires it. `pip install -r
-requirements.txt`, then `python3 run_all.py`.
+Python 3.12 or later — `nautilus_trader` requires it, and it is a hard floor.
+
+```
+pip install -r requirements.txt
+./venv/bin/python run_all.py
+```
+
+**Not `python3 run_all.py`.** `run_all.py` spawns every step with
+`sys.executable`, so whichever interpreter launches it is used for all 32 steps —
+the launch command is load-bearing, and there is no fallback. On the machine this
+project was built on, `python3` is Python 3.11: it has no `lightgbm`, so the run
+dies at STEP 1, and it is below the 3.12 floor named above. Both failures have
+the one cause. Corrected 2026-09-02; this section previously said
+`python3 run_all.py`. See `KNOWN_ISSUES.md`, *"The documented commands are not
+verified against the machine they run on"*.
 
 Two full `--fresh` rebuilds are recorded at 141.9 and 143.9 minutes
 (`run_all_ewma2_log.txt`, `run_all_ewma_log.txt`), but both are from a

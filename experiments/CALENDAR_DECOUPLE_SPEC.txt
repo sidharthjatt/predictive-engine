@@ -1,0 +1,446 @@
+DECOUPLING THE TRADING CALENDAR FROM THE RETIRED 58 UNIVERSE
+================================================================================
+*** STATUS 2026-09-03: BLOCKED. THE DESIGN BELOW DOES NOT WORK OVER THE FULL   ***
+*** RANGE AND NO CODE WAS WRITTEN. The full-range measurement demanded before  ***
+*** implementation FALSIFIED the central premise. See PART 8, appended after   ***
+*** that measurement. PARTS 1-7 are left exactly as approved, because they are ***
+*** the design that was tested; they are NOT a description of anything built.  ***
+================================================================================
+Written 2026-09-03, BEFORE any code is written and before any result of the
+change is seen. The MEASUREMENTS this spec rests on were taken first, on
+2026-09-02 and 2026-09-03, and are named in place.
+
+WHY
+    results/make_trading_calendar.py:42 sets
+
+        SOURCE_DIR = config.RAW_DATA_DIR / "nifty50"
+
+    so the NSE trading calendar is derived from the RETIRED 58 universe's raw
+    files. engine_core._load_calendar() raises FileNotFoundError without the
+    resulting artefact -- FOR EVERY UNIVERSE, n100 and mid included.
+
+    diagnostics/PIPELINE_AUDIT.txt section 8(1), dated 2026-08-30, calls this
+    "THE STRONGEST SINGLE ARGUMENT AGAINST THE SPLIT AS PROPOSED" and states it
+    "must be resolved in any spec". This is that spec. Recorded in
+    KNOWN_ISSUES.md under "STEP 0 couples the live universes to the retired 58
+    universe".
+
+    THE FILE SURVIVES A FREEZE; THE ABILITY TO REGENERATE IT DOES NOT. The
+    calendar must be rebuilt whenever the price data extends past its current
+    coverage, which is exactly when the live universes' window next moves.
+
+WHAT WAS MEASURED FIRST, AND WHY THIS IS NOT A GUESS
+    A naive re-point of SOURCE_DIR at n100 was measured on 2026-09-02 and
+    FAILED: the n100-derived calendar carried 237 dates the 58-derived one did
+    not, 107 of them inside the backtest window, with zero going the other way.
+    That measurement is recorded in KNOWN_ISSUES.md. Re-pointing alone is not
+    the change proposed here, and this spec exists because it did not work.
+
+    The structure of those extra dates was then measured across 2019-2026, both
+    universes. It is stated in PART 2 and it is what licenses the design below.
+
+
+================================================================================
+PART 1 -- WHAT CHANGES
+================================================================================
+
+1.1 THE SOURCE BECOMES THE SELECTED UNIVERSE
+    make_trading_calendar.py stops hardcoding the 58. It takes the universe as
+    an argument and derives the calendar from THAT universe's own constituent
+    files. The 58 becomes one selectable source among several rather than the
+    only one.
+
+1.2 A COVERAGE FILTER IS ADDED
+    The union of dates across a universe's files is not the calendar. A date
+    enters the calendar only if it is carried by at least COVERAGE_MIN of the
+    files ACTIVE THAT YEAR.
+
+    ACTIVE THAT YEAR is load-bearing and is defined here rather than assumed: a
+    file is active in year Y if it has at least one row with a non-null close in
+    Y. A name listed in 2025 but with no 2019 data must not drag down the
+    coverage fraction of every 2019 date. The denominator is per-year for that
+    reason.
+
+    A date is evaluated in the year it falls in. No smoothing, no windowing, no
+    carry-over between years.
+
+1.3 WHAT DOES NOT CHANGE
+    - The output path and file format of data/nse_trading_calendar.csv.
+    - engine_core._load_calendar() and build_panel. No consumer is touched.
+    - The retired 58 and 74 path. Their scripts, their window, their pinned
+      purge_mode and their published numbers are all untouched. See PART 5.
+    - The MIN_DAYS_PER_YEAR = 200 sanity guard, which stays as it is.
+
+
+================================================================================
+PART 2 -- THE THRESHOLD, AND WHY IT IS DEFENSIBLE RATHER THAN TUNED
+================================================================================
+
+THE MEASURED BASIS IS AN EMPTY BAND, NOT A FITTED CUT.
+    Coverage was measured for every date in 2019-2026, both universes, as
+    (files carrying the date) / (files active that year). The result is bimodal
+    with nothing in the middle:
+
+        ACROSS 2019-2026, BOTH UNIVERSES
+          low group     214 dates    coverage  15.4% .. 47.3%
+          high group  3,684 dates    coverage  82.8% .. 100.0%
+          EMPTY BAND            47.3% .. 82.8%     WIDTH 35.5 POINTS
+
+    Per year, the narrowest gap in any single year-universe cell is 48.0 points
+    (mid 2025: low group tops out at 47.3%, high group starts at 95.3%). The
+    widest is 84.3 points (n100 2019: 15.7% against 100.0%). NOT ONE DATE in
+    2019-2025 falls between the groups, in either universe -- 14 of 15
+    year-universe cells have a literally empty middle.
+
+    THE ONE EXCEPTION, STATED RATHER THAN SMOOTHED OVER: 2026-06-08 sits at
+    82.8% in n100 (82 of 99 files) and 99.3% in mid. It is the last date in the
+    data, it is OUTSIDE the backtest window, and it is the only date anywhere in
+    2019-2026 that lands between 47.3% and 95%. At any threshold from 50% to
+    82% it is kept in both universes; above 82.8% the two universes would
+    disagree about it. See PART 6.
+
+COVERAGE_MIN = 0.50, AND IT IS AN UNDERIVED CONSTANT.
+    IT IS NAMED HERE AS UNDERIVED BECAUSE THAT IS WHAT IT IS. No procedure
+    produced 0.50. It was not optimised, and no search over thresholds was run.
+    It is a round number chosen to sit inside a 35.5-point empty band, roughly
+    in its middle.
+
+    WHAT IS DEFENSIBLE IS NOT THE VALUE BUT THE INSENSITIVITY. Every threshold
+    in (0.473, 0.828] partitions the 2019-2026 data IDENTICALLY -- a range 35
+    points wide. 0.50 is not better than 0.60 or 0.75; it is one of a continuum
+    of values that all give the same answer on the measured data. Had the answer
+    depended on the third decimal place, this design would be fitting and the
+    spec would say so.
+
+    THIS IS NOT A CLAIM THAT THE BAND STAYS EMPTY. It is a statement about
+    2019-2026 as the files stand on 2026-09-03. A future delivery could put a
+    date anywhere in the band, and nothing here prevents that. See PART 6.
+
+    THE CONSTANT GETS ONE DEFINITION, in the script, named, with this spec cited
+    beside it. It must not be duplicated -- see KNOWN_ISSUES.md, "VOL_WIN = 60
+    has sixteen independent definitions and no central home".
+
+
+================================================================================
+PART 3 -- WRITTEN PREDICTION, RECORDED BEFORE ANY CODE RUNS
+================================================================================
+
+THESE ARE PREDICTIONS, NOT RESULTS. They are written here so they can be judged
+against the run rather than adjusted after it.
+
+P1  The calendar produced from n100 at COVERAGE_MIN = 0.50 will be IDENTICAL to
+    the tracked 58-derived calendar over 2019-01-01 .. 2026-05-29, as a set of
+    dates: 1,836 dates, zero either way.
+
+P2  The same, from mid. Both universes give the same calendar over the window.
+
+P3  Every published figure is unchanged. All four arms, both live universes:
+    CAGR, Sharpe, MaxDD, trade count and final equity identical to the values in
+    results_{n100,mid}/metrics/v34_comparison.csv as they stand today.
+
+P4  The score panels are BYTE-IDENTICAL. build_panel filters by the calendar; if
+    the calendar is unchanged over the panel's range, the panel must be
+    unchanged, and if the panel is unchanged the scores must be too.
+
+P5  The retired 58 and 74 artefacts do not move, because nothing about their
+    path changes.
+
+CONFIDENCE, AND WHERE IT COMES FROM. P1 and P2 are near-certainties rather than
+guesses: the 2026-09-03 measurement already established that filtering the union
+at 50% reproduces the 58-derived calendar EXACTLY over this window, identical
+sets, both universes. What is genuinely being tested is whether the IMPLEMENTATION
+does what the measurement did. P3 and P4 follow from P1/P2 only if the calendar
+is the sole channel by which this change can reach a number -- which is itself an
+assumption, and is exactly what the gate in PART 4 exists to test rather than
+assert.
+
+WHAT WOULD FALSIFY THE DESIGN. Any date difference under P1 or P2. Any moved
+figure under P3. Any panel hash change under P4. If a headline moves while the
+calendar is identical, the assumption that the calendar is the only channel is
+wrong, and that is a finding to report rather than to explain away.
+
+
+================================================================================
+PART 4 -- THE VERIFICATION GATE
+================================================================================
+
+THE POINT OF THE CHANGE IS THAT NOTHING MOVES, SO THE GATE MUST TEST THE THINGS
+THAT COULD MOVE, NOT ONLY THE CALENDAR. A calendar comparison alone would prove
+the artefact matches and say nothing about whether the pipeline that consumes it
+produces the same numbers.
+
+GATE 1 -- THE CALENDAR ITSELF. Blocking.
+    Build to a SCRATCH path from n100 and from mid. Compare each against the
+    tracked data/nse_trading_calendar.csv as a SET OF DATES over
+    2019-01-01 .. 2026-05-29.
+    PASS: zero dates on either side, for both universes.
+    Report the count in both directions, never a single "identical" boolean.
+    The tracked artefact is SHA256'd before and after and must be unchanged;
+    Gate 1 writes nothing to it.
+
+GATE 2 -- THE PANELS. Blocking.
+    Rebuild the raw panel for n100 and mid through build_panel against the new
+    calendar. Compare against results_{n100,mid}/metrics/raw_panel_*_cache.csv:
+    row count, date set, symbol set, and SHA256 of the serialised frame.
+    PASS: byte-identical.
+    A panel difference means the calendar reached the data even though Gate 1
+    passed, and the run stops there.
+
+GATE 3 -- THE HEADLINE ARMS. Blocking.
+    Re-run the four arms on both universes and compare against
+    results_{n100,mid}/metrics/v34_comparison.csv, READ FROM THE CSV rather than
+    typed into the checker. Compare CAGR, Sharpe, MaxDD, Trades and FinalEquity
+    on all five rows of each file, including buy & hold.
+    PASS: identical to the precision the CSV carries.
+    RESCORING IS NOT REQUIRED IF GATE 2 PASSES BYTE-IDENTICAL -- the existing
+    score panels are then provably the correct input, and Gate 3 runs on them.
+    If Gate 2 shows any difference, Gate 3 requires a full rescore and the cost
+    changes; that is a decision point, not something to absorb silently.
+
+GATE 4 -- THE RETIRED PATH. Blocking.
+    Assert that the 58 and 74 artefacts are untouched by the run: SHA256 on
+    results/metrics/v5_expanding_cache.csv, results74/metrics/v74_expanding_cache.csv
+    and both v2FINAL_equity.csv, before and after.
+    PASS: unchanged.
+
+REPORTED, NOT GATED
+    The calendar's behaviour outside 2019-01-01 .. 2026-05-29, in both
+    directions, as counts and as an explicit list of any differing date. It is
+    reported rather than gated for the reason given in PART 6.
+
+EVERY GATE FIGURE IS COMPUTED BY THE CHECKER FROM THE ARTEFACTS. No expected
+value is typed into the script. A gate that hardcodes its own verdict is the
+defect recorded in HANDOFF_SUMMARY.txt lesson 5 and in KNOWN_ISSUES.md under
+"STEP 2's leakage checklist performs no checks".
+
+IF ANY BLOCKING GATE FAILS, NOTHING IS COMMITTED AND THE FAILURE IS REPORTED AS
+THE RESULT. The prediction in PART 3 is then wrong, which is a finding.
+
+
+================================================================================
+PART 5 -- WHAT THIS DOES NOT ESTABLISH
+================================================================================
+
+5.1 IT DOES NOT VALIDATE THE CALENDAR AGAINST ANY EXTERNAL SOURCE.
+    No NSE circular, exchange calendar or third-party dataset is consulted, then
+    or now. DDQ_Latest/config/trading_calendar.yaml was verified and rejected
+    earlier and is not revisited. This change REPRODUCES THE EXISTING CALENDAR BY
+    A DIFFERENT ROUTE. If the 58-derived calendar is wrong about a date, the
+    filtered calendar is wrong about it in exactly the same way, and this work
+    would not detect that. Nothing here establishes which dates are real trading
+    days.
+
+5.2 IT DOES NOT ESTABLISH THAT THE LOW-COVERAGE DATES ARE NOT TRADING DAYS.
+    Roughly 45 of the 107 in-window low-coverage dates are recognisable as fixed
+    national holidays from their dates alone -- 26 January, 1 May, 15 August,
+    2 October, 25 December, and a Good Friday that tracks a movable Easter
+    correctly across eight years. The remaining ~62 are not identified. The
+    filter removes them on COVERAGE, not on any holiday claim.
+
+5.3 IT SAYS NOTHING ABOUT FUTURE DATA DELIVERIES. See PART 6.
+
+5.4 IT DOES NOT TOUCH THE RETIRED 58 AND 74.
+    Their path is unchanged, their window stays on the old year cut, their
+    purge_mode stays pinned to "calendar", and their published numbers do not
+    move. This spec does not implement, imply or prejudge the pipeline split
+    proposed in PIPELINE_AUDIT.txt section 9. It removes one obstacle to that
+    split and decides nothing else about it.
+
+5.5 IT DOES NOT ADDRESS SURVIVORSHIP, the trial denominator, or any other open
+    item. The calendar is orthogonal to all of them.
+
+5.6 IT IS NOT AN IMPROVEMENT TO ANY NUMBER. Nothing gets better. The entire
+    claim is that nothing changes, and a change in any figure is a failure of
+    this work, not a result of it.
+
+
+================================================================================
+PART 6 -- BEHAVIOUR OUTSIDE THE WINDOW, AND WHAT IS UNTESTED
+================================================================================
+
+THE FILTER APPLIES TO THE WHOLE RANGE THE FILES COVER, NOT TO THE BACKTEST
+WINDOW. The files run from 2000 to 2026-06-08 (2026-06-22 for the n100 benchmark
+directory, which includes the index file). The calendar is built over all of it.
+The 50% rule is applied to every year, including the ones before 2019 and the
+tail after 2026-05-29.
+
+WHAT WAS ACTUALLY COMPARED, AND WHAT WAS NOT
+    The identity result -- filtering at 50% reproduces the 58-derived calendar
+    exactly -- was established over 2019-01-01 .. 2026-05-29 ONLY. That is
+    1,836 dates out of the roughly 6,574 in the tracked calendar. THE OTHER
+    ~4,738 DATES, ALL OF THEM BEFORE 2019, WERE NOT PART OF THE COMPARISON.
+
+    The pre-2019 years were measured for coverage structure only up to a point:
+    the year-by-year union and common counts back to 2000 were taken on
+    2026-09-02, and they show the same shape, but THE SET COMPARISON AGAINST THE
+    58 CALENDAR WAS NOT RUN OUTSIDE THE WINDOW. Whether the filtered calendar
+    reproduces the 58's pre-2019 dates is UNTESTED and must not be assumed from
+    the in-window result. Gate 4's "reported, not gated" clause exists to make
+    that visible when the change runs.
+
+    THIS MATTERS EVEN THOUGH NOTHING IS SCORED BEFORE 2016. build_panel filters
+    the WHOLE panel by the calendar, and training reaches back to 2001. A
+    pre-2019 calendar difference would change training rows, and by the finding
+    already recorded in EXPERIMENTS.md entry 28, a 0.01% change in training rows
+    moved n100 v2 CAGR by 0.54 points. Gate 2 and Gate 3 are what would catch
+    it; that is why they are blocking and why Gate 1 alone is not sufficient.
+
+THE TAIL PAST 2026-05-29
+    Ten dates lie between 2026-05-29 and the end of the data. One of them,
+    2026-06-08, is the single date anywhere in 2019-2026 that falls in the
+    otherwise empty band -- 82.8% in n100 against 99.3% in mid. At
+    COVERAGE_MIN = 0.50 it is kept in both, so the two universes agree, but the
+    margin is 32.8 points rather than the usual 35+, and it is the one place
+    where the threshold's value is doing visible work. This is stated because a
+    reader should know where the design is closest to its edge.
+
+FUTURE DELIVERIES ARE UNTESTED AND THE DESIGN DOES NOT PROTECT AGAINST THEM
+    Nothing here predicts what a new data delivery does. A delivery that adds a
+    genuine session carried by few files, or a bad file carrying many phantom
+    dates, could put a date in the empty band. The threshold would then decide
+    an outcome it was never measured to decide.
+
+    THE HONEST STATEMENT IS THAT THE FILTER IS CALIBRATED ON DATA THAT ALREADY
+    EXISTS AND IS UNVALIDATED ON DATA THAT DOES NOT. The regeneration case --
+    rebuilding the calendar when the data extends -- is the entire reason this
+    coupling matters, and it is precisely the case no measurement here covers.
+    A re-measurement of the coverage distribution should be a precondition of
+    any future regeneration; that is a recommendation, not part of this change,
+    and it is not implemented by this spec.
+
+
+================================================================================
+PART 7 -- SCOPE
+================================================================================
+
+IN SCOPE
+    results/make_trading_calendar.py -- source selection and the coverage filter.
+    A checker implementing the four gates, writing a diagnostic.
+    The spec's predictions judged against the run, in writing.
+
+OUT OF SCOPE, EXPLICITLY
+    Changing the tracked calendar artefact, unless every blocking gate passes.
+    Any change to engine_core, build_panel or any consumer.
+    Any change to the 58/74 path.
+    The pipeline split of PIPELINE_AUDIT.txt section 9.
+    Validating any date against an external source.
+    The other findings in PIPELINE_AUDIT.txt, which stay open.
+
+================================================================================
+END OF SPEC
+================================================================================
+
+
+================================================================================
+PART 8 -- THE FULL-RANGE MEASUREMENT FALSIFIED THE DESIGN. 2026-09-03.
+================================================================================
+Appended AFTER the measurement, which was run before any code, at the reviewer's
+instruction and on the concern raised in PART 6: that the identity result covered
+1,836 of ~6,574 dates and the pre-2019 region had never been compared.
+
+THE CONCERN WAS CORRECT. THE IDENTITY DOES NOT HOLD OUTSIDE THE WINDOW.
+
+    universe   filtered   58 calendar   filtered-only   calendar-only
+    n100          6,572         6,574               0               2
+    mid           6,552         6,574               0              22
+
+    Every window year 2019-2026 reproduces exactly, as previously measured.
+    ALL failures are pre-2019. The difference is ONE-DIRECTIONAL in every case:
+    the filter never invents a date, it only drops dates the calendar has.
+
+THE DATES, LISTED IN FULL RATHER THAN CHARACTERISED
+    n100 -- 2 dates, in the 58 calendar, absent from the filtered set:
+        2003-03-22  Sat    9/65  = 13.85%
+        2017-04-04  Tue   29/87  = 33.33%
+
+    mid -- 22 dates, in the 58 calendar, absent from the filtered set:
+        2000-01-03  Mon   NOT IN mid's UNION AT ALL -- mid data starts 2000-01-04.
+                          This is missing data, not a filtering decision.
+        2003-01-01 .. 2003-01-24   EIGHTEEN CONSECUTIVE SESSIONS, each 29/61
+                          = 47.54%, i.e. 2.46 points below the threshold.
+        2003-03-22  Sat    3/61  =  4.92%
+        2017-04-04  Tue   43/115 = 37.39%
+        2017-12-02  Sat    5/115 =  4.35%
+
+NO THRESHOLD REPRODUCES THE CALENDAR. THIS IS NOT A TUNING PROBLEM.
+    Splitting every date by whether the 58 calendar contains it:
+
+        universe   calendar HAS               calendar LACKS
+        n100       6,574 at 13.85% .. 100%    237 at 1.27% .. 24.24%
+        mid        6,573 at  4.35% .. 100%    237 at 1.16% .. 47.30%
+
+    A working threshold must exceed the highest-coverage EXCLUDED date and be at
+    or below the lowest-coverage INCLUDED date. That requires
+        n100:  24.24% < T <= 13.85%      mid:  47.30% < T <= 4.35%
+    Both intervals are EMPTY. The groups OVERLAP by 10.40 points on n100 and
+    42.95 points on mid. NO VALUE OF COVERAGE_MIN WORKS, in either universe.
+
+    The binding cases are three genuine sessions with very thin coverage --
+    2003-03-22, 2017-12-02, 2017-04-04 -- which sit BELOW the top of the
+    excluded group. COVERAGE DOES NOT SEPARATE THEM. A different threshold moves
+    which dates are wrong; it cannot make none of them wrong.
+
+PART 2'S INSENSITIVITY ARGUMENT WAS MEASURED ON 2019-2026 AND DOES NOT
+GENERALISE. IT IS LEFT STANDING AND IS WRONG OUTSIDE THAT RANGE.
+    Part 2 states that "every threshold in (0.473, 0.828] partitions the
+    2019-2026 data IDENTICALLY -- a range 35 points wide". That sentence is
+    still true AS WRITTEN, because it is scoped to 2019-2026. It was used to
+    argue the threshold is a choice within a wide gap rather than a fitted
+    value, and THAT ARGUMENT DOES NOT SURVIVE the full range.
+
+    Measured band edges per year show the gap narrowing sharply before 2019:
+
+        mid  2003   low tops at 49.2%   kept starts at 68.9%   gap 19.7 pt
+        mid  2016   low tops at 18.9%   kept starts at 50.0%   gap 31.1 pt
+        n100 2017   low tops at 33.3%   kept starts at 64.4%   gap 31.0 pt
+        n100 2016   low tops at  9.5%   kept starts at 59.5%   gap 50.0 pt
+
+    mid 2016's kept side sits at EXACTLY 50.0% -- on the threshold. For
+    2019-2026 the kept side never falls below 82.8%. Pre-2019 it repeatedly
+    falls into the 50-70% band. THE EMPTY MIDDLE IS A PROPERTY OF THE RECENT
+    YEARS, NOT OF THE DATA.
+
+THE PREDICTIONS IN PART 3, JUDGED
+    P1  n100 identical over 2019-01-01..2026-05-29 ......... CORRECT
+    P2  mid  identical over the same window ................ CORRECT
+    P1/P2 EXTENDED TO THE FULL RANGE ....................... FALSE, and the
+        extension is what mattered. The predictions were scoped to the window
+        because the measurement behind them was; scoping a prediction to the
+        region you already measured is not a prediction.
+    P3, P4, P5 .... NOT TESTED. No code was written, so no panel, no arm and no
+        retired artefact was produced or compared. They are neither confirmed
+        nor refuted, and must not be reported as passing.
+
+WHY THE FAILURE MATTERS RATHER THAN BEING ABSORBED
+    Two of the 22 mid dates and one of the 2 n100 dates fall in 2017, and the
+    2003 block is 18 consecutive sessions. build_panel filters the WHOLE panel
+    by the calendar and training reaches back to 2001, so these are TRAINING
+    ROWS, not scored rows. EXPERIMENTS.md entry 28 measured that a 0.01% change
+    in training rows moved n100 v2 CAGR by 0.54 points. A calendar 22 dates
+    short is a larger perturbation than that, in the same place.
+
+    So the change as specified WOULD have moved published numbers, in a project
+    whose entire justification for the change was that nothing moves. Gates 2
+    and 3 were designed to catch exactly this. They were not needed, because the
+    measurement caught it first and no code ran.
+
+WHAT IS NOT ESTABLISHED BY THIS FAILURE
+    That the 58-derived calendar is RIGHT about the 24 dates. It is not
+    validated against any external source, then or now, and three of them are
+    Saturdays. Whether 2003-03-22, 2017-12-02 and 2017-04-04 were genuine
+    sessions is UNTESTED. The measurement establishes only that a coverage
+    filter CANNOT REPRODUCE the existing calendar, not that the existing
+    calendar is correct.
+
+    That no decoupling is possible. It establishes that THIS decoupling, by a
+    single global coverage threshold, is not. Other designs were not measured
+    and are not ruled out by anything here.
+
+STATUS. BLOCKED. NO CODE WRITTEN. The coupling recorded in KNOWN_ISSUES.md under
+"STEP 0 couples the live universes to the retired 58 universe" STAYS OPEN, and
+this spec is now part of its record: one candidate design, measured and refuted
+before implementation.
+
+================================================================================
+END OF PART 8
+================================================================================

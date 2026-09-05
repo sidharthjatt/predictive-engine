@@ -1,0 +1,227 @@
+QUANTIFYING THE PURGE LEAK -- WHAT IS IT WORTH?
+================================================================================
+Written 2026-09-02, BEFORE any code is written and before any result is seen.
+
+WHY
+    diagnostics/LEAKAGE_AUDIT.txt found ONE real leak. The purge is expressed in
+    CALENDAR days and the label in TRADING rows, so the margin underflows across
+    a holiday cluster. Measured: the label reaches INTO the scored month in 7 of
+    126 months and touches its first day in another 21, identically on both
+    universes, because the cause is the shared NSE holiday calendar.
+
+    The leak's EXISTENCE is established. Its SIZE is not. Nothing else in this
+    project means anything until a number is attached to it.
+
+    THIS TASK MEASURES. It does not fix anything permanently. engine_core.py is
+    NOT modified; the corrected purge lives in a separate measurement script.
+
+
+================================================================================
+PART 1 -- THE CORRECT PURGE, DESIGNED BEFORE IT IS IMPLEMENTED
+================================================================================
+
+THE DEFECT, RESTATED IN ONE LINE
+    engine_core.py:413  cut = first_scored - pd.Timedelta(days=32)   CALENDAR
+    engine_core.py:189  fwd_ret = close.shift(-20) / close - 1       TRADING ROWS
+
+    Twenty trading rows span about 28 calendar days normally and more across a
+    holiday cluster, so a 32-calendar-day purge leaves roughly four days of
+    margin AND THAT MARGIN IS VARIABLE. Where the margin is consumed, the label
+    of the newest training rows observes the scored month.
+
+THE CORRECTION -- EXPRESSED ENTIRELY IN TRADING ROWS
+    Let `cal` be the panel's own sorted unique trading dates, and let
+
+        i_first = index in cal of the scoring month's first date
+        j       = index in cal of a training row's date
+
+    A label at j observes the close at index j + HORIZON. Define
+
+        gap(j) = i_first - (j + HORIZON)          in TRADING ROWS
+
+    The last usable training index is then
+
+        j_max = i_first - HORIZON - EMBARGO
+        cut   = cal[j_max]
+        tr    = (date <= cut) & y_rank.notna()
+
+    This CANNOT underflow. It is computed on the calendar the panel actually has,
+    so a holiday cluster shifts the date but never the row count.
+
+THE EMBARGO IS 2 TRADING ROWS, AND HERE IS WHY
+    EMBARGO = 1 is the strict minimum for "does not touch": it puts the last
+    observed close at i_first - 1, strictly before the first scored date, which
+    already eliminates both the 7 negative-gap and the 21 zero-gap months.
+
+    EMBARGO = 2 IS CHOSEN, FOR ONE STATED REASON. The close at i_first - 1 is the
+    BASE PRICE of the scored period's first return -- the strategy signals at the
+    close of a day and fills at the next open, so the close immediately preceding
+    the scored month is the denominator of the first return that month produces.
+    A label that observes i_first - 1 has observed the scored period's starting
+    price. EMBARGO = 2 puts the last observed close at i_first - 2, strictly
+    before that base price.
+
+    IT IS NOT LARGER, AND THAT IS ALSO A DECISION. A bigger embargo removes more
+    training rows, which changes results for a reason that has nothing to do with
+    leakage. A measurement that conflated "leak removed" with "trained on less
+    data" would not answer the question asked. 2 is the smallest value that
+    satisfies the requirement with a reason attached to each of its two rows.
+
+WHAT THE CORRECTION GUARANTEES
+    gap(j) >= EMBARGO = 2 for every training row in every scoring month, on both
+    universes, BY CONSTRUCTION rather than by luck of the calendar.
+
+    Both failure modes are eliminated: no month at a negative gap, and no month
+    at zero. Gap = 0 is treated as contamination, not as a boundary case.
+
+THE CORRECTION IS NOT ALWAYS MORE CONSERVATIVE, AND THIS MATTERS FOR READING THE
+RESULT. In months where the old realised gap was 4 (the observed maximum), the
+calendar purge was MORE conservative than necessary and the corrected cut sits
+LATER, admitting slightly MORE training data. In the 7 failing months it sits
+EARLIER. So the training set moves in BOTH directions across the walk, and the
+change is not a uniform reduction in sample size.
+
+
+================================================================================
+PART 2 -- WHAT IS MEASURED
+================================================================================
+RE-RUN THE FULL WALK on both live universes with ONLY the purge changed.
+
+    IDENTICAL: the panel and its 17 features, the label, the window
+    2019-01-01..2026-05-29, SEEDS = [7,42,99,1,2,3,11,22,33,101], the monthly
+    expanding retrain, TOP_N=8, BUFFER=16, VOL_WIN=60, the 0.98 factor, slippage,
+    the Zerodha cost model, CASH_YIELD=0.0, close-signal/next-open-fill, and the
+    shipping engine test_exposure.backtest_exposure.
+
+    CHANGED: the purge, and nothing else.
+
+    The feature panel is NOT rebuilt. score_monthly consumes an existing panel
+    that already carries the features and y_rank, so re-scoring re-fits the
+    models without recomputing a single feature. That keeps the comparison exact
+    on everything except the training mask.
+
+REPORTED, PER ARM PER UNIVERSE
+    CAGR%, Sharpe, MaxDD%, trade count -- corrected against currently recorded,
+    with the difference. All four arms; v1 and v2 are the ones that matter.
+
+REPORTED PER YEAR AS WELL AS HEADLINE
+    CAGR by calendar year for the corrected and the current run, per arm per
+    universe, with the difference.
+
+    THE SPECIFIC QUESTION: five of the seven leaking months fall inside the
+    backtest window -- 2019-09, 2020-05, 2021-05, 2023-05, 2026-05. If the leak
+    were doing the work, the damage should concentrate in 2019, 2020, 2021, 2023
+    and 2026 and leave 2022, 2024 and 2025 largely alone.
+
+    IF IT IS NOT CONCENTRATED THERE, THAT IS A FINDING IN ITSELF and is reported
+    as one rather than being explained away.
+
+PURGE VERIFICATION, RE-RUN
+    The Check 2 measurement is re-run against the corrected cut and must show, on
+    all 126 months and both universes:
+        minimum gap >= EMBARGO,  and no month at 0 or below.
+    New min / median / max reported beside the old.
+
+IDENTITY GATE
+    The CURRENT-purge arm re-run in this harness must reproduce the recorded v2
+    figures -- 25.49 / 1.88 / -18.64 on n100 and 30.22 / 2.06 / -18.98 on mid,
+    READ FROM v34_comparison.csv, not typed in. If it does not, the harness is
+    wrong and NO difference is reported. Correctness gate, not a performance gate.
+
+
+================================================================================
+A CONFOUND THAT MUST BE STATED BEFORE THE NUMBERS ARRIVE
+================================================================================
+CHANGING THE PURGE CHANGES THE TRAINING SET IN EVERY MONTH, NOT ONLY THE SEVEN.
+The corrected cut lands on a different date from the calendar cut in most months
+-- earlier in some, later in others. So every month is re-fit on a slightly
+different sample, every score moves a little, and the resulting difference in
+returns is NOT a clean estimate of "what the leak was worth".
+
+    IT IS AN ESTIMATE OF "WHAT CORRECTING THE PURGE IS WORTH", which is the
+    decision-relevant quantity but is NOT the same thing.
+
+    Isolating the leak alone would need a design that changes the cut ONLY in the
+    seven months and leaves the other 119 byte-identical. That is a different
+    measurement and it is NOT run here. This limitation is stated in advance so
+    it cannot be presented afterwards as a subtlety that was noticed later.
+
+LIGHTGBM SEED NOISE IS NOT SEPARATED EITHER. Ten seeds are averaged, which damps
+it, but the same ten seeds fitted on a slightly different sample produce a
+slightly different ensemble. No noise floor is established here, so a small
+difference cannot be distinguished from re-fit noise.
+
+    CONSEQUENCE, PRE-REGISTERED: a difference under roughly 0.5 CAGR points will
+    NOT be called an effect. It will be reported as a number and described as
+    indistinguishable from re-fit noise at this design.
+
+
+================================================================================
+WRITTEN PREDICTION -- RECORDED BEFORE THE RUN
+================================================================================
+Recorded so that whatever happens cannot afterwards be described as expected.
+
+ 1. THE CAGR CHANGE IS SMALL. I expect |dCAGR| UNDER 1.5 POINTS on v1 and v2 on
+    both universes, and I would not be surprised by under 0.5.
+
+    REASONING, GIVEN SO IT CAN BE JUDGED WRONG: the contamination is in the LABEL
+    of the newest training rows only, not in the features of the rows being
+    scored. In an expanding window that reaches back to 2016, the affected rows
+    are a low single-digit percentage of the training sample, and within those
+    rows only 1 or 2 days of a 20-day label are contaminated. The model never
+    sees the scored month's outcomes for the names it is ranking.
+
+ 2. DIRECTION: I expect the corrected numbers to be LOWER, because removing an
+    information advantage should remove return. BUT I HOLD THIS WEAKLY. The
+    corrected cut admits MORE training data in the months where the calendar
+    purge over-purged, and more data can help. I would put it around 60/40
+    toward lower, which is barely better than a coin.
+
+ 3. THE DAMAGE WILL NOT BE CONCENTRATED IN THE FIVE AFFECTED YEARS. This is my
+    most specific and most falsifiable prediction. Because the corrected cut moves
+    in EVERY month, every month is re-fit and every year's return will move. If
+    the yearly differences turn out to be concentrated in 2019, 2020, 2021, 2023
+    and 2026 while 2022, 2024 and 2025 stay put, MY MODEL OF THIS LEAK IS WRONG
+    and that is the more valuable result.
+
+ 4. THE PURGE VERIFICATION WILL PASS CLEANLY -- minimum gap exactly 2 on both
+    universes, since the construction makes it exact rather than approximate.
+    Confidence: high. If it does not, the implementation is wrong, not the design.
+
+ 5. I DO NOT EXPECT THIS TO OVERTURN THE HEADLINE RESULTS. If I am wrong and it
+    does, that is stated first and plainly, before anything else in the report.
+
+
+================================================================================
+COST
+================================================================================
+Re-scoring is the expensive step: 126 monthly re-fits x 10 seeds x 2 universes.
+A SINGLE-MONTH PROBE IS TIMED FIRST and the extrapolated cost REPORTED BEFORE the
+full run starts, not after. The feature panel is not rebuilt, which removes the
+slowest part of the normal pipeline.
+
+CACHES: this measurement writes its own, named PURGEFIX_{universe}. It reads the
+production raw panel and asserts the universe from the file. No cache written by
+any other script is read, and none of its own is read by anything else.
+
+
+================================================================================
+OUTPUTS -- AND WHAT IS NOT TOUCHED
+================================================================================
+    diagnostics/purge_fix_measure.txt        the comparison, both universes
+    results_{uni}/metrics/purge_fix_headline.csv    per arm, both purges, diff
+    results_{uni}/metrics/purge_fix_yearly.csv      per arm per year, both, diff
+    results_{uni}/metrics/purge_fix_gaps.csv        the re-run gap verification
+
+NOT TOUCHED BY THIS TASK: engine_core.py, the corporate-action finding,
+survivorship, README.md, KNOWN_ISSUES.md, HANDOFF_SUMMARY.txt, and every other
+document except the experiment record. Nothing is committed.
+
+English only. No verdict string is hardcoded.
+
+IF THE CORRECTED PURGE MATERIALLY LOWERS THE HEADLINE NUMBERS, THAT IS STATED
+PLAINLY AND FIRST, BEFORE ANY OTHER RESULT.
+
+================================================================================
+END OF SPEC
+================================================================================

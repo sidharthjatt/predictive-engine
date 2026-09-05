@@ -1,0 +1,67 @@
+====================================================================================================
+ CHECK B -- EXECUTION TIMING FROM THE FILL RECORD -- NIFTY 100 (n100)
+====================================================================================================
+
+  fills file      nautilus/reports/n100/fills.csv
+  fills recorded  978
+  price panel     v_n100_expanding_cache.csv
+  reconstruction  round(price * (1 +/- 0.0015), 2)  -- 2-decimal storage
+  tolerance       0.005 -- TIGHTENED from the spec's half-tick 0.025;
+                  see tick() for why the spec's assumption was wrong
+
+  MATCHES, PER CANDIDATE (a fill may match more than one)
+    (a) that day's OPEN      -- the design          977 of 978
+    (b) that day's CLOSE     -- same-day close        9 of 978
+    (c) previous CLOSE       -- signal-day close     69 of 978
+    (d) previous OPEN                                 7 of 978
+
+  fills matching (a): 977 of 978
+  fills matching NOTHING: 1
+  fills matching (a) UNIQUELY: 894
+  fills matching (a) AND another candidate (ambiguous, prices within half a
+    tick of each other -- a limit of the instrument, not an exception): 83
+
+  EXCEPTIONS -- fills NOT matching the fill day's open: 1
+    date        symbol        side     fill px  (a) open  (b) close  (c) prevC  (d) prevO
+    2020-05-22  CHOLAFIN      BUY       130.19    130.20     123.43     130.09     138.01
+
+  FILLS EXECUTING AT A CLOSE RATHER THAN AN OPEN: 0
+
+  every fill date on the panel's trading calendar: 978 of 978
+  fills whose PREVIOUS session is a recorded decision date: 978 of 978
+
+
+====================================================================================================
+ CHECK B -- EXECUTION TIMING FROM THE FILL RECORD -- MIDCAP150 (mid)
+====================================================================================================
+
+  fills file      nautilus/reports/mid/fills.csv
+  fills recorded  963
+  price panel     v_mid_expanding_cache.csv
+  reconstruction  round(price * (1 +/- 0.0015), 2)  -- 2-decimal storage
+  tolerance       0.005 -- TIGHTENED from the spec's half-tick 0.025;
+                  see tick() for why the spec's assumption was wrong
+
+  MATCHES, PER CANDIDATE (a fill may match more than one)
+    (a) that day's OPEN      -- the design          961 of 963
+    (b) that day's CLOSE     -- same-day close       16 of 963
+    (c) previous CLOSE       -- signal-day close     84 of 963
+    (d) previous OPEN                                14 of 963
+
+  fills matching (a): 961 of 963
+  fills matching NOTHING: 2
+  fills matching (a) UNIQUELY: 849
+  fills matching (a) AND another candidate (ambiguous, prices within half a
+    tick of each other -- a limit of the instrument, not an exception): 112
+
+  EXCEPTIONS -- fills NOT matching the fill day's open: 2
+    date        symbol        side     fill px  (a) open  (b) close  (c) prevC  (d) prevO
+    2019-11-27  PATANJALI     SELL        1.15       nan        nan        nan        nan
+    2019-12-26  ABBOTINDIA    BUY     13089.60  13089.61   13099.67   13035.57   13249.95
+
+  FILLS EXECUTING AT A CLOSE RATHER THAN AN OPEN: 0
+
+  every fill date on the panel's trading calendar: 963 of 963
+  fills whose PREVIOUS session is a recorded decision date: 963 of 963
+
+

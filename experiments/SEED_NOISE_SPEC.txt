@@ -1,0 +1,203 @@
+THE NOISE FLOOR -- HOW MUCH DOES THE RESULT MOVE WHEN ONLY THE SEEDS CHANGE?
+================================================================================
+Written 2026-09-02, BEFORE any code is written and before any result is seen.
+
+WHY THIS EXISTS
+    diagnostics/purge_fix_measure.txt reported that a 0.01% change in training
+    rows (41,380,868 -> 41,376,648) moved INDIVIDUAL YEARS by up to 21 points --
+    mid v1 2021 by -21.43, mid v1 2020 by +17.67. The headline shipping-arm
+    differences were +0.54 on n100 and -0.81 on mid.
+
+    THOSE WERE JUDGED AGAINST A 0.5-POINT NOISE FLOOR THAT WAS NEVER MEASURED.
+    It was invented in PURGE_FIX_SPEC.txt and pre-registered, which makes it
+    honest but does not make it correct. This spec measures the floor instead.
+
+    THE PURGE RESULT IS PROVISIONAL UNTIL THIS RUN COMPLETES. If +0.54 and -0.81
+    sit inside the seed-change spread, the purge measurement is INCONCLUSIVE AT
+    THAT DESIGN and will be reported as such, without softening.
+
+
+--------------------------------------------------------------------------------
+WHAT IS HELD FIXED, AND WHAT VARIES
+--------------------------------------------------------------------------------
+    VARIES:  the model seeds. Nothing else.
+
+    HELD FIXED, bit for bit: the raw feature panel and all 17 features, the
+    label, y_rank, the CURRENT production purge (32 calendar days -- deliberately
+    NOT the corrected one, so that the production result is itself one draw from
+    the distribution being measured), the window 2019-01-01..2026-05-29, both
+    universes, TOP_N=8, BUFFER=16, VOL_WIN=60, the 0.98 factor, slippage, the
+    Zerodha cost model, CASH_YIELD=0.0, close-signal/next-open-fill, and the
+    shipping engine test_exposure.backtest_exposure.
+
+    WHY THE CURRENT PURGE AND NOT THE CORRECTED ONE. The quantity being measured
+    is the spread the purge delta must be judged against, and that delta was
+    computed on the current-purge baseline. Measuring the spread on the same
+    baseline makes the comparison like for like, and it makes the recorded
+    production numbers one observation of the distribution rather than an
+    outside reference point.
+
+
+--------------------------------------------------------------------------------
+DESIGN -- 40 SEEDS FITTED ONCE, SUB-ENSEMBLES FORMED AFTERWARDS
+--------------------------------------------------------------------------------
+The obvious design is to run K separate 10-seed sets and take the spread of K
+headline numbers. THAT IS NOT THE DESIGN CHOSEN, for one reason: it costs the
+same and answers less.
+
+    FIT 40 DISTINCT SEEDS, one pass, storing EVERY SEED'S SCORES SEPARATELY
+    rather than only the ensemble mean.
+
+    The first 10 are the production set [7,42,99,1,2,3,11,22,33,101], so the
+    shipped result is reproducible from the store and serves as an identity gate.
+    The remaining 30 are new and are listed in the output.
+
+    Sub-ensembles of any size K <= 40 are then formed by averaging K stored
+    score columns and running the backtest on the result. A backtest costs about
+    0.1 seconds, so hundreds of sub-ensembles are affordable once the fits exist.
+
+WHAT THIS BUYS
+    An EMPIRICAL sigma(K) curve, measured, rather than an assumed 1/sqrt(K)
+    scaling. Question 2 -- how many seeds are needed for stability to within 0.5
+    points -- is then answered from the observed curve instead of from an
+    extrapolation whose exponent nobody checked.
+
+SUB-ENSEMBLE SAMPLING
+    K in {1, 2, 3, 5, 10, 20, 40}. For each K below 40, M = 50 random subsets
+    drawn without replacement from the 40 seeds. K = 40 has exactly one subset.
+
+    THE SUBSETS OVERLAP AND ARE THEREFORE NOT INDEPENDENT. At K = 10 there are
+    C(40,10) possible subsets so the overlap is mild, but at K = 20 and above it
+    is substantial and the measured spread is biased DOWNWARD. This is stated in
+    advance and repeated beside the K = 20 and K = 40 rows in the report. The
+    K = 10 figure is the one the conclusions rest on, because 10 is what ships.
+
+ARMS: v1 and v2 -- the two gated arms, both universes. v3 and v4 are not run for
+sub-ensembles; the pro-vol arms are not production and V34_SPEC declined to
+promote them.
+
+
+--------------------------------------------------------------------------------
+WHAT IS REPORTED
+--------------------------------------------------------------------------------
+ 1. HEADLINE SPREAD AT K = 10, per arm per universe: min, p5, median, p95, max,
+    standard deviation, and the full range, for CAGR, Sharpe and MaxDD.
+
+ 2. THE VERDICT ON THE PURGE RESULT. Where do +0.54 (n100 v2) and -0.81 (mid v2)
+    fall inside the K = 10 CAGR distribution? Reported as a percentile of the
+    seed-change spread. If they fall inside it, the purge measurement is
+    INCONCLUSIVE AT THIS DESIGN and the report says exactly that.
+
+ 3. YEAR-LEVEL SPREAD ACROSS SEED SETS, per year per arm per universe: the range
+    and standard deviation of annual return across the K = 10 sub-ensembles.
+
+    THE SPECIFIC QUESTION: the purge run moved individual years by up to 21
+    points. If changing only the seeds moves years by a comparable amount, then
+    the purge run's year-level swings were never evidence about the purge, and
+    BOTH OBSERVATIONS ARE ONE FINDING ABOUT MODEL STABILITY, not two findings.
+    The report states it as one finding if that is what the numbers show.
+
+ 4. SEEDS REQUIRED FOR +/-0.5 POINT STABILITY, from the measured sigma(K) curve.
+    Reported as the smallest K whose observed spread meets the bar, and -- if no
+    tested K meets it -- as an extrapolation with the fitted exponent shown and
+    labelled as an extrapolation.
+
+ 5. THE sigma(K) CURVE ITSELF, all K, so the shape is visible rather than
+    summarised.
+
+
+--------------------------------------------------------------------------------
+A LIMIT THAT MUST BE STATED BEFORE THE NUMBERS ARRIVE
+--------------------------------------------------------------------------------
+A SEED CHANGE AND A PURGE CHANGE ARE DIFFERENT PERTURBATIONS. Changing seeds
+holds the data fixed and redraws the model. Changing the purge holds the seeds
+fixed and moves the data boundary by 0.01%. The seed spread is therefore NOT the
+exact null distribution for a purge change; it is the best available proxy for
+"how much does this result move when something that should not matter changes".
+
+    THE HONEST CLAIM THIS SUPPORTS: if the purge delta sits inside the seed
+    spread, the purge measurement CANNOT BE DISTINGUISHED from ordinary re-fit
+    variation at this design.
+
+    THE CLAIM IT DOES NOT SUPPORT: that the purge change had no effect. An effect
+    smaller than the measurement's resolution is not a measured absence.
+
+
+--------------------------------------------------------------------------------
+WRITTEN PREDICTION -- RECORDED BEFORE THE RUN
+--------------------------------------------------------------------------------
+ 1. THE K = 10 CAGR SPREAD IS LARGE ENOUGH TO SWALLOW THE PURGE RESULT. I expect
+    a standard deviation of roughly 1 to 2 CAGR points on v2 and more on v1, and
+    a full range across 50 sub-ensembles of 3 to 6 points. Confidence: high, and
+    it follows directly from the purge run's year-level swings.
+
+ 2. THEREFORE +0.54 AND -0.81 WILL SIT WELL INSIDE THE SPREAD, and the purge
+    measurement will be reported as INCONCLUSIVE AT THIS DESIGN. I am recording
+    this before the run because it retracts a number I reported four hours ago,
+    and I would rather be on record predicting my own result was noise than
+    discover it afterwards.
+
+ 3. YEAR-LEVEL SEED SPREAD WILL BE DOUBLE DIGITS in the high-return years,
+    comparable to the purge run's 21-point swing. If so, the two observations are
+    ONE finding about stability. Confidence: high.
+
+ 4. SEEDS NEEDED FOR +/-0.5 POINTS: FAR MORE THAN 10. If sigma(10) is about 1.5
+    and the scaling is near 1/sqrt(K), the requirement is near 90. My stated
+    prediction is that the answer lands between 50 and 250, and that NO TESTED K
+    up to 40 meets the bar, so the answer will be an extrapolation.
+
+ 5. v1 WILL BE NOISIER THAN v2 IN ABSOLUTE POINTS, because v1 is 100% invested
+    and v2 deploys about 55%, which damps everything including noise.
+
+ 6. I DO NOT EXPECT THIS TO CHANGE THE PUBLISHED HEADLINE NUMBERS. The production
+    seed set is one legitimate draw and its result stands as what that
+    configuration produced. What changes is the CONFIDENCE that can be attached
+    to any difference smaller than the spread -- including differences this
+    project has already acted on.
+
+
+--------------------------------------------------------------------------------
+WHAT THIS RUN CANNOT DO
+--------------------------------------------------------------------------------
+ 1. It cannot say the strategy is wrong. A wide seed spread is a statement about
+    resolution, not about the mean.
+ 2. It cannot retroactively re-judge every past experiment. It does establish
+    that any past decision resting on a difference smaller than the measured
+    spread was resting on less than it appeared to. Which past decisions those
+    are is a separate task and is NOT undertaken here.
+ 3. It does not address leakage, survivorship, or the trial denominator.
+ 4. Sub-ensembles overlap, so spreads at K = 20 and 40 are biased downward.
+
+
+--------------------------------------------------------------------------------
+COST, CACHES, OUTPUTS
+--------------------------------------------------------------------------------
+COST: 40 seed-fits per month instead of 10, which is 4x the fitting cost of one
+pass. The last full pass measured 35 min 17 sec for both universes. The
+extrapolation is therefore about 140 minutes and IT IS PROBED FIRST and reported
+before the full run starts. Sub-ensemble backtests are about 0.1s each and are
+not a material cost.
+
+CACHES: named SEEDNOISE_{universe}. The per-seed score store is written to disk
+THE INSTANT the fitting loop ends, before any reshape -- the failure mode that
+cost 25 minutes of refits on 2026-09-02 is not repeated. No cache written by any
+other script is read.
+
+WAITING: the runner is waited on BY PID, plus a completion sentinel written as
+the script's last action. A wait that matches its own command line, as
+`pgrep -f` did, is not used.
+
+OUTPUTS
+    results_{uni}/metrics/seed_noise_headline.csv    per arm, per sub-ensemble
+    results_{uni}/metrics/seed_noise_sigma_k.csv     the sigma(K) curve
+    results_{uni}/metrics/seed_noise_yearly.csv      per year spread
+    diagnostics/seed_noise.txt                       the report
+
+RECORDED IN experiments/EXPERIMENTS.md as its own entry, cross-referencing the
+purge run's stability finding. Nothing committed. Nothing else touched.
+
+English only. No verdict string is hardcoded.
+
+================================================================================
+END OF SPEC
+================================================================================

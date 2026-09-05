@@ -1,0 +1,144 @@
+====================================================================================================
+ CHECK 4 -- CORPORATE ACTIONS -- NIFTY 100 (n100)
+====================================================================================================
+
+  symbol files 99, of which carry adj_close: 99
+  rows in backtest window: 173,612
+
+  1. close VERSUS adj_close, inside the backtest window
+     rows where they differ at all : 702 of 173,612 (0.404%)
+     symbols affected              : 97 of 99
+     max relative difference       : 31.17%
+     median relative difference    : 2.0432%
+
+  2. TOP 20 MOST NEGATIVE SINGLE-DAY RETURNS on close (the column the engine trades)
+     symbol        date          ret_close    ret_adj    guard   reading
+     ADANIENT      2023-02-03       -26.1%       1.2%   PASSES   adj_close shows +1.2% -- DIFFERS
+     CGPOWER       2019-08-21       -19.9%     -19.9%   PASSES   same in adj_close
+     MOTHERSON     2020-03-13       -19.9%      -6.0%   PASSES   adj_close shows -6.0% -- DIFFERS
+     CGPOWER       2019-08-20       -19.8%     -19.8%   PASSES   same in adj_close
+     GRASIM        2020-03-24       -18.0%      -7.7%   PASSES   adj_close shows -7.7% -- DIFFERS
+     SIEMENS       2025-04-07       -17.8%     -25.1%   PASSES   adj_close shows -25.1% -- DIFFERS
+     ADANIENSOL    2024-11-21       -16.9%     -20.0%   PASSES   adj_close shows -20.0% -- DIFFERS
+     CHOLAFIN      2020-03-24       -16.9%       5.3%   PASSES   adj_close shows +5.3% -- DIFFERS
+     BAJAJHLDNG    2020-03-25       -16.8%       4.5%   PASSES   adj_close shows +4.5% -- DIFFERS
+     ADANIPORTS    2023-02-02       -15.8%      -6.6%   PASSES   adj_close shows -6.6% -- DIFFERS
+     CGPOWER       2019-02-13       -15.8%     -29.8%   PASSES   adj_close shows -29.8% -- DIFFERS
+     VEDL          2020-03-23       -15.5%     -17.0%   PASSES   adj_close shows -17.0% -- DIFFERS
+     VEDL          2019-02-01       -15.5%     -17.8%   PASSES   adj_close shows -17.8% -- DIFFERS
+     ADANIENSOL    2023-01-30       -15.5%     -15.2%   PASSES   adj_close shows -15.2% -- DIFFERS
+     VEDL          2020-10-12       -15.5%     -20.4%   PASSES   adj_close shows -20.4% -- DIFFERS
+     ADANIPOWER    2020-03-13       -14.6%       2.5%   PASSES   adj_close shows +2.5% -- DIFFERS
+     VEDL          2020-03-09       -14.5%     -14.5%   PASSES   same in adj_close
+     ADANIGREEN    2024-11-21       -14.2%     -18.9%   PASSES   adj_close shows -18.9% -- DIFFERS
+     RECLTD        2024-06-05       -13.8%       1.6%   PASSES   adj_close shows +1.6% -- DIFFERS
+     CGPOWER       2019-02-05       -13.7%     -13.7%   PASSES   same in adj_close
+
+  2. TOP 20 MOST POSITIVE SINGLE-DAY RETURNS on close (the column the engine trades)
+     symbol        date          ret_close    ret_adj    guard   reading
+     HINDZINC      2024-05-21        19.6%      19.6%   PASSES   same in adj_close
+     JINDALSTEL    2020-04-08        19.5%       4.4%   PASSES   adj_close shows +4.4% -- DIFFERS
+     IRFC          2023-09-05        19.2%       8.3%   PASSES   adj_close shows +8.3% -- DIFFERS
+     ADANIENT      2023-05-23        18.4%      13.2%   PASSES   adj_close shows +13.2% -- DIFFERS
+     ADANIPOWER    2020-12-04        17.1%       9.7%   PASSES   adj_close shows +9.7% -- DIFFERS
+     CGPOWER       2023-11-22        16.2%      20.0%   PASSES   adj_close shows +20.0% -- DIFFERS
+     HINDZINC      2024-04-09        15.7%      15.7%   PASSES   same in adj_close
+     TRENT         2024-02-08        15.7%       6.5%   PASSES   adj_close shows +6.5% -- DIFFERS
+     HINDZINC      2024-05-10        15.2%      15.2%   PASSES   same in adj_close
+     ADANIGREEN    2023-12-06        14.6%      15.9%   PASSES   adj_close shows +15.9% -- DIFFERS
+     ADANIENT      2019-05-21        14.3%       1.8%   PASSES   adj_close shows +1.8% -- DIFFERS
+     ADANIPOWER    2021-06-09        14.3%       0.3%   PASSES   adj_close shows +0.3% -- DIFFERS
+     ADANIPOWER    2024-11-28        14.2%       7.3%   PASSES   adj_close shows +7.3% -- DIFFERS
+     ADANIENSOL    2023-12-06        14.1%       7.4%   PASSES   adj_close shows +7.4% -- DIFFERS
+     ADANIENT      2023-03-01        14.0%      14.7%   PASSES   adj_close shows +14.7% -- DIFFERS
+     IRFC          2024-01-16        13.8%       9.0%   PASSES   adj_close shows +9.0% -- DIFFERS
+     ADANIENT      2020-08-25        13.7%      23.7%   PASSES   adj_close shows +23.7% -- DIFFERS
+     ADANIENT      2023-05-22        13.7%      18.9%   PASSES   adj_close shows +18.9% -- DIFFERS
+     CGPOWER       2019-03-01        13.7%      13.7%   PASSES   same in adj_close
+     ADANIGREEN    2019-04-16        13.6%      18.8%   PASSES   adj_close shows +18.8% -- DIFFERS
+
+  3. THE GUARD'S BAND. EXTREME_RET_LO = -0.35, EXTREME_RET_HI = 0.55
+     A 2-for-1 split is -50% and IS masked. A 5-for-4 bonus is -20% and is NOT.
+     moves in the UNCAUGHT band -20% to -35%: 1 rows, 1 symbols
+     of those, adj_close DISAGREES on 1 -- candidates for an
+     unadjusted corporate action that the guard does not catch:
+       ADANIENT      2023-02-03  close   -26.1%   adj     1.2%
+
+  PROVENANCE. Every 'adj_close DIFFERS' line above rests on adj_close, whose
+  provenance is UNVERIFIED -- there is no corporate-action dataset in this
+  repository to confirm it against. The names and dates are listed so that a
+  manual NSE lookup is possible; none was performed.
+
+
+====================================================================================================
+ CHECK 4 -- CORPORATE ACTIONS -- MIDCAP150 (mid)
+====================================================================================================
+
+  symbol files 148, of which carry adj_close: 148
+  rows in backtest window: 246,088
+
+  1. close VERSUS adj_close, inside the backtest window
+     rows where they differ at all : 1,205 of 246,088 (0.490%)
+     symbols affected              : 146 of 148
+     max relative difference       : 44.02%
+     median relative difference    : 2.2998%
+
+  2. TOP 20 MOST NEGATIVE SINGLE-DAY RETURNS on close (the column the engine trades)
+     symbol        date          ret_close    ret_adj    guard   reading
+     TATACOMM      2019-09-17       -34.8%     -34.8%   PASSES   same in adj_close
+     YESBANK       2020-03-09       -21.0%      31.6%   PASSES   adj_close shows +31.6% -- DIFFERS
+     PAYTM         2024-02-01       -20.0%     -20.0%   PASSES   same in adj_close
+     PAYTM         2024-02-02       -20.0%     -20.0%   PASSES   same in adj_close
+     FEDERALBNK    2020-03-24       -19.8%      -5.8%   PASSES   adj_close shows -5.8% -- DIFFERS
+     ASHOKLEY      2020-03-24       -19.2%      -1.0%   PASSES   adj_close shows -1.0% -- DIFFERS
+     FLUOROCHEM    2020-03-24       -19.0%      -9.9%   PASSES   adj_close shows -9.9% -- DIFFERS
+     AUBANK        2020-03-19       -18.8%      -9.1%   PASSES   adj_close shows -9.1% -- DIFFERS
+     ATGL          2023-01-31       -18.8%     -10.0%   PASSES   adj_close shows -10.0% -- DIFFERS
+     ATGL          2023-01-30       -18.2%     -20.0%   PASSES   adj_close shows -20.0% -- DIFFERS
+     IDEA          2019-07-30       -18.0%      -3.7%   PASSES   adj_close shows -3.7% -- DIFFERS
+     POLYCAB       2020-03-24       -17.9%      -6.1%   PASSES   adj_close shows -6.1% -- DIFFERS
+     INDUSINDBK    2020-03-19       -17.2%      -3.6%   PASSES   adj_close shows -3.6% -- DIFFERS
+     MFSL          2020-03-24       -16.8%       5.1%   PASSES   adj_close shows +5.1% -- DIFFERS
+     SJVN          2024-02-13       -16.7%      -3.8%   PASSES   adj_close shows -3.8% -- DIFFERS
+     AIIL          2019-08-02       -16.7%     -16.7%   PASSES   same in adj_close
+     NMDC          2022-10-27       -16.6%     -20.2%   PASSES   adj_close shows -20.2% -- DIFFERS
+     DALBHARAT     2019-01-23       -16.3%     -16.3%   PASSES   same in adj_close
+     YESBANK       2019-05-02       -15.9%       3.4%   PASSES   adj_close shows +3.4% -- DIFFERS
+     KPITTECH      2020-03-20       -15.7%      -4.5%   PASSES   adj_close shows -4.5% -- DIFFERS
+
+  2. TOP 20 MOST POSITIVE SINGLE-DAY RETURNS on close (the column the engine trades)
+     symbol        date          ret_close    ret_adj    guard   reading
+     MEDANTA       2022-11-16       548.8%     548.8%   masked   same in adj_close
+     360ONE        2019-09-19       437.3%     464.1%   masked   adj_close shows +464.1% -- DIFFERS
+     PATANJALI     2020-01-27       386.4%     413.6%   masked   adj_close shows +413.6% -- DIFFERS
+     SBICARD       2020-03-16       109.6%     109.6%   masked   same in adj_close
+     YESBANK       2020-03-17        41.3%      58.1%   PASSES   adj_close shows +58.1% -- DIFFERS
+     IDEA          2019-11-20        37.1%      16.5%   PASSES   adj_close shows +16.5% -- DIFFERS
+     BANKINDIA     2021-02-18        26.5%      10.0%   PASSES   adj_close shows +10.0% -- DIFFERS
+     MAHABANK      2021-02-18        25.5%       9.8%   PASSES   adj_close shows +9.8% -- DIFFERS
+     ATGL          2023-12-07        22.5%      10.0%   PASSES   adj_close shows +10.0% -- DIFFERS
+     YESBANK       2020-03-18        22.3%       3.1%   PASSES   adj_close shows +3.1% -- DIFFERS
+     NIACL         2019-10-18        22.1%       5.2%   PASSES   adj_close shows +5.2% -- DIFFERS
+     IDEA          2020-02-20        21.7%       4.8%   PASSES   adj_close shows +4.8% -- DIFFERS
+     IREDA         2023-12-13        21.0%      10.0%   PASSES   adj_close shows +10.0% -- DIFFERS
+     GICRE         2021-02-19        20.7%      20.0%   PASSES   adj_close shows +20.0% -- DIFFERS
+     SUZLON        2020-01-07        20.3%       8.5%   PASSES   adj_close shows +8.5% -- DIFFERS
+     AIIL          2023-05-26        20.0%      20.0%   PASSES   same in adj_close
+     AIIL          2022-09-15        20.0%      20.0%   PASSES   same in adj_close
+     ASHOKLEY      2019-09-20        20.0%      20.2%   PASSES   adj_close shows +20.2% -- DIFFERS
+     PATANJALI     2022-03-14        20.0%      20.0%   PASSES   same in adj_close
+     LLOYDSME      2021-01-01        20.0%      23.0%   PASSES   adj_close shows +23.0% -- DIFFERS
+
+  3. THE GUARD'S BAND. EXTREME_RET_LO = -0.35, EXTREME_RET_HI = 0.55
+     A 2-for-1 split is -50% and IS masked. A 5-for-4 bonus is -20% and is NOT.
+     moves in the UNCAUGHT band -20% to -35%: 3 rows, 3 symbols
+     of those, adj_close DISAGREES on 1 -- candidates for an
+     unadjusted corporate action that the guard does not catch:
+       YESBANK       2020-03-09  close   -21.0%   adj    31.6%
+
+  PROVENANCE. Every 'adj_close DIFFERS' line above rests on adj_close, whose
+  provenance is UNVERIFIED -- there is no corporate-action dataset in this
+  repository to confirm it against. The names and dates are listed so that a
+  manual NSE lookup is possible; none was performed.
+
+
