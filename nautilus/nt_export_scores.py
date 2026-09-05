@@ -15,22 +15,35 @@ THE BOUNDARY THIS FILE DEFINES
     comes from a model trained only on data up to 32 days before that month, so by
     the time the strategy sees it, it is already a point-in-time value.
 
-Source : results/metrics/v5_expanding_cache.csv      (58 universe)
-         results74/metrics/v74_expanding_cache.csv   (74 universe)
-         results_mid/metrics/v_mid_expanding_cache.csv (MidCap150 universe)
-Output : nautilus/data/scores_58.parquet, scores_74.parquet, scores_mid.parquet
+ONE EXPORT PER REGISTERED UNIVERSE, DERIVED, NOT LISTED
+    Source and output both come from universes/registry.py --  u.score_cache in,
+    paths.nautilus_scores(u) out -- so this file iterates REGISTRY rather than
+    naming four universes. It was the last place a new universe still needed a
+    hand-written line: everything else in the pipeline picked one up from the
+    registry, and a universe that reached the Nautilus layer without a parquet
+    would have failed there instead of here.
 
-Reads only. Nothing under results/, results74/ or results_mid/ is modified.
+    The paths are also ABSOLUTE now, because the registry's are. The four
+    hardcoded ones were relative ("results/metrics/..."), which worked only
+    because run_all.py spawned this step with cwd=ROOT.
+
+Source : u.score_cache        for every u in universes/registry.REGISTRY
+Output : nautilus/data/{u.nautilus_scores}
+
+Reads only. Nothing under results/, results74/, results_mid/ or results_n100/ is
+modified.
 """
 import sys
 from pathlib import Path
 
 import pandas as pd
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
+sys.path.insert(0, str(ROOT / "results"))
 import config
-import config74
-import config_mid
+import paths
+from universes.registry import REGISTRY
 
 OUT_DIR = Path(__file__).resolve().parent / "data"
 # Date window from config.py. The old year cut emitted June-2026 rows that
@@ -38,7 +51,12 @@ OUT_DIR = Path(__file__).resolve().parent / "data"
 BT_START_DATE, BT_END_DATE = config.BT_START_DATE, config.BT_END_DATE
 
 
-def export(cache_path: Path, out_path: Path, tag: str, year_end: int) -> pd.DataFrame:
+def export(cache_path: Path, out_path: Path, tag: str) -> pd.DataFrame:
+    """`year_end` is gone. It was declared and never read -- the year cut moved to
+    config.BT_START_DATE/BT_END_DATE ("one cut in one place is enough", above) and
+    the parameter was left behind, so three call sites passed 2026 and one passed
+    2025 to something that ignored all four. A dead argument that looks like a
+    per-universe window is worse than none."""
     print(f"\n{'=' * 66}\n{tag} UNIVERSE\n{'=' * 66}")
     if not cache_path.exists():
         raise FileNotFoundError(f"{cache_path} missing -- run run_all.py first")
@@ -71,7 +89,7 @@ def export(cache_path: Path, out_path: Path, tag: str, year_end: int) -> pd.Data
 
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     df.to_parquet(out_path, index=False)
-    print(f"  saved -> {out_path.relative_to(Path(__file__).resolve().parents[1])} "
+    print(f"  saved -> {out_path.relative_to(ROOT)} "
           f"({out_path.stat().st_size / 1e6:.2f} MB)")
 
     # --- round-trip check: what is written must be what is read back ---
@@ -88,23 +106,18 @@ def main():
     a main(), so the S4 boundary was invisible-by-absence until run.py ran the
     pipeline in one process.
 
-    THE PATHS BELOW ARE RELATIVE, AND THAT NOW MATTERS. run_all.run() spawned each
-    step with cwd=ROOT explicitly; in process there is no such thing, so run.py
-    chdirs to ROOT for the same reason. Left alone, running run.py from any other
-    directory would have failed here, on this step only.
+    The four hardcoded exports this replaced built their input paths as bare
+    relatives, so this step -- alone in the pipeline -- depended on the working
+    directory being ROOT. The registry's paths are absolute, so that dependency is
+    gone. run.py still chdirs to ROOT, which is now belt and braces rather than the
+    only thing holding this step up.
     """
     print("Exporting model scores for the Nautilus execution layer...")
-    d58 = export(Path("results/metrics/v5_expanding_cache.csv"),
-                 OUT_DIR / "scores_58.parquet", "58", 2026)
-    d74 = export(Path("results74/metrics/v74_expanding_cache.csv"),
-                 OUT_DIR / "scores_74.parquet", "74", 2025)
-    dmid = export(Path("results_mid/metrics/v_mid_expanding_cache.csv"),
-                  OUT_DIR / "scores_mid.parquet", "MIDCAP150", 2026)
-    dn100 = export(Path("results_n100/metrics/v_n100_expanding_cache.csv"),
-                   OUT_DIR / "scores_n100.parquet", "NIFTY100", 2026)
+    rows = {}
+    for tag, u in REGISTRY.items():
+        rows[tag] = len(export(Path(u.score_cache), paths.nautilus_scores(u), u.label))
     print(f"\n{'=' * 66}")
-    print(f"Done. 58: {len(d58):,} rows | 74: {len(d74):,} rows | "
-          f"mid: {len(dmid):,} rows | n100: {len(dn100):,} rows")
+    print("Done. " + " | ".join(f"{t}: {n:,} rows" for t, n in rows.items()))
     print("These files are the ONLY input the Nautilus strategy takes from the model.")
     print("=" * 66)
 
