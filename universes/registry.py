@@ -53,10 +53,39 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
+import importlib
+
+# config IS NOT A UNIVERSE'S CONFIG, IT IS THE PROJECT'S -- BT_START_DATE,
+# BT_END_DATE, read_price_csv and require_cache all live in it and every universe
+# uses them. Its absence is a broken checkout, not a universe removal, so it is
+# imported unconditionally and fails loudly. (It also happens to hold the retired
+# 58's paths; removing the 58 means dropping its entry below, not deleting
+# config.py.)
 import config
-import config74
-import config_mid
-import config_n100
+
+
+def _optional(name):
+    """Import a per-universe config module, or None if it is not in the tree.
+
+    A UNIVERSE MUST BE REMOVABLE BY DELETING ITS CONFIG AND ITS DATA. Importing
+    all four unconditionally made that impossible: deleting config_n100.py made
+    THIS module unimportable, and since almost everything imports the registry,
+    removing one universe took down the other three. Going through one universe to
+    reach another is exactly what the registry exists to prevent.
+
+    Only ImportError is caught, and only for the module itself. A config that
+    exists but raises -- a missing data directory, a bad symbol list -- is a real
+    fault in a universe that is meant to be present, and is left to propagate.
+    """
+    try:
+        return importlib.import_module(name)
+    except ImportError:
+        return None
+
+
+config74 = _optional("config74")
+config_mid = _optional("config_mid")
+config_n100 = _optional("config_n100")
 
 HORIZON = 20          # engine_core.HORIZON; repeated here only to name the caches
 
@@ -141,56 +170,65 @@ _58 = Universe(
     _prepare=None
 )
 
-_74 = Universe(
-    tag="74", label="74 (retired)",
-    data_dir=config74.RAW_DATA_DIR_74,
-    metrics_dir=config74.METRICS_DIR_74,
-    score_tmp=Path("/tmp/v74_expanding.csv"),
-    score_cache=config74.METRICS_DIR_74 / "v74_expanding_cache.csv",
-    raw_tmp=Path(f"/tmp/raw_panel74_{HORIZON}.csv"),
-    raw_cache=config74.METRICS_DIR_74 / "raw_panel74_cache.csv",
-    nautilus_scores="scores_74.parquet",
-    nautilus_end="2025-12-23",
-    purge_mode="calendar", frozen=True, index_name=None,
-    year_range=(2019, 2025), date_range=None, _symbols=None,
-    _prepare=None
-)
+_74 = None
+if config74 is not None:
+    _74 = Universe(
+        tag="74", label="74 (retired)",
+        data_dir=config74.RAW_DATA_DIR_74,
+        metrics_dir=config74.METRICS_DIR_74,
+        score_tmp=Path("/tmp/v74_expanding.csv"),
+        score_cache=config74.METRICS_DIR_74 / "v74_expanding_cache.csv",
+        raw_tmp=Path(f"/tmp/raw_panel74_{HORIZON}.csv"),
+        raw_cache=config74.METRICS_DIR_74 / "raw_panel74_cache.csv",
+        nautilus_scores="scores_74.parquet",
+        nautilus_end="2025-12-23",
+        purge_mode="calendar", frozen=True, index_name=None,
+        year_range=(2019, 2025), date_range=None, _symbols=None,
+        _prepare=None
+    )
 
-_MID = Universe(
-    tag="mid", label="MidCap150 (148 constituents)",
-    data_dir=config_mid.CONSTITUENTS_DIR_MID,
-    metrics_dir=config_mid.METRICS_DIR_MID,
-    score_tmp=Path("/tmp/v_mid_expanding.csv"),
-    score_cache=config_mid.METRICS_DIR_MID / "v_mid_expanding_cache.csv",
-    raw_tmp=Path(f"/tmp/raw_panel_mid_{HORIZON}.csv"),
-    raw_cache=config_mid.METRICS_DIR_MID / "raw_panel_mid_cache.csv",
-    nautilus_scores="scores_mid.parquet",
-    nautilus_end=str(config.BT_END_DATE.date()),
-    purge_mode="trading", frozen=False,
-    index_name=config_mid.INDEX_NAME_MID,
-    year_range=None, date_range=(config.BT_START_DATE, config.BT_END_DATE),
-    _symbols=lambda: set(config_mid.SYMBOLS_MID),
-    _prepare=config_mid.ensure_constituents_dir
-)
+_MID = None
+if config_mid is not None:
+    _MID = Universe(
+        tag="mid", label="MidCap150 (148 constituents)",
+        data_dir=config_mid.CONSTITUENTS_DIR_MID,
+        metrics_dir=config_mid.METRICS_DIR_MID,
+        score_tmp=Path("/tmp/v_mid_expanding.csv"),
+        score_cache=config_mid.METRICS_DIR_MID / "v_mid_expanding_cache.csv",
+        raw_tmp=Path(f"/tmp/raw_panel_mid_{HORIZON}.csv"),
+        raw_cache=config_mid.METRICS_DIR_MID / "raw_panel_mid_cache.csv",
+        nautilus_scores="scores_mid.parquet",
+        nautilus_end=str(config.BT_END_DATE.date()),
+        purge_mode="trading", frozen=False,
+        index_name=config_mid.INDEX_NAME_MID,
+        year_range=None, date_range=(config.BT_START_DATE, config.BT_END_DATE),
+        _symbols=lambda: set(config_mid.SYMBOLS_MID),
+        _prepare=config_mid.ensure_constituents_dir
+    )
 
-_N100 = Universe(
-    tag="n100", label="Nifty 100 (99 constituents)",
-    data_dir=config_n100.CONSTITUENTS_DIR_N100,
-    metrics_dir=config_n100.METRICS_DIR_N100,
-    score_tmp=Path("/tmp/v_n100_expanding.csv"),
-    score_cache=config_n100.METRICS_DIR_N100 / "v_n100_expanding_cache.csv",
-    raw_tmp=Path(f"/tmp/raw_panel_n100_{HORIZON}.csv"),
-    raw_cache=config_n100.METRICS_DIR_N100 / "raw_panel_n100_cache.csv",
-    nautilus_scores="scores_n100.parquet",
-    nautilus_end=str(config.BT_END_DATE.date()),
-    purge_mode="trading", frozen=False,
-    index_name=config_n100.INDEX_NAME_N100,
-    year_range=None, date_range=(config.BT_START_DATE, config.BT_END_DATE),
-    _symbols=lambda: set(config_n100.SYMBOLS_N100),
-    _prepare=config_n100.ensure_constituents_dir
-)
+_N100 = None
+if config_n100 is not None:
+    _N100 = Universe(
+        tag="n100", label="Nifty 100 (99 constituents)",
+        data_dir=config_n100.CONSTITUENTS_DIR_N100,
+        metrics_dir=config_n100.METRICS_DIR_N100,
+        score_tmp=Path("/tmp/v_n100_expanding.csv"),
+        score_cache=config_n100.METRICS_DIR_N100 / "v_n100_expanding_cache.csv",
+        raw_tmp=Path(f"/tmp/raw_panel_n100_{HORIZON}.csv"),
+        raw_cache=config_n100.METRICS_DIR_N100 / "raw_panel_n100_cache.csv",
+        nautilus_scores="scores_n100.parquet",
+        nautilus_end=str(config.BT_END_DATE.date()),
+        purge_mode="trading", frozen=False,
+        index_name=config_n100.INDEX_NAME_N100,
+        year_range=None, date_range=(config.BT_START_DATE, config.BT_END_DATE),
+        _symbols=lambda: set(config_n100.SYMBOLS_N100),
+        _prepare=config_n100.ensure_constituents_dir
+    )
 
-REGISTRY = {u.tag: u for u in (_58, _74, _MID, _N100)}
+# ONLY THE UNIVERSES WHOSE CONFIG IS PRESENT. Declaration order is preserved, so
+# a universe that is still here occupies the same position it always did -- LIVE's
+# order is documented below as declaration order and callers rely on that.
+REGISTRY = {u.tag: u for u in (_58, _74, _MID, _N100) if u is not None}
 
 # The universes that ship. Eighteen of the nineteen hand-rolled registries carry
 # exactly these two; only nt_run.py knows all four.

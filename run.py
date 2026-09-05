@@ -178,14 +178,24 @@ def pipeline_steps(unis):
     import runpy
     mod = runpy.run_path(str(ROOT / "run_all.py"), run_name="__not_main__")
     want = {u.tag for u in unis}
-    out = []
+    out, dropped = [], []
     for label, scr in mod["PIPELINE_ORDER"]:
         serves = STEP_UNIVERSES.get(scr)
         if serves is None:
             out.append((label, scr, "?unmapped"))          # surfaced, never skipped
-        elif want & set(serves):
-            out.append((label, scr, ",".join(serves)))
-    return out, mod
+            continue
+        # WHAT THE STEP CAN ACTUALLY SERVE, not what it was written to serve.
+        # STEP_UNIVERSES is a static map; REGISTRY is what exists right now. A step
+        # listed against (mid, n100) whose n100 config has been deleted serves only
+        # mid, and selecting it on the strength of the absent half used to run it
+        # and crash inside. The steps themselves now run on whatever remains; this
+        # intersection is what tells them -- and the reader -- what that is.
+        present = tuple(t for t in serves if t in REGISTRY)
+        if not present:
+            dropped.append((label, scr, serves))           # nothing left to do
+        elif want & set(present):
+            out.append((label, scr, ",".join(present)))
+    return out, mod, dropped
 
 
 def arm_steps(unis, arms):
@@ -214,9 +224,10 @@ def arm_steps(unis, arms):
 def build_plan(args):
     unis = resolve_universes(args.universe)
     arms = resolve_arms(args.arm)
-    plan = {"universes": unis, "arms": arms, "pipeline": [], "arm_runs": [], "skipped": []}
+    plan = {"universes": unis, "arms": arms, "pipeline": [], "arm_runs": [],
+            "skipped": [], "dropped": []}
     if args.steps in ("pipeline", "all"):
-        plan["pipeline"], plan["_run_all"] = pipeline_steps(unis)
+        plan["pipeline"], plan["_run_all"], plan["dropped"] = pipeline_steps(unis)
     if args.steps in ("arms", "all"):
         plan["arm_runs"], plan["skipped"] = arm_steps(unis, arms)
     return plan
@@ -252,6 +263,12 @@ def print_plan(plan, args, show_paths=False):
             print(line)
     elif args.steps in ("arms", "all"):
         print("\n  ARM RUNS: none selected")
+
+    if plan.get("dropped"):
+        print(f"\n  NOT RUN ({len(plan['dropped'])}) -- every universe this step serves "
+              f"has been removed from the registry:")
+        for label, scr, serves in plan["dropped"]:
+            print(f"    {label:<9} {scr:<28} served [{','.join(serves)}], none of which is registered")
 
     if plan["skipped"]:
         print(f"\n  SKIPPED ({len(plan['skipped'])}) -- frozen universes run only the shipping arms:")
@@ -307,7 +324,7 @@ def execute(plan, args):
 
     mod = plan.get("_run_all")
     if mod is None:
-        _, mod = pipeline_steps(plan["universes"])
+        _, mod, _ = pipeline_steps(plan["universes"])
 
     # SAFETY 1 -- the determinism pin is already set, at the top of this file,
     # before any numeric import. Nothing to do here; it is listed so the four are

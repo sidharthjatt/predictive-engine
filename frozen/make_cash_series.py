@@ -11,8 +11,15 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "results"))
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from _frozen_guard import guard as _frozen_guard
-import config, config74
+import config
 from engine_core import precompute
+from universes.registry import REGISTRY
+
+# config74 IS IMPORTED INSIDE main(), UNDER THE 74's GUARD, not here. A top-level
+# import makes this whole module unloadable once config74.py is deleted, which
+# would take the 58's cash series down with the 74's -- going through one universe
+# to reach another. The literal `config74.METRICS_DIR_74 / "cash_series_74.csv"`
+# stays exactly as written below so check_pipeline_order still resolves the edge.
 def cache(tmp,perm):
     if Path(perm).exists(): return perm
     if Path(tmp).exists(): return tmp
@@ -91,15 +98,28 @@ def main():
                 QS.BUY if s=="BUY" else QS.SELL,Decimal(str(round(p,2))),Decimal(str(round(q,4))),Exchange.NSE).total)
     except Exception:
         def tc(p,q,s): return p*q*0.0011
-    print("Building 58 cash series...")
-    c58=run_with_cash(cache("/tmp/v5_expanding.csv","results/metrics/v5_expanding_cache.csv"),2026)
-    c58.to_csv(config.METRICS_DIR/"cash_series_58.csv")
-    print(f"  58 avg cash%: {c58.cash_pct.mean():.1f}%")
-    print("Building 74 cash series...")
-    c74=run_with_cash(cache("/tmp/v74_expanding.csv","results74/metrics/v74_expanding_cache.csv"),2025)
-    c74.to_csv(config74.METRICS_DIR_74/"cash_series_74.csv")
-    print(f"  74 avg cash%: {c74.cash_pct.mean():.1f}%")
-    print("Done -> cash_series_58.csv, cash_series_74.csv")
+    # EACH UNIVERSE INDEPENDENTLY. The two halves share only run_with_cash(); one
+    # being absent has no bearing on the other, so each is guarded on its own and
+    # says so rather than being skipped silently.
+    done = []
+    if "58" in REGISTRY:
+        print("Building 58 cash series...")
+        c58=run_with_cash(cache("/tmp/v5_expanding.csv","results/metrics/v5_expanding_cache.csv"),2026)
+        c58.to_csv(config.METRICS_DIR/"cash_series_58.csv")
+        print(f"  58 avg cash%: {c58.cash_pct.mean():.1f}%")
+        done.append("cash_series_58.csv")
+    else:
+        print("  58 not in the registry -- skipping its cash series")
+    if "74" in REGISTRY:
+        import config74
+        print("Building 74 cash series...")
+        c74=run_with_cash(cache("/tmp/v74_expanding.csv","results74/metrics/v74_expanding_cache.csv"),2025)
+        c74.to_csv(config74.METRICS_DIR_74/"cash_series_74.csv")
+        print(f"  74 avg cash%: {c74.cash_pct.mean():.1f}%")
+        done.append("cash_series_74.csv")
+    else:
+        print("  74 not in the registry -- skipping its cash series")
+    print("Done -> " + (", ".join(done) if done else "nothing (no registered universe)"))
 
 
 if __name__ == "__main__":

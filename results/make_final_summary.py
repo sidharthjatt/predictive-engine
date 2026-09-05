@@ -7,7 +7,13 @@ import sys
 from pathlib import Path
 import pandas as pd
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-import config, config74
+import config
+from universes.registry import REGISTRY
+
+# config74 WAS IMPORTED HERE AND NEVER USED -- M74 was assigned from it and read
+# nowhere. Dropped rather than guarded: an import that exists only to be assigned
+# to a dead local is a dependency this file does not have, and it would have made
+# the step unloadable the moment config74.py was deleted.
 
 def main():
     """The step, as a function, so run.py can call it in process.
@@ -16,8 +22,24 @@ def main():
     level, so importing this file executed the whole step as a side effect.
     That is why the pipeline could only ever spawn it as a subprocess.
     """
-    M58, M74 = Path(config.METRICS_DIR), Path(config74.METRICS_DIR_74)
-    fair = pd.read_csv(M58 / "fair_comparison_table.csv")
+    M58 = Path(config.METRICS_DIR)
+
+    # THIS STEP IS DOWNSTREAM OF make_final_chart_fair.py AND SKIPS WITH IT.
+    # That step writes fair_comparison_table.csv and skips entirely when neither 58
+    # nor 74 is registered; with no table there is nothing to summarise. The two
+    # conditions are checked independently rather than one inferred from the other,
+    # so a missing table for any OTHER reason still reports honestly instead of
+    # crashing inside pandas.
+    if not ({"58", "74"} & set(REGISTRY)):
+        print("FINAL summary SKIPPED -- neither 58 nor 74 is registered, so "
+              "make_final_chart_fair.py wrote no fair_comparison_table.csv.")
+        return
+    src = M58 / "fair_comparison_table.csv"
+    if not src.exists():
+        print(f"FINAL summary SKIPPED -- {src} does not exist. It is written by "
+              "STEP 13 make_final_chart_fair.py.")
+        return
+    fair = pd.read_csv(src)
 
     # fair table row -> (variant, line)
     meta = {
@@ -54,8 +76,20 @@ def main():
             "CAGR_per_InvestedCapital%": round(float(r["CAGR_per_InvestedCapital%"]), 2),
         })
 
-    order = ["58 v2", "58 v1", "74 v2", "74 v1",
-             "58 buy&hold", "74 buy&hold", "Nifty100 58win", "Nifty100 74win"]
+    # ORDER, OVER WHICHEVER UNIVERSES ARE PRESENT. The strategy lines first, then
+    # the buy&hold references, then one index line per universe window -- the same
+    # sequence the literal list carried, derived so a removed universe simply takes
+    # its own entries out.
+    #
+    # The literal list said "Nifty100 58win" while meta produces "NIFTY100 58win".
+    # Those never matched, so both index rows got a NaN sort key and landed last by
+    # accident -- which happened to be where they belonged. Spelled correctly here;
+    # the resulting order is unchanged, and that was verified byte-for-byte against
+    # the previous FINAL_SUMMARY_TABLE.csv rather than assumed.
+    tags = [t for t in ("58", "74") if t in REGISTRY]
+    order = ([f"{t} {v}" for t in tags for v in ("v2", "v1")]
+             + [f"{t} buy&hold" for t in tags]
+             + [f"NIFTY100 {t}win" for t in tags])
     df = pd.DataFrame(rows)
     df["_o"] = df["line"].map({k: i for i, k in enumerate(order)})
     df = df.sort_values("_o").drop(columns="_o").reset_index(drop=True)

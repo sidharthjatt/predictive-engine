@@ -28,8 +28,22 @@ def main():
     # NAMED LITERALLY, NOT LOOPED. check_pipeline_order reads REGISTRY["<tag>"] out
     # of the source to resolve daily_*_{tag}.csv to a directory; REGISTRY[tag] with a
     # variable matches nothing, and the checker silently loses both producer edges.
-    audit_step.run(REGISTRY["58"])
-    audit_step.run(REGISTRY["74"])
+    #
+    # THE GUARDS KEEP THE LITERALS. A universe can be removed from the registry, so
+    # each call is conditional -- but the condition is written around the literal
+    # subscript, not in place of it, because REGISTRY_CALL matches the text
+    # `REGISTRY["58"]` wherever it appears and does not care that it sits inside an
+    # `if`. Rewriting this as a loop over REGISTRY would run correctly and blind the
+    # checker, which is the failure this comment has existed to prevent since S5.
+    # Verified by scanning this file before and after: identical edge set.
+    if "58" in REGISTRY:
+        audit_step.run(REGISTRY["58"])
+    else:
+        print("  58 not in the registry -- skipping its audit")
+    if "74" in REGISTRY:
+        audit_step.run(REGISTRY["74"])
+    else:
+        print("  74 not in the registry -- skipping its audit")
 
 
 if __name__ == "__main__":
