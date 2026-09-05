@@ -476,11 +476,12 @@ The divergence is visible on disk, same universe and same window: its
 It ran as **STEP 10 of `run_all.py`** (`run_all.py:275`), so it executed on every
 full pipeline run. It is no longer in `PIPELINE_ORDER`; the pipeline is 31 steps.
 
-**WHY IT IS NOT URGENT, WRITTEN DOWN SO THE NEXT READER NEED NOT RE-DERIVE IT.**
-It is retired-universe only. Its docstring says "58 & 74" but there is no 58 call —
-the sole invocation is `make_stats_both.py:115`, against the 74. It writes exactly
-three files, all into `results74/metrics/`, and it is the sole writer of all three:
-`v2_trades.csv`, `v2_per_stock_signals.csv`, `trade_stats_74.csv`.
+**WHY IT WAS NOT URGENT, WRITTEN DOWN SO THE NEXT READER NEED NOT RE-DERIVE IT.**
+It was retired-universe only. Its docstring said "58 & 74" but there was no 58
+call — the sole invocation was `make_stats_both.py:115`, against the 74. It wrote
+exactly three files, all into `results74/metrics/`, and it was the sole writer of
+all three: `v2_trades.csv`, `v2_per_stock_signals.csv`, `trade_stats_74.csv`.
+All three were removed with it.
 
 **Nothing reads any of them.** Grep across `*.py`, `*.md`, `*.txt` and `*.json`
 returns zero consumers; the only other appearances are `run_all.py` invoking it and
@@ -864,10 +865,11 @@ shipping engine. It did not fire.
 **WHAT IS NOW ESTABLISHED, AND WHAT IS NOT.** The flag is inert **on those 40
 cells, those two score panels, that window**. It is **not** proven inert in
 general — not on other windows, other panels, or the retired universes — and
-**nothing here touches the four other inline reimplementations of the backtest**
-(`engine_core.backtest`, `nt_attribution.py`, `make_stats_both.py`,
-`make_cash_series.py:42-70`), each of which carries its own book. See *There are
-FIVE reimplementations of the backtest, not two* above.
+**nothing here touches the three other inline reimplementations of the backtest**
+(`engine_core.backtest`, `nt_attribution.py`, `frozen/make_cash_series.py:39`),
+each of which carries its own book. A fourth, `make_stats_both.py`, was deleted
+in S2 (`9ced314`). See *There are FIVE reimplementations of the backtest, not
+two* above.
 
 **Full record:** `experiments/EXPERIMENTS.md` entry 32, *"The audit flag does not
 change what it observes — a docstring claim, verified"*. Measurement:
@@ -1143,13 +1145,19 @@ The volatility lookback governs inverse-vol sizing, which is the production
 sizing rule. Every definition currently reads 60, and **nothing enforces that**.
 
     results/engine_core.py:90            results/test_exposure.py:56
-    results/engine_v2_final.py:53        results/engine_v2_final74.py:53
+    frozen/engine_v2_final.py:56         frozen/engine_v2_final74.py:56
     results/engine_v2_final_mid.py:62    results/engine_v2_final_n100.py:58
-    results/make_cash_series.py:15       results/make_stats_both.py:14
-    results/validate_breadth.py:32       results/validate_topn.py:93
-    results/purge_fix_measure.py:48      results/seed_noise_measure.py:53
-    results/shuffle_test.py:54           experiments/sizing_test.py:44
-    nautilus/nt_strategy.py:84           nautilus/nt_attribution.py:40
+    frozen/make_cash_series.py:83        frozen/validate_breadth.py:35
+    results/validate_topn.py:94          results/purge_fix_measure.py:49
+    results/seed_noise_measure.py:54     results/shuffle_test.py:55
+    experiments/sizing_test.py:44        nautilus/nt_strategy.py:85
+    nautilus/nt_attribution.py:40
+
+Fifteen sites, re-verified 2026-09-05: every one reads 60. The list above was
+itself stale in ten of its sixteen entries -- four files moved to `frozen/` in
+S2, five line numbers had shifted, and `make_stats_both.py:14` was deleted --
+which is the same failure this entry is about, one level up. A roll-call of
+literals maintained by hand drifts exactly like the literals do.
 
 Exactly one site does it correctly: `results/validate_breadth_live.py:74` imports
 `VOL_WIN` from `engine_core` rather than redeclaring it.
@@ -1162,12 +1170,18 @@ duplication was correctly diagnosed and then reproduced three more times, by wor
 that post-dates the diagnosis, because the diagnosis lived in a diagnostics file
 that nothing consults.
 
-**Consequence.** `make_stats_both.py:14` is the proof that this drifts rather than
-the hypothesis: on the same line it carries `TOP_N, BUFFER = 12, 24` against 8 and
-16 everywhere else. The same line shape, in the same file, has already drifted on
-two of its four constants. Nothing would catch `VOL_WIN` going the same way, and
-a divergence there would silently change position sizing in whichever script
-carried it.
+**Consequence.** `make_stats_both.py:14` was the proof that this drifts rather
+than the hypothesis: on the same line it carried `TOP_N, BUFFER = 12, 24` against
+8 and 16 everywhere else. The same line shape, in the same file, had already
+drifted on two of its four constants.
+
+**Deleting that file in S2 removed the instance, not the exposure.** The evidence
+is still readable at `git show 9ced314^:results/make_stats_both.py`, and the
+fifteen surviving definitions are still fifteen hand-maintained literals with
+nothing enforcing agreement. Nothing would catch `VOL_WIN` going the same way,
+and a divergence there would silently change position sizing in whichever script
+carried it. Losing the one site that had already drifted makes this entry easier
+to dismiss, not less true.
 
 **Not fixed, and the deferral has a stated reason that this entry does not
 override.** `PIPELINE_AUDIT.txt` section 6 records the section 6 constants as
@@ -1274,11 +1288,13 @@ Found 2026-08-29 by the `run_all.py` audit. Open.
 
 **Diagnosed in:** `diagnostics/PIPELINE_AUDIT.txt` section 3 (*"THE
 make_cash_series.py FINDING IS THE ONE THAT MATTERS"*) and section 9, **dated
-2026-08-30**. Still open as of 2026-09-02. The same audit section records the
+2026-08-30**. Still open as of 2026-09-05. The same audit section records the
 `make_stats_both.py:14-15` drift — `TOP_N, BUFFER = 12, 24` and `CASH_Y = 0.06`
-against 8, 16 and 0.0 everywhere else — which is **also still present and
-unchanged**; it has no entry of its own because its outputs are dead, and it is
-recorded here and under *There are FIVE reimplementations of the backtest*.
+against 8, 16 and 0.0 everywhere else — which was **resolved by deleting that
+file** in S2 (`9ced314`), an option available only because its outputs were dead.
+**This entry is the one that could not be closed that way**: the same 6% literal
+lives on at `frozen/make_cash_series.py:84` and its output does reach a consumer.
+See *There are FIVE reimplementations of the backtest, not two*.
 
 `results/make_cash_series.py:16` sets
 
@@ -1303,7 +1319,8 @@ one could not be closed by deleting it. **Still open.**
 
 A 6% yield inflates the cash leg, so those deployment percentages describe a
 portfolio earning interest the shipping engine does not pay. **This is a wrong
-number reaching a consumer**, which the `make_stats_both.py` defect is not.
+number reaching a consumer**, which the `make_stats_both.py` defect never was —
+and the reason that one could be closed by deletion and this one cannot.
 
 **It is confined to the retired 58/74 chain.** It does not touch either live
 universe and no README figure derives from it — `README.md` embeds
