@@ -68,7 +68,8 @@ M = config.METRICS_DIR
 
 def backtest_exposure(px, op, sc, dates, pc, mom20, port_vol=None,
                       mode="none", target_vol=None, audit=None, sizing="invvol",
-                      const_expo=None, value_at_open=True, rebal=None):
+                      const_expo=None, value_at_open=True, rebal=None,
+                      funding="cash"):
     """audit=None reproduces the original code path exactly: no overhead, and the
     official numbers are unchanged.
     Passing a dict with holdings/summary/trades/ranking/decisions/skipped keys logs
@@ -99,7 +100,39 @@ def backtest_exposure(px, op, sc, dates, pc, mom20, port_vol=None,
         and validate_breadth.py. That is the same pattern build_scores.py already
         uses to pin the defective purge_mode="calendar" for those two universes
         while the live universes take the corrected default. A frozen universe opts
-        OUT of a correction; it is never the correction that opts in."""
+        OUT of a correction; it is never the correction that opts in.
+
+    funding -- HOW THE DAY'S NEW POSITIONS ARE PAID FOR.
+
+        "cash" (default, and the rule this function has always used): each entrant
+        is sized at its full whole-portfolio target and paid for out of cash, in
+        score-descending order, until cash runs out. The tail is then dropped and
+        logged `cash short (before TC)`.
+
+        THAT IS A REAL DEFECT AND IT AFFECTS THE SHIPPING ARM. `invest_val` is a
+        share of the WHOLE portfolio and the TOP_N weights sum to 1.0, but a name
+        already held is skipped and never resized, and BUFFER names hold capital
+        while carrying no target weight at all. So whenever a buffer name is held
+        the book is over-committed by construction and cash MUST be short. On this
+        repo's own panels it drops 92 to 165 buys per run and leaves the mean book
+        below TOP_N. See KNOWN_ISSUES.md and experiments/FUNDING_SPEC.txt.
+
+        "prorata": the entrants are scaled down TOGETHER by a single factor
+        f = min(1, cash * 0.98 / total entrant target) instead of the tail being
+        dropped one at a time. It changes nothing else. `invest_val` keeps its
+        whole-portfolio base, the relative inverse-vol proportions among entrants
+        are preserved because f is one scalar applied to all of them, no held
+        position is topped up or resized -- experiments/V34_SPEC.txt line 125 --
+        and no buffer name is trimmed. The 0.98 is the haircut this function
+        already applies to `invest_val`; no new constant is introduced.
+
+        WHY THE DEFAULT IS STILL "cash". Flipping it moves every published v1-v4
+        figure and re-baselines the seven identity gates that read
+        v34_comparison.csv. FUNDING_SPEC.txt gates the model but does not authorise
+        that flip, which is a separate decision with its own blast radius. Note
+        also that nautilus/nt_strategy.py mirrors this sizing rule; the mirror is
+        exact only while the default is unchanged, so a flip must update the port
+        in the same commit."""
     # REBALANCE CADENCE. None means "use the module value", which is what every
     # caller relied on when this was only a module global -- so omitting it is
     # byte-identical to the previous behaviour, and rebal_cadence_sweep.py's
@@ -108,6 +141,8 @@ def backtest_exposure(px, op, sc, dates, pc, mom20, port_vol=None,
     _rebal = REBAL if rebal is None else int(rebal)
     if _rebal < 1:
         raise ValueError(f"rebal must be >= 1, got {rebal!r}")
+    if funding not in ("cash", "prorata"):
+        raise ValueError(f'funding must be "cash" or "prorata", got {funding!r}')
     shares, cash = {}, START_CAPITAL
     cum_tc, n_trades = 0.0, 0
     eq, pending, expo_log = [], None, []
@@ -144,6 +179,39 @@ def backtest_exposure(px, op, sc, dates, pc, mom20, port_vol=None,
                 port_val = sum(q * vp[s] for s, q in shares.items()
                                if not np.isnan(vp.get(s, np.nan))) + cash
                 invest_val = port_val * targets["_exposure"] * 0.98
+                # PRO-RATA ENTRANT SCALING (funding="prorata"). See the `funding`
+                # note in the docstring and experiments/FUNDING_SPEC.txt.
+                #
+                # The entrant block is committed `invest_val * sum(w)` by a
+                # whole-portfolio calculation but paid for out of cash alone, so
+                # when a buffer name holds capital the block cannot fit and the
+                # score-descending loop below drops its tail. `f` scales the whole
+                # block to what cash can actually carry, so every entrant is filled
+                # small rather than the lowest-ranked ones not at all.
+                #
+                # THE DEFAULT PATH DOES NOT EXECUTE THIS. funding="cash" leaves f
+                # at exactly 1.0 without computing anything, and `invest_val * w`
+                # is then multiplied by a literal 1.0, which is exact in IEEE-754.
+                # The shipped numbers cannot move.
+                f = 1.0
+                if funding == "prorata":
+                    # Entrants only, and only those the loop below could actually
+                    # buy: a name with no usable open price is skipped there, so
+                    # counting it here would shrink f for money that is never spent.
+                    tgt_sum = 0.0
+                    for s, w in targets.items():
+                        if s == "_exposure" or s in shares:
+                            continue
+                        pr_ = opens.get(s, np.nan)
+                        if np.isnan(pr_) or pr_ <= 0:
+                            continue
+                        tgt_sum += w
+                    need = invest_val * tgt_sum
+                    # cash * 0.98 reuses the haircut applied to invest_val above;
+                    # it is the allowance for transaction costs and for the
+                    # integer-flooring of every quantity. No new constant.
+                    if need > 0:
+                        f = min(1.0, cash * 0.98 / need)
                 for s, w in targets.items():
                     if s == "_exposure" or s in shares:
                         continue
@@ -154,12 +222,12 @@ def backtest_exposure(px, op, sc, dates, pc, mom20, port_vol=None,
                                 "reason": "no open price (NaN/<=0)", "detail": ""})
                         continue
                     pr *= (1 + SLIPPAGE)
-                    q = int((invest_val * w) // pr)
+                    q = int((invest_val * w * f) // pr)
                     if q < 1:
                         if audit is not None:
                             audit["skipped"].append({"date": dt, "side": "BUY", "symbol": s,
                                 "reason": "qty < 1 after sizing",
-                                "detail": f"target Rs {invest_val*w:,.0f} / price {pr:,.2f}"})
+                                "detail": f"target Rs {invest_val*w*f:,.0f} / price {pr:,.2f}"})
                         continue
                     if cash < q * pr:
                         if audit is not None:
