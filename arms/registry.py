@@ -64,6 +64,80 @@ ARMS = {a.name: a for a in (
 SHIPPING = [ARMS["v1"], ARMS["v2"]]
 
 
+# ---------------------------------------------------------------------------
+# WHAT THIS RUN SELECTED -- the same distinction universes/registry.py draws.
+# ---------------------------------------------------------------------------
+# ARMS answers "which arms exist". A run answers "which arms did the caller ask
+# for". run_v34 conflated the two: it computed and wrote all four unconditionally,
+# so `--arm v1,v3` still produced a v34_comparison.csv with v2 and v4 rows in it.
+#
+# THE DEFAULT IS ALL FOUR, which is exactly what run_v34 saw before this existed,
+# so a full run and any standalone import behave as they always did.
+#
+# WHY THIS IS NOT THE WHOLE STORY, AND THAT IS DELIBERATE. v1 and v2 are not only
+# measurement arms: they are the SHIPPING strategy and its control, computed by
+# each engine and written as the `strategy` and `baseline_invvol` COLUMNS of
+# v2FINAL_equity.csv. The daily audit trail asserts against that file, and the
+# combined, fair-comparison and summary outputs read those two columns and know
+# nothing of v3/v4. Selection therefore reaches the v34 MEASUREMENT artefacts and
+# the per-arm run directories; making v2FINAL_* arm-aware means restructuring it
+# into per-arm columns and re-baselining the seven identity gates, which is its
+# own step. See KNOWN_ISSUES.md.
+_SELECTED = None
+
+
+def set_selection(names):
+    """Record which arms this run selected. Called once by run.py.
+
+    Unknown names raise rather than narrowing the selection silently. Passing
+    None restores the default.
+    """
+    global _SELECTED
+    if names is None:
+        _SELECTED = None
+        return
+    want = [a.name if hasattr(a, "name") else a for a in names]
+    unknown = [n for n in want if n not in ARMS]
+    if unknown:
+        raise KeyError(f"cannot select unknown arm(s) {', '.join(unknown)}; "
+                       f"known: {', '.join(ARMS)}")
+    _SELECTED = [n for n in ARMS if n in set(want)]
+
+
+def selected_names():
+    """The arm names this run is working on, in ARMS order. Defaults to all four."""
+    return list(ARMS) if _SELECTED is None else list(_SELECTED)
+
+
+def selected():
+    """selected_names() as Arm objects."""
+    return [ARMS[n] for n in selected_names()]
+
+
+def is_full_selection(names=None):
+    """True when every one of the four arms is in play.
+
+    THE CANONICAL v34_* ARTEFACTS ARE WRITTEN ONLY ON A FULL SELECTION, and this
+    is the predicate that decides it. v34_comparison.csv is the four-arm table
+    that seven identity gates read -- six of them assert on its v2 row -- so
+    overwriting it with a two-arm subset would leave those gates comparing against
+    a table that no longer contains their reference, and they would find out later
+    and elsewhere. A subset writes its own selection-named files instead.
+    """
+    n = selected_names() if names is None else [
+        a.name if hasattr(a, "name") else a for a in names]
+    return set(n) == set(ARMS)
+
+
+def selection_suffix(names=None):
+    """"" for a full selection, "_v1_v3" for a subset -- the artefact name tail."""
+    if is_full_selection(names):
+        return ""
+    n = selected_names() if names is None else [
+        a.name if hasattr(a, "name") else a for a in names]
+    return "_" + "_".join(x for x in ARMS if x in set(n))
+
+
 def get(name):
     try:
         return ARMS[name]
