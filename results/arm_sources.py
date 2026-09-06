@@ -28,12 +28,20 @@ from pathlib import Path
 import pandas as pd
 
 import arms.registry as arm_reg
+import cadence
 
 
 def equity_path_and_series(M, tag, arm_name):
     """(source file, curve) for one arm, or (None, None) if it is not recorded."""
     M = Path(M)
-    f = M / "v2FINAL_equity.csv"
+    # THE CADENCE-NAMED FILE FIRST, THEN THE CANONICAL ONE. At the default cadence
+    # the suffix is empty and these are the same path, so nothing changes. At
+    # --rebal 40 the engine wrote v2FINAL_equity_r40.csv, and reading the
+    # canonical file there would hand back a cadence-20 curve under a cadence-40
+    # run -- the quietest possible way to report the wrong number.
+    f = M / f"v2FINAL_equity{cadence.suffix()}.csv"
+    if not f.exists():
+        f = M / "v2FINAL_equity.csv"
     if f.exists():
         df = pd.read_csv(f, parse_dates=["date"]).set_index("date")
         s = arm_reg.equity_series(df, arm_name)
@@ -43,7 +51,9 @@ def equity_path_and_series(M, tag, arm_name):
     # tried first because an arm-subset run writes v34_equity_v1_v3.csv and leaves
     # the canonical four-arm file from an earlier run in place -- reading the
     # canonical one there would show a curve this run did not produce.
-    for name in (f"v34_equity{arm_reg.selection_suffix()}.csv", "v34_equity.csv"):
+    for name in (f"v34_equity{arm_reg.selection_suffix()}{cadence.suffix()}.csv",
+                 f"v34_equity{cadence.suffix()}.csv",
+                 "v34_equity.csv"):
         g = M / name
         if g.exists():
             df = pd.read_csv(g, parse_dates=["date"]).set_index("date")
@@ -62,7 +72,11 @@ def trades_path(M, tag, arm_name):
     audit trail. Renaming any of them is a separate change with its own gate.
     """
     M = Path(M)
-    for cand in ({"v1": f"daily_trades_v1_{tag}.csv",
+    c = cadence.suffix()
+    for cand in ({"v1": f"daily_trades_v1_{tag}{c}.csv",
+                  "v2": f"daily_trades_{tag}{c}.csv"}.get(arm_name),
+                 f"daily_trades_{tag}_{arm_name}{c}.csv",
+                 {"v1": f"daily_trades_v1_{tag}.csv",
                   "v2": f"daily_trades_{tag}.csv"}.get(arm_name),
                  f"daily_trades_{tag}_{arm_name}.csv"):
         if cand is not None and (M / cand).exists():

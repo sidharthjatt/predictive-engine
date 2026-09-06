@@ -1892,6 +1892,77 @@ code reads*.
 
 ---
 
+## --rebal is a real axis now, and it used to overwrite what it should not have
+
+Implemented 2026-09-06, the third and last selection axis.
+
+**TWO DEFECTS FOUND BY MEASURING, NOT BY READING.**
+
+    --universe mid --arm v1 --rebal 40
+        v2FINAL_equity.csv       UNCHANGED  -- the engine ignored --rebal
+        runs/mid/v1/comparison.csv  CHANGED -- and REPLACED the cadence-20 result
+
+`--rebal` was half-wired and destructive where it worked. The engines carried
+their own `REBAL = 20` and never consulted the flag, so every pipeline artefact
+stayed at cadence 20; the arm run honoured it and wrote into `runs/mid/v1/`,
+whose path says nothing about cadence. `params.json` recorded `rebal: 40`, so the
+FILE said what it was while the PATH said otherwise.
+
+**ON THE FROZEN UNIVERSES IT WAS WORSE.** `--rebal 40 --universe 58` was
+silently accepted and overwrote `runs/58/v1/` with cadence-40 data, on a universe
+whose published numbers must not move. Checksummed before and after.
+
+**WHAT IT DOES NOW.** The cadence reaches the pipeline -- engines, v34, the audit
+trails and every chart -- and the canonical/suffix rule applies to all of it:
+
+    --rebal omitted / 20   every published filename exactly as before
+    --rebal 40             v2FINAL_equity_r40.csv, v34_comparison_v1_v2_r40.csv,
+                           daily_holdings_mid_v1_r40.csv, chart_mid_FINAL_r40.png,
+                           runs/mid/v1@r40/ ... and the canonical files untouched
+
+**FROZEN UNIVERSES ARE REFUSED, NOT SILENTLY RUN AT 20.** Both halves: the arm
+runs AND the whole pipeline. Running the 58 at 20 under a `--rebal 40` request
+answers a different question from the one asked, so it is dropped with a reason
+on stdout. Refusing the arm runs while letting the pipeline through was an
+inconsistency this work introduced and then removed -- measured: three 58 files
+appeared from a run that asked for 40.
+
+**THE CADENCE IS A PARAMETER, NEVER A MODULE GLOBAL.** `cadence.py` records it
+and every engine passes `rebal=` to `backtest_exposure`. `test_exposure.REBAL` is
+never reassigned. module_state.py names why: `rebal_cadence_sweep.py:172` sets
+that global and never restores it, and "every later step would silently backtest
+on the wrong rebalance cadence and nothing would say so".
+
+### Two bugs the sweeps caught that reading the code would not have
+
+**A file named for one cadence whose contents claimed another.**
+`v2FINAL_params_r40.json` recorded `rebalance_days: 20`, because the engine wrote
+the module constant instead of the cadence it ran. The name looked right, which
+makes it the worse of the two possible errors. Caught by reading the produced
+JSON across five cadences, not by inspecting the writer.
+
+**A published summary overwritten by a narrowed arm selection.** Found while
+baselining this step: `make_final_summary.py` read `fair_comparison_table_v1.csv`
+and wrote the CANONICAL `FINAL_SUMMARY_TABLE.csv`, so `--arm v1` silently replaced
+the published summary with a one-arm one. That was a defect in a1ab05f, fixed
+here.
+
+### Gates
+
+    G1  321 of 321 byte-identical at the default, nothing missing, nothing changed
+    G3  identity gate re-run: ok, no gate re-baselined
+    G5  92 of 92 on all eight combinations
+    G6  42 resolved / 9 unresolved / 0 inversions -- held through every change,
+        because cadence-dependent writers keep the literal in the call:
+        `_c(M / "v2FINAL_equity.csv")`, not a precomputed name
+    G8  no 58 or 74 artefact changed under any cadence
+    cadence sweep  five cadences (omitted, 5, 10, 40, 60), verified by READING
+        the produced params files: each records its own cadence, no artefact is
+        named for another, and the canonical params still say 20
+    composition  --universe mid,58 --arm v1,v3 --rebal 40 produces only mid
+        artefacts, every one carrying r40, canonical untouched, and both 58
+        combinations refused with their own distinct reasons
+
 ## --arm is reflected in every chart that can carry it; two limits remain
 
 Completed 2026-09-06, closing the gaps the entry below records. It supersedes

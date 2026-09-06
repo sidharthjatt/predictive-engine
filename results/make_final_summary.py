@@ -122,7 +122,15 @@ def main():
     print(df.to_string(index=False))
     print("=" * 100)
 
-    out = M58 / "FINAL_SUMMARY_TABLE.csv"
+    # THE SUFFIX FOLLOWS THE TABLE THIS SUMMARY WAS BUILT FROM.
+    # It read fair_comparison_table_v1.csv and wrote the CANONICAL
+    # FINAL_SUMMARY_TABLE.csv, so `--arm v1` silently replaced the published
+    # summary with a one-arm one. The canonical name is a literal on the common
+    # path, for check_pipeline_order, with the suffixed form in the else branch.
+    if _asfx == "":
+        out = M58 / "FINAL_SUMMARY_TABLE.csv"
+    else:
+        out = M58 / ("FINAL_SUMMARY_TABLE" + _asfx + ".csv")
     df.to_csv(out, index=False)
     print(f"\nsaved -> {out}")
 

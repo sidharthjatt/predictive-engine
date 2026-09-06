@@ -60,6 +60,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import config
 from universes.registry import REGISTRY, selected_tags, report_order
 import arms.registry as arm_reg
+import cadence
 import arm_sources
 
 import survivorship as sv
@@ -257,6 +258,12 @@ def main():
     for t in tags:
         u = REGISTRY[t]
         eqf, pjf, tr2, tr1 = FILES[t]
+        # THE CADENCE-NAMED FILE WHEN THE ENGINE WROTE ONE. The FILES literals
+        # above stay canonical so check_pipeline_order keeps resolving them; the
+        # cadence sibling is chosen here, at read time, and is the same path at
+        # the default cadence.
+        eqf = _ci(eqf)
+        pjf = _ci(pjf)
         eq = pd.read_csv(eqf, parse_dates=["date"]).set_index("date")
         # ARMS BY NAME, NOT BY THE COLUMN THEY HAPPEN TO SIT IN.
         # equity_series falls back to the legacy `strategy`/`baseline_invvol`
@@ -322,7 +329,7 @@ def main():
             return
         _draw(rows, rows[0]["M"] / ("chart_COMBINED_"
                                     + "_".join(r["tag"] for r in rows)
-                                    + out_suffix + ".png"))
+                                    + out_suffix + cadence.suffix() + ".png"))
         return rows
 
     canon_rows = None
@@ -376,7 +383,16 @@ def main():
               "wider selection still refreshes it.")
         print("-" * 108)
         _draw(pair, pair[0]["M"] / ("chart_COMBINED_"
-                                    + "_".join(r["tag"] for r in pair) + ".png"))
+                                    + "_".join(r["tag"] for r in pair)
+                                    + cadence.suffix() + ".png"))
+
+
+def _ci(path):
+    """The cadence-named sibling of `path` if the engine wrote one, else `path`."""
+    if cadence.is_default():
+        return path
+    c = path.with_name(path.stem + cadence.suffix() + path.suffix)
+    return c if c.exists() else path
 
 
 def _load_arms(M, tag, sel):

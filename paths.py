@@ -109,12 +109,31 @@ def diagnostic(name, u=None):
 
 
 # ------------------------------------------------------- proposed, not in use
-def run_dir(u, arm=None):
-    """THE PROPOSED LAYOUT -- runs/{universe}/{arm}/. Nothing calls this yet.
+DEFAULT_REBAL = 20
 
-    It exists so the target shape is written down next to the current one rather
-    than only in a report. Adopting it means moving artefacts and repointing every
-    reader, which is its own step with its own verification.
+
+def run_dir(u, arm=None, rebal=None):
+    """runs/{universe}/{arm}/ -- and {arm}@r{n} for a non-default cadence.
+
+    THE CADENCE BELONGS IN THE PATH, AND ITS ABSENCE WAS A BUG. `--rebal 40`
+    wrote its results straight into runs/mid/v1/, replacing the published
+    cadence-20 artefacts with cadence-40 ones. params.json recorded `rebal: 40`,
+    so the FILE said what it was while the PATH said something else -- and the
+    next reader of runs/mid/v1/comparison.csv had no way to know. Verified by
+    checksum before this change: one `--rebal 40` run changed that file.
+
+    THE DEFAULT CADENCE IS UNSUFFIXED, so runs/mid/v1/ keeps meaning exactly what
+    it has always meant and every published artefact under runs/ is untouched.
+    Only a non-default cadence gets a name of its own: runs/mid/v1@r40/.
+
+    "@" RATHER THAN "_" separates the two axes visually and cannot collide with an
+    arm name: arm names are v1..v4 and never contain "@", so runs/mid/v1@r40 can
+    only ever parse one way.
     """
     d = ROOT / "runs" / u.tag
-    return d / arm.name if arm is not None else d
+    if arm is None:
+        return d
+    seg = arm.name
+    if rebal is not None and int(rebal) != DEFAULT_REBAL:
+        seg = f"{seg}@r{int(rebal)}"
+    return d / seg

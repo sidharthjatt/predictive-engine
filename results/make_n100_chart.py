@@ -37,6 +37,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import config
 import arms.registry as arm_reg
+import cadence
 import arm_sources, config_n100
 import survivorship as sv
 def _window_label(eq=None):
@@ -73,6 +74,24 @@ def before_tc(eq, log):
     return cagr(g), tc.sum(), len(tr)
 
 
+def _ci(path):
+    """The cadence-named sibling of `path` if it exists, else `path` itself.
+
+    THE LITERAL STAYS IN THE CALL -- `_ci(M / "<name>")` -- so
+    check_pipeline_order still reads this step's edges out of the source. At the
+    default cadence the suffix is empty and this returns the path unchanged.
+
+    Under --rebal 40 the engine wrote v2FINAL_equity_r40.csv and left the
+    canonical cadence-20 file alone; reading the canonical one here would plot a
+    cadence-20 curve on a chart whose title says 40.
+    """
+    import cadence as _cd
+    if _cd.is_default():
+        return path
+    c = path.with_name(path.stem + _cd.suffix() + path.suffix)
+    return c if c.exists() else path
+
+
 def main():
     """The step, as a function, so run.py can call it in process.
 
@@ -86,14 +105,14 @@ def main():
     M = config_n100.METRICS_DIR_N100
     CAP = 1_000_000
     CUT = pd.Timestamp("2019-01-01")
-    eq = pd.read_csv(M / "v2FINAL_equity.csv", parse_dates=["date"]).set_index("date")
+    eq = pd.read_csv(_ci(M / "v2FINAL_equity.csv"), parse_dates=["date"]).set_index("date")
     # THE TWO ARMS THIS CHART SHOWS, ASKED FOR BY NAME rather than by the column
     # each happened to be stored under. arms/registry.equity_series falls back to
     # the legacy `strategy`/`baseline_invvol` names, so this reads a frozen
     # universe's file too.
     _v2 = arm_reg.equity_series(eq, "v2")
     _v1 = arm_reg.equity_series(eq, "v1")
-    params = json.loads((M / "v2FINAL_params.json").read_text())
+    params = json.loads((_ci(M / "v2FINAL_params.json")).read_text())
     inv = params["avg_exposure_pct"]
     idx_raw = (config.read_price_csv(config_n100.INDEX_FILE_N100)[["date", "close"]].dropna()
                .set_index("date")["close"].sort_index())
@@ -205,10 +224,14 @@ def main():
     # THE PUBLISHED NAME IS A LITERAL ON THE COMMON PATH, and a narrowed or
     # widened arm selection writes its own file beside it rather than replacing
     # it -- the same rule the universe axis and the combined chart both use.
-    if set(ARMS_ON) == {"v2", "v1"}:
+    # BOTH AXES IN THE OUTPUT NAME. The published file is the v2+v1 pair at the
+    # default cadence and keeps its literal name; any other arm selection or any
+    # non-default cadence writes its own file beside it.
+    if set(ARMS_ON) == {"v2", "v1"} and cadence.is_default():
         plt.savefig(M / "chart_n100.png", dpi=150, bbox_inches="tight")
     else:
-        plt.savefig(M / ("chart_n100" + arm_reg.suffix(ARMS_ON) + ".png"),
+        _asf = arm_reg.suffix(ARMS_ON) if set(ARMS_ON) != {"v2", "v1"} else ""
+        plt.savefig(M / ("chart_n100" + _asf + cadence.suffix() + ".png"),
                     dpi=150, bbox_inches="tight")
     print(f"\n  saved -> {M/'chart_n100.png'}")
 

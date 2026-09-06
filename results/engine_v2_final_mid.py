@@ -55,12 +55,17 @@ warnings.filterwarnings("ignore")
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import config
+import cadence
 import arms.registry as arm_reg
 import config_mid
 from engine_core import metrics, precompute
 from test_exposure import backtest_exposure, CASH_YIELD
 
 REBAL, VOL_WIN = 20, 60
+# REBAL ABOVE IS THE DEFAULT AND STAYS 20. The cadence this RUN selected is read
+# from cadence.selected() at call time and passed to backtest_exposure as an
+# argument; the module constant is never reassigned, because a reassigned global
+# leaks into the next step (module_state.py names the case).
 # SELECTION -- imported from config.py, the single definition.
 TOP_N, BUFFER = config.TOP_N, config.BUFFER
 START_CAPITAL = 1_000_000
@@ -69,6 +74,23 @@ START_CAPITAL = 1_000_000
 # ran to 2026-06-08, six trading days beyond this window.
 BT_START_DATE, BT_END_DATE = config.BT_START_DATE, config.BT_END_DATE
 M = config_mid.METRICS_DIR_MID
+
+
+def _c(path):
+    """This run's name for an output whose content depends on the cadence.
+
+    THE LITERAL STAYS IN THE CALL. Writers are spelled `_c(M / "<name>.csv")`
+    rather than routed through a precomputed variable, because check_pipeline_order
+    reads the `M / "<literal>"` shape out of the source to resolve this step's
+    edges -- and a computed name made three of them vanish once already.
+
+    At the default cadence this returns the path unchanged, so every published
+    filename is exactly what it has always been. A non-default cadence gets
+    v2FINAL_equity_r40.csv beside it and never replaces the published file.
+    """
+    if cadence.is_default():
+        return path
+    return path.with_name(path.stem + cadence.suffix() + path.suffix)
 
 
 def main():
@@ -104,11 +126,16 @@ def main():
     # curve is asserted identical to the un-audited baseline below.
     base_audit = {k: [] for k in
                   ("holdings", "summary", "trades", "ranking", "decisions", "skipped")}
+    # THE RUN'S CADENCE, PASSED AS AN ARGUMENT. `_reb` is 20 by default, which is
+    # what REBAL already was, and `_rebal = REBAL if rebal is None else int(rebal)`
+    # resolves both to the same 20 -- so the default path is byte-identical.
+    _reb = cadence.selected()
     base_eq, tcb, nb, _ = backtest_exposure(px, op, sc, bd, pc, mom20, port_vol,
                                             mode="none", target_vol=tv,
-                                            audit=base_audit)
+                                            audit=base_audit, rebal=_reb)
     fin_eq, tcf, nf, expo = backtest_exposure(px, op, sc, bd, pc, mom20, port_vol,
-                                              mode="breadth", target_vol=tv)
+                                              mode="breadth", target_vol=tv,
+                                              rebal=_reb)
     bh = START_CAPITAL * (1 + px.pct_change().loc[bd].mean(axis=1).fillna(0)).cumprod()
 
     mbase = metrics(base_eq, "Inverse-vol, 100% invested (v1 final)", tcb, nb)
@@ -119,7 +146,7 @@ def main():
     print("\n" + out.to_string(index=False))
     print(f"\n   v2 FINAL average exposure: {expo*100:.0f}% invested "
           f"(rest in cash at {CASH_YIELD*100:g}% yield)")
-    out.to_csv(M / "v2FINAL_comparison.csv", index=False)
+    out.to_csv(_c(M / "v2FINAL_comparison.csv"), index=False)
 
     # yearly
     yr = pd.DataFrame({
@@ -129,7 +156,7 @@ def main():
     yr["Diff"] = (yr["Strategy%"] - yr["BuyHold%"]).round(1)
     print("\n--- YEAR BY YEAR ---")
     print(yr.to_string())
-    yr.to_csv(M / "v2FINAL_yearly.csv")
+    yr.to_csv(_c(M / "v2FINAL_yearly.csv"))
 
     # PER-ARM COLUMNS ALONGSIDE THE ORIGINAL TWO.
     # `strategy` is v2 and `baseline_invvol` is v1 -- names that say what the
@@ -149,7 +176,7 @@ def main():
     pd.DataFrame({"date": fin_eq.index,
                   "v1_invvol_none": base_eq.values,
                   "v2_invvol_breadth": fin_eq.values,
-                  "buyhold": bh.values}).to_csv(M / "v2FINAL_equity.csv", index=False)
+                  "buyhold": bh.values}).to_csv(_c(M / "v2FINAL_equity.csv"), index=False)
 
     # v1 baseline's per-trade log, written the same way daily_trades_58.csv is.
     # Consumers (make_final_chart_fair.py) read the costs from the engine that
@@ -176,15 +203,19 @@ def main():
     # when v1 is not selected -- the requirement became conditional while the
     # literal path stayed put, so the static inventory did not move.
     if "v1" in set(arm_reg.selected_names()):
-        bt.to_csv(M / "daily_trades_v1_mid.csv", index=False)
+        bt.to_csv(_c(M / "daily_trades_v1_mid.csv"), index=False)
     print(f"   v1 baseline trade log: {len(bt)} trades, TC Rs {bt['tc'].sum():,.0f} "
           f"-> daily_trades_v1_mid.csv")
 
-    (M / "v2FINAL_params.json").write_text(json.dumps({
+    (_c(M / "v2FINAL_params.json")).write_text(json.dumps({
         "model": "cross-sectional LightGBM, 17 feats, 10-seed, monthly, 32d purge",
         "sizing": "inverse-volatility (1/vol60)",
         "exposure": "breadth scaling = fraction of positive-20d-momentum stocks",
-        "top_n": TOP_N, "buffer": BUFFER, "rebalance_days": REBAL,
+        # THE CADENCE THIS RUN ACTUALLY USED, not the module default. Writing
+        # REBAL here produced v2FINAL_params_r40.json saying rebalance_days: 20 --
+        # a file named for one cadence whose contents claimed another, which is
+        # the worst of the two possible errors because the name looks right.
+        "top_n": TOP_N, "buffer": BUFFER, "rebalance_days": _reb,
         "avg_exposure_pct": round(expo*100),
         "sharpe": mfin["Sharpe"], "maxdd_pct": mfin["MaxDD%"], "cagr_pct": mfin["CAGR%"],
         "cash_yield": CASH_YIELD,
@@ -244,7 +275,7 @@ def main():
     ax[1].legend(loc="lower left", fontsize=9)
     ax[1].grid(alpha=.3)
     plt.tight_layout()
-    plt.savefig(M / "chart_v2FINAL.png", dpi=150, bbox_inches="tight")
+    plt.savefig(_c(M / "chart_v2FINAL.png"), dpi=150, bbox_inches="tight")
     print("\n  saved -> chart_v2FINAL.png")
 
     # ------------------------------------------------------------------ V3/V4
