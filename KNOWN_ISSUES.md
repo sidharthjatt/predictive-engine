@@ -1892,6 +1892,45 @@ code reads*.
 
 ---
 
+## A cold run found a regression that every warm byte-comparison had passed
+
+Found 2026-09-06 by running the pipeline from `.py` + `data/` alone, with every
+generated directory removed and `/tmp` emptied.
+
+**THE DEFECT.** `make_mid_chart.py` and `make_n100_chart.py` gated their canonical
+`savefig` on the arm selection BEING exactly `{v2, v1}`:
+
+    if set(ARMS_ON) == {"v2", "v1"} and cadence.is_default():
+        plt.savefig(M / "chart_mid_FINAL.png", ...)
+    else:
+        plt.savefig(M / (... + arm_reg.suffix(ARMS_ON) + ...))
+
+The DEFAULT is `--arm all`, so `ARMS_ON` is all four arms, the `else` branch ran,
+and `chart_mid_FINAL.png` / `chart_n100.png` **were never written at all**. Only
+the four-arm files were produced. Introduced by a1ab05f.
+
+**WHY EVERY GATE PASSED ANYWAY, AND THIS IS THE PART WORTH REMEMBERING.** The two
+canonical charts were still on disk from before a1ab05f. Nothing overwrote them,
+so every G1 byte-comparison found them present and unchanged and reported
+identical. **A byte-comparison against a directory that already contains the
+artefact cannot tell "regenerated correctly" from "not regenerated at all."** The
+manifest compares content; it says nothing about provenance.
+
+**Only an empty tree distinguishes the two**, which is exactly what the cold run
+provided: 319 of 321 artefacts identical, and the two missing ones named.
+
+**Fixed** by giving both charts the dual-output rule the combined chart already
+had: the canonical figure is drawn whenever v2 and v1 are both selected, and the
+selection figure is drawn alongside it whenever the selection differs. Both
+canonical charts then reproduce **byte-identically** to the pre-regression
+baseline, which is what proves the canonical render is unchanged rather than
+merely present.
+
+**A STANDING CONSEQUENCE FOR HOW THIS PROJECT VERIFIES ITSELF.** Warm
+byte-comparison is necessary and is not sufficient. It catches a changed artefact
+and is blind to a no-longer-produced one. Any change to which FILENAME a step
+writes needs either a cold run or an explicit check that the file's mtime moved.
+
 ## --rebal is a real axis now, and it used to overwrite what it should not have
 
 Implemented 2026-09-06, the third and last selection axis.
