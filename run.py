@@ -414,7 +414,10 @@ def execute(plan, args):
     # how a checker gets ignored. The count still prints, and an inversion is still
     # fatal.
     cpo.enforce(mod["PIPELINE_ORDER"],
-                covered={f.name for lst in mod["REQUIRED_INPUTS"].values() for f, _ in lst},
+                # INDEXED, NOT UNPACKED: an entry may carry a third field naming
+                # the arm it belongs to, and `for f, _ in lst` raises on those.
+                covered={e[0].name for lst in mod["REQUIRED_INPUTS"].values()
+                         for e in lst},
                 resolver=mod["script_path"], helpers=mod["STEP_HELPERS"],
                 list_unresolved=bool(plan["pipeline"]))
 

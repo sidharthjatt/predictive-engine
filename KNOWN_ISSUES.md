@@ -1892,6 +1892,76 @@ code reads*.
 
 ---
 
+## --arm is reflected in every chart that can carry it; two limits remain
+
+Completed 2026-09-06, closing the gaps the entry below records. It supersedes
+that entry's GAP 1 and GAP 2; the entry is kept as the record of why they existed.
+
+**WIDENING IS ALLOWED, BUT ONLY INTO SUFFIXED FILENAMES.** The canonical
+unsuffixed figures are the v2+v1 published pair and are produced exactly as
+before, byte for byte. Anything else the run selects is drawn into a file named
+for that selection:
+
+    --arm all      chart_COMBINED_n100_mid_58_74.png        (canonical, v2+v1)
+                   chart_COMBINED_n100_mid_58_74_v1_v2_v3_v4.png   (all four)
+                   chart_mid_FINAL.png / chart_mid_FINAL_v1_v2_v3_v4.png
+                   chart_n100.png     / chart_n100_v1_v2_v3_v4.png
+    --arm v3       chart_COMBINED_..._v3.png, chart_mid_FINAL_v3.png -- DRAWN,
+                   showing v3. It no longer skips with a reason.
+    --arm v1,v3    ..._v1_v3.png, and no canonical, because the pair is not
+                   fully selected.
+
+**THE v1 TRADE-LOG LEAK IS CLOSED**, and how it was closed matters. `--arm v2`
+used to write daily_trades_v1_<tag>.csv. Gating that write had failed once,
+because STEP 10d demanded the file unconditionally through
+run_all.REQUIRED_INPUTS. Those entries now carry a third field naming the arm
+they belong to, and check_inputs skips an entry whose arm is not selected. **The
+paths stay literal in the same shape**, so check_pipeline_order's static
+inventory is untouched -- 42 resolved, 9 unresolved, 0 inversions, unchanged.
+Only the RUNTIME requirement became conditional.
+
+### LIMIT 1: the fair chart cannot widen, and this is structural
+
+`make_final_chart_fair.py` runs only on the retired 58 and 74, and **those
+universes have no v3/v4 curve anywhere on disk** -- their engines never call
+v34_common. Selecting v3 or v4 cannot add a line there because there is no line
+to add. The step now says so on stdout and writes no `_v1_v2_v3_v4`-named file,
+because a filename promising four arms while showing two is worse than no file.
+So "`--arm all` produces a four-arm version of EVERY chart" holds for the
+combined, mid and n100 charts and cannot hold for this one.
+
+### LIMIT 2: v2FINAL_* still carries both v1 and v2 regardless of selection
+
+Spec Step 5 -- the engine computing only the selected arms -- **was attempted and
+stopped under the spec's own decision rule.** The engine feeds five published
+artefacts from v1 and v2 (v2FINAL_comparison/yearly/equity/params and
+chart_v2FINAL.png). Conditionalising it means giving all five the
+canonical/suffix treatment, and then **eleven reader files** must learn to find
+the suffixed names: n100_jackknife, attribution_v2, audit_step,
+diagnose_cash_drag, make_combined_universes, make_final_chart_fair,
+make_mid_chart, make_n100_chart, reality_check, test_v1_v2_blend and v34_common.
+
+There is no safe subset of it either: both curves feed the canonical artefacts,
+which are written on every run, so neither computation can be skipped while the
+canonical files are still produced. The benefit is one skipped backtest and one
+unused column; the risk is moving a published number across five artefacts and
+eleven readers. **Stopped and reported rather than proceeded**, which is what
+rule 4 and experiments/ARM_SUBSET_SPEC.txt both require.
+
+### Gates, re-verified after every change
+
+    G1  318 of 318 byte-identical, nothing missing, nothing CHANGED
+    G3  identity gate re-run: ok, and no gate re-baselined -- they read
+        v34_comparison.csv, which is byte-identical
+    G5  92 of 92 on all eight combinations
+    G6  42 resolved / 9 unresolved / 0 inversions
+    G7  nine selections, artefacts READ not code: Config rows, equity column
+        headers, params.arms maps and audit-trail filenames all show exactly the
+        selected arms
+    G8  no 58 or 74 artefact changed under any selection
+
+The three artefacts added by `--arm all` are exactly the four-arm charts.
+
 ## --arm reaches the published outputs; two gaps remain, both recorded
 
 Implemented 2026-09-06 under `experiments/ARM_SUBSET_SPEC.txt`. This supersedes

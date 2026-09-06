@@ -31,7 +31,8 @@ from matplotlib.ticker import PercentFormatter
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import config
-import arms.registry as arm_reg, config_mid
+import arms.registry as arm_reg
+import arm_sources, config_mid
 import survivorship as sv
 def _window_label(eq=None):
     """One line naming the window every figure on the chart belongs to.
@@ -130,11 +131,32 @@ def main():
     print( "    expected                : 6,342 -> 21,926 = 3.46x = 18.16% CAGR")
     b_v2 = before_tc(_v2, M/"daily_trades_mid.csv")
     b_v1 = before_tc(_v1, M/"daily_trades_v1_mid.csv")
+    # EVERY SELECTED ARM THIS UNIVERSE CAN SHOW, in published order. The two
+    # literals above are kept: check_pipeline_order resolves this step's inputs
+    # from them, and they are also v2's and v1's own entries below.
+    # ARMS is {name: (curve, before_tc tuple, colour, deployed%)}.
+    ARMS_ON = {}
+    for _n in ("v2", "v1", "v3", "v4"):
+        if _n not in set(arm_reg.selected_names()):
+            continue
+        if _n == "v2":
+            _e, _b, _c = _v2, b_v2, "#c0392b"
+        elif _n == "v1":
+            _e, _b, _c = _v1, b_v1, "#2e6da4"
+        else:
+            _, _e = arm_sources.equity_path_and_series(M, "mid", _n)
+            _lg = arm_sources.trades_path(M, "mid", _n)
+            if _e is None or _lg is None:
+                continue
+            _b = before_tc(_e, _lg)
+            _c = {"v3": "#1b9e77", "v4": "#e6ab02"}[_n]
+        ARMS_ON[_n] = (_e, _b, _c, arm_sources.deployed_pct(_n, inv))
+    _AD = {"v1": "inv-vol", "v2": "breadth", "v3": "provol", "v4": "provol-breadth"}
     print("\n  HEADLINE NUMBERS")
     print(f"    {'series':<42} {'before TC':>10} {'after TC':>9} "
           f"{'Sharpe':>7} {'MaxDD%':>8} {'inv%':>5}")
-    rows = [("mid v2 (breadth)", _v2, b_v2[0], inv),
-            ("mid v1 (inv-vol)", _v1, b_v1[0], 100),
+    rows = [(f"mid {_n} ({_AD[_n]})", _d[0], _d[1][0], _d[3])
+            for _n, _d in ARMS_ON.items()] + [
             ("mid buy&hold (equal-weight universe)", eq["buyhold"], None, 100),
             ("NIFTYMIDCAP150 (cap-weighted index)", index, None, 100)]
     for lab, s_, b, iv in rows:
@@ -224,13 +246,14 @@ def main():
            # above describes in prose -- but stated by the switch itself, so it cannot
            # drift out of date if the mode ever changes.
            + sv.describe_state())
+    # ONE LINE PER SELECTED ARM, in published order, each with its own colour.
+    # v2 and v1 keep the exact colours and label shapes they have always had, so
+    # the default chart is unchanged.
     series = [
-     (f"mid v2 (breadth)  [inv {inv}%]", _v2, "#c0392b", "-",
-      f"CAGR {b_v2[0]:.2f}% before TC / {cagr(_v2):.2f}% after TC"
-      f"  [{b_v2[2]} trades, Rs {b_v2[1]:,.0f}]"),
-     ("mid v1 (inv-vol)  [inv 100%]", _v1, "#2e6da4", "-",
-      f"CAGR {b_v1[0]:.2f}% before TC / {cagr(_v1):.2f}% after TC"
-      f"  [{b_v1[2]} trades, Rs {b_v1[1]:,.0f}]"),
+     (f"mid {_n} ({_AD[_n]})  [inv {_d[3]}%]", _d[0], _d[2], "-",
+      f"CAGR {_d[1][0]:.2f}% before TC / {cagr(_d[0]):.2f}% after TC"
+      f"  [{_d[1][2]} trades, Rs {_d[1][1]:,.0f}]")
+     for _n, _d in ARMS_ON.items()] + [
      ("mid buy&hold (equal-weight universe, NOT investable)  [inv 100%]", eq["buyhold"],
       "#3a9d3a", "-", f"CAGR {cagr(eq['buyhold']):.2f}%  (buy once, hold: no TC)"),
      ("NIFTYMIDCAP150 (cap-weighted index)  [inv 100%]", index, "#000000", "--",
@@ -251,7 +274,14 @@ def main():
     ax[1].yaxis.set_major_formatter(PercentFormatter(decimals=0))
     ax[1].legend(loc="lower left", fontsize=8); ax[1].grid(alpha=.3)
     plt.tight_layout()
-    plt.savefig(M/"chart_mid_FINAL.png", dpi=140, bbox_inches="tight"); plt.close()
+    # THE PUBLISHED NAME IS A LITERAL ON THE COMMON PATH, and a narrowed or
+    # widened arm selection writes its own file beside it rather than replacing
+    # it -- the same rule the universe axis and the combined chart both use.
+    if set(ARMS_ON) == {"v2", "v1"}:
+        plt.savefig(M / "chart_mid_FINAL.png", dpi=140, bbox_inches="tight"); plt.close()
+    else:
+        plt.savefig(M / ("chart_mid_FINAL" + arm_reg.suffix(ARMS_ON) + ".png"),
+                    dpi=140, bbox_inches="tight"); plt.close()
     print(f"\nsaved -> {(M/'chart_mid_FINAL.png').name}")
 
 
