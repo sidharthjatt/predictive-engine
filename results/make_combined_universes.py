@@ -60,6 +60,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import config
 from universes.registry import REGISTRY, selected_tags, report_order
 import arms.registry as arm_reg
+import arm_sources
 
 import survivorship as sv
 def cum(s): return (s / s.iloc[0] - 1) * 100
@@ -96,11 +97,14 @@ DISPLAY = {"n100": "NIFTY 100", "mid": "MIDCAP150",
 # exact values the two-universe chart used and must not change. 58 and 74 are new
 # here and are chosen not to collide with those eight; their fourth entry is
 # unused, because neither has a published index.
+# Slots 0-3 are v2, v1, buy&hold, index and are UNCHANGED -- the published chart
+# depends on them. Slots 4 and 5 are v3 and v4, appended rather than inserted so
+# every existing index keeps pointing at the same colour.
 COLOURS = {
-    "n100": ("#c0392b", "#2e6da4", "#3a9d3a", "#000000"),
-    "mid":  ("#e377c2", "#17becf", "#8fd08f", "#7f7f7f"),
-    "58":   ("#ff7f0e", "#9467bd", "#8c564b", "#555555"),
-    "74":   ("#bcbd22", "#76b7b2", "#b07aa1", "#999999"),
+    "n100": ("#c0392b", "#2e6da4", "#3a9d3a", "#000000", "#7f3f98", "#d95f02"),
+    "mid":  ("#e377c2", "#17becf", "#8fd08f", "#7f7f7f", "#1b9e77", "#e6ab02"),
+    "58":   ("#ff7f0e", "#9467bd", "#8c564b", "#555555", "#66a61e", "#a6761d"),
+    "74":   ("#bcbd22", "#76b7b2", "#b07aa1", "#999999", "#666666", "#e7298a"),
 }
 
 # WHICH SLOT OF THAT TUPLE EACH ARM USES. v2 has always been the first colour and
@@ -111,8 +115,18 @@ COLOURS = {
 # THE COLOUR IS KEYED TO THE ARM, NOT TO POSITION. Step 2 already fixed this
 # inside run_v34's chart, where a positional zip gave v3 v2's colour the moment v2
 # was deselected. The same trap exists here and is avoided the same way.
-ARM_SLOT = {"v2": 0, "v1": 1}
-ARM_DESC = {"v1": "inv-vol", "v2": "breadth"}
+ARM_SLOT = {"v2": 0, "v1": 1, "v3": 4, "v4": 5}
+ARM_DESC = {"v1": "inv-vol", "v2": "breadth",
+            "v3": "provol", "v4": "provol-breadth"}
+
+# THE PUBLISHED PAIR, AND THE ORDER IT IS DRAWN IN. v2 before v1 is the order the
+# figure has always had; keeping it is what makes the canonical file reproduce
+# byte for byte.
+CANON_ARMS = ("v2", "v1")
+# The order any wider chart draws in: the published pair first, then the
+# measurement arms, so a four-arm chart is the published one with two lines added
+# rather than a reshuffle.
+PLOT_ORDER = ("v2", "v1", "v3", "v4")
 
 # THIS CHART IS DEFINED OVER THE SHIPPING ARMS, AND A SELECTION NARROWS IT RATHER
 # THAN WIDENING IT.
@@ -179,18 +193,7 @@ def main():
     # published chart_COMBINED_n100_mid.png rather than renaming it.
     tags = report_order(t for t in selected_tags() if t in REGISTRY)
 
-    # WHICH ARMS THIS CHART CAN SHOW: the selection, narrowed to the shipping pair.
-    plot_arms = [a for a in PLOT_ARMS if a in set(arm_reg.selected_names())]
-    if not plot_arms:
-        print("=" * 108)
-        print(" COMBINED chart SKIPPED -- it compares universes through their "
-              "SHIPPING arms (v2, v1) and")
-        print(f" this run selected none of them "
-              f"({', '.join(arm_reg.selected_names())}). v3 and v4 are measurement "
-              "arms; their")
-        print(" comparison is chart_v34, not this one. Nothing is written.")
-        print("=" * 108)
-        return
+    sel = set(arm_reg.selected_names())
 
     if len(tags) < 2:
         have = ", ".join(tags) or "none"
@@ -270,15 +273,11 @@ def main():
             "tag": t, "u": u, "M": Path(eqf).parent, "eqf": eqf,
             "eq": eq, "index": index,
             "inv": json.loads(pjf.read_text())["avg_exposure_pct"],
-            # ONE ENTRY PER PLOTTED ARM, so _report and _series iterate instead
-            # of naming v2 and v1. The trade log differs per arm: v2's is the
-            # unsuffixed daily_trades_<tag>.csv and v1's is the engine's
-            # daily_trades_v1_<tag>.csv, which is what the published figure has
-            # always read -- not the new per-arm audit trail, which would be a
-            # different file with the same contents and no reason to switch.
-            "arms": {n: {"eq": e, "b": before_tc(e, lg)}
-                     for n, e, lg in (("v2", eq_v2, tr2), ("v1", eq_v1, tr1))
-                     if n in plot_arms and e is not None},
+            # ONE ENTRY PER AVAILABLE SELECTED ARM. Where each arm's curve and
+            # per-trade log live is arm_sources' problem, not this chart's:
+            # three files under three naming conventions, and four charts each
+            # rediscovering that is four chances to disagree.
+            "arms": _load_arms(Path(eqf).parent, t, sel),
             "idxname": u.index_name,
             "display": DISPLAY.get(t, t),
             "colours": COLOURS.get(t, ("#1f77b4", "#7f7f7f", "#2ca02c", "#000000")),
@@ -298,14 +297,48 @@ def main():
     for row in UNIV:
         _report(row)
 
-    # THE FILENAME NAMES WHAT IS ACTUALLY ON THE CHART, in plotting order.
-    # THE ARM SUFFIX, ON THE SAME RULE AS THE UNIVERSE ONE. Both shipping arms
-    # plotted -> no suffix, and the filename is the published one. A narrower arm
-    # selection writes chart_COMBINED_n100_mid_v2.png beside it and leaves the
-    # published figure alone, exactly as a narrower UNIVERSE selection does.
-    asfx = "" if set(plot_arms) == set(PLOT_ARMS) else "_" + "_".join(plot_arms)
-    _draw(UNIV, UNIV[0]["M"] / ("chart_COMBINED_"
-                                + "_".join(u["tag"] for u in UNIV) + asfx + ".png"))
+    # ------------------------------------------------------------------
+    # TWO CHARTS ON THE ARM AXIS, THE SAME WAY THERE ARE TWO ON THE UNIVERSE AXIS.
+    # ------------------------------------------------------------------
+    # CANONICAL: the published figure, always exactly v2 and v1, into the
+    # unsuffixed filename. Drawn whenever both are selected, so `--arm all` keeps
+    # refreshing it and it stays byte-identical to what it has always been.
+    #
+    # SELECTION: exactly the arms this run selected, into an arm-suffixed
+    # filename, drawn whenever the selection is anything other than that pair.
+    # `--arm v3` therefore PRODUCES a chart showing v3 rather than skipping, and
+    # `--arm all` produces a four-arm chart BESIDE the published two-arm one.
+    #
+    # WIDENING IS SAFE ONLY BECAUSE IT IS SUFFIXED. Adding v3 and v4 to the
+    # unsuffixed file would change a published figure as a side effect of running
+    # the default; putting them in a file of their own does not.
+    def _emit(arm_names, out_suffix, why):
+        rows = [r for r in UNIV if [n for n in r["arms"] if n in arm_names]]
+        rows = [dict(r, arms={n: d for n, d in r["arms"].items() if n in arm_names})
+                for r in rows]
+        if len(rows) < 2:
+            print(f"\n  {why}: fewer than two universes can show "
+                  f"{', '.join(arm_names)} -- not drawn")
+            return
+        _draw(rows, rows[0]["M"] / ("chart_COMBINED_"
+                                    + "_".join(r["tag"] for r in rows)
+                                    + out_suffix + ".png"))
+        return rows
+
+    canon_rows = None
+    if set(CANON_ARMS) <= sel:
+        canon_rows = _emit(list(CANON_ARMS), "", "canonical v2+v1 chart")
+
+    if sel != set(CANON_ARMS):
+        print("\n" + "-" * 108)
+        print(" ALSO DRAWING THIS RUN'S ARM SELECTION -- "
+              + ", ".join(n for n in PLOT_ORDER if n in sel)
+              + ", into its own file.")
+        print(" The unsuffixed chart above is the published v2+v1 comparison and "
+              "is not widened.")
+        print("-" * 108)
+        _emit([n for n in PLOT_ORDER if n in sel], arm_reg.suffix(sel),
+              "arm-selection chart")
 
     # ------------------------------------------------------------------
     # THE PUBLISHED PAIR CHART, IN ADDITION TO THE N-WAY ONE.
@@ -331,7 +364,10 @@ def main():
     # out of scope and are not plotted" from REGISTRY minus the rows being PLOTTED,
     # not minus the selection, so the string does not depend on what else ran.
     pair = [r for r in UNIV if r["tag"] in PAIR_CHART]
-    if len(pair) == len(PAIR_CHART) and len(UNIV) > len(PAIR_CHART):
+    pair = [dict(r, arms={n: d for n, d in r["arms"].items() if n in CANON_ARMS})
+            for r in pair]
+    if (len(pair) == len(PAIR_CHART) and len(UNIV) > len(PAIR_CHART)
+            and set(CANON_ARMS) <= sel and all(len(r["arms"]) == 2 for r in pair)):
         print("\n" + "-" * 108)
         print(" ALSO REFRESHING THE PUBLISHED PAIR CHART -- "
               + " and ".join(r["display"] for r in pair)
@@ -340,7 +376,21 @@ def main():
               "wider selection still refreshes it.")
         print("-" * 108)
         _draw(pair, pair[0]["M"] / ("chart_COMBINED_"
-                                    + "_".join(r["tag"] for r in pair) + asfx + ".png"))
+                                    + "_".join(r["tag"] for r in pair) + ".png"))
+
+
+def _load_arms(M, tag, sel):
+    """{arm: {eq, b}} for every selected arm this universe can actually show."""
+    out = {}
+    for n in PLOT_ORDER:
+        if n not in sel:
+            continue
+        _, eq = arm_sources.equity_path_and_series(M, tag, n)
+        lg = arm_sources.trades_path(M, tag, n)
+        if eq is None or lg is None:
+            continue
+        out[n] = {"eq": eq, "b": before_tc(eq, lg)}
+    return out
 
 
 def _report(row):

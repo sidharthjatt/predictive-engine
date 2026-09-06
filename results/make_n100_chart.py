@@ -36,7 +36,8 @@ warnings.filterwarnings("ignore")
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import config
-import arms.registry as arm_reg, config_n100
+import arms.registry as arm_reg
+import arm_sources, config_n100
 import survivorship as sv
 def _window_label(eq=None):
     """One line naming the window every figure on the chart belongs to.
@@ -118,11 +119,32 @@ def main():
     print( "    expected                : 11,148.80 -> 25,209.55 = 2.26x = 11.54% CAGR")
     b_v2 = before_tc(_v2, M / "daily_trades_n100.csv")
     b_v1 = before_tc(_v1, M / "daily_trades_v1_n100.csv")
+    # EVERY SELECTED ARM THIS UNIVERSE CAN SHOW, in published order. The two
+    # literals above are kept: check_pipeline_order resolves this step's inputs
+    # from them, and they are also v2's and v1's own entries below.
+    # ARMS is {name: (curve, before_tc tuple, colour, deployed%)}.
+    ARMS_ON = {}
+    for _n in ("v2", "v1", "v3", "v4"):
+        if _n not in set(arm_reg.selected_names()):
+            continue
+        if _n == "v2":
+            _e, _b, _c = _v2, b_v2, "#c0392b"
+        elif _n == "v1":
+            _e, _b, _c = _v1, b_v1, "#2e6da4"
+        else:
+            _, _e = arm_sources.equity_path_and_series(M, "n100", _n)
+            _lg = arm_sources.trades_path(M, "n100", _n)
+            if _e is None or _lg is None:
+                continue
+            _b = before_tc(_e, _lg)
+            _c = {"v3": "#1b9e77", "v4": "#e6ab02"}[_n]
+        ARMS_ON[_n] = (_e, _b, _c, arm_sources.deployed_pct(_n, inv))
+    _AD = {"v1": "inv-vol", "v2": "breadth", "v3": "provol", "v4": "provol-breadth"}
     print("\n  HEADLINE NUMBERS")
     print(f"    {'series':<44} {'before TC':>10} {'after TC':>9} "
           f"{'Sharpe':>7} {'MaxDD%':>8} {'inv%':>5}")
-    rows = [("n100 v2 (breadth)", _v2, b_v2[0], inv),
-            ("n100 v1 (inv-vol)", _v1, b_v1[0], 100),
+    rows = [(f"n100 {_n} ({_AD[_n]})", _d[0], _d[1][0], _d[3])
+            for _n, _d in ARMS_ON.items()] + [
             ("n100 buy&hold (equal-weight universe)", eq["buyhold"], None, 100),
             ("NIFTY100 (cap-weighted index)", index, None, 100)]
     for lab, s2, b, iv in rows:
@@ -180,7 +202,14 @@ def main():
     ax[1].yaxis.set_major_formatter(PercentFormatter(decimals=0))
     ax[1].legend(loc="lower left", fontsize=8.5); ax[1].grid(alpha=.3)
     plt.tight_layout()
-    plt.savefig(M / "chart_n100.png", dpi=150, bbox_inches="tight")
+    # THE PUBLISHED NAME IS A LITERAL ON THE COMMON PATH, and a narrowed or
+    # widened arm selection writes its own file beside it rather than replacing
+    # it -- the same rule the universe axis and the combined chart both use.
+    if set(ARMS_ON) == {"v2", "v1"}:
+        plt.savefig(M / "chart_n100.png", dpi=150, bbox_inches="tight")
+    else:
+        plt.savefig(M / ("chart_n100" + arm_reg.suffix(ARMS_ON) + ".png"),
+                    dpi=150, bbox_inches="tight")
     print(f"\n  saved -> {M/'chart_n100.png'}")
 
 

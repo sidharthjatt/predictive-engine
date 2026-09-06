@@ -205,14 +205,22 @@ REQUIRED_INPUTS = {
     "make_mid_chart.py": [
         (ROOT / "results_mid" / "metrics" / "daily_trades_mid.csv",
          "STEP 10c make_mid_audit.py"),
+        # ARM-TAGGED. This input exists only when v1 is selected, so check_inputs
+        # skips it otherwise. The tuple stays a literal path in the same shape, so
+        # check_pipeline_order still resolves the edge and its inventory is
+        # unchanged -- only the RUNTIME requirement became conditional.
         (ROOT / "results_mid" / "metrics" / "daily_trades_v1_mid.csv",
-         "STEP 10b engine_v2_final_mid.py"),
+         "STEP 10b engine_v2_final_mid.py", "v1"),
     ],
     "make_n100_chart.py": [
         (ROOT / "results_n100" / "metrics" / "daily_trades_n100.csv",
          "STEP 10g make_n100_audit.py"),
+        # ARM-TAGGED. This input exists only when v1 is selected, so check_inputs
+        # skips it otherwise. The tuple stays a literal path in the same shape, so
+        # check_pipeline_order still resolves the edge and its inventory is
+        # unchanged -- only the RUNTIME requirement became conditional.
         (ROOT / "results_n100" / "metrics" / "daily_trades_v1_n100.csv",
-         "STEP 10f engine_v2_final_n100.py"),
+         "STEP 10f engine_v2_final_n100.py", "v1"),
     ],
     # THE COMBINED STEP READS EVERY SELECTED UNIVERSE'S TRADE LOG, and the two
     # retired universes' logs are written by STEP 12 make_daily_audit.py. That is
@@ -306,9 +314,22 @@ _PIPELINE_SCRIPTS = {s for _, s in PIPELINE_ORDER}
 
 
 def check_inputs(label, script):
-    """Fail by name before a step runs, rather than from inside pandas."""
-    missing = [(f, who) for f, who in REQUIRED_INPUTS.get(Path(script).name, [])
-               if not f.exists()]
+    """Fail by name before a step runs, rather than from inside pandas.
+
+    AN ENTRY MAY CARRY A THIRD FIELD, the arm it belongs to. That input is
+    required only when the arm is selected: daily_trades_v1_mid.csv is not
+    written by `--arm v2`, and demanding it there turned a correct selective run
+    into a hard stop. Entries with no third field are required unconditionally,
+    which is all of them but two.
+
+    THE STATIC INVENTORY IS UNAFFECTED. check_pipeline_order reads the literal
+    paths out of this table, and they are still literal paths in the same shape;
+    only the runtime requirement became conditional.
+    """
+    import arms.registry as _ar
+    _sel = set(_ar.selected_names())
+    missing = [(e[0], e[1]) for e in REQUIRED_INPUTS.get(Path(script).name, [])
+               if (len(e) < 3 or e[2] in _sel) and not e[0].exists()]
     if not missing:
         return
     print("\n" + "!" * 90)

@@ -55,6 +55,7 @@ warnings.filterwarnings("ignore")
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import config
+import arms.registry as arm_reg
 import config_mid
 from engine_core import metrics, precompute
 from test_exposure import backtest_exposure, CASH_YIELD
@@ -165,7 +166,17 @@ def main():
     # checker a resolved dependency, which experiments/ARM_SUBSET_SPEC.txt's G6
     # forbids. Closing this properly means making make_mid_chart.py arm-aware
     # too; see KNOWN_ISSUES.md.
-    bt.to_csv(M / "daily_trades_v1_mid.csv", index=False)
+    # GATED ON v1 BEING SELECTED. `--arm v2` no longer produces a file named for
+    # an arm the run did not select.
+    #
+    # THIS ONLY BECAME POSSIBLE ONCE make_mid_chart.py WENT ARM-AWARE. The first
+    # attempt gated the write while STEP 10d still demanded the file
+    # unconditionally through run_all.REQUIRED_INPUTS, so `--arm v2` died at
+    # check_inputs. That edge now carries the arm it belongs to and is skipped
+    # when v1 is not selected -- the requirement became conditional while the
+    # literal path stayed put, so the static inventory did not move.
+    if "v1" in set(arm_reg.selected_names()):
+        bt.to_csv(M / "daily_trades_v1_mid.csv", index=False)
     print(f"   v1 baseline trade log: {len(bt)} trades, TC Rs {bt['tc'].sum():,.0f} "
           f"-> daily_trades_v1_mid.csv")
 

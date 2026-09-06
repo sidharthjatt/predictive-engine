@@ -48,6 +48,7 @@ import config
 import survivorship as sv
 from universes.registry import REGISTRY, selected_tags
 import arms.registry as arm_reg
+import arm_sources
 
 # config74 is imported inside main() under the 74's guard. At module level a
 # deleted config74.py would make this step unimportable, taking the 58's half of
@@ -295,7 +296,42 @@ def main():
     # v3/v4 on a published figure as a side effect of the default --arm all, which
     # experiments/ARM_SUBSET_SPEC.txt forbids (G1).
     PLOT_ARMS = ("v2", "v1")
-    plot_arms = [a for a in PLOT_ARMS if a in set(arm_reg.selected_names())]
+    PLOT_ORDER = ("v2", "v1", "v3", "v4")
+    # WHAT THIS CHART CAN ACTUALLY SHOW, AND WHY IT CANNOT WIDEN.
+    # It compares the RETIRED 58 and 74 against the NIFTY100 index, and those two
+    # universes have no v3/v4 at all -- their engines never call v34_common, so no
+    # pro-vol curve for them exists anywhere on disk. Selecting v3 or v4 therefore
+    # cannot add a line here the way it can on the combined chart; there is
+    # nothing to add. `plot_arms` is the selection intersected with what the
+    # universes can supply, which is why it is computed from arm_sources rather
+    # than asserted. THIS IS A FACT ABOUT THE FROZEN UNIVERSES, NOT A POLICY
+    # CHOICE, and it is stated in KNOWN_ISSUES.md rather than left to be
+    # discovered from an empty chart.
+    _avail = set()
+    for _t in SEL & {"58", "74"}:
+        _m = config.METRICS_DIR if _t == "58" else __import__("config74").METRICS_DIR_74
+        _avail |= set(arm_sources.available(_m, _t))
+    plot_arms = [a for a in PLOT_ORDER
+                 if a in set(arm_reg.selected_names()) and a in _avail]
+    # SAID OUT LOUD WHEN THE SELECTION ASKS FOR MORE THAN THIS CHART CAN SUPPLY.
+    # `--arm all` selects v3 and v4, and this chart cannot show them because the
+    # retired universes have none. It draws v2 and v1 -- which IS the published
+    # figure -- and no suffixed file is written, because a file called
+    # chart_FINAL_58_74_N100_v1_v2_v3_v4.png that in fact showed two arms would be
+    # a name that lies.
+    _asked = [a for a in PLOT_ORDER if a in set(arm_reg.selected_names())]
+    _cannot = [a for a in _asked if a not in _avail]
+    if _cannot and plot_arms:
+        print("="*94)
+        print(f" NOTE -- {', '.join(_cannot)} selected but not shown here. This chart "
+              f"compares the RETIRED")
+        print(" universes against the NIFTY100 index, and they have no v3/v4 curve "
+              "anywhere on disk:")
+        print(" their engines never call v34_common. Nothing is omitted by choice; "
+              "there is nothing")
+        print(f" to omit. Drawing {', '.join(plot_arms)}, and writing no "
+              f"{'_'.join(_asked)}-named file.")
+        print("="*94)
     if not plot_arms:
         print("="*94)
         print(" FINAL fair chart SKIPPED -- it compares the SHIPPING arms (v2, v1)")

@@ -163,6 +163,19 @@ def get(name):
 LEGACY_EQUITY_COLUMN = {"v1": "baseline_invvol", "v2": "strategy"}
 
 
+def suffix(names):
+    """"_v1_v3" for any set of arms, INCLUDING the full four.
+
+    NOT selection_suffix(). That one is empty for a full selection because it
+    names the CANONICAL v34 artefacts, which only a four-arm run may write. This
+    one always names what is on the figure, because a chart drawn over all four
+    arms is an additional file sitting beside the published two-arm one and needs
+    a name of its own.
+    """
+    n = {a.name if hasattr(a, "name") else a for a in names}
+    return "_" + "_".join(x for x in ARMS if x in n)
+
+
 def equity_series(df, arm):
     """One arm's equity curve from a v2FINAL_equity.csv frame, or None.
 
