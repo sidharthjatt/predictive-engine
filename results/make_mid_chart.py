@@ -268,43 +268,54 @@ def main():
     # ONE LINE PER SELECTED ARM, in published order, each with its own colour.
     # v2 and v1 keep the exact colours and label shapes they have always had, so
     # the default chart is unchanged.
-    series = [
-     (f"mid {_n} ({_AD[_n]})  [inv {_d[3]}%]", _d[0], _d[2], "-",
-      f"CAGR {_d[1][0]:.2f}% before TC / {cagr(_d[0]):.2f}% after TC"
-      f"  [{_d[1][2]} trades, Rs {_d[1][1]:,.0f}]")
-     for _n, _d in ARMS_ON.items()] + [
-     ("mid buy&hold (equal-weight universe, NOT investable)  [inv 100%]", eq["buyhold"],
-      "#3a9d3a", "-", f"CAGR {cagr(eq['buyhold']):.2f}%  (buy once, hold: no TC)"),
-     ("NIFTYMIDCAP150 (cap-weighted index)  [inv 100%]", index, "#000000", "--",
-      f"CAGR {cagr(index):.2f}%  (index level, not a portfolio: no TC)"),
-    ]
-    fig, ax = plt.subplots(2, 1, figsize=(16, 11), height_ratios=[2, 1])
-    for lab, s_, c, ls, extra in series:
-        ax[0].plot(s_.index, cum(s_), lw=2.0, color=c, ls=ls, label=f"{lab}  {extra}")
-    ax[0].axhline(0, color="k", lw=.6, alpha=.5)
-    ax[0].set_ylabel("Cumulative return (%)")
-    ax[0].yaxis.set_major_formatter(PercentFormatter(decimals=0))
-    ax[0].set_title(sub, fontsize=9.5)
-    ax[0].legend(loc="upper left", fontsize=8.5); ax[0].grid(alpha=.3)
-    for lab, s_, c, ls, _ in series:
-        ax[1].plot(s_.index, dd(s_), lw=1.4, color=c, ls=ls,
-                   label=f"{lab.split('[')[0].strip()} ({dd(s_).min():.0f}%)")
-    ax[1].set_ylabel("Drawdown (%)")
-    ax[1].yaxis.set_major_formatter(PercentFormatter(decimals=0))
-    ax[1].legend(loc="lower left", fontsize=8); ax[1].grid(alpha=.3)
-    plt.tight_layout()
-    # THE PUBLISHED NAME IS A LITERAL ON THE COMMON PATH, and a narrowed or
-    # widened arm selection writes its own file beside it rather than replacing
-    # it -- the same rule the universe axis and the combined chart both use.
-    # BOTH AXES IN THE OUTPUT NAME. The published file is the v2+v1 pair at the
-    # default cadence and keeps its literal name; any other arm selection or any
-    # non-default cadence writes its own file beside it.
-    if set(ARMS_ON) == {"v2", "v1"} and cadence.is_default():
-        plt.savefig(M / "chart_mid_FINAL.png", dpi=140, bbox_inches="tight"); plt.close()
-    else:
+    def _render(_arms, _path):
+        """Build and save the chart for exactly these arms."""
+        series = [
+         (f"mid {_n} ({_AD[_n]})  [inv {_d[3]}%]", _d[0], _d[2], "-",
+          f"CAGR {_d[1][0]:.2f}% before TC / {cagr(_d[0]):.2f}% after TC"
+          f"  [{_d[1][2]} trades, Rs {_d[1][1]:,.0f}]")
+         for _n, _d in _arms.items()] + [
+         ("mid buy&hold (equal-weight universe, NOT investable)  [inv 100%]", eq["buyhold"],
+          "#3a9d3a", "-", f"CAGR {cagr(eq['buyhold']):.2f}%  (buy once, hold: no TC)"),
+         ("NIFTYMIDCAP150 (cap-weighted index)  [inv 100%]", index, "#000000", "--",
+          f"CAGR {cagr(index):.2f}%  (index level, not a portfolio: no TC)"),
+        ]
+        fig, ax = plt.subplots(2, 1, figsize=(16, 11), height_ratios=[2, 1])
+        for lab, s_, c, ls, extra in series:
+            ax[0].plot(s_.index, cum(s_), lw=2.0, color=c, ls=ls, label=f"{lab}  {extra}")
+        ax[0].axhline(0, color="k", lw=.6, alpha=.5)
+        ax[0].set_ylabel("Cumulative return (%)")
+        ax[0].yaxis.set_major_formatter(PercentFormatter(decimals=0))
+        ax[0].set_title(sub, fontsize=9.5)
+        ax[0].legend(loc="upper left", fontsize=8.5); ax[0].grid(alpha=.3)
+        for lab, s_, c, ls, _ in series:
+            ax[1].plot(s_.index, dd(s_), lw=1.4, color=c, ls=ls,
+                       label=f"{lab.split('[')[0].strip()} ({dd(s_).min():.0f}%)")
+        ax[1].set_ylabel("Drawdown (%)")
+        ax[1].yaxis.set_major_formatter(PercentFormatter(decimals=0))
+        ax[1].legend(loc="lower left", fontsize=8); ax[1].grid(alpha=.3)
+        plt.tight_layout()
+        plt.savefig(_path, dpi=140, bbox_inches="tight"); plt.close()
+
+    # ------------------------------------------------------------------
+    # TWO CHARTS, THE SAME RULE THE COMBINED CHART ALREADY USES.
+    # ------------------------------------------------------------------
+    # A COLD RUN FOUND THIS, AND NO WARM ONE COULD HAVE. The canonical
+    # savefig was gated on the selection BEING exactly {v2, v1}, so the
+    # DEFAULT `--arm all` wrote only chart_mid_FINAL_v1_v2_v3_v4.png and never
+    # wrote chart_mid_FINAL.png at all. Every byte-comparison passed, because the
+    # canonical file was still on disk from before the change and nothing
+    # overwrote it. Only a run from an empty tree showed it absent.
+    #
+    # CANONICAL: always exactly v2 and v1, drawn whenever both are selected.
+    _canon = {n: d for n, d in ARMS_ON.items() if n in ("v2", "v1")}
+    if len(_canon) == 2 and cadence.is_default():
+        _render(_canon, M / "chart_mid_FINAL.png")
+
+    # SELECTION: exactly what this run selected, into its own name.
+    if set(ARMS_ON) != {"v2", "v1"} or not cadence.is_default():
         _asf = arm_reg.suffix(ARMS_ON) if set(ARMS_ON) != {"v2", "v1"} else ""
-        plt.savefig(M / ("chart_mid_FINAL" + _asf + cadence.suffix() + ".png"),
-                    dpi=140, bbox_inches="tight"); plt.close()
+        _render(ARMS_ON, M / ("chart_mid_FINAL" + _asf + cadence.suffix() + ".png"))
     print(f"\nsaved -> {(M/'chart_mid_FINAL.png').name}")
 
 
