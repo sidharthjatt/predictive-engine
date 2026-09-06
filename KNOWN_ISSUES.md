@@ -1892,6 +1892,50 @@ code reads*.
 
 ---
 
+## A non-default selection could not run from cold at all -- four defects
+
+Found 2026-09-06 by running `--universe mid --arm v1,v3 --rebal 40` from an empty
+tree. It failed at four separate steps, one after another. **Every one of them had
+passed warm**, because a previous default run had left the file on disk.
+
+    1. check_inputs demanded the canonical daily_trades_mid.csv, but --rebal 40
+       writes daily_trades_mid_r40.csv and leaves the cadence-20 file alone.
+    2. make_mid_chart / make_n100_chart read the canonical trade logs. before_tc
+       returns (None, 0, 0) for a file that does not exist, so this was not a
+       crash -- it was a legend reading "CAGR None% before TC".
+    3. daily_trades_<tag>.csv is v2's trail and was demanded unconditionally, so
+       `--arm v1,v3` could not run from cold whatever the cadence.
+    4. nt_export_scores required ALL FOUR universes' score caches and iterated all
+       of REGISTRY. **Warm, this did not error: it exported Nautilus input parquet
+       for three universes the run never built, from whatever an earlier run had
+       left behind.** Stale output that looks like success is worse than a stop.
+
+**FIXED.** `check_inputs` accepts a cadence-named sibling; a requirement may name
+the arm it belongs to (`"v2"`) or the universe (`"u:mid"`) and is skipped when
+that is not selected; `make_daily_log` skips with a reason when v2 is not selected
+or the cadence is not default -- it is v2's forensic log and says so in its own
+header; `nt_export_scores` exports only the selected universes.
+
+**Verified from an empty tree afterwards:** exit 0, 0 tracebacks, 19.0 min with
+the mid score panel rebuilt from data/ (18.9 min), checker 42/9/0. All 36
+artefacts are mid-scoped and carry `_r40`, `runs/mid/v1@r40` and `v3@r40`, and no
+58, 74 or n100 artefact is produced at all.
+
+**THE TWO UNSUFFIXED FILES ARE CORRECT.** `v_mid_expanding_cache.csv` and
+`raw_panel_mid_cache.csv` carry no `_r40` because the score panel does not depend
+on the rebalance cadence -- it is the model's output, and the cadence governs how
+often the book is rebuilt from it. Suffixing them would claim a dependency that
+does not exist and would rebuild an identical panel per cadence.
+
+### What this says about the earlier composition claim
+
+Step 3 reported that the three axes compose, citing this exact invocation. That
+test ran WARM. It was true of the artefacts produced and false as a claim that
+the combination works from a clean checkout -- the run consumed four files it had
+not produced. The same caveat applies to the G7 and cadence content sweeps: they
+verified CONTENT correctly and could not, by construction, catch a step quietly
+reading pre-existing state.
+
 ## A cold run found a regression that every warm byte-comparison had passed
 
 Found 2026-09-06 by running the pipeline from `.py` + `data/` alone, with every

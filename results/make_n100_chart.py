@@ -136,8 +136,13 @@ def main():
     print(f"    2019-01-01 -> 2026-06-22: {_w.iloc[0]:,.2f} -> {_w.iloc[-1]:,.2f} = "
           f"{_w.iloc[-1]/_w.iloc[0]:.2f}x = CAGR {((_w.iloc[-1]/_w.iloc[0])**(1/_y)-1)*100:.2f}%")
     print( "    expected                : 11,148.80 -> 25,209.55 = 2.26x = 11.54% CAGR")
-    b_v2 = before_tc(_v2, M / "daily_trades_n100.csv")
-    b_v1 = before_tc(_v1, M / "daily_trades_v1_n100.csv")
+    # THE CADENCE-NAMED LOGS. The literals stay in the call for
+    # check_pipeline_order; _ci picks the _r40 sibling when the engine wrote one.
+    # Reading the canonical logs under --rebal 40 gave before_tc a file that does
+    # not exist, and it returns (None, 0, 0) silently -- a legend reading
+    # "CAGR None% before TC" rather than a crash.
+    b_v2 = before_tc(_v2, _ci(M / "daily_trades_n100.csv"))
+    b_v1 = before_tc(_v1, _ci(M / "daily_trades_v1_n100.csv"))
     # EVERY SELECTED ARM THIS UNIVERSE CAN SHOW, in published order. The two
     # literals above are kept: check_pipeline_order resolves this step's inputs
     # from them, and they are also v2's and v1's own entries below.

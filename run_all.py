@@ -203,8 +203,12 @@ REQUIRED_INPUTS = {
          "STEP 11 make_cash_series.py"),
     ],
     "make_mid_chart.py": [
+        # ARM-TAGGED TOO: this is v2's audit trail, and a selection without v2
+        # writes no v2 trail at all. Demanding it unconditionally made `--arm
+        # v1,v3` impossible from a cold tree; it only ever passed because an
+        # earlier default run had left the file on disk.
         (ROOT / "results_mid" / "metrics" / "daily_trades_mid.csv",
-         "STEP 10c make_mid_audit.py"),
+         "STEP 10c make_mid_audit.py", "v2"),
         # ARM-TAGGED. This input exists only when v1 is selected, so check_inputs
         # skips it otherwise. The tuple stays a literal path in the same shape, so
         # check_pipeline_order still resolves the edge and its inventory is
@@ -213,8 +217,12 @@ REQUIRED_INPUTS = {
          "STEP 10b engine_v2_final_mid.py", "v1"),
     ],
     "make_n100_chart.py": [
+        # ARM-TAGGED TOO: this is v2's audit trail, and a selection without v2
+        # writes no v2 trail at all. Demanding it unconditionally made `--arm
+        # v1,v3` impossible from a cold tree; it only ever passed because an
+        # earlier default run had left the file on disk.
         (ROOT / "results_n100" / "metrics" / "daily_trades_n100.csv",
-         "STEP 10g make_n100_audit.py"),
+         "STEP 10g make_n100_audit.py", "v2"),
         # ARM-TAGGED. This input exists only when v1 is selected, so check_inputs
         # skips it otherwise. The tuple stays a literal path in the same shape, so
         # check_pipeline_order still resolves the edge and its inventory is
@@ -230,10 +238,18 @@ REQUIRED_INPUTS = {
     # has both; the 58/74 edges are NOT declared here because those universes can
     # legitimately be absent from a selection, and check_inputs is a hard failure.
     "make_combined_universes.py": [
+        # ARM-TAGGED TOO: this is v2's audit trail, and a selection without v2
+        # writes no v2 trail at all. Demanding it unconditionally made `--arm
+        # v1,v3` impossible from a cold tree; it only ever passed because an
+        # earlier default run had left the file on disk.
         (ROOT / "results_mid" / "metrics" / "daily_trades_mid.csv",
-         "STEP 10c make_mid_audit.py"),
+         "STEP 10c make_mid_audit.py", "v2"),
+        # ARM-TAGGED TOO: this is v2's audit trail, and a selection without v2
+        # writes no v2 trail at all. Demanding it unconditionally made `--arm
+        # v1,v3` impossible from a cold tree; it only ever passed because an
+        # earlier default run had left the file on disk.
         (ROOT / "results_n100" / "metrics" / "daily_trades_n100.csv",
-         "STEP 10g make_n100_audit.py"),
+         "STEP 10g make_n100_audit.py", "v2"),
     ],
     "make_final_summary.py": [
         (R / "metrics" / "fair_comparison_table.csv",
@@ -245,15 +261,20 @@ REQUIRED_INPUTS = {
     # with "v5_expanding_cache.csv missing" and no indication of who writes it.
     # nt_export_scores also falls back to /tmp via config.require_cache, so this
     # fires only when BOTH copies are absent -- a genuine missing panel.
+    # UNIVERSE-TAGGED. The third field is the ARM an input belongs to; a leading
+    # "u:" marks a UNIVERSE instead. Each cache exists only when its universe was
+    # selected, so `--universe mid` from a cold tree has one of these four and not
+    # the other three -- and demanding all four made that selection impossible
+    # from cold. It only ever passed because an earlier full run had left them.
     "nt_export_scores.py": [
         (R / "metrics" / "v5_expanding_cache.csv",
-         "STEP 15b save_caches_step.py"),
+         "STEP 15b save_caches_step.py", "u:58"),
         (ROOT / "results74" / "metrics" / "v74_expanding_cache.csv",
-         "STEP 15b save_caches_step.py"),
+         "STEP 15b save_caches_step.py", "u:74"),
         (ROOT / "results_mid" / "metrics" / "v_mid_expanding_cache.csv",
-         "STEP 15b save_caches_step.py"),
+         "STEP 15b save_caches_step.py", "u:mid"),
         (ROOT / "results_n100" / "metrics" / "v_n100_expanding_cache.csv",
-         "STEP 15b save_caches_step.py"),
+         "STEP 15b save_caches_step.py", "u:n100"),
     ],
 }
 
@@ -327,9 +348,40 @@ def check_inputs(label, script):
     only the runtime requirement became conditional.
     """
     import arms.registry as _ar
+    import cadence as _cd
     _sel = set(_ar.selected_names())
+
+    def _present(f):
+        """The requirement is met by the canonical name OR its cadence sibling.
+
+        A NON-DEFAULT CADENCE NEVER WRITES THE CANONICAL NAME. Under --rebal 40
+        the producers write daily_trades_mid_r40.csv and leave the cadence-20 file
+        alone, so demanding the canonical name made `--rebal 40` impossible from a
+        cold tree -- it only ever passed because an earlier default run had left
+        the canonical file on disk. Found by running --rebal 40 from an empty
+        checkout; every warm run had passed.
+        """
+        if f.exists():
+            return True
+        if _cd.is_default():
+            return False
+        return f.with_name(f.stem + _cd.suffix() + f.suffix).exists()
+
+    import universes.registry as _ur
+    _usel = set(_ur.selected_tags())
+
+    def _wanted(e):
+        """Is this input required by THIS run's selection?
+
+        No third field -> always. "u:<tag>" -> only when that universe is
+        selected. Anything else -> the arm it names must be selected.
+        """
+        if len(e) < 3:
+            return True
+        return (e[2][2:] in _usel) if e[2].startswith("u:") else (e[2] in _sel)
+
     missing = [(e[0], e[1]) for e in REQUIRED_INPUTS.get(Path(script).name, [])
-               if (len(e) < 3 or e[2] in _sel) and not e[0].exists()]
+               if _wanted(e) and not _present(e[0])]
     if not missing:
         return
     print("\n" + "!" * 90)
