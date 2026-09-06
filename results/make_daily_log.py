@@ -98,6 +98,23 @@ def load(M, tag):
 
 def build(mdir, tag):
     M = Path(mdir)
+    # THIS LOG IS v2's, AND IT SKIPS WHEN v2's TRAIL IS NOT THERE.
+    # Its header says "v2 FINAL (breadth-scaled)" and it reads the unsuffixed
+    # daily_*_<tag>.csv, which only a run that selected v2 at the default cadence
+    # produces. Under `--arm v1,v3` or `--rebal 40` those files do not exist and
+    # this died in pandas with a FileNotFoundError several frames deep.
+    #
+    # FOUND FROM COLD, NOT WARM. Every earlier run of those selections passed
+    # because a previous default run had left v2's trail on disk.
+    import arms.registry as _ar
+    import cadence as _cd
+    if "v2" not in set(_ar.selected_names()) or not _cd.is_default():
+        why = ("v2 is not in this run's arm selection"
+               if "v2" not in set(_ar.selected_names())
+               else f"this run's cadence is {_cd.selected()}, not the default")
+        print(f"  {tag}: daily log SKIPPED -- it is v2's forensic log at the "
+              f"default cadence, and {why}.")
+        return
     h, s, t, rk, dc, sk = load(M, tag)
 
     sg = s.set_index("date")
