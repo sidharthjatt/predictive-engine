@@ -55,7 +55,8 @@ for _p in (str(ROOT), str(ROOT / "results"), str(ROOT / "frozen")):
 
 import config                                    # noqa: E402
 from engine_core import precompute
-import arms.registry as arm_reg               # noqa: E402
+import arms.registry as arm_reg
+import cadence               # noqa: E402
 from test_exposure import backtest_exposure      # noqa: E402
 from _frozen_guard import guard as _frozen_guard  # noqa: E402
 
@@ -98,13 +99,24 @@ def _reference_curve(M, arm_name):
     # bare `<dir> / "<literal>"` shape; wrapping the directory in Path() made this
     # read invisible to the scanner and the edge vanished from its inventory.
     M = Path(M)
-    f = M / "v2FINAL_equity.csv"
+    # THE CADENCE-NAMED FILE FIRST. Under --rebal 40 the engine wrote
+    # v2FINAL_equity_r40.csv and left the canonical cadence-20 file alone;
+    # reconciling a cadence-40 trail against the cadence-20 curve reports a
+    # MISMATCH of millions of rupees and refuses to write the trail. That is the
+    # check working, but it is checking the wrong pair -- measured, before this
+    # line existed: v1 MISMATCH Rs 2,923,934 and v2 MISMATCH Rs 1,825,210 on mid
+    # at --rebal 40.
+    f = M / f"v2FINAL_equity{cadence.suffix()}.csv"
+    if not f.exists():
+        f = M / "v2FINAL_equity.csv"
     if f.exists():
         df = pd.read_csv(f, parse_dates=["date"]).set_index("date")
         s = _ar.equity_series(df, arm_name)
         if s is not None:
             return s
-    for name in (f"v34_equity{_ar.selection_suffix()}.csv", "v34_equity.csv"):
+    for name in (f"v34_equity{_ar.selection_suffix()}{cadence.suffix()}.csv",
+                 f"v34_equity{cadence.suffix()}.csv",
+                 "v34_equity.csv"):
         g = M / name
         if g.exists():
             df = pd.read_csv(g, parse_dates=["date"]).set_index("date")
@@ -153,7 +165,11 @@ def run(u, arm=None):
     eq, tc, ntr, expo = backtest_exposure(
         px, op, sc, bd, pc, mom20, mode=_arm.mode, sizing=_arm.sizing, audit=audit,
         # frozen: keep the close-valued sizing so published numbers cannot move
-        value_at_open=not u.frozen)
+        value_at_open=not u.frozen,
+        # THE RUN'S CADENCE. A trail built at 20 while the engine ran at 40 would
+        # fail the reconciliation below -- which is the check working, but the fix
+        # is to audit the cadence that was actually run.
+        rebal=cadence.selected())
 
     # ---- SAFETY: does this match the official equity curve FOR THIS ARM? ----
     # The check is the point of the step. Auditing an arm against another arm's
@@ -181,6 +197,9 @@ def run(u, arm=None):
     # correctness gate. Suffixing v2 would break the gate that certifies the
     # engine. Every other arm is suffixed.
     tag = u.tag if _arm.name == "v2" else f"{u.tag}_{_arm.name}"
+    # THE CADENCE JOINS THE FILENAME, empty at the default so v2's unsuffixed
+    # names -- the ones the Nautilus verification reads -- are untouched.
+    tag = tag + cadence.suffix()
     h = pd.DataFrame(audit["holdings"]); s = pd.DataFrame(audit["summary"])
     t = pd.DataFrame(audit["trades"])
     h.to_csv(M / f"daily_holdings_{tag}.csv", index=False)

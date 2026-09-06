@@ -248,7 +248,7 @@ def pipeline_steps(unis):
     return out, mod, dropped
 
 
-def arm_steps(unis, arms):
+def arm_steps(unis, arms, rebal=None):
     """One entry per (universe, arm), plus the combinations deliberately skipped.
 
     A FROZEN UNIVERSE RUNS ONLY THE SHIPPING ARMS. arms/registry.SHIPPING records
@@ -265,10 +265,31 @@ def arm_steps(unis, arms):
     for u in unis:
         for a in arms:
             if u.frozen and a.name not in ship:
-                skipped.append((u, a))
+                skipped.append((u, a, f"{u.tag} is frozen (retired) and has no "
+                                      f"{a.name} path -- its engine never calls "
+                                      f"v34_common"))
+            elif u.frozen and rebal is not None and int(rebal) != paths.DEFAULT_REBAL:
+                # A FROZEN UNIVERSE HAS EXACTLY ONE CADENCE, AND IT IS 20.
+                # Its published numbers must not move, its engine pins REBAL=20,
+                # and the Nautilus port that verifies it is pinned to 20 as well.
+                # Running its arm at another cadence produced a runs/58/v1/ whose
+                # contents were cadence-40 while its path said otherwise --
+                # measured, before this guard existed, by checksumming
+                # runs/58/v1/comparison.csv across a --rebal 40 run.
+                #
+                # REFUSED AND REPORTED, NOT SILENTLY IGNORED. Quietly running it
+                # at 20 would answer a different question from the one asked.
+                skipped.append((u, a, f"{u.tag} is frozen (retired) and runs only at "
+                                      f"the default cadence {paths.DEFAULT_REBAL}; "
+                                      f"--rebal {rebal} cannot apply to it"))
             else:
                 runs.append((u, a))
     return runs, skipped
+
+
+def _cadence_default(args):
+    """True when this run uses the shipped cadence, so nothing is cadence-scoped."""
+    return args.rebal is None or int(args.rebal) == paths.DEFAULT_REBAL
 
 
 def build_plan(args):
@@ -277,9 +298,19 @@ def build_plan(args):
     plan = {"universes": unis, "arms": arms, "pipeline": [], "arm_runs": [],
             "skipped": [], "dropped": []}
     if args.steps in ("pipeline", "all"):
-        plan["pipeline"], plan["_run_all"], plan["dropped"] = pipeline_steps(unis)
+        # A FROZEN UNIVERSE CANNOT HONOUR A NON-DEFAULT CADENCE, AND ITS PIPELINE
+        # IS DROPPED RATHER THAN RUN AT 20.
+        # Its engine pins REBAL=20 and ignores the flag, so `--universe mid,58
+        # --rebal 40` used to run the 58's whole pipeline at cadence 20 and write
+        # artefacts with no marker saying which cadence produced them -- measured:
+        # three 58 files appeared from a run that asked for 40. Refusing the arm
+        # runs while letting the pipeline through was the inconsistency; both are
+        # refused now, and both say so.
+        _pipe_unis = [u for u in unis if not (u.frozen and not _cadence_default(args))]
+        plan["cadence_dropped"] = [u for u in unis if u not in _pipe_unis]
+        plan["pipeline"], plan["_run_all"], plan["dropped"] = pipeline_steps(_pipe_unis)
     if args.steps in ("arms", "all"):
-        plan["arm_runs"], plan["skipped"] = arm_steps(unis, arms)
+        plan["arm_runs"], plan["skipped"] = arm_steps(unis, arms, args.rebal)
     return plan
 
 
@@ -309,10 +340,18 @@ def print_plan(plan, args, show_paths=False):
         for u, a in plan["arm_runs"]:
             line = f"    {u.tag:<6} {a.name:<4} mode={a.mode:<8} sizing={a.sizing:<7}"
             if show_paths:
-                line += f"  -> {show(paths.run_dir(u, a))}/"
+                line += f"  -> {show(paths.run_dir(u, a, args.rebal))}/"
             print(line)
     elif args.steps in ("arms", "all"):
         print("\n  ARM RUNS: none selected")
+
+    if plan.get("cadence_dropped"):
+        print(f"\n  NOT RUN -- frozen universes cannot take a non-default cadence "
+              f"(--rebal {args.rebal}); their engines pin {paths.DEFAULT_REBAL}:")
+        for u in plan["cadence_dropped"]:
+            print(f"    {u.tag:<6} whole pipeline skipped: running it at "
+                  f"{paths.DEFAULT_REBAL} would answer a different question from "
+                  f"the one asked, and its published numbers must not move")
 
     if plan.get("dropped"):
         print(f"\n  NOT RUN ({len(plan['dropped'])}) -- every universe this step serves "
@@ -321,15 +360,17 @@ def print_plan(plan, args, show_paths=False):
             print(f"    {label:<9} {scr:<28} served [{','.join(serves)}], none of which is registered")
 
     if plan["skipped"]:
-        print(f"\n  SKIPPED ({len(plan['skipped'])}) -- frozen universes run only the shipping arms:")
-        for u, a in plan["skipped"]:
-            print(f"    {u.tag:<6} {a.name:<4} skipped: {u.tag} is frozen (retired) and has no "
-                  f"v3/v4 path -- its engine never calls v34_common")
+        print(f"\n  SKIPPED ({len(plan['skipped'])}) -- combinations a frozen universe cannot supply:")
+        # THE REASON TRAVELS WITH THE ENTRY. There are two now -- a frozen
+        # universe has no v3/v4 path, and a frozen universe has only one cadence
+        # -- so printing one hardcoded sentence would misdescribe the other.
+        for u, a, why in plan["skipped"]:
+            print(f"    {u.tag:<6} {a.name:<4} skipped: {why}")
 
     if show_paths:
         print("\n  OUTPUT LOCATIONS")
         for u, a in plan["arm_runs"]:
-            d = show(paths.run_dir(u, a))
+            d = show(paths.run_dir(u, a, args.rebal))
             print(f"    {u.tag}/{a.name:<4} {d}/comparison.csv  subperiods.csv  equity.csv  "
                   f"params.json  chart.png  run.log")
         seen = set()
@@ -391,6 +432,11 @@ def execute(plan, args):
     # the universe selection.
     import arms.registry as _arms
     _arms.set_selection([a.name for a in plan["arms"]])
+    # THE THIRD AXIS. Set here beside the other two, before any step runs, and
+    # read by the engines as an ARGUMENT to backtest_exposure -- never written
+    # into test_exposure.REBAL. See the note at the top of cadence.py.
+    import cadence as _cad
+    _cad.set_selection(args.rebal)
 
     # SAFETY 1 -- the determinism pin is already set, at the top of this file,
     # before any numeric import. Nothing to do here; it is listed so the four are
@@ -470,11 +516,10 @@ def execute(plan, args):
     # run's own log, where the person who asked for it will read it.
     if plan["skipped"]:
         print("\n" + "=" * 90)
-        print(f"NOT RUN ({len(plan['skipped'])}) -- frozen universes run only the "
-              f"shipping arms ({', '.join(a.name for a in SHIPPING_ARMS)}):")
-        for u, a in plan["skipped"]:
-            print(f"    {u.tag:<6} {a.name:<4} {u.tag} is frozen (retired) and has no "
-                  f"{a.name} path -- its engine never calls v34_common")
+        print(f"NOT RUN ({len(plan['skipped'])}) -- combinations a frozen universe "
+              f"cannot supply:")
+        for u, a, why in plan["skipped"]:
+            print(f"    {u.tag:<6} {a.name:<4} {why}")
         print("=" * 90, flush=True)
 
     for u, a in plan["arm_runs"]:

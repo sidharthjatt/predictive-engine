@@ -191,10 +191,14 @@ def run_v34(M, universe_label, universe_tag, px, op, sc, bd, pc, mom20, port_vol
     # GATED ON v2 BEING SELECTED, like v3 and v4 below. Its only purpose is v2's
     # MeanNamesHeld / CashShortSkips columns; with v2 deselected there is no v2
     # row to carry them and this is a whole backtest run for a discarded result.
+    # THE RUN'S CADENCE, AS AN ARGUMENT. Default 20, which is what these calls
+    # resolved to when they passed nothing, so the default path is unchanged.
+    import cadence
+    _reb = cadence.selected()
     a2 = _blank()
     if "v2" in sel:
         backtest_exposure(px, op, sc, bd, pc, mom20, port_vol, mode="breadth",
-                          target_vol=tv, sizing="invvol", audit=a2)
+                          target_vol=tv, sizing="invvol", audit=a2, rebal=_reb)
 
     # --- the two new arms, same panel and dates as v1/v2 ---
     # COMPUTED ONLY IF SELECTED. A run that asked for v1 and v3 has no use for
@@ -209,12 +213,13 @@ def run_v34(M, universe_label, universe_tag, px, op, sc, bd, pc, mom20, port_vol
     if "v3" in sel:
         v3_eq, v3_tc, v3_n, _ = backtest_exposure(px, op, sc, bd, pc, mom20, port_vol,
                                                   mode="none", target_vol=tv,
-                                                  sizing="provol", audit=a3)
+                                                  sizing="provol", audit=a3,
+                                                  rebal=_reb)
     if "v4" in sel:
         v4_eq, v4_tc, v4_n, v4_expo = backtest_exposure(px, op, sc, bd, pc, mom20,
                                                         port_vol, mode="breadth",
                                                         target_vol=tv, sizing="provol",
-                                                        audit=a4)
+                                                        audit=a4, rebal=_reb)
     bh = start_capital * (1 + px.pct_change().loc[bd].mean(axis=1).fillna(0)).cumprod()
 
     # ONE TABLE DRIVES CURVES, AUDITS, ROWS AND THE EQUITY COLUMNS, so an arm
@@ -261,7 +266,10 @@ def run_v34(M, universe_label, universe_tag, px, op, sc, bd, pc, mom20, port_vol
     # later, in a different script, as a missing row rather than as this run's
     # doing. The universe work set the same precedent: a narrower selection writes
     # its own file rather than silently rewriting the published one.
-    SFX = arm_reg.selection_suffix()
+    # BOTH AXES IN THE NAME. The arm suffix says which arms are in the table; the
+    # cadence suffix says which cadence produced them. Both are empty at the
+    # default, so the canonical v34_* filenames are unchanged.
+    SFX = arm_reg.selection_suffix() + cadence.suffix()
     comp = pd.DataFrame(rows)
     comp.to_csv(M / f"v34_comparison{SFX}.csv", index=False)
 
@@ -379,7 +387,9 @@ def run_arm(u, arm, rebal=None, out_dir=None):
     from engine_core import precompute
     from test_exposure import backtest_exposure, START_CAPITAL
 
-    out = Path(out_dir) if out_dir is not None else paths.run_dir(u, arm)
+    # THE CADENCE IS PART OF THE OUTPUT PATH. Without it a --rebal 40 run wrote
+    # into runs/<uni>/<arm>/ and replaced the published cadence-20 result.
+    out = Path(out_dir) if out_dir is not None else paths.run_dir(u, arm, rebal)
     out.mkdir(parents=True, exist_ok=True)
 
     src = config.require_cache(u.score_cache, str(u.score_tmp),
