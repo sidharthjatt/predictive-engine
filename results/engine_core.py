@@ -100,6 +100,83 @@ M = config.METRICS_DIR
 
 
 # ---------------------------------------------------------------------------
+# THE CANONICAL PRICE COLUMN -- adj_close, repaired, applied at the load boundary
+# ---------------------------------------------------------------------------
+# adj_close IS THE PRICE. close is the fallback and nothing else.
+#
+# WHY THE FALLBACK EXISTS AND WHY IT IS NOT AN INTERPOLATION
+#     adj_close is unusable on exactly 219 rows in three symbols: VEDL (170 rows,
+#     2003, nifty100_benchmark), ASHOKLEY (41 rows, 2003, MidCap150/clean) and
+#     MAZDOCK (8 rows, 2017-12 to 2018-07, nifty100_benchmark). On 216 of those it
+#     is 0.00; on all 219 it sits outside its own session's [low, high], which is
+#     provably wrong from the row alone. Those rows take `close`.
+#
+#     Nothing is interpolated, carried forward, or reconstructed from an inferred
+#     ratio. A repaired price that LOOKS continuous is worse than an honest one:
+#     it would hide the defect from every downstream check instead of surfacing it.
+#     Fallback to close, or nothing.
+#
+# THE WHOLE BAR MOVES TOGETHER, NOT JUST THE CLOSE
+#     `open` has no adjusted counterpart in the source data, and op is the FILL
+#     PRICE for every buy and every sell (test_exposure.py:152) while px is what
+#     the book is VALUED at. Leaving open on the raw basis while close moves to the
+#     adjusted one puts the fill and the valuation on two different bases, and the
+#     same-day open->close return is then wrong by exactly (ratio - 1) on every
+#     affected row -- measured across mid and n100: 5,974 rows in full history,
+#     1,907 inside the backtest window, median |ratio-1| 2.18%, p95 10.5%,
+#     max 150.3%. That is a manufactured P&L on any name filled that morning.
+#
+#     So open is scaled by the SAME per-row ratio, and so are high and low.
+#     Scaling open alone would leave it outside its own [low, high] on 275 rows --
+#     re-creating, in the traded column, precisely the defect the fallback above
+#     exists to remove. high and low are loaded but consumed by nothing today
+#     (no feature and no backtest reads them), so scaling them is numerically
+#     inert; it is done anyway so the bar stays internally consistent for whoever
+#     reads it next. Raw `open` lies inside its own [low, high] on 1,546,393 of
+#     1,546,394 rows across all four universes, so a positive per-row scale
+#     preserves that containment exactly.
+#
+# WHERE THE RATIO IS 1, THE ROW IS UNTOUCHED, BIT FOR BIT
+#     ratio = price / close, and price == close on every fallback row and on every
+#     row where the two columns already agree. In data/raw/nifty50 and
+#     data/raw/Development_data_files adj_close is byte-identical to close on all
+#     284,356 and 183,100 rows, so the ratio is exactly 1.0 everywhere and the 58
+#     and the 74 multiply by a literal 1.0 -- exact in IEEE-754. Their published
+#     numbers cannot move through this function.
+#
+# THE COUNT IS LOGGED AT RUN TIME
+#     A data refresh that quietly increased the number of unusable adj_close rows
+#     would otherwise be absorbed in silence. build_panel prints the total and the
+#     per-symbol breakdown, so an increase shows up in the run log.
+PRICE_COLS = ["date", "open", "high", "low", "close", "adj_close", "volume"]
+
+
+def canonical_price(raw):
+    """Return (df, n_fallback) with adj_close as the price column.
+
+    `raw` needs open/high/low/close/adj_close. The returned frame carries the same
+    column names -- `close` now HOLDS the canonical price, and open/high/low are on
+    that same basis -- so every downstream consumer inherits the switch without
+    knowing it happened. adj_close is dropped: keeping it would leave two columns
+    claiming to be the adjusted price, one of them the unrepaired original.
+    """
+    d = raw.copy()
+    a, lo, hi = d["adj_close"], d["low"], d["high"]
+    # Evaluated against the RAW low/high, which is the point: the test asks whether
+    # adj_close belongs to the same session as the bar it is filed under. Scaling
+    # first would make the comparison circular and always pass.
+    bad = (a <= 0) | (a < lo) | (a > hi)
+    price = a.where(~bad, d["close"])
+    # close > 0 on every row of every universe (checked: 0 non-positive closes in
+    # 1,546,394 rows), so this division cannot produce an inf through the fallback.
+    ratio = price / d["close"]
+    for c in ("open", "high", "low"):
+        d[c] = d[c] * ratio
+    d["close"] = price
+    return d.drop(columns=["adj_close"]), int(bad.sum())
+
+
+# ---------------------------------------------------------------------------
 # NSE TRADING CALENDAR -- applied at panel construction so it cannot be bypassed
 # ---------------------------------------------------------------------------
 TRADING_CALENDAR = Path(__file__).resolve().parents[1] / "data" / "nse_trading_calendar.csv"
@@ -173,9 +250,17 @@ def build_panel(horizon, data_dir=None):
     # any date the calendar would remove is at full symbol density.
     _removed = _check_calendar(_cal, _pre, tag=str(Path(_src).name))
     _dropped = 0
+    _fallback = {}
     for f in sorted(Path(_src).glob("*.csv")):
         raw = config.read_price_csv(f).sort_values("date")
-        raw = raw[["date", "open", "high", "low", "close", "volume"]].dropna()
+        # THE LOAD BOUNDARY. adj_close is selected here and resolved into `close`
+        # by canonical_price immediately, so the panel below -- and therefore every
+        # px/op pivot every consumer builds from it -- is on the adjusted basis.
+        # This is the ONLY place the choice is made.
+        raw = raw[PRICE_COLS].dropna()
+        raw, _nfb = canonical_price(raw)
+        if _nfb:
+            _fallback[f.stem] = _nfb
         # Market-holiday rows are removed BEFORE any feature is computed, so a
         # phantom session cannot enter a rolling window, the market return, the
         # union date index, or an execution price.
@@ -199,6 +284,14 @@ def build_panel(horizon, data_dir=None):
     p = pd.concat(frames, ignore_index=True)
     print(f"    trading calendar: {len(_removed)} non-trading date(s) removed, "
           f"{_dropped:,} rows across {len(frames)} symbols")
+    # PRINTED EVERY RUN, INCLUDING WHEN IT IS ZERO. A silent zero and a silently
+    # grown count look identical in a log that only speaks up on trouble, and the
+    # whole point of the count is to notice a data refresh that made adj_close
+    # worse. Per symbol, because a new offender matters more than a bigger total.
+    _tfb = sum(_fallback.values())
+    print(f"    canonical price: adj_close on {len(p) - _tfb:,} rows, "
+          f"close fallback on {_tfb:,} "
+          f"({', '.join(f'{k} {v}' for k, v in sorted(_fallback.items())) or 'none'})")
     p = add_market_relative_features(p)
 
     # PRICES ARE NO LONGER FILTERED BY FEATURE AVAILABILITY.
