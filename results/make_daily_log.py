@@ -23,8 +23,15 @@ import pandas as pd
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import survivorship as sv
+import config
 
 W = 118
+
+# TOP_N AND BUFFER ARE READ, NOT TYPED. The legend and sections [A], [C] and [D]
+# spelled "top 8", "buffer (16)" and "ranks 1-8 ... 9-16 ... 17+" as literals. They
+# happen to match config today; a change to either constant would have left this
+# file describing a selection rule the engine no longer used.
+TOP_N, BUFFER = config.TOP_N, config.BUFFER
 
 # Mirrors the constants in test_exposure.py -- needed for reconciliation only.
 SLIPPAGE = 0.0015
@@ -36,8 +43,11 @@ TOL_CASH = 0.50      # rupees; CSVs are rounded to 2 decimals, so a few paise of
                      # noise is expected (max observed 0.03). A real error would
                      # be orders of magnitude larger.
 TOL_EQ = 0.05
+# The same 1 paisa audit_step.run() uses to decide whether to write the trail at
+# all, so this log cannot disagree with the gate that let the trail exist.
+TOL_CURVE = 0.01
 
-LEGEND = """\
+LEGEND_TEMPLATE = """\
  HOW TO READ THIS FILE
  ------------------------------------------------------------------------------------------------------------------
  Each trading day is one block. The order of events matches the order in the code:
@@ -45,7 +55,7 @@ LEGEND = """\
    1. the cash balance is carried forward (with yield, if a cash yield is configured)
    2. yesterday's order fills at TODAY's OPEN -- all SELLs first, then all BUYs
    3. positions are marked to market at TODAY's CLOSE
-   4. if today is a rebalance day (every 20 trading days), a new order is created from
+   4. if today is a rebalance day (every {rebal} trading days), a new order is created from
       today's CLOSE signal, to be filled at TOMORROW's OPEN
 
  DAY TYPE
@@ -74,15 +84,135 @@ LEGEND = """\
               SHARES  for every symbol: opening quantity +/- today's trade = closing quantity
             Each check is marked OK or *** FAIL ***. A full tally appears at the end of the file.
 
- WHY SOLD   A stock is sold only when its rank falls below 16 (the buffer). Ranks 9-16 are
+ WHY SOLD   A stock is sold only when its rank falls below {buffer} (the buffer). Ranks {top1}-{buffer} are
             held, which avoids unnecessary turnover at every rebalance.
- WHY BOUGHT It entered the top 8 and was not already held.
- EXPOSURE   Breadth is the fraction of stocks with positive 20-day momentum. That same
-            fraction of the portfolio is invested; the remainder stays in cash. There is
-            no indicator and no tuned threshold.
+ WHY BOUGHT It entered the top {top} and was not already held.
+{exposure_para}
+{sizing_para}
+ SKIPS      An order that was created but did not fill is listed under the day it should
+            have filled, with the reason and the actual numbers. Four reasons exist:
+              no open price (NaN/<=0)  the symbol had no usable open price that morning
+              qty < 1 after sizing     the target was smaller than one share
+              cash short (before TC)   the funding defect below
+              cash short (incl TC)     the same, once transaction costs are added
+ FUNDING    invest value is a share of the WHOLE portfolio, but new positions are paid for
+            out of CASH ALONE, and a name already held is never resized. So whenever a
+            buffer name is holding capital the book is over-committed by construction and
+            the tail of the score-descending buy loop is skipped. That is what the
+            cash-short skips are. A 100%-invested arm hits it constantly; a breadth-scaled
+            arm holds cash anyway and rarely does. The per-rebalance counts below make the
+            difference visible.
  NOTE       Existing holdings are never resized. Only new positions are sized against the
             target exposure, so the actual invested percentage can drift from the target.
 """
+
+
+# ---------------------------------------------------------------------------
+# THE ARM DECIDES WHAT IS TRUE IN THE PROSE, NOT JUST THE FILENAME
+# ---------------------------------------------------------------------------
+# The legend and section [D] used to describe v2 unconditionally: "that same
+# fraction of the portfolio is invested" is FALSE for v1 and v3, which pin
+# exposure at 1.0 and ignore breadth entirely. Their decisions file still carries
+# a breadth column -- it is computed for every arm and used only by the
+# breadth-scaled ones -- so a log that printed it without qualification implied it
+# drove the book when it did not.
+#
+# SIZING IS NAMED IN WORDS, not as a formula. v1 and v3 differ ONLY in invvol
+# versus provol, and "1/vol" against "vol" is easy to misread at a glance; the
+# whole point of these logs is reading two arms side by side.
+SIZING_PROSE = {
+    "invvol": ("inverse volatility (w = 1/vol) -- the LARGER position goes to the "
+               "CALMER name"),
+    "provol": ("proportional volatility (w = vol) -- the LARGER position goes to the "
+               "MORE VOLATILE name"),
+    "equal":  "equal weight -- every position gets the same share of invest value",
+}
+
+
+def legend_for(arm):
+    """LEGEND_TEMPLATE with the arm-dependent paragraphs resolved."""
+    if arm.mode == "breadth":
+        exposure_para = (
+            " EXPOSURE   Breadth is the fraction of stocks with positive 20-day momentum. That same\n"
+            "            fraction of the portfolio is invested; the remainder stays in cash. There is\n"
+            "            no indicator and no tuned threshold.")
+    else:
+        exposure_para = (
+            " EXPOSURE   This arm is ALWAYS 100% INVESTED. It has no breadth scaling and no cash\n"
+            "            rule. Breadth is still reported each rebalance as an OBSERVED DIAGNOSTIC --\n"
+            "            it is what a breadth-scaled arm would have done on that day -- but it does\n"
+            "            not affect this book at all.")
+    sizing_para = (f" SIZING     {SIZING_PROSE.get(arm.sizing, arm.sizing)}.\n"
+                   f"            Existing holdings are never resized, so realised weights drift from target.")
+    # THE CADENCE IS READ, NOT TYPED. "every 20 trading days" was a literal, so a
+    # --rebal 200 log contradicted its own header, which said 10 rebalances.
+    import cadence as _cd
+    return LEGEND_TEMPLATE.format(exposure_para=exposure_para, sizing_para=sizing_para,
+                                  top=TOP_N, top1=TOP_N + 1, buffer=BUFFER,
+                                  rebal=_cd.selected())
+
+
+# ---------------------------------------------------------------------------
+# STALE-PRICE DETECTION -- WAS THERE A RAW ROW FOR THIS SYMBOL ON THIS DATE?
+# ---------------------------------------------------------------------------
+# px and op are pivots with .ffill() applied, so a symbol that did not trade on a
+# date still carries a price: the last one it had. A fill at that price is a fill
+# at a price nobody quoted, and a holding marked at it is marked at a stale mark.
+#
+# THIS CANNOT BE FOUND FROM daily_skipped. The engine skips an order only when the
+# open is NaN or <= 0, and ffill guarantees it is neither -- so the guard never
+# trips and the skip never happens. Measured: "no open price (NaN/<=0)" fires ZERO
+# times across every mid and n100 trail, while PATANJALI's 2019-11-27 SELL of
+# 33,575 shares filled at 1.1483 on a date with no raw row at all. ffill is
+# precisely what prevents the skip, so surfacing skips can never surface this.
+#
+# READ-ONLY. Nothing here changes a price or a fill; it is a reporting flag.
+def raw_row_index(u):
+    """{symbol: set of dates that have a RAW price row}, restricted to the calendar.
+
+    Dates come from config.read_price_csv, which routes through
+    config.smart_parse_dates -- the 58/74 files and the mid/n100 files use
+    different date formats and a hardcoded strptime silently drops whole universes.
+
+    The calendar restriction matters in both directions: 70 of the 148 MidCap150
+    files carry market-holiday rows that are not sessions, and counting one of
+    those as "a raw row exists" would hide a genuine gap.
+    """
+    from engine_core import _load_calendar
+    cal = _load_calendar()
+    idx = {}
+    try:
+        src = Path(u.prepare_data_dir())
+    except Exception:
+        return None, None
+    for f in sorted(src.glob("*.csv")):
+        try:
+            d = config.read_price_csv(f)
+        except Exception:
+            continue
+        if "date" not in d.columns:
+            continue
+        idx[f.stem] = {x for x in d["date"] if x in cal}
+    return idx, sorted(cal)
+
+
+def stale_note(raw_idx, cal_sorted, sym, d):
+    """"carried forward from YYYY-MM-DD, N sessions back", or None if not stale."""
+    if raw_idx is None:
+        return None
+    have = raw_idx.get(sym)
+    if have is None or d in have:
+        return None
+    prior = [x for x in have if x < d]
+    if not prior:
+        return "no raw row on or before this date"
+    src = max(prior)
+    try:
+        n = cal_sorted.index(d) - cal_sorted.index(src)
+    except ValueError:
+        n = -1
+    return (f"STALE -- no raw row today; price carried forward from "
+            f"{src.date()}, {n} session{'' if n == 1 else 's'} back")
 
 
 def load(M, tag):
@@ -96,26 +226,49 @@ def load(M, tag):
             r("daily_decisions", "decided_on"), skipped)
 
 
-def build(mdir, tag):
+TRAIL_FILES = ("daily_holdings", "daily_summary", "daily_trades",
+               "daily_ranking", "daily_decisions")
+
+
+def missing_trail(M, tag):
+    """Which of the trail files this log needs are absent. daily_skipped is not
+    listed: load() already tolerates its absence and substitutes an empty frame."""
+    return [f for f in TRAIL_FILES if not (Path(M) / f"{f}_{tag}.csv").exists()]
+
+
+def build(mdir, tag, arm, raw_idx=None, cal_sorted=None):
+    """One forensic log for one already-written audit trail, named by `tag`.
+
+    THIS USED TO REFUSE UNLESS THE RUN WAS v2 AT THE DEFAULT CADENCE, because it
+    reconstructed the unsuffixed daily_*_{universe}.csv names itself rather than
+    asking for the writer's rule. Under `--arm v3` or `--rebal 200` the trail it
+    wanted did not exist, so it printed a skip and produced no forensic log at all
+    -- the behaviour this change removes. The caller now resolves the tag through
+    audit_step.artefact_tag(), the one definition, and passes it in.
+    """
     M = Path(mdir)
-    # THIS LOG IS v2's, AND IT SKIPS WHEN v2's TRAIL IS NOT THERE.
-    # Its header says "v2 FINAL (breadth-scaled)" and it reads the unsuffixed
-    # daily_*_<tag>.csv, which only a run that selected v2 at the default cadence
-    # produces. Under `--arm v1,v3` or `--rebal 40` those files do not exist and
-    # this died in pandas with a FileNotFoundError several frames deep.
-    #
-    # FOUND FROM COLD, NOT WARM. Every earlier run of those selections passed
-    # because a previous default run had left v2's trail on disk.
-    import arms.registry as _ar
-    import cadence as _cd
-    if "v2" not in set(_ar.selected_names()) or not _cd.is_default():
-        why = ("v2 is not in this run's arm selection"
-               if "v2" not in set(_ar.selected_names())
-               else f"this run's cadence is {_cd.selected()}, not the default")
-        print(f"  {tag}: daily log SKIPPED -- it is v2's forensic log at the "
-              f"default cadence, and {why}.")
-        return
     h, s, t, rk, dc, sk = load(M, tag)
+
+    # THE ARM'S OWN PUBLISHED CURVE, resolved by audit_step's lookup -- imported,
+    # not reimplemented. It already picks v2FINAL_equity{suffix}.csv for v1/v2 and
+    # v34_equity{suffix}.csv for v3/v4, with the cadence fallbacks, and getting
+    # that resolution subtly different here would reconcile against another arm's
+    # or another cadence's curve and report a confident MISMATCH of millions.
+    #
+    # THIS IS VISIBILITY, NOT A NEW SAFETY PROPERTY. audit_step.run() already
+    # compares the re-run against this same curve and RETURNS WITHOUT WRITING any
+    # of the six CSVs when the max absolute difference is 1 paisa or more. So a
+    # trail only exists on disk if this check has already passed upstream; showing
+    # it here makes the log self-contained for a reader who has only the log.
+    import audit_step as _as
+    # NAMED ref_curve, NOT ref. Section [A] below already binds `ref` to the
+    # derived open price of each fill, inside the day loop -- a curve called `ref`
+    # survived exactly until the first execution day and then became a float.
+    ref_curve = _as._reference_curve(M, arm.name)
+    # Names the COLUMN, not the file: _reference_curve chooses between several
+    # candidate files and does not report which, and guessing the filename here
+    # would be a second copy of that resolution -- the thing this import avoids.
+    ref_name = f"engine curve [{arm.equity_column}]"
 
     sg = s.set_index("date")
     hg = {d: g for d, g in h.groupby("date")}
@@ -179,7 +332,7 @@ def build(mdir, tag):
         entry_at[d] = dict(cur)
 
     L = ["=" * W,
-         f" PREDICTIVE ENGINE -- FORENSIC DAILY LOG  |  {tag} UNIVERSE  |  v2 FINAL (breadth-scaled)",
+         f" PREDICTIVE ENGINE -- FORENSIC DAILY LOG  |  {tag}  |  {arm.label}",
          "=" * W,
          f" Period          : {s['date'].min().date()} to {s['date'].max().date()}"
          f"   ({len(s):,} trading days)",
@@ -190,9 +343,12 @@ def build(mdir, tag):
          # file six months from now sees how the universe was constructed before
          # they see a single number from it.
          f" Survivorship    : {sv.describe_state()}",
-         "=" * W, LEGEND, "=" * W]
+         "=" * W, legend_for(arm), "=" * W]
 
     ok_cash = ok_eq = ok_sh = 0
+    ok_ref = n_ref = 0
+    n_stale_fill = n_stale_hold = n_hold_rows = 0
+    stale_syms = {}
     fail_lines = []
     prev_cash, prev_tc = float(START_CAPITAL), 0.0
     prev_qty, peak, last_dec = {}, 0.0, None
@@ -248,10 +404,16 @@ def build(mdir, tag):
                 L.append(f'      {oid.get((d, o["symbol"]), "-"):<10}{o["action"]:<6}'
                          f'{o["symbol"]:<13}{int(o["qty"]):>7}{ref:>12,.2f}{o["price"]:>11,.2f}'
                          f'{slip:>10,.0f}{o["value"]:>14,.2f}{o["tc"]:>9,.2f}')
+                _sn = stale_note(raw_idx, cal_sorted, o["symbol"], d)
+                if _sn:
+                    n_stale_fill += 1
+                    stale_syms[o["symbol"]] = stale_syms.get(o["symbol"], 0) + 1
+                    L.append(f'          !! {_sn}  -- this fill is at a price that '
+                             f'did not trade today')
                 why = act_of.get(src, {}).get(o["symbol"], (None, None))
                 if o["action"] == "SELL":
                     rt = roundtrip.get((d, o["symbol"]))
-                    wtxt = (f'rank {why[0]} -- fell out of the buffer (16)' if why[0]
+                    wtxt = (f'rank {why[0]} -- fell out of the buffer ({BUFFER})' if why[0]
                             else "fell out of the buffer")
                     if rt:
                         L.append(f'          -> {wtxt}  |  entered {rt["buy_date"].date()} at '
@@ -261,7 +423,7 @@ def build(mdir, tag):
                         L.append(f'          -> {wtxt}')
                 else:
                     L.append(f'          -> rank {why[0] if why[0] else "?"} -- entered the '
-                             f'top 8 and was not already held')
+                             f'top {TOP_N} and was not already held')
             b, sl = g[g.action == "BUY"], g[g.action == "SELL"]
             L.append(f'      TOTAL   BUY {len(b)} Rs {b["value"].sum():>12,.0f}   |   '
                      f'SELL {len(sl)} Rs {sl["value"].sum():>12,.0f}')
@@ -299,9 +461,15 @@ def build(mdir, tag):
         bad_sh = [sy for sy in set(list(qty_now) + list(prev_qty) + list(traded))
                   if prev_qty.get(sy, 0) + traded.get(sy, 0) != qty_now.get(sy, 0)]
 
+        ref_v = (float(ref_curve.get(d))
+                 if (ref_curve is not None and d in ref_curve.index) else None)
+        r_ok = ref_v is None or abs(total - ref_v) <= TOL_CURVE
+        if ref_v is not None:
+            n_ref += 1
+            ok_ref += r_ok
         c_ok, e_ok, s_ok = abs(d_cash) <= TOL_CASH, abs(d_eq) <= TOL_EQ, len(bad_sh) == 0
         ok_cash += c_ok; ok_eq += e_ok; ok_sh += s_ok
-        if not (c_ok and e_ok and s_ok):
+        if not (c_ok and e_ok and s_ok and r_ok):
             fail_lines.append(f"  {d.date()}  cash {d_cash:+.2f}  equity {d_eq:+.2f}  "
                               f"shares {'OK' if s_ok else ','.join(bad_sh)}")
 
@@ -320,6 +488,10 @@ def build(mdir, tag):
         L.append(f'      SHARES  {len(qty_now)} symbols: opening quantity +/- today\'s trade '
                  f'= closing quantity   '
                  f'{"OK" if s_ok else "*** FAIL: " + ", ".join(bad_sh) + " ***"}')
+        if ref_v is not None:
+            L.append(f'      CURVE   this trail {total:>14,.2f}  |  {ref_name} {ref_v:>14,.2f}'
+                     f'  |  difference Rs {total - ref_v:+.2f}   '
+                     f'{"OK" if r_ok else "*** FAIL ***"}')
         if abs(prev_tc + fees_today - float(r["cum_tc"])) > TOL_CASH:
             L.append(f'      FEES    *** FAIL *** cumulative fees moved by '
                      f'{float(r["cum_tc"]) - prev_tc:,.2f} but today\'s fees were '
@@ -342,13 +514,19 @@ def build(mdir, tag):
                 unre = (x["price"] / epx - 1) * 100 if e and epx else 0.0
                 days = (d - e["date"]).days if e else 0
                 rnk, act = ranks.get(x["symbol"], (None, ""))
-                st = ("top 8" if act in ("BUY", "HOLD-top") else
+                st = (f"top {TOP_N}" if act in ("BUY", "HOLD-top") else
                       "buffer" if act == "HOLD-buffer" else
                       "exiting" if act == "SELL" else "-")
+                _sn = stale_note(raw_idx, cal_sorted, x["symbol"], d)
+                n_hold_rows += 1
+                if _sn:
+                    n_stale_hold += 1
+                    stale_syms[x["symbol"]] = stale_syms.get(x["symbol"], 0) + 1
                 L.append(f'      {x["symbol"]:<13}{int(x["qty"]):>7}{str(edt):>12}'
                          f'{epx:>10,.2f}{x["price"]:>10,.2f}{x["value"]:>14,.2f}'
                          f'{x["weight_pct"]:>7.2f}%{unre:>8.2f}%{days:>6}'
-                         f'{(rnk if rnk else "-"):>6}  {st}')
+                         f'{(rnk if rnk else "-"):>6}  {st}'
+                         + (f'   !! {_sn}' if _sn else ''))
             L.append(f'      {"TOTAL":<13}{"":>7}{"":>12}{"":>10}{"":>10}'
                      f'{hh["value"].sum():>14,.2f}{hh["weight_pct"].sum():>7.2f}%')
         L.append(f'      Invested Rs {mtm:,.2f} ({r["invested_pct"]}%)   |   '
@@ -360,9 +538,23 @@ def build(mdir, tag):
             L.append("")
             L.append(f"  >>> [D] ORDER CREATION       rebalance #{rebal_no[d]} -- signal taken at "
                      f"TODAY's CLOSE, fills at TOMORROW's OPEN")
-            L.append(f'      breadth       : {int(x["breadth_pos"])}/{int(x["breadth_total"])} stocks '
-                     f'with positive 20-day momentum  =  {x["breadth"]:.4f}')
-            L.append(f'      exposure      : {x["exposure"]*100:.2f}%  (equal to breadth -- no threshold)')
+            # BREADTH IS PRINTED FOR EVERY ARM, but only a breadth-scaled arm may
+            # claim it drove the book. For mode="none" it is an OBSERVED
+            # DIAGNOSTIC -- what a breadth-scaled arm would have done today -- and
+            # is labelled as such, so a v1 log showing breadth collapsing while the
+            # book stays fully invested reads correctly side by side with v2's.
+            if arm.mode == "breadth":
+                L.append(f'      breadth       : {int(x["breadth_pos"])}/{int(x["breadth_total"])} stocks '
+                         f'with positive 20-day momentum  =  {x["breadth"]:.4f}')
+                L.append(f'      exposure      : {x["exposure"]*100:.2f}%  '
+                         f'(equal to breadth -- no threshold)')
+            else:
+                L.append(f'      breadth       : {int(x["breadth_pos"])}/{int(x["breadth_total"])} stocks '
+                         f'with positive 20-day momentum  =  {x["breadth"]:.4f}   '
+                         f'[OBSERVED ONLY -- NOT USED BY THIS ARM]')
+                L.append(f'      exposure      : {x["exposure"]*100:.2f}%  '
+                         f'(this arm is always 100% invested; breadth is ignored)')
+            L.append(f'      sizing        : {SIZING_PROSE.get(arm.sizing, arm.sizing)}')
             L.append(f'      portfolio     : Rs {x["port_value"]:,.2f}   '
                      f'(of which cash Rs {x["cash_before"]:,.2f})')
             L.append(f'      invest value  : Rs {x["invest_value"]:,.2f}   '
@@ -370,10 +562,21 @@ def build(mdir, tag):
             L.append(f'      plan          : {int(x["n_buy"])} BUY, {int(x["n_sell"])} SELL   '
                      f'({int(x["n_held_before"])} stocks currently held)')
             act_inv = float(r["invested_pct"])
-            L.append(f'      target vs held: target exposure {x["exposure"]*100:.2f}% against '
-                     f'{act_inv:.2f}% currently invested   '
-                     f'(gap {act_inv - x["exposure"]*100:+.2f} pts -- existing holdings are '
-                     f'not resized)')
+            gap = act_inv - float(x["exposure"]) * 100
+            if arm.mode == "breadth":
+                L.append(f'      target vs held: target exposure {x["exposure"]*100:.2f}% against '
+                         f'{act_inv:.2f}% currently invested   '
+                         f'(gap {gap:+.2f} pts -- existing holdings are not resized)')
+            else:
+                # AT A PINNED 100% THE GAP IS NOT AN EXPOSURE GAP. There is no
+                # exposure decision to miss; the shortfall is uninvested cash the
+                # funding rule could not deploy -- the defect described under
+                # FUNDING in the legend. Calling it an exposure gap here was the
+                # misleading half of this line.
+                L.append(f'      invested      : {act_inv:.2f}% of the book is in stock; the '
+                         f'{-gap:.2f} pts of cash is NOT an exposure decision --')
+                L.append(f'                      this arm targets 100%, and the shortfall is '
+                         f'capital the funding rule could not deploy (see FUNDING).')
             if float(x["invest_value"]) <= 0:
                 L.append("      NOTE          : invest value is zero -- no BUY will fill tomorrow, "
                          "only SELLs.")
@@ -394,8 +597,19 @@ def build(mdir, tag):
                     L.append(f'      {int(y["rank"]):>5}  {y["symbol"]:<13}{y["score"]:>12.6f}'
                              f'{v:>9}{y["target_wt_pct"]:>8.2f}%'
                              f'{"Y" if y["held_before"] else "N":>6}  {y["action"]:<12}{myid}')
-                L.append("      (ranks 1-8 are bought or held, 9-16 are held in the buffer, "
-                         "17+ are sold)")
+                L.append(f"      (ranks 1-{TOP_N} are bought or held, {TOP_N+1}-{BUFFER} are "
+                         f"held in the buffer, {BUFFER+1}+ are sold)")
+            # WHAT THIS ORDER ACTUALLY DID, counted by reason. The per-day list in
+            # section [A] of tomorrow shows each skipped order; this is the tally
+            # for the order created today, so a reader sees at the point of
+            # DECISION how much of the plan will not survive to execution.
+            nxt_d = [z for z in all_days if z > d]
+            skg = kg.get(nxt_d[0]) if nxt_d else None
+            if skg is not None and len(skg):
+                vc = skg["reason"].value_counts()
+                L.append(f'      skips tomorrow: {len(skg)} of {int(x["n_buy"]) + int(x["n_sell"])} '
+                         f'orders will not fill  ('
+                         + ", ".join(f"{k} x{v}" for k, v in vc.items()) + ')')
             L.append("      -> the order is pending and fills at the next trading day's OPEN")
             last_dec = d
 
@@ -414,8 +628,33 @@ def build(mdir, tag):
           f"   {'OK' if ok_eq == n else '*** FAIL ***'}",
           f"   SHARE-COUNT identity passed : {ok_sh:,} / {n:,}"
           f"   {'OK' if ok_sh == n else '*** FAIL ***'}",
+          (f"   ENGINE-CURVE agreement      : {ok_ref:,} / {n_ref:,}"
+           f"   {'OK' if ok_ref == n_ref else '*** FAIL ***'}   (vs {ref_name})"
+           if n_ref else
+           "   ENGINE-CURVE agreement      : NOT CHECKED -- no published curve for "
+           "this arm and cadence on disk"),
           f"   orders filled               : {len(t):,}  (every one is shown above)",
-          f"   orders skipped              : {len(sk):,}  (each shown with its reason)",
+          f"   orders skipped              : {len(sk):,}  (each shown with its reason)"]
+    # BY REASON, NOT JUST A TOTAL. The mix is the diagnosis: a 100%-invested arm is
+    # dominated by cash-short (the funding defect), a breadth-scaled arm barely
+    # registers it, and "no open price" means a symbol had no usable open that
+    # morning. A bare count hides which of those happened.
+    if raw_idx is not None:
+        L.append(f"   fills on a STALE price      : {n_stale_fill:,} / {len(t):,}"
+                 f"   {'OK' if n_stale_fill == 0 else '*** see the !! lines in [A] ***'}")
+        L.append(f"   holding rows on a STALE mark: {n_stale_hold:,} / {n_hold_rows:,}"
+                 f"   {'OK' if n_stale_hold == 0 else '*** see the !! lines in [C] ***'}")
+        if stale_syms:
+            L.append("     symbols affected          : "
+                     + ", ".join(f"{k} x{v}" for k, v in sorted(stale_syms.items())))
+    else:
+        L.append("   STALE-PRICE CHECK           : NOT RUN -- raw price directory unavailable")
+    if len(sk):
+        for _rsn, _n in sk["reason"].value_counts().items():
+            L.append(f"     - {_rsn:<26}: {_n:,}")
+    else:
+        L.append("     - none")
+    L += [
           f"   final equity                : Rs {s['total'].iloc[-1]:,.2f}",
           ""]
     if fail_lines:
@@ -464,24 +703,47 @@ def main():
     # The literal REGISTRY["<tag>"] subscripts below are kept deliberately:
     # check_pipeline_order reads them to resolve this step's outputs, and only the
     # GUARD moved to the selection, not the subscript.
+    # ONE LOG PER (UNIVERSE, SELECTED ARM), not one per universe. The tag comes
+    # from audit_step.artefact_tag -- the same call the writer uses -- so the
+    # reader cannot drift from the writer's naming.
+    import arms.registry as _ar
+    import audit_step
+
+    def _logs_for(u, mdir):
+        # ONCE PER UNIVERSE, not once per arm: this reads every raw CSV in the
+        # universe, and all four arms share the same answer.
+        raw_idx, cal_sorted = raw_row_index(u)
+        for _arm in _ar.selected():
+            tag = audit_step.artefact_tag(u, _arm)
+            gone = missing_trail(mdir, tag)
+            if gone:
+                # NEVER SILENTLY NOTHING. A combination with no trail on disk says
+                # so, by name, in run.py's NOT RUN style -- the whole point of this
+                # change was to stop producing no log and no explanation.
+                print(f"  NOT RUN  {tag}: no audit trail on disk "
+                      f"({', '.join(g + '_' + tag + '.csv' for g in gone)}). "
+                      f"{u.label} has no {_arm.name} trail.")
+                continue
+            build(mdir, tag, _arm, raw_idx, cal_sorted)
+
     SEL = set(selected_tags())
     if "58" in SEL:
-        build(config.METRICS_DIR, "58")
+        _logs_for(REGISTRY["58"], config.METRICS_DIR)
     else:
         print("  58 not selected for this run -- skipping its daily log")
     if "74" in SEL:
         import config74
-        build(config74.METRICS_DIR_74, "74")
+        _logs_for(REGISTRY["74"], config74.METRICS_DIR_74)
     else:
         print("  74 not selected for this run -- skipping its daily log")
     if "mid" in SEL:
         import config_mid
-        build(config_mid.METRICS_DIR_MID, "mid")
+        _logs_for(REGISTRY["mid"], config_mid.METRICS_DIR_MID)
     else:
         print("  mid not selected for this run -- skipping its daily log")
     if "n100" in SEL:
         import config_n100
-        build(config_n100.METRICS_DIR_N100, "n100")
+        _logs_for(REGISTRY["n100"], config_n100.METRICS_DIR_N100)
     else:
         print("  n100 not selected for this run -- skipping its daily log")
 
