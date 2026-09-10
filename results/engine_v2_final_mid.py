@@ -102,6 +102,10 @@ def main():
     # raised FileNotFoundError whenever /tmp had been cleared. n100's engine has
     # always used config.require_cache with the permanent copy as the fallback;
     # this now matches it. Pre-existing bug, not introduced by the V34 work.
+    # Guard loaded per universe -- see engine_core.set_tradeability.
+    import engine_core as _ec
+    from universes.registry import REGISTRY as _REG
+    _ec.set_tradeability(_REG["mid"])
     src = config.require_cache(M / "v_mid_expanding_cache.csv",
                                "/tmp/v_mid_expanding.csv",
                                what="MidCap150 score panel")
@@ -130,12 +134,28 @@ def main():
     # what REBAL already was, and `_rebal = REBAL if rebal is None else int(rebal)`
     # resolves both to the same 20 -- so the default path is byte-identical.
     _reb = cadence.selected()
+    # THE PROFILE'S CAP, RESOLVED ONCE AND PASSED AS AN ARGUMENT.
+    # profiles.py records why this is not a global on test_exposure: cadence.py
+    # documents rebal_cadence_sweep.py setting test_exposure.REBAL and never
+    # restoring it, so every later in-process step silently used the wrong cadence.
+    # None under profile="research", so `q` is untouched and the published history
+    # is exact.
+    import profiles as _prof
+    import config as _cfg
+    _cap = _prof.participation_cap()
+    _capkw = {}
+    if _cap is not None:
+        import tradability as _tr
+        from engine_core import _load_calendar as _lc
+        _capkw = {"participation_cap": _cap,
+                  "vol20": _tr.median_volume(_REG["mid"].prepare_data_dir(), _lc(),
+                                             _cfg.BT_START_DATE, _cfg.BT_END_DATE)}
     base_eq, tcb, nb, _ = backtest_exposure(px, op, sc, bd, pc, mom20, port_vol,
                                             mode="none", target_vol=tv,
-                                            audit=base_audit, rebal=_reb)
+                                            audit=base_audit, rebal=_reb, **_capkw)
     fin_eq, tcf, nf, expo = backtest_exposure(px, op, sc, bd, pc, mom20, port_vol,
                                               mode="breadth", target_vol=tv,
-                                              rebal=_reb)
+                                              rebal=_reb, **_capkw)
     bh = START_CAPITAL * (1 + px.pct_change().loc[bd].mean(axis=1).fillna(0)).cumprod()
 
     mbase = metrics(base_eq, "Inverse-vol, 100% invested (v1 final)", tcb, nb)
