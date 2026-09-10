@@ -65,6 +65,51 @@ from features_v2 import (FEATS_V2, add_stock_features,
 # list[t] != list[t-1] + inclusions - exclusions on 20 of 75 transitions).
 MEMBERSHIP = None
 
+# ---------------------------------------------------------------------------
+# TRADEABILITY -- the third, PRICE-SIDE flag. See results/tradability.py.
+# ---------------------------------------------------------------------------
+# {symbol: frozenset(dates the backtest may not transact on)}, or None for "no
+# guard". Held here, next to MEMBERSHIP, for the same reason and read the same way:
+# test_exposure.backtest_exposure consults it directly rather than taking it as an
+# argument, so all 25 of its call sites inherit the guard without a signature
+# change. Threading a parameter through 25 sites is how a guard ends up applied in
+# four places and absent in twenty-one.
+#
+# THE LEAK THIS GUARDS AGAINST. module_state.py records the hazard: a module global
+# set by one in-process step and never restored silently changes every later step.
+# rebal_cadence_sweep.py did exactly that with test_exposure.REBAL, which is why
+# cadence is a parameter and not a global. Tradeability is different in kind -- it
+# is a property of a UNIVERSE's raw data, stable for the whole run, like MEMBERSHIP
+# -- but the leak is still real: mid's map left in place while n100 runs would
+# block symbols that do not exist in n100 and silently do nothing, or worse, share
+# a ticker. So the tag is stored beside the map and set_tradeability() refuses a
+# mismatch rather than trusting the caller to clear it.
+TRADEABLE = None
+TRADEABLE_TAG = None
+
+
+def set_tradeability(u, enabled=True):
+    """Load (or clear) the untradeable map for universe `u`. Returns the map."""
+    global TRADEABLE, TRADEABLE_TAG
+    if not enabled:
+        TRADEABLE, TRADEABLE_TAG = None, None
+        return None
+    import tradability
+    TRADEABLE = tradability.untradeable(
+        u.prepare_data_dir(), _load_calendar(),
+        config.BT_START_DATE, config.BT_END_DATE)
+    TRADEABLE_TAG = u.tag
+    return TRADEABLE
+
+
+def tradeable_on(symbol, dt):
+    """False only when a guard is loaded AND it blocks this (symbol, date)."""
+    if TRADEABLE is None:
+        return True
+    blocked = TRADEABLE.get(symbol)
+    return blocked is None or dt not in blocked
+
+
 try:
     from qbeast_in_charges import (compute_leg_charges, Broker, Segment,
                                    Product, Side as QSide, Exchange)
