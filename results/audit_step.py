@@ -76,6 +76,40 @@ def panel_path(u):
         f"{u.score_cache} / {u.score_tmp} missing -- run run_all.py first")
 
 
+def artefact_tag(u, arm):
+    """The filename tag for one (universe, arm, cadence) -- THE ONE DEFINITION.
+
+    WHY THIS IS A FUNCTION AND NOT A LINE INSIDE run().
+        It used to be two lines in run(), and run() is the WRITER. make_daily_log
+        is a READER of the same files and had no way to ask for the rule, so it
+        hardcoded the unsuffixed `daily_*_{u.tag}.csv` names instead and returned
+        early whenever they did not exist -- which is every selection except v2 at
+        the default cadence. A reader that reconstructs a writer's naming rule
+        drifts from it the moment either changes. There is now one rule and both
+        sides call it.
+
+    v2 KEEPS THE UNSUFFIXED FILENAMES. nt_verify.py, nt_daily_compare.py and
+    nt_holdings_compare.py read daily_summary_{tag}.csv, daily_holdings_{tag}.csv
+    and daily_trades_{tag}.csv by those exact names, and they are the 92-of-92
+    correctness gate. Suffixing v2 would break the gate that certifies the engine.
+    DAILY_LOG_{tag}.txt inherits the same rule, and README cites DAILY_LOG_mid.txt
+    and DAILY_LOG_n100.txt by name. Every other arm is suffixed.
+
+    THE CADENCE JOINS THE FILENAME, empty at the default, so v2's unsuffixed names
+    are untouched by a default run.
+
+    `arm` may be an Arm or a bare name, because callers hold both.
+    """
+    import profiles
+    name = getattr(arm, "name", arm)
+    tag = u.tag if name == "v2" else f"{u.tag}_{name}"
+    # THE PROFILE JOINS THE TAG for the same reason the cadence does: a
+    # profile="tradeable" run must not overwrite the research trail that the
+    # Nautilus comparison scripts and the daily log read by name. Empty at the
+    # default, so v2's unsuffixed names are untouched.
+    return tag + cadence.suffix() + profiles.suffix()
+
+
 def _reference_curve(M, arm_name):
     """The engine's own recorded equity curve for this arm, or None.
 
@@ -106,17 +140,35 @@ def _reference_curve(M, arm_name):
     # check working, but it is checking the wrong pair -- measured, before this
     # line existed: v1 MISMATCH Rs 2,923,934 and v2 MISMATCH Rs 1,825,210 on mid
     # at --rebal 40.
-    f = M / f"v2FINAL_equity{cadence.suffix()}.csv"
-    if not f.exists():
-        f = M / "v2FINAL_equity.csv"
+    #
+    # AT A NON-DEFAULT CADENCE THERE IS NO FALLBACK TO THE UNSUFFIXED FILE.
+    # Both chains used to end at one -- v2FINAL_equity.csv and v34_equity.csv --
+    # which is a cadence-20 curve. Reaching either from a --rebal 200 run would
+    # reconcile a cadence-200 trail against a cadence-20 curve: exactly the
+    # mispairing measured above (v1 Rs 2,923,934, v2 Rs 1,825,210 on mid at
+    # --rebal 40). It failed safe only by accident, because audit_step.run()
+    # happens to refuse a trail whose difference exceeds a paisa. Returning None
+    # here makes it safe BY DESIGN: the caller reports that there is no reference
+    # curve for this arm at this cadence and writes nothing.
+    #
+    # AT THE DEFAULT CADENCE NOTHING CHANGES, and provably so: cadence.suffix() is
+    # "" there, so f"v2FINAL_equity{suffix}.csv" IS "v2FINAL_equity.csv" and
+    # f"v34_equity{suffix}.csv" IS "v34_equity.csv". The removed lines were a
+    # no-op at the default and a hazard everywhere else.
+    # THE PROFILE SUFFIX JOINS THE CADENCE ONE. A profile="tradeable" run writes
+    # v34_equity_tradeable.csv; resolving to the research curve here would report a
+    # MISMATCH of the cap's whole effect and refuse to write the trail -- the same
+    # class of mispairing as the cadence one above, with the same failure mode.
+    import profiles as _prof
+    _cad = cadence.suffix() + _prof.suffix()
+    f = M / f"v2FINAL_equity{_cad}.csv"
     if f.exists():
         df = pd.read_csv(f, parse_dates=["date"]).set_index("date")
         s = _ar.equity_series(df, arm_name)
         if s is not None:
             return s
-    for name in (f"v34_equity{_ar.selection_suffix()}{cadence.suffix()}.csv",
-                 f"v34_equity{cadence.suffix()}.csv",
-                 "v34_equity.csv"):
+    for name in (f"v34_equity{_ar.selection_suffix()}{_cad}.csv",
+                 f"v34_equity{_cad}.csv"):
         g = M / name
         if g.exists():
             df = pd.read_csv(g, parse_dates=["date"]).set_index("date")
@@ -147,6 +199,15 @@ def run(u, arm=None):
     _hdr = u.tag if (arm is None or (arm.name if hasattr(arm, "name") else arm) == "v2") \
         else f"{u.tag} / {arm.name if hasattr(arm, 'name') else arm}"
     print(f"\n{'='*74}\n{_hdr} UNIVERSE\n{'='*74}")
+    # THE TRAIL MUST BE PRODUCED UNDER THE SAME GUARD AS THE CURVE IT IS CHECKED
+    # AGAINST. This step re-runs the backtest with logging on and reconciles the
+    # result against the engine's published curve to within a paisa, refusing to
+    # write anything if it disagrees. The engine now loads the tradeability guard;
+    # a trail built without it would differ by the forced exit and this step would
+    # correctly refuse to write -- so the audit would vanish for a reason that is
+    # not a fault.
+    import engine_core as _ec
+    _ec.set_tradeability(u)
     p = pd.read_csv(panel_path(u), parse_dates=["date"])
     px = p.pivot_table(index="date", columns="symbol", values="close").ffill()
     op = p.pivot_table(index="date", columns="symbol", values="open").ffill()
@@ -191,15 +252,9 @@ def run(u, arm=None):
         print("  !! audit logging changed something -- do not go further")
         return
 
-    # v2 KEEPS THE UNSUFFIXED FILENAMES. nt_verify.py, nt_daily_compare.py and
-    # nt_holdings_compare.py read daily_summary_{tag}.csv, daily_holdings_{tag}.csv
-    # and daily_trades_{tag}.csv by those exact names, and they are the 92-of-92
-    # correctness gate. Suffixing v2 would break the gate that certifies the
-    # engine. Every other arm is suffixed.
-    tag = u.tag if _arm.name == "v2" else f"{u.tag}_{_arm.name}"
-    # THE CADENCE JOINS THE FILENAME, empty at the default so v2's unsuffixed
-    # names -- the ones the Nautilus verification reads -- are untouched.
-    tag = tag + cadence.suffix()
+    # The naming rule lives in artefact_tag() above, so make_daily_log reads the
+    # same files this writes instead of reconstructing the rule and drifting.
+    tag = artefact_tag(u, _arm)
     h = pd.DataFrame(audit["holdings"]); s = pd.DataFrame(audit["summary"])
     t = pd.DataFrame(audit["trades"])
     h.to_csv(M / f"daily_holdings_{tag}.csv", index=False)
