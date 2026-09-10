@@ -74,6 +74,14 @@ UNIVERSES = {
 
 def load_panel(cfg, uni):
     """Read the production panel and PROVE which universe it is, from the file."""
+    # SAME GUARDS AS THE RUN THAT PRODUCED THE ARTEFACT THIS COMPARES
+    # AGAINST. A script that recomputes and then checks itself against a
+    # published row must run under the production guards, or it measures a
+    # different engine. rebal_cadence_sweep.py failed exactly this way:
+    # mid v3 AnnVol% recomputed 24.89 against 24.88 published.
+    import engine_core as _ec
+    from universes.registry import REGISTRY as _REG
+    _ec.set_tradeability(_REG[uni])
     src = config.require_cache(cfg["perm"], cfg["tmp"], what=f"{uni} score panel")
     p = pd.read_csv(src, parse_dates=["date"])
     got, want = set(p["symbol"].unique()), cfg["symbols"]()

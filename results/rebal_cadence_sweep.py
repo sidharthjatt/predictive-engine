@@ -142,6 +142,14 @@ UNIVERSES = {
 
 def load(tag):
     label, M, cache, tmp = UNIVERSES[tag]
+    # A SCRIPT THAT RECOMPUTES AND COMPARES AGAINST A PUBLISHED ARTEFACT MUST RUN
+    # UNDER THE SAME GUARDS THAT PRODUCED IT. Without this the REBAL=20 control
+    # recomputes UNGUARDED and is compared against a GUARDED v34_comparison.csv:
+    # measured, mid v3 AnnVol% 24.89 recomputed against 24.88 published, which
+    # tripped "ALL 4 CONTROLS DID NOT REPRODUCE" and correctly refused to quote a
+    # single cadence number. The control was right and the harness was stale.
+    import engine_core as _ec
+    _ec.set_tradeability(REGISTRY[tag])
     src = config.require_cache(M / cache, tmp, what=f"{label} score panel")
     p = pd.read_csv(src, parse_dates=["date"])
     px = p.pivot_table(index="date", columns="symbol", values="close").ffill()

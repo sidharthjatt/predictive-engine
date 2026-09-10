@@ -214,6 +214,14 @@ def run(uni, cfg, W):
     W(f" PURGE FIX -- {cfg['label']} ({uni})")
     W("=" * 100)
     W("")
+    # SAME GUARDS AS THE RUN THAT PRODUCED THE ARTEFACT THIS COMPARES
+    # AGAINST. A script that recomputes and then checks itself against a
+    # published row must run under the production guards, or it measures a
+    # different engine. rebal_cadence_sweep.py failed exactly this way:
+    # mid v3 AnnVol% recomputed 24.89 against 24.88 published.
+    import engine_core as _ec
+    from universes.registry import REGISTRY as _REG
+    _ec.set_tradeability(_REG[uni])
     raw = pd.read_csv(config.require_cache(cfg["raw"], cfg["raw_tmp"],
                                            what=f"{uni} raw panel"),
                       parse_dates=["date"])
