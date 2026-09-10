@@ -195,10 +195,26 @@ def run_v34(M, universe_label, universe_tag, px, op, sc, bd, pc, mom20, port_vol
     # resolved to when they passed nothing, so the default path is unchanged.
     import cadence
     _reb = cadence.selected()
+    # THE PROFILE'S CAP, RESOLVED ONCE AND PASSED AS AN ARGUMENT.
+    # profiles.py records why this is not a global on test_exposure: cadence.py
+    # documents rebal_cadence_sweep.py setting test_exposure.REBAL and never
+    # restoring it, so every later in-process step silently used the wrong cadence.
+    # None under profile="research", so `q` is untouched and the published history
+    # is exact.
+    import profiles as _prof
+    import config as _cfg
+    _cap = _prof.participation_cap()
+    _capkw = {}
+    if _cap is not None:
+        import tradability as _tr
+        from engine_core import _load_calendar as _lc
+        _capkw = {"participation_cap": _cap,
+                  "vol20": _tr.median_volume(__import__("universes.registry",fromlist=["REGISTRY"]).REGISTRY[universe_tag].prepare_data_dir(), _lc(),
+                                             _cfg.BT_START_DATE, _cfg.BT_END_DATE)}
     a2 = _blank()
     if "v2" in sel:
         backtest_exposure(px, op, sc, bd, pc, mom20, port_vol, mode="breadth",
-                          target_vol=tv, sizing="invvol", audit=a2, rebal=_reb)
+                          target_vol=tv, sizing="invvol", audit=a2, rebal=_reb, **_capkw)
 
     # --- the two new arms, same panel and dates as v1/v2 ---
     # COMPUTED ONLY IF SELECTED. A run that asked for v1 and v3 has no use for
@@ -214,12 +230,12 @@ def run_v34(M, universe_label, universe_tag, px, op, sc, bd, pc, mom20, port_vol
         v3_eq, v3_tc, v3_n, _ = backtest_exposure(px, op, sc, bd, pc, mom20, port_vol,
                                                   mode="none", target_vol=tv,
                                                   sizing="provol", audit=a3,
-                                                  rebal=_reb)
+                                                  rebal=_reb, **_capkw)
     if "v4" in sel:
         v4_eq, v4_tc, v4_n, v4_expo = backtest_exposure(px, op, sc, bd, pc, mom20,
                                                         port_vol, mode="breadth",
                                                         target_vol=tv, sizing="provol",
-                                                        audit=a4, rebal=_reb)
+                                                        audit=a4, rebal=_reb, **_capkw)
     bh = start_capital * (1 + px.pct_change().loc[bd].mean(axis=1).fillna(0)).cumprod()
 
     # ONE TABLE DRIVES CURVES, AUDITS, ROWS AND THE EQUITY COLUMNS, so an arm
@@ -269,7 +285,15 @@ def run_v34(M, universe_label, universe_tag, px, op, sc, bd, pc, mom20, port_vol
     # BOTH AXES IN THE NAME. The arm suffix says which arms are in the table; the
     # cadence suffix says which cadence produced them. Both are empty at the
     # default, so the canonical v34_* filenames are unchanged.
-    SFX = arm_reg.selection_suffix() + cadence.suffix()
+    # THE PROFILE JOINS THE FILENAME TOO -- and this is the "companion file"
+    # decision. Adding tradeable ROWS to v34_comparison.csv would put them in front
+    # of the seven identity gates that read it: several do .set_index("Config") and
+    # .max() over the non-buy&hold rows, so extra arms would change what they
+    # compute without any of them erroring. A suffixed companion leaves the file
+    # those gates read untouched and puts both profiles one directory listing apart.
+    # Empty for profile="research", so the published names are unchanged.
+    import profiles
+    SFX = arm_reg.selection_suffix() + cadence.suffix() + profiles.suffix()
     comp = pd.DataFrame(rows)
     comp.to_csv(M / f"v34_comparison{SFX}.csv", index=False)
 
@@ -385,6 +409,7 @@ def run_arm(u, arm, rebal=None, out_dir=None):
     import config
     import paths
     from engine_core import precompute
+    import engine_core
     from test_exposure import backtest_exposure, START_CAPITAL
 
     # THE CADENCE IS PART OF THE OUTPUT PATH. Without it a --rebal 40 run wrote
@@ -392,6 +417,10 @@ def run_arm(u, arm, rebal=None, out_dir=None):
     out = Path(out_dir) if out_dir is not None else paths.run_dir(u, arm, rebal)
     out.mkdir(parents=True, exist_ok=True)
 
+    # THE GUARD IS LOADED PER UNIVERSE, HERE, because this is where the
+    # universe is known. engine_core holds it (beside MEMBERSHIP) and
+    # backtest_exposure reads it directly, so every call site inherits it.
+    engine_core.set_tradeability(u)
     src = config.require_cache(u.score_cache, str(u.score_tmp),
                                what=f"{u.label} score panel")
     p = pd.read_csv(src, parse_dates=["date"])
@@ -405,6 +434,22 @@ def run_arm(u, arm, rebal=None, out_dir=None):
     port_vol = idx.pct_change().rolling(60).std() * np.sqrt(252)
     tv = port_vol.loc[bd].median()
 
+    # THE PROFILE'S CAP, RESOLVED ONCE AND PASSED AS AN ARGUMENT.
+    # profiles.py records why this is not a global on test_exposure: cadence.py
+    # documents rebal_cadence_sweep.py setting test_exposure.REBAL and never
+    # restoring it, so every later in-process step silently used the wrong cadence.
+    # None under profile="research", so `q` is untouched and the published history
+    # is exact.
+    import profiles as _prof
+    import config as _cfg
+    _cap = _prof.participation_cap()
+    _capkw = {}
+    if _cap is not None:
+        import tradability as _tr
+        from engine_core import _load_calendar as _lc
+        _capkw = {"participation_cap": _cap,
+                  "vol20": _tr.median_volume(u.prepare_data_dir(), _lc(),
+                                             _cfg.BT_START_DATE, _cfg.BT_END_DATE)}
     audit = {k: [] for k in ("holdings", "summary", "trades",
                              "ranking", "decisions", "skipped")}
     eq, tc, ntr, expo = backtest_exposure(
@@ -412,7 +457,7 @@ def run_arm(u, arm, rebal=None, out_dir=None):
         mode=arm.mode, target_vol=tv, sizing=arm.sizing, audit=audit,
         # A frozen universe opts OUT of the valuation correction, exactly as its
         # engine does; keyed off the universe, not off which file is running.
-        value_at_open=not u.frozen, rebal=rebal)
+        value_at_open=not u.frozen, rebal=rebal, **_capkw)
 
     bh = START_CAPITAL * (1 + px.pct_change().loc[bd].mean(axis=1).fillna(0)).cumprod()
     dep = 100.0 if arm.mode == "none" else expo * 100
