@@ -69,7 +69,7 @@ M = config.METRICS_DIR
 def backtest_exposure(px, op, sc, dates, pc, mom20, port_vol=None,
                       mode="none", target_vol=None, audit=None, sizing="invvol",
                       const_expo=None, value_at_open=True, rebal=None,
-                      funding="cash"):
+                      funding="cash", participation_cap=None, vol20=None):
     """audit=None reproduces the original code path exactly: no overhead, and the
     official numbers are unchanged.
     Passing a dict with holdings/summary/trades/ranking/decisions/skipped keys logs
@@ -152,6 +152,44 @@ def backtest_exposure(px, op, sc, dates, pc, mom20, port_vol=None,
         prices, opens = px.loc[dt], op.loc[dt]
         cash *= (1 + cash_daily)
 
+        # TOUCH POINT 4 -- FORCED EXIT ON A SYMBOL GOING UNTRADEABLE.
+        #
+        # THIS CANNOT LIVE IN THE SELL BRANCH BELOW. That branch runs only inside
+        # `if pending is not None`, i.e. on an EXECUTION day, so a symbol that goes
+        # untradeable mid-cycle would not be sold until the next rebalance -- by
+        # which time its price is already the frozen ffill. Measured with the exit
+        # in the sell branch: dCAGR +0.00 on every arm, because PATANJALI's forced
+        # exit landed on 2019-11-27, the day the strategy sold it anyway.
+        #
+        # BLOCKING ENTRY IS NOT ENOUGH ON ITS OWN, and NaN-ing the price is worse
+        # than the defect: the sell branch's `if np.isnan(pr) or pr <= 0: continue`
+        # would skip the position and strand it at a frozen mark for the whole gap
+        # -- for HEXT that is 1,069 sessions holding a delisted company at 762.55.
+        #
+        # SELLS ON THE LAST DAY THAT STILL HAS A REAL PRICE, at today's OPEN with
+        # the usual slippage, which is the same rule every other sell uses. The map
+        # marks the gap from the FIRST MISSING session, so today's open is real.
+        if engine_core.TRADEABLE is not None and i + 1 < len(dates):
+            _nxt = dates[i + 1]
+            for s in [x for x in shares if not engine_core.tradeable_on(x, _nxt)]:
+                pr = opens.get(s, np.nan)
+                if np.isnan(pr) or pr <= 0:
+                    continue
+                pr *= (1 - SLIPPAGE)
+                q = int(shares[s]); tc = calc_tc(pr, q, "SELL")
+                cash += q * pr - tc; cum_tc += tc; n_trades += 1
+                if audit is not None:
+                    audit["trades"].append({"date": dt, "action": "SELL", "symbol": s,
+                        "qty": q, "price": round(pr, 2), "value": round(q*pr, 2),
+                        "tc": round(tc, 2)})
+                    # LOGGED ON BOTH SIDES. The trade row makes the cash move
+                    # reconcile; the skipped row is what makes the REASON visible
+                    # in the daily log's section [A] and its run-level tally.
+                    audit["skipped"].append({"date": dt, "side": "SELL", "symbol": s,
+                        "reason": "forced exit: untradeable from next session",
+                        "detail": f"no raw price row from {_nxt.date()}"})
+                del shares[s]
+
         if pending is not None:
             targets, keep = pending
             for s in list(shares.keys()):
@@ -221,8 +259,46 @@ def backtest_exposure(px, op, sc, dates, pc, mom20, port_vol=None,
                             audit["skipped"].append({"date": dt, "side": "BUY", "symbol": s,
                                 "reason": "no open price (NaN/<=0)", "detail": ""})
                         continue
+                    # TOUCH POINT 5 -- BLOCKED ENTRY. The other half of the forced
+                    # exit above: never buy into a hole. This reason exists because
+                    # "no open price (NaN/<=0)" cannot fire here -- ffill always
+                    # supplies a price, which is why that reason fires ZERO times
+                    # across every mid and n100 trail while PATANJALI still filled
+                    # 33,575 shares on a date with no raw row.
+                    if not engine_core.tradeable_on(s, dt):
+                        if audit is not None:
+                            audit["skipped"].append({"date": dt, "side": "BUY", "symbol": s,
+                                "reason": "untradeable: no raw price row",
+                                "detail": "inside a gap in the symbol's own history"})
+                        continue
                     pr *= (1 + SLIPPAGE)
                     q = int((invest_val * w * f) // pr)
+                    # PARTICIPATION CAP -- profiles.py. None at the default profile,
+                    # so `q` is untouched and the published history is exact.
+                    #
+                    # APPLIED BEFORE THE CASH TEST BELOW, deliberately: the cap
+                    # shrinks the order and the cash test then sees the smaller
+                    # number. Measured, mid v3 at cap=1.00: mean names held 7.60 ->
+                    # 7.72 and cash-short skips 131 -> 123, because shrinking an
+                    # early oversized name frees cash for the tail the loop used to
+                    # drop. The two constraints cannot both bind harmfully.
+                    #
+                    # THE REMAINDER STAYS IN CASH. Reallocating it to the next name
+                    # would change selection; carrying it to the next session needs
+                    # order state the engine does not have.
+                    if participation_cap is not None and vol20 is not None:
+                        _med = vol20.get(s, {}).get(dt, np.nan)
+                        if _med == _med and _med > 0:
+                            _lim = int(participation_cap * _med)
+                            if q > _lim:
+                                if audit is not None:
+                                    audit["skipped"].append({"date": dt, "side": "BUY",
+                                        "symbol": s,
+                                        "reason": "participation cap",
+                                        "detail": f"wanted {q:,} sh, capped to {_lim:,} "
+                                                  f"({participation_cap:.0%} of prior-20d "
+                                                  f"median {_med:,.0f})"})
+                                q = _lim
                     if q < 1:
                         if audit is not None:
                             audit["skipped"].append({"date": dt, "side": "BUY", "symbol": s,
