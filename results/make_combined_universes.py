@@ -497,19 +497,25 @@ def _subtitle(UNIV):
     """The chart's own description of what is on it, derived from what is on it.
 
     IT TAKES THE ROWS BEING PLOTTED, NOT THE SELECTION, and that distinction is
-    what keeps the published pair chart reproducible. "58 and 74 are out of scope
-    and are not plotted" is computed from REGISTRY minus the universes ON THIS
-    FIGURE, so the pair chart carries the identical sentence whether it was drawn
-    from `--universe n100,mid` or alongside a four-universe run. A subtitle that
-    depended on what else the run did would make the same figure two files.
+    what keeps the published pair chart reproducible: the out-of-scope sentence is
+    computed from REGISTRY minus the universes ON THIS FIGURE, so a subtitle cannot
+    depend on what else the run did and make the same figure two files.
+
+    THE PUBLISHED PAIR CHART NO LONGER CARRIES THAT SENTENCE AT ALL. It used to
+    read "58 and 74 are out of scope and are not plotted"; the registry is now
+    exactly the plotted pair, so there is nothing out of scope and the clause is
+    omitted rather than rendered empty. The sentence still appears on a
+    single-universe chart, where the other universe genuinely is out of scope.
+    This is a deliberate change to a published figure -- there is no version of
+    the old sentence that stays true once the universes it names are deleted.
 
     EVERY CLAUSE IS CONDITIONAL ON THE UNIVERSES ACTUALLY PLOTTED. The old block
     was one hardcoded string naming n100 and mid, including a liquidity paragraph
     quoting their measured numbers, so drawing any other set would have printed
     claims about universes that were not on the page.
 
-    With n100 and mid selected this reproduces that string exactly, which is
-    checked by byte-comparing the PNG rather than by reading the code.
+    With n100 and mid selected this reproduces the old string except for the
+    deleted out-of-scope clause.
     """
     n = len(UNIV)
     word = _COUNT_WORD.get(n, f"all {n}")
@@ -526,8 +532,7 @@ def _subtitle(UNIV):
     line2 = ("ALL STRATEGY NUMBERS AFTER TC (Zerodha + 0.15% slippage); before-TC "
              "also shown in the legend.")
     if unsel:
-        # Reproduces "  58 and 74 are out of scope and are not plotted." including
-        # the double space that separated the two sentences.
+        # The double space that separated the two sentences is preserved.
         if len(unsel) > 1:
             line2 += f"  {_joined(unsel)} are out of scope and are not plotted."
         else:

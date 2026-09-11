@@ -25,29 +25,27 @@ THE INTERPRETER IN THAT COMMAND IS LOAD-BEARING. IT IS NOT INTERCHANGEABLE WITH
 This rebuilds both universes, the benchmark comparison, and every chart and CSV.
 
 ORDER:
-  === 58 UNIVERSE ===
-  1.  build_scores       -> 58 scores (SLOW ~40-65min)
-  2.  engine_core        -> v1 + validation + leakage checks
-  3.  engine_v2_final    -> v2 FINAL (breadth)
-  4.  diagnose_decay     -> period breakdown
-  5.  validate_breadth   -> breadth robustness
-  6.  reality_check      -> real-money P&L, hit rate
-  7.  per-stock charts (58)
-  === 74 UNIVERSE ===
-  8.  build_scores74     -> 74 scores (SLOW ~27min)
-  9.  engine_v2_final74  -> 74 v2 FINAL
-  === MIDCAP150 UNIVERSE (third universe) ===
-  build_scores_mid   -> MidCap150 scores (SLOW)
-  engine_v2_final_mid-> MidCap150 v2 FINAL
-  make_mid_audit     -> MidCap150 daily audit CSVs
-  make_mid_chart     -> MidCap150 chart + cap-weighted index benchmark
-  === BENCHMARK + FINAL ===
-  11. make_cash_series      -> cash series (58 + 74)
-  12. make_daily_audit      -> 58/74 daily audit CSVs  <- MUST precede step 13
-  13. make_final_chart_fair -> Nifty100 benchmark + final 3-panel chart + fair table
-  14. make_final_summary    -> FINAL summary table
-  15. make_daily_log        -> forensic daily text log
-  16. nt_export_scores      -> Nautilus score parquets
+  === MIDCAP150 ===
+  10a. build_scores_mid     -> MidCap150 scores (SLOW)
+  10b. engine_v2_final_mid  -> MidCap150 v2 FINAL
+  10c. make_mid_audit       -> MidCap150 daily audit CSVs
+  10d. make_mid_chart       -> MidCap150 chart + cap-weighted index benchmark
+  === NIFTY 100 ===
+  10e. build_scores_n100    -> Nifty 100 scores (SLOW)
+  10f. engine_v2_final_n100 -> Nifty 100 v2 FINAL
+  10g. make_n100_audit      -> Nifty 100 daily audit CSVs
+  10h. make_n100_chart      -> Nifty 100 chart + cap-weighted index benchmark
+  === ACROSS UNIVERSES ===
+  12b. make_combined_universes -> the published comparison figure
+  15.  make_daily_log          -> forensic daily text log
+  15b. save_caches_step        -> persist the panels
+  16.  nt_export_scores        -> Nautilus score parquets
+  17.  nt_execute              -> the execution engine, per (universe, arm)
+
+STEPS 0-9 AND 11-14 ARE GONE, not renumbered. They were the retired 58's and
+74's, deleted on 2026-09-11 with those universes; the surviving numbering is
+left as it was so a step's name means the same thing it did in every log and
+every document written before that date. See RETIRED_UNIVERSES.md.
 
 ORDERING IS LOAD-BEARING. A consumer must never be listed before its producer.
 run_all.py enforces the non-obvious cases itself -- see REQUIRED_INPUTS below,
@@ -91,30 +89,13 @@ import sys, time, shutil
 from pathlib import Path
 ROOT = Path(__file__).resolve().parent
 R = ROOT / "results"
-F = ROOT / "frozen"
 
-# FROZEN-WRITE OVERRIDE. The retired 58/74 scripts in frozen/ refuse to run unless
-# this is set, because results*/metrics/ is gitignored and a stray standalone run
-# overwrites a published artefact with no way back. A full pipeline run IS the
-# sanctioned way to regenerate them, so it says so once here -- before main()
-# spawns anything, and a child inherits os.environ at spawn.
-# See frozen/_frozen_guard.py.
-import os
-os.environ["ALLOW_FROZEN_WRITE"] = "1"
-
-# The retired 58/74 pipeline lives in frozen/, not results/. The split is by
-# UNIVERSE, not by kind: every script here serves only the 58 or the 74 and
-# carries a FROZEN marker. Shared libraries (engine_core, test_exposure,
-# v34_common, survivorship, qbeast_in_charges) stay in results/ because the LIVE
-# universes import them.
-FROZEN_SCRIPTS = {
-    "build_scores.py", "build_scores74.py",
-    "engine_v2_final.py", "engine_v2_final74.py",
-    "make_daily_audit.py", "make_cash_series.py",
-    "make_combined_all.py", "make_stock_chart.py",
-    "make_per_stock_charts.py", "validate_breadth.py",
-}
-
+# THERE IS NO FROZEN-WRITE OVERRIDE ANY MORE, and no frozen/ directory. Both
+# existed for the retired 58 and 74: their scripts refused to run unless
+# ALLOW_FROZEN_WRITE was set, because results*/metrics/ is gitignored and a stray
+# standalone run overwrote a published artefact with no way back. Those universes
+# were deleted on 2026-09-11 and every script they owned went with them. See
+# RETIRED_UNIVERSES.md.
 
 # STEP 16 lives in nautilus/, not results/. Listing it by bare name meant the static
 # checker resolved it to results/nt_export_scores.py, found nothing, and SILENTLY
@@ -124,13 +105,10 @@ NAUTILUS_SCRIPTS = {"nt_export_scores.py"}
 
 # A step whose body lives in a shared helper must be scanned WITH that helper, or
 # the static ordering check loses the edges the helper writes. results/audit_step.py
-# holds the one audit implementation the three per-universe entry points call.
+# holds the one audit implementation the two per-universe entry points call.
 STEP_HELPERS = {
-    "make_daily_audit.py":   (R / "audit_step.py",),
     "make_mid_audit.py":     (R / "audit_step.py",),
     "make_n100_audit.py":    (R / "audit_step.py",),
-    "build_scores.py":       (R / "build_scores_step.py",),
-    "build_scores74.py":     (R / "build_scores_step.py",),
     "build_scores_mid.py":   (R / "build_scores_step.py",),
     "build_scores_n100.py":  (R / "build_scores_step.py",),
 }
@@ -144,15 +122,21 @@ def script_path(script):
     q = Path(script)
     if q.is_absolute():
         return q
-    if q.name in FROZEN_SCRIPTS:
-        return F / q.name
     if q.name in NAUTILUS_SCRIPTS:
         return ROOT / "nautilus" / q.name
     return R / q.name
+
+
 TMP = Path("/tmp")
 FRESH = "--fresh" in sys.argv
 
 # caches: both /tmp and the permanent copies
+def _cache_perm():
+    from universes.registry import REGISTRY
+    return [u.score_cache for u in REGISTRY.values()] + \
+           [u.raw_cache for u in REGISTRY.values()]
+
+
 CACHE_TMP = [TMP / "v5_expanding.csv", TMP / "raw_panel_20.csv",
              TMP / "v74_expanding.csv", TMP / "raw_panel74_20.csv",
              TMP / "v_mid_expanding.csv", TMP / "raw_panel_mid_20.csv",
@@ -160,14 +144,11 @@ CACHE_TMP = [TMP / "v5_expanding.csv", TMP / "raw_panel_20.csv",
             [TMP / f"FINAL_seed{i}.csv" for i in range(3)] + \
             [TMP / f"breadth_seed{i}.csv" for i in range(3)] + \
             [TMP / f"prune_{t}.csv" for t in ("all", "pruned", "random")]
-CACHE_PERM = [R / "metrics" / "v5_expanding_cache.csv",
-              R / "metrics" / "raw_panel_cache.csv",
-              ROOT / "results74" / "metrics" / "v74_expanding_cache.csv",
-              ROOT / "results74" / "metrics" / "raw_panel74_cache.csv",
-              ROOT / "results_mid" / "metrics" / "v_mid_expanding_cache.csv",
-              ROOT / "results_mid" / "metrics" / "raw_panel_mid_cache.csv",
-              ROOT / "results_n100" / "metrics" / "v_n100_expanding_cache.csv",
-              ROOT / "results_n100" / "metrics" / "raw_panel_n100_cache.csv"]
+# THE PERMANENT PANELS, FROM THE REGISTRY. This was eight literal paths, four of
+# them the 58's and the 74's; --fresh would have gone on trying to clear caches for
+# universes that no longer exist, and a new universe's panels would have been
+# missed silently.
+CACHE_PERM = _cache_perm()
 
 # ---------------------------------------------------------------------------
 # INPUT GUARD -- ordering bugs must fail by name, not as a pandas traceback
@@ -189,19 +170,6 @@ CACHE_PERM = [R / "metrics" / "v5_expanding_cache.csv",
 # input is still fatal. It only replaces the traceback with a sentence that says
 # which file is missing and who should have written it.
 REQUIRED_INPUTS = {
-    "make_final_chart_fair.py": [
-        (R / "metrics" / "daily_trades_58.csv",
-         "STEP 12 make_daily_audit.py (tag 58)"),
-        (ROOT / "results74" / "metrics" / "daily_trades_74.csv",
-         "STEP 12 make_daily_audit.py (tag 74)"),
-        (R / "metrics" / "daily_trades_v1_58.csv",
-         "STEP 3 engine_v2_final.py"),
-        (ROOT / "results74" / "metrics" / "daily_trades_v1_74.csv",
-         "STEP 9 engine_v2_final74.py"),
-        (R / "metrics" / "cash_series_58.csv", "STEP 11 make_cash_series.py"),
-        (ROOT / "results74" / "metrics" / "cash_series_74.csv",
-         "STEP 11 make_cash_series.py"),
-    ],
     "make_mid_chart.py": [
         # ARM-TAGGED TOO: this is v2's audit trail, and a selection without v2
         # writes no v2 trail at all. Demanding it unconditionally made `--arm
@@ -251,10 +219,6 @@ REQUIRED_INPUTS = {
         (ROOT / "results_n100" / "metrics" / "daily_trades_n100.csv",
          "STEP 10g make_n100_audit.py", "v2"),
     ],
-    "make_final_summary.py": [
-        (R / "metrics" / "fair_comparison_table.csv",
-         "STEP 13 make_final_chart_fair.py"),
-    ],
     # STEP 16 reads the PERMANENT panels, which STEP 15b copies from /tmp. Named
     # here so that if the two are ever re-ordered again the run stops with the
     # missing filename and the step that owes it, instead of dying inside pandas
@@ -297,22 +261,6 @@ REQUIRED_INPUTS = {
 # step with main(). Steps 1/8/10a/10e are skipped at runtime when their panel is
 # cached; that does not change the ORDER, which is what the checker reasons about.
 PIPELINE_ORDER = [
-    ("STEP 0", "make_trading_calendar.py"),
-    ("STEP 1", "build_scores.py"),
-    ("STEP 2", "engine_core.py"),
-    ("STEP 3", "engine_v2_final.py"),
-    ("STEP 4", "diagnose_decay.py"),
-    ("STEP 5", "validate_breadth.py"),
-    ("STEP 6", "reality_check.py"),
-    ("STEP 7", "make_per_stock_charts.py"),
-    ("STEP 7b", "make_combined_all.py"),
-    ("STEP 7c", "make_final_table.py"),
-    ("STEP 7d", "make_charts.py"),
-    ("STEP 7e", "make_stock_chart.py"),
-    ("STEP 7f", "make_combined_portfolio.py"),
-    ("STEP 7g", "export_feature_docs.py"),
-    ("STEP 8", "build_scores74.py"),
-    ("STEP 9", "engine_v2_final74.py"),
     ("STEP 10a", "build_scores_mid.py"),
     ("STEP 10b", "engine_v2_final_mid.py"),
     ("STEP 10c", "make_mid_audit.py"),
@@ -321,8 +269,6 @@ PIPELINE_ORDER = [
     ("STEP 10f", "engine_v2_final_n100.py"),
     ("STEP 10g", "make_n100_audit.py"),
     ("STEP 10h", "make_n100_chart.py"),
-    ("STEP 11", "make_cash_series.py"),
-    ("STEP 12", "make_daily_audit.py"),
     # MOVED FROM STEP 10i, and the move is load-bearing rather than cosmetic.
     # The combined chart is now generic over the selection, so it may need the 58's
     # and the 74's per-trade logs -- and those are written by STEP 12 immediately
@@ -331,8 +277,6 @@ PIPELINE_ORDER = [
     # they are still upstream; nothing consumes the chart, so nothing downstream
     # moved. Output verified byte-identical across the move.
     ("STEP 12b", "make_combined_universes.py"),
-    ("STEP 13", "make_final_chart_fair.py"),
-    ("STEP 14", "make_final_summary.py"),
     ("STEP 15", "make_daily_log.py"),
     # ORDERING, AND WHY IT IS A STEP. STEP 16 reads the PERMANENT panels, so the
     # copy from /tmp must happen before it -- the constraint run_all.py used to
@@ -462,7 +406,7 @@ def main():
     """Delegate to run.py. This file is now a compatibility entry point.
 
     WHAT STILL LIVES HERE, AND WHY IT WAS NOT MOVED
-        PIPELINE_ORDER, REQUIRED_INPUTS, STEP_HELPERS, FROZEN_SCRIPTS,
+        PIPELINE_ORDER, REQUIRED_INPUTS, STEP_HELPERS,
         NAUTILUS_SCRIPTS, script_path(), check_inputs(), the cache lists and the two
         cache functions are all READ BY run.py, which loads this file with
         runpy.run_path to get them. They are the ordered description of the pipeline;
