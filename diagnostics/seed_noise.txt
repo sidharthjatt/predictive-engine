@@ -2,32 +2,181 @@
  SEED NOISE FLOOR -- NIFTY 100 (n100)
 ====================================================================================================
 
-  seeds fitted 40  (first 10 = production set, rest new)
-  purge: CURRENT production, 32 calendar days -- deliberately not the
-         corrected one, so the shipped result is one draw of this distribution
-  sub-ensembles: K in [1, 2, 3, 5, 10, 20, 40], 50 random subsets per K (K=40 has one)
+  seeds fitted 40 (first 10 = production set), one identical panel
+  purge: CURRENT production. Only the seeds vary between sub-ensembles.
 
-  IDENTITY GATE -- production 10 seeds vs v34_comparison.csv: MISMATCH
-    CAGR%    from store     26.21   recorded     25.78
-    Sharpe   from store      1.92   recorded      1.86
-    MaxDD%   from store    -17.69   recorded    -19.87
+  BASELINE OFFSET -- STATED, NOT HIDDEN
+    production 10 seeds from this store : CAGR 23.01  Sharpe 1.65  MaxDD -15.84
+    recorded in v34_comparison.csv      : CAGR 24.43  Sharpe 1.72  MaxDD -18.38
+    offset                              : CAGR -1.42
+    CAUSE: production scores the IN-MEMORY panel; this store was fitted on
+    the panel read back from CSV, which differs by ONE UNIT IN THE LAST
+    PLACE (max 4.441e-16, 2,638,259 cells). That is enough to change split
+    decisions and flip near-tied ranks. IT IS NOT A SEED EFFECT.
+    The spread below is unaffected: every sub-ensemble uses this one panel.
 
-  NO SPREAD IS REPORTED. The store does not reproduce the shipped result.
+----------------------------------------------------------------------------------------------------
+ 1. HEADLINE SPREAD AT K = 10 -- the ensemble size that ships
+----------------------------------------------------------------------------------------------------
+ arm metric         min       p5   median      p95      max      sd    range
+ v1  CAGR%        27.62    28.34    30.27    33.10    33.51    1.50     5.89
+ v1  Sharpe        1.33     1.35     1.44     1.54     1.57    0.06     0.24
+ v1  MaxDD%      -36.25   -35.33   -33.17   -31.26   -30.60    1.31     5.65
+ v2  CAGR%        21.73    22.09    23.39    25.59    26.37    1.07     4.64
+ v2  Sharpe        1.59     1.60     1.68     1.82     1.87    0.06     0.28
+ v2  MaxDD%      -20.72   -19.40   -17.05   -16.00   -15.92    1.07     4.80
+
+----------------------------------------------------------------------------------------------------
+ 2. DOES THE PURGE RESULT CLEAR THE MEASURED FLOOR?
+----------------------------------------------------------------------------------------------------
+  v1: purge dCAGR -0.05   seed sd 1.50   seed range 5.89
+      100% of seed draws deviate from their own median by >= |0.05|
+      -> the purge delta is INSIDE the seed-change spread
+  v2: purge dCAGR -0.69   seed sd 1.07   seed range 4.64
+      44% of seed draws deviate from their own median by >= |0.69|
+      -> the purge delta is INSIDE the seed-change spread
+
+----------------------------------------------------------------------------------------------------
+ 3. YEAR-LEVEL SPREAD ACROSS SEED SETS, at K = 10
+----------------------------------------------------------------------------------------------------
+ arm year         min   median      max    range      sd
+ v1  2019        3.52     9.00    14.33    10.81    2.14
+ v1  2020       12.40    24.98    32.07    19.67    4.22
+ v1  2021       51.75    68.92    81.38    29.63    7.72
+ v1  2022       13.71    19.44    27.06    13.35    2.80
+ v1  2023       38.50    48.70    67.47    28.97    5.87
+ v1  2024       29.79    41.66    55.50    25.71    4.94
+ v1  2025       15.92    20.33    24.65     8.73    2.07
+ v1  2026       -1.86     0.30     3.07     4.93    1.16
+ v2  2019        5.22     8.21    13.52     8.30    1.88
+ v2  2020        8.20    14.43    19.11    10.91    2.31
+ v2  2021       43.69    53.33    66.16    22.47    5.39
+ v2  2022       12.63    15.79    20.07     7.44    1.37
+ v2  2023       32.60    39.72    49.49    16.89    5.49
+ v2  2024       31.29    39.13    43.49    12.20    3.10
+ v2  2025        7.58    11.33    15.53     7.95    1.81
+ v2  2026       -2.98    -1.39     0.01     2.99    0.79
+
+----------------------------------------------------------------------------------------------------
+ 4. sigma(K) CURVE and 5. SEEDS NEEDED FOR +/-0.5 POINT STABILITY
+----------------------------------------------------------------------------------------------------
+  v1
+       K   sd(CAGR)     range   note
+       1      2.983    10.070   
+       2      1.982     9.640   
+       3      2.179     9.770   
+       5      1.513     7.030   
+      10      1.496     5.890   
+      20      1.101     4.970   subsets overlap, sd biased DOWN
+      40        nan       nan   single subset, no spread
+    fitted sd(K) = 2.766 * K^(-0.301)   (fit on K < 20)
+    NO TESTED K reaches sd <= 0.5.
+    EXTRAPOLATED seeds needed: 296  -- AN EXTRAPOLATION,
+    not a measurement, and it assumes the fitted exponent holds.
+
+  v2
+       K   sd(CAGR)     range   note
+       1      1.946     8.140   
+       2      1.529     7.430   
+       3      1.390     5.490   
+       5      1.109     5.360   
+      10      1.068     4.640   
+      20      1.330     5.440   subsets overlap, sd biased DOWN
+      40        nan       nan   single subset, no spread
+    fitted sd(K) = 1.876 * K^(-0.273)   (fit on K < 20)
+    NO TESTED K reaches sd <= 0.5.
+    EXTRAPOLATED seeds needed: 127  -- AN EXTRAPOLATION,
+    not a measurement, and it assumes the fitted exponent holds.
+
 
 ====================================================================================================
  SEED NOISE FLOOR -- MIDCAP150 (mid)
 ====================================================================================================
 
-  seeds fitted 40  (first 10 = production set, rest new)
-  purge: CURRENT production, 32 calendar days -- deliberately not the
-         corrected one, so the shipped result is one draw of this distribution
-  sub-ensembles: K in [1, 2, 3, 5, 10, 20, 40], 50 random subsets per K (K=40 has one)
+  seeds fitted 40 (first 10 = production set), one identical panel
+  purge: CURRENT production. Only the seeds vary between sub-ensembles.
 
-  IDENTITY GATE -- production 10 seeds vs v34_comparison.csv: MISMATCH
-    CAGR%    from store     29.95   recorded     29.70
-    Sharpe   from store      2.04   recorded      2.03
-    MaxDD%   from store    -16.82   recorded    -18.88
+  BASELINE OFFSET -- STATED, NOT HIDDEN
+    production 10 seeds from this store : CAGR 28.17  Sharpe 1.89  MaxDD -16.45
+    recorded in v34_comparison.csv      : CAGR 29.23  Sharpe 1.99  MaxDD -15.68
+    offset                              : CAGR -1.06
+    CAUSE: production scores the IN-MEMORY panel; this store was fitted on
+    the panel read back from CSV, which differs by ONE UNIT IN THE LAST
+    PLACE (max 4.441e-16, 2,638,259 cells). That is enough to change split
+    decisions and flip near-tied ranks. IT IS NOT A SEED EFFECT.
+    The spread below is unaffected: every sub-ensemble uses this one panel.
 
-  NO SPREAD IS REPORTED. The store does not reproduce the shipped result.
+----------------------------------------------------------------------------------------------------
+ 1. HEADLINE SPREAD AT K = 10 -- the ensemble size that ships
+----------------------------------------------------------------------------------------------------
+ arm metric         min       p5   median      p95      max      sd    range
+ v1  CAGR%        42.87    43.50    46.00    49.16    50.26    1.85     7.39
+ v1  Sharpe        1.73     1.77     1.84     1.93     1.96    0.05     0.23
+ v1  MaxDD%      -36.61   -35.97   -33.73   -33.06   -32.09    1.10     4.52
+ v2  CAGR%        27.31    27.78    29.59    31.19    31.61    1.01     4.30
+ v2  Sharpe        1.84     1.88     1.96     2.04     2.07    0.05     0.23
+ v2  MaxDD%      -18.89   -17.91   -16.55   -15.68   -14.50    0.74     4.39
 
-WALL CLOCK (in-script): 0 min 1 sec
+----------------------------------------------------------------------------------------------------
+ 2. DOES THE PURGE RESULT CLEAR THE MEASURED FLOOR?
+----------------------------------------------------------------------------------------------------
+  v1: purge dCAGR -6.03   seed sd 1.85   seed range 7.39
+      0% of seed draws deviate from their own median by >= |6.03|
+      -> the purge delta is OUTSIDE the seed-change spread
+  v2: purge dCAGR -0.58   seed sd 1.01   seed range 4.30
+      52% of seed draws deviate from their own median by >= |0.58|
+      -> the purge delta is INSIDE the seed-change spread
+
+----------------------------------------------------------------------------------------------------
+ 3. YEAR-LEVEL SPREAD ACROSS SEED SETS, at K = 10
+----------------------------------------------------------------------------------------------------
+ arm year         min   median      max    range      sd
+ v1  2019       -7.57    -0.93     7.64    15.21    3.19
+ v1  2020       40.34    57.06    76.36    36.02    7.46
+ v1  2021      107.31   131.94   155.66    48.35   10.79
+ v1  2022        7.57    13.57    21.65    14.08    3.38
+ v1  2023       66.18    75.91    91.15    24.97    5.78
+ v1  2024       66.26    78.83    92.57    26.31    4.94
+ v1  2025        1.32     9.30    16.19    14.87    3.62
+ v1  2026        9.04    12.19    14.93     5.89    1.20
+ v2  2019       -4.39    -1.71     1.08     5.47    1.21
+ v2  2020       34.09    43.37    51.04    16.95    3.74
+ v2  2021       60.86    72.17    82.99    22.13    5.31
+ v2  2022        2.84    10.57    14.87    12.03    2.53
+ v2  2023       38.95    46.72    53.58    14.63    2.78
+ v2  2024       48.41    55.64    63.04    14.63    3.30
+ v2  2025        0.66     3.43     9.03     8.37    1.83
+ v2  2026        2.14     4.13     6.65     4.51    0.83
+
+----------------------------------------------------------------------------------------------------
+ 4. sigma(K) CURVE and 5. SEEDS NEEDED FOR +/-0.5 POINT STABILITY
+----------------------------------------------------------------------------------------------------
+  v1
+       K   sd(CAGR)     range   note
+       1      3.613    14.910   
+       2      2.804    11.380   
+       3      2.114    10.720   
+       5      2.449    10.540   
+      10      1.850     7.390   
+      20      1.453     6.670   subsets overlap, sd biased DOWN
+      40        nan       nan   single subset, no spread
+    fitted sd(K) = 3.390 * K^(-0.268)   (fit on K < 20)
+    NO TESTED K reaches sd <= 0.5.
+    EXTRAPOLATED seeds needed: 1261  -- AN EXTRAPOLATION,
+    not a measurement, and it assumes the fitted exponent holds.
+
+  v2
+       K   sd(CAGR)     range   note
+       1      2.500     9.250   
+       2      1.563     6.840   
+       3      1.288     5.880   
+       5      1.333     5.940   
+      10      1.009     4.300   
+      20      0.840     3.640   subsets overlap, sd biased DOWN
+      40        nan       nan   single subset, no spread
+    fitted sd(K) = 2.214 * K^(-0.361)   (fit on K < 20)
+    NO TESTED K reaches sd <= 0.5.
+    EXTRAPOLATED seeds needed: 61  -- AN EXTRAPOLATION,
+    not a measurement, and it assumes the fitted exponent holds.
+
+

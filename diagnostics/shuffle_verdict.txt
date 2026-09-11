@@ -10,41 +10,41 @@
   bar           p < 0.05 on CAGR, one-sided, fixed in the spec
 
   IDENTITY GATE -- the real v2 arm must reproduce the shipped v2
-    CAGR%    this run     25.78   shipped     25.78   ok
-    Sharpe   this run      1.86   shipped      1.86   ok
-    MaxDD%   this run    -19.87   shipped    -19.87   ok
+    CAGR%    this run     24.43   shipped     24.43   ok
+    Sharpe   this run      1.72   shipped      1.72   ok
+    MaxDD%   this run    -18.38   shipped    -18.38   ok
 
   equal-weight buy & hold (100% invested, same panel and window):
-    CAGR 23.74%   Sharpe 1.32   MaxDD -36.52%
+    CAGR 24.00%   Sharpe 1.28   MaxDD -37.79%
 
 ----------------------------------------------------------------------------------------------------
  CAGR -- THE GATED STATISTIC
 ----------------------------------------------------------------------------------------------------
  arm       real  null med  null p5  null p95  null max   beat        p   effect  gated
- v1       34.90     15.30     8.64     21.49     26.41      0   0.0099   +19.60    yes
- v2       25.78     11.34     7.78     15.73     17.10      0   0.0099   +14.44    yes
- v3       28.10     17.54     9.88     27.21     34.35      4   0.0495   +10.56     no
- v4       22.89     13.62     8.89     18.89     22.06      0   0.0099    +9.27     no
+ v1       30.56     14.81     9.50     22.08     26.86      0   0.0099   +15.75    yes
+ v2       24.43     11.43     7.75     15.19     19.65      0   0.0099   +13.00    yes
+ v3       23.14     17.30     8.36     27.87     32.33     16   0.1683    +5.84     no
+ v4       21.36     13.32     8.07     19.83     23.85      1   0.0198    +8.04     no
 
 ----------------------------------------------------------------------------------------------------
  REPORTED, NOT GATED -- Sharpe and MaxDD
 ----------------------------------------------------------------------------------------------------
  arm     realSh  nullSh med    p(Sh)   realDD  nullDD med    p(DD)  deploy%
- v1        1.63        0.89   0.0099   -35.25      -37.15   0.3663    100.0
- v2        1.86        1.05   0.0099   -19.87      -19.41   0.5347     56.6
- v3        1.20        0.91   0.1089   -45.40      -40.83   0.8317    100.0
- v4        1.41        1.08   0.0594   -22.05      -21.86   0.5248     56.6
+ v1        1.47        0.84   0.0099   -31.92      -38.71   0.0693    100.0
+ v2        1.72        1.02   0.0099   -18.38      -20.12   0.3564     56.6
+ v3        1.01        0.82   0.2475   -41.57      -42.05   0.4158    100.0
+ v4        1.29        1.04   0.1386   -22.32      -21.42   0.5743     56.6
 
   PREDICTION 3, TESTED -- does the null keep breadth's drawdown advantage?
     The spec predicted it would, because exposure is score-independent.
-    shuffled v1 median MaxDD -37.15   shuffled v2 median MaxDD -19.41
+    shuffled v1 median MaxDD -38.71   shuffled v2 median MaxDD -20.12
     the prediction is BORNE OUT on n100.
 
   PREDICTION 4, REPORTED, NOT GATED -- do the MECHANICS carry return?
-    shuffled v1 median CAGR   15.30  vs buy & hold  23.74   below
-    shuffled v2 median CAGR   11.34  vs buy & hold  23.74   below
-    shuffled v3 median CAGR   17.54  vs buy & hold  23.74   below
-    shuffled v4 median CAGR   13.62  vs buy & hold  23.74   below
+    shuffled v1 median CAGR   14.81  vs buy & hold  24.00   below
+    shuffled v2 median CAGR   11.43  vs buy & hold  24.00   below
+    shuffled v3 median CAGR   17.30  vs buy & hold  24.00   below
+    shuffled v4 median CAGR   13.32  vs buy & hold  24.00   below
     NOTE, AND IT MATTERS FOR HOW THIS IS READ: the breadth arms deploy
     about 57% while buy & hold is 100% invested, so a
     breadth arm below buy & hold on CAGR is not evidence of anything on
@@ -63,41 +63,41 @@
   bar           p < 0.05 on CAGR, one-sided, fixed in the spec
 
   IDENTITY GATE -- the real v2 arm must reproduce the shipped v2
-    CAGR%    this run     29.70   shipped     29.70   ok
-    Sharpe   this run      2.03   shipped      2.03   ok
-    MaxDD%   this run    -18.88   shipped    -18.88   ok
+    CAGR%    this run     29.23   shipped     29.23   ok
+    Sharpe   this run      1.99   shipped      1.99   ok
+    MaxDD%   this run    -15.68   shipped    -15.68   ok
 
   equal-weight buy & hold (100% invested, same panel and window):
-    CAGR 27.77%   Sharpe 1.50   MaxDD -36.40%
+    CAGR 28.34%   Sharpe 1.49   MaxDD -36.54%
 
 ----------------------------------------------------------------------------------------------------
  CAGR -- THE GATED STATISTIC
 ----------------------------------------------------------------------------------------------------
  arm       real  null med  null p5  null p95  null max   beat        p   effect  gated
- v1       45.87     15.91     8.42     23.97     30.12      0   0.0099   +29.96    yes
- v2       29.70     11.23     7.27     16.04     18.90      0   0.0099   +18.47    yes
- v3       49.70     16.96     8.27     24.99     29.83      0   0.0099   +32.74     no
- v4       32.31     12.30     6.69     17.24     21.29      0   0.0099   +20.01     no
+ v1       50.12     15.41     7.74     23.11     28.16      0   0.0099   +34.71    yes
+ v2       29.23     11.25     7.36     16.28     22.02      0   0.0099   +17.98    yes
+ v3       52.69     16.62     9.32     26.64     30.43      0   0.0099   +36.07     no
+ v4       33.23     12.24     8.48     18.52     22.37      0   0.0099   +20.99     no
 
 ----------------------------------------------------------------------------------------------------
  REPORTED, NOT GATED -- Sharpe and MaxDD
 ----------------------------------------------------------------------------------------------------
  arm     realSh  nullSh med    p(Sh)   realDD  nullDD med    p(DD)  deploy%
- v1        1.84        0.88   0.0099   -34.49      -38.14   0.2079    100.0
- v2        2.03        1.04   0.0099   -18.88      -19.81   0.4455     54.1
- v3        1.80        0.82   0.0099   -35.61      -44.74   0.0990    100.0
- v4        1.92        0.98   0.0099   -17.45      -23.12   0.0891     54.1
+ v1        1.96        0.82   0.0099   -35.88      -39.27   0.2673    100.0
+ v2        1.99        1.01   0.0099   -15.68      -19.29   0.1188     54.1
+ v3        1.86        0.79   0.0099   -29.60      -46.15   0.0495    100.0
+ v4        1.94        0.96   0.0099   -16.76      -24.54   0.0594     54.1
 
   PREDICTION 3, TESTED -- does the null keep breadth's drawdown advantage?
     The spec predicted it would, because exposure is score-independent.
-    shuffled v1 median MaxDD -38.14   shuffled v2 median MaxDD -19.81
+    shuffled v1 median MaxDD -39.27   shuffled v2 median MaxDD -19.29
     the prediction is BORNE OUT on mid.
 
   PREDICTION 4, REPORTED, NOT GATED -- do the MECHANICS carry return?
-    shuffled v1 median CAGR   15.91  vs buy & hold  27.77   below
-    shuffled v2 median CAGR   11.23  vs buy & hold  27.77   below
-    shuffled v3 median CAGR   16.96  vs buy & hold  27.77   below
-    shuffled v4 median CAGR   12.30  vs buy & hold  27.77   below
+    shuffled v1 median CAGR   15.41  vs buy & hold  28.34   below
+    shuffled v2 median CAGR   11.25  vs buy & hold  28.34   below
+    shuffled v3 median CAGR   16.62  vs buy & hold  28.34   below
+    shuffled v4 median CAGR   12.24  vs buy & hold  28.34   below
     NOTE, AND IT MATTERS FOR HOW THIS IS READ: the breadth arms deploy
     about 54% while buy & hold is 100% invested, so a
     breadth arm below buy & hold on CAGR is not evidence of anything on
@@ -111,10 +111,10 @@
   GATED: CAGR permutation p < 0.05, one-sided, N = 100
 
   universe  arm    real CAGR  null median   effect   beat        p      
-  n100      v1         34.90        15.30   +19.60      0   0.0099 holds
-  n100      v2         25.78        11.34   +14.44      0   0.0099 holds
-  mid       v1         45.87        15.91   +29.96      0   0.0099 holds
-  mid       v2         29.70        11.23   +18.47      0   0.0099 holds
+  n100      v1         30.56        14.81   +15.75      0   0.0099 holds
+  n100      v2         24.43        11.43   +13.00      0   0.0099 holds
+  mid       v1         50.12        15.41   +34.71      0   0.0099 holds
+  mid       v2         29.23        11.25   +17.98      0   0.0099 holds
 
   4 of 4 gated criteria hold.
 

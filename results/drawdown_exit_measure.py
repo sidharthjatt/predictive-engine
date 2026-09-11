@@ -104,6 +104,15 @@ UNIVERSES = {
     for u in (REGISTRY["n100"], REGISTRY["mid"])
 }
 
+# G4's EXPECTED COUNTS. Asserted EXACTLY, not as "greater than zero": a check that
+# only notices the exit disappearing cannot notice it firing the wrong number of
+# times, and both are defects. Derived from results/tradability.py against the raw
+# data, so a data refresh that changes them fails here and is looked at.
+TRADABILITY_EXPECT = {
+    "mid":  {"symbols": 3, "blocked_days": 1183, "forced_exits": 1},
+    "n100": {"symbols": 0, "blocked_days": 0,    "forced_exits": 0},
+}
+
 # ------------------------------------------------------- the three patches
 # Each is (anchor, replacement). The anchor MUST appear exactly once in the
 # shipping function's source or the run aborts -- that is what makes this a
@@ -115,14 +124,20 @@ PATCH_INIT = (
     "    _dd_peak = float('-inf'); _dd_flat = False; _dd_flat_since = None\n"
     "    _dd_events = []")
 
+# THE CADENCE VARIABLE IS _rebal, NOT REBAL. The cadence work made the rebalance
+# interval a per-CALL argument -- `_rebal = REBAL if rebal is None else int(rebal)`
+# -- so the module global REBAL no longer appears in the loop. This anchor kept
+# naming it and matched 0 times, which aborted the whole measurement. That was
+# already true at HEAD and is unrelated to the tradability guard; it means the one
+# gate covering the exit path has not run since the cadence commit.
 PATCH_REBAL = (
-    "        if i % REBAL == 0 and i < len(dates) - 1:",
+    "        if i % _rebal == 0 and i < len(dates) - 1:",
     # REVISION 2, spec section 12: re-entry is TIME-ONLY. The first scheduled
     # rebalance at least DD_RE_WAIT trading days after the exit FILL. THERE IS NO
     # DRAWDOWN CONDITION. Revision 1's drawdown condition was unsatisfiable by
     # construction -- entry 33 -- because the peak is never reset and cash earns
     # nothing, so dd could never recover while flat.
-    "        if DD_THRESHOLD is not None and _dd_flat and i % REBAL == 0 \\\n"
+    "        if DD_THRESHOLD is not None and _dd_flat and i % _rebal == 0 \\\n"
     "                and i < len(dates) - 1:\n"
     "            if (i - _dd_flat_since) >= DD_RE_WAIT:\n"
     "                _pvn = sum(q * prices[s] for s, q in shares.items()\n"
@@ -141,7 +156,7 @@ PATCH_REBAL = (
     "                                   'n_held': len(shares)})\n"
     "            else:\n"
     "                expo_log.append(0.0)\n"
-    "        if (not _dd_flat) and i % REBAL == 0 and i < len(dates) - 1:")
+    "        if (not _dd_flat) and i % _rebal == 0 and i < len(dates) - 1:")
 
 PATCH_TRIGGER = (
     "        eq.append(pv)",
@@ -189,6 +204,13 @@ def build_patched():
 
 
 def load(tag):
+    # THE SAME GUARDS AS THE RUN THAT PRODUCED THE ARTEFACT G1 COMPARES AGAINST.
+    # G1 recomputes and checks itself against the published v2 row, which is now a
+    # GUARDED artefact -- structurally the identical staleness that made
+    # rebal_cadence_sweep fail. It passed only because the columns G1 compares did
+    # not move. That makes six configuration-stale gates, not five.
+    import engine_core as _ec
+    _ec.set_tradeability(REGISTRY[tag])
     label, M, cache, tmp = UNIVERSES[tag]
     src = config.require_cache(M / cache, tmp, what=f"{label} score panel")
     p = pd.read_csv(src, parse_dates=["date"])
@@ -401,7 +423,43 @@ def main():
         for th, wt in CELLS:
             g3 &= gate_reconcile(res[tag][(th, wt)], w)
         w(f"    G3 {'PASS' if g3 else 'FAIL'}  (control + {len(CELLS)} cells)")
-        gates_ok &= (g1 and g2 and g3)
+
+        # ---------------------------------------------------------------- G4
+        # WHY G4 EXISTS. G1/G2/G3 all PASSED with the tradability forced exit
+        # present AND absent: measured, the control's equity differs on 10 of
+        # 1,836 days by at most Rs 1,565 on a Rs 6.7M book, which is 0.02% and
+        # inside every budget G3 has, while CAGR, final equity and trade count are
+        # identical to the last decimal. A gate whose own name is the exit path
+        # reported PASS either way. G4 is the check that moves when the exit does.
+        #
+        # UNIVERSE-CORRECT. On n100 the expected count is ZERO, and "zero because
+        # nothing is untradeable" and "zero because the guard never loaded" are the
+        # same observation there. They must not be the same PASS, so the guard's
+        # own state is asserted first: TRADEABLE is a dict (never None) and its tag
+        # names THIS universe. An unloaded guard is None and fails that line before
+        # any count is compared.
+        import engine_core as _ec
+        exp = TRADABILITY_EXPECT[tag]
+        g4_lines, g4 = [], True
+        loaded = _ec.TRADEABLE is not None and _ec.TRADEABLE_TAG == tag
+        g4_lines.append(("guard loaded for this universe", loaded, True))
+        got_sym = len(_ec.TRADEABLE) if _ec.TRADEABLE is not None else -1
+        got_day = (sum(len(v) for v in _ec.TRADEABLE.values())
+                   if _ec.TRADEABLE is not None else -1)
+        g4_lines.append(("symbols guarded", got_sym, exp["symbols"]))
+        g4_lines.append(("blocked symbol-days", got_day, exp["blocked_days"]))
+        _sk = pd.DataFrame(res[tag]["control"]["audit"]["skipped"])
+        got_fe = (int(_sk["reason"].str.startswith("forced exit").sum())
+                  if len(_sk) else 0)
+        g4_lines.append(("forced exits in the control", got_fe, exp["forced_exits"]))
+        w(f"\n  GATE G4 -- the tradability guard is loaded and the forced exit fired")
+        for nm, got, want in g4_lines:
+            ok = (got == want)
+            g4 &= ok
+            w(f"    {nm:32} got {str(got):>8}   expected {str(want):>8}   "
+              f"{'MATCH' if ok else '*** DIFFERS ***'}")
+        w(f"    G4 {'PASS' if g4 else 'FAIL'}")
+        gates_ok &= (g1 and g2 and g3 and g4)
 
     if not gates_ok:
         w(f"\n{'=' * 120}\n STOP CONDITION MET. A CORRECTNESS GATE FAILED.")

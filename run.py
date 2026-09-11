@@ -110,6 +110,10 @@ STEP_UNIVERSES = {
     # reach STEP 15b, or that path reproduces the very bug 15b exists to fix.
     "save_caches_step.py":        ("58", "74", "mid", "n100"),
     "nt_export_scores.py":        ("58", "74", "mid", "n100"),
+    # SERVES EVERY UNIVERSE. It runs the execution engine for each selected
+    # (universe, arm) at the selected cadence and reports the impossible
+    # combinations rather than omitting them.
+    "nt_execute.py":              ("58", "74", "mid", "n100"),
 }
 
 
@@ -394,6 +398,10 @@ def main(argv=None):
                     help="which kinds of step to run (default all)")
     ap.add_argument("--rebal", type=int, default=None,
                     help="rebalance cadence in trading days; omit for the default 20")
+    ap.add_argument("--profile", default=None, choices=("research", "tradeable"),
+                    help="execution-realism profile; research (default) reproduces "
+                         "the published history exactly, tradeable applies the "
+                         "participation cap. See profiles.py.")
     ap.add_argument("--list", action="store_true", help="resolve and print the plan, run nothing")
     ap.add_argument("--dry-run", action="store_true",
                     help="like --list, and show every output location")
@@ -406,6 +414,83 @@ def main(argv=None):
         return 0
 
     return execute(plan, args)
+
+
+def collect_run_folder(plan, args, t_start):
+    """Gather everything THIS invocation produced into one named folder.
+
+    HARD LINKS, NOT COPIES AND NOT SYMLINKS. The canonical artefacts are written
+    first, to the paths they have always used, by the steps themselves -- nothing
+    about where a step writes has changed, which is why G1 stays trivially true.
+    This runs afterwards and links what appeared.
+
+        copies   would double roughly half a gigabyte per invocation, and could
+                 drift from the canonical file without anything noticing.
+        symlinks would dangle the moment a cleanup removed the canonical file,
+                 leaving a run folder full of broken pointers.
+        hard links cost one inode, cannot drift because there is only one set of
+                 bytes, and survive the canonical file being deleted.
+
+    WHAT COUNTS AS "PRODUCED": modified at or after this run started. That is why
+    t_start is taken before the first step rather than derived afterwards. A step
+    that rewrote a file identically still counts -- it ran, and the folder is a
+    record of what the run touched, not of what changed.
+
+    A run folder is never required by anything. If linking fails -- a filesystem
+    without hard links, a cross-device path -- the run has already succeeded and
+    this says so rather than failing after the fact.
+    """
+    import os
+    uni = [u.tag for u in plan["universes"]]
+    arm = [a.name for a in plan["arms"]]
+    reb = args.rebal if args.rebal is not None else paths.DEFAULT_REBAL
+    dest = ROOT / "runs" / paths.run_folder_name(uni, arm, reb)
+    linked, failed = 0, []
+    for d in paths.ARTEFACT_DIRS:
+        base = ROOT / d
+        if not base.is_dir():
+            continue
+        for f in base.rglob("*"):
+            if not f.is_file() or f.stat().st_mtime < t_start:
+                continue
+            # DO NOT RECURSE INTO RUN FOLDERS. runs/ is an artefact dir, and a
+            # previous invocation's folder sits inside it; without this a run
+            # would link the last run's links into its own.
+            if dest in f.parents or any(pp.name.startswith("20") and pp.parent.name == "runs"
+                                        for pp in f.parents):
+                continue
+            # THE SCORE PANEL CACHES ARE INPUT, NOT THIS RUN'S RESULT.
+            # STEP 15b re-persists all eight panels on every invocation whatever
+            # was selected, so their mtime always moves -- which put
+            # results74/metrics/v74_expanding_cache.csv inside a folder named
+            # `mid_v1-v3_r40`. They are the model's persisted panels, the same
+            # bytes every run, and a reader looking for what a run PRODUCED does
+            # not want a 250 MB panel that predates it.
+            if f.name.endswith("_cache.csv"):
+                continue
+            tgt = dest / d / f.relative_to(base)
+            tgt.parent.mkdir(parents=True, exist_ok=True)
+            try:
+                if tgt.exists():
+                    tgt.unlink()
+                os.link(f, tgt)
+                linked += 1
+            except OSError as e:
+                failed.append(f"{f.relative_to(ROOT)}: {e}")
+    if linked:
+        (dest / "RUN.txt").write_text(
+            f"universes : {', '.join(uni)}\n"
+            f"arms      : {', '.join(arm)}\n"
+            f"cadence   : {reb}\n"
+            f"steps     : {len(plan['pipeline'])} pipeline, {len(plan['arm_runs'])} arm runs\n"
+            f"artefacts : {linked} hard-linked from their canonical locations\n"
+            f"\nEvery file here is a HARD LINK to the canonical artefact, not a copy.\n"
+            f"Editing one edits the other; deleting one leaves the other intact.\n")
+        print(f"\n  run folder -> {show(dest)}/   ({linked} artefacts hard-linked)")
+    if failed:
+        print(f"  {len(failed)} could not be linked (the run itself succeeded):")
+        for m in failed[:5]:
+            print(f"    {m}")
 
 
 def execute(plan, args):
@@ -437,6 +522,10 @@ def execute(plan, args):
     # into test_exposure.REBAL. See the note at the top of cadence.py.
     import cadence as _cad
     _cad.set_selection(args.rebal)
+    # THE PROFILE, LIKE THE CADENCE, IS RECORDED ONCE HERE. Everything downstream
+    # asks profiles.participation_cap() at call time.
+    import profiles as _prof
+    _prof.set_selection(args.profile)
 
     # SAFETY 1 -- the determinism pin is already set, at the top of this file,
     # before any numeric import. Nothing to do here; it is listed so the four are
@@ -544,6 +633,7 @@ def execute(plan, args):
     print(f"DONE in {(time.time()-t_start)/60:.1f} min   "
           f"({len(plan['pipeline'])} pipeline steps, {len(plan['arm_runs'])} arm runs)")
     print("=" * 90)
+    collect_run_folder(plan, args, t_start)
     return 0
 
 

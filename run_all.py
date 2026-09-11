@@ -266,6 +266,19 @@ REQUIRED_INPUTS = {
     # selected, so `--universe mid` from a cold tree has one of these four and not
     # the other three -- and demanding all four made that selection impossible
     # from cold. It only ever passed because an earlier full run had left them.
+    # UNIVERSE-TAGGED, like nt_export_scores' own inputs: the port loads the
+    # parquet for each SELECTED universe, and a run that selected one universe has
+    # one of these four.
+    "nt_execute.py": [
+        (ROOT / "nautilus" / "data" / "scores_58.parquet",
+         "STEP 16 nt_export_scores.py", "u:58"),
+        (ROOT / "nautilus" / "data" / "scores_74.parquet",
+         "STEP 16 nt_export_scores.py", "u:74"),
+        (ROOT / "nautilus" / "data" / "scores_mid.parquet",
+         "STEP 16 nt_export_scores.py", "u:mid"),
+        (ROOT / "nautilus" / "data" / "scores_n100.parquet",
+         "STEP 16 nt_export_scores.py", "u:n100"),
+    ],
     "nt_export_scores.py": [
         (R / "metrics" / "v5_expanding_cache.csv",
          "STEP 15b save_caches_step.py", "u:58"),
@@ -328,6 +341,11 @@ PIPELINE_ORDER = [
     # rewriting the loop cannot drop it. See results/save_caches_step.py.
     ("STEP 15b", "save_caches_step.py"),
     ("STEP 16", "nt_export_scores.py"),
+    # STEP 17 IS THE EXECUTION HALF OF THE NAUTILUS STORY. STEP 16 exports the
+    # score parquet the port READS; nothing in the pipeline ever ran the port
+    # itself, so a normal run produced Nautilus input and no Nautilus output.
+    # It must follow 16, which writes the parquet it loads.
+    ("STEP 17", "nt_execute.py"),
 ]
 # Kept as the canonical set of pipeline script names. run()'s membership guard used
 # it; run.py needs the same answer when it maps a step to its universe.
