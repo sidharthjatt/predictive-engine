@@ -15,75 +15,215 @@ currently wrong.
 
 ---
 
-## The shipping arm's return edge is smaller than the seed noise it is measured through
+## The strategy sells return to buy drawdown, and the record reports the two halves separately
 
 Found 2026-09-11, by transcribing the live figures into tracked prose for the
-first time. Open. **This is the most serious open item in this file, and it is not
-about the universe retirement that surfaced it.**
+first time. Open. **This is the most serious open item in this file.** It is not
+about the universe retirement that surfaced it.
 
-**The edge.** Against each universe's own equal-weight buy & hold — the only
-comparison that is not a weighting artefact — the shipping arm returns:
+### The finding: one mechanism, not two results
 
-| universe | v2 CAGR | own buy & hold | edge |
-|---|---:|---:|---:|
-| n100 | 24.43 | 24.00 | **+0.43** |
-| mid | 29.23 | 28.34 | **+0.89** |
-
-**The noise.** The measured seed-noise standard deviation at the shipped ensemble
-size, from the 40-seed study recorded above under *"The 10-seed ensemble does not
-average away what it was built to average away"*:
-
-| universe | σ(K=10), CAGR points | edge | **edge in σ** |
-|---|---:|---:|---:|
-| n100 v2 | 0.968 | 0.43 | **0.44 σ** |
-| mid v2 | 1.393 | 0.89 | **0.64 σ** |
-
-**Changing nothing but the random seeds moves the result by more than the entire
-claimed edge.** Not marginally — on n100 the edge is under half of one standard
-deviation. A single draw landing 0.43 above its own benchmark is what this
-distribution produces routinely with no skill present at all.
-
-**THE 0.5-POINT FLOOR EVERY SIGMA CLAIM IN THIS PROJECT USED WAS INVENTED.**
-`results/seed_noise_measure.py`'s own docstring records why it was written: *"the
-purge measurement reported +0.54 and −0.81 on the shipping arm and judged them
-against a 0.5-point noise floor that was INVENTED, not measured."* The measured
-floor is **1.9× worse than the assumed one on n100 and 2.8× worse on mid**. Every
-comparison this project has judged against ±0.5 — purge, buffer, TOP_N, EWMA,
-sizing, cadence — was judged against a bar roughly half as tall as the real one,
-and the conclusions drawn from those comparisons should be re-read on that basis
-rather than trusted.
-
-**The floor has not been re-measured under the current engine, and the attempt
-failed.** `diagnostics/seed_noise.txt` is the most recent run and it reports:
+This project has always reported a drawdown win and a return tie. They are the
+same trade. Breadth scaling moves the book to cash when breadth collapses; that
+is what produces the shallower drawdown, and it is the same rule that sits out
+the recovery. Measured on the six best market days for n100:
 
 ```
-IDENTITY GATE -- production 10 seeds vs v34_comparison.csv: MISMATCH
-  n100  store 26.21 / 1.92 / -17.69   recorded 25.78 / 1.86 / -19.87
-  mid   store 29.95 / 2.04 / -16.82   recorded 29.70 / 2.03 / -18.88
-NO SPREAD IS REPORTED. The store does not reproduce the shipped result.
+date         b&h day   v2 day   capture   invested
+2020-04-07    +6.73%   +0.82%     0.12x      23.1%
+2019-09-20    +5.39%   +2.47%     0.46x      48.6%
+2020-03-20    +5.27%   +1.32%     0.25x      21.4%
+2019-05-20    +4.35%   +1.50%     0.34x      98.2%
+2020-04-09    +4.35%   +0.53%     0.12x      23.9%
+2026-04-08    +4.21%   +1.50%     0.36x      25.1%
+mean capture 0.28x    mean invested 40.0%   (window mean 67.8%)
 ```
 
-So the σ values above are the best measurement this project has, and they were
-taken on the pre-`adj_close`, pre-tradability-guard engine. The per-seed stores
-they were computed from (`results/SEEDNOISE_*.npy`) are gone — they were never
-tracked, are absent from the working tree, and were excluded from
-`forensic_snapshot_20260911T0100/`. The seeds themselves are pinned in committed
-code (`PROD_SEEDS`, `EXTRA_SEEDS`, subset RNG 20260902), so the study is
-repeatable; it has not been repeated.
+Four of the six are post-crash rebounds. The rule avoids the crash and it avoids
+the recovery. Reporting those as a drawdown result and a separate return result
+makes the strategy look like it wins on one axis and ties on the other, when it
+is doing one thing with a cost and a benefit.
 
-**What this does and does not say.** It does not say the strategy has no edge. It
-says **the return edge as currently measured is not distinguishable from seed
-noise**, and that the project has never had a noise floor it actually measured
-under the engine it ships. Two things follow, neither of which has been done:
-re-run the 40-seed study on the current engine, and report every headline
-comparison as an interval rather than a point.
+### The decomposition the record has never made
 
-**The drawdown result does not have this problem.** n100 −18.38% against buy &
-hold's −37.79% and mid −15.68% against −36.54% are gaps of 19 and 21 points. That
-is the part of the claim that survives, and it is what a rule that goes to cash
-when breadth collapses ought to produce.
+Hold the universe at the strategy's own daily invested fraction -- same cash
+path, no selection -- and the halves separate:
 
----
+| | CAGR% | Sharpe | MaxDD% |
+|---|---:|---:|---:|
+| **n100** buy & hold, 100% invested | 24.01 | 1.28 | -37.79 |
+| n100 same exposure path, no selection | 18.08 | 1.49 | -19.84 |
+| n100 strategy v2 | 24.43 | 1.72 | -18.38 |
+| **mid** buy & hold, 100% invested | 28.36 | 1.49 | -36.54 |
+| mid same exposure path, no selection | 17.96 | 1.61 | -17.21 |
+| mid strategy v2 | 29.23 | 1.99 | -15.68 |
+
+**The exposure rule alone captures 92.5% of n100's drawdown benefit and 92.7% of
+mid's.** Selection adds 1.46 and 1.53 points of drawdown protection, against the
+19.41 and 20.86 the record quotes versus a fully-invested benchmark.
+
+**Exposure-matched, the selection edge is +6.35 and +11.27 CAGR points** -- not
+the +0.43 and +0.87 the record quotes. The exposure rule spends 5.9 (n100) and
+10.4 (mid) of those points to buy roughly 18 and 19 points of drawdown reduction.
+
+Against a fully-invested benchmark those two effects nearly cancel on return and
+stack on drawdown, which is precisely why the published comparison reads the way
+it does.
+
+### Two independent controls, both agreeing
+
+**1. The shuffle test** (`diagnostics/shuffle_verdict.txt`): scores permuted,
+every mechanic including exposure held identical.
+
+```
+            realDD   nullDD med   p(DD)
+n100  v2    -18.38      -20.12   0.3564
+mid   v2    -15.68      -19.29   0.1188
+```
+
+Random selection through the same breadth rule reproduces **91% of n100's
+drawdown advantage and 83% of mid's**. The drawdown result is not significant
+against the null that controls for exposure, on either universe. The spec
+predicted this in advance -- *"exposure is score-independent"* -- and the file
+records *"the prediction is BORNE OUT"* on both.
+
+**2. The exposure-matched benchmark above**, which is a different method and
+reaches 92.5% and 92.7%.
+
+### The comparison this project has never run
+
+There is no exposure-matched comparison anywhere in the record. Not in code, not
+in prose, not in any artefact: no return per rupee deployed, no benchmark held at
+the strategy's exposure, no normalisation of any kind. `Deployed%` is printed as
+a column in every comparison table and never used as a denominator. **The only
+place deployment is held constant is inside the shuffle null**, where it compares
+the strategy against itself.
+
+The record has also never stated the drawdown benefit and the return cost as one
+mechanism. The closest it comes is the shuffle's own note -- *"the breadth arms
+deploy about 57% while buy & hold is 100% invested, so a breadth arm below buy &
+hold on CAGR is not evidence of anything on its own"* -- which identifies the
+mismatch on the return side only and then declines to draw the conclusion.
+
+**So the question the record should be asking, and does not, is whether the trade
+is priced correctly**: selection earns 6 to 11 CAGR points, the exposure rule
+spends most of them, and what it buys is drawdown reduction that mostly does not
+require the selection at all. "Is the edge significant against a fully-invested
+benchmark" is the wrong question, because that comparison is mismatched on
+exposure in both directions at once.
+
+### Why the headline +0.43 does not resolve, for three independent reasons
+
+**1. Seed noise.** From `diagnostics/seed_noise.txt` section 1, at the shipped
+K=10, measured on the current engine:
+
+| universe | edge vs b&h | sd(CAGR) at K=10 | edge in sigma |
+|---|---:|---:|---:|
+| n100 v2 | +0.43 | 1.07 | **0.40** |
+| mid v2 | +0.89 | 1.01 | **0.88** |
+
+Changing nothing but the random seeds moves the result by more than the entire
+claimed edge.
+
+**2. The benchmark's own instability, and it differs by universe.**
+
+- **mid: the denominator is contaminated.** Six single-day moves above 55% sit
+  inside the window -- MEDANTA +548.8%, 360ONE +464.1%, PATANJALI +413.6%,
+  SBICARD +109.6% and two more. Buy & hold reads 28.34% as computed and 24.23%
+  with those six days neutralised, so the same edge is +0.89 or +5.0 depending on
+  a data-handling choice nobody has made. This is not a claim that the edge is 5
+  points -- survivorship pulls the other way -- it is that the denominator is not
+  defined to better than about 4 points.
+- **n100: zero moves above 55%, and a different problem.** Its six largest days
+  are real. But removing them symmetrically moves the edge from +0.43 to +3.92, a
+  factor of nine, because the strategy captures them at 0.28x while the benchmark
+  takes them in full. Six days out of 1,836 move the estimate by eleven times the
+  quantity being claimed.
+
+**3. Nothing is attributable to a commit.** Of the 65 artefacts in this project
+that record their git state, **65 were produced with a dirty working tree** --
+one batch of 44 on top of a commit with 117 modified or untracked files. The
+identity gates confirm the outputs agree with what ships; they say nothing about
+which source produced them. This applies to every figure in this entry, including
+the shuffle p-values below.
+
+### What the shuffle does and does not establish
+
+Against **random selection**, the shuffle gates CAGR at p = 0.0099 on v1 and v2,
+both universes. Two things must be read with that number.
+
+**It is the test's floor, not a measurement.** `shuffle_params.json` records
+`n_shuffles: 100`, and the p-value is `(1 + beat) / (len + 1)`. With `beat = 0`
+that is 1/101 = 0.009901 exactly. The correct reading is **"no draw in 100 beat
+it"**; the test cannot express anything smaller.
+
+**And the floor is not the defect -- multiplicity is.** `shuffle_verdict.txt`
+states the configuration was chosen after at least 26 recorded trials on this
+same data. A shuffle run afterwards is not testing that selection; it is testing
+the winner on the data it won on. Raising N lowers the floor and does not touch
+the bias: a p of 0.0001 obtained the same way would carry the identical defect.
+**The remedy is held-out data, or a pre-registered configuration tested once --
+not more shuffles.** The file says as much itself: *"IT DOES NOT CORRECT FOR THE
+TRIAL DENOMINATOR. A small p here is NOT the probability that the strategy is
+noise."*
+
+### Two benchmarks, not a contradiction
+
+These answer different questions against different nulls, and both are true:
+
+- **Against random selection** (shuffle): p at the floor on both gated arms.
+  **The selection carries information.** That is a low bar, and the test's own
+  caveats -- trial denominator, survivorship, tradability -- all still apply.
+- **Against buy & hold** (the economically meaningful comparison): +0.43 and
+  +0.89, at 0.40 and 0.88 sigma of seed noise, against a denominator that is
+  itself unstable by several points. **The magnitude is not resolvable.**
+
+Beating a random-selection null while being unable to measure how far you beat
+buy & hold are compatible statements. The record currently reports only the
+second, and only its point estimate.
+
+### Realised invested capital, labelled
+
+Mean of daily `invested_pct` for v2 over 1,836 days: **n100 67.8%, mid 61.1%**;
+medians **67.4%** and **64.5%**. This is *not* the `Deployed%` column of
+`v34_comparison.csv` (56.6% and 54.1%), which is the mean breadth exposure
+multiplier. Two different quantities, and they must not be conflated -- the
+exposure-matched rows above use the realised figure.
+
+### The floor that was invented is still printed as fact
+
+The 0.5-point noise floor that `seed_noise_measure.py`'s docstring calls
+*"INVENTED, not measured"* is still asserted in program output, in three code
+sites, and has propagated into five tracked artefacts:
+
+```
+results/engine_core.py:711     comment  "retraining shifts it by +/-0.5% run to run"
+results/engine_core.py:717     print    "(CAGR varies +/-0.5% per retrain -- not checked)"
+results/validate_engine.py:227 print    "CAGR is not checked -- it moves +/-0.5% per refit"
+validate_sizing.py:177         print    "(CAGR varies +/-0.5% per retrain -- not checked)"
+
+diagnostics/validate_engine_{58,mid,n100}.txt    diagnostics/validate_sizing_{mid,n100}.txt
+```
+
+The measured value is 1.07 and 1.01 -- roughly twice the asserted one. Every
+comparison judged against +/-0.5 (purge, buffer, TOP_N, EWMA, sizing, cadence)
+was judged against half the real bar. Not corrected here: correcting the prints
+without re-running what they gated would replace one unexamined number with
+another.
+
+### What would settle it
+
+Nothing in this entry is fixed. In order of what it would take:
+
+1. Report every headline comparison **exposure-matched**, and state the trade
+   explicitly: what selection earns, what the exposure rule spends, what it buys.
+2. Test on **held-out data or a pre-registered configuration** -- the only
+   remedy for the trial denominator.
+3. Re-run the 40-seed study whenever the engine changes, and quote intervals
+   rather than point estimates.
+4. Decide the mid benchmark's data-handling question (truncate or stitch a
+   symbol's history across a corporate event of that size) rather than leaving
+   the denominator undefined.
 
 ## Universe.year_range has a reader and no setter
 
