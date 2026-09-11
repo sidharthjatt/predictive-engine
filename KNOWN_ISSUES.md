@@ -70,7 +70,75 @@ Against a fully-invested benchmark those two effects nearly cancel on return and
 stack on drawdown, which is precisely why the published comparison reads the way
 it does.
 
-### Two independent controls, both agreeing
+### The exposure-matched edge, with its null and its noise
+
+**+6.35 and +11.27 are the largest numbers in this record, so they get the same
+treatment as everything else in it.** Both controls below are computable from
+artefacts already on disk.
+
+**The null.** The shuffle permutes scores while holding every mechanic fixed, and
+`shuffle_draws.csv` shows `Deployed%` is **identical across all 100 draws** --
+sd 0.0000, one unique value, both universes. Exposure really is score-independent,
+so the exposure-matched benchmark is the same constant under every draw and the
+null distribution of the matched edge is the null CAGR distribution shifted:
+
+| | real edge | null median | null p95 | null max | null sd | draws beating | p |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| n100 | **+6.35** | −6.65 | −2.89 | +1.57 | 2.50 | 0 of 100 | 0.0099 |
+| mid | **+11.27** | −6.72 | −1.68 | +4.06 | 2.88 | 0 of 100 | 0.0099 |
+
+The real edge is 4.0x and 2.8x the best of 100 random-selection draws, and 5.2
+and 6.2 null standard deviations above the null median.
+
+**THIS IS NOT A SECOND, INDEPENDENT CONTROL, AND MUST NOT BE READ AS ONE.**
+Because the benchmark is constant across draws, subtracting it does not change
+the ordering of the draws -- so this test is ARITHMETICALLY THE SAME TEST as the
+raw CAGR shuffle above, re-expressed in matched units. It inherits every defect
+of that test without exception: p is at the 1/101 floor rather than measured, the
+configuration was chosen after at least 26 trials on this data so multiplicity is
+untreated, and the run that produced it had 36 uncommitted files. What the
+matched form adds is a readable effect size, not additional evidence.
+
+**The seed noise.** The 1.07 and 1.01 figures are the sd of v2's CAGR, which is
+the numerator of the matched edge. The benchmark is built from the strategy's
+realised invested path; the breadth MULTIPLIER is provably seed-independent (see
+the Deployed% result above), but the realised path depends on which names are
+held and so is not exactly seed-invariant. Under the assumption that the
+benchmark does not move with the seeds:
+
+| universe | matched edge | sd(CAGR) at K=10 | edge in sigma |
+|---|---:|---:|---:|
+| n100 | +6.35 | 1.07 | **5.9** |
+| mid | +11.27 | 1.01 | **11.2** |
+
+**That assumption is not verified and cannot be, from what survives.** The
+per-seed stores (`results/SEEDNOISE_*.npy`) were never tracked and are gone, so
+the matched edge's sigma cannot be computed directly. Settling it means re-running
+the 40-seed study and recording the matched edge per sub-ensemble, which has not
+been done.
+
+**Status, stated plainly: measured, controlled against random selection at the
+test's floor, and NOT controlled for multiplicity, for the benchmark's own
+construction, or for seed variation in the benchmark.** It is a larger and better
+identified effect than the +0.43, not an established one.
+
+### This table is not a recommendation
+
+It does not say to remove the breadth rule. **Removing it is v1, and v1's numbers
+are already known:** CAGR 30.56 and 50.12, at MaxDD -31.92 and -35.88, against
+buy & hold's -37.79 and -36.54. That is the same trade priced the other way --
+more return, nearly all of the drawdown back.
+
+What the table establishes is that the trade is **visible and priced**, which is a
+different statement from saying it is mispriced. Whether 5.9 CAGR points on n100
+and 10.4 on mid is a fair price for roughly 18 and 19 points of drawdown
+reduction is a decision about risk appetite, not a defect. Nobody has been in a
+position to make that decision before, because the two halves were never reported
+together.
+
+A reader six months from now should find the price here, not an instruction.
+
+### Two controls on the drawdown side, by different constructions
 
 **1. The shuffle test** (`diagnostics/shuffle_verdict.txt`): scores permuted,
 every mechanic including exposure held identical.
@@ -87,8 +155,14 @@ against the null that controls for exposure, on either universe. The spec
 predicted this in advance -- *"exposure is score-independent"* -- and the file
 records *"the prediction is BORNE OUT"* on both.
 
-**2. The exposure-matched benchmark above**, which is a different method and
-reaches 92.5% and 92.7%.
+**2. The exposure-matched benchmark above**, which reaches 92.5% and 92.7%.
+
+Unlike the return case -- where subtracting a constant benchmark leaves the
+shuffle test arithmetically unchanged -- these two genuinely differ in
+construction: one replaces the selection with random names at the same exposure,
+the other removes selection entirely by holding the whole universe at that
+exposure. MaxDD is not linear in the return path, so neither reduces to the other.
+They are two methods agreeing, not two independent samples of evidence.
 
 ### The comparison this project has never run
 
@@ -219,8 +293,10 @@ Nothing in this entry is fixed. In order of what it would take:
    explicitly: what selection earns, what the exposure rule spends, what it buys.
 2. Test on **held-out data or a pre-registered configuration** -- the only
    remedy for the trial denominator.
-3. Re-run the 40-seed study whenever the engine changes, and quote intervals
-   rather than point estimates.
+3. Re-run the 40-seed study whenever the engine changes, quote intervals rather
+   than point estimates, and record the EXPOSURE-MATCHED edge per sub-ensemble --
+   without it, the 5.9 and 11.2 sigma above rest on an unverified assumption that
+   the benchmark does not move with the seeds.
 4. Decide the mid benchmark's data-handling question (truncate or stitch a
    symbol's history across a corporate event of that size) rather than leaving
    the denominator undefined.
