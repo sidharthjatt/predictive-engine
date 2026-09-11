@@ -38,6 +38,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import config
 import arms.registry as arm_reg
 import cadence
+import profiles
 import arm_sources, config_n100
 import survivorship as sv
 def _window_label(eq=None):
@@ -104,11 +105,19 @@ def _ci(path):
     Under --rebal 40 the engine wrote v2FINAL_equity_r40.csv and left the
     canonical cadence-20 file alone; reading the canonical one here would plot a
     cadence-20 curve on a chart whose title says 40.
+
+    THE PROFILE IS PART OF THE SIBLING'S NAME TOO, as of 2026-09-12. Before that
+    the engines ignored the profile entirely and wrote capped `tradeable` numbers
+    into the canonical filenames, so there was no sibling to find and this helper
+    could not have been wrong. Now that the engines suffix their output, a
+    tradeable run must read the tradeable file or it would plot research curves
+    under a tradeable title.
     """
     import cadence as _cd
-    if _cd.is_default():
+    import profiles as _pf
+    if _cd.is_default() and _pf.is_default():
         return path
-    c = path.with_name(path.stem + _cd.suffix() + path.suffix)
+    c = path.with_name(path.stem + _cd.suffix() + _pf.suffix() + path.suffix)
     return c if c.exists() else path
 
 
@@ -275,14 +284,14 @@ def main():
     # CANONICAL: always exactly v2 and v1, drawn whenever both are selected.
     _written = []
     _canon = {n: d for n, d in ARMS_ON.items() if n in ("v2", "v1")}
-    if len(_canon) == 2 and cadence.is_default():
+    if len(_canon) == 2 and cadence.is_default() and profiles.is_default():
         _render(_canon, M / "chart_n100.png")
         _written.append(M / "chart_n100.png")
 
     # SELECTION: exactly what this run selected, into its own name.
-    if set(ARMS_ON) != {"v2", "v1"} or not cadence.is_default():
+    if set(ARMS_ON) != {"v2", "v1"} or not cadence.is_default() or not profiles.is_default():
         _asf = arm_reg.suffix(ARMS_ON) if set(ARMS_ON) != {"v2", "v1"} else ""
-        _p = M / ("chart_n100" + _asf + cadence.suffix() + ".png")
+        _p = M / ("chart_n100" + _asf + cadence.suffix() + profiles.suffix() + ".png")
         _render(ARMS_ON, _p)
         _written.append(_p)
     # REPORTS WHAT WAS WRITTEN, NOT A LITERAL. This printed "chart_n100.png"

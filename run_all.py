@@ -97,11 +97,16 @@ R = ROOT / "results"
 # were deleted on 2026-09-11 and every script they owned went with them. See
 # RETIRED_UNIVERSES.md.
 
-# STEP 16 lives in nautilus/, not results/. Listing it by bare name meant the static
-# checker resolved it to results/nt_export_scores.py, found nothing, and SILENTLY
-# SKIPPED IT -- it had never been covered by the ordering check. Found 2026-09-04 when
-# the checker was taught to report what it could not resolve.
-NAUTILUS_SCRIPTS = {"nt_export_scores.py"}
+# WHERE STEPS LIVE. Searched in order, not matched against a list of names.
+#
+# THIS WAS AN ALLOWLIST OF ONE NAME AND IT FAILED TWICE. On 2026-09-04 STEP 16
+# nt_export_scores.py resolved to results/, was not found, and was silently
+# skipped by the ordering check -- it had never been covered. The fix was to add
+# that one name to a set. On 2026-09-11 STEP 17 nt_execute.py, added to
+# PIPELINE_ORDER without touching the set, reproduced the identical failure. A
+# name allowlist cannot generalise to the next file, which was knowable when it
+# was written. The directory list can.
+STEP_DIRS = (ROOT / "results", ROOT / "nautilus")
 
 # A step whose body lives in a shared helper must be scanned WITH that helper, or
 # the static ordering check loses the edges the helper writes. results/audit_step.py
@@ -122,8 +127,12 @@ def script_path(script):
     q = Path(script)
     if q.is_absolute():
         return q
-    if q.name in NAUTILUS_SCRIPTS:
-        return ROOT / "nautilus" / q.name
+    for d in STEP_DIRS:
+        if (d / q.name).exists():
+            return d / q.name
+    # NOT FOUND ANYWHERE. The results/ path is returned so the caller can report
+    # what it looked for; check_pipeline_order.enforce() treats an unresolvable
+    # step as fatal rather than printing a banner and continuing.
     return R / q.name
 
 
@@ -372,14 +381,15 @@ def check_inputs(label, script):
 
 def restore_cache_to_tmp():
     """Restore permanent copies into /tmp so scripts run without rebuilding."""
-    pairs = [("v5_expanding_cache.csv", "v5_expanding.csv", R/"metrics"),
-             ("raw_panel_cache.csv", "raw_panel_20.csv", R/"metrics"),
-             ("v74_expanding_cache.csv", "v74_expanding.csv", ROOT/"results74"/"metrics"),
-             ("raw_panel74_cache.csv", "raw_panel74_20.csv", ROOT/"results74"/"metrics"),
-             ("v_mid_expanding_cache.csv", "v_mid_expanding.csv", ROOT/"results_mid"/"metrics"),
-             ("raw_panel_mid_cache.csv", "raw_panel_mid_20.csv", ROOT/"results_mid"/"metrics"),
-             ("v_n100_expanding_cache.csv", "v_n100_expanding.csv", ROOT/"results_n100"/"metrics"),
-             ("raw_panel_n100_cache.csv", "raw_panel_n100_20.csv", ROOT/"results_n100"/"metrics")]
+    # FROM THE REGISTRY. This was eight literal triples, four of them the deleted
+    # 58's and 74's -- missed by 85f68a4's sweep, which claimed to have removed
+    # every hardcoded universe list. Harmless only because the permanent files it
+    # named no longer exist.
+    from universes.registry import REGISTRY
+    pairs = [(u.score_cache.name, u.score_tmp.name, u.score_cache.parent)
+             for u in REGISTRY.values()] + \
+            [(u.raw_cache.name, u.raw_tmp.name, u.raw_cache.parent)
+             for u in REGISTRY.values()]
     for perm_name, tmp_name, folder in pairs:
         perm = folder / perm_name
         if perm.exists() and not (TMP / tmp_name).exists():
@@ -407,7 +417,7 @@ def main():
 
     WHAT STILL LIVES HERE, AND WHY IT WAS NOT MOVED
         PIPELINE_ORDER, REQUIRED_INPUTS, STEP_HELPERS,
-        NAUTILUS_SCRIPTS, script_path(), check_inputs(), the cache lists and the two
+        STEP_DIRS, script_path(), check_inputs(), the cache lists and the two
         cache functions are all READ BY run.py, which loads this file with
         runpy.run_path to get them. They are the ordered description of the pipeline;
         run.py is the thing that chooses a subset of it and runs it. Copying them
