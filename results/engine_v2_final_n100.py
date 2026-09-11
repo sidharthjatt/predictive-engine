@@ -56,6 +56,7 @@ import arms.registry as arm_reg
 import survivorship as sv
 from engine_core import metrics, precompute
 from test_exposure import backtest_exposure, CASH_YIELD
+import profiles as _prof            # the run's execution-realism profile
 
 REBAL, VOL_WIN = 20, 60
 # REBAL ABOVE IS THE DEFAULT AND STAYS 20. The cadence this RUN selected is read
@@ -144,10 +145,10 @@ def main():
                                              _cfg.BT_START_DATE, _cfg.BT_END_DATE)}
     base_eq, tcb, nb, _ = backtest_exposure(px, op, sc, bd, pc, mom20, port_vol,
                                             mode="none", target_vol=tv,
-                                            audit=base_audit, rebal=_reb, **_capkw)
+                                            audit=base_audit, rebal=_reb, **_capkw, participation_cap=_prof.participation_cap())
     fin_eq, tcf, nf, expo = backtest_exposure(px, op, sc, bd, pc, mom20, port_vol,
                                               mode="breadth", target_vol=tv,
-                                              rebal=_reb, **_capkw)
+                                              rebal=_reb, **_capkw, participation_cap=_prof.participation_cap())
     bh = START_CAPITAL * (1 + px.pct_change().loc[bd].mean(axis=1).fillna(0)).cumprod()
 
     mbase = metrics(base_eq, "Inverse-vol, 100% invested (v1 final)", tcb, nb)

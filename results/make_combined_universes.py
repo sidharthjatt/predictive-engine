@@ -91,22 +91,26 @@ def before_tc(eq, log):
 # registry.index_name holds the FILE's name, "NIFTY100" and "NIFTYMIDCAP150",
 # which is what the per-universe legend rows use. Deriving one from the other
 # would silently retitle a published chart, so both are written down.
-DISPLAY = {"n100": "NIFTY 100", "mid": "MIDCAP150",
-           "58": "58 (retired)", "74": "74 (retired)"}
+DISPLAY = {"n100": "NIFTY 100", "mid": "MIDCAP150"}
 
 # FOUR COLOURS PER UNIVERSE: v2, v1, buy&hold, index. n100's and mid's are the
-# exact values the two-universe chart used and must not change. 58 and 74 are new
-# here and are chosen not to collide with those eight; their fourth entry is
-# unused, because neither has a published index.
+# exact values the two-universe chart used and must not change. The 58's and 74's
+# rows were deleted with those universes; a new universe adds a row here, and
+# _check_colours() below refuses rather than letting it fall back to a default.
 # Slots 0-3 are v2, v1, buy&hold, index and are UNCHANGED -- the published chart
 # depends on them. Slots 4 and 5 are v3 and v4, appended rather than inserted so
 # every existing index keeps pointing at the same colour.
 COLOURS = {
     "n100": ("#c0392b", "#2e6da4", "#3a9d3a", "#000000", "#7f3f98", "#d95f02"),
     "mid":  ("#e377c2", "#17becf", "#8fd08f", "#7f7f7f", "#1b9e77", "#e6ab02"),
-    "58":   ("#ff7f0e", "#9467bd", "#8c564b", "#555555", "#66a61e", "#a6761d"),
-    "74":   ("#bcbd22", "#76b7b2", "#b07aa1", "#999999", "#666666", "#e7298a"),
 }
+
+_missing_colour = set(REGISTRY) - set(COLOURS)
+if _missing_colour:
+    raise SystemExit(
+        f"COLOURS has no row for registered universe(s) {sorted(_missing_colour)}. "
+        f"Add one that does not collide with the published values above; a chart "
+        f"that picks a colour by accident is not reproducible.")
 
 # WHICH SLOT OF THAT TUPLE EACH ARM USES. v2 has always been the first colour and
 # v1 the second, so with both selected the chart is unchanged. v3 and v4 are new
@@ -155,26 +159,44 @@ PLOT_ARMS = ("v2", "v1")
 # could not be drawn for any other set without quoting numbers from universes that
 # were not on it. Each note is that universe's own measured result; a universe with
 # no note contributes nothing rather than a placeholder.
+# EVERY NUMBER IN A NOTE IS STAMPED WITH THE ENGINE THAT MEASURED IT. These were
+# measured before adj_close became the canonical price and before the interior-gap
+# guard, and the headline figures they quote have since moved -- n100 v2 is 24.43 /
+# 1.72 and mid v2 is 29.23 / 1.99 as of the 2026-09-11 snapshot. They are kept as
+# the liquidity finding, which is about fill sizes rather than about CAGR, and
+# marked rather than silently re-quoted under numbers they were not measured
+# against. Re-measure and restamp, or delete the note; do not edit the figures.
 LIQUIDITY = {
-    "n100": ("n100: 3 of 997 fills exceed 10% of prior-20-day median volume, and "
-             "ZERO do on the 60-day window; modelling\nrealistic depth (10% of "
-             "median daily volume per level, three levels) costs 0.01 CAGR points, "
-             "25.43% -> 25.42%, Sharpe unchanged at 1.88."),
-    "mid":  ("mid: 22 of 985 fills exceed 10%, the largest being 1,614% on AIIL; "
-             "the same depth model costs 1.80 CAGR points, 29.16% -> 27.36%, "
-             "Sharpe 2.00 -> 1.90."),
+    "n100": ("n100 [measured pre-2026-09-10, close-basis engine]: 3 of 997 fills "
+             "exceed 10% of prior-20-day median volume, and ZERO do on the 60-day "
+             "window;\nmodelling realistic depth (10% of median daily volume per "
+             "level, three levels) cost 0.01 CAGR points, 25.43% -> 25.42%."),
+    "mid":  ("mid [measured pre-2026-09-10, close-basis engine]: 22 of 985 fills "
+             "exceed 10%, the largest being 1,614% on AIIL; the same depth model "
+             "cost 1.80 CAGR points, 29.16% -> 27.36%."),
 }
 
 _COUNT_WORD = {2: "both", 3: "all three", 4: "all four"}
+# Keyed by count, not by universe: it survives a universe being added or removed.
 
 # THE STANDING PUBLISHED COMPARISON. n100-vs-mid is the figure docs/README.md
 # embeds and the top-level README displays, so it is refreshed whenever both of
 # its universes are selected -- not only when they are the WHOLE selection. It is
-# named here, once, rather than being inferred from `frozen` or from LIVE: which
-# figure the project publishes is an editorial fact, not a property of the
-# universes, and deriving it would silently repoint the README the day a third
-# live universe is added.
+# named here, once, rather than being inferred from the registry: which figure the
+# project publishes is an editorial fact, not a property of the universes, and
+# deriving it would silently repoint the README the day a third universe is added.
+#
+# IT IS STILL CHECKED AGAINST THE REGISTRY at import, because the one thing it may
+# not be is a pair that cannot exist -- that would fail at chart time, deep in a
+# draw call, rather than here.
 PAIR_CHART = ("n100", "mid")
+
+_unknown_pair = set(PAIR_CHART) - set(REGISTRY)
+if _unknown_pair:
+    raise SystemExit(
+        f"PAIR_CHART names universe(s) the registry does not define: "
+        f"{sorted(_unknown_pair)}. The published comparison cannot be drawn. "
+        f"Pick a pair from {sorted(REGISTRY)}, or retire the pair chart.")
 
 
 def _joined(items):
@@ -239,18 +261,6 @@ def main():
                         config_mid.METRICS_DIR_MID / "v2FINAL_params.json",
                         config_mid.METRICS_DIR_MID / "daily_trades_mid.csv",
                         config_mid.METRICS_DIR_MID / "daily_trades_v1_mid.csv")
-    if "58" in tags:
-        FILES["58"] = (config.METRICS_DIR / "v2FINAL_equity.csv",
-                       config.METRICS_DIR / "v2FINAL_params.json",
-                       config.METRICS_DIR / "daily_trades_58.csv",
-                       config.METRICS_DIR / "daily_trades_v1_58.csv")
-    if "74" in tags:
-        import config74
-        FILES["74"] = (config74.METRICS_DIR_74 / "v2FINAL_equity.csv",
-                       config74.METRICS_DIR_74 / "v2FINAL_params.json",
-                       config74.METRICS_DIR_74 / "daily_trades_74.csv",
-                       config74.METRICS_DIR_74 / "daily_trades_v1_74.csv")
-
     # LOADED ONCE, PLOTTED POSSIBLY TWICE. The published n100+mid pair chart is
     # drawn from the SAME rows as the N-way chart when both are produced, so the
     # two figures cannot disagree about a number.
@@ -267,7 +277,7 @@ def main():
         eq = pd.read_csv(eqf, parse_dates=["date"]).set_index("date")
         # ARMS BY NAME, NOT BY THE COLUMN THEY HAPPEN TO SIT IN.
         # equity_series falls back to the legacy `strategy`/`baseline_invvol`
-        # spelling, which is what the frozen 58 and 74 still write.
+        # spelling, which is what the deleted 58 and 74 wrote.
         eq_v2 = arm_reg.equity_series(eq, "v2")
         eq_v1 = arm_reg.equity_series(eq, "v1")
         index = None
@@ -366,10 +376,12 @@ def main():
     # already wrote exactly this file, and drawing it again would render the same
     # figure to the same path twice.
     #
-    # IT IS DRAWN AS IF ONLY THE PAIR WERE SELECTED, which is what makes it byte
-    # identical to the --universe n100,mid output: _subtitle derives "58 and 74 are
-    # out of scope and are not plotted" from REGISTRY minus the rows being PLOTTED,
-    # not minus the selection, so the string does not depend on what else ran.
+    # IT IS DRAWN AS IF ONLY THE PAIR WERE SELECTED: _subtitle derives the
+    # out-of-scope sentence from REGISTRY minus the rows being PLOTTED, not minus
+    # the selection, so the string does not depend on what else ran. With the 58
+    # and 74 deleted the registry is exactly this pair, so that sentence is now
+    # empty -- the subtitle of the published chart changes on this commit, and
+    # there is no version of "58 and 74 are out of scope" that stays true.
     pair = [r for r in UNIV if r["tag"] in PAIR_CHART]
     pair = [dict(r, arms={n: d for n, d in r["arms"].items() if n in CANON_ARMS})
             for r in pair]

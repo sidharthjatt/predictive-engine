@@ -75,6 +75,7 @@ from engine_core import (precompute, metrics, score_monthly, HORIZON, VOL_WIN,
                          START_CAPITAL)
 from test_exposure import backtest_exposure
 from universes.registry import REGISTRY
+import profiles as _prof            # the run's execution-realism profile
 
 # Date window from config.py, NOT engine_core's year ints -- see config.py.
 BT_START_DATE, BT_END_DATE = config.BT_START_DATE, config.BT_END_DATE
@@ -124,7 +125,7 @@ def run_mode(parts, dd, mode, const_expo=None):
     target_vol = port_vol.loc[dd].median()
     eq, tc, ntr, expo = backtest_exposure(px, op, sc, dd, pc, mom20, port_vol,
                                           mode=mode, target_vol=target_vol,
-                                          const_expo=const_expo)
+                                          const_expo=const_expo, participation_cap=_prof.participation_cap())
     return metrics(eq, mode, tc, ntr), float(expo)
 
 

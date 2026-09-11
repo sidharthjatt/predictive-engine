@@ -50,6 +50,7 @@ import test_exposure
 from test_exposure import backtest_exposure
 from universes.registry import REGISTRY
 from v34_common import ann_vol_pct, _git_state
+import profiles as _prof            # the run's execution-realism profile
 
 N_SHUFFLES = 100
 VOL_WIN = 60
@@ -115,7 +116,7 @@ def run_arm(sizing, mode, px, op, sc, bd, pc, mom20, port_vol, tv):
     test_exposure.TOP_N = config.TOP_N
     test_exposure.BUFFER = config.BUFFER
     eq, tc, ntr, expo = backtest_exposure(px, op, sc, bd, pc, mom20, port_vol,
-                                          mode=mode, target_vol=tv, sizing=sizing)
+                                          mode=mode, target_vol=tv, sizing=sizing, participation_cap=_prof.participation_cap())
     m = metrics(eq, "arm", tc, ntr)
     return {"CAGR%": float(m["CAGR%"]), "Sharpe": float(m["Sharpe"]),
             "MaxDD%": float(m["MaxDD%"]), "AnnVol%": ann_vol_pct(eq),

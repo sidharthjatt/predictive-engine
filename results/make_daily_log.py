@@ -689,20 +689,23 @@ def main():
     # present. Each is therefore guarded on its own universe and skipped with a
     # reason rather than taking the others down with it.
     #
-    # Each config is imported INSIDE its guard: at module level, a deleted
-    # config_n100.py would make this step unimportable and cost the other three
-    # their logs.
+    # THE METRICS DIRECTORY COMES FROM THE UNIVERSE, not from a per-tag
+    # `import config_x` under a per-tag `if`. That shape was four hand-written
+    # branches, two of which named the 58 and the 74; when those universes were
+    # deleted the branches would have gone on importing a config module that no
+    # longer exists. u.metrics_dir is the same path the config module defines,
+    # read from the registry entry that already holds it.
     #
-    # The literals stay literal. check_pipeline_order resolves this file's
-    # DAILY_LOG_{tag}.txt through the config.METRICS_DIR* names in the text; a loop
-    # over REGISTRY would read the same at runtime and leave the checker blind.
     # SELECTION, NOT REGISTRATION. `--universe 58` leaves 74 registered but
     # unselected, and this step used to do 74's work anyway -- writing artefacts
     # for a universe the caller did not ask for. selected_tags() defaults to every
     # registered universe, so a standalone run of this file is unchanged.
-    # The literal REGISTRY["<tag>"] subscripts below are kept deliberately:
-    # check_pipeline_order reads them to resolve this step's outputs, and only the
-    # GUARD moved to the selection, not the subscript.
+    # THE SCANNER LOSES ITS LITERALS HERE, KNOWINGLY. check_pipeline_order used
+    # the literal REGISTRY["<tag>"] subscripts to resolve this step's outputs; a
+    # loop over REGISTRY reads the same at runtime and leaves the checker blind to
+    # them. That is the cost of not naming universes in four branches, and this
+    # step's outputs (DAILY_LOG_*.txt) have no downstream consumer for the checker
+    # to order against.
     # ONE LOG PER (UNIVERSE, SELECTED ARM), not one per universe. The tag comes
     # from audit_step.artefact_tag -- the same call the writer uses -- so the
     # reader cannot drift from the writer's naming.
@@ -727,26 +730,8 @@ def main():
             build(mdir, tag, _arm, raw_idx, cal_sorted)
 
     SEL = set(selected_tags())
-    if "58" in SEL:
-        _logs_for(REGISTRY["58"], config.METRICS_DIR)
-    else:
-        print("  58 not selected for this run -- skipping its daily log")
-    if "74" in SEL:
-        import config74
-        _logs_for(REGISTRY["74"], config74.METRICS_DIR_74)
-    else:
-        print("  74 not selected for this run -- skipping its daily log")
-    if "mid" in SEL:
-        import config_mid
-        _logs_for(REGISTRY["mid"], config_mid.METRICS_DIR_MID)
-    else:
-        print("  mid not selected for this run -- skipping its daily log")
-    if "n100" in SEL:
-        import config_n100
-        _logs_for(REGISTRY["n100"], config_n100.METRICS_DIR_N100)
-    else:
-        print("  n100 not selected for this run -- skipping its daily log")
-
-
-if __name__ == "__main__":
-    main()
+    for _t in REGISTRY:
+        if _t in SEL:
+            _logs_for(REGISTRY[_t], REGISTRY[_t].metrics_dir)
+        else:
+            print(f"  {_t} not selected for this run -- skipping its daily log")

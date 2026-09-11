@@ -65,13 +65,13 @@ PATH_EXPR = re.compile(
     r'(?:(config(?:74|_mid|_n100)?)\.)?(\w+)\s*/\s*f?["\']'
     r'([A-Za-z0-9_.\-]*(?:\{\w+\}[A-Za-z0-9_.\-]*)*'
     r'\.(?:csv|png|json|parquet))["\']')
-DIR_ASSIGN = re.compile(r'\b(\w+)\s*=\s*(config(?:74|_mid|_n100)?)\.(METRICS_DIR\w*)')
+DIR_ASSIGN = re.compile(r'\b(\w+)\s*=\s*(config(?:_\w+)?)\.(METRICS_DIR\w*)')
 # make_final_summary.py binds both dirs in one tuple assignment, optionally wrapped
 # in Path():  M58, M74 = Path(config.METRICS_DIR), Path(config74.METRICS_DIR_74)
 # Missing this left fair_comparison_table.csv -- a real STEP 13 -> 14 edge --
 # unresolved, so the checker could not see one of the dependencies it exists for.
 ASSIGN_LINE = re.compile(r'^\s*([\w\s,]+?)\s*=\s*(.+)$')
-DIR_REF = re.compile(r'(config(?:74|_mid|_n100)?)\.(METRICS_DIR\w*)')
+DIR_REF = re.compile(r'(config(?:_\w+)?)\.(METRICS_DIR\w*)')
 # the audit scripts bind their tag at the bottom:
 #   run(tmp, perm, config74.METRICS_DIR_74, 2025, "74")
 TAG_CALL = re.compile(
@@ -86,30 +86,56 @@ TAG_CALL = re.compile(
 # the registry form as well.
 REGISTRY_CALL = re.compile(r'REGISTRY\[["\'](\w+)["\']\]')
 
-DIRKEY = {("config", "METRICS_DIR"): "results",
-          ("config74", "METRICS_DIR_74"): "results74",
-          ("config_mid", "METRICS_DIR_MID"): "results_mid",
-          ("config_n100", "METRICS_DIR_N100"): "results_n100"}
+def _mod2dir():
+    """(config module, METRICS_DIR name) -> results directory, FROM THE REGISTRY.
+
+    The scanner sees source text, so it matches on the spelling a step actually
+    writes -- `config_mid.METRICS_DIR_MID / "x.csv"` -- and has to turn that pair
+    back into a directory. That map used to be four hand-written literals, two of
+    which named universes (`config74`, and `config` as the 58's output home) that
+    no longer exist; a stale entry here does not fail, it silently mis-attributes
+    a write and the ordering check passes with the edge missing.
+
+    Each universe names its own config module and METRICS_DIR constant by
+    convention -- config_mid.METRICS_DIR_MID for tag "mid" -- so both halves are
+    derived from the tag rather than restated.
+
+    config.METRICS_DIR stays in the map, but NOT as a universe: results/metrics is
+    the shared, non-universe artefact directory now. See RETIRED_UNIVERSES.md.
+    """
+    out = {("config", "METRICS_DIR"): "results"}
+    try:
+        from universes.registry import REGISTRY
+        for u in REGISTRY.values():
+            mod = f"config_{u.tag}"
+            out[(mod, f"METRICS_DIR_{u.tag.upper()}")] = Path(u.metrics_dir).parent.name
+    except Exception:
+        pass
+    return out
+
+
+DIRKEY = _mod2dir()
 
 def _tag2dir():
     """tag -> the results directory that universe writes into, from the registry.
 
     Derived rather than restated: universes/registry.py already knows where each
     universe's metrics live, and a second hand-written copy here is exactly the kind
-    of thing that drifts. Falls back to the historical four if the registry cannot be
-    imported, so this checker keeps working in a tree without it.
+    of thing that drifts.
+
+    THERE IS NO LITERAL FALLBACK ANY MORE. It used to return the historical four
+    tags when the registry could not be imported, so that this checker "kept
+    working" -- but what it actually did was resurrect the 58 and the 74 after they
+    were deleted, and check a pipeline that does not exist. A checker that cannot
+    read the registry has nothing to check against and must say so.
     """
-    try:
-        import sys as _s
-        from pathlib import Path as _P
-        _r = str(_P(__file__).resolve().parent)
-        if _r not in _s.path:
-            _s.path.insert(0, _r)
-        from universes.registry import REGISTRY
-        return {u.tag: _P(u.metrics_dir).parent.name for u in REGISTRY.values()}
-    except Exception:
-        return {"58": "results", "74": "results74",
-                "mid": "results_mid", "n100": "results_n100"}
+    import sys as _s
+    from pathlib import Path as _P
+    _r = str(_P(__file__).resolve().parent)
+    if _r not in _s.path:
+        _s.path.insert(0, _r)
+    from universes.registry import REGISTRY
+    return {u.tag: _P(u.metrics_dir).parent.name for u in REGISTRY.values()}
 
 
 _TAG2DIR = _tag2dir()
@@ -125,18 +151,14 @@ def _caches():
     inversion is worse than the bug it would be pretending to catch, because it
     teaches the reader to ignore the checker.
 
-    Falls back to the eight literal names for the same reason _tag2dir() does: this
-    module must stay importable when the registry cannot be imported.
+    NO LITERAL FALLBACK, for the same reason _tag2dir() has none: the eight names
+    it used to fall back to included four belonging to universes that have been
+    deleted, and a cache list that names a dead universe is how a false inversion
+    gets reported.
     """
-    try:
-        from universes.registry import REGISTRY
-        return ({u.score_cache.name for u in REGISTRY.values()}
-                | {u.raw_cache.name for u in REGISTRY.values()})
-    except Exception:
-        return {"v5_expanding_cache.csv", "raw_panel_cache.csv",
-                "v74_expanding_cache.csv", "raw_panel74_cache.csv",
-                "v_mid_expanding_cache.csv", "raw_panel_mid_cache.csv",
-                "v_n100_expanding_cache.csv", "raw_panel_n100_cache.csv"}
+    from universes.registry import REGISTRY
+    return ({u.score_cache.name for u in REGISTRY.values()}
+            | {u.raw_cache.name for u in REGISTRY.values()})
 
 
 CACHES = _caches()

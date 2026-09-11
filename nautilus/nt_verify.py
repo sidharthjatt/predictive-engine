@@ -23,12 +23,14 @@ import nt_run
 
 import nt_attribution
 
-# Selected by --universe on the command line; 58 stays the default so the existing
-# invocation is unchanged. The reference CSVs, the price panel and the score
-# parquet all move together, because a verification is only meaningful when both
-# sides read the same universe.
-UNIVERSE = "58"
-for _u in ("58", "74", "mid", "n100"):
+# Selected by --universe on the command line. THE CHOICES ARE THE REGISTRY, not a
+# written-down tuple: the tuple used to name the 58 and the 74, and the default was
+# the literal "58", so this module raised KeyError at import the day they were
+# deleted. The reference CSVs, the price panel and the score parquet all move
+# together, because a verification is only meaningful when both sides read the same
+# universe.
+UNIVERSE = next(iter(nt_run.UNIVERSES))
+for _u in nt_run.UNIVERSES:
     if f"--universe={_u}" in sys.argv:
         UNIVERSE = _u
 U = nt_run.UNIVERSES[UNIVERSE]

@@ -56,6 +56,7 @@ import config
 from engine_core import metrics, precompute, BT_START, BT_END
 from test_exposure import backtest_exposure
 import arms.registry as arm_reg
+import profiles as _prof            # the run's execution-realism profile
 
 VOL_WIN = 60
 N_RANDOM = 200
@@ -84,7 +85,7 @@ def edge(drop=()):
     idx = (1 + px.pct_change().mean(axis=1).fillna(0)).cumprod()
     pv = idx.pct_change().rolling(VOL_WIN).std() * np.sqrt(252)
     eq, tc, n, _ = backtest_exposure(px, op, sc, bd, pc, mom20, pv,
-                                     mode="breadth", target_vol=pv.loc[bd].median())
+                                     mode="breadth", target_vol=pv.loc[bd].median(), participation_cap=_prof.participation_cap())
     bh = 1_000_000 * (1 + px.pct_change().loc[bd].mean(axis=1).fillna(0)).cumprod()
     s = metrics(eq, "s", tc, n)["CAGR%"]
     b = metrics(bh, "b")["CAGR%"]

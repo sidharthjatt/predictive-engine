@@ -17,15 +17,16 @@ import pandas as pd
 ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "results"))
-import config, config74, config_mid
+import config
 from features_v2 import EXTREME_RET_HI, EXTREME_RET_LO
 
 BT_START = pd.Timestamp("2019-01-01")
-UNIV = {
-    "58":  (config.RAW_DATA_DIR / "nifty50",      ROOT/"results"/"metrics"/"v5_expanding_cache.csv"),
-    "74":  (config74.RAW_DATA_DIR_74,             ROOT/"results74"/"metrics"/"v74_expanding_cache.csv"),
-    "mid": (config_mid.CONSTITUENTS_DIR_MID,      ROOT/"results_mid"/"metrics"/"v_mid_expanding_cache.csv"),
-}
+# THE UNIVERSES, AND THEIR PATHS, COME FROM THE REGISTRY. This was three literal
+# rows naming config74 and a `nifty50` directory; two of the three universes have
+# since been deleted, and the module could not even be imported afterwards.
+from universes.registry import REGISTRY          # noqa: E402
+
+UNIV = {u.tag: (u.data_dir, u.score_cache) for u in REGISTRY.values()}
 
 
 def flagged(data_dir):

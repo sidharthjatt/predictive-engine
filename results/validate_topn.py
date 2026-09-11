@@ -90,6 +90,7 @@ import test_exposure
 from test_exposure import backtest_exposure
 from universes.registry import REGISTRY
 from v34_common import arm_row, held_and_skips, _git_state
+import profiles as _prof            # the run's execution-realism profile
 
 VOL_WIN = 60
 BUFFER_PINNED = 16
@@ -165,7 +166,7 @@ def run_arm(top_n, px, op, sc, dates, pc, mom20, port_vol, tv, label):
              ("holdings", "summary", "trades", "ranking", "decisions", "skipped")}
     eq, tc, ntr, expo = backtest_exposure(px, op, sc, dates, pc, mom20, port_vol,
                                           mode="breadth", target_vol=tv,
-                                          audit=audit)
+                                          audit=audit, participation_cap=_prof.participation_cap())
     # backtest_exposure returns the MEAN exposure already, as a scalar.
     dep = float(expo) * 100
     row = arm_row(eq, label, tc, ntr, dep)
