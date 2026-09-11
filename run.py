@@ -44,9 +44,6 @@ for _v in ("OMP_NUM_THREADS", "MKL_NUM_THREADS", "OPENBLAS_NUM_THREADS",
            "VECLIB_MAXIMUM_THREADS", "NUMEXPR_NUM_THREADS"):
     _os.environ[_v] = "1"
 _os.environ["PYTHONHASHSEED"] = "0"
-# The frozen 58/74 steps refuse to run without this. A full run IS the sanctioned
-# way to regenerate them; see frozen/_frozen_guard.py.
-_os.environ["ALLOW_FROZEN_WRITE"] = "1"
 
 import argparse
 import re
