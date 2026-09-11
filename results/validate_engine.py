@@ -76,6 +76,7 @@ import config_mid
 import config_n100
 from engine_core import metrics, precompute, score_monthly, HORIZON
 from test_exposure import backtest_exposure, TOP_N, BUFFER, START_CAPITAL
+import profiles as _prof            # the run's execution-realism profile
 
 # The same three alternate seed sets engine_core's T2 uses, so T2 is a like-for-like
 # comparison rather than a differently-seeded one.
@@ -142,7 +143,7 @@ def arm(px, op, sc, dates, pc, mom20, sizing, audit=None):
     """One always-invested arm. mode="none" matches engine_core.backtest, which has
     no exposure concept, so the sizing contrast is the only thing being measured."""
     return backtest_exposure(px, op, sc, dates, pc, mom20, port_vol=None,
-                             mode="none", sizing=sizing, audit=audit)
+                             mode="none", sizing=sizing, audit=audit, participation_cap=_prof.participation_cap())
 
 
 def mean_book(audit):

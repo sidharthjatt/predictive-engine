@@ -36,6 +36,7 @@ import config
 import survivorship as sv
 import engine_core
 from engine_core import metrics, precompute
+import profiles as _prof            # the run's execution-realism profile
 
 try:
     from qbeast_in_charges import (compute_leg_charges, Broker, Segment,
@@ -66,10 +67,18 @@ BT_START_DATE, BT_END_DATE = config.BT_START_DATE, config.BT_END_DATE
 M = config.METRICS_DIR
 
 
+# THE CAP HAS NO DEFAULT, DELIBERATELY. `participation_cap=None` used to be the
+# signature default, so a caller that simply forgot it silently got `research`
+# behaviour -- an uncapped fill -- and nothing in the output said which profile
+# produced the number. None is still a legal VALUE (it is what `research`
+# resolves to); what is refused is not saying which.
+_CAP_REQUIRED = object()
+
+
 def backtest_exposure(px, op, sc, dates, pc, mom20, port_vol=None,
                       mode="none", target_vol=None, audit=None, sizing="invvol",
                       const_expo=None, value_at_open=True, rebal=None,
-                      funding="cash", participation_cap=None, vol20=None):
+                      funding="cash", participation_cap=_CAP_REQUIRED, vol20=None):
     """audit=None reproduces the original code path exactly: no overhead, and the
     official numbers are unchanged.
     Passing a dict with holdings/summary/trades/ranking/decisions/skipped keys logs
@@ -94,13 +103,11 @@ def backtest_exposure(px, op, sc, dates, pc, mom20, port_vol=None,
         certifies the OPEN-valued rule. Defaulting to True brings this engine onto
         the basis its own gate verifies, instead of leaving the two disagreeing.
 
-        WHO PASSES False, AND WHY. The retired 58 and 74 are frozen: their published
-        numbers must not move. Their four callers pin value_at_open=False
-        explicitly -- engine_v2_final.py, engine_v2_final74.py, make_daily_audit.py
-        and validate_breadth.py. That is the same pattern build_scores.py already
-        uses to pin the defective purge_mode="calendar" for those two universes
-        while the live universes take the corrected default. A frozen universe opts
-        OUT of a correction; it is never the correction that opts in.
+        NOBODY PASSES False ANY MORE. The four callers that did -- the retired
+        58's and 74's engines, their audit and their breadth validation -- were
+        deleted with those universes on 2026-09-11. The parameter is kept because
+        the choice it names is real, but every live caller is now on the
+        open-valued rule that the 92-of-92 gate verifies.
 
     funding -- HOW THE DAY'S NEW POSITIONS ARE PAID FOR.
 
@@ -133,6 +140,13 @@ def backtest_exposure(px, op, sc, dates, pc, mom20, port_vol=None,
         also that nautilus/nt_strategy.py mirrors this sizing rule; the mirror is
         exact only while the default is unchanged, so a flip must update the port
         in the same commit."""
+    if participation_cap is _CAP_REQUIRED:
+        raise TypeError(
+            "backtest_exposure(): participation_cap is required. Pass "
+            "profiles.participation_cap() -- None under the 'research' profile, a "
+            "fraction of prior-20-session median volume under 'tradeable'. It had "
+            "a None default, which meant a caller that omitted it silently "
+            "measured the research profile whatever the run had selected.")
     # REBALANCE CADENCE. None means "use the module value", which is what every
     # caller relied on when this was only a module global -- so omitting it is
     # byte-identical to the previous behaviour, and rebal_cadence_sweep.py's
@@ -485,7 +499,7 @@ def main():
     rows, curves = [], {}
     for lab, mode in variants:
         eq, tc, ntr, avg_expo = backtest_exposure(
-            px, op, sc, bd, pc, mom20, port_vol, mode=mode, target_vol=target_vol)
+            px, op, sc, bd, pc, mom20, port_vol, mode=mode, target_vol=target_vol, participation_cap=_prof.participation_cap())
         m = metrics(eq, lab, tc, ntr)
         m["AvgExposure"] = round(avg_expo * 100, 0)
         rows.append(m); curves[lab] = eq

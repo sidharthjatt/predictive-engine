@@ -45,6 +45,7 @@ import test_exposure
 from test_exposure import backtest_exposure
 from universes.registry import REGISTRY
 from v34_common import ann_vol_pct
+import profiles as _prof            # the run's execution-realism profile
 
 PROD_SEEDS = [7, 42, 99, 1, 2, 3, 11, 22, 33, 101]
 EXTRA_SEEDS = [1000 + i for i in range(30)]
@@ -59,12 +60,25 @@ REQUIRED_RAW = ["date", "symbol", "open", "close", "y_rank", "scorable"]
 # universes/registry.py -- the single definition. The LABEL stays local: it is
 # printed into diagnostics/seed_noise.txt, and this file uses the
 # "NIFTY 100"/"MIDCAP150" spelling rather than the registry's descriptive one.
-# Order is load-bearing -- the report is written universe by universe.
+#
+# THE SET OF UNIVERSES IS THE REGISTRY, not a literal pair. It used to be
+# `(REGISTRY["n100"], REGISTRY["mid"])`, which would have raised KeyError the day
+# either tag changed and would silently have measured the wrong two if a third
+# universe were added. A universe with no LABELS entry is refused by name rather
+# than dropped from the measurement.
 LABELS = {"n100": "NIFTY 100", "mid": "MIDCAP150"}
+
+_unlabelled = set(REGISTRY) - set(LABELS)
+if _unlabelled:
+    raise SystemExit(
+        f"seed_noise_measure: no report label for universe(s) {sorted(_unlabelled)}. "
+        f"Add one to LABELS -- the spelling is what goes into "
+        f"diagnostics/seed_noise.txt, so it is written down rather than derived.")
+
 UNIVERSES = {
     u.tag: {"raw": u.raw_cache, "raw_tmp": str(u.raw_tmp),
             "md": u.metrics_dir, "syms": u.symbols, "label": LABELS[u.tag]}
-    for u in (REGISTRY["n100"], REGISTRY["mid"])
+    for u in REGISTRY.values()
 }
 
 
@@ -130,7 +144,7 @@ def make_backtester(p):
         sc = pd.DataFrame(M, index=px.index, columns=px.columns)
         test_exposure.TOP_N, test_exposure.BUFFER = config.TOP_N, config.BUFFER
         eq, tc, n, expo = backtest_exposure(px, op, sc, bd, pc, mom20, pv,
-                                            mode=mode, target_vol=tv, sizing=sizing)
+                                            mode=mode, target_vol=tv, sizing=sizing, participation_cap=_prof.participation_cap())
         m = metrics(eq, "a", tc, n)
         yearly = {int(y): round(float((g.iloc[-1] / g.iloc[0] - 1) * 100), 2)
                   for y, g in eq.groupby(eq.index.year) if len(g) > 2}

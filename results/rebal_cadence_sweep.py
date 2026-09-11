@@ -67,6 +67,7 @@ import test_exposure
 from test_exposure import backtest_exposure
 from universes.registry import REGISTRY
 from engine_core import precompute, metrics
+import profiles as _prof            # the run's execution-realism profile
 
 CADENCES = [5, 10, 20, 40, 60]
 CONTROL = 20
@@ -181,7 +182,7 @@ def run(tag, rebal, ctx, sizing="invvol", mode="breadth", arm="v2", audit=None):
     assert test_exposure.REBAL == rebal, "the cadence override did not take"
     eq, tc, n, expo = backtest_exposure(px, op, sc, bd, pc, mom20, port_vol,
                                         mode=mode, target_vol=tv, sizing=sizing,
-                                        audit=audit)
+                                        audit=audit, participation_cap=_prof.participation_cap())
     m = metrics(eq, f"{arm} REBAL={rebal}", tc, n)
     r = eq.pct_change().dropna()
     annvol = round(float(r.std() * np.sqrt(252) * 100), 2)   # as v34_common.ann_vol_pct

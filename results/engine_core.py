@@ -228,14 +228,16 @@ TRADING_CALENDAR = Path(__file__).resolve().parents[1] / "data" / "nse_trading_c
 
 
 def _load_calendar():
-    """The dated artefact from results/make_trading_calendar.py."""
+    """data/nse_trading_calendar.csv -- TRACKED SOURCE DATA, not a derived file."""
     if not TRADING_CALENDAR.exists():
         raise FileNotFoundError(
             f"{TRADING_CALENDAR} missing.\n"
-            "  Run `python3 results/make_trading_calendar.py` first; run_all.py does\n"
-            "  this as STEP 0. The panel cannot be built without it, because a\n"
-            "  panel that silently keeps market-holiday rows is what this filter\n"
-            "  exists to prevent.")
+            "  IT CANNOT BE REGENERATED. It is tracked source data, not a derived\n"
+            "  artefact: the universe it was once computed from (the 58) is deleted\n"
+            "  and results/make_trading_calendar.py went with it. Restore the file\n"
+            "  from git. The panel cannot be built without it, because a panel that\n"
+            "  silently keeps market-holiday rows is what this filter exists to\n"
+            "  prevent. See RETIRED_UNIVERSES.md.")
     d = pd.read_csv(TRADING_CALENDAR, comment="#", parse_dates=["date"])
     return set(d["date"])
 
@@ -278,13 +280,29 @@ def _check_calendar(cal, panel, tag=""):
     return removed
 
 
-def build_panel(horizon, data_dir=None):
-    """Build the full feature panel from the 58 raw stock CSVs.
+def build_panel(horizon, data_dir):
+    """Build the full feature panel from one universe's raw stock CSVs.
+
+    `data_dir` IS REQUIRED, AND THAT IS THE POINT. It used to default to None and
+    fall back to `config.RAW_DATA_DIR / "nifty50"` -- the 58 -- so any caller that
+    forgot to pass a universe silently built a DIFFERENT universe's panel and
+    reported it under the caller's name. Nothing failed; the numbers were simply
+    another universe's. The 58 is deleted and that directory no longer exists, so
+    the fallback would now be a confusing FileNotFoundError deep in a glob; this
+    raises at the call instead, naming what is missing.
+
     (This previously lived in engine_v2.py and was nearly lost when that file was
     deleted. It is permanent here now.)
     """
+    if data_dir is None:
+        raise ValueError(
+            "build_panel(horizon, data_dir): data_dir is required and must name "
+            "the universe's raw directory -- pass REGISTRY[tag].prepare_data_dir() "
+            "or u.data_dir. It used to default to the 58, which meant a caller "
+            "that omitted it silently built and reported the wrong universe. See "
+            "RETIRED_UNIVERSES.md.")
     frames = []
-    _src = data_dir if data_dir is not None else (config.RAW_DATA_DIR / "nifty50")
+    _src = data_dir
     _cal = _load_calendar()
     _raw = []
     for f in sorted(Path(_src).glob("*.csv")):

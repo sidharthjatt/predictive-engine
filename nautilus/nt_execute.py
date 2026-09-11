@@ -54,7 +54,6 @@ def main():
     import nt_run
 
     reb = cadence.selected()
-    ship = {a.name for a in arm_reg.SHIPPING}
     ran, skipped = [], []
 
     print("=" * 96)
@@ -68,20 +67,9 @@ def main():
 
     for u in uni_reg.selected():
         for a in arm_reg.selected():
-            # THE SAME TWO REFUSALS run.py APPLIES TO ARM RUNS, for the same
-            # reasons, so the two halves of a run cannot disagree about what is
-            # possible.
-            if u.frozen and a.name not in ship:
-                skipped.append((u.tag, a.name, f"{u.tag} is frozen (retired) and has "
-                                               f"no {a.name} path -- its engine never "
-                                               f"calls v34_common"))
-                continue
-            if u.frozen and not cadence.is_default():
-                skipped.append((u.tag, a.name, f"{u.tag} is frozen (retired) and runs "
-                                               f"only at the default cadence "
-                                               f"{cadence.DEFAULT}; --rebal {reb} "
-                                               f"cannot apply to it"))
-                continue
+            # run.py's arm_steps applies no refusals any more -- the two it had
+            # were for the retired 58 and 74 -- so neither does this, and the two
+            # halves of a run still cannot disagree about what is possible.
             U = nt_run.UNIVERSES[u.tag]
             strat = nt_run.run(str(config.BT_START_DATE.date()), U["end"],
                                universe=u.tag, sizing=a.sizing, mode=a.mode,

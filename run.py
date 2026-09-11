@@ -49,11 +49,12 @@ _os.environ["PYTHONHASHSEED"] = "0"
 _os.environ["ALLOW_FROZEN_WRITE"] = "1"
 
 import argparse
+import re
 import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
-for _p in (str(ROOT), str(ROOT / "results"), str(ROOT / "frozen"), str(ROOT / "nautilus")):
+for _p in (str(ROOT), str(ROOT / "results"), str(ROOT / "nautilus")):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
@@ -66,28 +67,15 @@ from arms.registry import ARMS, SHIPPING as SHIPPING_ARMS                      #
 # ---------------------------------------------------------------------------
 # Derived by scanning each step (and its helpers) for the universe it names, then
 # written down here so selection is explicit rather than re-derived by regex on
-# every run. A step serving several universes is listed under each: STEP 13
-# make_final_chart_fair.py reads the 58 and the 74 and would be wrong to run for
-# only one of them.
+# every run.
 #
-# Steps marked () serve every universe and always run.
+# EVERY TAG HERE MUST BE A REGISTRY KEY, and _check_step_universes() below enforces
+# that at import. Twenty entries were deleted with the 58 and the 74; the table
+# used to name those two in eight places, and a tag that outlived its universe
+# would have gone on selecting a step that could never run.
+ALL_UNIVERSES = tuple(REGISTRY)          # NOT a literal list. See the check below.
+
 STEP_UNIVERSES = {
-    "make_trading_calendar.py":   ("58",),
-    "build_scores.py":            ("58",),
-    "engine_core.py":             ("58",),
-    "engine_v2_final.py":         ("58",),
-    "diagnose_decay.py":          ("58",),
-    "validate_breadth.py":        ("58",),
-    "reality_check.py":           ("58",),
-    "make_per_stock_charts.py":   ("58",),
-    "make_combined_all.py":       ("58",),
-    "make_final_table.py":        ("58",),
-    "make_charts.py":             ("58",),
-    "make_stock_chart.py":        ("58",),
-    "make_combined_portfolio.py": ("58",),
-    "export_feature_docs.py":     ("58",),
-    "build_scores74.py":          ("74",),
-    "engine_v2_final74.py":       ("74",),
     "build_scores_mid.py":        ("mid",),
     "engine_v2_final_mid.py":     ("mid",),
     "make_mid_audit.py":          ("mid",),
@@ -99,33 +87,48 @@ STEP_UNIVERSES = {
     # SERVES EVERY UNIVERSE. It draws one comparison across whichever of them the
     # run selected, so it is selected whenever ANY universe is -- and then decides
     # for itself, from the selection, whether there are enough to compare.
-    "make_combined_universes.py":  ("58", "74", "mid", "n100"),
-    "make_cash_series.py":        ("58", "74"),
-    "make_daily_audit.py":        ("58", "74"),
-    "make_final_chart_fair.py":   ("58", "74"),
-    "make_final_summary.py":      ("58", "74"),
-    "make_daily_log.py":          ("58", "74", "mid", "n100"),
+    "make_combined_universes.py": ALL_UNIVERSES,
+    "make_daily_log.py":          ALL_UNIVERSES,
     # SERVES EVERY UNIVERSE, so a selective run persists its panels too. Listed
-    # against all four rather than left unmapped: `--universe mid` must still
-    # reach STEP 15b, or that path reproduces the very bug 15b exists to fix.
-    "save_caches_step.py":        ("58", "74", "mid", "n100"),
-    "nt_export_scores.py":        ("58", "74", "mid", "n100"),
+    # against all rather than left unmapped: `--universe mid` must still reach
+    # STEP 15b, or that path reproduces the very bug 15b exists to fix.
+    "save_caches_step.py":        ALL_UNIVERSES,
+    "nt_export_scores.py":        ALL_UNIVERSES,
     # SERVES EVERY UNIVERSE. It runs the execution engine for each selected
-    # (universe, arm) at the selected cadence and reports the impossible
-    # combinations rather than omitting them.
-    "nt_execute.py":              ("58", "74", "mid", "n100"),
+    # (universe, arm) at the selected cadence.
+    "nt_execute.py":              ALL_UNIVERSES,
 }
 
 
+def _check_step_universes():
+    """Every tag in STEP_UNIVERSES must name a universe the registry defines.
+
+    THE FAILURE THIS CATCHES IS SILENT OTHERWISE. A step registered to a deleted
+    universe is simply never selected -- no error, no log line -- so the step stops
+    running and the run still reports success. That is how `--universe mid,n100`
+    could have kept a 58-only step in the table indefinitely.
+    """
+    unknown = {t for tags in STEP_UNIVERSES.values() for t in tags} - set(REGISTRY)
+    if unknown:
+        raise SystemExit(
+            f"STEP_UNIVERSES names universe(s) the registry does not define: "
+            f"{sorted(unknown)}.\n"
+            f"  known: {sorted(REGISTRY)}\n"
+            f"  Either the universe was deleted and its steps must go with it, or "
+            f"the registry entry is missing. See RETIRED_UNIVERSES.md.")
+
+
+_check_step_universes()
+
+
 # A SCORE-BUILD STEP IS SKIPPED WHEN ITS PANEL IS ALREADY ON DISK.
-# run_all.main() did this with four hand-written `if not (TMP/"v5_expanding.csv")`
-# guards. Without it a shimmed run_all.py would rebuild all four panels on every
+# run_all.main() did this with hand-written `if not (TMP/"v5_expanding.csv")`
+# guards. Without it a shimmed run_all.py would rebuild every panel on every
 # run -- hours, for nothing -- so the behaviour moves here rather than being lost.
 #
 # WHICH STEPS is written down; WHICH FILE is read from the registry (u.score_tmp),
 # so a new universe's build step inherits the skip with no path repeated here.
 SCORE_BUILD_STEPS = {
-    "build_scores.py", "build_scores74.py",
     "build_scores_mid.py", "build_scores_n100.py",
 }
 
@@ -253,41 +256,20 @@ def pipeline_steps(unis):
 
 
 def arm_steps(unis, arms, rebal=None):
-    """One entry per (universe, arm), plus the combinations deliberately skipped.
+    """One entry per (universe, arm).
 
-    A FROZEN UNIVERSE RUNS ONLY THE SHIPPING ARMS. arms/registry.SHIPPING records
-    that v1 and v2 are the two that ship on every universe and that v3/v4 exist only
-    for the live pair -- and the code agrees: frozen/engine_v2_final.py and
-    engine_v2_final74.py contain no reference to v34_common at all, so the retired
-    universes have never had a four-arm path. Running v3 on the 58 would not
-    overwrite anything, but it would manufacture a number for a retired universe
-    that has never existed. Skipped, and reported rather than dropped silently.
+    NOTHING IS SKIPPED HERE ANY MORE. The skip list existed for the retired 58 and
+    74: they ran only the shipping arms, because their engines never called
+    v34_common and had no v3/v4 path at all, and they ran only at cadence 20. Both
+    universes are deleted, so every (universe, arm) pair in the selection is real
+    and runnable. The second return value is kept -- callers unpack two -- and is
+    always empty; when a universe needs excluding again it will be for a reason
+    that exists then, recorded then.
     """
-    from arms.registry import SHIPPING
-    ship = {a.name for a in SHIPPING}
     runs, skipped = [], []
     for u in unis:
         for a in arms:
-            if u.frozen and a.name not in ship:
-                skipped.append((u, a, f"{u.tag} is frozen (retired) and has no "
-                                      f"{a.name} path -- its engine never calls "
-                                      f"v34_common"))
-            elif u.frozen and rebal is not None and int(rebal) != paths.DEFAULT_REBAL:
-                # A FROZEN UNIVERSE HAS EXACTLY ONE CADENCE, AND IT IS 20.
-                # Its published numbers must not move, its engine pins REBAL=20,
-                # and the Nautilus port that verifies it is pinned to 20 as well.
-                # Running its arm at another cadence produced a runs/58/v1/ whose
-                # contents were cadence-40 while its path said otherwise --
-                # measured, before this guard existed, by checksumming
-                # runs/58/v1/comparison.csv across a --rebal 40 run.
-                #
-                # REFUSED AND REPORTED, NOT SILENTLY IGNORED. Quietly running it
-                # at 20 would answer a different question from the one asked.
-                skipped.append((u, a, f"{u.tag} is frozen (retired) and runs only at "
-                                      f"the default cadence {paths.DEFAULT_REBAL}; "
-                                      f"--rebal {rebal} cannot apply to it"))
-            else:
-                runs.append((u, a))
+            runs.append((u, a))
     return runs, skipped
 
 
@@ -296,22 +278,99 @@ def _cadence_default(args):
     return args.rebal is None or int(args.rebal) == paths.DEFAULT_REBAL
 
 
+# ---------------------------------------------------------------------------
+# PRE-FLIGHT -- refuse to start rather than fail somewhere in the middle
+# ---------------------------------------------------------------------------
+def preflight(args, plan):
+    """Every axis of the selection must name something that EXISTS, and the shared
+    metrics directory must hold nothing that belongs to a universe.
+
+    WHY A REFUSAL AND NOT A WARNING. Both failures this catches are silent by
+    nature. A selection naming a universe, arm, cadence or profile that nothing
+    defines does not crash -- it selects an empty set, runs the steps that remain,
+    and reports success over a smaller pipeline than the one that was asked for.
+    That is how the 58's steps could have stayed registered after the 58 was
+    deleted. And a universe-tagged artefact in results/metrics is the second half
+    of the same defect: results/metrics was the 58's output home as well as the
+    shared engine directory, so a step that still writes v2FINAL_* there is writing
+    a retired universe's filename into a directory that no longer belongs to any
+    universe. See RETIRED_UNIVERSES.md.
+
+    Each check names EVERY offender, not the first: learning about one typo per run
+    is three runs to learn one thing.
+    """
+    import arms.registry as _arms
+    import cadence as _cad
+    import profiles as _prof
+
+    bad = []
+
+    unknown_u = [u.tag for u in plan["universes"] if u.tag not in REGISTRY]
+    if unknown_u:
+        bad.append(f"universe(s) {sorted(unknown_u)} -- registry defines "
+                   f"{sorted(REGISTRY)}")
+
+    unknown_a = [a.name for a in plan["arms"] if a.name not in ARMS]
+    if unknown_a:
+        bad.append(f"arm(s) {sorted(unknown_a)} -- registry defines {sorted(ARMS)}")
+
+    if args.rebal is not None:
+        try:
+            r = int(args.rebal)
+            if r < 1:
+                raise ValueError
+        except (TypeError, ValueError):
+            bad.append(f"cadence {args.rebal!r} -- must be a positive integer "
+                       f"number of trading sessions (default {paths.DEFAULT_REBAL})")
+
+    if args.profile is not None and args.profile not in _prof.PROFILES:
+        bad.append(f"profile {args.profile!r} -- profiles.py defines "
+                   f"{sorted(_prof.PROFILES)}")
+
+    stray = _universe_artefacts_in_shared_metrics()
+    if stray:
+        bad.append("universe-tagged artefact(s) in results/metrics, which is the "
+                   "SHARED directory and no universe's output home: "
+                   + ", ".join(sorted(stray)[:8])
+                   + (f" (+{len(stray) - 8} more)" if len(stray) > 8 else ""))
+
+    if bad:
+        raise SystemExit("REFUSING TO START -- the run names something that does "
+                         "not exist:\n" + "\n".join(f"  {b}" for b in bad)
+                         + "\n  Nothing has run. See RETIRED_UNIVERSES.md.")
+
+
+# The naming schemes a universe's artefacts use. FINAL_*/v2FINAL_* were the
+# retired 58's and 74's and no live code may emit them again; v34_* is the live
+# pair's and belongs in results_mid/ and results_n100/, never here.
+_UNIVERSE_ARTEFACT = re.compile(
+    r"^(FINAL_|v2FINAL_|v34_|DAILY_LOG_|daily_trades_|daily_summary_|cash_series_)"
+    r"|_(" + "|".join(sorted(REGISTRY)) + r")\.(csv|json|txt|png)$")
+
+
+def _universe_artefacts_in_shared_metrics():
+    """Filenames in results/metrics that belong to a universe. Empty is correct."""
+    import config
+    d = Path(config.METRICS_DIR)
+    if not d.is_dir():
+        return []
+    return [f.name for f in d.iterdir()
+            if f.is_file() and _UNIVERSE_ARTEFACT.search(f.name)]
+
+
 def build_plan(args):
     unis = resolve_universes(args.universe)
     arms = resolve_arms(args.arm)
     plan = {"universes": unis, "arms": arms, "pipeline": [], "arm_runs": [],
             "skipped": [], "dropped": []}
     if args.steps in ("pipeline", "all"):
-        # A FROZEN UNIVERSE CANNOT HONOUR A NON-DEFAULT CADENCE, AND ITS PIPELINE
-        # IS DROPPED RATHER THAN RUN AT 20.
-        # Its engine pins REBAL=20 and ignores the flag, so `--universe mid,58
-        # --rebal 40` used to run the 58's whole pipeline at cadence 20 and write
-        # artefacts with no marker saying which cadence produced them -- measured:
-        # three 58 files appeared from a run that asked for 40. Refusing the arm
-        # runs while letting the pipeline through was the inconsistency; both are
-        # refused now, and both say so.
-        _pipe_unis = [u for u in unis if not (u.frozen and not _cadence_default(args))]
-        plan["cadence_dropped"] = [u for u in unis if u not in _pipe_unis]
+        # EVERY UNIVERSE HONOURS EVERY CADENCE NOW. This dropped the retired 58
+        # and 74 from a non-default-cadence run, because their engines pinned
+        # REBAL=20 and ignored the flag -- `--universe mid,58 --rebal 40` used to
+        # run the 58's whole pipeline at 20 and write artefacts with no marker
+        # saying so. Both universes are deleted; the drop list stays in the plan
+        # shape because the reporting code reads it, and is always empty.
+        _pipe_unis = list(unis)
         plan["pipeline"], plan["_run_all"], plan["dropped"] = pipeline_steps(_pipe_unis)
     if args.steps in ("arms", "all"):
         plan["arm_runs"], plan["skipped"] = arm_steps(unis, arms, args.rebal)
@@ -509,6 +568,9 @@ def execute(plan, args):
     # `--universe mid,58` the registry still holds 74, and the fair-comparison
     # chart would put a universe on the page that nobody asked for. Set once, here,
     # before any step runs, so every step sees the same answer.
+    # PRE-FLIGHT FIRST, BEFORE ANY SELECTION IS RECORDED OR ANY STEP RUNS.
+    preflight(args, plan)
+
     import universes.registry as _reg
     _reg.set_selection([u.tag for u in plan["universes"]])
     # THE SAME FOR ARMS. run_v34 is reached through the ENGINE, a pipeline step

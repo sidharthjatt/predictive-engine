@@ -59,7 +59,12 @@ UNIVERSES = {
             "end": u.nautilus_end}
     for u in REGISTRY.values()
 }
-PRICE_CACHE = UNIVERSES["58"]["cache"]
+# THE DEFAULT UNIVERSE IS THE FIRST REGISTERED ONE, not a literal tag. It was
+# UNIVERSES["58"], which raised KeyError at IMPORT the moment the 58 was deleted --
+# taking nt_verify, nt_daily_compare, nt_holdings_compare and depth_compare with
+# it, none of which mention a universe themselves.
+_DEFAULT_UNIVERSE = next(iter(UNIVERSES))
+PRICE_CACHE = UNIVERSES[_DEFAULT_UNIVERSE]["cache"]
 START_CAPITAL = 1_000_000
 WARMUP_DAYS = 200          # calendar days of history before trading begins
 # No latency. The strategy now plans at the close and sends at the next open, so
@@ -82,12 +87,13 @@ FEE_MODEL = QbeastIndianFeeModel(
 )
 
 
-def run(trading_start, trading_end, symbols=None, quiet=True, universe="58",
+def run(trading_start, trading_end, symbols=None, quiet=True,
+        universe=None,
         sizing="invvol", mode="breadth", rebal=None):
     warm_start = (pd.Timestamp(trading_start) - pd.Timedelta(days=WARMUP_DAYS)).strftime("%Y-%m-%d")
     print(f"data from {warm_start} (warm-up) | trading {trading_start} to {trading_end}")
 
-    U = UNIVERSES[universe]
+    U = UNIVERSES[universe if universe is not None else _DEFAULT_UNIVERSE]
     instruments, events = load_universe(U["cache"], warm_start, trading_end,
                                         symbols=symbols, slippage=SLIPPAGE)
     print(f"  instruments {len(instruments)} | events {len(events):,}")
@@ -229,7 +235,7 @@ def run(trading_start, trading_end, symbols=None, quiet=True, universe="58",
 
 
 if __name__ == "__main__":
-    uni = "58"
+    uni = _DEFAULT_UNIVERSE
     for u in UNIVERSES:
         if f"--universe={u}" in sys.argv:
             uni = u

@@ -36,6 +36,7 @@ from engine_core import precompute
 import test_exposure
 from test_exposure import backtest_exposure
 from universes.registry import REGISTRY
+import profiles as _prof            # the run's execution-realism profile
 
 VOL_WIN = 60
 
@@ -72,7 +73,7 @@ def run(uni, perm, tmp):
     rows = []
     for sizing, mode in ARMS:
         eq, tc, n, _ = backtest_exposure(px, op, sc, bd, pc, mom20, port_vol,
-                                         mode=mode, target_vol=tv, sizing=sizing)
+                                         mode=mode, target_vol=tv, sizing=sizing, participation_cap=_prof.participation_cap())
         s = pd.Series(eq, index=bd[:len(eq)]) if not isinstance(eq, pd.Series) else eq
         # Hash the exact float bytes of the curve, not a formatted rendering.
         h = hashlib.sha256(np.asarray(s.values, dtype=np.float64).tobytes()).hexdigest()

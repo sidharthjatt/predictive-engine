@@ -16,23 +16,22 @@ WHAT THIS REPLACES
         raw panel out    u.raw_tmp
         score panel out  u.score_tmp
         purge mode       u.purge_mode        <- see below, this one is load-bearing
-        frozen write     u.frozen
-        index exclusion  u.index_name        (None for 58/74: no index in the folder)
-        symbol check     u.symbols()         (None for 58/74: the directory defines it)
+        index exclusion  u.index_name
+        symbol check     u.symbols()
 
 THE PURGE MODE IS A PROPERTY OF THE UNIVERSE, NOT OF THIS FILE
-    The retired 58 and 74 are scored with purge_mode="calendar", which
+    The deleted 58 and 74 were scored with purge_mode="calendar", which
     engine_core.score_monthly documents as DEFECTIVE -- it underflows on a holiday
-    cluster. They keep it because they are frozen and their published numbers must
-    not move. The live universes take the corrected "trading" default.
+    cluster. They kept it because they were frozen and their published numbers
+    could not move. Every remaining universe takes the corrected "trading" value.
 
     Before this merge that fact lived as a literal in two files and as an omission
     in the other two, with nothing connecting them: a reader had to notice that
     build_scores_mid.py did NOT pass purge_mode and know why. It is now read from
-    u.purge_mode, beside u.frozen and the window, so the pin travels with the
-    universe rather than with whichever file happens to score it.
+    u.purge_mode, so the setting travels with the universe rather than with
+    whichever file happens to score it.
 
-    58 and 74 must resolve "calendar". mid and n100 must resolve "trading". That is
+    mid and n100 must resolve "trading". That is
     asserted explicitly, per universe, rather than left to be inferred.
 
 SEEDS ARE UNIVERSE-INVARIANT
@@ -49,13 +48,12 @@ import pandas as pd
 
 warnings.filterwarnings("ignore")
 ROOT = Path(__file__).resolve().parents[1]
-for _p in (str(ROOT), str(ROOT / "results"), str(ROOT / "frozen")):
+for _p in (str(ROOT), str(ROOT / "results")):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
 from engine_core import build_panel, score_monthly, HORIZON   # noqa: E402
 from features_v2 import FEATS_V2                              # noqa: E402
-from _frozen_guard import guard as _frozen_guard              # noqa: E402
 
 # The production ensemble. Identical in all four originals; not a universe property.
 SEEDS = [7, 42, 99, 1, 2, 3, 11, 22, 33, 101]
@@ -63,9 +61,6 @@ SEEDS = [7, 42, 99, 1, 2, 3, 11, 22, 33, 101]
 
 def run(u):
     """Build the raw panel and the monthly score panel for one universe."""
-    if u.frozen:
-        _frozen_guard(u.tag)
-
     data_dir = u.prepare_data_dir()
     want = u.symbols()
 

@@ -114,8 +114,25 @@ DEFAULT_REBAL = 20
 # Directories a run's artefacts can land in. Used to collect a run folder; kept
 # here beside run_dir() rather than in run.py so the two agree about what an
 # artefact IS.
-ARTEFACT_DIRS = ("results/metrics", "results74/metrics", "results_mid/metrics",
-                 "results_n100/metrics", "runs", "nautilus/reports", "nautilus/data")
+#
+# THE PER-UNIVERSE HALF IS READ FROM THE REGISTRY, not written down. It used to be
+# four literal paths, two of which (results74/metrics, and results/metrics as the
+# 58's output home) outlived the universes that wrote into them -- a run folder
+# would still have gone looking for artefacts nothing could produce. A new
+# universe's metrics dir is now collected the moment it is registered.
+#
+# results/metrics IS STILL LISTED, but no longer as any universe's output: it is
+# the shared, non-universe artefact directory (stability_*, feature docs). See
+# RETIRED_UNIVERSES.md and engine_core.refuse_universe_artefact().
+def _artefact_dirs():
+    from universes.registry import REGISTRY
+    per_universe = tuple(
+        str(u.metrics_dir.relative_to(ROOT)) for u in REGISTRY.values())
+    return per_universe + ("results/metrics", "runs",
+                           "nautilus/reports", "nautilus/data")
+
+
+ARTEFACT_DIRS = _artefact_dirs()
 
 
 def run_folder_name(uni_tags, arm_names, rebal, when=None):

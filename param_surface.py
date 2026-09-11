@@ -43,10 +43,11 @@ import pandas as pd
 ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "results"))
-import config, config74, config_mid
+import config
 from engine_core import metrics, precompute
 import test_exposure
 from test_exposure import backtest_exposure
+import profiles as _prof            # the run's execution-realism profile
 
 VOL_WIN = 60
 TOPNS = [5, 8, 12, 16, 20]
@@ -54,8 +55,6 @@ RATIOS = [1.0, 1.5, 2.0, 3.0]
 BASE = (8, 16)          # the incumbent, TOP_N=8 at the 2.0x ratio
 
 UNIV = [
-    ("58",       ROOT/"results"/"metrics"/"v5_expanding_cache.csv",   "/tmp/v5_expanding.csv",  2019, 2026),
-    ("74",       ROOT/"results74"/"metrics"/"v74_expanding_cache.csv", "/tmp/v74_expanding.csv", 2019, 2025),
     ("mid 2019", ROOT/"results_mid"/"metrics"/"v_mid_expanding_cache.csv", "/tmp/v_mid_expanding.csv", 2019, 2026),
     ("mid 2016", ROOT/"results_mid"/"metrics"/"v_mid_expanding_cache.csv", "/tmp/v_mid_expanding.csv", 2016, 2026),
 ]
@@ -77,7 +76,7 @@ def cell(px, op, sc, y0, y1, top_n, buf):
     ix = (1 + px.pct_change().mean(axis=1).fillna(0)).cumprod()
     pv = ix.pct_change().rolling(VOL_WIN).std() * np.sqrt(252)
     eq, tc, n, _ = backtest_exposure(px, op, sc, bd, pc, m20, pv, mode="breadth",
-                                     target_vol=pv.loc[bd].median())
+                                     target_vol=pv.loc[bd].median(), participation_cap=_prof.participation_cap())
     bh = 1_000_000 * (1 + px.pct_change().loc[bd].mean(axis=1).fillna(0)).cumprod()
     m = metrics(eq, "s", tc, n); mb = metrics(bh, "b")
     return dict(top_n=top_n, buffer=buf, cagr=m["CAGR%"], sharpe=m["Sharpe"],

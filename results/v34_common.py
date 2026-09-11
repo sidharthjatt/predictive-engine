@@ -204,13 +204,17 @@ def run_v34(M, universe_label, universe_tag, px, op, sc, bd, pc, mom20, port_vol
     import profiles as _prof
     import config as _cfg
     _cap = _prof.participation_cap()
-    _capkw = {}
+    # ALWAYS PASSED, EVEN WHEN None. backtest_exposure refuses to guess which
+    # profile a caller meant, and None is what `research` resolves to.
+    _capkw = {"participation_cap": _cap}
     if _cap is not None:
         import tradability as _tr
         from engine_core import _load_calendar as _lc
-        _capkw = {"participation_cap": _cap,
-                  "vol20": _tr.median_volume(__import__("universes.registry",fromlist=["REGISTRY"]).REGISTRY[universe_tag].prepare_data_dir(), _lc(),
-                                             _cfg.BT_START_DATE, _cfg.BT_END_DATE)}
+        _capkw["vol20"] = (
+            _tr.median_volume(
+                __import__("universes.registry", fromlist=["REGISTRY"])
+                .REGISTRY[universe_tag].prepare_data_dir(), _lc(),
+                _cfg.BT_START_DATE, _cfg.BT_END_DATE))
     a2 = _blank()
     if "v2" in sel:
         backtest_exposure(px, op, sc, bd, pc, mom20, port_vol, mode="breadth",
@@ -443,21 +447,22 @@ def run_arm(u, arm, rebal=None, out_dir=None):
     import profiles as _prof
     import config as _cfg
     _cap = _prof.participation_cap()
-    _capkw = {}
+    # ALWAYS PASSED, EVEN WHEN None. backtest_exposure refuses to guess which
+    # profile a caller meant, and None is what `research` resolves to.
+    _capkw = {"participation_cap": _cap}
     if _cap is not None:
         import tradability as _tr
         from engine_core import _load_calendar as _lc
-        _capkw = {"participation_cap": _cap,
-                  "vol20": _tr.median_volume(u.prepare_data_dir(), _lc(),
-                                             _cfg.BT_START_DATE, _cfg.BT_END_DATE)}
+        _capkw["vol20"] = _tr.median_volume(u.prepare_data_dir(), _lc(),
+                                            _cfg.BT_START_DATE, _cfg.BT_END_DATE)
     audit = {k: [] for k in ("holdings", "summary", "trades",
                              "ranking", "decisions", "skipped")}
     eq, tc, ntr, expo = backtest_exposure(
         px, op, sc, bd, pc, mom20, port_vol,
         mode=arm.mode, target_vol=tv, sizing=arm.sizing, audit=audit,
-        # A frozen universe opts OUT of the valuation correction, exactly as its
-        # engine does; keyed off the universe, not off which file is running.
-        value_at_open=not u.frozen, rebal=rebal, **_capkw)
+        # EVERY universe is valued at the open. The two that opted out of this
+        # correction were the retired 58 and 74, and they are gone.
+        value_at_open=True, rebal=rebal, **_capkw)
 
     bh = START_CAPITAL * (1 + px.pct_change().loc[bd].mean(axis=1).fillna(0)).cumprod()
     dep = 100.0 if arm.mode == "none" else expo * 100
@@ -480,7 +485,7 @@ def run_arm(u, arm, rebal=None, out_dir=None):
         "universe": u.label, "universe_tag": u.tag,
         "arm": arm.name, "mode": arm.mode, "sizing": arm.sizing,
         "rebal": rebal if rebal is not None else 20,
-        "frozen_universe": u.frozen, "value_at_open": not u.frozen,
+        "value_at_open": True,
         "purge_mode": u.purge_mode,
         "window_start": str(bd[0].date()), "window_end": str(bd[-1].date()),
         "trading_days": int(len(bd)),

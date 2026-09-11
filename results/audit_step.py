@@ -19,22 +19,20 @@ WHAT THIS REPLACES
         score panel     u.score_tmp, u.score_cache
         output dir      u.metrics_dir
         filename tag    u.tag
-        frozen pins     u.frozen  -- see below
 
-FROZEN UNIVERSES OPT OUT OF THE CORRECTION, THEY DO NOT OPT IN
-    The 58 and 74 are retired and their published numbers must not move, so for them
-    this passes value_at_open=False -- the pre-2026-09-04 close-valued sizing -- and
-    calls the frozen-write guard. Both are keyed off u.frozen rather than off which
-    file is running, so a universe's freeze travels with the universe.
+SIZING IS VALUED AT THE OPEN, WITH NO OPT-OUT
+    The deleted 58 and 74 passed value_at_open=False here -- the pre-2026-09-04
+    close-valued sizing -- because they were frozen and their published numbers
+    could not move. Nothing opts out any more: every universe is valued at the
+    open, and this file no longer reads a per-universe flag to decide.
 
-    That pin must stay in lockstep with engine_v2_final*.py, because the SAFETY check
-    below compares this curve against v2FINAL_equity.csv and would fail if only one
-    side moved. It is the same coupling the old make_daily_audit.py carried in a
-    comment; it is now enforced by both reading u.frozen.
+    That pin must stay in lockstep with engine_v2_final_*.py, because the SAFETY
+    check below compares this curve against v2FINAL_equity.csv and would fail if
+    only one side moved.
 
 THE ENTRY POINTS STAY SEPARATE, DELIBERATELY
-    make_mid_audit.py, make_n100_audit.py and frozen/make_daily_audit.py remain as
-    thin per-universe entry points rather than collapsing into one script with three
+    make_mid_audit.py and make_n100_audit.py remain as thin per-universe entry
+    points rather than collapsing into one script with two
     PIPELINE_ORDER entries. check_pipeline_order.analyse keys its ordering dicts BY
     SCRIPT NAME (`order = {scr: i ...}`), so three entries sharing one name collapse
     to a single position and the 10c-before-10d ordering it exists to enforce becomes
@@ -49,7 +47,7 @@ import pandas as pd
 
 warnings.filterwarnings("ignore")
 ROOT = Path(__file__).resolve().parents[1]
-for _p in (str(ROOT), str(ROOT / "results"), str(ROOT / "frozen")):
+for _p in (str(ROOT), str(ROOT / "results")):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
@@ -58,7 +56,7 @@ from engine_core import precompute
 import arms.registry as arm_reg
 import cadence               # noqa: E402
 from test_exposure import backtest_exposure      # noqa: E402
-from _frozen_guard import guard as _frozen_guard  # noqa: E402
+import profiles as _prof            # the run's execution-realism profile
 
 
 def panel_path(u):
@@ -192,10 +190,6 @@ def run(u, arm=None):
     measures, only in what its files are called -- and that is a compatibility
     fact about the Nautilus port, recorded here rather than inferred.
     """
-    if u.frozen:
-        # Guards the WRITE. Frozen artefacts are gitignored and exist in one copy.
-        _frozen_guard(u.tag)
-
     _hdr = u.tag if (arm is None or (arm.name if hasattr(arm, "name") else arm) == "v2") \
         else f"{u.tag} / {arm.name if hasattr(arm, 'name') else arm}"
     print(f"\n{'='*74}\n{_hdr} UNIVERSE\n{'='*74}")
@@ -225,12 +219,11 @@ def run(u, arm=None):
              "ranking": [], "decisions": [], "skipped": []}
     eq, tc, ntr, expo = backtest_exposure(
         px, op, sc, bd, pc, mom20, mode=_arm.mode, sizing=_arm.sizing, audit=audit,
-        # frozen: keep the close-valued sizing so published numbers cannot move
-        value_at_open=not u.frozen,
+        value_at_open=True,
         # THE RUN'S CADENCE. A trail built at 20 while the engine ran at 40 would
         # fail the reconciliation below -- which is the check working, but the fix
         # is to audit the cadence that was actually run.
-        rebal=cadence.selected())
+        rebal=cadence.selected(), participation_cap=_prof.participation_cap())
 
     # ---- SAFETY: does this match the official equity curve FOR THIS ARM? ----
     # The check is the point of the step. Auditing an arm against another arm's

@@ -43,6 +43,7 @@ import test_exposure
 from test_exposure import backtest_exposure
 from universes.registry import REGISTRY
 from v34_common import ann_vol_pct
+import profiles as _prof            # the run's execution-realism profile
 
 SEEDS = [7, 42, 99, 1, 2, 3, 11, 22, 33, 101]
 EMBARGO = 2
@@ -168,7 +169,7 @@ def arms_from_scores(sp, cfg):
         test_exposure.TOP_N, test_exposure.BUFFER = config.TOP_N, config.BUFFER
         eq, tc, n, expo = backtest_exposure(px, op, sc, bd, pc, mom20, pv,
                                             mode=mode, target_vol=tv,
-                                            sizing=sizing)
+                                            sizing=sizing, participation_cap=_prof.participation_cap())
         m = metrics(eq, tag, tc, n)
         yearly = {}
         for y, g in eq.groupby(eq.index.year):
