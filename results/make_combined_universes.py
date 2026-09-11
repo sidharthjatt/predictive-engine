@@ -61,6 +61,7 @@ import config
 from universes.registry import REGISTRY, selected_tags, report_order
 import arms.registry as arm_reg
 import cadence
+import profiles
 import arm_sources
 
 import survivorship as sv
@@ -339,7 +340,7 @@ def main():
             return
         _draw(rows, rows[0]["M"] / ("chart_COMBINED_"
                                     + "_".join(r["tag"] for r in rows)
-                                    + out_suffix + cadence.suffix() + ".png"))
+                                    + out_suffix + cadence.suffix() + profiles.suffix() + ".png"))
         return rows
 
     canon_rows = None
@@ -396,7 +397,7 @@ def main():
         print("-" * 108)
         _draw(pair, pair[0]["M"] / ("chart_COMBINED_"
                                     + "_".join(r["tag"] for r in pair)
-                                    + cadence.suffix() + ".png"))
+                                    + cadence.suffix() + profiles.suffix() + ".png"))
 
 
 def _ci(path):

@@ -84,10 +84,19 @@ def _c(path):
     At the default cadence this returns the path unchanged, so every published
     filename is exactly what it has always been. A non-default cadence gets
     v2FINAL_equity_r40.csv beside it and never replaces the published file.
+    
+    THE PROFILE IS PART OF THIS NAME. `tradeable` caps fills at the symbol's
+    prior-20-session median volume, which changes every number this step writes.
+    Until 2026-09-12 only audit_step.py and v34_common.py consulted the profile,
+    so the pipeline half wrote CAPPED numbers into the CANONICAL filenames -- the
+    same defect the cadence suffix was introduced to fix, on a third axis, and
+    silent rather than fatal. See KNOWN_ISSUES.md.
     """
-    if cadence.is_default():
+    import profiles as _pf
+    _sfx = cadence.suffix() + _pf.suffix() if not (cadence.is_default() and _pf.is_default()) else ""
+    if not _sfx:
         return path
-    return path.with_name(path.stem + cadence.suffix() + path.suffix)
+    return path.with_name(path.stem + _sfx + path.suffix)
 
 
 def main():
@@ -136,7 +145,11 @@ def main():
     import profiles as _prof
     import config as _cfg
     _cap = _prof.participation_cap()
-    _capkw = {}
+    # ALWAYS CARRIES THE CAP, EVEN WHEN None. backtest_exposure refuses to
+    # guess which profile a caller meant, and None is what `research` resolves
+    # to. Passing it here AND as a separate keyword raised TypeError on every
+    # tradeable run between 85f68a4 and this commit.
+    _capkw = {"participation_cap": _cap}
     if _cap is not None:
         import tradability as _tr
         from engine_core import _load_calendar as _lc
@@ -145,10 +158,10 @@ def main():
                                              _cfg.BT_START_DATE, _cfg.BT_END_DATE)}
     base_eq, tcb, nb, _ = backtest_exposure(px, op, sc, bd, pc, mom20, port_vol,
                                             mode="none", target_vol=tv,
-                                            audit=base_audit, rebal=_reb, **_capkw, participation_cap=_prof.participation_cap())
+                                            audit=base_audit, rebal=_reb, **_capkw)
     fin_eq, tcf, nf, expo = backtest_exposure(px, op, sc, bd, pc, mom20, port_vol,
                                               mode="breadth", target_vol=tv,
-                                              rebal=_reb, **_capkw, participation_cap=_prof.participation_cap())
+                                              rebal=_reb, **_capkw)
     bh = START_CAPITAL * (1 + px.pct_change().loc[bd].mean(axis=1).fillna(0)).cumprod()
 
     mbase = metrics(base_eq, "Inverse-vol, 100% invested (v1 final)", tcb, nb)
