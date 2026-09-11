@@ -512,8 +512,10 @@ Recorded so the next reader does not mistake silence for completion.
   only ones whose figures were anchored in both the snapshot and tracked prose,
   so that three-way check is no longer possible for anything.
 - **`year_range` survives on `Universe` with no setter.** Every universe now cuts
-  by date; the year-cut branch in `window()` is unreachable. It is the same
-  defect class as the `frozen` flag this pass deleted, left only because it was
-  not in scope.
+  by date; the year-cut branch in `window()` is unreachable. It is NOT the same as
+  the `frozen` flag this pass deleted -- `frozen` had no reader left, while
+  `year_range` is read by `window()` on every panel construction, so it is a
+  default nobody chose sitting in the path of every run. Recorded as its own
+  entry in `KNOWN_ISSUES.md`, at the severity of the others.
 - **The panels were not rebuilt.** All four `metrics/` directories are empty and
   `--list` is the only thing exercised end to end.
