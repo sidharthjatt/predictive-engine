@@ -517,5 +517,9 @@ Recorded so the next reader does not mistake silence for completion.
   `year_range` is read by `window()` on every panel construction, so it is a
   default nobody chose sitting in the path of every run. Recorded as its own
   entry in `KNOWN_ISSUES.md`, at the severity of the others.
-- **The panels were not rebuilt.** All four `metrics/` directories are empty and
-  `--list` is the only thing exercised end to end.
+- **The panels were rebuilt on 2026-09-12 and the numbers did not move.** A cold
+  `--universe all --arm v2 --steps all` run reproduced both universes' v2 rows
+  byte-identically against this snapshot, on every field. The pipeline crashed
+  afterwards at STEP 10h on a pre-existing defect unrelated to the retirement
+  (`make_n100_chart.py` was never made arm-aware); `save_caches_step` therefore
+  did not run, so the permanent panel caches come from that run's `/tmp` copies.
