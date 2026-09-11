@@ -308,7 +308,7 @@ def analyse(pipeline, results_root=None, resolver=None, helpers=None):
         for label, scr, path in missing:
             print(f"    {label:<10} {scr:<28} looked in {path}")
         print("!" * 88, flush=True)
-    return inversions, unresolved, edges
+    return inversions, unresolved, edges, missing
 
 
 def enforce(pipeline, covered, results_root=None, verbose=False, resolver=None,
@@ -328,7 +328,7 @@ def enforce(pipeline, covered, results_root=None, verbose=False, resolver=None,
     entries are never invisible; an INVERSION is fatal either way, since ordering
     is a property of the pipeline and not of the selection.
     """
-    inversions, unresolved, edges = analyse(pipeline, results_root, resolver, helpers)
+    inversions, unresolved, edges, missing = analyse(pipeline, results_root, resolver, helpers)
     print(f"  pipeline order check: {len(edges)} resolved cross-step "
           f"dependencies, {len(unresolved)} unresolved, "
           f"{len(inversions)} inversion(s)"
@@ -339,6 +339,23 @@ def enforce(pipeline, covered, results_root=None, verbose=False, resolver=None,
             d = key[0] or "?"
             print(f"    unresolved  {scr} -> {d}/metrics/{key[1]}"
                   f"   (placeholder not expanded; not checked)")
+    # A STEP THAT CANNOT BE FOUND IS FATAL, NOT A BANNER.
+    #
+    # It was a banner, and that is how STEP 16 went unchecked from whenever it was
+    # added until 2026-09-04, and STEP 17 from 2026-09-11 until the run that found
+    # it. An inversion is a defect the checker can SEE; an unresolvable step is the
+    # checker having no information at all, which is strictly worse and was the
+    # only outcome that did not stop the run. The banner stays -- it names what was
+    # looked for -- and the run now stops.
+    if missing:
+        raise SystemExit(
+            "PIPELINE ORDER CHECK FAILED -- "
+            + f"{len(missing)} step(s) could not be found, so they were not checked:\n"
+            + "\n".join(f"    {l:<10} {sc:<28} looked in {pa}" for l, sc, pa in missing)
+            + "\n  A step the checker cannot locate is UNCHECKED, not merely unusual.\n"
+              "  Either the file moved and run_all.STEP_DIRS does not cover its new\n"
+              "  directory, or PIPELINE_ORDER names a step that no longer exists.")
+
     if not inversions:
         return
     print("\n" + "!" * 90)
@@ -358,10 +375,20 @@ def enforce(pipeline, covered, results_root=None, verbose=False, resolver=None,
 if __name__ == "__main__":
     import runpy
     mod = runpy.run_path(str(ROOT / "run_all.py"), run_name="__not_main__")
-    inv, unres, edges = analyse(mod["PIPELINE_ORDER"])
+    # THE RESOLVER IS PASSED HERE TOO, AND IT WAS NOT. Standalone, this fell back
+    # to `R / scr` and so could not find EITHER nautilus step, while the same check
+    # run through run.py found one of them. Two entry points disagreeing about
+    # where a step lives is how a step goes unchecked in one of them; run_all's
+    # script_path() is the single definition and both now use it.
+    inv, unres, edges, missing = analyse(mod["PIPELINE_ORDER"],
+                                         resolver=mod["script_path"],
+                                         helpers=mod["STEP_HELPERS"])
     print(f"{'step':<6}{'consumer':<28}{'file':<34}producers")
     for label, scr, key, prods in edges:
         print(f"{label:<6}{scr:<28}{key[0]+'/'+key[1]:<34}{','.join(prods)}")
+    if missing:
+        raise SystemExit(f"\n{len(missing)} step(s) could not be found; they are "
+                         f"UNCHECKED. See the banner above.")
     print(f"\nunresolved: {len(unres)}")
     for label, scr, key in unres:
         print(f"  {scr} -> {key[0]}/{key[1]}")
