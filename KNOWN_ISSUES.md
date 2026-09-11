@@ -15,6 +15,112 @@ currently wrong.
 
 ---
 
+## The shipping arm's return edge is smaller than the seed noise it is measured through
+
+Found 2026-09-11, by transcribing the live figures into tracked prose for the
+first time. Open. **This is the most serious open item in this file, and it is not
+about the universe retirement that surfaced it.**
+
+**The edge.** Against each universe's own equal-weight buy & hold — the only
+comparison that is not a weighting artefact — the shipping arm returns:
+
+| universe | v2 CAGR | own buy & hold | edge |
+|---|---:|---:|---:|
+| n100 | 24.43 | 24.00 | **+0.43** |
+| mid | 29.23 | 28.34 | **+0.89** |
+
+**The noise.** The measured seed-noise standard deviation at the shipped ensemble
+size, from the 40-seed study recorded above under *"The 10-seed ensemble does not
+average away what it was built to average away"*:
+
+| universe | σ(K=10), CAGR points | edge | **edge in σ** |
+|---|---:|---:|---:|
+| n100 v2 | 0.968 | 0.43 | **0.44 σ** |
+| mid v2 | 1.393 | 0.89 | **0.64 σ** |
+
+**Changing nothing but the random seeds moves the result by more than the entire
+claimed edge.** Not marginally — on n100 the edge is under half of one standard
+deviation. A single draw landing 0.43 above its own benchmark is what this
+distribution produces routinely with no skill present at all.
+
+**THE 0.5-POINT FLOOR EVERY SIGMA CLAIM IN THIS PROJECT USED WAS INVENTED.**
+`results/seed_noise_measure.py`'s own docstring records why it was written: *"the
+purge measurement reported +0.54 and −0.81 on the shipping arm and judged them
+against a 0.5-point noise floor that was INVENTED, not measured."* The measured
+floor is **1.9× worse than the assumed one on n100 and 2.8× worse on mid**. Every
+comparison this project has judged against ±0.5 — purge, buffer, TOP_N, EWMA,
+sizing, cadence — was judged against a bar roughly half as tall as the real one,
+and the conclusions drawn from those comparisons should be re-read on that basis
+rather than trusted.
+
+**The floor has not been re-measured under the current engine, and the attempt
+failed.** `diagnostics/seed_noise.txt` is the most recent run and it reports:
+
+```
+IDENTITY GATE -- production 10 seeds vs v34_comparison.csv: MISMATCH
+  n100  store 26.21 / 1.92 / -17.69   recorded 25.78 / 1.86 / -19.87
+  mid   store 29.95 / 2.04 / -16.82   recorded 29.70 / 2.03 / -18.88
+NO SPREAD IS REPORTED. The store does not reproduce the shipped result.
+```
+
+So the σ values above are the best measurement this project has, and they were
+taken on the pre-`adj_close`, pre-tradability-guard engine. The per-seed stores
+they were computed from (`results/SEEDNOISE_*.npy`) are gone — they were never
+tracked, are absent from the working tree, and were excluded from
+`forensic_snapshot_20260911T0100/`. The seeds themselves are pinned in committed
+code (`PROD_SEEDS`, `EXTRA_SEEDS`, subset RNG 20260902), so the study is
+repeatable; it has not been repeated.
+
+**What this does and does not say.** It does not say the strategy has no edge. It
+says **the return edge as currently measured is not distinguishable from seed
+noise**, and that the project has never had a noise floor it actually measured
+under the engine it ships. Two things follow, neither of which has been done:
+re-run the 40-seed study on the current engine, and report every headline
+comparison as an interval rather than a point.
+
+**The drawdown result does not have this problem.** n100 −18.38% against buy &
+hold's −37.79% and mid −15.68% against −36.54% are gaps of 19 and 21 points. That
+is the part of the claim that survives, and it is what a rule that goes to cash
+when breadth collapses ought to produce.
+
+---
+
+## Universe.year_range has a reader and no setter
+
+Found 2026-09-11 during the 58/74 retirement. Open, and deliberately not fixed in
+that pass.
+
+`universes/registry.Universe.window()` branches on `year_range`:
+
+```python
+if self.year_range is not None:
+    y0, y1 = self.year_range
+    return index[(index.year >= y0) & (index.year <= y1)]
+d0, d1 = self.date_range
+return index[(index >= d0) & (index <= d1)]
+```
+
+The only two universes that ever set `year_range` were the 58 (2019–2026) and the
+74 (2019–2025). Both were deleted on 2026-09-11. **Every remaining universe
+constructs with `year_range=None`, so the first branch is unreachable and every
+run silently takes the date cut** — which is correct, and which nobody currently
+chooses.
+
+**THIS IS NOT THE SAME AS THE `frozen` FLAG DELETED IN THE SAME PASS, AND THE
+DIFFERENCE IS THE POINT.** `frozen` was dead: it had no reader left once its call
+sites went. `year_range` is **live** — `window()` reads it on every panel
+construction, for every universe, on every run. An axis with a reader and no
+setter is not dead code; it is a default nobody chose, sitting in the path of
+every run, which is precisely the defect class the retirement pass existed to
+remove. It was left because removing it was outside that pass's scope, not
+because it is benign.
+
+Note also that the two cuts are not equivalent: the year cut ran **six trading
+days longer** than the date cut. Anything comparing a pre-retirement figure
+against a current one is comparing across that difference.
+
+---
+
 ## The documented commands are not verified against the machine they run on
 
 Found 2026-08-30 by the `run_all.py` audit, and found AGAIN on 2026-09-02 by
