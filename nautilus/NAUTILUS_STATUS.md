@@ -1,5 +1,13 @@
 # Nautilus port — current state and what to do next
 
+> **THE 58 AND THE 74 WERE DELETED ON 2026-09-11.** Both universes, their raw
+> data, their registry entries and the 26 scripts that served them are gone from
+> this repository. Every reference to them below is **historical**: it records what
+> was measured and when, and none of it can be re-run. The figures are preserved at
+> full precision, with a SHA-256 manifest of every surviving artefact, in
+> [RETIRED_UNIVERSES.md](../RETIRED_UNIVERSES.md). Where a passage names a deleted file, it is
+> describing what that file did, not something you can run.
+
 Read this before touching anything under `nautilus/`.
 
 ## What this project is
