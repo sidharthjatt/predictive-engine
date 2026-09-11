@@ -1,0 +1,196 @@
+================================================================================
+ HELD-OUT PRE-REGISTRATION
+ Written 2026-09-12, BEFORE any data after 2026-05-29 was examined.
+================================================================================
+
+WHY THIS FILE EXISTS, AND WHY IT EXISTS TODAY
+
+  Every result in this project carries the same unaddressed defect: the shipping
+  configuration was chosen after at least 26 recorded trials on one dataset, so
+  the shuffle test measures the winner on the data it won on. KNOWN_ISSUES.md
+  records the remedy as held-out data or a pre-registered configuration tested
+  once. Neither has existed.
+
+  A held-out window does exist and has never been touched. config.BT_END_DATE is
+  2026-05-29, while the raw price data runs further: the Nifty 100 files to
+  2026-06-22 and the MidCap150 files to 2026-08-06 -- roughly 17 and 48 trading
+  sessions beyond the backtest.
+
+  This file is written BEFORE anyone looks at them. That ordering is the whole
+  value of the exercise. It is written by the same session that produced the
+  exposure-matched decomposition, deliberately, because the temptation to shape a
+  test around a result one already likes is strongest immediately afterwards.
+
+--------------------------------------------------------------------------------
+ 1. THE FROZEN CONFIGURATION UNDER TEST
+--------------------------------------------------------------------------------
+
+  Nothing below may change between this file and the run. If any of it changes,
+  the run is a new trial and this pre-registration is void.
+
+  commit          806a7fbba9a41a954e0ac75bc5a8064ecbabd414
+  branch          retire-58-74
+  working tree    CLEAN at the time of writing (0 modified or untracked files)
+
+  THE CLEAN TREE IS PART OF THE SPECIFICATION. 65 of 65 artefacts in this project
+  that record their git state were produced with a dirty tree, so no existing
+  figure is attributable to a commit. This run must be attributable. If the tree
+  is dirty when the run starts, stop and commit first.
+
+  universes       mid (148 constituents), n100 (99 constituents)
+  arm             v2 only -- invvol sizing, breadth-scaled exposure
+  TOP_N           8
+  BUFFER          16
+  HORIZON         20
+  PURGE           32 days, purge_mode="trading"
+  rebalance       20 sessions
+  seeds           [7, 42, 99, 1, 2, 3, 11, 22, 33, 101]
+  profile         research (participation_cap = None)
+  costs           Zerodha real charge model via qbeast_in_charges, plus 0.15%
+                  slippage; BUY_TC 0.001187 / SELL_TC 0.001037 as the fallback
+                  constants. VERIFY THE REAL MODEL IS ACTIVE BEFORE RUNNING:
+                    'compute_leg_charges' in inspect.getsource(engine_core.calc_tc)
+  price basis     adj_close canonical, repaired at the load boundary
+  execution       decisions on close, fills at next open; interior-gap
+                  tradability guard active; value_at_open=True
+  training data   UNCHANGED. The model is NOT refitted on held-out data and the
+                  walk-forward stops where it stops today.
+
+--------------------------------------------------------------------------------
+ 2. THE PRIMARY TEST -- ONE TEST, NOT A FAMILY
+--------------------------------------------------------------------------------
+
+  STATISTIC
+    The EXPOSURE-MATCHED SELECTION EDGE over the held-out window, pooled across
+    both universes.
+
+    For each universe and each held-out session t:
+        excess(t) = r_v2(t) - inv(t-1) * r_universe(t)
+    where r_v2 is the v2 arm's daily return, r_universe is the equal-weight mean
+    daily return of that universe's constituents, and inv(t-1) is v2's own
+    realised invested fraction on the prior session (daily_summary invested_pct,
+    lagged, so the benchmark cannot use the day's own exposure).
+
+    The pooled statistic is the mean of excess(t) across all held-out sessions of
+    both universes, reported in basis points per session AND annualised at 252
+    sessions for readability only.
+
+  WHY THIS STATISTIC AND NOT THE HEADLINE CAGR
+    The comparison against a fully-invested buy & hold is mismatched on exposure
+    in both directions, which is the finding that prompted this file. The matched
+    form isolates the one thing the model claims to do: pick names. It is also the
+    largest in-sample effect (+6.35 and +11.27 CAGR points), so it is the claim
+    with the most to lose from an honest test.
+
+  ONE TEST. There is no secondary test, no per-universe breakdown used for
+  judging, no Sharpe check, no drawdown check, no arm sweep. Those may be
+  REPORTED as description; none of them may change the verdict. Adding a second
+  judged test after seeing the first re-creates the multiplicity problem this
+  file exists to avoid.
+
+--------------------------------------------------------------------------------
+ 3. PASS AND FAIL, FIXED BEFORE THE RUN
+--------------------------------------------------------------------------------
+
+  THIS WINDOW CANNOT SUPPORT A SIGNIFICANCE TEST AND WILL NOT BE ASKED TO.
+  Roughly 65 pooled sessions against an in-sample daily excess of a few basis
+  points is not a powered test at any conventional bar. Setting p < 0.05 would
+  guarantee failure and teach nothing. The test is therefore a CONSISTENCY
+  INTERVAL, and the interval is derived from IN-SAMPLE data only.
+
+  STEP 1 -- BEFORE TOUCHING THE HELD-OUT WINDOW, compute from sessions on or
+  before 2026-05-29 only:
+      mu_in    = mean of excess(t) over the in-sample window, pooled
+      sd_in    = standard deviation of excess(t) over the in-sample window, pooled
+      n        = the number of held-out sessions actually available, pooled
+      se       = sd_in / sqrt(n)
+  Record all four in the output before any held-out number is computed.
+
+  STEP 2 -- the pre-stated interval is
+      [ mu_in - 2*se , mu_in + 2*se ]
+
+  PASS   the held-out pooled mean excess is POSITIVE and falls inside that
+         interval.
+  FAIL   it is negative, or it falls outside the interval in EITHER direction.
+
+  A RESULT THAT IS TOO GOOD IS ALSO A FAIL, and that is deliberate. An
+  out-of-sample edge several times the in-sample one is evidence that something
+  changed -- a data refresh, a corporate action, a look-ahead -- not evidence of
+  skill. The interval is two-sided on magnitude and one-sided on sign.
+
+  NO OTHER OUTCOME IS A PASS. In particular: "positive but outside the interval"
+  is a FAIL, "negative but small" is a FAIL, and "the sign is right on one
+  universe and wrong on the other" is a FAIL, because the pooled statistic is the
+  test and per-universe figures do not carry the verdict.
+
+  THE VERDICT IS RECORDED WHICHEVER WAY IT FALLS, in this file and in
+  experiments/EXPERIMENTS.md, as trial 27.
+
+--------------------------------------------------------------------------------
+ 4. THE WINDOW IS SPENDABLE EXACTLY ONCE
+--------------------------------------------------------------------------------
+
+  Once any figure computed on dates after 2026-05-29 has been seen by anyone
+  working on this project, the window is no longer held out. It becomes part of
+  the data the configuration is selected on, and it can never be restored to
+  held-out status by deleting the output or by choosing to disregard it.
+
+  LOOKING AT IT OUTSIDE THIS PROTOCOL MAKES IT TRIAL 27 AND SPENDS IT FOR
+  NOTHING. That includes: plotting it, extending BT_END_DATE "just to see",
+  running any existing script with a later end date, or checking whether the
+  strategy happened to do well in June. There is no informal look.
+
+  A PASS IS CONSISTENCY, NOT CONFIRMATION. At roughly 17 and 48 sessions this
+  window can detect a gross failure -- a sign flip, an order-of-magnitude
+  change -- and nothing finer. A pass means the in-sample picture did not fall
+  apart immediately outside its window. It does not establish the edge, it does
+  not resolve the 0.40 and 0.88 sigma on the headline comparison, and it must
+  never be quoted as validation.
+
+  If more data becomes available later, it is a SEPARATE pre-registration with
+  its own file. It does not extend this one.
+
+--------------------------------------------------------------------------------
+ 5. WHAT THIS TEST CANNOT DO
+--------------------------------------------------------------------------------
+
+  IT DOES NOT ADDRESS SURVIVORSHIP. The held-out sessions are drawn from the same
+  backfilled index membership as the training window. Both universes are defined
+  by today's constituent lists; names that left the index before 2026-05-29 are
+  absent from both halves equally. A survivorship-inflated universe passes this
+  test exactly as easily as a clean one.
+
+  IT DOES NOT FIX THE mid BENCHMARK. mid's equal-weight buy & hold contains six
+  single-day moves above 55% inside the backtest window and reads 28.34% as
+  computed against 24.23% with those six days neutralised. The matched statistic
+  reduces exposure to that contamination but does not remove it: the same price
+  series feeds r_universe. The data-handling decision -- truncate or stitch a
+  symbol's history across a corporate event of that size -- is still unmade.
+
+  IT DOES NOT VERIFY THE EXPOSURE-MATCHED EDGE'S SIGMA. The 5.9 and 11.2 sigma
+  figures assume the matched benchmark does not move with the ensemble seeds.
+  The breadth multiplier is provably seed-independent; the realised invested path
+  is not exactly so, the per-seed stores are gone, and this test does not
+  re-measure any of it.
+
+  IT DOES NOT MAKE THE RETURN TRADABLE. Synthetic fills, no market impact, no
+  capital gains tax, research profile with no participation cap.
+
+  IT DOES NOT CORRECT THE 26 PRIOR TRIALS. It is one clean observation appended
+  to a record of 26 contaminated ones. That is an improvement in kind, not a
+  repair of what came before.
+
+--------------------------------------------------------------------------------
+ 6. EXECUTION CHECKLIST
+--------------------------------------------------------------------------------
+
+  [ ] working tree clean; commit hash recorded in the output
+  [ ] real charge model confirmed active (not the 0.11% fallback)
+  [ ] mu_in, sd_in, n, se computed and RECORDED from in-sample data only
+  [ ] the interval written down before the held-out window is read
+  [ ] held-out statistic computed once
+  [ ] verdict recorded whichever way it falls, here and in EXPERIMENTS.md
+  [ ] no second judged test added afterwards
+
+ NOT RUN AS OF 2026-09-12. Nothing after 2026-05-29 has been computed or seen.
+================================================================================
