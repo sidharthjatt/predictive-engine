@@ -4,7 +4,7 @@
 
   spec  experiments/DRAWDOWN_EXIT_SPEC.txt section 13 (F1-F8 frozen before this file changed)
   patches applied to the SHIPPING function's own source: INIT, REBAL, TRIGGER, RETURN
-  patched source SHA256 46ccd107208e688d04f19d5a1360c02f978af2561425f1030f74bfe327860fba
+  patched source SHA256 d0e6cf3b615951ed5878429ae14c71d2da3b8e47c1c009e15f4a704396227435
   thresholds [0.1, 0.125, 0.15, 0.2, 0.25]
   re-entry waits [5, 20, 40] trading days -- SWEPT so the wait is not a single chosen number
   grid 15 cells per universe + control   arm v2   REBAL=20   both live universes
@@ -41,22 +41,22 @@
 ========================================================================================================================
 
   GATE G1 -- control (DD_THRESHOLD=None) vs the published v2 row, read from the CSV
-    CAGR%     patched           25.78   published           25.78   MATCH
-    Sharpe    patched            1.86   published            1.86   MATCH
-    MaxDD%    patched          -19.87   published          -19.87   MATCH
-    AnnVol%   patched           12.97   published           12.97   MATCH
-    Trades    patched             978   published             978   MATCH
-    TC_Rs     patched          245987   published          245987   MATCH
-    FinalEq   patched      5465013.26   published      5465013.26   MATCH
+    CAGR%     patched           24.43   published           24.43   MATCH
+    Sharpe    patched            1.72   published            1.72   MATCH
+    MaxDD%    patched          -18.38   published          -18.38   MATCH
+    AnnVol%   patched           13.47   published           13.47   MATCH
+    Trades    patched             965   published             965   MATCH
+    TC_Rs     patched          213158   published          213158   MATCH
+    FinalEq   patched      5047246.65   published      5047246.65   MATCH
     G1 PASS
 
   GATE G2 -- execution timing of every exit fill, four candidate prices
     threshold 0.1  wait 5
-      exit fills tested    36   at the fill day's OPEN    36   NOT at the open   0   at a CLOSE and not the open   0   trigger->fill offsets [1]   PASS
+      exit fills tested    20   at the fill day's OPEN    20   NOT at the open   0   at a CLOSE and not the open   0   trigger->fill offsets [1]   PASS
     threshold 0.1  wait 20
-      exit fills tested    36   at the fill day's OPEN    36   NOT at the open   0   at a CLOSE and not the open   0   trigger->fill offsets [1]   PASS
+      exit fills tested    20   at the fill day's OPEN    20   NOT at the open   0   at a CLOSE and not the open   0   trigger->fill offsets [1]   PASS
     threshold 0.1  wait 40
-      exit fills tested    36   at the fill day's OPEN    36   NOT at the open   0   at a CLOSE and not the open   0   trigger->fill offsets [1]   PASS
+      exit fills tested    20   at the fill day's OPEN    20   NOT at the open   0   at a CLOSE and not the open   0   trigger->fill offsets [1]   PASS
     threshold 0.125  wait 5
       exit fills tested     9   at the fill day's OPEN     9   NOT at the open   0   at a CLOSE and not the open   0   trigger->fill offsets [1]   PASS
     threshold 0.125  wait 20
@@ -72,77 +72,91 @@
     G2 PASS
 
   GATE G3 -- daily reconciliation, cash + holdings = equity
-      days 1,836   (a) mtm+cash vs total: 0 over budget   (b) holdings vs mtm: 0 over budget   (c) total vs equity curve: max 0.004999   PASS
-      days 1,836   (a) mtm+cash vs total: 0 over budget   (b) holdings vs mtm: 0 over budget   (c) total vs equity curve: max 0.004991   PASS
-      days 1,836   (a) mtm+cash vs total: 0 over budget   (b) holdings vs mtm: 0 over budget   (c) total vs equity curve: max 0.004957   PASS
-      days 1,836   (a) mtm+cash vs total: 0 over budget   (b) holdings vs mtm: 0 over budget   (c) total vs equity curve: max 0.004997   PASS
-      days 1,836   (a) mtm+cash vs total: 0 over budget   (b) holdings vs mtm: 0 over budget   (c) total vs equity curve: max 0.004974   PASS
-      days 1,836   (a) mtm+cash vs total: 0 over budget   (b) holdings vs mtm: 0 over budget   (c) total vs equity curve: max 0.004974   PASS
       days 1,836   (a) mtm+cash vs total: 0 over budget   (b) holdings vs mtm: 0 over budget   (c) total vs equity curve: max 0.004994   PASS
-      days 1,836   (a) mtm+cash vs total: 0 over budget   (b) holdings vs mtm: 0 over budget   (c) total vs equity curve: max 0.004982   PASS
-      days 1,836   (a) mtm+cash vs total: 0 over budget   (b) holdings vs mtm: 0 over budget   (c) total vs equity curve: max 0.004982   PASS
-      days 1,836   (a) mtm+cash vs total: 0 over budget   (b) holdings vs mtm: 0 over budget   (c) total vs equity curve: max 0.004997   PASS
+      days 1,836   (a) mtm+cash vs total: 0 over budget   (b) holdings vs mtm: 0 over budget   (c) total vs equity curve: max 0.004986   PASS
+      days 1,836   (a) mtm+cash vs total: 0 over budget   (b) holdings vs mtm: 0 over budget   (c) total vs equity curve: max 0.004986   PASS
+      days 1,836   (a) mtm+cash vs total: 0 over budget   (b) holdings vs mtm: 0 over budget   (c) total vs equity curve: max 0.004989   PASS
       days 1,836   (a) mtm+cash vs total: 0 over budget   (b) holdings vs mtm: 0 over budget   (c) total vs equity curve: max 0.004999   PASS
       days 1,836   (a) mtm+cash vs total: 0 over budget   (b) holdings vs mtm: 0 over budget   (c) total vs equity curve: max 0.004999   PASS
-      days 1,836   (a) mtm+cash vs total: 0 over budget   (b) holdings vs mtm: 0 over budget   (c) total vs equity curve: max 0.004999   PASS
-      days 1,836   (a) mtm+cash vs total: 0 over budget   (b) holdings vs mtm: 0 over budget   (c) total vs equity curve: max 0.004999   PASS
-      days 1,836   (a) mtm+cash vs total: 0 over budget   (b) holdings vs mtm: 0 over budget   (c) total vs equity curve: max 0.004999   PASS
-      days 1,836   (a) mtm+cash vs total: 0 over budget   (b) holdings vs mtm: 0 over budget   (c) total vs equity curve: max 0.004999   PASS
+      days 1,836   (a) mtm+cash vs total: 0 over budget   (b) holdings vs mtm: 0 over budget   (c) total vs equity curve: max 0.004986   PASS
+      days 1,836   (a) mtm+cash vs total: 0 over budget   (b) holdings vs mtm: 0 over budget   (c) total vs equity curve: max 0.004986   PASS
+      days 1,836   (a) mtm+cash vs total: 0 over budget   (b) holdings vs mtm: 0 over budget   (c) total vs equity curve: max 0.004986   PASS
+      days 1,836   (a) mtm+cash vs total: 0 over budget   (b) holdings vs mtm: 0 over budget   (c) total vs equity curve: max 0.004987   PASS
+      days 1,836   (a) mtm+cash vs total: 0 over budget   (b) holdings vs mtm: 0 over budget   (c) total vs equity curve: max 0.004994   PASS
+      days 1,836   (a) mtm+cash vs total: 0 over budget   (b) holdings vs mtm: 0 over budget   (c) total vs equity curve: max 0.004994   PASS
+      days 1,836   (a) mtm+cash vs total: 0 over budget   (b) holdings vs mtm: 0 over budget   (c) total vs equity curve: max 0.004994   PASS
+      days 1,836   (a) mtm+cash vs total: 0 over budget   (b) holdings vs mtm: 0 over budget   (c) total vs equity curve: max 0.004994   PASS
+      days 1,836   (a) mtm+cash vs total: 0 over budget   (b) holdings vs mtm: 0 over budget   (c) total vs equity curve: max 0.004994   PASS
+      days 1,836   (a) mtm+cash vs total: 0 over budget   (b) holdings vs mtm: 0 over budget   (c) total vs equity curve: max 0.004994   PASS
     G3 PASS  (control + 15 cells)
+
+  GATE G4 -- the tradability guard is loaded and the forced exit fired
+    guard loaded for this universe   got     True   expected     True   MATCH
+    symbols guarded                  got        0   expected        0   MATCH
+    blocked symbol-days              got        0   expected        0   MATCH
+    forced exits in the control      got        0   expected        0   MATCH
+    G4 PASS
 
 ========================================================================================================================
  MIDCAP150 (mid)   1,836 trading days   2019-01-01 .. 2026-05-29
 ========================================================================================================================
 
   GATE G1 -- control (DD_THRESHOLD=None) vs the published v2 row, read from the CSV
-    CAGR%     patched            29.7   published            29.7   MATCH
-    Sharpe    patched            2.03   published            2.03   MATCH
-    MaxDD%    patched          -18.88   published          -18.88   MATCH
-    AnnVol%   patched           13.51   published           13.51   MATCH
-    Trades    patched             963   published             963   MATCH
-    TC_Rs     patched          229837   published          229837   MATCH
-    FinalEq   patched      6862643.48   published      6862643.48   MATCH
+    CAGR%     patched           29.23   published           29.23   MATCH
+    Sharpe    patched            1.99   published            1.99   MATCH
+    MaxDD%    patched          -15.68   published          -15.68   MATCH
+    AnnVol%   patched           13.57   published           13.57   MATCH
+    Trades    patched            1019   published            1019   MATCH
+    TC_Rs     patched          249150   published          249150   MATCH
+    FinalEq   patched      6677756.94   published      6677756.94   MATCH
     G1 PASS
 
   GATE G2 -- execution timing of every exit fill, four candidate prices
     threshold 0.1  wait 5
-      exit fills tested    27   at the fill day's OPEN    27   NOT at the open   0   at a CLOSE and not the open   0   trigger->fill offsets [1]   PASS
+      exit fills tested    37   at the fill day's OPEN    37   NOT at the open   0   at a CLOSE and not the open   0   trigger->fill offsets [1]   PASS
     threshold 0.1  wait 20
-      exit fills tested    27   at the fill day's OPEN    27   NOT at the open   0   at a CLOSE and not the open   0   trigger->fill offsets [1]   PASS
+      exit fills tested    39   at the fill day's OPEN    39   NOT at the open   0   at a CLOSE and not the open   0   trigger->fill offsets [1]   PASS
     threshold 0.1  wait 40
-      exit fills tested    27   at the fill day's OPEN    27   NOT at the open   0   at a CLOSE and not the open   0   trigger->fill offsets [1]   PASS
+      exit fills tested    37   at the fill day's OPEN    37   NOT at the open   0   at a CLOSE and not the open   0   trigger->fill offsets [1]   PASS
     threshold 0.125  wait 5
-      exit fills tested    10   at the fill day's OPEN    10   NOT at the open   0   at a CLOSE and not the open   0   trigger->fill offsets [1]   PASS
+      exit fills tested     9   at the fill day's OPEN     9   NOT at the open   0   at a CLOSE and not the open   0   trigger->fill offsets [1]   PASS
     threshold 0.125  wait 20
-      exit fills tested    10   at the fill day's OPEN    10   NOT at the open   0   at a CLOSE and not the open   0   trigger->fill offsets [1]   PASS
+      exit fills tested     9   at the fill day's OPEN     9   NOT at the open   0   at a CLOSE and not the open   0   trigger->fill offsets [1]   PASS
     threshold 0.125  wait 40
-      exit fills tested    10   at the fill day's OPEN    10   NOT at the open   0   at a CLOSE and not the open   0   trigger->fill offsets [1]   PASS
+      exit fills tested     9   at the fill day's OPEN     9   NOT at the open   0   at a CLOSE and not the open   0   trigger->fill offsets [1]   PASS
     threshold 0.15  wait 5
-      exit fills tested    10   at the fill day's OPEN    10   NOT at the open   0   at a CLOSE and not the open   0   trigger->fill offsets [1]   PASS
+      exit fills tested     9   at the fill day's OPEN     9   NOT at the open   0   at a CLOSE and not the open   0   trigger->fill offsets [1]   PASS
     threshold 0.15  wait 20
-      exit fills tested    10   at the fill day's OPEN    10   NOT at the open   0   at a CLOSE and not the open   0   trigger->fill offsets [1]   PASS
+      exit fills tested     9   at the fill day's OPEN     9   NOT at the open   0   at a CLOSE and not the open   0   trigger->fill offsets [1]   PASS
     threshold 0.15  wait 40
-      exit fills tested    10   at the fill day's OPEN    10   NOT at the open   0   at a CLOSE and not the open   0   trigger->fill offsets [1]   PASS
+      exit fills tested     9   at the fill day's OPEN     9   NOT at the open   0   at a CLOSE and not the open   0   trigger->fill offsets [1]   PASS
     G2 PASS
 
   GATE G3 -- daily reconciliation, cash + holdings = equity
-      days 1,836   (a) mtm+cash vs total: 0 over budget   (b) holdings vs mtm: 0 over budget   (c) total vs equity curve: max 0.004932   PASS
-      days 1,836   (a) mtm+cash vs total: 0 over budget   (b) holdings vs mtm: 0 over budget   (c) total vs equity curve: max 0.004902   PASS
-      days 1,836   (a) mtm+cash vs total: 0 over budget   (b) holdings vs mtm: 0 over budget   (c) total vs equity curve: max 0.004937   PASS
-      days 1,836   (a) mtm+cash vs total: 0 over budget   (b) holdings vs mtm: 0 over budget   (c) total vs equity curve: max 0.004958   PASS
-      days 1,836   (a) mtm+cash vs total: 0 over budget   (b) holdings vs mtm: 0 over budget   (c) total vs equity curve: max 0.004985   PASS
-      days 1,836   (a) mtm+cash vs total: 0 over budget   (b) holdings vs mtm: 0 over budget   (c) total vs equity curve: max 0.004985   PASS
+      days 1,836   (a) mtm+cash vs total: 0 over budget   (b) holdings vs mtm: 0 over budget   (c) total vs equity curve: max 0.004917   PASS
+      days 1,836   (a) mtm+cash vs total: 0 over budget   (b) holdings vs mtm: 0 over budget   (c) total vs equity curve: max 0.004990   PASS
+      days 1,836   (a) mtm+cash vs total: 0 over budget   (b) holdings vs mtm: 0 over budget   (c) total vs equity curve: max 0.004990   PASS
+      days 1,836   (a) mtm+cash vs total: 0 over budget   (b) holdings vs mtm: 0 over budget   (c) total vs equity curve: max 0.004910   PASS
+      days 1,836   (a) mtm+cash vs total: 0 over budget   (b) holdings vs mtm: 0 over budget   (c) total vs equity curve: max 0.004965   PASS
+      days 1,836   (a) mtm+cash vs total: 0 over budget   (b) holdings vs mtm: 0 over budget   (c) total vs equity curve: max 0.004935   PASS
+      days 1,836   (a) mtm+cash vs total: 0 over budget   (b) holdings vs mtm: 0 over budget   (c) total vs equity curve: max 0.004956   PASS
       days 1,836   (a) mtm+cash vs total: 0 over budget   (b) holdings vs mtm: 0 over budget   (c) total vs equity curve: max 0.004987   PASS
-      days 1,836   (a) mtm+cash vs total: 0 over budget   (b) holdings vs mtm: 0 over budget   (c) total vs equity curve: max 0.004982   PASS
-      days 1,836   (a) mtm+cash vs total: 0 over budget   (b) holdings vs mtm: 0 over budget   (c) total vs equity curve: max 0.004982   PASS
-      days 1,836   (a) mtm+cash vs total: 0 over budget   (b) holdings vs mtm: 0 over budget   (c) total vs equity curve: max 0.004999   PASS
-      days 1,836   (a) mtm+cash vs total: 0 over budget   (b) holdings vs mtm: 0 over budget   (c) total vs equity curve: max 0.004932   PASS
-      days 1,836   (a) mtm+cash vs total: 0 over budget   (b) holdings vs mtm: 0 over budget   (c) total vs equity curve: max 0.004932   PASS
-      days 1,836   (a) mtm+cash vs total: 0 over budget   (b) holdings vs mtm: 0 over budget   (c) total vs equity curve: max 0.004932   PASS
-      days 1,836   (a) mtm+cash vs total: 0 over budget   (b) holdings vs mtm: 0 over budget   (c) total vs equity curve: max 0.004932   PASS
-      days 1,836   (a) mtm+cash vs total: 0 over budget   (b) holdings vs mtm: 0 over budget   (c) total vs equity curve: max 0.004932   PASS
-      days 1,836   (a) mtm+cash vs total: 0 over budget   (b) holdings vs mtm: 0 over budget   (c) total vs equity curve: max 0.004932   PASS
+      days 1,836   (a) mtm+cash vs total: 0 over budget   (b) holdings vs mtm: 0 over budget   (c) total vs equity curve: max 0.004969   PASS
+      days 1,836   (a) mtm+cash vs total: 0 over budget   (b) holdings vs mtm: 0 over budget   (c) total vs equity curve: max 0.004996   PASS
+      days 1,836   (a) mtm+cash vs total: 0 over budget   (b) holdings vs mtm: 0 over budget   (c) total vs equity curve: max 0.004917   PASS
+      days 1,836   (a) mtm+cash vs total: 0 over budget   (b) holdings vs mtm: 0 over budget   (c) total vs equity curve: max 0.004917   PASS
+      days 1,836   (a) mtm+cash vs total: 0 over budget   (b) holdings vs mtm: 0 over budget   (c) total vs equity curve: max 0.004917   PASS
+      days 1,836   (a) mtm+cash vs total: 0 over budget   (b) holdings vs mtm: 0 over budget   (c) total vs equity curve: max 0.004917   PASS
+      days 1,836   (a) mtm+cash vs total: 0 over budget   (b) holdings vs mtm: 0 over budget   (c) total vs equity curve: max 0.004917   PASS
+      days 1,836   (a) mtm+cash vs total: 0 over budget   (b) holdings vs mtm: 0 over budget   (c) total vs equity curve: max 0.004917   PASS
     G3 PASS  (control + 15 cells)
+
+  GATE G4 -- the tradability guard is loaded and the forced exit fired
+    guard loaded for this universe   got     True   expected     True   MATCH
+    symbols guarded                  got        3   expected        3   MATCH
+    blocked symbol-days              got     1183   expected     1183   MATCH
+    forced exits in the control      got        1   expected        1   MATCH
+    G4 PASS
 
 ========================================================================================================================
  ALL CORRECTNESS GATES PASS ON BOTH UNIVERSES
@@ -153,22 +167,22 @@
 ========================================================================================================================
 
    thresh  wait   CAGR%   dCAGR    floor  Sharpe   MaxDD%  AnnVol%  trades      TC Rs   FinalEquity  fires  exits  reent  days flat  %flat
-  control     -   25.78   +0.00  control    1.86   -19.87    12.97     978    245,987     5,465,013      0      0      0          0    0.0
-      0.1     5   24.17   -1.61  outside    1.81   -19.08    12.59     963    234,075     4,969,932      8      4      4         80    4.4
-      0.1    20   23.04   -2.74  outside    1.74   -19.08    12.55     951    220,372     4,644,252      8      4      4        100    5.4
-      0.1    40   23.70   -2.08  outside    1.86   -15.66    12.05     907    219,333     4,832,896      8      4      4        180    9.8
-    0.125     5   26.09   +0.31   INSIDE    1.90   -18.46    12.82     980    250,678     5,566,632      2      1      1         21    1.1
-    0.125    20   26.09   +0.31   INSIDE    1.90   -18.46    12.82     980    250,678     5,566,632      2      1      1         21    1.1
-    0.125    40   26.25   +0.47   INSIDE    1.94   -15.01    12.64     972    251,958     5,619,544      2      1      1         41    2.2
-     0.15     5   25.14   -0.64   INSIDE    1.83   -22.92    12.90     980    237,893     5,264,004      2      1      1         20    1.1
-     0.15    20   25.14   -0.64   INSIDE    1.83   -22.92    12.90     980    237,893     5,264,004      2      1      1         20    1.1
-     0.15    40   25.30   -0.48   INSIDE    1.87   -19.67    12.71     972    239,074     5,315,405      2      1      1         40    2.2
-      0.2     5   25.78   +0.00   INSIDE    1.86   -19.87    12.97     978    245,987     5,465,013      0      0      0          0    0.0
-      0.2    20   25.78   +0.00   INSIDE    1.86   -19.87    12.97     978    245,987     5,465,013      0      0      0          0    0.0
-      0.2    40   25.78   +0.00   INSIDE    1.86   -19.87    12.97     978    245,987     5,465,013      0      0      0          0    0.0
-     0.25     5   25.78   +0.00   INSIDE    1.86   -19.87    12.97     978    245,987     5,465,013      0      0      0          0    0.0
-     0.25    20   25.78   +0.00   INSIDE    1.86   -19.87    12.97     978    245,987     5,465,013      0      0      0          0    0.0
-     0.25    40   25.78   +0.00   INSIDE    1.86   -19.87    12.97     978    245,987     5,465,013      0      0      0          0    0.0
+  control     -   24.43   +0.00  control    1.72   -18.38    13.47     965    213,158     5,047,247      0      0      0          0    0.0
+      0.1     5   23.32   -1.11  outside    1.67   -19.99    13.27     973    202,979     4,722,362      4      2      2         41    2.2
+      0.1    20   22.36   -2.07  outside    1.62   -19.99    13.23     961    192,461     4,456,243      4      2      2         61    3.3
+      0.1    40   23.23   -1.20  outside    1.71   -15.10    12.95     943    198,400     4,696,627      4      2      2        101    5.5
+    0.125     5   24.43   +0.00   INSIDE    1.73   -18.30    13.39     967    213,429     5,047,548      2      1      1         22    1.2
+    0.125    20   24.43   +0.00   INSIDE    1.73   -18.30    13.39     967    213,429     5,047,548      2      1      1         22    1.2
+    0.125    40   25.08   +0.65   INSIDE    1.79   -13.29    13.23     957    219,798     5,245,024      2      1      1         42    2.3
+     0.15     5   23.49   -0.94   INSIDE    1.66   -22.70    13.45     967    202,857     4,771,353      2      1      1         20    1.1
+     0.15    20   23.49   -0.94   INSIDE    1.66   -22.70    13.45     967    202,857     4,771,353      2      1      1         20    1.1
+     0.15    40   24.12   -0.31   INSIDE    1.72   -17.97    13.29     957    208,751     4,955,318      2      1      1         40    2.2
+      0.2     5   24.43   +0.00   INSIDE    1.72   -18.38    13.47     965    213,158     5,047,247      0      0      0          0    0.0
+      0.2    20   24.43   +0.00   INSIDE    1.72   -18.38    13.47     965    213,158     5,047,247      0      0      0          0    0.0
+      0.2    40   24.43   +0.00   INSIDE    1.72   -18.38    13.47     965    213,158     5,047,247      0      0      0          0    0.0
+     0.25     5   24.43   +0.00   INSIDE    1.72   -18.38    13.47     965    213,158     5,047,247      0      0      0          0    0.0
+     0.25    20   24.43   +0.00   INSIDE    1.72   -18.38    13.47     965    213,158     5,047,247      0      0      0          0    0.0
+     0.25    40   24.43   +0.00   INSIDE    1.72   -18.38    13.47     965    213,158     5,047,247      0      0      0          0    0.0
 
   'fires' is the TOTAL number of rule actions (exits + re-entries).
   dCAGR is against the control. INSIDE means smaller than the measured
@@ -178,59 +192,47 @@
 
   EVERY EXIT AND EVERY RE-ENTRY, WITH DATES AND DAYS FLAT PER EPISODE
 
-    threshold 0.1  wait 5  --  4 exit(s), 4 re-entry(ies)
-      EXIT     trigger 2020-03-12 (close)  fill 2020-03-13 (next open)  dd  -11.30%  held  9  pv    1,105,316
-      REENTRY  2020-04-22                                dd  -14.92%  pv    1,060,193  FLAT 24 trading day(s)
-      EXIT     trigger 2022-03-07 (close)  fill 2022-03-08 (next open)  dd  -10.50%  held  9  pv    2,083,638
-      REENTRY  2022-03-24                                dd  -10.85%  pv    2,075,414  FLAT 11 trading day(s)
-      EXIT     trigger 2025-01-13 (close)  fill 2025-01-14 (next open)  dd  -10.06%  held  9  pv    4,642,021
-      REENTRY  2025-02-13                                dd   -9.82%  pv    4,654,300  FLAT 23 trading day(s)
-      EXIT     trigger 2026-02-01 (close)  fill 2026-02-02 (next open)  dd  -10.59%  held  9  pv    4,966,122
-      REENTRY  2026-03-05                                dd  -10.71%  pv    4,959,769  FLAT 22 trading day(s)
+    threshold 0.1  wait 5  --  2 exit(s), 2 re-entry(ies)
+      EXIT     trigger 2020-03-12 (close)  fill 2020-03-13 (next open)  dd  -11.53%  held  9  pv    1,018,425
+      REENTRY  2020-04-22                                dd  -14.46%  pv      984,606  FLAT 24 trading day(s)
+      EXIT     trigger 2022-02-24 (close)  fill 2022-02-25 (next open)  dd  -11.76%  held 11  pv    1,774,495
+      REENTRY  2022-03-24                                dd  -11.14%  pv    1,786,907  FLAT 17 trading day(s)
 
-    threshold 0.1  wait 20  --  4 exit(s), 4 re-entry(ies)
-      EXIT     trigger 2020-03-12 (close)  fill 2020-03-13 (next open)  dd  -11.30%  held  9  pv    1,105,316
-      REENTRY  2020-04-22                                dd  -14.92%  pv    1,060,193  FLAT 24 trading day(s)
-      EXIT     trigger 2022-03-07 (close)  fill 2022-03-08 (next open)  dd  -10.50%  held  9  pv    2,083,638
-      REENTRY  2022-04-25                                dd  -10.85%  pv    2,075,414  FLAT 31 trading day(s)
-      EXIT     trigger 2025-01-13 (close)  fill 2025-01-14 (next open)  dd  -10.04%  held  9  pv    4,341,232
-      REENTRY  2025-02-13                                dd   -9.80%  pv    4,352,648  FLAT 23 trading day(s)
-      EXIT     trigger 2026-02-01 (close)  fill 2026-02-02 (next open)  dd  -10.56%  held  9  pv    4,640,245
-      REENTRY  2026-03-05                                dd  -10.68%  pv    4,634,298  FLAT 22 trading day(s)
+    threshold 0.1  wait 20  --  2 exit(s), 2 re-entry(ies)
+      EXIT     trigger 2020-03-12 (close)  fill 2020-03-13 (next open)  dd  -11.53%  held  9  pv    1,018,425
+      REENTRY  2020-04-22                                dd  -14.46%  pv      984,606  FLAT 24 trading day(s)
+      EXIT     trigger 2022-02-24 (close)  fill 2022-02-25 (next open)  dd  -11.76%  held 11  pv    1,774,495
+      REENTRY  2022-04-25                                dd  -11.14%  pv    1,786,907  FLAT 37 trading day(s)
 
-    threshold 0.1  wait 40  --  4 exit(s), 4 re-entry(ies)
-      EXIT     trigger 2020-03-12 (close)  fill 2020-03-13 (next open)  dd  -11.30%  held  9  pv    1,105,316
-      REENTRY  2020-05-21                                dd  -14.92%  pv    1,060,193  FLAT 44 trading day(s)
-      EXIT     trigger 2022-03-07 (close)  fill 2022-03-08 (next open)  dd  -10.49%  held  9  pv    2,103,039
-      REENTRY  2022-05-24                                dd  -10.84%  pv    2,094,741  FLAT 51 trading day(s)
-      EXIT     trigger 2025-01-13 (close)  fill 2025-01-14 (next open)  dd  -10.05%  held  9  pv    4,552,972
-      REENTRY  2025-03-17                                dd   -9.81%  pv    4,564,984  FLAT 43 trading day(s)
-      EXIT     trigger 2026-02-01 (close)  fill 2026-02-02 (next open)  dd  -10.55%  held  9  pv    4,844,461
-      REENTRY  2026-04-07                                dd  -10.67%  pv    4,838,262  FLAT 42 trading day(s)
+    threshold 0.1  wait 40  --  2 exit(s), 2 re-entry(ies)
+      EXIT     trigger 2020-03-12 (close)  fill 2020-03-13 (next open)  dd  -11.53%  held  9  pv    1,018,425
+      REENTRY  2020-05-21                                dd  -14.46%  pv      984,606  FLAT 44 trading day(s)
+      EXIT     trigger 2022-02-24 (close)  fill 2022-02-25 (next open)  dd  -11.78%  held 11  pv    1,844,861
+      REENTRY  2022-05-24                                dd  -11.16%  pv    1,857,778  FLAT 57 trading day(s)
 
     threshold 0.125  wait 5  --  1 exit(s), 1 re-entry(ies)
-      EXIT     trigger 2020-03-17 (close)  fill 2020-03-18 (next open)  dd  -14.55%  held  9  pv    1,064,871
-      REENTRY  2020-04-22                                dd  -14.27%  pv    1,068,295  FLAT 21 trading day(s)
+      EXIT     trigger 2020-03-16 (close)  fill 2020-03-17 (next open)  dd  -12.58%  held  9  pv    1,006,289
+      REENTRY  2020-04-22                                dd  -12.65%  pv    1,005,475  FLAT 22 trading day(s)
 
     threshold 0.125  wait 20  --  1 exit(s), 1 re-entry(ies)
-      EXIT     trigger 2020-03-17 (close)  fill 2020-03-18 (next open)  dd  -14.55%  held  9  pv    1,064,871
-      REENTRY  2020-04-22                                dd  -14.27%  pv    1,068,295  FLAT 21 trading day(s)
+      EXIT     trigger 2020-03-16 (close)  fill 2020-03-17 (next open)  dd  -12.58%  held  9  pv    1,006,289
+      REENTRY  2020-04-22                                dd  -12.65%  pv    1,005,475  FLAT 22 trading day(s)
 
     threshold 0.125  wait 40  --  1 exit(s), 1 re-entry(ies)
-      EXIT     trigger 2020-03-17 (close)  fill 2020-03-18 (next open)  dd  -14.55%  held  9  pv    1,064,871
-      REENTRY  2020-05-21                                dd  -14.27%  pv    1,068,295  FLAT 41 trading day(s)
+      EXIT     trigger 2020-03-16 (close)  fill 2020-03-17 (next open)  dd  -12.58%  held  9  pv    1,006,289
+      REENTRY  2020-05-21                                dd  -12.65%  pv    1,005,475  FLAT 42 trading day(s)
 
     threshold 0.15  wait 5  --  1 exit(s), 1 re-entry(ies)
-      EXIT     trigger 2020-03-18 (close)  fill 2020-03-19 (next open)  dd  -17.09%  held  9  pv    1,033,180
-      REENTRY  2020-04-22                                dd  -18.97%  pv    1,009,735  FLAT 20 trading day(s)
+      EXIT     trigger 2020-03-18 (close)  fill 2020-03-19 (next open)  dd  -15.27%  held  9  pv      975,296
+      REENTRY  2020-04-22                                dd  -17.36%  pv      951,263  FLAT 20 trading day(s)
 
     threshold 0.15  wait 20  --  1 exit(s), 1 re-entry(ies)
-      EXIT     trigger 2020-03-18 (close)  fill 2020-03-19 (next open)  dd  -17.09%  held  9  pv    1,033,180
-      REENTRY  2020-04-22                                dd  -18.97%  pv    1,009,735  FLAT 20 trading day(s)
+      EXIT     trigger 2020-03-18 (close)  fill 2020-03-19 (next open)  dd  -15.27%  held  9  pv      975,296
+      REENTRY  2020-04-22                                dd  -17.36%  pv      951,263  FLAT 20 trading day(s)
 
     threshold 0.15  wait 40  --  1 exit(s), 1 re-entry(ies)
-      EXIT     trigger 2020-03-18 (close)  fill 2020-03-19 (next open)  dd  -17.09%  held  9  pv    1,033,180
-      REENTRY  2020-05-21                                dd  -18.97%  pv    1,009,735  FLAT 40 trading day(s)
+      EXIT     trigger 2020-03-18 (close)  fill 2020-03-19 (next open)  dd  -15.27%  held  9  pv      975,296
+      REENTRY  2020-05-21                                dd  -17.36%  pv      951,263  FLAT 40 trading day(s)
 
     threshold 0.2  wait 5  --  0 exit(s), 0 re-entry(ies)
       NEVER FIRED in 1,836 trading days
@@ -253,8 +255,6 @@
     TRIGGER YEARS, all cells pooled:
       2020: 9
       2022: 3
-      2025: 3
-      2026: 3
 
     IS ALL THE ACTIVITY A SINGLE CLUSTER? NO
 
@@ -263,22 +263,22 @@
 ========================================================================================================================
 
    thresh  wait   CAGR%   dCAGR    floor  Sharpe   MaxDD%  AnnVol%  trades      TC Rs   FinalEquity  fires  exits  reent  days flat  %flat
-  control     -   29.70   +0.00  control    2.03   -18.88    13.51     963    229,837     6,862,643      0      0      0          0    0.0
-      0.1     5   29.22   -0.48   INSIDE    2.01   -18.76    13.43     969    226,769     6,675,858      6      3      3         50    2.7
-      0.1    20   29.26   -0.44   INSIDE    2.02   -18.76    13.39     943    224,618     6,689,376      6      3      3         90    4.9
-      0.1    40   27.12   -2.58  outside    1.93   -18.29    13.13     913    205,115     5,913,267      6      3      3        150    8.2
-    0.125     5   30.22   +0.52   INSIDE    2.07   -14.83    13.42     953    236,257     7,068,529      2      1      1         22    1.2
-    0.125    20   30.22   +0.52   INSIDE    2.07   -14.83    13.42     953    236,257     7,068,529      2      1      1         22    1.2
-    0.125    40   29.87   +0.17   INSIDE    2.07   -14.34    13.28     941    230,813     6,928,218      2      1      1         42    2.3
-     0.15     5   29.07   -0.63   INSIDE    1.99   -20.30    13.53     953    222,443     6,619,450      2      1      1         20    1.1
-     0.15    20   29.07   -0.63   INSIDE    1.99   -20.30    13.53     953    222,443     6,619,450      2      1      1         20    1.1
-     0.15    40   28.74   -0.96   INSIDE    1.99   -19.85    13.40     941    217,597     6,495,565      2      1      1         40    2.2
-      0.2     5   29.70   +0.00   INSIDE    2.03   -18.88    13.51     963    229,837     6,862,643      0      0      0          0    0.0
-      0.2    20   29.70   +0.00   INSIDE    2.03   -18.88    13.51     963    229,837     6,862,643      0      0      0          0    0.0
-      0.2    40   29.70   +0.00   INSIDE    2.03   -18.88    13.51     963    229,837     6,862,643      0      0      0          0    0.0
-     0.25     5   29.70   +0.00   INSIDE    2.03   -18.88    13.51     963    229,837     6,862,643      0      0      0          0    0.0
-     0.25    20   29.70   +0.00   INSIDE    2.03   -18.88    13.51     963    229,837     6,862,643      0      0      0          0    0.0
-     0.25    40   29.70   +0.00   INSIDE    2.03   -18.88    13.51     963    229,837     6,862,643      0      0      0          0    0.0
+  control     -   29.23   +0.00  control    1.99   -15.68    13.57   1,019    249,150     6,677,757      0      0      0          0    0.0
+      0.1     5   27.92   -1.31   INSIDE    1.95   -14.15    13.28   1,007    239,546     6,193,011      8      4      4         72    3.9
+      0.1    20   27.98   -1.25   INSIDE    1.97   -13.72    13.22     985    237,534     6,217,128      8      4      4         97    5.3
+      0.1    40   25.06   -4.17  outside    1.84   -14.04    12.85     951    205,538     5,239,053      8      4      4        192   10.5
+    0.125     5   29.15   -0.08   INSIDE    1.99   -14.65    13.58   1,007    247,511     6,647,536      2      1      1         19    1.0
+    0.125    20   28.78   -0.45   INSIDE    1.98   -14.75    13.46     993    241,458     6,509,395      2      1      1         39    2.1
+    0.125    40   27.26   -1.97  outside    1.89   -15.53    13.43     979    222,026     5,962,257      2      1      1         59    3.2
+     0.15     5   28.80   -0.43   INSIDE    1.96   -16.35    13.61   1,021    243,358     6,517,697      2      1      1         16    0.9
+     0.15    20   28.45   -0.78   INSIDE    1.96   -16.45    13.49   1,007    237,251     6,387,397      2      1      1         36    2.0
+     0.15    40   26.90   -2.33  outside    1.87   -17.22    13.46     993    218,012     5,838,698      2      1      1         56    3.1
+      0.2     5   29.23   +0.00   INSIDE    1.99   -15.68    13.57   1,019    249,150     6,677,757      0      0      0          0    0.0
+      0.2    20   29.23   +0.00   INSIDE    1.99   -15.68    13.57   1,019    249,150     6,677,757      0      0      0          0    0.0
+      0.2    40   29.23   +0.00   INSIDE    1.99   -15.68    13.57   1,019    249,150     6,677,757      0      0      0          0    0.0
+     0.25     5   29.23   +0.00   INSIDE    1.99   -15.68    13.57   1,019    249,150     6,677,757      0      0      0          0    0.0
+     0.25    20   29.23   +0.00   INSIDE    1.99   -15.68    13.57   1,019    249,150     6,677,757      0      0      0          0    0.0
+     0.25    40   29.23   +0.00   INSIDE    1.99   -15.68    13.57   1,019    249,150     6,677,757      0      0      0          0    0.0
 
   'fires' is the TOTAL number of rule actions (exits + re-entries).
   dCAGR is against the control. INSIDE means smaller than the measured
@@ -288,53 +288,59 @@
 
   EVERY EXIT AND EVERY RE-ENTRY, WITH DATES AND DAYS FLAT PER EPISODE
 
-    threshold 0.1  wait 5  --  3 exit(s), 3 re-entry(ies)
-      EXIT     trigger 2020-03-12 (close)  fill 2020-03-13 (next open)  dd  -12.44%  held 10  pv      950,776
-      REENTRY  2020-04-22                                dd  -17.85%  pv      892,062  FLAT 24 trading day(s)
-      EXIT     trigger 2022-05-11 (close)  fill 2022-05-12 (next open)  dd  -10.93%  held  9  pv    2,070,065
-      REENTRY  2022-05-24                                dd  -11.73%  pv    2,051,386  FLAT 8 trading day(s)
-      EXIT     trigger 2025-02-14 (close)  fill 2025-02-17 (next open)  dd  -10.12%  held  8  pv    5,612,536
-      REENTRY  2025-03-17                                dd  -10.40%  pv    5,595,239  FLAT 18 trading day(s)
+    threshold 0.1  wait 5  --  4 exit(s), 4 re-entry(ies)
+      EXIT     trigger 2020-03-16 (close)  fill 2020-03-17 (next open)  dd  -10.25%  held  9  pv    1,006,887
+      REENTRY  2020-04-22                                dd  -10.24%  pv    1,006,996  FLAT 22 trading day(s)
+      EXIT     trigger 2022-06-20 (close)  fill 2022-06-21 (next open)  dd  -10.93%  held 10  pv    2,476,065
+      REENTRY  2022-07-19                                dd  -10.81%  pv    2,479,311  FLAT 20 trading day(s)
+      EXIT     trigger 2022-12-23 (close)  fill 2022-12-26 (next open)  dd  -10.93%  held 10  pv    2,679,329
+      REENTRY  2023-01-11                                dd  -11.63%  pv    2,658,513  FLAT 12 trading day(s)
+      EXIT     trigger 2025-02-14 (close)  fill 2025-02-17 (next open)  dd  -10.04%  held  8  pv    5,479,229
+      REENTRY  2025-03-17                                dd  -10.38%  pv    5,458,549  FLAT 18 trading day(s)
 
-    threshold 0.1  wait 20  --  3 exit(s), 3 re-entry(ies)
-      EXIT     trigger 2020-03-12 (close)  fill 2020-03-13 (next open)  dd  -12.44%  held 10  pv      950,776
-      REENTRY  2020-04-22                                dd  -17.85%  pv      892,062  FLAT 24 trading day(s)
-      EXIT     trigger 2022-05-11 (close)  fill 2022-05-12 (next open)  dd  -10.93%  held  9  pv    2,070,065
-      REENTRY  2022-06-21                                dd  -11.73%  pv    2,051,386  FLAT 28 trading day(s)
-      EXIT     trigger 2025-02-14 (close)  fill 2025-02-17 (next open)  dd  -10.09%  held  8  pv    5,672,239
-      REENTRY  2025-04-17                                dd  -10.36%  pv    5,654,818  FLAT 38 trading day(s)
+    threshold 0.1  wait 20  --  4 exit(s), 4 re-entry(ies)
+      EXIT     trigger 2020-03-16 (close)  fill 2020-03-17 (next open)  dd  -10.25%  held  9  pv    1,006,887
+      REENTRY  2020-04-22                                dd  -10.24%  pv    1,006,996  FLAT 22 trading day(s)
+      EXIT     trigger 2022-06-20 (close)  fill 2022-06-21 (next open)  dd  -10.93%  held 10  pv    2,476,065
+      REENTRY  2022-07-19                                dd  -10.81%  pv    2,479,311  FLAT 20 trading day(s)
+      EXIT     trigger 2022-12-23 (close)  fill 2022-12-26 (next open)  dd  -10.93%  held 10  pv    2,679,329
+      REENTRY  2023-02-09                                dd  -11.63%  pv    2,658,513  FLAT 32 trading day(s)
+      EXIT     trigger 2025-01-13 (close)  fill 2025-01-14 (next open)  dd  -10.01%  held 10  pv    5,534,435
+      REENTRY  2025-02-13                                dd  -10.11%  pv    5,528,447  FLAT 23 trading day(s)
 
-    threshold 0.1  wait 40  --  3 exit(s), 3 re-entry(ies)
-      EXIT     trigger 2020-03-12 (close)  fill 2020-03-13 (next open)  dd  -12.44%  held 10  pv      950,776
-      REENTRY  2020-05-21                                dd  -17.85%  pv      892,062  FLAT 44 trading day(s)
-      EXIT     trigger 2022-05-11 (close)  fill 2022-05-12 (next open)  dd  -10.91%  held  9  pv    2,035,064
-      REENTRY  2022-07-19                                dd  -11.71%  pv    2,016,710  FLAT 48 trading day(s)
-      EXIT     trigger 2025-02-14 (close)  fill 2025-02-17 (next open)  dd  -10.08%  held  8  pv    5,504,097
-      REENTRY  2025-05-19                                dd  -10.36%  pv    5,487,178  FLAT 58 trading day(s)
+    threshold 0.1  wait 40  --  4 exit(s), 4 re-entry(ies)
+      EXIT     trigger 2020-03-16 (close)  fill 2020-03-17 (next open)  dd  -10.25%  held  9  pv    1,006,887
+      REENTRY  2020-05-21                                dd  -10.24%  pv    1,006,996  FLAT 42 trading day(s)
+      EXIT     trigger 2022-06-20 (close)  fill 2022-06-21 (next open)  dd  -10.90%  held 10  pv    2,423,378
+      REENTRY  2022-08-18                                dd  -10.78%  pv    2,426,625  FLAT 40 trading day(s)
+      EXIT     trigger 2022-12-23 (close)  fill 2022-12-26 (next open)  dd  -10.95%  held 10  pv    2,419,430
+      REENTRY  2023-03-10                                dd  -11.65%  pv    2,400,351  FLAT 52 trading day(s)
+      EXIT     trigger 2025-02-14 (close)  fill 2025-02-17 (next open)  dd  -10.05%  held  8  pv    4,969,365
+      REENTRY  2025-05-19                                dd  -10.39%  pv    4,950,505  FLAT 58 trading day(s)
 
     threshold 0.125  wait 5  --  1 exit(s), 1 re-entry(ies)
-      EXIT     trigger 2020-03-16 (close)  fill 2020-03-17 (next open)  dd  -13.89%  held 10  pv      935,047
-      REENTRY  2020-04-22                                dd  -13.88%  pv      935,152  FLAT 22 trading day(s)
+      EXIT     trigger 2020-03-19 (close)  fill 2020-03-20 (next open)  dd  -14.24%  held  9  pv      962,113
+      REENTRY  2020-04-22                                dd  -14.12%  pv      963,449  FLAT 19 trading day(s)
 
     threshold 0.125  wait 20  --  1 exit(s), 1 re-entry(ies)
-      EXIT     trigger 2020-03-16 (close)  fill 2020-03-17 (next open)  dd  -13.89%  held 10  pv      935,047
-      REENTRY  2020-04-22                                dd  -13.88%  pv      935,152  FLAT 22 trading day(s)
+      EXIT     trigger 2020-03-19 (close)  fill 2020-03-20 (next open)  dd  -14.24%  held  9  pv      962,113
+      REENTRY  2020-05-21                                dd  -14.12%  pv      963,449  FLAT 39 trading day(s)
 
     threshold 0.125  wait 40  --  1 exit(s), 1 re-entry(ies)
-      EXIT     trigger 2020-03-16 (close)  fill 2020-03-17 (next open)  dd  -13.89%  held 10  pv      935,047
-      REENTRY  2020-05-21                                dd  -13.88%  pv      935,152  FLAT 42 trading day(s)
+      EXIT     trigger 2020-03-19 (close)  fill 2020-03-20 (next open)  dd  -14.24%  held  9  pv      962,113
+      REENTRY  2020-06-19                                dd  -14.12%  pv      963,449  FLAT 59 trading day(s)
 
     threshold 0.15  wait 5  --  1 exit(s), 1 re-entry(ies)
-      EXIT     trigger 2020-03-18 (close)  fill 2020-03-19 (next open)  dd  -17.11%  held 10  pv      900,058
-      REENTRY  2020-04-22                                dd  -19.42%  pv      875,013  FLAT 20 trading day(s)
+      EXIT     trigger 2020-03-24 (close)  fill 2020-03-25 (next open)  dd  -15.62%  held  9  pv      946,604
+      REENTRY  2020-04-22                                dd  -15.83%  pv      944,256  FLAT 16 trading day(s)
 
     threshold 0.15  wait 20  --  1 exit(s), 1 re-entry(ies)
-      EXIT     trigger 2020-03-18 (close)  fill 2020-03-19 (next open)  dd  -17.11%  held 10  pv      900,058
-      REENTRY  2020-04-22                                dd  -19.42%  pv      875,013  FLAT 20 trading day(s)
+      EXIT     trigger 2020-03-24 (close)  fill 2020-03-25 (next open)  dd  -15.62%  held  9  pv      946,604
+      REENTRY  2020-05-21                                dd  -15.83%  pv      944,256  FLAT 36 trading day(s)
 
     threshold 0.15  wait 40  --  1 exit(s), 1 re-entry(ies)
-      EXIT     trigger 2020-03-18 (close)  fill 2020-03-19 (next open)  dd  -17.11%  held 10  pv      900,058
-      REENTRY  2020-05-21                                dd  -19.42%  pv      875,013  FLAT 40 trading day(s)
+      EXIT     trigger 2020-03-24 (close)  fill 2020-03-25 (next open)  dd  -15.62%  held  9  pv      946,604
+      REENTRY  2020-06-19                                dd  -15.83%  pv      944,256  FLAT 56 trading day(s)
 
     threshold 0.2  wait 5  --  0 exit(s), 0 re-entry(ies)
       NEVER FIRED in 1,836 trading days
@@ -356,15 +362,15 @@
 
     TRIGGER YEARS, all cells pooled:
       2020: 9
-      2022: 3
+      2022: 6
       2025: 3
 
     IS ALL THE ACTIVITY A SINGLE CLUSTER? NO
 
   OUTPUTS
-    drawdown_exit_cells.csv                 3,553 bytes
-    drawdown_exit_events.csv                3,856 bytes
-    drawdown_exit_equity.csv            1,095,057 bytes
+    drawdown_exit_cells.csv                 3,555 bytes
+    drawdown_exit_events.csv                3,511 bytes
+    drawdown_exit_equity.csv            1,093,949 bytes
 
   TRIAL COUNT: 15 cells + the control = 16 new looks. FLOOR 54 -> 70.
 
@@ -375,4 +381,4 @@
   its symbol's prior-20-day median volume. NOTHING HERE CAN SAY WHAT
   REPEATED FULL LIQUIDATIONS IN MARCH 2020 WOULD ACTUALLY HAVE FILLED AT.
 
-  wall clock 8 sec
+  wall clock 12 sec

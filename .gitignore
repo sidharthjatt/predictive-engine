@@ -109,3 +109,5 @@ data/raw/N100_Survivorship/*
 #   git config --local core.hooksPath .githooks
 #   then a hook rejecting any staged blob over 50 MB. Not installed; noted so
 #   the gap above is a known gap rather than an assumed protection.
+forensic_snapshot_*/
+forensic_snapshot_*/

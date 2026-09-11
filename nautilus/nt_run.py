@@ -83,7 +83,7 @@ FEE_MODEL = QbeastIndianFeeModel(
 
 
 def run(trading_start, trading_end, symbols=None, quiet=True, universe="58",
-        sizing="invvol", mode="breadth"):
+        sizing="invvol", mode="breadth", rebal=None):
     warm_start = (pd.Timestamp(trading_start) - pd.Timedelta(days=WARMUP_DAYS)).strftime("%Y-%m-%d")
     print(f"data from {warm_start} (warm-up) | trading {trading_start} to {trading_end}")
 
@@ -127,7 +127,8 @@ def run(trading_start, trading_end, symbols=None, quiet=True, universe="58",
     strat = PredictiveEngineStrategy()
     # sizing/mode default to what every caller relied on when these were module
     # globals, so an existing call site behaves exactly as before.
-    strat.configure(scores, instruments, trading_start, sizing=sizing, mode=mode)
+    strat.configure(scores, instruments, trading_start, sizing=sizing, mode=mode,
+                    rebal=rebal)
     eng.add_strategy(strat)
 
     eng.run()
@@ -150,23 +151,56 @@ def run(trading_start, trading_end, symbols=None, quiet=True, universe="58",
     # combination that is not one of the four named arms gets "{mode}-{sizing}"
     # rather than being folded into one that is.
     from arms.registry import path_segment
-    out = Path(__file__).resolve().parent / "reports" / universe / path_segment(mode, sizing)
+    # THE CADENCE JOINS THE PATH, on the same rule the research side uses: the
+    # default is unsuffixed so nautilus/reports/mid/v1/ keeps meaning what it has
+    # always meant, and a non-default cadence gets v1@r40 of its own rather than
+    # overwriting it.
+    import cadence as _cad
+    _seg = path_segment(mode, sizing)
+    _r = _cad.DEFAULT if rebal is None else int(rebal)
+    if _r != _cad.DEFAULT:
+        _seg = f"{_seg}@r{_r}"
+    out = Path(__file__).resolve().parent / "reports" / universe / _seg
     out.mkdir(parents=True, exist_ok=True)
-    # orders.csv IS NOT AN ORDERS REPORT. It is written by
-    # generate_order_fills_report(), which emits one row per order THAT PRODUCED A
-    # FILL -- so it necessarily has the same row count as fills.csv, and orders
-    # that were DENIED or CANCELED never appear in it. The name is kept because
-    # downstream scripts read it. generate_orders_report(), which would list every
-    # order regardless of outcome, is NOT called anywhere in this project.
-    orders_rep = eng.trader.generate_order_fills_report()
+    # THREE REPORTS, AND TWO OF THEM ARE ABOUT ORDERS. The distinction is the
+    # whole reason both exist:
+    #
+    #   orders_all.csv    generate_orders_report() -- EVERY order the strategy
+    #                     submitted, whatever became of it. A DENIED or CANCELED
+    #                     order appears here and NOWHERE ELSE. This is the file to
+    #                     read when asking "did the engine try something that did
+    #                     not happen".
+    #   order_fills.csv   generate_order_fills_report() -- one row per order that
+    #                     produced a fill, so its row count necessarily matches
+    #                     fills.csv. A rejected order is invisible here.
+    #
+    # order_fills.csv WAS CALLED orders.csv, WHICH WAS A LIE THE FILE ITSELF
+    # ADMITTED: the old comment said "orders.csv IS NOT AN ORDERS REPORT" and kept
+    # the name on the grounds that downstream scripts read it. Nothing reads it --
+    # grepped across .py, .md and .txt, the only other mentions are two docstrings.
+    # Now that a real orders report sits beside it, a name that means
+    # "fill-producing orders" is worth more than a name that was never accurate.
+    orders_all_rep = eng.trader.generate_orders_report()
+    order_fills_rep = eng.trader.generate_order_fills_report()
     fills_rep = eng.trader.generate_fills_report()
     pos_rep = eng.trader.generate_positions_report()
-    orders_rep.to_csv(out / "orders.csv")
+    orders_all_rep.to_csv(out / "orders_all.csv")
+    order_fills_rep.to_csv(out / "order_fills.csv")
     fills_rep.to_csv(out / "fills.csv")
     pos_rep.to_csv(out / "positions.csv")
+
+    # THE DAILY PORTFOLIO STATE, PERSISTED. The strategy has recorded one row per
+    # trading day all along -- date, cash, mtm, equity -- and nt_daily_compare
+    # consumed it IN PROCESS and then threw it away. Nothing on disk described
+    # what the execution engine thought the book was worth day by day.
+    if getattr(strat, "daily_equity", None):
+        pd.DataFrame(strat.daily_equity).to_csv(out / "daily_equity.csv", index=False)
+    if getattr(strat, "daily_holdings", None):
+        pd.DataFrame(strat.daily_holdings).to_csv(out / "daily_holdings.csv", index=False)
     print(f"\n  reports -> nautilus/reports/{universe}/{out.name}/  "
           f"[{U['tag']} universe, arm {out.name}: mode={mode} sizing={sizing}]  "
-          f"(orders {len(orders_rep)}, fills {len(fills_rep)}, positions {len(pos_rep)})")
+          f"(orders_all {len(orders_all_rep)}, order_fills {len(order_fills_rep)}, "
+          f"fills {len(fills_rep)}, positions {len(pos_rep)})")
 
     acct = eng.cache.account_for_venue(VENUE)
     cash = float(acct.balance_free(INR).as_double())

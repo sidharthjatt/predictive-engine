@@ -166,12 +166,14 @@ class PredictiveEngineStrategy(Strategy):
         self._open_day = {}           # symbol -> the date its latest quote belongs to
         self._quote_day = None        # date of the most recent opening quote seen
         self.daily_equity = []        # one row per trading day, for reconciliation
+        self.daily_holdings = []      # one row per (trading day, held symbol)
         self.fills = []               # every fill, for reconciliation
         self.holdings_log = []        # holdings at each rebalance, for reconciliation
 
     # ---------------------------------------------------------------- setup
     def configure(self, scores: pd.DataFrame, instruments, trading_start: str,
-                  sizing: str = DEFAULT_SIZING, mode: str = DEFAULT_MODE):
+                  sizing: str = DEFAULT_SIZING, mode: str = DEFAULT_MODE,
+                  rebal: int = None):
         """Called before the engine runs. Keeps __init__ free of heavy objects.
 
         `sizing` and `mode` default to the values every existing caller relied on
@@ -182,6 +184,13 @@ class PredictiveEngineStrategy(Strategy):
             raise ValueError(f"sizing must be 'invvol' or 'provol', got {sizing!r}")
         if mode not in ("breadth", "none"):
             raise ValueError(f"mode must be 'breadth' or 'none', got {mode!r}")
+        # THE CADENCE, AS AN ARGUMENT, for the reason nt_attribution.run states at
+        # length: REBAL stays the module default and is never reassigned, and this
+        # side moves in the same change as the reference so the gate compares two
+        # systems running the same cadence.
+        self.rebal = REBAL if rebal is None else int(rebal)
+        if self.rebal < 1:
+            raise ValueError(f"rebal must be >= 1, got {rebal!r}")
         self.sizing, self.mode = sizing, mode
         self.scores = scores.copy()
         self.scores["date"] = pd.to_datetime(self.scores["date"])
@@ -454,6 +463,36 @@ class PredictiveEngineStrategy(Strategy):
                                   "equity": round(cash + mtm, 2)})
         return True
 
+    def _record_daily_holdings(self, day):
+        """Append one row per HELD symbol for `day`, valued at that day's closes.
+
+        THE GROUND TRUTH, NOT A RECONSTRUCTION. Daily holdings could be replayed
+        from fills.csv, and that replay would be a second implementation of the
+        thing it is meant to check -- the same trap this project hit when a
+        reference engine was compared against a reimplementation of itself. This
+        reads the EXECUTION ENGINE'S OWN position book, which is what actually
+        settled.
+
+        PURELY ADDITIVE, AND THAT IS DELIBERATE. It appends to a list and touches
+        no decision, no order and no quantity. It is called from the same
+        idempotent daily hook that already writes daily_equity, AFTER that row is
+        written, so it cannot change what the 92-of-92 gate compares. Proven, not
+        argued: the gate was re-run immediately after this went in.
+
+        Shape mirrors the reference engine's daily_holdings_<tag>.csv -- one row
+        per (date, symbol) with qty, price and value -- so the two can be diffed
+        directly rather than through a shim.
+        """
+        for inst in self.instruments:
+            q = self.portfolio.net_position(inst.id)
+            sy = inst.id.symbol.value
+            if q and float(q) > 0 and sy in self.last_close:
+                px = self.last_close[sy]
+                self.daily_holdings.append({"date": day, "symbol": sy,
+                                            "qty": int(float(q)),
+                                            "price": round(px, 2),
+                                            "value": round(float(q) * px, 2)})
+
     def on_daily_close(self, event):
         now = pd.Timestamp(self.clock.timestamp_ns(), tz="UTC").tz_localize(None).normalize()
         if now < self.trading_start:
@@ -466,9 +505,12 @@ class PredictiveEngineStrategy(Strategy):
 
         # record equity every trading day so the curve can be compared day by day
         self._record_equity(day)
+        # AND THE HOLDINGS, gated on the equity row having been written so the two
+        # can never disagree about which days exist. Both are pure appends.
+        self._record_daily_holdings(day)
 
         self.day_index += 1
-        if self.day_index % REBAL != 0:
+        if self.day_index % self.rebal != 0:
             return
         self.rebalance(day)
 
@@ -622,6 +664,9 @@ class PredictiveEngineStrategy(Strategy):
         now = pd.Timestamp(self.clock.timestamp_ns(), tz="UTC").tz_localize(None).normalize()
         if (self.last_close and now >= self.trading_start
                 and now in self._scores_by_day and self._record_equity(now)):
+            # _record_equity returned True, so this day was NOT already recorded
+            # and the holdings row cannot duplicate either.
+            self._record_daily_holdings(now)
             self.log.info(f"final trading day {now.date()} recorded on stop "
                           f"(the 15:31 timer cannot fire after the 15:30 close bar)")
         self.log.info(f"rebalances={self.rebalances} orders={self.orders_submitted}")

@@ -111,6 +111,32 @@ def diagnostic(name, u=None):
 # ------------------------------------------------------- proposed, not in use
 DEFAULT_REBAL = 20
 
+# Directories a run's artefacts can land in. Used to collect a run folder; kept
+# here beside run_dir() rather than in run.py so the two agree about what an
+# artefact IS.
+ARTEFACT_DIRS = ("results/metrics", "results74/metrics", "results_mid/metrics",
+                 "results_n100/metrics", "runs", "nautilus/reports", "nautilus/data")
+
+
+def run_folder_name(uni_tags, arm_names, rebal, when=None):
+    """`20260906T1432_all_all_r20` -- one folder per invocation, named for it.
+
+    THE NAME SAYS WHAT THE RUN WAS, not just when it happened. A timestamp alone
+    sorts correctly and tells you nothing; the selection is what you actually
+    search for six weeks later. "all" is used where an axis is fully selected,
+    because 58-74-mid-n100_v1-v2-v3-v4 is not more informative than "all", only
+    longer.
+
+    The cadence is always spelled, including the default, so that a folder name is
+    never ambiguous about which cadence produced it -- unlike the ARTEFACT names,
+    where an unsuffixed file must keep meaning the published default.
+    """
+    import datetime
+    ts = (when or datetime.datetime.now()).strftime("%Y%m%dT%H%M%S")
+    u = "all" if len(uni_tags) >= 4 else "-".join(uni_tags)
+    a = "all" if len(arm_names) >= 4 else "-".join(arm_names)
+    return f"{ts}_{u or 'none'}_{a or 'none'}_r{int(rebal)}"
+
 
 def run_dir(u, arm=None, rebal=None):
     """runs/{universe}/{arm}/ -- and {arm}@r{n} for a non-default cadence.

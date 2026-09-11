@@ -152,12 +152,26 @@ DEFAULT_MODE = "breadth"
 
 def run(px, op, sc, dates, pc, mom20, size_at_close: bool, tick_round: bool = False,
         value_at_open: bool = False, holdings_out=None,
-        sizing: str = DEFAULT_SIZING, mode: str = DEFAULT_MODE, applied_out=None):
+        sizing: str = DEFAULT_SIZING, mode: str = DEFAULT_MODE, applied_out=None,
+        rebal: int = None):
     """`holdings_out`, when a dict is passed, is filled with
     {rebalance_date: {symbol: qty}} -- the holdings standing at each decision, which
     is the same quantity the port records in strat.holdings_log and the same one
     daily_holdings_58.csv reports. It is an out-parameter rather than an extra
     return value so existing three-value callers keep working."""
+    # THE CADENCE, AS AN ARGUMENT. REBAL stays the module DEFAULT and is never
+    # reassigned: module_state.py records that rebal_cadence_sweep.py:172 writes
+    # test_exposure.REBAL and never restores it, and that every later step then
+    # backtests on the wrong cadence with nothing saying so. A parameter cannot
+    # leak into the next call; a global can, and did.
+    #
+    # THIS SIDE AND nt_strategy MUST MOVE TOGETHER. verify_v34_arms compares the
+    # port against this reference at each rebalance date, so a cadence that
+    # reached only one of them would fail the gate for a reason that has nothing
+    # to do with the port -- the same trap the old SIZING global set.
+    _reb = REBAL if rebal is None else int(rebal)
+    if _reb < 1:
+        raise ValueError(f"rebal must be >= 1, got {rebal!r}")
     if sizing not in ("invvol", "provol"):
         raise ValueError(f"sizing must be 'invvol' or 'provol', got {sizing!r}")
     if mode not in ("breadth", "none"):
@@ -224,7 +238,7 @@ def run(px, op, sc, dates, pc, mom20, size_at_close: bool, tick_round: bool = Fa
                         shares[s] = shares.get(s, 0) + q
             pending = None
 
-        if i % REBAL == 0 and i < len(dates) - 1:
+        if i % _reb == 0 and i < len(dates) - 1:
             m = mom20.loc[dt].dropna()
             expo = float((m > 0).mean()) if len(m) else 1.0
             expo = 1.0 if mode == "none" else max(0.0, min(1.0, expo))
