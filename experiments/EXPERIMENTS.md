@@ -1,5 +1,13 @@
 # EXPERIMENTS — the complete record
 
+> **THE 58 AND THE 74 WERE DELETED ON 2026-09-11.** Both universes, their raw
+> data, their registry entries and the 26 scripts that served them are gone from
+> this repository. Every reference to them below is **historical**: it records what
+> was measured and when, and none of it can be re-run. The figures are preserved at
+> full precision, with a SHA-256 manifest of every surviving artefact, in
+> [RETIRED_UNIVERSES.md](../RETIRED_UNIVERSES.md). Where a passage names a deleted file, it is
+> describing what that file did, not something you can run.
+
 This is the only experiment record. It replaces the per-experiment scripts and
 result files, which are deleted. Everything needed to understand what was tried,
 why, under what rule, and with what result is here.
@@ -1934,7 +1942,8 @@ experiment" is what prevents a no-op from being recorded as a success.
 
 ### 26. Sizing — equal-rupee against inverse-vol — **VERDICT UNKNOWN**
 
-*Pre-registration: `experiments/sizing_test.py` (kept) — the accept rule is in the
+*Pre-registration: `experiments/sizing_test.py` (**deleted 2026-09-11**; its accept
+rule is quoted verbatim below, which is now the only copy) — the accept rule is in the
 script's own docstring, and the script is the only surviving artefact.*
 
 **Read the numbering note first.** Chronologically this belongs between entries 20
@@ -3923,7 +3932,10 @@ From `HANDOFF_SUMMARY.txt`: blending v1 (always invested) and v2 (breadth-scaled
 capital is **not a free lunch, it is a slider**. Every 10% of v1 added costs
 roughly **+0.55 CAGR / −0.027 Sharpe / −1.6 points of drawdown**. It was not
 adopted because it is a capital-allocation decision, not an engineering one.
-`results/test_v1_v2_blend.py` is kept for that reason.
+`results/test_v1_v2_blend.py` was kept for that reason, and was **deleted on
+2026-09-11** with the 58 and the 74 -- it read only their artefacts. The slider
+finding above is the whole of what it established; its two mean-invested
+constants (58: 0.646, 74: 0.645) are transcribed in `RETIRED_UNIVERSES.md`.
 
 ---
 
@@ -3948,7 +3960,7 @@ per-draw cache were deleted and the surviving documents were gathered into
 | `rejected_experiments_REPORT.txt` | entries 3–7, 9–16 — **restored 2026-08-22** after being deleted in error; MD5-verified against the backup |
 | `ewma_vs_rolling_REPORT.txt` | entries 12, 13 — **restored 2026-08-22**; MD5-verified against the backup |
 | `HANDOFF_SUMMARY.txt` §4 | entries 1, 2, 8; the v1/v2 blend |
-| `sizing_test.py` | entry 26 — the accept rule, in its docstring. **Restored from backup 2026-08-23**; the only artefact of that experiment |
+| `sizing_test.py` | entry 26 — the accept rule, in its docstring. Restored from backup 2026-08-23, then **deleted 2026-09-11** (it imported `config74` and ran on the 58/74/mid trio). The accept rule is quoted verbatim in entry 26 above, which is now the only copy |
 
 **Consolidated into this file and then deleted.** These were the sources for the
 entries named; their content is reproduced above and the originals are gone:

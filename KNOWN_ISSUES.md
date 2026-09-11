@@ -1,5 +1,13 @@
 # Known issues
 
+> **THE 58 AND THE 74 WERE DELETED ON 2026-09-11.** Both universes, their raw
+> data, their registry entries and the 26 scripts that served them are gone from
+> this repository. Every reference to them below is **historical**: it records what
+> was measured and when, and none of it can be re-run. The figures are preserved at
+> full precision, with a SHA-256 manifest of every surviving artefact, in
+> [RETIRED_UNIVERSES.md](RETIRED_UNIVERSES.md). Where a passage names a deleted file, it is
+> describing what that file did, not something you can run.
+
 Defects that are recorded but not fixed. Anything found and left alone belongs
 here, with what it is, where it lives, and what a reader would wrongly conclude
 because of it. Nothing in this file is a plan; it is a list of things that are
@@ -2076,7 +2084,8 @@ Only the RUNTIME requirement became conditional.
 
 ### LIMIT 1: the fair chart cannot widen, and this is structural
 
-`make_final_chart_fair.py` runs only on the retired 58 and 74, and **those
+`make_final_chart_fair.py` ran only on the retired 58 and 74 — both deleted on
+2026-09-11, the script with them — and **those
 universes have no v3/v4 curve anywhere on disk** -- their engines never call
 v34_common. Selecting v3 or v4 cannot add a line there because there is no line
 to add. The step now says so on stdout and writes no `_v1_v2_v3_v4`-named file,
@@ -2387,3 +2396,65 @@ would rebalance where the port skips. With `WARMUP_DAYS = 200` the case is not
 expected to arise. The guard was left untouched deliberately: changing it would
 change WHEN rebalances happen, which is a larger change than adding the exposure
 mode, and it would have been made while changing something else.
+
+---
+
+## results/engine_v2.py is absent, and two modules still import it
+
+**This predates the 58/74 retirement.** It is recorded here because the retirement
+surfaced it, not because the retirement caused it: `results/engine_v2.py` was
+already missing at commit `56a4136`, before a single file was deleted.
+
+```
+results/audit_leakage.py    ModuleNotFoundError: No module named 'engine_v2'
+results/stability_test.py   ModuleNotFoundError: No module named 'engine_v2'
+```
+
+Both fail **at import**, so neither has run for as long as the file has been gone.
+`build_panel` was moved into `engine_core.py` when `engine_v2.py` was deleted — its
+docstring records that it "was nearly lost" then — but these two callers were never
+repointed. Neither module is registered as a pipeline step, so nothing failed
+loudly and nothing noticed.
+
+**`stability_test.py` matters more than its status suggests, and the reason is
+new.** The 58/74 retirement demoted `results/metrics` from being the 58's output
+home to being the directory for **shared, non-universe output**, and `run.py`'s
+pre-flight now refuses to start if anything universe-tagged is written there. The
+only shared non-universe artefacts this project has ever produced are
+`stability_raw.csv` and `stability_summary.csv` — and they are written by
+`stability_test.py`, which cannot run.
+
+So the demotion is currently **half hollow**: `results/metrics` is a directory with
+an enforced rule and no legitimate occupant. That is stated plainly here rather
+than left to imply that the shared directory is in use. Fixing it means repointing
+both modules at `engine_core.build_panel` — which now requires an explicit
+`data_dir`, so the fix also has to decide which universe each one measures. That is
+new work, not recovery, and it has not been done.
+
+---
+
+## The feature documentation was generated from the 58, and has no replacement
+
+`results/export_feature_docs.py` called `build_panel(HORIZON)` **without
+`data_dir`**. That parameter defaulted to `config.RAW_DATA_DIR / "nifty50"`, so the
+script silently built the 58's panel and wrote three artefacts into
+`results/metrics`:
+
+```
+feature_dictionary.csv    the feature list, with the real code line and comment
+panel_sample.csv          the first 500 rows of "the model's input"
+panel_summary.csv         per-column statistics
+```
+
+Nothing in their names says which universe they describe, and every reader has been
+entitled to assume they describe the pipeline. They describe the 58.
+
+This is the same class of defect as the two contaminated charts recorded above: not
+stale, **wrong**. All three artefacts are untracked, are absent from the working
+tree, and survive only in `forensic_snapshot_20260911T0100/results/metrics/`. The
+script was deleted on 2026-09-11 with the universe it was silently reading.
+
+**There is currently no feature dictionary, panel sample or panel summary for mid
+or n100, and no code that would produce one.** `build_panel` now requires
+`data_dir` explicitly — the fallback that caused this is gone — so a replacement
+must name its universe. Writing one is its own decision and is not scheduled.

@@ -65,26 +65,51 @@ pipeline trades on a price it could not have seen.
 ## Results
 
 Two universes are live. Window 2019-01-01 to 2026-06-08, 1,842 trading days, from
-a starting capital of Rs 10,00,000. All figures after costs, read from
-`results_*/metrics/v2FINAL_equity.csv`.
+a starting capital of Rs 10,00,000. All figures after costs.
 
-Nifty 100 — 99 symbols, average deployment 56%
+**THESE NUMBERS ARE THE ANCHOR, AND THEY ARE WRITTEN DOWN HERE FOR THAT REASON.**
+`results_*/metrics/` is gitignored, so until 2026-09-11 the only copy of any live
+figure was an untracked directory. It is transcribed here at full precision,
+verbatim from `v34_comparison.csv` in `forensic_snapshot_20260911T0100/`, which is
+held in two copies on external media with a SHA-256 manifest
+([RETIRED_UNIVERSES-manifest.txt](RETIRED_UNIVERSES-manifest.txt)). A rebuild that
+disagrees with a number below is a finding, not a refresh.
 
-| series | CAGR | Sharpe | MaxDD |
-|---|---|---|---|
-| strategy (breadth-scaled) | 25.36% | 1.88 | −18.64% |
-| always-invested variant | 34.90% | 1.65 | −35.32% |
-| equal-weight buy & hold of the same universe | 23.18% | 1.30 | −36.52% |
-| NIFTY100 index | 10.93% | 0.69 | −38.10% |
+Provenance of this table: engine as of commit `54e9f31` — `adj_close` canonical,
+interior-gap tradability guard active, `research` profile, cadence 20. **Every
+figure here differs from the ones this README carried before 2026-09-11**, which
+were measured on the close-price basis before those two corrections; mid's MaxDD
+moved most, −18.98% to −15.68%.
 
-MidCap150 — 148 symbols, average deployment 54%
+### Nifty 100 — 99 symbols
 
-| series | CAGR | Sharpe | MaxDD |
-|---|---|---|---|
-| strategy (breadth-scaled) | 29.18% | 2.00 | −18.98% |
-| always-invested variant | 44.50% | 1.79 | −34.78% |
-| equal-weight buy & hold of the same universe | 27.19% | 1.48 | −36.40% |
-| NIFTYMIDCAP150 index | 18.16% | 1.01 | −38.67% |
+| arm | CAGR% | Sharpe | Sortino | MaxDD% | Calmar | Trades | AnnVol% | Deployed% | FinalEquity |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| v1 invvol, 100% invested | 30.56 | 1.47 | 1.91 | -31.92 | 0.96 | 795 | 19.87 | 100.0 | 7204469.86 |
+| v2 invvol, breadth-scaled | 24.43 | 1.72 | 2.31 | -18.38 | 1.33 | 965 | 13.47 | 56.6 | 5047246.65 |
+| v3 provol, 100% invested | 23.14 | 1.01 | 1.29 | -41.57 | 0.56 | 754 | 23.94 | 100.0 | 4671849.85 |
+| v4 provol, breadth-scaled | 21.36 | 1.29 | 1.71 | -22.32 | 0.96 | 967 | 16.27 | 56.6 | 4193714.59 |
+| buy & hold equal-weight | 24.0 | 1.28 | 1.46 | -37.79 | 0.64 | 0 | 18.4 | 100.0 | 4920590.49 |
+
+### MidCap150 — 148 symbols
+
+| arm | CAGR% | Sharpe | Sortino | MaxDD% | Calmar | Trades | AnnVol% | Deployed% | FinalEquity |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| v1 invvol, 100% invested | 50.12 | 1.96 | 2.54 | -35.88 | 1.4 | 852 | 22.4 | 100.0 | 20257161.48 |
+| v2 invvol, breadth-scaled | 29.23 | 1.99 | 2.59 | -15.68 | 1.86 | 1019 | 13.57 | 54.1 | 6677756.94 |
+| v3 provol, 100% invested | 52.69 | 1.86 | 2.51 | -29.6 | 1.78 | 822 | 24.88 | 100.0 | 22977199.75 |
+| v4 provol, breadth-scaled | 33.23 | 1.94 | 2.55 | -16.76 | 1.98 | 1019 | 15.71 | 54.1 | 8373227.87 |
+| buy & hold equal-weight | 28.34 | 1.49 | 1.68 | -36.54 | 0.78 | 0 | 18.21 | 100.0 | 6353371.24 |
+
+The shipping arm is v2 (breadth-scaled, inverse-vol). v1 is the always-invested
+variant; v3 and v4 are measurement arms on pro-vol sizing and are not shipped.
+
+**The published cap-weighted index is not in this table**, because it is not in
+`v34_comparison.csv` and could not be re-sourced from the snapshot. The figures
+this README previously carried — NIFTY100 10.93% / 0.69 / −38.10% and
+NIFTYMIDCAP150 18.16% / 1.01 / −38.67% — were measured under the previous engine
+and are left here **unverified against the current one**, marked rather than
+silently reprinted.
 
 ![Cumulative return and drawdown for both live universes](docs/chart_COMBINED_n100_mid.png)
 
@@ -92,21 +117,34 @@ MidCap150 — 148 symbols, average deployment 54%
 equal-weight buy & hold of the same universe, and the cap-weighted index. Lower
 panel is drawdown.*
 
-Read those honestly. Against the published index the gap is large, but the index
-is cap-weighted and the strategy is not, so much of that is a weighting difference
-rather than skill. Against the equal-weight buy & hold of its own universe — the
-harder comparison, and the one that matters — the edge is 2.18 points on n100 and
-1.99 on mid. The drawdown improvement is the more defensible result: roughly half
-the depth for a higher return, which is what a rule that goes to cash when breadth
-collapses ought to produce.
+Read those honestly, and read this paragraph before the tables above.
 
-Two universes are retired. They were dropped mid-project during EXP18 and are kept
-because the experiment record refers to them constantly:
+Against the equal-weight buy & hold of its own universe — the harder comparison,
+and the one that matters — **the shipping arm's return edge is now 0.43 CAGR
+points on n100 (24.43 vs 24.00) and 0.89 on mid (29.23 vs 28.34).** Before the
+`adj_close` and interior-gap corrections this README claimed 2.18 and 1.99. The
+edge did not shrink because the strategy changed; it shrank because the earlier
+figures were measured on a price basis that flattered it. On n100, 0.43 points is
+inside anything this project would call significant, and no measured noise floor
+exists to test it against — see `diagnostics/seed_noise.txt`, which reports a
+mismatch and no spread.
+
+**The drawdown result is the defensible one and it improved.** n100 −18.38%
+against buy & hold's −37.79%, mid −15.68% against −36.54%: less than half the
+depth, for a return that is still ahead. That is what a rule which goes to cash
+when breadth collapses ought to produce, and it is the part of the claim the
+corrections did not weaken.
+
+Two universes were retired, and on **2026-09-11 they were deleted** -- code, raw
+data and registry entries. Their figures are kept here because the experiment
+record refers to them constantly; the terminal record, including the full-precision
+tables and a SHA-256 manifest of every surviving artefact, is
+[RETIRED_UNIVERSES.md](RETIRED_UNIVERSES.md).
 
 | universe | window | CAGR | Sharpe | MaxDD | own equal-weight buy & hold |
 |---|---|---|---|---|---|
-| 58 (retired) | 2019-01-01 → 2026-06-08 | 17.01% | 1.39 | −14.34% | 18.02% |
-| 74 (retired) | 2019-01-01 → 2025-12-23 | 16.25% | 1.43 | −17.85% | 23.78% |
+| 58 (deleted 2026-09-11) | 2019-01-01 → 2026-06-08 | 17.01% | 1.39 | −14.34% | 18.02% |
+| 74 (deleted 2026-09-11) | 2019-01-01 → 2025-12-23 | 16.25% | 1.43 | −17.85% | 23.78% |
 
 Both lost to their own buy & hold on return. On 74 it is not close. That is here
 rather than quietly dropped, because those two universes are where most of the
@@ -180,10 +218,12 @@ treat the edge as suggestive rather than established.
 
 ![Quarterly rank IC, volatility dispersion, and factor-family IC by half](docs/chart_decay.png)
 
-*Quarterly rank IC on the retired 58 universe: roughly a third of quarters are
-negative, and the two halves read +0.0403 and +0.0214. Generated by
-`diagnose_decay.py`, which runs on the 58 only — no equivalent figure exists for
-either live universe.*
+*Quarterly rank IC on the 58 universe: roughly a third of quarters are negative,
+and the two halves read +0.0403 and +0.0214. It was generated by
+`results/diagnose_decay.py`, which ran on the 58 only; both the universe and the
+script were deleted on 2026-09-11, so **this figure cannot be regenerated and no
+equivalent exists for either surviving universe.** See
+[RETIRED_UNIVERSES.md](RETIRED_UNIVERSES.md).*
 
 **mid holds positions it could not have bought.** At the backtest's own
 Rs 10,00,000, 22 of 985 fills exceed 10% of the stock's prior-20-day median volume.
@@ -284,9 +324,9 @@ verified against the machine they run on"*.
 
 Two full `--fresh` rebuilds are recorded at 141.9 and 143.9 minutes
 (`run_all_ewma2_log.txt`, `run_all_ewma_log.txt`), but both are from a
-two-universe pipeline — those runs build the 58 and the 74 only. The current
-pipeline builds four universes and has no recorded full-rebuild time. With the
-panel caches present the four score-building steps report `cached (skip)` and the
+two-universe pipeline — those runs built the 58 and the 74, both since deleted.
+The current pipeline builds mid and n100 and has no recorded full-rebuild time. With the
+panel caches present the score-building steps report `cached (skip)` and the
 model is not refitted at all.
 
 `python3 nautilus/nt_verify.py --universe=n100` runs the reconciliation. It
