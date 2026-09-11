@@ -1,11 +1,40 @@
-# NSE trading calendar, derived artefact -- do not edit by hand.
-# generated_by: results/make_trading_calendar.py
-# derived_from: union of trading dates across 58 raw CSVs in
-#               data/raw/nifty50  (the 58 universe)
-# rationale:    the 58 files contain no market-holiday rows, unlike 70 of
-#               the 148 MidCap150 files. DDQ_Latest/config/trading_calendar.yaml
-#               was verified and rejected; see the note at its head.
+# NSE TRADING CALENDAR -- TRACKED SOURCE DATA. Not a derived artefact.
+#
+# This file was ONCE computed. It is not computed any more: the universe it was
+# computed from has been deleted, the script that computed it has been retired
+# with it, and no step regenerates it. It is now an OBSERVATION the repository
+# carries, in the same class as a raw price file -- which is what it always was
+# in substance, since a trading calendar is a record of what the exchange did.
+#
+# provenance:  union of trading dates across the 58 raw CSVs in data/raw/nifty50
+#              (the retired "58" universe), written by results/make_trading_calendar.py
+# last_derived_sha256:
+#              84365a97ca316000ba992e07e2b32de889006e9fcd419ef34893bbbeb5fed74e
+#              -- sha256 of this file, header included, as that script last wrote
+#              it. The dates below are byte-identical to that build; only this
+#              header has changed since.
+# why the 58:  its files carried no market-holiday rows, unlike 70 of the 148
+#              MidCap150 files and 24 of the 100 Nifty 100 files. mid u n100 covers
+#              every session listed here, but ADDS 279 phantom dates -- and 247 of
+#              those appear in BOTH, so the two surviving universes corroborate
+#              each other's errors rather than cross-checking them. That is why
+#              this file is frozen rather than reparented.
+#              DDQ_Latest/config/trading_calendar.yaml was verified and rejected.
+#
 # days: 6574   range: 2000-01-03 to 2026-06-08
+#
+# THE END DATE IS A DATA BOUNDARY, NOT A MARKET BOUNDARY.
+#   2026-06-08 is simply the last date present in data/raw/nifty50. The market did
+#   not stop trading on it. The surviving raw data already runs past it -- n100 to
+#   2026-06-22, mid to 2026-08-06 -- and those sessions are ABSENT here, so
+#   build_panel drops them. Anyone widening config.BT_END_DATE past 2026-06-08
+#   will meet engine_core._check_calendar's RANGE assertion, which is the intended
+#   behaviour: it refuses rather than silently truncating the panel.
+#
+# EXTENDING THIS FILE IS AN APPEND-ONLY OPERATION, and no tool in this repository
+# performs it today. Deliberately: the source for new sessions is not yet decided,
+# and a wrong tail silently changes every backtest window. Do not hand-edit, and
+# do not "rebuild" -- there is nothing left to rebuild it from.
 date
 2000-01-03
 2000-01-04

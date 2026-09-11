@@ -36,12 +36,14 @@ THE 58's DATA DIRECTORY IS NOT config.RAW_DATA_DIR
     which is why `symbols()` returns None for it: there is no authoritative list
     to check a built panel against, unlike mid and n100.
 
-FROZEN IS A PROPERTY OF THE UNIVERSE, NOT OF A SCRIPT
-    The 58 and the 74 are retired: their published numbers must not move, their
-    builders pin the defective purge_mode="calendar", their engines pin
-    value_at_open=False, and their windows are still on the old year cut. Recording
-    `frozen=True` here puts that fact in one place instead of in a comment at the
-    top of each of ten files.
+THERE IS NO `frozen` FLAG ANY MORE, DELIBERATELY
+    The 58 and the 74 carried `frozen=True`, which pinned purge_mode="calendar",
+    value_at_open=False and a year-cut window so their published numbers could not
+    move. Both universes were deleted on 2026-09-11 and the flag went with them
+    rather than being kept "for the next retirement": an axis that is defined but
+    drives nothing reads as live to the next person. If a universe needs freezing
+    again, the field comes back then, with a universe actually setting it.
+    See RETIRED_UNIVERSES.md.
 """
 from dataclasses import dataclass
 from pathlib import Path
@@ -83,7 +85,6 @@ def _optional(name):
         return None
 
 
-config74 = _optional("config74")
 config_mid = _optional("config_mid")
 config_n100 = _optional("config_n100")
 
@@ -107,8 +108,7 @@ class Universe:
     raw_cache: Path               # permanent raw feature panel
     nautilus_scores: str          # parquet filename under nautilus/data/
     nautilus_end: str             # backtest end date the port uses
-    purge_mode: str               # "calendar" (frozen, defective) | "trading"
-    frozen: bool                  # retired: published numbers must not move
+    purge_mode: str               # "trading" -- purge measured in trading rows
     index_name: Optional[str]     # published index, excluded from the universe
     # THE PUBLISHED INDEX PRICE FILE, or None where the universe has no published
     # index at all. index_name has always recorded that a universe HAS one; this
@@ -117,7 +117,7 @@ class Universe:
     # None for the retired 58 and 74: they are directory-defined baskets with no
     # published index series, which is a fact about them and not a missing path.
     index_file: Optional[Path]
-    year_range: Optional[Tuple[int, int]]      # frozen universes cut by year
+    year_range: Optional[Tuple[int, int]]      # retired universes cut by year; None here
     date_range: Optional[Tuple[object, object]]  # live universes cut by date
     _symbols: Optional[Callable]  # authoritative symbol list, where one exists
     _prepare: Optional[Callable]  # brings data_dir into existence, where that is needed
@@ -149,11 +149,10 @@ class Universe:
     def trading_days(self, index):
         """Restrict a price index to this universe's backtest window.
 
-        THE TWO WINDOWS ARE NOT THE SAME AND THAT IS DELIBERATE. The retired 58
-        and 74 cut by YEAR (2019..2026 / 2019..2025) and the live universes cut by
-        DATE (config.BT_START_DATE..BT_END_DATE). The year cut runs six trading
-        days longer. Both are reproduced exactly; unifying them would move the
-        frozen universes' published numbers.
+        ONLY THE DATE CUT IS LIVE. Every remaining universe cuts by DATE
+        (config.BT_START_DATE..BT_END_DATE). The year-cut branch below is what the
+        deleted 58 and 74 used (2019..2026 / 2019..2025, six trading days longer);
+        no universe sets `year_range` any more, so it is currently unreachable.
         """
         if self.year_range is not None:
             y0, y1 = self.year_range
@@ -161,38 +160,6 @@ class Universe:
         d0, d1 = self.date_range
         return index[(index >= d0) & (index <= d1)]
 
-
-_58 = Universe(
-    tag="58", label="58 (retired)",
-    data_dir=config.RAW_DATA_DIR / "nifty50",
-    metrics_dir=config.METRICS_DIR,
-    score_tmp=Path("/tmp/v5_expanding.csv"),
-    score_cache=config.METRICS_DIR / "v5_expanding_cache.csv",
-    raw_tmp=Path(f"/tmp/raw_panel_{HORIZON}.csv"),
-    raw_cache=config.METRICS_DIR / "raw_panel_cache.csv",
-    nautilus_scores="scores_58.parquet",
-    nautilus_end="2026-06-08",
-    purge_mode="calendar", frozen=True, index_name=None, index_file=None,
-    year_range=(2019, 2026), date_range=None, _symbols=None,
-    _prepare=None
-)
-
-_74 = None
-if config74 is not None:
-    _74 = Universe(
-        tag="74", label="74 (retired)",
-        data_dir=config74.RAW_DATA_DIR_74,
-        metrics_dir=config74.METRICS_DIR_74,
-        score_tmp=Path("/tmp/v74_expanding.csv"),
-        score_cache=config74.METRICS_DIR_74 / "v74_expanding_cache.csv",
-        raw_tmp=Path(f"/tmp/raw_panel74_{HORIZON}.csv"),
-        raw_cache=config74.METRICS_DIR_74 / "raw_panel74_cache.csv",
-        nautilus_scores="scores_74.parquet",
-        nautilus_end="2025-12-23",
-        purge_mode="calendar", frozen=True, index_name=None, index_file=None,
-        year_range=(2019, 2025), date_range=None, _symbols=None,
-        _prepare=None
-    )
 
 _MID = None
 if config_mid is not None:
@@ -206,7 +173,7 @@ if config_mid is not None:
         raw_cache=config_mid.METRICS_DIR_MID / "raw_panel_mid_cache.csv",
         nautilus_scores="scores_mid.parquet",
         nautilus_end=str(config.BT_END_DATE.date()),
-        purge_mode="trading", frozen=False,
+        purge_mode="trading",
         index_name=config_mid.INDEX_NAME_MID,
         index_file=config_mid.INDEX_FILE_MID,
         year_range=None, date_range=(config.BT_START_DATE, config.BT_END_DATE),
@@ -226,7 +193,7 @@ if config_n100 is not None:
         raw_cache=config_n100.METRICS_DIR_N100 / "raw_panel_n100_cache.csv",
         nautilus_scores="scores_n100.parquet",
         nautilus_end=str(config.BT_END_DATE.date()),
-        purge_mode="trading", frozen=False,
+        purge_mode="trading",
         index_name=config_n100.INDEX_NAME_N100,
         index_file=config_n100.INDEX_FILE_N100,
         year_range=None, date_range=(config.BT_START_DATE, config.BT_END_DATE),
@@ -237,7 +204,7 @@ if config_n100 is not None:
 # ONLY THE UNIVERSES WHOSE CONFIG IS PRESENT. Declaration order is preserved, so
 # a universe that is still here occupies the same position it always did -- LIVE's
 # order is documented below as declaration order and callers rely on that.
-REGISTRY = {u.tag: u for u in (_58, _74, _MID, _N100) if u is not None}
+REGISTRY = {u.tag: u for u in (_MID, _N100) if u is not None}
 
 # The universes that ship. Eighteen of the nineteen hand-rolled registries carry
 # exactly these two; only nt_run.py knows all four.
@@ -248,8 +215,7 @@ REGISTRY = {u.tag: u for u in (_58, _74, _MID, _N100) if u is not None}
 # the universes explicitly -- REGISTRY["n100"], REGISTRY["mid"] -- rather than
 # iterate LIVE. Using LIVE for that swapped the two blocks of
 # verify_v34_arms.py's report, which is how this note came to exist.
-LIVE = [u for u in REGISTRY.values() if not u.frozen]
-FROZEN = [u for u in REGISTRY.values() if u.frozen]
+LIVE = list(REGISTRY.values())
 
 
 # ---------------------------------------------------------------------------
