@@ -321,6 +321,7 @@ def main():
     if set(ARMS_ON) != {"v2", "v1"} or not cadence.is_default():
         _asf = arm_reg.suffix(ARMS_ON) if set(ARMS_ON) != {"v2", "v1"} else ""
         _render(ARMS_ON, M / ("chart_mid_FINAL" + _asf + cadence.suffix() + ".png"))
+    # SEE make_n100_chart.py: this named a literal rather than what was written.
     print(f"\nsaved -> {(M/'chart_mid_FINAL.png').name}")
 
 

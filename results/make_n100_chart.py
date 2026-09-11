@@ -65,9 +65,29 @@ def sharpe(s):
     return r.mean() / r.std() * np.sqrt(252) if r.std() > 0 else 0.0
 def before_tc(eq, log):
     """CAGR with the transaction-cost drag removed from the realised path:
-    r_gross = r_net + tc/equity(t-1), compounded. Not a zero-cost re-run."""
+    r_gross = r_net + tc/equity(t-1), compounded. Not a zero-cost re-run.
+
+    A MISSING LOG IS FATAL HERE, AND IT USED TO BE A ZERO. This returned
+    `(None, 0.0, 0)` when the file was absent -- a tuple indistinguishable from a
+    real result of zero trades at zero cost. The step then PRINTED "v1 trades 0,
+    TC Rs 0" while the engine one step earlier had reported 795, and died thirty
+    lines later formatting the None. The crash was the lucky outcome; the unlucky
+    one is a chart rendering a curve labelled "0 trades, Rs 0" that a reader takes
+    for a measurement.
+
+    The caller's job is not to call this for an arm the run did not select. That
+    is what ARMS_ON is for.
+    """
     if not Path(log).exists():
-        return None, 0.0, 0
+        raise FileNotFoundError(
+            f"{log} is missing, so the before-TC figure for this series cannot be "
+            f"computed.\n"
+            f"  This is NOT the same as zero trades at zero cost, which is what "
+            f"this function used to return.\n"
+            f"  If the arm was not selected, do not ask for its curve -- build the "
+            f"series from ARMS_ON.\n"
+            f"  If it was selected, the engine step that writes this log did not "
+            f"run or did not write it.")
     tr = pd.read_csv(log, parse_dates=["date"])
     tc = tr.groupby("date")["tc"].sum().reindex(eq.index).fillna(0.0)
     g = (1 + eq.pct_change().fillna(0.0) + (tc / eq.shift(1)).fillna(0.0)).cumprod() * eq.iloc[0]
@@ -141,8 +161,12 @@ def main():
     # Reading the canonical logs under --rebal 40 gave before_tc a file that does
     # not exist, and it returns (None, 0, 0) silently -- a legend reading
     # "CAGR None% before TC" rather than a crash.
-    b_v2 = before_tc(_v2, _ci(M / "daily_trades_n100.csv"))
-    b_v1 = before_tc(_v1, _ci(M / "daily_trades_v1_n100.csv"))
+    # COMPUTED ONLY FOR SELECTED ARMS. The literals stay in the call so
+    # check_pipeline_order still reads this step's edges out of the source; the
+    # GUARD is what changed, exactly as the engine's write is guarded.
+    _sel = set(arm_reg.selected_names())
+    b_v2 = before_tc(_v2, _ci(M / "daily_trades_n100.csv")) if "v2" in _sel else None
+    b_v1 = before_tc(_v1, _ci(M / "daily_trades_v1_n100.csv")) if "v1" in _sel else None
     # EVERY SELECTED ARM THIS UNIVERSE CAN SHOW, in published order. The two
     # literals above are kept: check_pipeline_order resolves this step's inputs
     # from them, and they are also v2's and v1's own entries below.
@@ -175,8 +199,10 @@ def main():
         bt = f"{b:>9.2f}%" if b is not None else f"{'--':>10}"
         print(f"    {lab:<44} {bt} {cagr(s2):>8.2f}% {sharpe(s2):>7.2f} "
               f"{dd(s2).min():>7.2f}% {iv:>4}%")
-    print(f"\n    v2 trades {b_v2[2]}, TC Rs {b_v2[1]:,.0f}   |   "
-          f"v1 trades {b_v1[2]}, TC Rs {b_v1[1]:,.0f}")
+    # ONLY THE SELECTED ARMS. Naming v2 and v1 as literals here was the same
+    # defect as in _render below: it reached b_v1 on a run that never selected v1.
+    print("\n    " + "   |   ".join(
+        f"{_n} trades {_d[1][2]}, TC Rs {_d[1][1]:,.0f}" for _n, _d in ARMS_ON.items()))
     sub = (_window_label(eq) + "\n"
            f"Nifty 100 universe ({len(config_n100.SYMBOLS_N100)} constituents, index excluded "
            f"by name)  |  v2 holds {inv}% invested on average  |  ALL NUMBERS AFTER TC "
@@ -200,14 +226,20 @@ def main():
            f"backtest with a flat 0.15% slippage and no market-impact model.\n"
            + sv.describe_state())
     def _render(_arms, _path):
-        """Build and save the chart for exactly these arms."""
+        """Build and save the chart for exactly these arms.
+
+        THE SERIES LIST IS BUILT FROM `_arms`, NOT WRITTEN OUT. It used to name v2
+        and v1 as literals, so `--arm v2` formatted a v1 entry whose log had
+        correctly not been written, and STEP 10h died on the None. make_mid_chart
+        has iterated its selection since a1ab05f; this file was left behind by
+        that same commit, which gated both engines' v1 writes and recorded that
+        the precondition -- this file being arm-aware -- had been met. It had not.
+        """
         series = [
-         (f"n100 v2 (breadth)  [inv {inv}%]", _v2, "#c0392b", "-",
-          f"CAGR {b_v2[0]:.2f}% before TC / {cagr(_v2):.2f}% after TC"
-          f"  [{b_v2[2]} trades, Rs {b_v2[1]:,.0f}]"),
-         ("n100 v1 (inv-vol)  [inv 100%]", _v1, "#2e6da4", "-",
-          f"CAGR {b_v1[0]:.2f}% before TC / {cagr(_v1):.2f}% after TC"
-          f"  [{b_v1[2]} trades, Rs {b_v1[1]:,.0f}]"),
+         (f"n100 {_n} ({_AD[_n]})  [inv {_d[3]}%]", _d[0], _d[2], "-",
+          f"CAGR {_d[1][0]:.2f}% before TC / {cagr(_d[0]):.2f}% after TC"
+          f"  [{_d[1][2]} trades, Rs {_d[1][1]:,.0f}]")
+         for _n, _d in _arms.items()] + [
          ("n100 buy&hold (equal-weight universe)  [inv 100%]", eq["buyhold"], "#3a9d3a", "-",
           f"CAGR {cagr(eq['buyhold']):.2f}%  (buy once, hold: no TC)"),
          ("NIFTY100 (cap-weighted index)  [inv 100%]", index, "#000000", "--",
@@ -241,15 +273,24 @@ def main():
     # overwrote it. Only a run from an empty tree showed it absent.
     #
     # CANONICAL: always exactly v2 and v1, drawn whenever both are selected.
+    _written = []
     _canon = {n: d for n, d in ARMS_ON.items() if n in ("v2", "v1")}
     if len(_canon) == 2 and cadence.is_default():
         _render(_canon, M / "chart_n100.png")
+        _written.append(M / "chart_n100.png")
 
     # SELECTION: exactly what this run selected, into its own name.
     if set(ARMS_ON) != {"v2", "v1"} or not cadence.is_default():
         _asf = arm_reg.suffix(ARMS_ON) if set(ARMS_ON) != {"v2", "v1"} else ""
-        _render(ARMS_ON, M / ("chart_n100" + _asf + cadence.suffix() + ".png"))
-    print(f"\n  saved -> {M/'chart_n100.png'}")
+        _p = M / ("chart_n100" + _asf + cadence.suffix() + ".png")
+        _render(ARMS_ON, _p)
+        _written.append(_p)
+    # REPORTS WHAT WAS WRITTEN, NOT A LITERAL. This printed "chart_n100.png"
+    # unconditionally, so `--arm v2` -- which writes chart_n100_v2.png -- named a
+    # file it had not produced, and a reader checking the wrong path found a stale
+    # one from an earlier run and read it as current.
+    for _w in _written:
+        print(f"\n  saved -> {_w}")
 
 
 if __name__ == "__main__":
