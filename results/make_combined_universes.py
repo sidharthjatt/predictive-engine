@@ -437,11 +437,18 @@ def _load_arms(M, tag, sel):
     for n in PLOT_ORDER:
         if n not in sel:
             continue
-        _, eq = arm_sources.equity_path_and_series(M, tag, n)
+        # THE SOURCE FILE IS RECORDED, for the reason the withdrawal of this very
+        # chart established: a figure that cannot say what it read cannot be
+        # checked after the fact.
+        src, eq = arm_sources.equity_path_and_series(M, tag, n)
         lg = arm_sources.trades_path(M, tag, n)
         if eq is None or lg is None:
+            print(f"    {tag}/{n}: no curve or trade log for this run's axes "
+                  f"-- not plotted")
             continue
-        out[n] = {"eq": eq, "b": before_tc(eq, lg)}
+        print(f"    {tag}/{n}: {arm_sources.describe(src, len(eq), 'sessions')}")
+        print(f"    {tag}/{n}: {arm_sources.describe(lg)}")
+        out[n] = {"eq": eq, "b": before_tc(eq, lg), "src": src, "log": lg}
     return out
 
 

@@ -31,54 +31,110 @@ import arms.registry as arm_reg
 import cadence
 
 
+def _axes(*, for_arm_subset=False):
+    """This run's artefact name tail: cadence AND profile, never one alone.
+
+    Both axes or neither. The profile was absent here while `cadence` was present,
+    which is the whole shape of the bug this function was rewritten to remove.
+    """
+    import profiles as _pf
+    sfx = cadence.suffix() + _pf.suffix()
+    return (arm_reg.selection_suffix() + sfx) if for_arm_subset else sfx
+
+
+def describe(path, n=None, unit="rows"):
+    """A provenance line naming the file a figure was actually read from.
+
+    FORMAT TAKEN FROM `diagnostics/attribution_v2.txt`, which already prints
+    `source daily_trades_n100.csv, 978 fills, mtime 2026-09-04 14:02 (local)`.
+    The precedent and the format both existed; nothing else used them.
+    """
+    from datetime import datetime
+    path = Path(path)
+    try:
+        mt = datetime.fromtimestamp(path.stat().st_mtime).strftime("%Y-%m-%d %H:%M")
+    except OSError:
+        mt = "unknown"
+    count = f", {n:,} {unit}" if n is not None else ""
+    return f"source {path.name}{count}, mtime {mt} (local)"
+
+
 def equity_path_and_series(M, tag, arm_name):
-    """(source file, curve) for one arm, or (None, None) if it is not recorded."""
+    """(source file, curve) for one arm, or (None, None) if THIS RUN did not write one.
+
+    FAIL-CLOSED. THERE IS NO FALLBACK TO A DIFFERENT FILE, BY DESIGN.
+    This function used to compose `v2FINAL_equity{cadence}.csv`, and when that did
+    not exist fall through to the unsuffixed `v2FINAL_equity.csv`. The v34 chain
+    fell through twice, ending at a bare `v34_equity.csv`. Neither rung composed
+    the PROFILE at all.
+
+    WHAT THAT COST, MEASURED. The engines suffix their output by cadence AND
+    profile (`engine_v2_final_mid.py:_c`). So under `--profile tradeable` the
+    engine wrote `v2FINAL_equity_tradeable.csv`, this function looked for
+    `v2FINAL_equity.csv`, found the RESEARCH file, and returned research curves to
+    a caller drawing a chart titled tradeable. Silently, and with the substitution
+    unrecorded: the caller received the path and discarded it.
+
+    THIS IS NOT HYPOTHETICAL AND IT IS NOT NEW. `make_combined_universes.py`'s
+    `_ci` carried exactly this defect -- cadence composed, profile omitted, silent
+    fall-through to the canonical file -- and it fed THESE SAME THREE CHARTS. It
+    was found and fixed on 2026-09-12. This function is the same defect in the same
+    repository on the same code path, and it survived that fix because the audit
+    measured writers and nothing measured readers.
+
+    THE PATTERN IS `audit_step.py:160-176`, three files away, which has composed
+    both axes and returned None rather than substituting since the profile existed.
+    Its docstring records the measured cost of the cadence half: reconciling a
+    cadence-40 trail against a cadence-20 curve reported v1 MISMATCH Rs 2,923,934
+    and v2 MISMATCH Rs 1,825,210 on mid. Returning None there made it safe BY
+    DESIGN rather than by accident. This does the same.
+
+    None means THIS RUN did not write a curve for this arm. The caller reports that
+    and plots nothing, which is the correct outcome: a chart with a curve missing
+    is a visible defect, and a chart with the wrong curve is not.
+    """
     M = Path(M)
-    # THE CADENCE-NAMED FILE FIRST, THEN THE CANONICAL ONE. At the default cadence
-    # the suffix is empty and these are the same path, so nothing changes. At
-    # --rebal 40 the engine wrote v2FINAL_equity_r40.csv, and reading the
-    # canonical file there would hand back a cadence-20 curve under a cadence-40
-    # run -- the quietest possible way to report the wrong number.
-    f = M / f"v2FINAL_equity{cadence.suffix()}.csv"
-    if not f.exists():
-        f = M / "v2FINAL_equity.csv"
+    # ONE NAME PER CHAIN. Not a candidate list -- a candidate list IS the fallback.
+    f = M / f"v2FINAL_equity{_axes()}.csv"
     if f.exists():
         df = pd.read_csv(f, parse_dates=["date"]).set_index("date")
         s = arm_reg.equity_series(df, arm_name)
         if s is not None:
             return f, s
-    # v3/v4 are measurement arms and live in the v34 panel. The suffixed name is
-    # tried first because an arm-subset run writes v34_equity_v1_v3.csv and leaves
-    # the canonical four-arm file from an earlier run in place -- reading the
-    # canonical one there would show a curve this run did not produce.
-    for name in (f"v34_equity{arm_reg.selection_suffix()}{cadence.suffix()}.csv",
-                 f"v34_equity{cadence.suffix()}.csv",
-                 "v34_equity.csv"):
-        g = M / name
-        if g.exists():
-            df = pd.read_csv(g, parse_dates=["date"]).set_index("date")
-            col = arm_reg.ARMS[arm_name].equity_column
-            if col in df.columns:
-                return g, df[col]
+    # v3/v4 are measurement arms and live in the v34 panel. The arm-subset suffix is
+    # part of the composed name, not a rung above a canonical one: an arm-subset run
+    # writes v34_equity_v1_v3.csv, and the four-arm file left over from an earlier
+    # run describes a selection this run did not make. At a full selection
+    # selection_suffix() is "" and this IS the canonical name.
+    g = M / f"v34_equity{_axes(for_arm_subset=True)}.csv"
+    if g.exists():
+        df = pd.read_csv(g, parse_dates=["date"]).set_index("date")
+        col = arm_reg.ARMS[arm_name].equity_column
+        if col in df.columns:
+            return g, df[col]
     return None, None
 
 
 def trades_path(M, tag, arm_name):
-    """The per-trade log for one arm, or None if it was not written.
+    """The per-trade log THIS RUN wrote for one arm, or None. Fail-closed.
 
-    THE THREE CONVENTIONS ARE HISTORICAL AND ARE NOT UNIFIED HERE. v2's log is
-    unsuffixed because the Nautilus verification reads that exact name; v1's is
-    written by the engine under its own older spelling; v3 and v4 use the per-arm
-    audit trail. Renaming any of them is a separate change with its own gate.
+    THE THREE SPELLINGS ARE HISTORICAL AND ARE NOT UNIFIED HERE. v2's log is
+    unsuffixed in its BODY because the Nautilus verification reads that exact name;
+    v1's is written by the engine under its own older spelling; v3 and v4 use the
+    per-arm audit trail. Renaming any of them is a separate change with its own gate.
+
+    WHAT WAS REMOVED. Each spelling used to be tried twice -- once with the cadence
+    suffix and once without -- so a run whose composed log was absent silently read
+    the unsuffixed one. As with the curve above, the profile was never composed at
+    all, so a tradeable run read the research trade log and computed a before-TC
+    figure from costs that were never incurred. The axis tail is now composed once
+    and there is no second rung.
     """
     M = Path(M)
-    c = cadence.suffix()
-    for cand in ({"v1": f"daily_trades_v1_{tag}{c}.csv",
-                  "v2": f"daily_trades_{tag}{c}.csv"}.get(arm_name),
-                 f"daily_trades_{tag}_{arm_name}{c}.csv",
-                 {"v1": f"daily_trades_v1_{tag}.csv",
-                  "v2": f"daily_trades_{tag}.csv"}.get(arm_name),
-                 f"daily_trades_{tag}_{arm_name}.csv"):
+    sfx = _axes()
+    for cand in ({"v1": f"daily_trades_v1_{tag}{sfx}.csv",
+                  "v2": f"daily_trades_{tag}{sfx}.csv"}.get(arm_name),
+                 f"daily_trades_{tag}_{arm_name}{sfx}.csv"):
         if cand is not None and (M / cand).exists():
             return M / cand
     return None

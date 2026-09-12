@@ -194,10 +194,19 @@ def main():
         elif _n == "v1":
             _e, _b, _c = _v1, b_v1, "#2e6da4"
         else:
-            _, _e = arm_sources.equity_path_and_series(M, "mid", _n)
+            # THE PATH IS KEPT AND PRINTED, not discarded. It used to be bound
+            # to `_` here, so when the reader silently substituted a different
+            # file nothing in the output said which file had been plotted. The
+            # reader is fail-closed now; naming the source is what makes that
+            # visible rather than merely true.
+            _src, _e = arm_sources.equity_path_and_series(M, "mid", _n)
             _lg = arm_sources.trades_path(M, "mid", _n)
             if _e is None or _lg is None:
+                print(f"    {_n}: no curve or trade log written by THIS run's "
+                      f"axes -- not plotted")
                 continue
+            print(f"    {_n}: {arm_sources.describe(_src, len(_e), 'sessions')}")
+            print(f"    {_n}: {arm_sources.describe(_lg)}")
             _b = before_tc(_e, _lg)
             _c = {"v3": "#1b9e77", "v4": "#e6ab02"}[_n]
         ARMS_ON[_n] = (_e, _b, _c, arm_sources.deployed_pct(_n, inv))
