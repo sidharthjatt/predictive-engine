@@ -2744,26 +2744,47 @@ benefit, not a drawdown result and a separate return result.
 the shuffle file records *"the prediction is BORNE OUT"* on both universes. The
 prediction landing is not the same as the claim holding.
 
-*One figure from the brief for this entry could not be sourced and is therefore
-NOT stated above: that v1 keeps 3% of mid's advantage. The verifiable
-decomposition is the 92.7% / 1.53-point split for v2. If a v1-specific share
-exists it is not in this file, not in the diagnostics, and not computable from
-what is on disk -- `results/metrics/` is empty and no `v34_comparison.csv`
-survives outside the gitignored universe directories.*
+**THE SAME FINDING FROM THE OTHER SIDE: turn the exposure rule OFF and almost
+nothing is left on mid.** v1 is v2's selection with breadth scaling off, held at
+100% deployment. Measured against the fully-invested benchmark:
 
-### 3. No tradeable audit has ever passed, so every tradeable number is unreconciled
+| | b&h MaxDD% | v2 MaxDD% | v2 advantage | v1 MaxDD% | v1 advantage | share surviving full exposure |
+|---|---:|---:|---:|---:|---:|---:|
+| mid | −36.54 | −15.68 | **20.86** | −35.88 | **0.66** | **3%** |
+| n100 | −37.79 | −18.38 | **19.41** | −31.92 | **5.87** | **30%** |
 
-**Unreconciled, not wrong.** There is no evidence the tradeable figures are
-incorrect; there is no evidence they are correct either, because the check that
-would say so has never been run to completion.
+Source: `forensic_snapshot_20260911T0100/results_{mid,n100}/metrics/v34_comparison.csv`,
+which is where the only surviving `v34_comparison.csv` pair lives -- `results/metrics/`
+is empty and the live universe directories are gitignored.
 
-On disk, 2026-09-13:
+**On mid, 97% of the drawdown advantage is the cash rule and not the selection.**
+Hold the same names at full deployment and the drawdown goes back to the
+benchmark's: −35.88 against −36.54. n100 is the milder case at 30% surviving, and
+the asymmetry is itself unexplained.
+
+This is a different cut of the same finding, not a replacement for the 92.5% /
+92.7% figures above. That one holds exposure fixed and asks what selection adds;
+this one removes exposure entirely and asks what selection retains alone. They
+agree, and neither is independent evidence of the other.
+
+### 3. The publicly quoted universe has never been run tradeable at all
+
+**`results_n100/metrics/` carries ZERO tradeable artefacts.** Not stale ones, not
+unreconciled ones -- none. The Nifty 100 is the universe this project quotes
+publicly, and the execution-realism profile has **never been run on it.**
+
+So for n100 there is no tradeable number to reconcile. There is no tradeable
+number. Any statement about how this strategy behaves under a participation cap on
+the universe in the README is an extrapolation from the other universe, and is
+nowhere labelled as one.
+
+**And no tradeable audit has ever been WRITTEN, on either universe** -- which is
+stronger than saying none has passed. On disk, 2026-09-13:
 
 - **mid carries 11 tradeable artefacts** -- `v34_comparison_tradeable.csv`,
-  `v2FINAL_equity_tradeable.csv`, `chart_v34_tradeable.png` and the rest.
-- **n100 carries none at all.** The tradeable profile has never been run on the
-  universe that is quoted publicly.
-- **No v2 audit trail exists under tradeable on either universe.** There is no
+  `v2FINAL_equity_tradeable.csv`, `chart_v34_tradeable.png` and the rest. They are
+  published-shaped output.
+- **No v2 audit trail exists under tradeable anywhere.** There is no
   `daily_holdings_mid_tradeable.csv`, no `daily_summary_mid_tradeable.csv`, no
   `daily_trades_mid_tradeable.csv`. The single tradeable `daily_*` file is
   `daily_trades_v1_mid_tradeable.csv`, which the engine writes for v1 -- not the
@@ -2771,9 +2792,10 @@ On disk, 2026-09-13:
 - **`nautilus/reports/` does not exist**, so no tradeable run has been reconciled
   against the execution port either.
 
-So the tradeable half of this project has produced published-shaped artefacts and
-zero verification. `docs/HANDOFF.md` records the profile appearing in two runs out
-of fifty-five; both were mid, and neither was audited.
+**Unreconciled, not wrong.** There is no evidence mid's tradeable figures are
+incorrect; there is no evidence they are correct, because the check that would say
+so has never been run. `docs/HANDOFF.md` records the profile appearing in two runs
+out of fifty-five; both were mid, and neither was audited.
 
 ### 4. The Nautilus certification was taken on a different window and a different price basis
 
