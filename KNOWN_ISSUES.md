@@ -144,10 +144,28 @@ A reader six months from now should find the price here, not an instruction.
 every mechanic including exposure held identical.
 
 ```
-            realDD   nullDD med   p(DD)
-n100  v2    -18.38      -20.12   0.3564
-mid   v2    -15.68      -19.29   0.1188
+            realDD   nullDD med   p(DD)   deploy%
+n100  v1    -31.92      -38.71   0.0693    100.0
+mid   v1    -35.88      -39.27   0.2673    100.0
+n100  v2    -18.38      -20.12   0.3564     56.6
+mid   v2    -15.68      -19.29   0.1188     56.6
 ```
+
+**TWO MEASURED FACTS ABOUT THAT TABLE, recorded because they are easy to lose and
+neither is a finding.**
+
+**First: `n100 v1`'s p(DD) = 0.0693 is the only shuffle statistic in this project
+that is not pinned at the test's floor.** Every CAGR p here reads 0.0099, which is
+`(1 + 0)/(100 + 1)` exactly -- the floor, carrying no information about magnitude.
+0.0693 means six draws of a hundred beat it. It is a measured p-value rather than a
+bound, and it is still above any conventional bar.
+
+**Second: the ordering inverts between the arms.** On v1, at 100% deployment, n100
+is the stronger universe (0.0693 against mid's 0.2673). On v2, with breadth
+scaling on, mid is (0.1188 against n100's 0.3564). The two arms cannot both be
+cited as pointing the same way, and neither ordering should be carried forward as
+a property of either universe: MaxDD is a single-episode statistic, and on both
+universes that episode is the same one -- the COVID trough of 2020-03-23.
 
 Random selection through the same breadth rule reproduces **91% of n100's
 drawdown advantage and 83% of mid's**. The drawdown result is not significant
@@ -2767,35 +2785,81 @@ This is a different cut of the same finding, not a replacement for the 92.5% /
 this one removes exposure entirely and asks what selection retains alone. They
 agree, and neither is independent evidence of the other.
 
-### 3. The publicly quoted universe has never been run tradeable at all
+### 3. The universe where the cap binds is the one with no tradeable audit trail
 
-**`results_n100/metrics/` carries ZERO tradeable artefacts.** Not stale ones, not
-unreconciled ones -- none. The Nifty 100 is the universe this project quotes
-publicly, and the execution-realism profile has **never been run on it.**
+**CORRECTED 2026-09-13, THE SAME DAY IT WAS WRITTEN. The first version of this
+item asserted that n100 "has never been run tradeable at all" and that "no v2
+audit trail exists under tradeable on either universe." BOTH WERE FALSE**, and
+the correction is recorded here rather than by silently replacing the text,
+because the way it became false matters more than the claim did.
 
-So for n100 there is no tradeable number to reconcile. There is no tradeable
-number. Any statement about how this strategy behaves under a participation cap on
-the universe in the README is an extrapolation from the other universe, and is
-nowhere labelled as one.
+**HOW IT BECAME FALSE.** The claim came from a survey that listed
+`results_mid/metrics` and `results_n100/metrics` -- the live tree -- and did not
+look at `forensic_snapshot_20260911T0100/`. That snapshot is excluded by
+`SKIP_PREFIX = ("forensic_snapshot_",)` in the discovery scripts written for the
+naming audit, where excluding it is correct: snapshot copies would be phantom
+write sites. Carrying that exclusion into a question about *what has ever been
+run* was wrong. **This is the third occurrence of that same exclusion in one
+session, and the first that reached a committed record.** The first two were
+caught before landing: a claim that no `v34_comparison.csv` survives on disk, and
+a claim that the v1 drawdown share could not be sourced. Both were in the
+snapshot. So was this.
 
-**And no tradeable audit has ever been WRITTEN, on either universe** -- which is
-stronger than saying none has passed. On disk, 2026-09-13:
+**WHAT IS ACTUALLY ON DISK.**
 
-- **mid carries 11 tradeable artefacts** -- `v34_comparison_tradeable.csv`,
-  `v2FINAL_equity_tradeable.csv`, `chart_v34_tradeable.png` and the rest. They are
-  published-shaped output.
-- **No v2 audit trail exists under tradeable anywhere.** There is no
-  `daily_holdings_mid_tradeable.csv`, no `daily_summary_mid_tradeable.csv`, no
-  `daily_trades_mid_tradeable.csv`. The single tradeable `daily_*` file is
-  `daily_trades_v1_mid_tradeable.csv`, which the engine writes for v1 -- not the
-  audit trail, and not for the shipping arm.
-- **`nautilus/reports/` does not exist**, so no tradeable run has been reconciled
-  against the execution port either.
+| | live tree | snapshot 2026-09-11 01:00 |
+|---|---|---|
+| n100 tradeable artefacts | **0** | **33**, including a complete v2 trail |
+| mid tradeable artefacts | 11 | 17, trail is **v3 at r200 only** |
 
-**Unreconciled, not wrong.** There is no evidence mid's tradeable figures are
-incorrect; there is no evidence they are correct, because the check that would say
-so has never been run. `docs/HANDOFF.md` records the profile appearing in two runs
-out of fifty-five; both were mid, and neither was audited.
+**n100's tradeable v2 audit trail exists and it RECONCILES.** The snapshot carries
+`daily_holdings_n100_tradeable.csv`, `daily_summary_n100_tradeable.csv`,
+`daily_trades_n100_tradeable.csv`, `v34_comparison_tradeable.csv` and
+`v34_equity_tradeable.csv`. Checked read-only on 2026-09-13: the trail's daily
+`total` against the engine's own `v2_invvol_breadth` curve over all **1,836
+overlapping days** gives a maximum absolute difference of **Rs 0.0050** -- under a
+paisa, which is the tolerance `audit_step` itself requires. Final equity agrees
+exactly at Rs 5,047,246.65.
+
+**AND THE REASON THAT RECONCILIATION IS WORTH NOTHING.**
+
+**`v34_comparison_tradeable.csv` is BYTE-IDENTICAL to `v34_comparison.csv` on
+n100.** Every figure: v1 30.56, v2 24.43, v3 23.14, v4 21.36, buy & hold 24.00,
+MaxDD −31.92 / −18.38 / −41.57 / −22.32 / −37.79.
+
+**The participation cap never binds on n100.** A tradeable run there reproduces the
+research run exactly, so the trail reconciles because there is nothing to
+reconcile -- it is an audit of the research configuration wearing a tradeable
+filename. `EXPERIMENTS.md:1737-1739` recorded the same inertness under the older
+engine: n100 unlimited 25.43 against volume 25.42.
+
+**On mid the cap does bind, and mid is the universe with no v2 trail.** Research
+against tradeable, from the snapshot:
+
+| mid | CAGR% | MaxDD% | Trades | TC_Rs |
+|---|---:|---:|---:|---:|
+| v1, research | 50.12 | −35.88 | 852 | 839,393 |
+| v1, tradeable | **45.90** | −35.88 | 860 | 692,730 |
+| v2, research | 29.23 | −15.68 | 1019 | 249,150 |
+| v2, tradeable | **27.59** | −15.68 | 1019 | 228,963 |
+
+v2 loses **1.64 CAGR points** and v1 loses **4.22**. Those are the numbers a
+tradeable audit would exist to verify, and **the only tradeable `daily_*` trail
+mid has ever had is `v3 at r200`** -- a measurement arm at a non-default cadence,
+in the snapshot, not the shipping arm and not the shipping cadence.
+
+**WHAT THE ITEM REDUCES TO.**
+
+**Neither universe has a reconcilable tradeable audit of a configuration where the
+cap changes anything.** n100's trail is complete, reconciles to a paisa, and
+certifies a run the cap did not touch. mid's cap costs 1.64 CAGR points on the
+shipping arm and has never been audited at all on that arm. The tradeable figures
+are UNRECONCILED, not wrong -- and the check that would settle them has never been
+run where it would mean something.
+
+A further consequence, since the live tree no longer carries n100's tradeable
+artefacts: **that run is not reproducible from the live tree.** It survives only
+in the snapshot, which is untracked working-tree state, not a git object.
 
 ### 4. The Nautilus certification was taken on a different window and a different price basis
 
