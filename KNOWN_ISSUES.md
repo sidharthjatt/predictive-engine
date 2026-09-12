@@ -2685,14 +2685,154 @@ as a fixture.
 
 ---
 
+## Four verification claims describe an older engine than the one that ships
+
+Written 2026-09-13. **Open, all four.** These had been queued since the
+KNOWN_ISSUES rewrite and never landed, which is why the entry after this one
+opened by referring to four items that were not in the file. A record asserting
+its own completeness on a base that is missing is the same defect this file spends
+the rest of its length auditing.
+
+**THE SHARED CAUSE.** Each of the four is a VERIFICATION claim -- a gate, a
+reconciliation, a significance test -- that was true when it was measured and now
+describes an engine older than the one that ships. None of them is a wrong number.
+Each is a correct number about a configuration that has since moved: the price
+basis became `adj_close` (`092ee62`), the window shortened, the profile axis
+arrived. The failure mode is uniform: **the claim is still printed in the present
+tense.**
+
+### 1. The return edge is inside the seed noise it is measured through
+
+The published edge against buy & hold is **+0.43 CAGR on n100 and +0.89 on mid**.
+The seed-noise sd at K=10 is 1.07 and 1.01, so those edges are **0.40 sigma (n100)
+and 0.88 sigma (mid)** -- both below one standard deviation of the ensemble's own
+run-to-run variation.
+
+The figures are in the table under *"Why the headline +0.43 does not resolve"*
+above. What is missing is the plain statement: **the shipping arm's return
+advantage is smaller than the noise floor of the method that produced it.** It is
+not a measured edge that happens to be small; it is a number the measurement
+cannot separate from zero.
+
+The denominator is `diagnostics/seed_noise.txt`, whose own standing is recorded
+two entries below -- it is the weakest-cleared of the fifteen artefacts checked for
+profile contamination, cleared by inference rather than reconciliation.
+
+### 2. The drawdown advantage does not survive its exposure control
+
+Reported as a drawdown win against a fully-invested benchmark. Against a null that
+controls for exposure it is not significant on either universe:
+
+```
+            realDD   nullDD med   p(DD)
+n100  v2    -18.38      -20.12   0.3564
+mid   v2    -15.68      -19.29   0.1188
+```
+
+**Random selection through the same breadth rule reproduces 91% of n100's drawdown
+advantage and 83% of mid's.** The exposure rule alone captures **92.5% and 92.7%**
+of the benefit; selection adds **1.46 and 1.53 points** against the 19.41 and 20.86
+the record quotes versus a fully-invested benchmark.
+
+**And the whole number is set in one month.** Four of the six best market days for
+n100 are post-crash rebounds, three of them in March and April 2020, with mean
+capture 0.28x at mean invested 40.0% against a window mean of 67.8%. The rule
+avoids the crash and avoids the recovery; that is one mechanism with a cost and a
+benefit, not a drawdown result and a separate return result.
+
+**The spec predicted this in advance** -- *"exposure is score-independent"* -- and
+the shuffle file records *"the prediction is BORNE OUT"* on both universes. The
+prediction landing is not the same as the claim holding.
+
+*One figure from the brief for this entry could not be sourced and is therefore
+NOT stated above: that v1 keeps 3% of mid's advantage. The verifiable
+decomposition is the 92.7% / 1.53-point split for v2. If a v1-specific share
+exists it is not in this file, not in the diagnostics, and not computable from
+what is on disk -- `results/metrics/` is empty and no `v34_comparison.csv`
+survives outside the gitignored universe directories.*
+
+### 3. No tradeable audit has ever passed, so every tradeable number is unreconciled
+
+**Unreconciled, not wrong.** There is no evidence the tradeable figures are
+incorrect; there is no evidence they are correct either, because the check that
+would say so has never been run to completion.
+
+On disk, 2026-09-13:
+
+- **mid carries 11 tradeable artefacts** -- `v34_comparison_tradeable.csv`,
+  `v2FINAL_equity_tradeable.csv`, `chart_v34_tradeable.png` and the rest.
+- **n100 carries none at all.** The tradeable profile has never been run on the
+  universe that is quoted publicly.
+- **No v2 audit trail exists under tradeable on either universe.** There is no
+  `daily_holdings_mid_tradeable.csv`, no `daily_summary_mid_tradeable.csv`, no
+  `daily_trades_mid_tradeable.csv`. The single tradeable `daily_*` file is
+  `daily_trades_v1_mid_tradeable.csv`, which the engine writes for v1 -- not the
+  audit trail, and not for the shipping arm.
+- **`nautilus/reports/` does not exist**, so no tradeable run has been reconciled
+  against the execution port either.
+
+So the tradeable half of this project has produced published-shaped artefacts and
+zero verification. `docs/HANDOFF.md` records the profile appearing in two runs out
+of fifty-five; both were mid, and neither was audited.
+
+### 4. The Nautilus certification was taken on a different window and a different price basis
+
+`nt_verify` reports **92 of 92 rebalances on all four arms**, and the per-universe
+reconciliation reads 93 of 93. Both were certified **2026-08-27**, and the
+configuration they certified is not the one that ships:
+
+| | certified under | ships today |
+|---|---|---|
+| window | 2019-01-01 → **2026-06-08**, **1,842** trading days | → **2026-05-29**, **1,836** days |
+| price basis | pre-`adj_close` | `adj_close` canonical (`092ee62`) |
+| calendar | the **58-derived** trading calendar | unchanged, and the 58 is deleted |
+| tick grid | 0.01, a CONTROL configuration | traded grid is 0.05 |
+
+The six-day window difference is not cosmetic: `092ee62` moved every published
+figure when the price basis changed, and the certification predates it.
+
+**mid and n100 are STALE, RE-RUNNABLE** -- their inputs exist and `nt_verify` can
+re-establish them. **58 and 74 are NOT RE-DERIVABLE** -- both universes, their raw
+price data and their frozen axis were deleted 2026-09-11, and no figure of theirs
+can be reproduced by anything. That distinction is recorded in
+`nautilus/NAUTILUS_STATUS.md` and, for the retired pair, in `RETIRED_UNIVERSES.md`.
+
+The calendar line deserves its own note: the NSE trading calendar this project
+runs on is derived from the retired 58 universe's raw files, is tracked, and is no
+longer rebuildable by anything in the repository.
+
+### What survives all four
+
+**The shuffle result.** Against random selection, CAGR gates at **p = 0.0099 on
+both gated arms and both universes** -- no draw in 100 beat it. That is a real
+result and it is not touched by anything above: it tests selection against a null
+that holds every mechanic fixed, so the window, the price basis and the profile
+cancel out of it.
+
+**Read with two limits, both already recorded above.** The p is the test's floor,
+`(1 + 0)/(100 + 1)`, not a measurement -- it cannot express anything smaller. And
+**multiplicity is uncorrected**: `shuffle_verdict.txt` records the configuration
+was chosen after at least 26 trials on this same data, so the test measures the
+winner on the data it won on. Raising N lowers the floor and does not touch the
+bias.
+
+**The remedy is named and it is not more shuffles.** It is held-out data, or a
+pre-registered configuration tested once. `experiments/HELDOUT_PREREG.txt` is that
+pre-registration, written 2026-09-12 before any data after 2026-05-29 was
+examined, and **it has not been run**. The window it reserves is spendable exactly
+once.
+
+---
+
 ## Fifteen artefacts were cleared by a control nobody designed
 
 Found 2026-09-12, checked 2026-09-13. **The clearance holds. The mechanism is the
 problem.**
 
-This is not one of the stale-claim entries above and should not be read as one.
-Those are claims that described an older engine than the one they labelled. **This
-is a claim that was CORRECT, for a reason nobody chose.**
+This is not one of the four entries immediately above -- *"Four verification
+claims describe an older engine than the one that ships"* -- and should not be
+read as one. Those four are claims that described an older engine than the one
+they labelled. **This is a claim that was CORRECT, for a reason nobody chose.**
 
 ### The window
 
