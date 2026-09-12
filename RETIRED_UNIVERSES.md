@@ -72,6 +72,40 @@ removed the older of the two schemes entirely.
 Transcribed verbatim from the snapshot CSVs. These are the last numbers these
 universes produced and they cannot be recomputed.
 
+### Nautilus certification — the terminal record, transferred 2026-09-12
+
+`nautilus/NAUTILUS_STATUS.md` carried these two in a four-row table under the
+heading **VERIFIED**, beside the two live universes. That word has been removed
+from all four rows there, and the pair's disposition is recorded HERE, which is
+where terminal records for the 58 and the 74 belong.
+
+| universe | certified | rebalances | fills (not a gate) | symbol-set diffs | ARM A control | ARM D @0.05 | 0.01-tick reconciliation |
+|---|---|---|---|---|---|---|---|
+| 58 | 2026-08-27 | 93/93 | 929/929 | 0 | 93 of 93 | 93 of 93 | 93 of 93 |
+| 74 | 2026-08-27 | 87/87 | 883/883 | 0 | 87 of 87 | 86 of 87 | 87 of 87 |
+
+**Window:** 2019-01-01 → 2026-06-08, 1,842 trading days, on the panels of the
+time. **Measured on a 0.01 tick grid, which is a CONTROL configuration, not the
+traded 0.05 grid.** The fills column is informational: `nt_verify.py`'s verdict
+tests `idx_ok`, `a_check[0]`, `d_sym` and `t_stats[0]`, and fill count is not one
+of them — a run with mismatched fill counts would still have printed VERIFIED.
+
+**WHY THE STATUS WORD IS GONE AND A DATE STANDS IN ITS PLACE.** "VERIFIED" is a
+present-tense claim about a pipeline. For these two there is no pipeline left to
+make it about. **Both universes, their raw price data and their frozen axis were
+deleted on 2026-09-11.** The inputs that produced every figure above no longer
+exist in this repository or anywhere else it can reach.
+
+**THESE NUMBERS ARE NOT RE-DERIVABLE.** Not by re-running anything, not by
+restoring a branch, not later when some other blocker clears. That is not a
+caveat about precision — it is the difference in kind between these two rows and
+the live pair, which are stale but re-runnable. **No current claim may rest on
+them**, and no comparison against them can be checked by anyone.
+
+What they remain good for: evidence of what was proven, and when. The
+verification history is real and deleting it would destroy the record. It is kept
+for that reason and no other.
+
 ### 58 -- `results/metrics/v2FINAL_comparison.csv`
 
 | Config | CAGR% | Sharpe | Sortino | MaxDD% | Calmar | Trades | TC_Rs |
