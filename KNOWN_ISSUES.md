@@ -1653,9 +1653,21 @@ number reaching a consumer**, which the `make_stats_both.py` defect never was �
 and the reason that one could be closed by deletion and this one cannot.
 
 **It is confined to the retired 58/74 chain.** It does not touch either live
-universe and no README figure derives from it — `README.md` embeds
-`docs/chart_COMBINED_n100_mid.png` and `docs/chart_decay.png`, neither of which
-is in this chain.
+universe.
+
+**THE SCOPE IS RESTATED, 2026-09-12, BECAUSE ITS ORIGINAL PROOF NO LONGER HOLDS.**
+This paragraph used to close by naming the two figures `README.md` embedded —
+`docs/chart_COMBINED_n100_mid.png` and `docs/chart_decay.png` — and observing that
+neither was in this chain. The combined chart was withdrawn on 2026-09-12 and is
+no longer embedded anywhere, so that sentence proved nothing about a file that had
+stopped being published.
+
+The confinement itself is unchanged, and it rests on the chain, not on the
+figures: STEP 13 and STEP 14 run only over the retired pair, and the live
+universes reach their own audit and chart steps. **The defect's scope was never a
+property of what the README happened to embed.** Stating it that way made a real
+containment argument look as though it depended on a chart, and then made it look
+false when the chart went.
 
 **BUT THE CONFINEMENT IS CIRCUMSTANTIAL, NOT BY DESIGN.** Nothing in the code
 scopes this to the retired universes. It is confined only because the live
@@ -2157,11 +2169,20 @@ properly means deciding whether the blocker note should be recomputed from the
 current panel, rewritten as a dated historical note, or deleted — that is a
 judgement about what the chart is for, not a typo correction.
 
-**Consequence for the README.** `chart_mid_FINAL.png` is not embedded in
-`README.md` while this stands. The published figure is
-`docs/chart_COMBINED_n100_mid.png`, which covers mid and n100 together and carries
-no stale text. If the mid chart is ever wanted on its own, this has to be resolved
-first.
+**Consequence for the README, RESTATED 2026-09-12.** `chart_mid_FINAL.png` is
+still not embedded in `README.md` while this stands, and that part is unchanged.
+
+**WHAT CHANGED IS THE ALTERNATIVE.** This used to say the published figure is
+`docs/chart_COMBINED_n100_mid.png`, "which covers mid and n100 together and
+carries no stale text". That chart was withdrawn on 2026-09-12 — its producer
+reads its inputs by canonical name with no arm, cadence or profile suffix, so it
+plotted whichever run wrote them last and recorded nothing about which.
+
+**SO THE README NOW PUBLISHES NO CHART AT ALL**, and this entry no longer names a
+substitute. The two blockers are independent and both are open: the mid chart
+carries stale blocker text, and the combined chart cannot say what it reads.
+Resolving either one is what puts a figure back. Neither is waiting on the other,
+and the absence of a published chart is not evidence that either was fixed.
 
 ---
 
@@ -2611,6 +2632,33 @@ out of scope and are not plotted" does not change depending on whether 58 and 74
 also ran. Verified: `chart_COMBINED_n100_mid.png` is byte-identical to the
 pre-change baseline under `--universe all`, `--universe n100,mid,58` and
 `--universe n100,mid` alike.
+
+**WHAT THAT VERIFICATION IS EVIDENCE OF, NARROWED 2026-09-12. It is still true,
+and it now certifies less than it reads.**
+
+The byte-identity result is sound and stands. It establishes SELECTION-INVARIANCE:
+the plotting code emits the same figure whether or not 58 and 74 were also in the
+run. Nothing since has disturbed that, and the same-session method was the correct
+control for it — see the caveat below, which is about a different axis and does
+not weaken this one.
+
+**BUT "the same loaded rows" was never shown to be a KNOWN set of rows.** The
+withdrawal of 2026-09-12 established that `make_combined_universes.py` reads
+`v2FINAL_equity.csv`, `v2FINAL_params.json` and the trade logs **by canonical name
+with no arm, cadence or profile suffix** — bypassing even the `_ci` helper in its
+own file. So the rows it loaded came from whichever run wrote those filenames
+last, on any of the four axes, and the chart recorded nothing about which run that
+was.
+
+**The claim survives; its subject does not.** This entry proves the chart
+faithfully and invariantly reproduces a panel whose identity was never recorded.
+That is a real property of the plotting code and a worthless guarantee about the
+figure, and the two were not distinguished when this was written. **A
+reproducibility result about an unidentified input is not a provenance result**,
+and this one was read as though it were.
+
+It becomes evidence again — unchanged, re-run, not re-argued — once the producer
+reads through the naming authority and the figure can say what it plots.
 
 **Caveat on every byte-identity claim above.** They are SAME-SESSION results, and
 the next entry records that this specific PNG has drifted by two pixels of height

@@ -165,16 +165,40 @@ things, neither of which is a bug:
 > The fill counts themselves are accurate as counts; only their placement in a
 > verification table was wrong. The column is retained below, relabelled.
 
-| universe | status | rebalances | fills (informational, not a gate) | symbol-set diffs | ARM A control | ARM D @0.05 | 0.01-tick reconciliation |
-|---|---|---|---|---|---|---|---|
-| mid  | **LIVE** | 93/93 | 985/985 | 0 | 93 of 93 | 92 of 93 | **93 of 93** — VERIFIED |
-| n100 | **LIVE** | 93/93 | 997/997 | 0 | 93 of 93 | 89 of 93 | **93 of 93** — VERIFIED |
-| 58   | retired | 93/93 | 929/929 | 0 | 93 of 93 | 93 of 93 | **93 of 93** — VERIFIED |
-| 74   | retired | 87/87 | 883/883 | 0 | 87 of 87 | 86 of 87 | **87 of 87** — VERIFIED |
+| universe | disposition | certified | rebalances | fills (informational, not a gate) | symbol-set diffs | ARM A control | ARM D @0.05 | 0.01-tick reconciliation |
+|---|---|---|---|---|---|---|---|---|
+| mid  | **STALE, RE-RUNNABLE** | 2026-08-27 | 93/93 | 985/985 | 0 | 93 of 93 | 92 of 93 | 93 of 93 as certified |
+| n100 | **STALE, RE-RUNNABLE** | 2026-08-27 17:02 | 93/93 | 997/997 | 0 | 93 of 93 | 89 of 93 | 93 of 93 as certified |
+| 58   | **TERMINAL — NOT RE-DERIVABLE** | 2026-08-27 | 93/93 | 929/929 | 0 | 93 of 93 | 93 of 93 | 93 of 93 as certified |
+| 74   | **TERMINAL — NOT RE-DERIVABLE** | 2026-08-27 | 87/87 | 883/883 | 0 | 87 of 87 | 86 of 87 | 87 of 87 as certified |
 
-Retired rows are historical: they record what was verified while those universes
-were in scope, on the panels of the time. They are not re-run and do not describe
-the current pipeline.
+**THE FOUR ROWS ARE NOT ONE KIND OF CLAIM, AND THE WORD "VERIFIED" MADE THEM LOOK
+LIKE ONE.** It has been removed from all four. What each row now says:
+
+**58 and 74 — TERMINAL.** Certified 2026-08-27 against the window
+2019-01-01 → 2026-06-08 (1,842 trading days), on the panels of the time.
+**Their inputs were deleted on 2026-09-11** — both universes, their raw price
+data and their frozen axis. **These figures cannot be re-derived by anything in
+this repository, now or later.** They are a historical record of what was proven
+and when; they are not a property of the current pipeline and no current claim
+may rest on them. The full disposition is in `RETIRED_UNIVERSES.md`, which is
+where terminal records for these two live.
+
+**mid and n100 — STALE, RE-RUNNABLE.** The figures above are what these universes
+were certified against on 2026-08-27, transcribed from `diagnostics/` artefacts
+(n100 from `nt_verify_n100.txt`, captured 17:02). They are **not** a statement
+about the engine as it stands today: the price basis became `adj_close` after
+they were taken, and the published figures moved when it did. The inputs still
+exist, so unlike the pair above these can be re-established by re-running
+`nt_verify.py` — and until that is done they are a record of a past run, not a
+current certification.
+
+**THE RE-RUN IS NOT SCHEDULED, AND MUST NOT BE RUN YET.** `nt_run`'s reports path
+carries no profile segment (`nt_run.py:161-169`), so a re-certification today
+would write into a directory a later `tradeable` run can overwrite in place, and
+the new figure would be stale by construction the moment it landed. The naming
+authority closes that first. See `naming_declare_check.py`, where this site is
+declared DEFECT and fails the check until it is fixed.
 
 ### The bar tick was a bug, and removing it is what verified mid
 
