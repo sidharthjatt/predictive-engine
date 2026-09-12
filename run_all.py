@@ -323,20 +323,48 @@ def check_inputs(label, script):
     _sel = set(_ar.selected_names())
 
     def _present(f):
-        """The requirement is met by the canonical name OR its cadence sibling.
+        """EXACTLY the name this run's axes produce, or the run does not start.
 
-        A NON-DEFAULT CADENCE NEVER WRITES THE CANONICAL NAME. Under --rebal 40
-        the producers write daily_trades_mid_r40.csv and leave the cadence-20 file
-        alone, so demanding the canonical name made `--rebal 40` impossible from a
-        cold tree -- it only ever passed because an earlier default run had left
-        the canonical file on disk. Found by running --rebal 40 from an empty
-        checkout; every warm run had passed.
+        STOPGAP, 2026-09-12. This is not the fix. The fix is a single naming
+        authority that every writer, reader and guard calls; this closes the
+        dangerous half of the bug until that lands, and it closes it by refusing
+        rather than by guessing.
+
+        WHAT IT USED TO DO AND WHY THAT WAS WORSE THAN BLOCKING. It accepted the
+        canonical name OR its cadence sibling. Both branches could be satisfied by
+        a file belonging to a DIFFERENT PROFILE:
+
+          branch 1, default cadence -- a research canonical file left on disk by
+            any earlier run satisfied the guard during a `tradeable` run;
+          branch 3, non-default cadence -- a research `_r40` sibling satisfied it
+            while the run itself wrote `_r40_tradeable`.
+
+        In both cases the guard reports the input as covered and attributes it to
+        the wrong file. That is the same shape as DIRKEY and NAUTILUS_SCRIPTS: a
+        check that says covered while pointing somewhere else. A visible block is
+        strictly better, because the alternative is a cross-profile number
+        published with nothing saying so.
+
+        THE CONDITIONS FOR IT CAME INTO EXISTENCE ON 2026-09-12, when the engines
+        and charts became profile-aware (f6b970b) while this guard did not. Before
+        that a tradeable run wrote the canonical name, so branch 1 matched the file
+        that run had itself just written -- wrong for a different reason, but not a
+        misattribution.
+
+        THE CADENCE PROBLEM THE FALLBACK EXISTED FOR IS REAL AND IS NOT
+        REINTRODUCED. Under --rebal 40 the producers write
+        daily_trades_mid_r40.csv and leave the cadence-20 file alone. The guard
+        therefore asks for the name THIS RUN'S AXES PRODUCE, built the same way the
+        producers build it, rather than for the canonical name with a fallback.
         """
-        if f.exists():
+        import profiles as _pf
+        want = f if (_cd.is_default() and _pf.is_default()) else \
+            f.with_name(f.stem + _cd.suffix() + _pf.suffix() + f.suffix)
+        if want.exists():
             return True
-        if _cd.is_default():
-            return False
-        return f.with_name(f.stem + _cd.suffix() + f.suffix).exists()
+        _found.append((f, want, sorted(
+            q.name for q in want.parent.glob(f.stem + "*" + f.suffix))[:6]))
+        return False
 
     import universes.registry as _ur
     _usel = set(_ur.selected_tags())
@@ -351,6 +379,7 @@ def check_inputs(label, script):
             return True
         return (e[2][2:] in _usel) if e[2].startswith("u:") else (e[2] in _sel)
 
+    _found = []
     missing = [(e[0], e[1]) for e in REQUIRED_INPUTS.get(Path(script).name, [])
                if _wanted(e) and not _present(e[0])]
     if not missing:
@@ -359,13 +388,25 @@ def check_inputs(label, script):
     print(f"PIPELINE ORDERING ERROR -- cannot start {label}")
     print("!" * 90)
     print(f"\n  {Path(script).name} needs {len(missing)} file(s) that do not exist:\n")
+    _want = {c: (w, near) for c, w, near in _found}
     for f, who in missing:
-        print(f"    MISSING  {f.relative_to(ROOT)}")
+        w, near = _want.get(f, (f, []))
+        print(f"    MISSING  {w.relative_to(ROOT)}")
         print(f"      writer {who}")
+        if w != f:
+            print(f"      this run's axes name it {w.name}, not {f.name}")
+        if near:
+            print(f"      present in that directory: {', '.join(near)}")
+        elif w != f and f.exists():
+            print(f"      {f.name} EXISTS but belongs to another profile or "
+                  f"cadence and is NOT accepted")
     print("\n  Each of these is written by another pipeline step. If that step is")
     print("  listed AFTER this one in run_all.py, the order is wrong and the step")
     print("  must be moved earlier -- not made tolerant of the missing file.")
     print("  If the step ran and the file is still absent, that step failed quietly.")
+    print("\n  A file of the same name from another profile or cadence is NOT")
+    print("  accepted as a substitute, deliberately: it would publish one axis's")
+    print("  numbers under another's. See the note on _present() above.")
     print("!" * 90, flush=True)
     sys.exit(1)
 
