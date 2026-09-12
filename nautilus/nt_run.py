@@ -190,6 +190,9 @@ def run(trading_start, trading_end, symbols=None, quiet=True,
     order_fills_rep = eng.trader.generate_order_fills_report()
     fills_rep = eng.trader.generate_fills_report()
     pos_rep = eng.trader.generate_positions_report()
+    # naming: DEFECT profile -- reports/{universe}/{arm}[@r{cadence}] has no
+    # profile segment (nt_run.py:161-169), so a tradeable run overwrites the
+    # research run's reports in place. Two tradeable v34 runs are on record.
     orders_all_rep.to_csv(out / "orders_all.csv")
     order_fills_rep.to_csv(out / "order_fills.csv")
     fills_rep.to_csv(out / "fills.csv")

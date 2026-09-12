@@ -378,6 +378,7 @@ def run_v34(M, universe_label, universe_tag, px, op, sc, bd, pc, mom20, port_vol
     ax[1].legend(loc="lower left", fontsize=7.5, ncol=2)
     ax[1].grid(alpha=.3)
     plt.tight_layout()
+    # naming: arm,cadence,profile -- via SFX, v34_common.py:300
     plt.savefig(M / f"chart_v34{SFX}.png", dpi=150, bbox_inches="tight")
     plt.close()
 

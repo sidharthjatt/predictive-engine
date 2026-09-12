@@ -176,6 +176,10 @@ def _reference_curve(M, arm_name):
     return None
 
 
+# naming: arm,cadence,profile -- every daily_* artefact here is named through
+# artefact_tag() (audit_step.py:108), which appends cadence.suffix() and
+# profiles.suffix(); the arm is in the tag body. nt_verify and make_daily_log
+# read these by the same rule.
 def run(u, arm=None):
     """Write the daily audit trail for one universe and one arm.
 
