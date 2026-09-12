@@ -88,12 +88,14 @@ def run(u):
 
     keep = ["date", "symbol", "open", "close", "year", "y_rank", "scorable"] + FEATS_V2
     raw = raw[keep]
+    # naming: axis-free -- raw panel is keyed by universe only; it is built before any arm, cadence or profile is applied
     raw.to_csv(u.raw_tmp, index=False)
     print(f"    done {(time.time()-t0)/60:.1f} min, {len(raw):,} rows", flush=True)
 
     print("[2/2] Monthly scoring, 10-seed ensemble (slow)...", flush=True)
     t0 = time.time()
     scored = score_monthly(raw, SEEDS, purge_mode=u.purge_mode)
+    # naming: axis-free -- score panel is the model's output, upstream of every arm; all arms read this one file
     scored[["date", "symbol", "open", "close", "score", "year"]].to_csv(
         u.score_tmp, index=False)
     print(f"    done {(time.time()-t0)/60:.1f} min", flush=True)
