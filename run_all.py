@@ -453,6 +453,43 @@ def save_permanent_caches():
     save_caches_step.main()
 
 
+def naming_gate():
+    """Run naming_declare_check in gated-declared-only mode. Non-zero stops the run.
+
+    WHY THIS GATES AT ALL WHEN 117 CALLS ARE STILL UNDECLARED. Two options were
+    rejected. Running it non-blocking would put a third checker in the pipeline
+    that prints a banner and gets treated as coverage. Keeping it out until the
+    count reaches zero would leave the whole backlog unenforced -- and during that
+    window nothing stops a NEW writer landing undeclared, which is exactly how this
+    bug class reached three axes in the first place.
+
+    So it gates the DECLARED SET and only that. A site enters the set the moment
+    someone declares it and cannot leave; inside the set, an undeclared sibling
+    write blocks. Gate 2 and any DEFECT declaration block everywhere,
+    unconditionally. Undeclared calls in sites nobody has touched yet are reported
+    and do not block. The gated set is green today, so this is enforcing at zero
+    from the first run rather than waiting for a backlog to clear.
+
+    THE RATCHET IS NOT WIRED IN HERE. It needs a base revision to diff against,
+    which a pipeline run does not have and a review does:
+
+        ./venv/bin/python naming_declare_check.py --gate-declared-only --ratchet origin/main
+
+    That is the call that closes the new-writer hole, and it belongs wherever
+    changes are reviewed, not in the thing that runs the backtest.
+    """
+    import subprocess
+    r = subprocess.run(
+        [sys.executable, str(Path(__file__).resolve().parent / "naming_declare_check.py"),
+         "--gate-declared-only"],
+        cwd=Path(__file__).resolve().parent)
+    if r.returncode != 0:
+        print("\nNAMING GATE FAILED -- the run has not started.")
+        print("An artefact would be written under a name that cannot say what")
+        print("produced it. Fix the declaration or the composer, then re-run.")
+    return r.returncode
+
+
 def main():
     """Delegate to run.py. This file is now a compatibility entry point.
 
@@ -487,6 +524,10 @@ def main():
         print("--rebal -- use run.py, which this file now delegates to:")
         print("    ./venv/bin/python run.py --help")
         return 2
+
+    rc = naming_gate()
+    if rc != 0:
+        return rc
 
     import run as _run
     argv = ["--universe", "all", "--arm", "all"]

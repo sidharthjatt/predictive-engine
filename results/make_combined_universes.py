@@ -249,19 +249,31 @@ def main():
     # registry.REPORT_ORDER already imposes; and because FILES is looked up with
     # [t] below, a missing block is a KeyError naming the tag rather than a chart
     # quietly one universe short.
+    # EVERY INPUT THROUGH _ci, 2026-09-12. This dict named the four canonical
+    # filenames directly -- bypassing even the `_ci` helper defined in this same
+    # file -- so it loaded whichever run last wrote them, on ANY of the four axes,
+    # and recorded nothing about which. That is why the published figure was
+    # withdrawn from README on 2026-09-12: unlike the table beside it, whose
+    # filename proved its axes, the chart's provenance was not recoverable after
+    # the fact.
+    #
+    # THE LITERAL STAYS IN THE CALL, the same rule _c and _ci follow everywhere
+    # else: check_pipeline_order reads the `DIR / "<literal>"` shape out of this
+    # source to resolve the step's edges, and a computed name made three of them
+    # vanish once already.
     FILES = {}
     if "n100" in tags:
         import config_n100
-        FILES["n100"] = (config_n100.METRICS_DIR_N100 / "v2FINAL_equity.csv",
-                         config_n100.METRICS_DIR_N100 / "v2FINAL_params.json",
-                         config_n100.METRICS_DIR_N100 / "daily_trades_n100.csv",
-                         config_n100.METRICS_DIR_N100 / "daily_trades_v1_n100.csv")
+        FILES["n100"] = (_ci(config_n100.METRICS_DIR_N100 / "v2FINAL_equity.csv"),
+                         _ci(config_n100.METRICS_DIR_N100 / "v2FINAL_params.json"),
+                         _ci(config_n100.METRICS_DIR_N100 / "daily_trades_n100.csv"),
+                         _ci(config_n100.METRICS_DIR_N100 / "daily_trades_v1_n100.csv"))
     if "mid" in tags:
         import config_mid
-        FILES["mid"] = (config_mid.METRICS_DIR_MID / "v2FINAL_equity.csv",
-                        config_mid.METRICS_DIR_MID / "v2FINAL_params.json",
-                        config_mid.METRICS_DIR_MID / "daily_trades_mid.csv",
-                        config_mid.METRICS_DIR_MID / "daily_trades_v1_mid.csv")
+        FILES["mid"] = (_ci(config_mid.METRICS_DIR_MID / "v2FINAL_equity.csv"),
+                        _ci(config_mid.METRICS_DIR_MID / "v2FINAL_params.json"),
+                        _ci(config_mid.METRICS_DIR_MID / "daily_trades_mid.csv"),
+                        _ci(config_mid.METRICS_DIR_MID / "daily_trades_v1_mid.csv"))
     # LOADED ONCE, PLOTTED POSSIBLY TWICE. The published n100+mid pair chart is
     # drawn from the SAME rows as the N-way chart when both are produced, so the
     # two figures cannot disagree about a number.
@@ -338,9 +350,8 @@ def main():
             print(f"\n  {why}: fewer than two universes can show "
                   f"{', '.join(arm_names)} -- not drawn")
             return
-        _draw(rows, rows[0]["M"] / ("chart_COMBINED_"
-                                    + "_".join(r["tag"] for r in rows)
-                                    + out_suffix + cadence.suffix() + profiles.suffix() + ".png"))
+        _draw(rows, combined_chart_path(rows[0]["M"],
+                                        [r["tag"] for r in rows], out_suffix))
         return rows
 
     canon_rows = None
@@ -395,16 +406,28 @@ def main():
         print(" It is a standing published figure, not a by-product of N == 2, so a "
               "wider selection still refreshes it.")
         print("-" * 108)
-        _draw(pair, pair[0]["M"] / ("chart_COMBINED_"
-                                    + "_".join(r["tag"] for r in pair)
-                                    + cadence.suffix() + profiles.suffix() + ".png"))
+        _draw(pair, combined_chart_path(pair[0]["M"],
+                                        [r["tag"] for r in pair]))
 
 
 def _ci(path):
-    """The cadence-named sibling of `path` if the engine wrote one, else `path`."""
-    if cadence.is_default():
+    """The cadence- AND profile-named sibling of `path`, if the engine wrote one.
+
+    THE PROFILE WAS MISSING HERE AND PRESENT IN THE OTHER TWO. make_mid_chart and
+    make_n100_chart each carry a `_ci` of the same name that composes
+    cadence.suffix() + profiles.suffix(); this one composed the cadence alone. So
+    under `--profile tradeable` the engines wrote v2FINAL_equity_tradeable.csv and
+    this helper looked for a file that did not exist, fell through to `path`, and
+    loaded the RESEARCH curve into a chart drawn under a tradeable title.
+
+    Measured 2026-09-12 by the naming-authority audit, which probes each composer
+    one axis at a time: this one reported `cadence` where its two same-named
+    siblings reported `cadence, profile`.
+    """
+    import profiles as _pf
+    if cadence.is_default() and _pf.is_default():
         return path
-    c = path.with_name(path.stem + cadence.suffix() + path.suffix)
+    c = path.with_name(path.stem + cadence.suffix() + _pf.suffix() + path.suffix)
     return c if c.exists() else path
 
 
@@ -470,6 +493,19 @@ def _series(rows):
     return out
 
 
+def combined_chart_path(M, tags, out_suffix=""):
+    """The combined chart's name, over all three axes. THE ONE DEFINITION.
+
+    Named for the same reason chart_path is: the two call sites composed this
+    inline, so the write call saw only `out_path` and Gate 2 had nothing to
+    measure. Rule unchanged -- universe tags, then the arm suffix the caller
+    chose, then cadence and profile.
+    """
+    import profiles as _pf
+    return M / ("chart_COMBINED_" + "_".join(tags) + out_suffix
+                + cadence.suffix() + _pf.suffix() + ".png")
+
+
 def _draw(rows, out_path):
     """Render exactly these rows to this path."""
     series = _series(rows)
@@ -489,6 +525,11 @@ def _draw(rows, out_path):
     ax[1].yaxis.set_major_formatter(PercentFormatter(decimals=0))
     ax[1].legend(loc="lower left", fontsize=7.5, ncol=2); ax[1].grid(alpha=.3)
     plt.tight_layout()
+    # naming: arm,cadence,profile via combined_chart_path -- composed by the
+    # (make_combined_universes.py:341 and :398) from the universe tags plus the
+    # arm suffix, cadence.suffix() and profiles.suffix(). The OUTPUT side of this
+    # step was already axis-complete; it was the INPUT side, the FILES dict, that
+    # named canonical files and could not say what it had read.
     plt.savefig(out_path, dpi=150, bbox_inches="tight")
     plt.close(fig)
     print(f"\n  saved -> {out_path}")

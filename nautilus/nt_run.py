@@ -87,6 +87,52 @@ FEE_MODEL = QbeastIndianFeeModel(
 )
 
 
+def reports_segment(mode, sizing, rebal=None):
+    """The leaf directory identifying one (arm, cadence, profile) combination.
+
+    A NAMED FUNCTION SO IT CAN BE MEASURED. This was eleven lines inline inside
+    run(), which is why naming_declare_check could not verify it: the check asks
+    which axes a composer carries by varying one axis at a time and watching the
+    output, and it cannot call code buried in the middle of a function that boots
+    a backtest engine. Inline composition is exactly how the profile went missing
+    here for as long as it did -- nothing could interrogate it.
+
+    Registered in naming.CARRIES as carrying all three axes, measured, not assumed.
+    """
+    # THE CADENCE JOINS THE PATH, on the same rule the research side uses: the
+    # default is unsuffixed so nautilus/reports/mid/v1/ keeps meaning what it has
+    # always meant, and a non-default cadence gets v1@r40 of its own rather than
+    # overwriting it.
+    # AND THE PROFILE JOINS IT TOO -- SITE 12, fixed 2026-09-12. This path carried
+    # the universe, then the arm, then the cadence, each added after the axis
+    # before it had already collided. The profile was the one axis left, and it
+    # had ALREADY fired: `tradeable` caps fills at the symbol's prior-20-session
+    # median volume, so a tradeable run produces different orders, different fills
+    # and different positions -- and wrote all of them over the research run's
+    # reports, in place, under a directory name that still said `mid/v2`. Two
+    # tradeable v34 runs are on record, so this destroyed reports rather than
+    # risking it.
+    #
+    # SAME DEFAULT-IS-UNSUFFIXED RULE as every other axis: research is the default
+    # and stays unsuffixed, so nautilus/reports/mid/v2/ keeps meaning exactly what
+    # it has always meant and no existing path moves.
+    from arms.registry import path_segment
+    import cadence as _cad
+    import profiles as _pf
+    seg = path_segment(mode, sizing)
+    r = _cad.DEFAULT if rebal is None else int(rebal)
+    if r != _cad.DEFAULT:
+        seg = f"{seg}@r{r}"
+    if not _pf.is_default():
+        seg = f"{seg}@{_pf.selected()}"
+    return seg
+
+
+# naming: arm,cadence,profile via reports_segment -- every report this step
+# writes lands in `out`, which carries the universe as a directory and the
+# arm, cadence and profile as its leaf segment (reports_segment above). The
+# axes are in the PATH here, not in the filenames, which is why the
+# filenames beneath it are bare literals.
 def run(trading_start, trading_end, symbols=None, quiet=True,
         universe=None,
         sizing="invvol", mode="breadth", rebal=None):
@@ -156,16 +202,7 @@ def run(trading_start, trading_end, symbols=None, quiet=True,
     # arms.registry, so the directory and the arm cannot drift apart, and a
     # combination that is not one of the four named arms gets "{mode}-{sizing}"
     # rather than being folded into one that is.
-    from arms.registry import path_segment
-    # THE CADENCE JOINS THE PATH, on the same rule the research side uses: the
-    # default is unsuffixed so nautilus/reports/mid/v1/ keeps meaning what it has
-    # always meant, and a non-default cadence gets v1@r40 of its own rather than
-    # overwriting it.
-    import cadence as _cad
-    _seg = path_segment(mode, sizing)
-    _r = _cad.DEFAULT if rebal is None else int(rebal)
-    if _r != _cad.DEFAULT:
-        _seg = f"{_seg}@r{_r}"
+    _seg = reports_segment(mode, sizing, rebal)
     out = Path(__file__).resolve().parent / "reports" / universe / _seg
     out.mkdir(parents=True, exist_ok=True)
     # THREE REPORTS, AND TWO OF THEM ARE ABOUT ORDERS. The distinction is the
@@ -190,9 +227,6 @@ def run(trading_start, trading_end, symbols=None, quiet=True,
     order_fills_rep = eng.trader.generate_order_fills_report()
     fills_rep = eng.trader.generate_fills_report()
     pos_rep = eng.trader.generate_positions_report()
-    # naming: DEFECT profile -- reports/{universe}/{arm}[@r{cadence}] has no
-    # profile segment (nt_run.py:161-169), so a tradeable run overwrites the
-    # research run's reports in place. Two tradeable v34 runs are on record.
     orders_all_rep.to_csv(out / "orders_all.csv")
     order_fills_rep.to_csv(out / "order_fills.csv")
     fills_rep.to_csv(out / "fills.csv")
