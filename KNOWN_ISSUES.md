@@ -251,6 +251,12 @@ These answer different questions against different nulls, and both are true:
 - **Against buy & hold** (the economically meaningful comparison): +0.43 and
   +0.89, at 0.40 and 0.88 sigma of seed noise, against a denominator that is
   itself unstable by several points. **The magnitude is not resolvable.**
+  **That denominator is `diagnostics/seed_noise.txt`, which is the weakest-cleared
+  of the fifteen artefacts checked for profile contamination on 2026-09-13** -- the
+  only one of the fifteen cleared by inference rather than by an identity gate
+  reproducing the research baseline exactly. See *"seed_noise.txt is the weakest of
+  the fifteen clearances, and it is the sigma's denominator"* below. The sigma
+  should not be quoted as firmer than that chain.
 
 Beating a random-selection null while being unable to measure how far you beat
 buy & hold are compatible statements. The record currently reports only the
@@ -2676,6 +2682,146 @@ process invocations over time. The trigger was not identified; the matplotlib fo
 cache predates both runs. Nothing else about the chart changes and every printed
 figure is identical. It matters only for byte-comparison: this PNG cannot be used
 as a fixture.
+
+---
+
+## Fifteen artefacts were cleared by a control nobody designed
+
+Found 2026-09-12, checked 2026-09-13. **The clearance holds. The mechanism is the
+problem.**
+
+This is not one of the stale-claim entries above and should not be read as one.
+Those are claims that described an older engine than the one they labelled. **This
+is a claim that was CORRECT, for a reason nobody chose.**
+
+### The window
+
+`profiles.py` and the `tradeable` profile did not exist before commit `7acac3b`
+(2026-09-10 23:31:48). The engines' `_c()` did not suffix by profile until
+`f6b970b` (2026-09-12 01:44:33). For those **26 hours** a `tradeable` run wrote
+CAPPED numbers into the CANONICAL filenames -- not through a fallback, through a
+direct overwrite. `docs/HANDOFF.md` records the tradeable profile appearing in two
+runs out of fifty-five.
+
+Fifteen tracked diagnostics artefacts were written in or beside that window:
+`drawdown_exit.{txt,cells.csv,equity.csv,events.csv}`, `purge_fix_measure.txt`,
+`rebal_cadence_{sweep.txt,cells.csv,equity.csv}`, `seed_noise.txt`,
+`shuffle_{mid,n100,verdict}.txt`, `topn_{mid,n100,verdict}.txt`.
+
+### Why they are clear, and why that is luck
+
+`v34_common.py`'s `SFX` gained `profiles.suffix()` **in the same commit that
+created the profile** -- verified: `profiles.py` does not exist at `7acac3b~1`,
+and `SFX` reads `selection_suffix() + cadence.suffix()` there and
+`selection_suffix() + cadence.suffix() + profiles.suffix()` at `7acac3b`.
+
+So `v34_comparison.csv` has been research-only for its entire lifetime: before
+`7acac3b` no cap existed, and from `7acac3b` a tradeable run writes
+`v34_comparison_tradeable.csv` and leaves the canonical file untouched.
+
+Every one of the fifteen carries an identity gate reconciling its own re-run of v2
+against that canonical file. A capped run cannot reproduce an uncapped baseline.
+**The identity gates therefore functioned as profile provenance checks.**
+
+**THAT IS NOT A DESIGNED CONTROL AND IT DOES NOT GENERALISE.** The gates were
+built to check that a harness reproduces the shipped figures. Nothing in their
+design, their names or their documentation concerns provenance, and no artefact in
+this repository records the profile it ran under -- not the diagnostics headers,
+not `v34_params.json`, not `RUN.txt`, which records universes, arms and cadence and
+stops there.
+
+**HAD `SFX` LAGGED THE WAY `_c` DID, the canonical baseline would itself have been
+capped, every gate would have reproduced it exactly, and the same green would have
+CONFIRMED contamination instead of excluding it.** One commit's ordering is the
+whole difference between an exclusion and a false clearance, and the gates cannot
+tell those two states apart. Do not cite a passing identity gate as provenance
+evidence again without re-establishing that its baseline is what it claims.
+
+### The clearance, per artefact
+
+TWO CHECKS. **Timing:** mtimes, trustworthy here because the reflog shows one
+working-tree-rewriting operation since these files were written -- a checkout at
+2026-09-11 17:24 -- and every mtime predates it, so git never rewrote them.
+**Content:** the identity gate's reconciliation against the research-only
+canonical file, where `Trades` and `TC_Rs` are the cap-sensitive fields.
+
+| artefact | mtime | vs window | content evidence | verdict |
+|---|---|---|---|---|
+| `rebal_cadence_sweep.txt` + `cells.csv` + `equity.csv` | 09-10 22:43 | 49 min before | all 4 arms reproduce published incl. Trades, TC_Rs | research, decisive |
+| `seed_noise.txt` | 09-10 22:46 | 46 min before | gate MISMATCHES; offset inconsistent with a cap | research, **by inference only** |
+| `purge_fix_measure.txt` | 09-10 23:21 | 10 min before | gate ok, 24.43 / 1.72 / −18.38 exact | research, thin margin |
+| `shuffle_n100.txt` | 09-10 23:21 | 10 min before | gate ok, 24.43 / 1.72 / −18.38 exact | research, thin margin |
+| `shuffle_mid.txt` | 09-10 23:22 | 9 min before | gate ok, 29.23 / 1.99 / −15.68 exact | research, decisive |
+| `shuffle_verdict.txt` | 09-10 23:22 | 9 min before | aggregates both universes | research |
+| `topn_mid.txt` | 09-10 23:22 | 9 min before | gate ok, 29.23 / 1.99 / −15.68 exact | research, decisive |
+| `topn_n100.txt` | 09-10 23:22 | 9 min before | gate ok, 24.43 / 1.72 / −18.38 exact | research, thin margin |
+| `topn_verdict.txt` | 09-10 23:22 | 9 min before | aggregates both universes | research |
+| `drawdown_exit.txt` + `cells` + `equity` + `events` | **09-11 00:13** | **42 min INSIDE** | **Trades 965 = 965, TC_Rs 213158 = 213158**, CAGR/Sharpe/MaxDD/AnnVol/FinalEq all MATCH, G1 PASS | research, decisive |
+
+**NOTHING WAS CLEARED ON TIMING ALONE.** The 23:21--23:22 cluster sits 9--10
+minutes before the commit that created the profile, and the code existed in the
+working tree for an unknown period before that commit. Nine minutes is inside any
+plausible authoring margin, so those seven rest on content, not on the clock.
+
+The complete form of the content argument, for the artefacts that reconcile
+`Trades` and `TC_Rs`: if a cap had bound, those fields would differ; they do not;
+so either the run was research, or the cap never bound -- and in the second case
+the output is numerically identical to research output anyway.
+
+### Two caveats on the clearance, stated
+
+**1. The cap magnitudes are pre-`adj_close` and indicative, not current.** The
+figures used to size the cap's effect -- mid 29.16 -> 27.36 CAGR, n100
+25.43 -> 25.42 -- come from `experiments/EXPERIMENTS.md:1733-1739`, measured under
+the engine BEFORE `adj_close` became canonical (commit `092ee62`). The n100 margin
+is 0.01 CAGR, which is why three rows above are marked *thin margin*: they are
+decidable at two decimal places and by no wider a gap than that, against a
+magnitude taken from a superseded engine.
+
+**2. `seed_noise.txt` is cleared by inference, not by reconciliation** -- see the
+next entry, which states why that matters more than it looks.
+
+### Two dead readers found in the same survey, not a substitution risk
+
+`nautilus/nt_holdings_compare.py:39,76` and `nautilus/nt_daily_compare.py:75`
+hardcode `daily_holdings_58.csv` and `daily_trades_58.csv`. Those artefacts were
+deleted on 2026-09-11 and `results/metrics/` is empty. Both reads are unguarded
+`pd.read_csv` with no `try`/`except` anywhere in either file, so they raise
+`FileNotFoundError` and **fail loudly**. Recorded as deleted-artefact references
+with no silent-substitution risk; not fixed.
+
+---
+
+## seed_noise.txt is the weakest of the fifteen clearances, and it is the sigma's denominator
+
+Both facts belong in one place, because a reader -- including us, later -- will
+otherwise trust the sigma more than the file it rests on.
+
+**The clearance is the weakest of the fifteen.** Every other artefact in the entry
+above was cleared by an identity gate reproducing the research baseline exactly.
+`seed_noise.txt`'s gate MISMATCHES: it records `production 10 seeds from this
+store: CAGR 23.01` against `recorded in v34_comparison.csv: CAGR 24.43`, an offset
+of −1.42. It is cleared not by reconciliation but by the offset being INCONSISTENT
+with a cap -- capping moves n100 by about 0.01 CAGR and leaves MaxDD unchanged,
+while this file moves CAGR by 1.42 and MaxDD by 2.54. The stated cause is the
+one-ULP panel readback, which is documented elsewhere in this file and is not a
+profile effect.
+
+That is sound, and it is inference about magnitudes rather than an exact
+reproduction — and the magnitude it is measured against is itself pre-`adj_close`.
+
+**And this file is the denominator for the 0.40 and 0.88 sigma figures** quoted
+under *"Two benchmarks, not a contradiction"* above. The +0.43 and +0.89 CAGR
+edges against buy & hold are expressed in units of the seed noise this artefact
+measures. So the weakest-cleared file in the set is the one the headline
+uncertainty is denominated in.
+
+**This is not a dispute of the clearance.** It is a statement of what the sigma
+rests on: a noise floor whose own provenance was established by inference, whose
+baseline offset is explained by a defect documented separately, and which is
+already described in this file as *"a denominator that is itself unstable by
+several points"*. The sigma should not be quoted as though it were firmer than
+that chain.
 
 ---
 
