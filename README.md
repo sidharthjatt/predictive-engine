@@ -111,11 +111,14 @@ NIFTYMIDCAP150 18.16% / 1.01 / −38.67% — were measured under the previous en
 and are left here **unverified against the current one**, marked rather than
 silently reprinted.
 
-![Cumulative return and drawdown for both live universes](docs/chart_COMBINED_n100_mid.png)
-
-*Both live universes, 2019–2026: breadth-scaled strategy, always-invested variant,
-equal-weight buy & hold of the same universe, and the cap-weighted index. Lower
-panel is drawdown.*
+> **The chart that stood here has been removed, 2026-09-12.** It was produced by
+> `make_combined_universes.py`, which reads `v2FINAL_equity.csv` and the trade
+> logs by their canonical names with **no cadence, arm or profile suffix** — so it
+> plotted whichever run wrote those files last, and it records nothing about which
+> run that was. The table above is transcribed from `v34_comparison.csv`, whose
+> name proves its axes; the chart's provenance is not recoverable after the fact,
+> and the two read as one artefact. It goes back once that step reads through the
+> naming authority. See `KNOWN_ISSUES.md`.
 
 Read those honestly, and read this paragraph before the tables above.
 
