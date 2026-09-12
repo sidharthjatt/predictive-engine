@@ -223,7 +223,13 @@ claimed edge.
   inside the window -- MEDANTA +548.8%, 360ONE +464.1%, PATANJALI +413.6%,
   SBICARD +109.6% and two more. Buy & hold reads 28.34% as computed and 24.23%
   with those six days neutralised, so the same edge is +0.89 or +5.0 depending on
-  a data-handling choice nobody has made. This is not a claim that the edge is 5
+  a data-handling choice nobody has made.
+  **CORRECTED 2026-09-13: 24.23% is wrong. Measured against current data the
+  neutralised benchmark is 27.84%, the range is 0.50 points rather than 4.11, and
+  the edge is +0.89 or +1.39 -- not +5.0. Four of the five moves are price holes
+  rather than single-day moves and three never reach the benchmark at all. See
+  "The mid benchmark is better defined than this file said, and the edge is
+  worse" below. The correction makes the return case weaker.** This is not a claim that the edge is 5
   points -- survivorship pulls the other way -- it is that the denominator is not
   defined to better than about 4 points.
 - **n100: zero moves above 55%, and a different problem.** Its six largest days
@@ -2907,6 +2913,135 @@ pre-registered configuration tested once. `experiments/HELDOUT_PREREG.txt` is th
 pre-registration, written 2026-09-12 before any data after 2026-05-29 was
 examined, and **it has not been run**. The window it reserves is spendable exactly
 once.
+
+---
+
+## The mid benchmark is better defined than this file said, and the edge is worse
+
+Measured 2026-09-13, read-only, against current data. **This CLOSES the last
+escape route for mid's return edge, and we closed it ourselves.**
+
+**THE DIRECTION FIRST, BECAUSE THE ARITHMETIC IS EASY TO MISREAD AS GOOD NEWS.**
+This file said mid's buy & hold denominator was undefined to about four CAGR
+points, which left room for the edge to be as large as +5.0 once a data-handling
+choice was made. **It is defined to half a point.** So mid's return edge is
+**+0.89 and nothing else**, and the +5.0 alternative never existed. The
+correction makes the return case WEAKER, not stronger. Nothing here rescues it.
+
+### The corrected figures
+
+| | this file said | measured 2026-09-13 |
+|---|---:|---:|
+| mid b&h, as computed | 28.34% | **28.34%** (reproduces exactly) |
+| mid b&h, artefact neutralised | 24.23% | **27.84%** |
+| range attributable to the artefact | 4.11 pts | **0.50 pts** |
+| mid v2 edge under that choice | +0.89 or **+5.0** | +0.89 or **+1.39** |
+
+`KNOWN_ISSUES.md:222-226` carries the old figures and the sentence *"the same
+edge is +0.89 or +5.0 depending on a data-handling choice nobody has made."*
+Against current data that reads **+0.89 or +1.39**, and the denominator IS defined
+to better than half a point.
+
+### What the six moves actually are
+
+All the named moves reproduce exactly through the project's own loader
+(`config.read_price_csv` -> `smart_parse_dates`): MEDANTA +548.8%, 360ONE +464.1%,
+SBICARD +109.6%, PATANJALI +413.6%. **The count is five, not six**, on
+`close` union `adj_close` inside the window; the sixth is not reproducible at that
+threshold.
+
+**FOUR OF THE FIVE ARE NOT SINGLE-DAY MOVES. THEY ARE PRICE HOLES.** Each is a
+`pct_change` spanning a multi-year absence of rows:
+
+| symbol | date | move | gap since previous raw row |
+|---|---|---:|---:|
+| MEDANTA | 2022-11-16 | +548.8% | **2,122 days** |
+| SBICARD | 2020-03-16 | +109.6% | **1,873 days** |
+| 360ONE | 2019-09-19 | +464.1% | **1,345 days** |
+| PATANJALI | 2020-01-27 | +413.6% | 51 sessions |
+| YESBANK | 2020-03-17 | +58.1% | 1 day -- **a real move** |
+
+They are the PATANJALI class this project has known about since `tradability.py`
+was written, and the record describes them as single-day market moves without
+qualification.
+
+**AND THREE OF THE FIVE NEVER REACH THE BENCHMARK AT ALL.** MEDANTA, SBICARD and
+360ONE each have their first valid panel date ON the resumption date -- the window
+boundary truncates the hole -- so `pct_change` is NaN there and the equal-weight
+mean skips it. Only PATANJALI's +413.6% is a gap artefact that actually enters
+`bh`. YESBANK's is real and must NOT be neutralised. That is why the corrected
+range is 0.50 and not the 0.56 a blunt five-day cut suggests.
+
+**n100 reproduces exactly at zero.** Zero moves above 55% in the window, and zero
+interior gaps.
+
+### A separate and larger defect: the benchmark is computed outside the guard
+
+**THE BUY & HOLD BENCHMARK DOES NOT PASS THROUGH THE TRADABILITY GUARD.** This is
+by the guard's own design statement -- `tradability.py` says it *"gates
+TRANSACTING, not ranking"* -- and the benchmark does not transact. `TRADEABLE` is
+consumed in exactly one place, `results/test_exposure.py:186`, inside
+`backtest_exposure`. The benchmark is built beside it:
+
+    bh = START_CAPITAL * (1 + px.pct_change().loc[bd].mean(axis=1).fillna(0)).cumprod()
+
+from a panel that is `.ffill()`ed, with no guard consulted. **That line appears in
+seven places** -- `v34_common.py:246` and `:471`, `engine_v2_final_mid.py:173`,
+`engine_v2_final_n100.py`, `engine_core.py:678`, `test_exposure.py:510`,
+`shuffle_test.py:169` -- identically, and unguarded in all of them. `tradability.py`
+records the scale of the exposure: *"px and op are pivots with .ffill() applied --
+41 such pivots across 37 files."*
+
+**The practical exposure, measured:** mid has **46 interior gaps across 3 symbols**
+(HEXT 1,069 sessions, PATANJALI 51, AIIL the rest) totalling 1,193 missing
+sessions. **n100 has zero.** Of mid's, only PATANJALI's resumption produces a
+material return in `bh`. HEXT's resumption enters as **+0.0%** -- the relisting
+close exactly matches the pre-delisting close, 762.55 against 762.55, across 4.3
+years -- which is a fabricated zero rather than a real flat day.
+
+**THE GUARD ALSO MISSES A CLASS IT LOOKS LIKE IT SHOULD CATCH.** `tradability.gaps()`
+filters each symbol's rows to the window BEFORE pairing them, so a hole whose last
+real row precedes `BT_START_DATE` is invisible: MEDANTA, SBICARD and 360ONE are not
+among the 46. It happens not to matter for `bh`, because the same truncation makes
+their returns NaN -- but the guard is not the reason they are harmless, and it would
+not catch them if they were.
+
+**So 28.34 is not defective, on the evidence here -- but it is not guarded either.**
+The number the entire mid edge is measured against is protected by a window
+boundary rather than by the guard that exists for this, and the difference has
+never been stated. Not fixed; recorded.
+
+### How the wrong figures got in
+
+`f1d9bc8` (2026-09-12 01:02) introduced both the six-moves list and the 24.23
+figure, **eighteen minutes before `cf22431` wrote the pre-registration**. No script
+produces either: nothing in the repository mentions MEDANTA or 548.8 outside prose.
+They are hand-written numbers in a document, and **this is the third instance of
+that class** -- after the +24,772.7% PATANJALI figure that `tradability.py`'s own
+docstring records as the consequence of a feature-side mask deleting prices, and
+the stale README headline figures that went uncorrected through an engine change.
+
+**THREE SCAN ERRORS PRECEDED THIS ENTRY, all mine, and the lesson is the same one.**
+A first sweep using pandas `parse_dates` silently coerced ~190,000 rows per universe
+to NaT and reported the moves absent. A second using `errors="coerce"` admitted
+mis-parsed dates and reported 475 spurious moves clustered on the 1st and 12th of
+months -- day/month ambiguity, not markets. A third applied the window filter
+BEFORE `pct_change`, which dropped the pre-window row forming each hole and made
+three of the four artefacts disappear. **Only `config.read_price_csv` gives the
+answer the engine sees.** Any figure about this data computed with an ad-hoc parse
+is untrustworthy, which is exactly how the numbers being corrected here were made.
+
+### The pre-registration is unaffected and is usable as-is
+
+`experiments/HELDOUT_PREREG.txt` cites the six-moves figure in section 5, *"What
+this test cannot do"* -- descriptive caveat only. **Its frozen configuration, its
+statistic and its pass/fail rule do not depend on it** and are untouched by any of
+the above. The file remains usable exactly as written.
+
+**THIS CORRECTION LIVES OUTSIDE THAT FILE DELIBERATELY.** The pre-registration's
+entire value is that it was fixed before the held-out window was seen, and an
+amendment destroys that regardless of how honest the amendment is. It is not
+edited, and it should not be.
 
 ---
 
