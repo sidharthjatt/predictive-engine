@@ -173,6 +173,9 @@ def _git_state():
                      "working tree clean; the commit describes this run exactly")}
 
 
+# naming: arm,cadence,profile via SFX -- every artefact this step writes is
+# named `<stem>{SFX}.<ext>` with SFX composed at v34_common.py:300 from
+# selection_suffix() + cadence.suffix() + profiles.suffix().
 def run_v34(M, universe_label, universe_tag, px, op, sc, bd, pc, mom20, port_vol,
             tv, backtest_exposure, v1_eq, v1_tc, v1_n, v2_eq, v2_tc, v2_n, v2_expo,
             start_capital, halves, consts, v1_audit=None):
@@ -378,7 +381,7 @@ def run_v34(M, universe_label, universe_tag, px, op, sc, bd, pc, mom20, port_vol
     ax[1].legend(loc="lower left", fontsize=7.5, ncol=2)
     ax[1].grid(alpha=.3)
     plt.tight_layout()
-    # naming: arm,cadence,profile -- via SFX, v34_common.py:300
+    # naming: arm,cadence,profile via SFX -- v34_common.py:300
     plt.savefig(M / f"chart_v34{SFX}.png", dpi=150, bbox_inches="tight")
     plt.close()
 

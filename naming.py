@@ -73,3 +73,73 @@ def tail(axes=AXES):
 def name(stem, ext, axes=AXES):
     """A full artefact filename: stem + tail + ext. `ext` carries its own dot."""
     return f"{stem}{tail(axes)}{ext}"
+
+
+# ---------------------------------------------------------------------------
+# THE LEGACY COMPOSERS, AND EXACTLY WHICH AXES EACH ONE CARRIES
+# ---------------------------------------------------------------------------
+# This replaces a MEMBERSHIP list. Gate 2 used to accept a site if its write
+# expression mentioned any of a set of blessed helper names -- which asked "is
+# this composer on the list?" and never "does this composer carry the axes the
+# site just declared?". A helper that composes wrongly got a green, and a green
+# from an enforcement check reads as proof. That is worse than no check.
+#
+# MEASURED, NOT ASSUMED. Every entry below was probed by varying one axis off
+# its default at a time and observing whether the composed name changed
+# (2026-09-12). Six of the eight entries on the old list turned out NOT to carry
+# the three axes a site could freely declare beside them:
+#
+#   naming.name / naming.tail             arm, cadence, profile   SOUND
+#   SFX            v34_common.py:300      arm, cadence, profile   SOUND
+#   artefact_tag   audit_step.py:108      arm, cadence, profile   SOUND
+#                                          (arm rides in the tag body: v3 -> mid_v3)
+#   _c             engine_v2_final_mid    cadence, profile        NO ARM
+#   _c             engine_v2_final_n100   cadence, profile        NO ARM
+#   _ci            make_mid_chart         cadence, profile        NO ARM
+#   _ci            make_n100_chart        cadence, profile        NO ARM
+#   _ci            make_combined_universes  cadence               NO ARM, NO PROFILE
+#   selection_suffix  arms/registry.py    arm                     NO CADENCE, NO PROFILE
+#
+# The two _c composers and the two chart _ci composers carrying no arm is not
+# necessarily a defect: v2FINAL_equity.csv holds every arm as COLUMNS, so the arm
+# is legitimately not in that filename. What was a defect is that a site could
+# declare `arm,cadence,profile` beside any of them and pass.
+#
+# Gate 2 now compares DECLARED against CARRIED and fails on anything the composer
+# cannot support. An unknown composer carries nothing and fails, which is the
+# right default: a new helper must be measured before it can certify anything.
+#
+# RETIREMENT. Each entry leaves this table when its sites route through name()
+# instead. The table is a migration ledger, not a permanent fixture -- when it is
+# empty, delete it.
+CARRIES = {
+    "naming.name":       frozenset(AXES),
+    "naming.tail":       frozenset(AXES),
+    "SFX":               frozenset(AXES),
+    "artefact_tag":      frozenset(AXES),
+    "_c(":               frozenset({"cadence", "profile"}),
+    "_ci(":              frozenset({"cadence", "profile"}),
+    "selection_suffix":  frozenset({"arm"}),
+    "nt_reports_segment": frozenset(AXES),   # nt_run.reports_segment()
+    "reports_segment":   frozenset(AXES),
+    "chart_path":        frozenset(AXES),
+    "combined_chart_path": frozenset(AXES),
+}
+
+# `_ci` is three different functions and a textual check cannot tell them apart,
+# so the entry is pinned to the WEAKEST of the three. It read `cadence` alone
+# until 2026-09-12, when make_combined_universes' copy was brought up to the
+# cadence+profile composition its two siblings already had -- so the three now
+# agree and the pin costs nothing. If they ever diverge again this entry drops to
+# the weakest of them: under-crediting a composer costs a comment, over-crediting
+# one hands out an unearned green.
+CARRIES_NOTE = "_ci( is pinned to the weakest of three same-named composers"
+
+
+def carried_axes(expr):
+    """The axes a write expression can actually support, from CARRIES."""
+    got = set()
+    for token, axes in CARRIES.items():
+        if token in expr:
+            got |= set(axes)
+    return got
