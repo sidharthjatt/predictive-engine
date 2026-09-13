@@ -61,6 +61,12 @@ import config_mid
 from engine_core import metrics, precompute
 from test_exposure import backtest_exposure, CASH_YIELD
 import profiles as _prof            # the run's execution-realism profile
+# SURVIVORSHIP REPORTING, BACK-PORTED FROM engine_v2_final_n100.py 2026-09-13.
+# mid has run under the SAME static-membership bias as n100 since it existed --
+# 148 of TODAY'S index members backfilled to 2019 -- and said nothing about it in
+# any output it wrote. n100's engine has reported it all along. The bias was never
+# universe-specific; only the disclosure was.
+import survivorship as sv
 
 REBAL, VOL_WIN = 20, 60
 # REBAL ABOVE IS THE DEFAULT AND STAYS 20. The cadence this RUN selected is read
@@ -107,6 +113,7 @@ def main():
     print("=" * 100)
     print("ENGINE v2 FINAL -- cross-sectional ranking + inverse-vol + breadth scaling")
     print("=" * 100)
+    print(f"  SURVIVORSHIP: {sv.describe_state()}")
 
     # UNLISTED FIX 2026-08-28: this read /tmp/v_mid_expanding.csv directly and
     # raised FileNotFoundError whenever /tmp had been cleared. n100's engine has
@@ -269,6 +276,9 @@ def main():
         "avg_exposure_pct": round(expo*100),
         "sharpe": mfin["Sharpe"], "maxdd_pct": mfin["MaxDD%"], "cagr_pct": mfin["CAGR%"],
         "cash_yield": CASH_YIELD,
+        # STATED IN THE ARTEFACT, not only on the chart, so a reader of
+        # v2FINAL_params.json alone knows which membership basis produced it.
+        "survivorship": sv.describe_state(),
         "vs_buyhold": (f"Sharpe {mfin['Sharpe']} vs {mbh['Sharpe']}, "
                        f"MaxDD {mfin['MaxDD%']}% vs {mbh['MaxDD%']}%, "
                        f"CAGR {mfin['CAGR%']}% vs {mbh['CAGR%']}%"),
@@ -312,7 +322,7 @@ def main():
     ax[0].yaxis.set_major_formatter(PercentFormatter(decimals=0))
     ax[0].set_title("FINAL v2 strategy: ranking + inverse-vol + breadth-scaled exposure\n"
                     "Breadth cuts exposure in weak markets -> ~half the drawdown, "
-                    "higher Sharpe", fontsize=11)
+                    "higher Sharpe\n" + sv.describe_state(), fontsize=10)
     ax[0].legend(loc="upper left", fontsize=9)
     ax[0].grid(alpha=.3)
     for s, c, ls, lab in [(fin_eq, "#d62728", "-", "v2 FINAL"),
