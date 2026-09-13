@@ -59,7 +59,7 @@ Its end date, 2026-06-08, is a **data** boundary, not a market one — it is sim
 the last date present in the deleted universe's files. See
 `RETIRED_UNIVERSES.md` section 6.
 
-## 3. The price data — 172 MB, untracked, and no source is recorded
+## 3. The price data — 172 MB, untracked, three vendors, no licence
 
 ```
 data/raw/MidCap150/clean/          149 files    95 MB   148 constituents + NIFTYMIDCAP150.csv
@@ -67,10 +67,44 @@ data/raw/nifty100_benchmark/       100 files    77 MB    99 constituents + NIFTY
 ```
 
 **A `git clone` does not produce a runnable repository.** These directories are
-excluded from git and must be copied separately. Worse, and recorded in
-`KNOWN_ISSUES.md` as its own entry: **no source, vendor, download date or
-licence is recorded anywhere for this data.** If you lose it you cannot
-re-acquire it from anything in this repository.
+excluded from git and must be copied separately.
+
+**CORRECTED 2026-09-13. This section previously said "no source, vendor, download
+date or licence is recorded anywhere for this data." That was wrong**, and it was
+wrong in the direction that mattered: it told a reader not to look. Every price row
+carries its own provenance, in columns nothing in the pipeline reads:
+
+| column | what it holds |
+|---|---|
+| `source` / `_source` | the vendor: **`dhan`, `kite`, `upstox`** — three of them, mixed within single files |
+| `exchange` / `_exchange` | `NSE` or `BSE` |
+| `product_class` | `EQUITY` |
+| `_window`, `_window_freq`, `_window_start`, `_window_end` | the fetch window, monthly |
+| `_dq_score` | a per-row data-quality score, **0.62 to 1.00** |
+| `_gap_filled` | 0/1, the vendor's own synthetic-row flag |
+| `_merged_at` | full ISO timestamp of the merge |
+
+**THE MERGE VINTAGES DIFFER BY UNIVERSE, and nothing else records this:**
+
+    mid                 _merged_at  2026-08-11
+    n100                _merged_at  2026-07-20
+    N100_Survivorship   _merged_at  2026-07-23 and 2026-07-30
+
+**The two live universes' price data were extracted three weeks apart.** Any
+cross-universe comparison in this project spans that gap, and no result states it.
+
+**WHAT IS GENUINELY MISSING, which is still enough to matter:**
+
+- **No licence.** Nothing records what may be done with this data.
+- **No fetch script.** The only downloader in the project,
+  `results/extract_membership.py`, retrieves NSE press releases for the
+  survivorship work, not prices. There is no way to re-acquire the data from
+  anything the repository contains, so **if you lose it, it is gone.**
+- **No prose describing the columns.** The contract above was recovered by reading
+  the files on 2026-09-13, not from any document.
+
+Read alongside `KNOWN_ISSUES.md`, which now carries the same correction and the
+measured consequences of `_dq_score` and `_gap_filled` going unread.
 
 Column contract: `date, open, high, low, close, adj_close, volume, open_interest`
 at minimum. `adj_close` is the canonical price and is resolved into `close` at the

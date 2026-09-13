@@ -561,12 +561,23 @@ membership workbooks and one survivorship CSV.
 for irrelevance — the project cannot run without them, so they must be restored
 from the backup archive, not from this repository."*
 
-**THERE IS NO FETCH SCRIPT AND NO NAMED SOURCE.** The only downloader in the
-project, `results/extract_membership.py`, retrieves NSE press releases for the
-survivorship work — not prices. No file records where the OHLCV data came from,
-how to obtain it again, or what "the backup archive" is. The vendor columns
-(`source=kite`, `_dq_score`, `_gap_filled`, `_merged_at`) indicate a
-pre-processed private extract rather than a public download.
+**THERE IS NO FETCH SCRIPT.** The only downloader in the project,
+`results/extract_membership.py`, retrieves NSE press releases for the survivorship
+work — not prices. Nothing records how to obtain the OHLCV data again or what "the
+backup archive" is, so if it is lost it cannot be re-acquired from this repository.
+
+**BUT THERE IS A NAMED SOURCE, CORRECTED 2026-09-13.** This paragraph said "no
+named source" and cited the vendor as `source=kite`. **There are three vendors —
+`dhan`, `kite` and `upstox` — mixed within single files**, alongside `exchange`,
+`product_class`, `_window*`, `_dq_score`, `_gap_filled` and `_merged_at`. They
+indicate a pre-processed private extract rather than a public download, which was
+the correct reading; the vendor count and the existence of a source were not.
+
+**The merge vintages differ by universe:** mid `2026-08-11`, n100 `2026-07-20`,
+N100_Survivorship `2026-07-23` and `2026-07-30`. **The two live universes' prices
+were extracted three weeks apart**, and no result in this project states it. See
+`docs/HANDOFF.md` section 3, corrected in the same pass. What is genuinely missing
+is a licence, a fetch script, and any prose describing these columns.
 
 **Consequence.** A clone cannot run, and cannot be made to run from anything the
 repository contains. A copy of the working directory can, because it carries the
@@ -2913,6 +2924,75 @@ pre-registered configuration tested once. `experiments/HELDOUT_PREREG.txt` is th
 pre-registration, written 2026-09-12 before any data after 2026-05-29 was
 examined, and **it has not been run**. The window it reserves is spendable exactly
 once.
+
+---
+
+## The vendor ships a gap flag and a quality score, and nothing reads either
+
+Measured 2026-09-13, read-only. **Neither is a defect on its own. One is inert and
+one is not, and the difference was never checked.**
+
+### `_gap_filled` does not mark what `tradability.py` looks for
+
+The vendor flags rows it synthesised. This project built `tradability.py` to infer
+holes by asking whether a raw row existed. **They are disjoint by construction** —
+a vendor-filled row is PRESENT, so the inference cannot see it; an absent row has
+no flag to carry.
+
+Measured:
+
+| | `_gap_filled=1` rows | inside window | **on the trading calendar** | `tradability.gaps()` interior gaps |
+|---|---:|---:|---:|---:|
+| mid | 840 across 79 symbols | 31 | **0** | 46 gaps, 3 symbols, 1,193 sessions |
+| n100 | 1,253 across 73 symbols | 2 | **0** | 0 |
+
+**EVERY FLAGGED ROW IS OFF-CALENDAR.** They carry `open == close == adj_close` with
+fabricated volume and land on non-trading days — PATANJALI's 24 include Christmas
+2020 and Republic Day 2021. The panel is built over calendar sessions, so the
+backtest never selects one.
+
+**AND NONE OF THE FIVE KNOWN ARTEFACTS IS FLAGGED.** MEDANTA 2022-11-16, 360ONE
+2019-09-19, SBICARD 2020-03-16, PATANJALI 2020-01-27 and YESBANK 2020-03-17 are all
+on-calendar and all `_gap_filled=0`.
+
+**So the flag neither confirms nor contradicts the gap work.** It is not
+independent corroboration, and `tradability.py` is not redundant: it finds a class
+the vendor does not mark. The one thing the flag does establish is that **synthetic
+rows exist in this data and carry fabricated volume** — inert here only because
+they fall off-calendar, and nothing enforces that.
+
+### `_dq_score` is unread, reaches held positions, and is not about small names
+
+Per-row quality score, 0.62–1.00, in-window and on-calendar:
+
+| | below 0.9 | below 0.8 | below 0.7 |
+|---|---:|---:|---:|
+| mid (240,625 rows) | 45,034 — **18.72%** | 9,483 — 3.94% | 5,305 — 2.20% |
+| n100 (171,625 rows) | 44,965 — **26.20%** | 13,516 — 7.88% | 7,369 — 4.29% |
+
+**It reaches the book.** Against the shipping arm's own holdings:
+
+| | held rows < 0.9 | share of held VALUE | held rows < 0.8 | share of value |
+|---|---:|---:|---:|---:|
+| mid | 3,086 — 18.06% | **10.70%** | 221 — 1.29% | 0.83% |
+| n100 | 3,903 — 22.44% | **17.86%** | 826 — 4.75% | 4.45% |
+
+**On n100 roughly one held rupee in six sits on a row the vendor scored below 0.9,
+and nothing consults the score.**
+
+**THE LOW SCORES ARE NOT ON OBSCURE NAMES**, which is what makes this hard to
+dismiss as an illiquidity proxy. Worst offenders below 0.8 are ITC, VEDL, TMPV,
+COALINDIA, SIEMENS, ONGC, BPCL, GAIL on n100; HEROMOTOCO, M&MFIN, OFSS, NMDC,
+HINDPETRO, PETRONET on mid. Several are names with dense corporate-action history,
+which would fit a source-disagreement or reconciliation score, but **the scale is
+undocumented and no file in this repository says what `_dq_score` measures.** The
+counts fall steadily from 2019 to 2026, consistent with older data being harder to
+reconcile across three vendors.
+
+**Not filtered, not fixed, nothing published.** Acting on an undocumented score
+would be worse than ignoring it. What is recorded here is that it exists, that it
+is unread, and how much of the book it touches — so the decision is a decision
+rather than an omission.
 
 ---
 
