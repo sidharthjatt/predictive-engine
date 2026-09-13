@@ -2975,6 +2975,83 @@ once.
 
 ---
 
+## Two readers could mislabel a published curve, by opposite routes, at the same time
+
+Written 2026-09-13. Both are fixed; **neither had been recorded anywhere until now,
+and that is the first thing to say.** `_ci` appears once in this file, in passing,
+inside the chart-withdrawal item. `arm_sources` and "fail-closed" appear zero
+times. The two most consequential reader defects found this week -- the ones that
+would have put the wrong curve on a published chart under the right label -- lived
+only in commit messages and in the code's own docstrings. This entry is not a
+tidying of an existing record; it is the record, arriving late.
+
+### The same outcome, reached two ways
+
+Both routes end at a chart whose curve does not match its title. They fail in
+OPPOSITE directions, through different readers, and **both were live in the same
+code path feeding the same three charts.**
+
+| | route A -- `_ci` | route B -- `arm_sources` |
+|---|---|---|
+| where | inside each chart module | the module the charts read through |
+| composed | cadence only | neither axis on the profile; cadence only on the curve |
+| on a miss | fell through to the canonical file | fell through to the canonical file |
+| under `--profile tradeable` | plotted **research** curves under a **tradeable** title | handed **tradeable** data to a chart labelled **research** |
+
+`make_combined_universes.py`'s `_ci` composed `cadence.suffix()` alone while the
+two same-named helpers in `make_mid_chart.py` and `make_n100_chart.py` composed
+`cadence.suffix() + profiles.suffix()`. Three functions, one name, two behaviours.
+`arm_sources.equity_path_and_series` composed the cadence and never the profile,
+then fell through to the unsuffixed name; `trades_path` tried four candidates and
+ended at an unsuffixed one.
+
+**In every case the substitution was unrecorded.** `equity_path_and_series`
+returned the path it used and all four callers bound it to `_`, so nothing in any
+output said which file had been plotted.
+
+### Why route B survived the audit that found route A
+
+Route A was found by the naming audit of 2026-09-12, which enumerated every
+artefact WRITER and made each declare its axes. Route B is a READER, and **nothing
+measured readers.** The audit's own gate, `naming_declare_check.py`, discovers
+`to_csv`/`savefig`/`write_text` call sites. A reader resolving a filename is
+invisible to it.
+
+That asymmetry is the transferable part: **a naming authority that governs writers
+and not readers closes half the loop.** The composed name being correct does not
+help if the thing reading it accepts a different file when the correct one is
+absent.
+
+### And route B is why the missing-log crash became reachable
+
+`make_mid_chart.py`'s `before_tc` returned `(None, 0.0, 0)` for a missing trade
+log -- fixed 2026-09-13, having been fixed in `make_n100_chart.py` by `baa5daa` a
+day earlier and never back-ported. It could not fire while `arm_sources` was
+substituting: the reader always found *something*, so the log was never missing.
+
+Making `arm_sources` fail-closed **converted a silent wrong answer into a missing
+one**, and `before_tc` then converted the missing one into a fake zero -- printing
+"0 trades, Rs 0" for an arm the engine had reported 852 trades for, and dying
+thirty lines later formatting the `None`.
+
+**Fixing one reader exposed the defect in the next.** That is not an argument
+against fixing it. It is the reason the crash is evidence the fix worked: the
+failure moved from silent and wrong to loud and named, one layer at a time.
+
+### The third link, for completeness
+
+The file `arm_sources` correctly reported missing was itself announced as written.
+Both engines gated the write on the arm selection and left the print outside the
+condition, so `--arm v3` logged `v1 baseline trade log: 852 trades, TC Rs 839,393
+-> daily_trades_v1_mid.csv` and wrote nothing. Fixed 2026-09-13.
+
+**That one was identical in both engines -- not a fix applied to one sibling and
+not the other.** Worth stating against the rest of this record, where the mid/n100
+pairs diverge: **duplication copies defects as faithfully as it hides
+divergence**, and the ten duplicated modules do both at once.
+
+---
+
 ## The vendor ships a gap flag and a quality score, and nothing reads either
 
 Measured 2026-09-13, read-only. **Neither is a defect on its own. One is inert and
