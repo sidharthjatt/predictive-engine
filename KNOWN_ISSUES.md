@@ -3022,6 +3022,77 @@ rather than an omission.
 
 ---
 
+## The parked survivorship measurement was taken on a price basis the engine does not use
+
+Found 2026-09-13, read-only. **This is a precondition on the largest parked item in
+the project, not a footnote.**
+
+Survivorship is the open item that has been deferred since the start, and PIT
+membership is the single largest measured hit to any result in this record: **mid
+v1 from +19.03 to +9.68**. Those slices were computed against
+`data/raw/N100_Survivorship/clean/`. **The shipping engine never reads that tree.**
+`config_n100.py` resolves n100 to `data/raw/nifty100_benchmark/`, and
+`results/test_survivorship.py` is the only consumer of the survivorship tree.
+
+### The two trees are not the same prices
+
+Extracted three days apart -- n100 `2026-07-20`, survivorship `2026-07-23` -- with
+the same three vendors, and they differ on **70 of 99 shared symbols**:
+
+    shared symbols             99
+    overlapping dated rows     481,118
+    rows where adj_close differs   28,568
+    rows where close differs       28,753
+    rows where _dq_score differs   22,379
+
+`close` itself differs, not only an adjustment column.
+
+**IT IS NOT VENDOR DISAGREEMENT, and that was the first hypothesis.** On TRENT,
+**2,642 rows were drawn from the SAME vendor by both trees and the price agrees on
+0.00% of them.** On VEDL, 4,901 same-vendor rows, 19 agree. The difference is
+applied after the vendor data, by the build.
+
+**IT IS CORPORATE-ACTION BACK-ADJUSTMENT, and the repository names the action.**
+`data/reference/nse_circulars_2019_2026.csv` records a **TRENT bonus issue
+effective 2026-06-01 to 2026-06-03** -- after `BT_END_DATE`, before both
+extractions. The n100 tree carries TRENT's traded prices (2026-05-29 close
+**4,224.00**); the survivorship tree carries the bonus-adjusted series
+(**2,872.54**), including at the most recent date.
+
+### Whether it changes a return depends on the symbol, and for some it does
+
+| symbol | daily returns differing | max daily diff | cumulative in-window return |
+|---|---:|---:|---|
+| TRENT | 1,787 of 1,835 | 1.89 pp | +1067.01% both -- **the scalar cancels** |
+| VEDL | 1,804 of 1,835 | 6.54 pp | n100 **+366.47%** vs surv **+369.41%** -- **0.63% apart** |
+
+A clean scalar cancels out of `pct_change`, which is why TRENT's enormous level
+difference leaves the compounded return identical. **VEDL's does not cancel**, so at
+least some symbols carry genuinely different returns between the two trees.
+
+### What this means for the parked work
+
+**THE PIT RESULT CANNOT BE CARRIED INTO A LIVE CONCLUSION UNTIL THE BASES ARE
+RECONCILED.** +19.03 to +9.68 was measured on a tree whose returns differ from the
+engine's for an unknown number of symbols. The measurement is not wrong; it is
+**not on the same footing as the figure it would be compared against**, and nothing
+in the survivorship record says so.
+
+This does not re-open the survivorship analysis. `SURVIVORSHIP_README.md` records
+that work as deferred with a known next step -- acquiring the 186 dropped names'
+prices -- and that stands. **It adds a precondition to the step after it:** when
+that data lands, the reconciliation question comes first, because a PIT slice built
+on one basis and compared against a headline built on another measures the basis
+difference as well as the bias.
+
+**Not reconciled here, and no attempt made.** Determining which tree is right for a
+backtest ending 2026-05-29 is a data-handling decision -- traded prices as they
+stood, or a series back-adjusted for an action that had not yet happened -- and it
+belongs with the same unmade decision this file already records for the mid
+benchmark.
+
+---
+
 ## Basename grep is not a reference check
 
 Recorded 2026-09-13, after it produced four wrong answers in one week.
@@ -3239,6 +3310,55 @@ BEFORE `pct_change`, which dropped the pre-window row forming each hole and made
 three of the four artefacts disappear. **Only `config.read_price_csv` gives the
 answer the engine sees.** Any figure about this data computed with an ad-hoc parse
 is untrustworthy, which is exactly how the numbers being corrected here were made.
+
+### The two universes' prices are three weeks apart -- tested, benign by proxy
+
+`_merged_at` records mid extracted **2026-08-11** and n100 **2026-07-20**. The
+pre-registration's statistic pools both universes, so if a later extraction revised
+history the pooled test would mix two vintages. Tested 2026-09-13, read-only.
+
+**THE DIRECT TEST IS IMPOSSIBLE: mid and n100 share ZERO symbols.** MidCap150 and
+the Nifty 100 are disjoint by index construction. The proxy is
+`N100_Survivorship/clean` (extracted 2026-07-23/30), which overlaps both:
+
+| comparison | shared symbols | rows compared | row-count diffs | adj_close diffs |
+|---|---:|---:|---:|---:|
+| mid (Aug 11) vs surv (Jul 23/30) -- **3 weeks apart** | 54 | **257,202** | 0 | **0** |
+
+Not one `adj_close`, `close`, `_dq_score` or row count differs across a quarter of
+a million rows over a longer interval than the gap in question.
+
+**VERDICT: tested and found benign, by proxy. No caveat is added to
+`experiments/HELDOUT_PREREG.txt`, and none is needed.**
+
+**Three limits on that clearance, stated:**
+
+1. **It rests on a proxy.** mid and n100 share no symbols, so the gap between those
+   two trees specifically can never be tested directly. What was tested is the
+   MECHANISM -- does re-extraction revise history -- over a longer interval.
+2. **It tests re-extraction, not build policy.** Two trees can differ enormously
+   with no vintage gap at all: n100 (Jul 20) against survivorship (Jul 23/30), three
+   days apart, differs on 70 of 99 symbols. mid-against-n100 has never been checked
+   for a policy difference and cannot be, for the same reason.
+3. **The prereg's window closes 2026-05-29**, before both extractions, so this
+   concerns revision of history only, never coverage. That is what makes the test
+   clean.
+
+**AND A FOURTH LIMIT, FOUND AFTER THE CLEARANCE WAS FIRST GIVEN AND MORE IMPORTANT
+THAN THE OTHER THREE.** "Re-extraction does not revise history" is TOO STRONG as
+stated. It does not revise history **absent a corporate action**. When one lands
+between two extractions, the vendor back-adjusts the entire series and every
+historical row changes -- which is exactly what separates the n100 and survivorship
+TRENT series, and `data/reference/nse_circulars_2019_2026.csv` names the cause:
+a **TRENT bonus issue, 2026-06-01 to 2026-06-03**, after `BT_END_DATE` and before
+both extractions.
+
+**The clearance survives, for a narrower reason than the one first given.** It is
+not that extraction date is inert. It is that **mid and n100 share no symbols, so
+each universe's prices are internally consistent**, and the pooled statistic
+combines two internally-consistent universes rather than two versions of one.
+
+---
 
 ### The pre-registration is unaffected and is usable as-is
 
