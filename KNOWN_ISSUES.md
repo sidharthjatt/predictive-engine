@@ -3153,8 +3153,48 @@ cells** -- which is enough to change a split decision, reorder near-tied names a
 the `TOP_N = 8` boundary, and move the headline CAGR by about two thirds of a
 point.
 
-So a rebuilt panel is a DIFFERENT panel. Every number computed from it is a new
-measurement, not a reproduction of the old one.
+**MEASURED 2026-09-13, AND THE PARAGRAPH ABOVE IS TOO STRONG AS IT STANDS.**
+A full rebuild was run at commit `8dd4427` -- both panels re-scored from raw, 34.0
+minutes -- and its output compared against `forensic_snapshot_20260911T0100`:
+
+| series | rows | max abs difference |
+|---|---:|---|
+| mid `v34_equity` | 1,836 | **0 -- exact** |
+| n100 `v34_equity` | 1,836 | **0 -- exact** |
+| n100 `v2FINAL_equity` | 1,836 | **0 -- exact** |
+| mid `v2FINAL_equity` | 1,836 | 3.85e+06 |
+
+**Three of four came back bit-identical, and the fourth is not a rebuild
+difference at all.** The snapshot's mid `v2FINAL_*` pair is tradeable output
+written into canonical filenames -- see *"The universe where the cap binds..."* --
+confirmed by mtime and value: `v34_comparison_tradeable.csv` and
+`v2FINAL_comparison.csv` both carry mtime 2026-09-10 17:14 and identical figures
+(45.90 / 27.59, Trades 860 / 1019, TC 692,730 / 228,963). The rebuild reproduces
+the research values the correctly-named file carries.
+
+**WHAT THIS DOES AND DOES NOT ESTABLISH.** It does NOT establish that rebuilds are
+deterministic. **One rebuild, one machine, one venv, four series is not that
+claim**, and this file has been burned before by reading a single agreement as a
+general property. What it establishes is narrower and still worth having: on this
+occasion the rebuilt panel reproduced every uncontaminated series exactly, so
+"a rebuilt panel is a DIFFERENT panel" is not something to assert without
+measuring it again.
+
+**AND THE ORIGINAL ULP OBSERVATION'S SOURCE IS NOW UNKNOWN.** The 4.441e-16 figure
+and the "two thirds of a point" consequence are recorded above without a script
+behind them, and the rebuild that would have shown the effect did not show it.
+**That does not make the original wrong.** It was measured under an engine
+configuration that has since changed -- `adj_close` became canonical, the
+tradability guard landed, the profile axis arrived -- and the in-memory-versus-CSV
+divergence it describes is a real mechanism in code that still exists. What cannot
+be said is which of the two observations describes the engine as it ships. Neither
+has been re-derived against the other.
+
+**PRACTICAL READING, UNTIL SOMEONE MEASURES IT PROPERLY.** Do not tell anyone the
+system cannot reproduce its own numbers; that is not supported. Do not tell them it
+can, either. A rebuild reproduced three of three uncontaminated series once, and
+the honest statement is that reproducibility across rebuilds has been observed
+once and never systematically tested.
 
 **THE TWO THINGS THIS IS ABOUT TO BITE.** Both are currently on hold, and both
 carry this risk the moment they are not:
