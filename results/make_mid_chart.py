@@ -61,9 +61,39 @@ def sharpe(s):
     return r.mean()/r.std()*np.sqrt(252) if r.std() > 0 else 0.0
 def before_tc(eq, log):
     """CAGR with the transaction-cost drag removed from the realised path:
-    r_gross = r_net + tc/equity(t-1), compounded. Not a zero-cost re-run."""
+    r_gross = r_net + tc/equity(t-1), compounded. Not a zero-cost re-run.
+
+    A MISSING LOG IS FATAL HERE, AND IT USED TO BE A ZERO. Back-ported from
+    make_n100_chart.py on 2026-09-13, where `baa5daa` fixed it on 2026-09-12.
+    **mid has been substituting zeros for the intervening day, and for the whole
+    life of the file before that.**
+
+    It returned `(None, 0.0, 0)` when the file was absent -- a tuple
+    indistinguishable from a real result of zero trades at zero cost. Two things
+    follow, and the worse one is not the crash:
+
+      - the step prints "trades 0, TC Rs 0" for an arm the engine reported
+        hundreds of trades for, and
+      - it dies about thirty lines later formatting the None into a chart
+        subtitle, with `TypeError: unsupported format string passed to
+        NoneType.__format__` and no mention of the file.
+
+    THE CRASH IS THE LUCKY OUTCOME. The unlucky one is a chart rendering a curve
+    labelled "0 trades, Rs 0" that a reader takes for a measurement. That is the
+    same defect that surfaced as the STEP 10h crash on n100 -- it crashed there
+    only because n100 reached the formatting line first.
+
+    The caller's job is not to call this for an arm the run did not select. That
+    is what ARMS_ON is for.
+    """
     if not Path(log).exists():
-        return None, 0.0, 0
+        raise FileNotFoundError(
+            f"{log} is missing, so the before-TC figure for this series cannot be "
+            f"computed.\n"
+            f"  This is NOT the same as zero trades at zero cost, which is what "
+            f"this function used to return.\n"
+            f"  If the arm was not selected, do not ask for its curve -- build the "
+            f"series from ARMS_ON.")
     tr = pd.read_csv(log, parse_dates=["date"])
     tc = tr.groupby("date")["tc"].sum().reindex(eq.index).fillna(0.0)
     g = (1 + eq.pct_change().fillna(0.0) + (tc/eq.shift(1)).fillna(0.0)).cumprod()*eq.iloc[0]
