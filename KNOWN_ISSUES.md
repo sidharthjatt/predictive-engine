@@ -3296,19 +3296,58 @@ choice was made. **It is defined to half a point.** So mid's return edge is
 **+0.89 and nothing else**, and the +5.0 alternative never existed. The
 correction makes the return case WEAKER, not stronger. Nothing here rescues it.
 
-### The corrected figures
+### CORRECTED AGAIN 2026-09-13. The 24.23 figure was never wrong; this entry was.
 
-| | this file said | measured 2026-09-13 |
-|---|---:|---:|
-| mid b&h, as computed | 28.34% | **28.34%** (reproduces exactly) |
-| mid b&h, artefact neutralised | 24.23% | **27.84%** |
-| range attributable to the artefact | 4.11 pts | **0.50 pts** |
-| mid v2 edge under that choice | +0.89 or **+5.0** | +0.89 or **+1.39** |
+**24.23% IS CORRECT FOR WHAT PRODUCES IT.** The first version of this entry said it
+was wrong and should read 27.84%. That was a third wrong answer about the same
+figure, and the reason is recorded below because the reason is the useful part.
 
-`KNOWN_ISSUES.md:222-226` carries the old figures and the sentence *"the same
-edge is +0.89 or +5.0 depending on a data-handling choice nobody has made."*
-Against current data that reads **+0.89 or +1.39**, and the denominator IS defined
-to better than half a point.
+**THE DEFECT IS A CONFLATION IN CODE, NOT A SLIP IN A DOCUMENT.**
+`results/make_mid_chart.py:253-265` prints, in adjoining sentences:
+
+    "The PRICE panel still contains {len(_ext)} single-day moves above 55% ..."
+        ... four of them listed ...
+    "buy&hold reads {..}% as computed, but {_bh_ex:.2f}% with the six largest
+     days neutralised"
+
+`_ext` is the set of **>55% single-symbol artefact moves**. `_bh_ex` neutralises
+`_top`, the **six largest equal-weight BENCHMARK days**. They are different sets
+and their overlap is **ZERO**:
+
+| set | days | buy & hold after neutralising |
+|---|---|---:|
+| `_ext` -- the artefact moves | 2019-09-19, 2020-01-27, 2020-03-06, 2020-03-16, 2020-03-17, 2022-11-16 | **28.25%** |
+| `_top` -- largest benchmark days | 2019-09-20, 2020-03-20, 2020-03-26, 2020-04-07, 2025-05-12, 2026-04-08 | **24.23%** |
+
+They *should* have zero overlap: one symbol at +548.8% carries 1/148 of an
+equal-weight index and moves it about 3.7%, while the largest benchmark days are
+broad COVID-rebound moves. **The artefacts were never the largest days.** A reader
+takes the second sentence as the consequence of the first, and that is printed on a
+published chart, not buried in a comment.
+
+**THE CHAIN, RECORDED AS IT HAPPENED:** chart prose -> reader -> this file. The
+conflation was read off the chart output, transcribed into `KNOWN_ISSUES.md:222-226`
+as though the six artefact days produced 24.23, and then "corrected" here in the
+wrong direction. The prose is fixed in the chart as a separate commit.
+
+### The figures, corrected
+
+| | value | what it measures |
+|---|---:|---|
+| mid b&h, as computed | **28.36%** | the benchmark |
+| neutralising the six ARTEFACT days | **28.25%** | **0.11 pts** -- the artefact sensitivity |
+| neutralising the six largest BENCHMARK days | **24.23%** | 4.13 pts -- says nothing about artefacts |
+
+**THE DIRECTION, STATED SO NO ONE READS THIS AS A RESCUE.** The artefact
+sensitivity is **0.11 points, not the 4.11 this file first claimed and not the 0.50
+the first correction claimed.** The denominator is therefore TIGHTER than either
+version said, and mid's edge is **+0.89 with less room around it, not more**. Both
+sets of numbers were wrong and the conclusion moved FURTHER AGAINST the strategy
+each time. Nothing here rescues anything.
+
+`KNOWN_ISSUES.md:222-226`'s *"the same edge is +0.89 or +5.0 depending on a
+data-handling choice nobody has made"* is wrong on the artefact question: the
+artefact choice is worth 0.11 of a point. The +5.0 alternative never existed.
 
 ### What the six moves actually are
 
@@ -3379,15 +3418,42 @@ The number the entire mid edge is measured against is protected by a window
 boundary rather than by the guard that exists for this, and the difference has
 never been stated. Not fixed; recorded.
 
-### How the wrong figures got in
+### How the wrong figures got in -- and a provenance claim WITHDRAWN
 
-`f1d9bc8` (2026-09-12 01:02) introduced both the six-moves list and the 24.23
-figure, **eighteen minutes before `cf22431` wrote the pre-registration**. No script
-produces either: nothing in the repository mentions MEDANTA or 548.8 outside prose.
-They are hand-written numbers in a document, and **this is the third instance of
-that class** -- after the +24,772.7% PATANJALI figure that `tradability.py`'s own
-docstring records as the consequence of a feature-side mask deleting prices, and
-the stale README headline figures that went uncorrected through an engine change.
+**WITHDRAWN: "no script produces either."** This entry claimed the six-moves list
+and the 24.23 figure were hand-written numbers in prose, and counted this as a
+third instance of that class. **That is false.** `results/make_mid_chart.py:241-266`
+computes BOTH, live, from the score panel on every run. The claim came from
+grepping the `.py` files for `MEDANTA` and `548.8` and finding nothing -- **a null
+grep for LITERALS read as absence of a PRODUCER.** The chart derives them from data
+and holds no literal to match.
+
+**The general point survives only where it still holds:** the +24,772.7% PATANJALI
+figure that `tradability.py`'s docstring records, and the stale README headlines
+that went uncorrected through an engine change. **This instance was wrongly added
+to that list and is removed from it.**
+
+`f1d9bc8` (2026-09-12 01:02) did introduce the figures into prose eighteen minutes
+before `cf22431` wrote the pre-registration -- but it transcribed them from the
+chart's output rather than inventing them.
+
+**AND THE COUNT IS SIX, NOT FIVE.** An earlier version of this entry said five. The
+sixth is **YESBANK −56.1% on 2020-03-06**, and it was missed because the scan
+filtered `r > 0.55` while the chart filters `abs(r) > 0.55`. **A one-sided filter
+cannot see a negative move.**
+
+### The pattern behind all three wrong answers
+
+Every one came from the same habit: **computing something ADJACENT to a claim and
+treating agreement or disagreement as decisive, without first reading the code that
+produced the claim.** The raw-file scan, the window-filtered scan, and the
+artefact-day neutralisation were each a reasonable measurement of something the
+chart was not measuring. Reading `make_mid_chart.py:241-266` first would have
+settled it in one step and did, eventually.
+
+`config.read_price_csv` versus an ad-hoc parse was the same lesson on the data side.
+**The producing code is the authority, and a measurement that agrees with a figure
+is not evidence that it measured the same thing.**
 
 **THREE SCAN ERRORS PRECEDED THIS ENTRY, all mine, and the lesson is the same one.**
 A first sweep using pandas `parse_dates` silently coerced ~190,000 rows per universe
