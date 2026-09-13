@@ -236,10 +236,26 @@ def main():
     # check_inputs. That edge now carries the arm it belongs to and is skipped
     # when v1 is not selected -- the requirement became conditional while the
     # literal path stayed put, so the static inventory did not move.
+    # THE PRINT IS INSIDE THE CONDITION NOW. It used to sit outside it and name
+    # the file unconditionally, so `--arm v3` logged
+    #     "v1 baseline trade log: 852 trades, TC Rs 839,393 -> daily_trades_v1_mid.csv"
+    # and wrote no such file. Two concrete numbers and a filename, all three read
+    # as a completed write, for an arm the run did not select. That is an
+    # assertion of completion the step never verified, and the file it names is
+    # the one make_mid_chart then fails on.
+    #
+    # THE COUNTS ARE STILL REPORTED when the write is skipped, because they are a
+    # real measurement of the baseline arm -- only the claim about the file is
+    # conditional. And the printed name is the COMPOSED one, so a non-default
+    # cadence or profile logs the filename it actually wrote rather than the
+    # canonical spelling.
     if "v1" in set(arm_reg.selected_names()):
         bt.to_csv(_c(M / "daily_trades_v1_mid.csv"), index=False)
-    print(f"   v1 baseline trade log: {len(bt)} trades, TC Rs {bt['tc'].sum():,.0f} "
-          f"-> daily_trades_v1_mid.csv")
+        print(f"   v1 baseline trade log: {len(bt)} trades, TC Rs {bt['tc'].sum():,.0f} "
+              f"-> {_c(M / 'daily_trades_v1_mid.csv').name}")
+    else:
+        print(f"   v1 baseline: {len(bt)} trades, TC Rs {bt['tc'].sum():,.0f} "
+              f"-- trade log NOT WRITTEN, v1 is not in this run's arm selection")
 
     (_c(M / "v2FINAL_params.json")).write_text(json.dumps({
         "model": "cross-sectional LightGBM, 17 feats, 10-seed, monthly, 32d purge",
