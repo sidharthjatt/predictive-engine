@@ -168,6 +168,34 @@ def main():
     print(" NIFTY 100 UNIVERSE -- every number printed before anything is plotted")
     print("=" * 100)
     print(f"\n  SURVIVORSHIP: {sv.describe_state()}")
+    # THE LATE-LISTING SCAN, EXTENDED FROM make_mid_chart.py ON 2026-09-13. It
+    # existed only on mid, which made the two charts disagree about what they
+    # disclosed rather than about what they measured. Names with no data at the
+    # window start did not trade for part of it, so the equal-weight buy&hold is
+    # an average over a membership that was not all present -- and that is a
+    # survivorship-adjacent fact the n100 chart was silent about.
+    #
+    # THIS IS DISCLOSURE, NOT A FILTER. Nothing is excluded on the strength of it
+    # and no number below changes; the scan only counts and names.
+    _late, _alive = [], 0
+    for _sym in config_n100.SYMBOLS_N100:
+        _d = config.read_price_csv(
+            config_n100.RAW_DATA_DIR_N100 / f"{_sym}.csv")[["date", "close"]].dropna()
+        if _d["date"].min() > CUT:
+            _late.append(_sym)
+        else:
+            _alive += 1
+    _n_all, _n_late = len(config_n100.SYMBOLS_N100), len(_late)
+    print(f"\n  LATE LISTERS -- read the buy&hold line with this in mind")
+    print(f"    {_n_late} of {_n_all} constituents have NO data at {CUT.date()} "
+          f"(listed later)" + (f": {', '.join(_late[:8])}"
+                               f"{' ...' if _n_late > 8 else ''}" if _n_late else ""))
+    print(f"    {_alive} of {_n_all} existed on {CUT.date()}.")
+    print( "    More important than the late listers: names that FELL OUT of the index")
+    print( "    or delisted between 2019 and 2026 are absent from this file entirely.")
+    print( "    The equal-weight buy&hold line is therefore an upper bound on a")
+    print( "    portfolio nobody could have held. The cap-weighted NIFTY100 line does")
+    print( "    not have that problem, which is why it is plotted alongside.")
     print(f"\n  universe          : {len(config_n100.SYMBOLS_N100)} constituents "
           f"({config_n100.INDEX_NAME_N100} excluded BY NAME, not by glob)")
     print(f"  panel symbols     : {params.get('n_symbols', 'see engine output')}")
