@@ -24,8 +24,8 @@ its drawdown advantage does not survive the control that holds exposure fixed.
 
 ## 1. The code
 
-Every `.py` file — 82 of them, all tracked. Ship the directory layout exactly as
-it is:
+Every `.py` file — **84** of them, all tracked. Ship the directory layout exactly
+as it is:
 
 ```
 run.py  run_all.py  paths.py  config.py  config_mid.py  config_n100.py
@@ -42,6 +42,58 @@ diagnostics/ findings files (not executed by the pipeline)
 `arms/` are plain directories that work because every entry point manipulates
 `sys.path`. Flattening the layout, or turning them into packages, breaks imports
 in ways that will not be obvious.
+
+### NAVIGATING `results/` — 21 of its 47 modules are load-bearing, 26 are not
+
+**THE DIRECTORY DOES NOT REFLECT THIS, AND THAT IS THE SINGLE MOST MISLEADING
+THING ABOUT THIS REPOSITORY.** Pipeline steps and one-off measurement probes sit
+side by side in one directory, so everything looks load-bearing and nothing
+indicates which files a run actually touches. Measured 2026-09-13 by resolving
+`PIPELINE_ORDER` and taking the transitive import closure.
+
+**LOAD-BEARING (21).** `PIPELINE_ORDER` invokes these, or something it invokes
+imports them. Changing one changes a run.
+
+    steps    build_scores_mid      build_scores_n100      build_scores_step
+             engine_v2_final_mid   engine_v2_final_n100
+             make_mid_audit        make_n100_audit        audit_step
+             make_mid_chart        make_n100_chart        make_combined_universes
+             make_daily_log        save_caches_step
+    libs     engine_core  test_exposure  v34_common  features_v2
+             arm_sources  survivorship   tradability  qbeast_in_charges
+
+**MEASUREMENT TOOLS AND PROBES (26).** **The pipeline never runs any of these.**
+Every one is cited as evidence in a tracked document, so none is dead — but none
+executes unless a person runs it by hand.
+
+    attribution_v2          audit_leakage           calendar_coverage_probe
+    check_a_close_values    check_b_exec_timing     diagnose_alpha
+    drawdown_exit_measure   extract_membership      leakage_check1_causality
+    leakage_check2_purge    leakage_check4_corpactions
+    purge_fix_measure       purge_mode_probe        rebal_cadence_sweep
+    repair_membership       save_ewma_comparison    seed_noise_measure
+    seed_noise_report       shuffle_test            stability_test
+    tax_util                test_feature_pruning    test_survivorship
+    validate_breadth_live   validate_engine         validate_topn
+
+**THE DEPENDENCY RUNS ONE WAY, and that is what makes the distinction safe to
+rely on: NOTHING in the load-bearing set imports anything from the tool set.**
+Seventeen of the twenty-six import back the other way -- `engine_core` in ten of
+them, `test_exposure` in eight -- which is why they all carry their own
+`sys.path.insert(ROOT / "results")`.
+
+**A MOVE IS PLANNED AND HAS NOT HAPPENED.** The tools are to be relocated out of
+`results/`, leaving only what `PIPELINE_ORDER` reaches. It is sequenced AFTER the
+per-universe module collapse, because steps 2-8 merge or rename several of the
+load-bearing files and moving first would stale the same document citations
+twice. The engineering is one tuple -- `run_all.STEP_DIRS` searches by filename
+across a list of directories and would gain the new one; `check_pipeline_order`
+and `naming_declare_check` resolve by that same list or by whole-tree walk, and
+nothing anywhere scans `results/` to find modules. The real cost is **58
+path-form citations across 23 of the 26**, in `KNOWN_ISSUES.md`,
+`experiments/`, `diagnostics/` and `requirements.txt`.
+
+**Until it happens, use the two lists above rather than the directory.**
 
 ## 2. The trading calendar — ships, and cannot be rebuilt
 
