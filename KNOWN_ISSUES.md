@@ -2916,6 +2916,109 @@ once.
 
 ---
 
+## Basename grep is not a reference check
+
+Recorded 2026-09-13, after it produced four wrong answers in one week.
+
+**`grep -F "<basename>"` does not answer "is this file referenced."** It misses
+every citation written as a pattern, a stem, or a glob, and this repository cites
+things that way routinely.
+
+**The instance that caught it.** A cleanup survey ran literal-basename grep over
+every tracked file and reported `nt_verify_after_bartick.txt`,
+`nt_verify_after_finalday.txt`, `nt_verify_post_finalday.txt`,
+`nt_verify_post_runall.txt` and the three `validate_engine_*.txt` as referenced by
+nothing. **All seven are cited.** `nautilus/NAUTILUS_STATUS.md` names them as
+`diagnostics/nt_verify_*.txt` and `KNOWN_ISSUES.md` cites `validate_engine_` by
+stem. Neither spelling contains a full basename, so neither could match.
+
+**FOUR INSTANCES THIS WEEK, three of them the same exclusion rather than the same
+pattern.** A scan that skipped `forensic_snapshot_20260911T0100/` concluded in turn
+that no `v34_comparison.csv` survives on disk, that the v1 drawdown share could not
+be sourced, and that n100 had never been run tradeable -- the third reached a
+committed record and had to be corrected in place. The fourth is this one.
+
+**What a reference check must cover.** Every tracked file, plus `diagnostics/`,
+`docs/`, `experiments/`, every tracked `.md`, and the snapshot -- and it must match
+STEMS and GLOBS, not just full basenames. A directory excluded because it is noisy
+for one question is not excluded for the next one. **The exclusion list belongs to
+the question, not to the tool.**
+
+---
+
+## The score panels are gone from every location, and that prices every rebuild
+
+Found 2026-09-13 by a cleanup survey. **Nothing to fix; this is what it now costs
+to run anything.**
+
+There is no score panel anywhere:
+
+    mid   score_cache  MISSING  results_mid/metrics/v_mid_expanding_cache.csv
+    mid   score_tmp    MISSING  /tmp/v_mid_expanding.csv
+    n100  score_cache  MISSING  results_n100/metrics/v_n100_expanding_cache.csv
+    n100  score_tmp    MISSING  /tmp/v_n100_expanding.csv
+
+**Not in the live tree, not in `/tmp`, and NOT IN THE SNAPSHOT** -- a `find` for
+`*cache*.csv` and `*expanding*` across `forensic_snapshot_20260911T0100/` returns
+nothing. The snapshot preserved outputs, not inputs.
+
+**WHAT EVERY REBUILD NOW COSTS.** A re-score, before any downstream step:
+**about 34 minutes** for both universes -- 18.5 mid, 15.7 n100, the figures
+`docs/HANDOFF.md` measured on 2026-09-12. Every step that resolves its panel
+through `config.require_cache` inherits that, including `rebal_cadence_sweep.py`,
+both engines and every chart step.
+
+**AND REGENERABLE IS NOT REPRODUCIBLE.** This file already records why, under
+*"The headline is not reproducible from the artefacts on disk to better than about
+a point"*: the engines score the IN-MEMORY panel and write the CSV as a by-product,
+and the two differ by **one unit in the last place -- 4.441e-16 across 2,638,259
+cells** -- which is enough to change a split decision, reorder near-tied names at
+the `TOP_N = 8` boundary, and move the headline CAGR by about two thirds of a
+point.
+
+So a rebuilt panel is a DIFFERENT panel. Every number computed from it is a new
+measurement, not a reproduction of the old one.
+
+**THE TWO THINGS THIS IS ABOUT TO BITE.** Both are currently on hold, and both
+carry this risk the moment they are not:
+
+- **the `nt_verify` re-run** for mid and n100. It is unblocked -- site 12 no longer
+  poisons the destination -- but it will certify against a freshly scored panel,
+  not the one the 2026-08-27 figures were taken on, so a difference is expected
+  and is not evidence of a port defect.
+- **republishing the withdrawn combined chart.** Its producer can now say what it
+  reads, but the rows it will read come from a rebuilt panel, so the figure will
+  not be byte-identical to the withdrawn one and the numbers on it may differ in
+  the second decimal.
+
+Neither is a reason not to proceed. Both are reasons not to read a difference as a
+regression.
+
+---
+
+## The two constituent symlink farms ship populated, with absolute paths
+
+Recorded 2026-09-13. **Not changed.**
+
+`data/raw/N100_constituents/` holds **99 symlinks**, every one an absolute path of
+the form
+`/Users/<user>/Downloads/algo_trading_project/data/raw/nifty100_benchmark/<SYM>.csv`,
+dated 2026-08-20. `data/raw/MidCap150/constituents/` is the same construction. Both
+report 0 bytes because symlinks carry no content, which is why a size-based survey
+walks past them.
+
+`docs/HANDOFF.md` states the two farms **"must ship empty rather than carrying
+stale absolute links."** They are not empty. On any machine whose user is not this
+one, all 99 links dangle, and `config_n100.py` resolves the universe's tradable
+names through that directory -- so the failure lands at universe resolution, not at
+a clear "file not found" on a price file.
+
+Left as found. Emptying them is a deliberate act and it changes what a copy of the
+working directory can do, which is the distinction this file already draws between
+a clone and a zip.
+
+---
+
 ## The mid benchmark is better defined than this file said, and the edge is worse
 
 Measured 2026-09-13, read-only, against current data. **This CLOSES the last
