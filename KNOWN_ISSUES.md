@@ -2878,6 +2878,54 @@ A further consequence, since the live tree no longer carries n100's tradeable
 artefacts: **that run is not reproducible from the live tree.** It survives only
 in the snapshot, which is untracked working-tree state, not a git object.
 
+**AND THE SNAPSHOT'S CANONICAL mid FILES ARE THEMSELVES TRADEABLE OUTPUT. READ
+THIS BEFORE READING ANY mid FILE OUT OF THE SNAPSHOT.** Established 2026-09-13 by
+a full rebuild. The 11 tradeable artefacts counted above are the ones that SAY
+tradeable in their names. They are not the problem. **The problem is the ones that
+do not.**
+
+At **2026-09-10 17:14** a `tradeable` run wrote, in the same minute:
+
+| file | name says | contents are |
+|---|---|---|
+| `v34_comparison_tradeable.csv` | tradeable | tradeable -- correct |
+| **`v2FINAL_comparison.csv`** | **research (canonical)** | **tradeable -- WRONG** |
+| **`v2FINAL_equity.csv`** | **research (canonical)** | **tradeable -- WRONG** |
+
+`SFX` already composed the profile; `_c` did not until `f6b970b`, 32 hours later.
+So the same run named one output correctly and one incorrectly.
+
+**The two are byte-identical in value**, which is what makes the mislabelled pair
+undetectable by inspection:
+
+    snapshot v2FINAL_comparison.csv  (17:14)   v1 45.90   v2 27.59   Trades 860 / 1019   TC 692,730 / 228,963
+    snapshot v34_comparison_tradeable.csv      v1 45.90   v2 27.59   Trades 860 / 1019   TC 692,730 / 228,963
+    snapshot v34_comparison.csv      (16:46)   v1 50.12   v2 29.23   Trades 852 / 1019   TC 839,393 / 249,150
+    REBUILD at 8dd4427, research               v1 50.12   v2 29.23
+
+**THE ONLY WAYS TO TELL THEM APART ARE MTIME AND THE SUFFIXED TWIN.** Nothing
+inside `v2FINAL_comparison.csv` records the profile -- no column, no header, no
+companion JSON field. A reader opening it sees a canonically-named file with
+plausible numbers. **This project has done exactly that twice in one week**, once
+concluding a rebuild was unstable and once that a figure could not be sourced.
+
+**`RETIRED_UNIVERSES.md` IS NOT AFFECTED, and that is determinable rather than
+assumed.** Its 58 table transcribes `results/metrics/v2FINAL_comparison.csv`, which
+carries the same 17:14 mtime -- so it needed checking. But `17.01` entered the
+tracked record on **2026-08-27 16:31**, the initial commit, and `24.62` on
+**2026-08-30**, while the tradeable profile did not exist until **2026-09-10
+23:31**. Both figures predate the profile by two weeks. Either the 17:14 run was
+research for the 58, or the cap never bound there -- and in the second case the
+output is identical to research anyway. Consistent with this, the snapshot holds
+**zero** tradeable files for the 58 or the 74, whose frozen engines only ever write
+old-style names.
+
+**No mid figure quoted anywhere in this repository has been traced to the
+mislabelled pair.** The drawdown decomposition that reads the snapshot is built
+from `MaxDD`, and `MaxDD` is IDENTICAL across both files for every cell on both
+universes -- the two disagree on CAGR only, and only on mid. That is luck, not
+design.
+
 ### 4. The Nautilus certification was taken on a different window and a different price basis
 
 `nt_verify` reports **92 of 92 rebalances on all four arms**, and the per-universe
