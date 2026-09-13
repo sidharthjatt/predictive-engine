@@ -2957,9 +2957,35 @@ on-calendar and all `_gap_filled=0`.
 
 **So the flag neither confirms nor contradicts the gap work.** It is not
 independent corroboration, and `tradability.py` is not redundant: it finds a class
-the vendor does not mark. The one thing the flag does establish is that **synthetic
-rows exist in this data and carry fabricated volume** — inert here only because
-they fall off-calendar, and nothing enforces that.
+the vendor does not mark.
+
+### The synthetic rows themselves, and what is actually protecting us from them
+
+**2,093 fabricated rows sit in the price data**, and the flag is how we know:
+
+| | `_gap_filled=1` rows | symbols | inside the backtest window | on the trading calendar |
+|---|---:|---:|---:|---:|
+| mid | **840** | 79 of 148 | 31 | **0** |
+| n100 | **1,253** | 73 of 99 | 2 | **0** |
+
+Each carries `open == close == adj_close` — a flat bar — with **non-zero volume**
+that no one traded. PATANJALI's 24 include Christmas Day 2020 and Republic Day
+2021.
+
+**THE PROTECTION IS THE CALENDAR FILTER, NOT A CHECK.** Nothing in this pipeline
+tests `_gap_filled`, rejects a flat bar, or questions a volume figure. The panel
+happens to be built over NSE trading sessions, and these rows happen to fall
+outside them, so they are never selected. **Change the calendar, widen a window, or
+take a vendor extract whose synthetic rows land on trading days, and every one of
+them becomes a tradeable bar with fabricated volume** — and `median_volume()` feeds
+the `tradeable` profile's participation cap directly from that column.
+
+**THIS IS THE SAME SHAPE AS THE BENCHMARK PROBLEM RECORDED ELSEWHERE IN THIS FILE.**
+The buy & hold is protected from three of the five price-hole artefacts by a window
+boundary rather than by the tradability guard; the synthetic rows are protected by a
+calendar filter rather than by any check on the flag that marks them. In both cases
+the outcome is correct and the mechanism is incidental. **An incidental mechanism
+is not a control, and it does not survive a change nobody connected to it.**
 
 ### `_dq_score` is unread, reaches held positions, and is not about small names
 
