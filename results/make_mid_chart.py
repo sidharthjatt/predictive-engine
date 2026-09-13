@@ -245,25 +245,51 @@ def main():
     _r = _px.pct_change().loc[_bd]
     _ext = _r.stack(); _ext = _ext[_ext.abs() > 0.55].sort_values(key=abs, ascending=False)
     _m = _r.mean(axis=1)
-    _top = _m.sort_values(ascending=False).head(6).index
+    _y = (_bd[-1]-_bd[0]).days/365.25
+    # TWO NEUTRALISATIONS, AND THEY ANSWER DIFFERENT QUESTIONS. Until 2026-09-13
+    # only the second existed and it was printed immediately after the artefact
+    # count, in the next sentence, so it read as the artefact effect. It is not:
+    # the two day-sets have ZERO overlap and should, because one symbol at +548.8%
+    # carries 1/148 of an equal-weight index and moves it about 3.7%, while the
+    # largest benchmark days are broad COVID-rebound moves.
+    #
+    # That conflation was read off this output and transcribed into KNOWN_ISSUES,
+    # where it was then "corrected" in the wrong direction. See KNOWN_ISSUES.md,
+    # "The mid benchmark is better defined than this file said".
+    _art = sorted({_d for (_d, _s) in _ext.index})          # the artefact days
+    _m_art = _m.copy()
+    for _d in _art:
+        if _d in _m_art.index: _m_art.loc[_d] = 0.0
+    _bh_art = ((1+_m_art).prod())**(1/_y)*100-100
+    _top = _m.sort_values(ascending=False).head(6).index    # largest benchmark days
     _m_ex = _m.copy()
     for _d in _top: _m_ex.loc[_d] = 0.0
-    _y = (_bd[-1]-_bd[0]).days/365.25
     _bh_ex = ((1+_m_ex).prod())**(1/_y)*100-100
     print("\n  *** DO NOT QUOTE THE BUY&HOLD NUMBER WITHOUT THIS ***")
     print(f"    The PRICE panel still contains {len(_ext)} single-day moves above 55% inside the")
     print( "    backtest window. The extreme-return filter masks ret_1d, which protects the")
     print( "    FEATURES and the LABEL, but buy&hold and the execution prices are computed")
     print( "    from `close` directly, so the filter cannot reach them.")
-    for (_d, _s), _v in _ext.head(4).items():
+    # ALL OF THEM, NOT head(4). Printing four under a count of six invited the
+    # reader to match the list against the six-day neutralisation below, which is
+    # a different six entirely.
+    for (_d, _s), _v in _ext.items():
         print(f"      {_d.date()}  {_s:<12} {_v:+,.1%}")
     print(f"    Worse, masking a return DROPS that row, and the ffill then releases the whole")
     print( "    accumulated level shift as one day when the symbol reappears. PATANJALI")
     print( "    (formerly Ruchi Soya) moved ~250x between Jan and Jul 2020 on a tiny post-")
     print( "    insolvency float; the drop concentrated that into a single +24,773% day.")
-    print(f"    Effect on the benchmark: buy&hold reads {cagr(eq['buyhold']):.2f}% as computed,")
-    print(f"    but {_bh_ex:.2f}% with the six largest days neutralised. The cap-weighted index")
-    print(f"    returns {cagr(index):.2f}%, which is the number to trust.")
+    print(f"    Effect on the benchmark -- TWO DIFFERENT NEUTRALISATIONS, both stated")
+    print(f"    because they answer different questions and their day-sets do not overlap:")
+    print(f"      buy&hold as computed                                  {cagr(eq['buyhold']):.2f}%")
+    print(f"      with the {len(_art)} ARTEFACT days above neutralised          {_bh_art:.2f}%"
+          f"   <- the artefact sensitivity")
+    print(f"      with the 6 largest BENCHMARK days neutralised         {_bh_ex:.2f}%"
+          f"   <- NOT an artefact figure")
+    print(f"    The second set is {', '.join(str(_d.date()) for _d in sorted(_top))},")
+    print(f"    which contains none of the artefact days. It measures how much of the")
+    print(f"    benchmark rests on its six best days, which is a different question.")
+    print(f"    The cap-weighted index returns {cagr(index):.2f}%, which is the number to trust.")
     print( "    FIXING THIS NEEDS A DECISION, NOT A THRESHOLD: a symbol's history before a")
     print( "    corporate event of this size is effectively a different security and should")
     print( "    probably be truncated, not stitched. That is a data-handling choice and is")
