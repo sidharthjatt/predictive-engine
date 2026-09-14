@@ -929,6 +929,115 @@ deliberate and its docstring argues for it; the failure was in use, not in the
 function. Recorded because three instances in one session is a pattern, and the
 next one will cost another run.
 
+## The verification claims describe something other than what ships, four times in one week
+
+Found 2026-09-15, by fixing the fourth one and looking back at the other three.
+Open. **This is not a bug in any of the four artefacts it touches.** It is a
+defect in how this project establishes that a change is safe, and it is the
+reason three of the four survived review: each was accompanied by a statement of
+what had been checked, and in each case that statement was about something other
+than the thing that shipped.
+
+### The four
+
+**1. THE ULP FIGURE.** `4.441e-16` across 2,638,259 cells, and the "two thirds of
+a point" consequence drawn from it, are recorded in this file with no script
+behind them. The claim was then quoted outward as fact -- the project's owner
+repeated "the system cannot reproduce its own numbers" when asked whether the
+work could be handed to someone else. Two rebuilds on 2026-09-13 failed to
+reproduce any such divergence. See *"The headline is not reproducible from the
+artefacts on disk to better than about a point"* directly below, which now
+carries the correction and the external cost.
+
+**2. THE `--list` COST CLAIM.** The invocation-contract design (commit `5c636cf`)
+stated that moving the cached-panel skip into `build_scores_step` would cost
+`--list` its advance notice of which score steps would skip. `--list` never
+printed that; the skip was only ever announced at run time. The claim was
+reasoned from the code's shape and never run. Corrected in place at the dispatch
+site in `run.py`. Cost: nothing, which is the only reason it is a footnote.
+
+**3. `905e598`'s UNREACHABLE BRANCH.** The commit that made a missing trade log
+fatal in `make_mid_chart` stated:
+
+> *"The `--arm v3` path does not ask for v1's curve, so the regression run does
+> not exercise the changed branch; the standalone before-and-after above does."*
+
+The line directly above the change asked for v1's curve **unconditionally**. The
+v3 path reached the new `raise` and died in it, and **`--universe mid --arm v3`
+-- one of the two gate cells -- was unrunnable from 2026-09-13 15:46 until
+`e5654ac` on 2026-09-15.** The claim is why nobody looked: it asserted the branch
+was unreachable from the path under test, so the crash was attributed, when it
+appeared two days later, to the invocation contract that had landed in between.
+It took a checkout of `67a644d` and a re-run to establish otherwise.
+
+The underlying error was a half-port: `baa5daa` fixed `make_n100_chart` with two
+halves -- the fatality AND the arm-awareness guard -- and only the fatality
+reached mid. `make_n100_chart` was never affected, and no chart was ever drawn
+from a curve it did not request.
+
+**4. THE GATE'S DENOMINATOR.** Every regression verdict quoted in the week to
+2026-09-15 came from a comparison script rewritten fresh in the session that
+needed it, and each walked the BASELINE DIRECTORY, sha-ing whatever stood at each
+name in the live tree -- without asking whether the run had written that file. A
+baseline directory is a snapshot of a whole metrics folder, so it holds artefacts
+belonging to other arms and other profiles. Those files are not touched by the
+cell under test. **They match themselves, every time, whatever the change did.**
+
+Measured 2026-09-15: of the 36 deterministic artefacts in the `mid_v3` baseline,
+`--universe mid --arm v3` writes **17**. The other 19 are v2's and the tradeable
+profile's.
+
+| verdict as quoted | files that could actually move | leftovers counted as matches |
+|---|---:|---:|
+| `905e598` -- "35 of 36 deterministic mid artefacts byte-identical" | <= 17 | **>= 19** |
+| `67a644d` -- "36 compared, 34 byte-identical, 2 moved" | <= 17 | **>= 19** |
+| `91729f9` -- "16 of 17 deterministic n100 artefacts byte-identical" | 17 | **0** |
+
+**n100 was never inflated** -- all 17 of its deterministic baseline artefacts are
+written by its cell -- and that is precisely why the defect survived: half the
+evidence was sound, and the two universes were quoted side by side.
+
+**The mid figures are worse than the table shows for any commit after `905e598`.**
+With the chart step crashing, `DAILY_LOG_mid_v3.txt` and `chart_mid_FINAL_v3.png`
+were not rewritten either, so **16** deterministic artefacts could move, not 17 --
+and the two the crash had frozen were being compared, and passing, on mtimes
+predating the defect.
+
+### What the four have in common
+
+Not carelessness, and not a missing test. In every case **a verification was
+performed and reported accurately** -- the gate did compare 36 files, the ULP
+figure was measured on something, `--arm v3` genuinely did not plot v1. What was
+wrong each time is the mapping from what was measured to what was claimed:
+
+- a number measured under an engine configuration that has since changed (1)
+- a cost reasoned from code shape and never executed (2)
+- a path described from a call site thirty lines away from the one that runs (3)
+- a denominator that includes files the run cannot touch (4)
+
+**A green check whose subject is not the shipped thing is worse than no check**,
+because it is quoted. Instance 1 left this repository in conversation. Instance 3
+was quoted back at a crash to exonerate the wrong commit. A check nobody had run
+would have done neither.
+
+### Fixed, and not fixed
+
+`gate_compare.py` is tracked, and replaces the per-session comparison script. It
+partitions explicitly -- WRITTEN BY THIS CELL (compared), NOT WRITTEN (listed,
+never counted, with the reason per file: wrong arm, wrong profile, wrong
+universe) -- and treats an artefact it cannot explain as **fatal**, because "not
+written, and nobody knows why" is indistinguishable from a step that stopped
+writing. Instances 2 and 3 are corrected at their sites; instance 1 carries its
+correction in the entry below.
+
+**What is NOT fixed is the general case.** Nothing checks that a verification
+claim in a commit message describes the code path that shipped, and nothing
+could. The only defence available is the one this entry exists to encourage:
+**when a commit says a branch was not exercised, run the path it names before
+believing it.** Three of these four would have been caught by one command.
+
+---
+
 ## The headline is not reproducible from the artefacts on disk to better than about a point
 
 Found 2026-09-02, by an identity gate failing. Open.
