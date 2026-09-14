@@ -148,6 +148,11 @@ def main(u):
     Imports, helper defs and import-time setup stay at module level; every
     other statement moved, constants included, so no dependency chain is split.
     """
+    # TRANSITIONAL-ASSERT -- removed by the collapse, steps 3-7 of the new order.
+    # transitional_asserts_check.py FAILS while this marker survives, and fails
+    # equally if the marker is deleted while a literal REGISTRY["n100"] subscript
+    # remains below. It goes green only when the literals are actually gone.
+    #
     # THE CONTRACT, AND WHY THIS STEP ONLY ACCEPTS ONE UNIVERSE.
     # main(u) is the declaration run.py dispatches on. This file is still the
     # per-n100 half of a pair, so it can only do n100's work -- and a step that
