@@ -239,7 +239,12 @@ def _scan_text(txt):
 
 
 def analyse(pipeline, results_root=None, resolver=None, helpers=None):
-    """pipeline: [(step_label, script_filename)] in execution order.
+    """pipeline: [(step_label, script_filename[, universe_tag])] in execution order.
+
+    THE THIRD FIELD IS READ AND IGNORED HERE, deliberately. This checker reasons
+    about ORDER -- which step writes a file another step reads -- and that is a
+    property of the position, not of the universe the row is invoked for. Rows are
+    indexed rather than unpacked so adding the field cannot break the check.
 
     -> (inversions, unresolved, edges) where an inversion is
        (step, script, dirkey, filename, [producing steps, all later]).
@@ -255,12 +260,12 @@ def analyse(pipeline, results_root=None, resolver=None, helpers=None):
     success, which is the exact failure mode this module was written to catch.
     """
     R = (results_root or ROOT / "results")
-    order = {scr: i for i, (_, scr) in enumerate(pipeline)}
-    step_of = {scr: label for label, scr in pipeline}
+    order = {row[1]: i for i, row in enumerate(pipeline)}
+    step_of = {row[1]: row[0] for row in pipeline}
 
     W, Rd, U = {}, {}, {}
     missing = []
-    for label, scr in pipeline:
+    for label, scr in ((r[0], r[1]) for r in pipeline):
         p = resolver(scr) if resolver else R / scr
         if not p.exists():
             missing.append((label, scr, str(p)))
@@ -284,7 +289,7 @@ def analyse(pipeline, results_root=None, resolver=None, helpers=None):
             producers.setdefault(key, []).append(scr)
 
     inversions, edges, unresolved = [], [], []
-    for label, scr in pipeline:
+    for label, scr in ((r[0], r[1]) for r in pipeline):
         for key in sorted(Rd.get(scr, ())):
             if key[1] in CACHES:
                 continue

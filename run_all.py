@@ -267,17 +267,37 @@ REQUIRED_INPUTS = {
 
 # Execution order, declared once so the static checker can read it. run() asserts
 # every script it is handed appears here, so this list cannot silently drift out of
-# step with main(). Steps 1/8/10a/10e are skipped at runtime when their panel is
+# step with main(). Steps 10a/10e are skipped at runtime when their panel is
 # cached; that does not change the ORDER, which is what the checker reasons about.
+#
+# THIRD FIELD: THE UNIVERSE THIS ROW IS FOR, or None for a whole-run step.
+# Added 2026-09-15 with the invocation contract, and it REPLACES run.py's
+# STEP_UNIVERSES rather than joining it. The difference that matters: STEP_UNIVERSES
+# was a second table, keyed by filename, that had to be kept in step with this one
+# by hand -- and it is the shape this project has now been bitten by on the cadence,
+# arm and profile axes in turn. The universe is not separate knowledge about a step;
+# it is part of the invocation, so it belongs in the row that declares the
+# invocation.
+#
+# A ROW WITH A UNIVERSE NAMES A STEP WHOSE main() TAKES ONE (arity 1). A row with
+# None names a step whose main() takes nothing and which decides from the selection
+# what to do. run.py checks the two against each other and REFUSES on a mismatch
+# rather than defaulting; see _resolve_arity there.
+#
+# IT KEEPS 13 ROWS AFTER THE COLLAPSE COLLAPSES THE FILES 8 -> 4. Each row is still
+# one invocation, so each keeps its own label, and STEP 10a..10h all survive the
+# collapse meaning exactly what they meant in every log written before it -- the
+# same identity-over-compaction rule the 2026-09-11 retirement set when it left
+# STEPS 0-9 and 11-14 as gaps rather than renumbering.
 PIPELINE_ORDER = [
-    ("STEP 10a", "build_scores_mid.py"),
-    ("STEP 10b", "engine_v2_final_mid.py"),
-    ("STEP 10c", "make_mid_audit.py"),
-    ("STEP 10d", "make_mid_chart.py"),
-    ("STEP 10e", "build_scores_n100.py"),
-    ("STEP 10f", "engine_v2_final_n100.py"),
-    ("STEP 10g", "make_n100_audit.py"),
-    ("STEP 10h", "make_n100_chart.py"),
+    ("STEP 10a", "build_scores_mid.py",        "mid"),
+    ("STEP 10b", "engine_v2_final_mid.py",     "mid"),
+    ("STEP 10c", "make_mid_audit.py",          "mid"),
+    ("STEP 10d", "make_mid_chart.py",          "mid"),
+    ("STEP 10e", "build_scores_n100.py",       "n100"),
+    ("STEP 10f", "engine_v2_final_n100.py",    "n100"),
+    ("STEP 10g", "make_n100_audit.py",         "n100"),
+    ("STEP 10h", "make_n100_chart.py",         "n100"),
     # MOVED FROM STEP 10i, and the move is load-bearing rather than cosmetic.
     # The combined chart is now generic over the selection, so it may need the 58's
     # and the 74's per-trade logs -- and those are written by STEP 12 immediately
@@ -285,24 +305,24 @@ PIPELINE_ORDER = [
     # combine mid and n100. Its mid and n100 inputs are written at 10c and 10g, so
     # they are still upstream; nothing consumes the chart, so nothing downstream
     # moved. Output verified byte-identical across the move.
-    ("STEP 12b", "make_combined_universes.py"),
-    ("STEP 15", "make_daily_log.py"),
+    ("STEP 12b", "make_combined_universes.py", None),
+    ("STEP 15", "make_daily_log.py",           None),
     # ORDERING, AND WHY IT IS A STEP. STEP 16 reads the PERMANENT panels, so the
     # copy from /tmp must happen before it -- the constraint run_all.py used to
     # enforce with a bare call between two run() lines, and which S8 lost when it
     # folded the pipeline into one loop. It is a position in this list now, so
     # rewriting the loop cannot drop it. See results/save_caches_step.py.
-    ("STEP 15b", "save_caches_step.py"),
-    ("STEP 16", "nt_export_scores.py"),
+    ("STEP 15b", "save_caches_step.py",        None),
+    ("STEP 16", "nt_export_scores.py",         None),
     # STEP 17 IS THE EXECUTION HALF OF THE NAUTILUS STORY. STEP 16 exports the
     # score parquet the port READS; nothing in the pipeline ever ran the port
     # itself, so a normal run produced Nautilus input and no Nautilus output.
     # It must follow 16, which writes the parquet it loads.
-    ("STEP 17", "nt_execute.py"),
+    ("STEP 17", "nt_execute.py",               None),
 ]
 # Kept as the canonical set of pipeline script names. run()'s membership guard used
 # it; run.py needs the same answer when it maps a step to its universe.
-_PIPELINE_SCRIPTS = {s for _, s in PIPELINE_ORDER}
+_PIPELINE_SCRIPTS = {row[1] for row in PIPELINE_ORDER}
 
 
 def check_inputs(label, script):

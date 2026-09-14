@@ -60,7 +60,25 @@ SEEDS = [7, 42, 99, 1, 2, 3, 11, 22, 33, 101]
 
 
 def run(u):
-    """Build the raw panel and the monthly score panel for one universe."""
+    """Build the raw panel and the monthly score panel for one universe.
+
+    THE CACHED-PANEL SKIP LIVES HERE NOW, not in run.py. It was a hardcoded set of
+    filenames (run.SCORE_BUILD_STEPS) plus a lookup in a second hardcoded table
+    (run.STEP_UNIVERSES); both retired with the invocation contract, and neither is
+    replaced. The step that owns the panel owns the decision not to rebuild it,
+    which is one fewer place that knows about panels -- and the place that knew
+    about them second is the one that went stale.
+
+    --fresh STILL WORKS, for a better reason. run.py unlinks CACHE_TMP and
+    CACHE_PERM before the loop, so a --fresh run finds no cache here rather than
+    being told to disregard one. There is no flag to thread and no second opinion
+    about whether a panel counts as present.
+    """
+    cached = Path(u.score_tmp)
+    if cached.exists():
+        print(f"    score panel cached, skipping build ({cached})", flush=True)
+        return
+
     data_dir = u.prepare_data_dir()
     want = u.symbols()
 

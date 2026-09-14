@@ -143,7 +143,7 @@ def chart_path(M, stem, arms_on):
     return M / (stem + asf + cadence.suffix() + _pf.suffix() + ".png")
 
 
-def main():
+def main(u):
     """The step, as a function, so run.py can call it in process.
 
     IMPORT MUST NOT DO THE WORK. Everything here used to run at module level,
@@ -153,6 +153,16 @@ def main():
     Imports, helper defs and import-time setup stay at module level; every
     other statement moved, constants included, so no dependency chain is split.
     """
+    # THE CONTRACT, AND WHY THIS STEP ONLY ACCEPTS ONE UNIVERSE.
+    # main(u) is the declaration run.py dispatches on. This file is still the
+    # per-mid half of a pair, so it can only do mid's work -- and a step that
+    # took a universe and quietly ignored it would be the "selection that silently
+    # does less than it was asked" failure in its purest form. It verifies the
+    # argument instead. The check goes when the pair collapses and the literals
+    # below become u.
+    assert u.tag == "mid", (
+        f"{__name__} is mid's half of an uncollapsed pair; "
+        f"invoked for {u.tag}")
     # THESE HELPERS CLOSE OVER main()'s LOCALS, so they live inside it.
     # Leaving them at module level while the names they read moved in here
     # raised NameError at the first call -- the wrap is only sound if a
@@ -420,4 +430,5 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    from universes.registry import REGISTRY as _R
+    main(_R["mid"])

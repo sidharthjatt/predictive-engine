@@ -27,8 +27,18 @@ from universes.registry import REGISTRY
 import arms.registry as arm_reg
 
 
-def main():
+def main(u):
     """The step, as a function, so run.py can call it in process."""
+    # THE CONTRACT, AND WHY THIS STEP ONLY ACCEPTS ONE UNIVERSE.
+    # main(u) is the declaration run.py dispatches on. This file is still the
+    # per-mid half of a pair, so it can only do mid's work -- and a step that
+    # took a universe and quietly ignored it would be the "selection that silently
+    # does less than it was asked" failure in its purest form. It verifies the
+    # argument instead. The check goes when the pair collapses and the literals
+    # below become u.
+    assert u.tag == "mid", (
+        f"{__name__} is mid's half of an uncollapsed pair; "
+        f"invoked for {u.tag}")
     # ONE TRAIL PER SELECTED ARM. This step wrote exactly one, v2's, because
     # audit_step hardcoded breadth+invvol. The literal REGISTRY["mid"] subscript
     # is kept -- check_pipeline_order reads it to resolve daily_*_{tag}.csv to a
@@ -41,4 +51,5 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    from universes.registry import REGISTRY as _R
+    main(_R["mid"])

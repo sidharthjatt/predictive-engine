@@ -60,86 +60,88 @@ from universes.registry import REGISTRY             # noqa: E402
 from arms.registry import ARMS, SHIPPING as SHIPPING_ARMS                      # noqa: E402
 
 # ---------------------------------------------------------------------------
-# WHICH PIPELINE STEPS BELONG TO WHICH UNIVERSE
+# THE INVOCATION CONTRACT
 # ---------------------------------------------------------------------------
-# Derived by scanning each step (and its helpers) for the universe it names, then
-# written down here so selection is explicit rather than re-derived by regex on
-# every run.
+# A STEP DECLARES ITS OWN ARITY, AT THE SITE, IN ITS SIGNATURE.
 #
-# EVERY TAG HERE MUST BE A REGISTRY KEY, and _check_step_universes() below enforces
-# that at import. Twenty entries were deleted with the 58 and the 74; the table
-# used to name those two in eight places, and a tag that outlived its universe
-# would have gone on selecting a step that could never run.
+#     def main()      whole-run step. Invoked once. Decides from the selection.
+#     def main(u)     per-universe step. Invoked once per universe, GIVEN it.
+#
+# THIS REPLACES STEP_UNIVERSES, which is retired along with SCORE_BUILD_STEPS and
+# is NOT replaced by anything. Between them they were the fifth and sixth hardcoded
+# lists in this project, and the failure both had is the one the cadence, arm and
+# profile axes each produced in turn: a table that duplicates knowledge available
+# elsewhere, and goes stale against it silently. STEP_UNIVERSES answered two
+# questions -- which universes a step serves, and whether it is per-universe at all
+# -- and both now fall out of something that cannot disagree with itself. Which
+# universe: run_all.PIPELINE_ORDER's third field, the row that declares the
+# invocation. Whether: the signature, read from the file.
+#
+# ARITY IS READ STATICALLY, WITHOUT IMPORTING THE STEP. ast, not inspect. Every
+# step is import-safe by S4 -- "IMPORT MUST NOT DO THE WORK" -- so importing would
+# be sound, but a plan is not allowed to cost what importing nt_execute costs, and
+# --list must stay a thing you can run without loading nautilus_trader.
 ALL_UNIVERSES = tuple(REGISTRY)          # NOT a literal list. See the check below.
 
-STEP_UNIVERSES = {
-    "build_scores_mid.py":        ("mid",),
-    "engine_v2_final_mid.py":     ("mid",),
-    "make_mid_audit.py":          ("mid",),
-    "make_mid_chart.py":          ("mid",),
-    "build_scores_n100.py":       ("n100",),
-    "engine_v2_final_n100.py":    ("n100",),
-    "make_n100_audit.py":         ("n100",),
-    "make_n100_chart.py":         ("n100",),
-    # SERVES EVERY UNIVERSE. It draws one comparison across whichever of them the
-    # run selected, so it is selected whenever ANY universe is -- and then decides
-    # for itself, from the selection, whether there are enough to compare.
-    "make_combined_universes.py": ALL_UNIVERSES,
-    "make_daily_log.py":          ALL_UNIVERSES,
-    # SERVES EVERY UNIVERSE, so a selective run persists its panels too. Listed
-    # against all rather than left unmapped: `--universe mid` must still reach
-    # STEP 15b, or that path reproduces the very bug 15b exists to fix.
-    "save_caches_step.py":        ALL_UNIVERSES,
-    "nt_export_scores.py":        ALL_UNIVERSES,
-    # SERVES EVERY UNIVERSE. It runs the execution engine for each selected
-    # (universe, arm) at the selected cadence.
-    "nt_execute.py":              ALL_UNIVERSES,
-}
 
+def _declared_arity(scr, resolver):
+    """How many arguments `scr`'s main() declares, read from the source.
 
-def _check_step_universes():
-    """Every tag in STEP_UNIVERSES must name a universe the registry defines.
-
-    THE FAILURE THIS CATCHES IS SILENT OTHERWISE. A step registered to a deleted
-    universe is simply never selected -- no error, no log line -- so the step stops
-    running and the run still reports success. That is how `--universe mid,n100`
-    could have kept a 58-only step in the table indefinitely.
+    Returns None when the file has no module-level main(), which is a separate
+    failure from a wrong arity and is reported as one.
     """
-    unknown = {t for tags in STEP_UNIVERSES.values() for t in tags} - set(REGISTRY)
-    if unknown:
-        raise SystemExit(
-            f"STEP_UNIVERSES names universe(s) the registry does not define: "
-            f"{sorted(unknown)}.\n"
-            f"  known: {sorted(REGISTRY)}\n"
-            f"  Either the universe was deleted and its steps must go with it, or "
-            f"the registry entry is missing. See RETIRED_UNIVERSES.md.")
-
-
-_check_step_universes()
-
-
-# A SCORE-BUILD STEP IS SKIPPED WHEN ITS PANEL IS ALREADY ON DISK.
-# run_all.main() did this with hand-written `if not (TMP/"v5_expanding.csv")`
-# guards. Without it a shimmed run_all.py would rebuild every panel on every
-# run -- hours, for nothing -- so the behaviour moves here rather than being lost.
-#
-# WHICH STEPS is written down; WHICH FILE is read from the registry (u.score_tmp),
-# so a new universe's build step inherits the skip with no path repeated here.
-SCORE_BUILD_STEPS = {
-    "build_scores_mid.py", "build_scores_n100.py",
-}
-
-
-def cached_panel(scr):
-    """The already-built score panel that lets `scr` be skipped, or None."""
-    if Path(scr).name not in SCORE_BUILD_STEPS:
-        return None
-    serves = STEP_UNIVERSES.get(Path(scr).name) or ()
-    for tag in serves:
-        p = Path(REGISTRY[tag].score_tmp)
-        if p.exists():
-            return p
+    import ast
+    src = Path(resolver(scr))
+    tree = ast.parse(src.read_text(), filename=str(src))
+    for node in tree.body:                      # MODULE LEVEL ONLY -- a nested
+        if isinstance(node, (ast.FunctionDef,   # def main() inside another function
+                             ast.AsyncFunctionDef)) and node.name == "main":
+            a = node.args
+            return len(a.posonlyargs) + len(a.args) + len(a.kwonlyargs)
     return None
+
+
+def _resolve_arity(pipeline, resolver):
+    """Check every row's declared universe against its step's signature. REFUSE.
+
+    THREE REFUSALS, ALL AT PLAN TIME, ALL NAMING THE STEP. None of them may be a
+    default: the failure this project keeps finding is a selection that quietly
+    does less than it was asked, and every one of these has a plausible-looking
+    silent outcome. A three-hour pipeline must not discover a contract violation
+    at STEP 16.
+    """
+    bad = []
+    for row in pipeline:
+        label, scr, tag = row[0], row[1], (row[2] if len(row) > 2 else None)
+        n = _declared_arity(scr, resolver)
+        if n is None:
+            bad.append(f"    {label:<9} {scr:<28} declares no module-level main()")
+        elif n not in (0, 1):
+            # A PROGRAMMING ERROR, NOT A CONFIGURATION. There is no selection that
+            # makes a two-argument step runnable, so it cannot be worked around by
+            # running something else; it is reported as the defect it is.
+            bad.append(f"    {label:<9} {scr:<28} main() takes {n} arguments; "
+                       f"the contract is main() or main(u)")
+        elif tag is not None and n == 0:
+            bad.append(f"    {label:<9} {scr:<28} PIPELINE_ORDER names universe "
+                       f"'{tag}' but main() takes none")
+        elif tag is None and n == 1:
+            bad.append(f"    {label:<9} {scr:<28} main() takes a universe but "
+                       f"PIPELINE_ORDER names none")
+        elif tag is not None and tag not in REGISTRY:
+            # THE SILENT FAILURE THE OLD _check_step_universes() CAUGHT, kept.
+            # A step registered to a deleted universe is never selected -- no
+            # error, no log line -- so it stops running and the run still reports
+            # success. That is how the 58's steps could have outlived the 58.
+            bad.append(f"    {label:<9} {scr:<28} names universe '{tag}', which the "
+                       f"registry does not define (known: {', '.join(sorted(REGISTRY))})")
+    if bad:
+        raise SystemExit(
+            "INVOCATION CONTRACT VIOLATED -- refusing to start.\n"
+            + "\n".join(bad)
+            + "\n  A step declares whether it takes a universe by its signature;\n"
+              "  run_all.PIPELINE_ORDER declares which universe it is invoked for.\n"
+              "  The two must agree. Nothing defaults.")
 
 
 def show(p):
@@ -223,32 +225,42 @@ def resolve_arms(name):
 
 
 def pipeline_steps(unis):
-    """The run_all.py steps that serve any selected universe, IN ORDER.
+    """The run_all.py steps this selection invokes, IN ORDER, with their universe.
 
     Order comes from run_all.PIPELINE_ORDER and is never re-sorted: it is the thing
     check_pipeline_order.enforce verifies, and a consumer must never precede its
     producer.
+
+    EACH ENTRY IS (label, script, tag-or-None) and tag is what main(u) will be
+    GIVEN -- not a description of what the step serves. That is the whole change:
+    the plan now carries the argument, so the dispatch has nothing left to decide.
+
+    A WHOLE-RUN STEP IS ALWAYS IN THE PLAN when anything is selected. It takes no
+    universe and works out from the selection what to do, which is why
+    make_combined_universes can draw one comparison across whichever universes the
+    run chose, and why `--universe mid` still reaches STEP 15b rather than
+    reproducing the bug 15b exists to fix.
     """
     import runpy
     mod = runpy.run_path(str(ROOT / "run_all.py"), run_name="__not_main__")
+
+    # REFUSE BEFORE ANYTHING IS PLANNED, let alone run.
+    _resolve_arity(mod["PIPELINE_ORDER"], mod["script_path"])
+
     want = {u.tag for u in unis}
     out, dropped = [], []
-    for label, scr in mod["PIPELINE_ORDER"]:
-        serves = STEP_UNIVERSES.get(scr)
-        if serves is None:
-            out.append((label, scr, "?unmapped"))          # surfaced, never skipped
-            continue
-        # WHAT THE STEP CAN ACTUALLY SERVE, not what it was written to serve.
-        # STEP_UNIVERSES is a static map; REGISTRY is what exists right now. A step
-        # listed against (mid, n100) whose n100 config has been deleted serves only
-        # mid, and selecting it on the strength of the absent half used to run it
-        # and crash inside. The steps themselves now run on whatever remains; this
-        # intersection is what tells them -- and the reader -- what that is.
-        present = tuple(t for t in serves if t in REGISTRY)
-        if not present:
-            dropped.append((label, scr, serves))           # nothing left to do
-        elif want & set(present):
-            out.append((label, scr, ",".join(present)))
+    for row in mod["PIPELINE_ORDER"]:
+        label, scr, tag = row[0], row[1], (row[2] if len(row) > 2 else None)
+        if tag is None:
+            out.append((label, scr, None))                 # whole-run
+        elif tag not in REGISTRY:
+            # UNREACHABLE VIA _resolve_arity, which already refused this. Kept
+            # because pipeline_steps is called from print_plan as well, and a
+            # defensive branch that can only fire if the refusal is removed is
+            # cheaper than the silent drop it replaces.
+            dropped.append((label, scr, (tag,)))
+        elif tag in want:
+            out.append((label, scr, tag))
     return out, mod, dropped
 
 
@@ -389,9 +401,10 @@ def print_plan(plan, args, show_paths=False):
 
     if plan["pipeline"]:
         print(f"\n  PIPELINE STEPS ({len(plan['pipeline'])}), in run_all order:")
-        for label, scr, serves in plan["pipeline"]:
-            mark = "  <-- UNMAPPED" if serves == "?unmapped" else ""
-            print(f"    {label:<9} {scr:<28} [{serves}]{mark}")
+        for label, scr, tag in plan["pipeline"]:
+            # WHAT main() WILL BE GIVEN, not what the step is believed to serve.
+            print(f"    {label:<9} {scr:<28} "
+                  f"[{'main(' + tag + ')' if tag else 'main()'}]")
     elif args.steps in ("pipeline", "all"):
         print("\n  PIPELINE STEPS: none selected")
 
@@ -417,7 +430,7 @@ def print_plan(plan, args, show_paths=False):
         print(f"\n  NOT RUN ({len(plan['dropped'])}) -- every universe this step serves "
               f"has been removed from the registry:")
         for label, scr, serves in plan["dropped"]:
-            print(f"    {label:<9} {scr:<28} served [{','.join(serves)}], none of which is registered")
+            print(f"    {label:<9} {scr:<28} names [{','.join(serves)}], which the registry does not define")
 
     if plan["skipped"]:
         print(f"\n  SKIPPED ({len(plan['skipped'])}) -- combinations a frozen universe cannot supply:")
@@ -630,15 +643,19 @@ def execute(plan, args):
     print(f"SURVIVORSHIP: {sv.describe_state()}\n")
 
     t_start = time.time()
-    for label, scr, serves in plan["pipeline"]:
-        if serves == "?unmapped":
-            raise SystemExit(f"{scr} is not in STEP_UNIVERSES; add it there so "
-                             f"selection cannot silently drop it")
-        cached = None if args.fresh else cached_panel(scr)
-        if cached is not None:
-            print(f"\n>>> {label}  {scr}  -- score panel cached, skipping "
-                  f"({cached})")
-            continue
+    for label, scr, tag in plan["pipeline"]:
+        # THE SKIP IS NOT DECIDED HERE ANY MORE. cached_panel() and
+        # SCORE_BUILD_STEPS retired with the contract: the step that owns the panel
+        # owns the decision not to rebuild it, so build_scores_step.run() returns
+        # early and prints its own line. --fresh still works, and works for a
+        # better reason -- it unlinks the panel above, so the step finds no cache
+        # rather than being told to ignore one.
+        #
+        # THE COST, STATED: --list can no longer say IN ADVANCE which steps will
+        # skip, because the step decides at run time. That is a visible change to
+        # --list and it is the trade for deleting the second place that knew about
+        # panels -- which is the place that went stale.
+        #
         # SAFETY 4 -- fail by filename and owing step, not from inside pandas.
         mod["check_inputs"](label, scr)
         print("\n" + "=" * 90); print(f">>> {label}  {scr}"); print("=" * 90, flush=True)
@@ -651,7 +668,11 @@ def execute(plan, args):
                                         f"{', '.join(f'{m}.{a}' for m, a, _, _ in ch)}]"),
                 on_uncovered=lambda ms: print(f"    [note: {', '.join(ms)} imported "
                                               f"inside the step; not covered by the guard]")):
-            importlib.import_module(Path(scr).stem).main()
+            # THE CONTRACT, AT THE ONE DISPATCH SITE. One branch on arity, and
+            # both forms go through the same module_state.pinned() guard, the same
+            # check_inputs, the same timing and logging above and below.
+            _step = importlib.import_module(Path(scr).stem)
+            _step.main(REGISTRY[tag]) if tag else _step.main()
         print(f"    [{label} done in {(time.time()-t0)/60:.1f} min]")
 
     # A DROPPED COMBINATION IS ANNOUNCED, NOT SILENTLY OMITTED.
