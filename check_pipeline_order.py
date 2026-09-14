@@ -260,8 +260,23 @@ def analyse(pipeline, results_root=None, resolver=None, helpers=None):
     success, which is the exact failure mode this module was written to catch.
     """
     R = (results_root or ROOT / "results")
-    order = {row[1]: i for i, row in enumerate(pipeline)}
-    step_of = {row[1]: row[0] for row in pipeline}
+    # EARLIEST POSITION WINS, because after the collapse ONE SCRIPT APPEARS AT
+    # SEVERAL POSITIONS. build_scores.py is STEP 10a for mid and STEP 10e for
+    # n100; the dict comprehension this replaced kept whichever row came last, so
+    # the merged step would have been treated as running only at 10e and every
+    # mid consumer between 10a and 10e would have read as an inversion.
+    #
+    # min() is the correct reading and not merely the safe one: the question this
+    # map answers is "had this producer run by the time that consumer ran", and a
+    # script present at 10a HAS run by 10c whatever else it also does later.
+    order = {}
+    labels = {}
+    for i, row in enumerate(pipeline):
+        order.setdefault(row[1], i)
+        labels.setdefault(row[1], []).append(row[0])
+    # A MERGED STEP IS NAMED BY EVERY LABEL IT RUNS UNDER, so a report about
+    # build_scores.py says "STEP 10a/10e" rather than silently picking one.
+    step_of = {scr: "/".join(ls) for scr, ls in labels.items()}
 
     W, Rd, U = {}, {}, {}
     missing = []
