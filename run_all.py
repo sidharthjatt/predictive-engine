@@ -26,12 +26,12 @@ This rebuilds both universes, the benchmark comparison, and every chart and CSV.
 
 ORDER:
   === MIDCAP150 ===
-  10a. build_scores_mid     -> MidCap150 scores (SLOW)
+  10a. build_scores (mid)   -> MidCap150 scores (SLOW)
   10b. engine_v2_final_mid  -> MidCap150 v2 FINAL
   10c. make_mid_audit       -> MidCap150 daily audit CSVs
   10d. make_mid_chart       -> MidCap150 chart + cap-weighted index benchmark
   === NIFTY 100 ===
-  10e. build_scores_n100    -> Nifty 100 scores (SLOW)
+  10e. build_scores (n100)  -> Nifty 100 scores (SLOW)
   10f. engine_v2_final_n100 -> Nifty 100 v2 FINAL
   10g. make_n100_audit      -> Nifty 100 daily audit CSVs
   10h. make_n100_chart      -> Nifty 100 chart + cap-weighted index benchmark
@@ -76,7 +76,7 @@ FileNotFoundError.
 # currently iterates an unsorted set of strings into an output, but nothing
 # enforces that either, so the seed is pinned rather than relied upon.
 #
-# NOT COVERED: a step run STANDALONE (`python3 results/build_scores_n100.py`)
+# NOT COVERED: a step run STANDALONE (`python3 results/build_scores.py n100`)
 # does not pass through here and gets the machine defaults. That gap is real and
 # is not closed by this block.
 import os as _os
@@ -114,8 +114,11 @@ STEP_DIRS = (ROOT / "results", ROOT / "nautilus")
 STEP_HELPERS = {
     "make_mid_audit.py":     (R / "audit_step.py",),
     "make_n100_audit.py":    (R / "audit_step.py",),
-    "build_scores_mid.py":   (R / "build_scores_step.py",),
-    "build_scores_n100.py":  (R / "build_scores_step.py",),
+    # ONE ENTRY FOR BOTH ROWS. STEP_HELPERS is keyed by script, and after the
+    # step 3 merge the two build_scores rows name the same script, so they share
+    # this entry rather than needing one each. STEP_HELPERS shrinks with every
+    # pair the collapse merges; that is the shape, not a special case.
+    "build_scores.py":       (R / "build_scores_step.py",),
 }
 
 
@@ -290,11 +293,11 @@ REQUIRED_INPUTS = {
 # same identity-over-compaction rule the 2026-09-11 retirement set when it left
 # STEPS 0-9 and 11-14 as gaps rather than renumbering.
 PIPELINE_ORDER = [
-    ("STEP 10a", "build_scores_mid.py",        "mid"),
+    ("STEP 10a", "build_scores.py",            "mid"),
     ("STEP 10b", "engine_v2_final_mid.py",     "mid"),
     ("STEP 10c", "make_mid_audit.py",          "mid"),
     ("STEP 10d", "make_mid_chart.py",          "mid"),
-    ("STEP 10e", "build_scores_n100.py",       "n100"),
+    ("STEP 10e", "build_scores.py",            "n100"),
     ("STEP 10f", "engine_v2_final_n100.py",    "n100"),
     ("STEP 10g", "make_n100_audit.py",         "n100"),
     ("STEP 10h", "make_n100_chart.py",         "n100"),
