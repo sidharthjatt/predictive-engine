@@ -99,7 +99,17 @@ def _c(path):
     return path.with_name(path.stem + _sfx + path.suffix)
 
 
-def main():
+def main(u):
+    # THE CONTRACT, AND WHY THIS STEP ONLY ACCEPTS ONE UNIVERSE.
+    # main(u) is the declaration run.py dispatches on. This file is still the
+    # per-n100 half of a pair, so it can only do n100's work -- and a step that
+    # took a universe and quietly ignored it would be the "selection that silently
+    # does less than it was asked" failure in its purest form. It verifies the
+    # argument instead. The check goes when the pair collapses and the literals
+    # below become u.
+    assert u.tag == "n100", (
+        f"{__name__} is n100's half of an uncollapsed pair; "
+        f"invoked for {u.tag}")
     print("=" * 100)
     print("ENGINE v2 FINAL -- Nifty 100 universe (99 names, index excluded by name)")
     print("=" * 100)
@@ -364,4 +374,5 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    from universes.registry import REGISTRY as _R
+    main(_R["n100"])
