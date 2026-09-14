@@ -651,10 +651,11 @@ def execute(plan, args):
         # better reason -- it unlinks the panel above, so the step finds no cache
         # rather than being told to ignore one.
         #
-        # THE COST, STATED: --list can no longer say IN ADVANCE which steps will
-        # skip, because the step decides at run time. That is a visible change to
-        # --list and it is the trade for deleting the second place that knew about
-        # panels -- which is the place that went stale.
+        # THE DESIGN PREDICTED A COST HERE THAT DOES NOT EXIST, and the prediction
+        # was never checked before it was stated: --list was said to lose its
+        # advance notice of which score steps would skip. It never had any. The
+        # skip was only ever printed at run time, so the before/after --list diff
+        # is the 13 bracket fields and nothing else.
         #
         # SAFETY 4 -- fail by filename and owing step, not from inside pandas.
         mod["check_inputs"](label, scr)
