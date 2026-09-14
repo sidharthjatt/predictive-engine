@@ -3315,11 +3315,69 @@ divergence it describes is a real mechanism in code that still exists. What cann
 be said is which of the two observations describes the engine as it ships. Neither
 has been re-derived against the other.
 
-**PRACTICAL READING, UNTIL SOMEONE MEASURES IT PROPERLY.** Do not tell anyone the
-system cannot reproduce its own numbers; that is not supported. Do not tell them it
-can, either. A rebuild reproduced three of three uncontaminated series once, and
-the honest statement is that reproducibility across rebuilds has been observed
-once and never systematically tested.
+**OBSERVED TWICE, 2026-09-13, AND THE SECOND IS THE STRONGER.** The first
+observation compared downstream artefacts, where rounding can absorb a small panel
+difference. The second cleared `/tmp` and re-scored both universes from raw at
+commit `4b906f7` -- 34.5 minutes, a 10-seed LightGBM ensemble over 589,269 and
+482,116 rows -- and compared the result against copies preserved earlier the same
+day:
+
+```
+raw_panel_mid_20.csv     IDENTICAL   (18.3 min, vs 18.2 originally)
+v_mid_expanding.csv      IDENTICAL
+raw_panel_n100_20.csv    IDENTICAL   (16.2 min, vs 15.8 originally)
+v_n100_expanding.csv     IDENTICAL
+```
+
+**All four byte-identical -- the panel itself, not a figure derived from it.** That
+is the object the 4.441e-16 claim is about, and there is nothing left to absorb a
+difference. Recorded in `meta/BASELINE.txt` of the preserved baseline directory.
+
+**Two observations on one machine, in one venv, on one day is still not a
+determinism claim.** What can now be said is this: the 4.441e-16 divergence has not
+been reproduced by any measurement taken since, and the original's source remains
+unknown rather than disproved.
+
+**THIS CLAIM LEFT THE REPOSITORY, AND IT WAS WRONG WHEN IT DID.** The first version
+of this entry -- the unqualified reading that a rebuilt panel is a DIFFERENT panel
+-- did not stay in this file. It was stated to the project's owner as fact, and
+repeated by them when they were asked whether this project could be handed to
+someone else to run: that the system cannot reproduce its own numbers. On the
+evidence now available that was not true, and it was never supported at any point.
+The figure behind it had no script, and nobody had checked.
+
+**THE LESSON IS NOT THAT THE FIGURE WAS WRONG.** It is that **an unsourced number
+in a record gets quoted as fact.** This file is read as the honest half of the
+repository, and that is exactly what makes an unsourced claim inside it expensive:
+it travels, and it travels carrying this file's authority. A measurement with no
+script behind it must be written as what it is at the moment it is written -- not
+qualified two weeks later, after it has already been repeated to someone.
+
+**CROSS-MACHINE IS UNTESTED -- NOT "PROBABLY FINE".** It is an open question, and it
+has a shape worth naming, because every item below differs for the next person who
+runs this code and **not one of them has been varied here**:
+
+- **a different machine** -- a different CPU and instruction set, and the FMA and
+  vectorisation decisions the compiler made for it
+- **a different `venv`** -- built from ranges, not pins; `requirements.txt` fixes
+  exactly one thing, `lightgbm==4.6.0`
+- **a different LightGBM and `libomp` build** -- the pin fixes the version, not the
+  wheel it was built into, and not the OpenMP runtime underneath it
+- **a different thread count** -- the code caps threads, but the reduction order of
+  a histogram build is not guaranteed invariant across a different core count
+
+**Two observations on one machine say nothing about any of these.** They were taken
+with all four held fixed, which is precisely the condition under which the question
+cannot be asked. **Anyone handed this repository is in exactly that untested
+position**, and `docs/HANDOFF.md` flags it as the first thing a new holder of this
+code is in a position to establish.
+
+**PRACTICAL READING.** Do not tell anyone the system cannot reproduce its own
+numbers; it is not supported, and saying it has already cost this project once. Do
+not tell them it can, either. The supported statement is narrow, and it should be
+given with its boundary attached: **on this machine, in this venv, panel rebuilds
+reproduced byte-identically twice on 2026-09-13, and reproducibility has never been
+tested anywhere else.**
 
 **THE TWO THINGS THIS IS ABOUT TO BITE.** Both are currently on hold, and both
 carry this risk the moment they are not:
