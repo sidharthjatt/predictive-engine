@@ -224,8 +224,22 @@ def main(u):
     # Reading the canonical logs under --rebal 40 gave before_tc a file that does
     # not exist, and it returns (None, 0, 0) silently -- a legend reading
     # "CAGR None% before TC" rather than a crash.
-    b_v2 = before_tc(_v2, _ci(M/"daily_trades_mid.csv"))
-    b_v1 = before_tc(_v1, _ci(M/"daily_trades_v1_mid.csv"))
+    # COMPUTED ONLY FOR SELECTED ARMS. The literals stay in the call so
+    # check_pipeline_order still reads this step's edges out of the source; the
+    # GUARD is what changed, exactly as the engine's write is guarded -- and
+    # exactly as make_n100_chart has done since baa5daa.
+    #
+    # 905e598 BACK-PORTED HALF OF baa5daa AND SAID SO WRONGLY. It brought the
+    # fatality (a missing log raises instead of returning a fake zero) and left
+    # the arm-awareness behind, then reasoned: "The --arm v3 path does not ask
+    # for v1's curve, so the regression run does not exercise the changed
+    # branch." The line above it asked for v1's curve unconditionally, so the
+    # v3 path reached the new raise and died there. `--universe mid --arm v3`
+    # was unrunnable from 905e598 until this commit, and the claim that it
+    # could not reach the branch is why nobody looked.
+    _sel = set(arm_reg.selected_names())
+    b_v2 = before_tc(_v2, _ci(M/"daily_trades_mid.csv")) if "v2" in _sel else None
+    b_v1 = before_tc(_v1, _ci(M/"daily_trades_v1_mid.csv")) if "v1" in _sel else None
     # EVERY SELECTED ARM THIS UNIVERSE CAN SHOW, in published order. The two
     # literals above are kept: check_pipeline_order resolves this step's inputs
     # from them, and they are also v2's and v1's own entries below.
