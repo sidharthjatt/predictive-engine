@@ -84,8 +84,12 @@ def edge(drop=()):
     pc = precompute(px); mom20 = px / px.shift(20) - 1
     idx = (1 + px.pct_change().mean(axis=1).fillna(0)).cumprod()
     pv = idx.pct_change().rolling(VOL_WIN).std() * np.sqrt(252)
+    # RESEARCH-ONLY, DECLARED. This caller passes no vol20, so it could not
+    # apply a participation cap even if one were selected; research_only()
+    # makes that a statement rather than an accident, and STOPS the run if
+    # --profile ever reaches here. See profiles.research_only.
     eq, tc, n, _ = backtest_exposure(px, op, sc, bd, pc, mom20, pv,
-                                     mode="breadth", target_vol=pv.loc[bd].median(), participation_cap=_prof.participation_cap())
+                                     mode="breadth", target_vol=pv.loc[bd].median(), participation_cap=_prof.research_only(__name__))
     bh = 1_000_000 * (1 + px.pct_change().loc[bd].mean(axis=1).fillna(0)).cumprod()
     s = metrics(eq, "s", tc, n)["CAGR%"]
     b = metrics(bh, "b")["CAGR%"]

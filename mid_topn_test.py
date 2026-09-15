@@ -66,8 +66,12 @@ def run(drop=(), top_n=8):
     pc = precompute(px); m20 = px / px.shift(20) - 1
     ix = (1 + px.pct_change().mean(axis=1).fillna(0)).cumprod()
     pv = ix.pct_change().rolling(VOL_WIN).std() * np.sqrt(252)
+    # RESEARCH-ONLY, DECLARED. This caller passes no vol20, so it could not
+    # apply a participation cap even if one were selected; research_only()
+    # makes that a statement rather than an accident, and STOPS the run if
+    # --profile ever reaches here. See profiles.research_only.
     eq, tc, n, _ = backtest_exposure(px, op, sc, bd, pc, m20, pv, mode="breadth",
-                                     target_vol=pv.loc[bd].median(), participation_cap=_prof.participation_cap())
+                                     target_vol=pv.loc[bd].median(), participation_cap=_prof.research_only(__name__))
     bh = 1_000_000 * (1 + px.pct_change().loc[bd].mean(axis=1).fillna(0)).cumprod()
     m = metrics(eq, "s", tc, n); mb = metrics(bh, "b")
     return m, mb, m["CAGR%"] - mb["CAGR%"], n

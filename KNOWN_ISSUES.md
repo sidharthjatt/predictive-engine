@@ -1031,28 +1031,73 @@ shipping arm "has never been audited at all" on the tradeable profile and calls
 the figures UNRECONCILED. This one says why: the audit has been run, and it does
 not reconcile.
 
-### Not fixed
+### RESOLVED 2026-09-15, and the four cited figures are CONFIRMED
 
-No change is proposed here. Which of the engine and the audit is right about the
-cap is not established, and **the answer decides whether `45.90` and `27.59` are
-the correct tradeable figures or merely the engine's opinion of them.** That is a
-measurement, not a refactor, and it should not be folded into the collapse.
+The cause was `audit_step` passing `participation_cap` without the `vol20` the cap
+is computed against, so its replay ran uncapped. It now builds `vol20` by the same
+expression the engines use. All four mid arms reconcile under `tradeable`:
 
-Until it is settled: `--profile tradeable` produces artefacts but cannot complete,
-the four-cell standing gate runs research only, and that limit is stated in
-`gate_compare.py` rather than assumed.
+```
+mid / v1   MATCH    trades logged   860  (engine reported   860)  OK
+mid        v2       MATCH           1,019 (engine reported 1,019) OK
+mid / v3   MATCH    trades logged   828  (engine reported   828)  OK
+mid / v4   MATCH    trades logged 1,019  (engine reported 1,019)  OK
+```
+
+**No figure moved, so there is no old value to keep as record.** What changed is
+what stands behind them: the numbers below were the engine agreeing with itself,
+and they now have an independent replay -- a second implementation, logging every
+fill -- reconciling to under a paisa and to the trade.
+
+| citation | figure | disposition |
+|---|---|---|
+| `KNOWN_ISSUES.md:2968` | mid v1 tradeable 45.90, −35.88, 860, TC 692,730 | **CONFIRMED** |
+| `KNOWN_ISSUES.md:2970` | mid v2 tradeable 27.59, −15.68, 1,019, TC 228,963 | **CONFIRMED** |
+| `KNOWN_ISSUES.md:3011` | the same four, attributed to the snapshot | **CONFIRMED** |
+| `KNOWN_ISSUES.md:2952` | n100 tradeable = research, 30.56 / 24.43 / 23.14 / 21.36 | **CONFIRMED**, unchanged |
+
+**THE ITEM ABOVE IS NOW ANSWERED.** It said mid's shipping arm "has never been
+audited at all" on the tradeable profile and called the figures UNRECONCILED. They
+are reconciled, mid's tradeable trail exists for the first time, and `mid v1
+tradeable` and `mid v2 tradeable` are standing gate cells -- mid is the only place
+the cap binds, which is why this survived for as long as it did.
+
+**THE PROFILE STILL CANNOT COMPLETE, FOR A DIFFERENT AND SMALLER REASON.** It now
+runs through STEP 15b and dies at STEP 16:
+
+```
+nt_export_scores.py needs 1 file(s) that do not exist:
+  MISSING  results_mid/metrics/v_mid_expanding_cache_tradeable.csv
+    present in that directory: v_mid_expanding_cache.csv
+```
+
+`run_all._present()` -- a documented stopgap from 2026-09-12 -- demands "exactly
+the name this run's axes produce" for every entry in `REQUIRED_INPUTS`, and applies
+the profile suffix uniformly. **The score panel has no profile dimension**: scoring
+runs before any trading, the cap acts only on fills, and the two profiles' panels
+are byte-identical. So the guard is asking for a file that should not exist. The
+expectation is wrong here, not the writer -- and `_present`'s own docstring says
+the real fix is a single naming authority every writer, reader and guard calls.
+Not fixed; it is a naming-authority question, not a cap one.
+
+### Superseded: what was open before 2026-09-15
+
+Which of the engine and the audit is right about the
+cap was the open question, and it is now settled: the engine implements
+`profiles.py`'s stated rule and the audit was not applying a cap at all. The
+figures are the engine's and the engine is correct.
 
 ---
-## The verification claims describe something other than what ships, four times in one week
+## The verification claims describe something other than what ships, six times in one week
 
-Found 2026-09-15, by fixing the fourth one and looking back at the other three.
-Open. **This is not a bug in any of the four artefacts it touches.** It is a
+Found 2026-09-15, by fixing the fourth one and looking back at the other three;
+two more landed the same day. Open. **This is not a bug in any one artefact.** It is a
 defect in how this project establishes that a change is safe, and it is the
 reason three of the four survived review: each was accompanied by a statement of
 what had been checked, and in each case that statement was about something other
 than the thing that shipped.
 
-### The four
+### The six
 
 **1. THE ULP FIGURE.** `4.441e-16` across 2,638,259 cells, and the "two thirds of
 a point" consequence drawn from it, are recorded in this file with no script
@@ -1117,7 +1162,79 @@ were not rewritten either, so **16** deterministic artefacts could move, not 17 
 and the two the crash had frozen were being compared, and passing, on mtimes
 predating the defect.
 
-### What the four have in common
+**5. THE STEP-3 GATE CLEARED A MERGED SCORING MODULE WITHOUT RUNNING IT.** Step 3's
+entire content was the merge of the two score-build entry points, and both gate
+cells ran on cached panels, so `build_scores_step.run()` returned early and not one
+line of the merged path executed. The commit said so, which is the only reason this
+is a footnote rather than an instance with consequences. Closed the same day by a
+forced rebuild: both panels byte-identical, 20.5 minutes.
+
+**6. `_CAP_REQUIRED` WAS BUILT TO ABOLISH THIS EXACT FAILURE AND ABOLISHED HALF OF
+IT.** This is the expensive one, and it is instance 3's mechanism operating on the
+instrument rather than on a chart.
+
+`backtest_exposure` takes a participation cap and the volume series the cap is
+computed against. The cap is mandatory -- `_CAP_REQUIRED`, a sentinel, with a
+docstring that states the reasoning exactly:
+
+> `participation_cap=None` used to be the signature default, so a caller that
+> simply forgot it silently got `research` behaviour -- an uncapped fill -- and
+> nothing in the output said which profile produced the number.
+
+**`vol20` kept the silent `None` default that sentence condemns**, and the cap is
+applied only `if participation_cap is not None and vol20 is not None`. So a caller
+could satisfy the mandatory flag, omit the optional data the flag operates on, and
+be refused the cap three hundred lines later without a word.
+
+`results/audit_step.py` did exactly that. Under `--profile tradeable` on mid it
+replayed the RESEARCH strategy and reconciled it against the TRADEABLE curve:
+
+```
+v1 MISMATCH Rs 3,851,027.09      v3 MISMATCH Rs 3,510,367.57
+v2 MISMATCH Rs   605,030.57      v4 MISMATCH Rs   958,629.05
+```
+
+Reproduced 2026-09-15 by calling `backtest_exposure` twice with identical inputs,
+differing only in whether `vol20` was passed:
+
+```
+with vol20 (engine)     vs tradeable curve Rs         0.00   vs research Rs 3,851,027.09
+without vol20 (audit)   vs tradeable curve Rs 3,851,027.09   vs research Rs         0.00
+trades: engine 860 / TC 692,730     audit 852 / TC 839,393
+```
+
+860 and 692,730 are the published TRADEABLE figures; 852 and 839,393 are the
+published RESEARCH ones. The audit was not approximately wrong; it was exactly the
+other profile.
+
+**THE MANDATORY FLAG IS WHAT MADE THE OPTIONAL DATA INVISIBLE.** Nobody re-examined
+the pairing, because the parameter that had been identified as dangerous was
+already guarded and the guard was known to be there. **A half-enforced contract is
+worse than no contract**: it delivers the assurance without the guarantee, and it
+spends the attention that would otherwise have gone to checking. An unguarded
+parameter gets checked by the next person who touches it. A parameter sitting next
+to a guarded one does not.
+
+**AND THIRTEEN MORE CALLERS HAD THE SAME PAIRING.** Of the live callers passing the
+cap, eight supply `vol20` (both engines, `v34_common` x4) and fourteen did not.
+Thirteen of those fourteen were unreachable by the profile axis, established
+2026-09-15 by four independent routes, each checked: none is in `PIPELINE_ORDER`,
+none accepts `--profile`, none calls `profiles.set_selection`, and no load-bearing
+module imports any of them (AST walk over the load-bearing set: zero). In a fresh
+process `profiles.selected()` is `research` and the cap is `None`, so their numbers
+are research numbers correctly labelled. **No published figure was ever
+mislabelled, and nothing in this file needed correcting.**
+
+**But they were safe BY CONSTRUCTION, not BY DECLARATION** -- safe because the axis
+could not reach them, not because they paired the cap with its data. Those are
+properties of a tree that steps 4-8 of the collapse are actively rewriting, and the
+first `--profile` flag added to any of them would have restored the defect silently.
+All thirteen now declare `profiles.research_only(__name__)`, which returns the
+research cap and REFUSES if a non-research profile is ever selected, naming the
+caller. `backtest_exposure` refuses a cap passed without `vol20`, naming the call
+site. Both halves of the contract are now enforced.
+
+### What they have in common
 
 Not carelessness, and not a missing test. In every case **a verification was
 performed and reported accurately** -- the gate did compare 36 files, the ULP
@@ -1128,6 +1245,8 @@ wrong each time is the mapping from what was measured to what was claimed:
 - a cost reasoned from code shape and never executed (2)
 - a path described from a call site thirty lines away from the one that runs (3)
 - a denominator that includes files the run cannot touch (4)
+- a module merged and gated without one line of it executing (5)
+- a contract half-enforced, so the guarded half hid the unguarded one (6)
 
 **A green check whose subject is not the shipped thing is worse than no check**,
 because it is quoted. Instance 1 left this repository in conversation. Instance 3

@@ -221,13 +221,32 @@ def run(u, arm=None):
         arm if hasattr(arm, "name") else arm_reg.ARMS[arm])
     audit = {"holdings": [], "summary": [], "trades": [],
              "ranking": [], "decisions": [], "skipped": []}
+    # THE CAP AND THE DATA IT NEEDS, TOGETHER. This step passed
+    # participation_cap() alone until 2026-09-15. backtest_exposure applies the cap
+    # only where vol20 supplies a prior-20-session median, so a tradeable audit
+    # replayed the RESEARCH strategy and reconciled it against the TRADEABLE curve:
+    # "v1 MISMATCH Rs 3,851,027.09" on mid, which is the cap's whole effect to the
+    # paisa. The trail was then refused -- correctly, for the wrong reason -- and
+    # mid, the only universe where the cap binds, has never had a tradeable audit.
+    #
+    # THE SAME EXPRESSION THE ENGINES USE, deliberately. engine_v2_final_*.py and
+    # v34_common.py build vol20 exactly this way; the audit must replay what the
+    # engine ran, so it reads the volume from the same place by the same call
+    # rather than by an equivalent-looking one.
+    _capkw = {"participation_cap": _prof.participation_cap()}
+    if _capkw["participation_cap"] is not None:
+        import tradability as _tr
+        import config as _cfg
+        from engine_core import _load_calendar as _lc
+        _capkw["vol20"] = _tr.median_volume(
+            u.prepare_data_dir(), _lc(), _cfg.BT_START_DATE, _cfg.BT_END_DATE)
     eq, tc, ntr, expo = backtest_exposure(
         px, op, sc, bd, pc, mom20, mode=_arm.mode, sizing=_arm.sizing, audit=audit,
         value_at_open=True,
         # THE RUN'S CADENCE. A trail built at 20 while the engine ran at 40 would
         # fail the reconciliation below -- which is the check working, but the fix
         # is to audit the cadence that was actually run.
-        rebal=cadence.selected(), participation_cap=_prof.participation_cap())
+        rebal=cadence.selected(), **_capkw)
 
     # ---- SAFETY: does this match the official equity curve FOR THIS ARM? ----
     # The check is the point of the step. Auditing an arm against another arm's

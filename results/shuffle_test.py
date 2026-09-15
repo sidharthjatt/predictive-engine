@@ -115,8 +115,12 @@ def permute_scores(sc, seed):
 def run_arm(sizing, mode, px, op, sc, bd, pc, mom20, port_vol, tv):
     test_exposure.TOP_N = config.TOP_N
     test_exposure.BUFFER = config.BUFFER
+    # RESEARCH-ONLY, DECLARED. This caller passes no vol20, so it could not
+    # apply a participation cap even if one were selected; research_only()
+    # makes that a statement rather than an accident, and STOPS the run if
+    # --profile ever reaches here. See profiles.research_only.
     eq, tc, ntr, expo = backtest_exposure(px, op, sc, bd, pc, mom20, port_vol,
-                                          mode=mode, target_vol=tv, sizing=sizing, participation_cap=_prof.participation_cap())
+                                          mode=mode, target_vol=tv, sizing=sizing, participation_cap=_prof.research_only(__name__))
     m = metrics(eq, "arm", tc, ntr)
     return {"CAGR%": float(m["CAGR%"]), "Sharpe": float(m["Sharpe"]),
             "MaxDD%": float(m["MaxDD%"]), "AnnVol%": ann_vol_pct(eq),
