@@ -944,9 +944,19 @@ its own docstring records why: the same bug appeared on the cadence axis, then t
 arm axis, then the profile axis, each fixed at its own call site, "so each new axis
 re-opened the same hole somewhere else."
 
-**`naming.py` IS IMPORTED BY NOTHING.** Verified 2026-09-15: no module in the live
-tree imports it. Every writer, reader and guard retypes the composition, and
-`run_all._present()` retypes it as `f.stem + _cd.suffix() + _pf.suffix()`.
+**IT IS NOT A MISSING AUTHORITY. IT IS AN UNADOPTED ONE.** `naming.py` is written,
+it declares itself the fix, and **no module in the live tree imports it** --
+verified 2026-09-15. Every writer, reader and guard retypes the composition, and
+`run_all._present()` retypes it as `f.stem + _cd.suffix() + _pf.suffix()`. Every
+entry in this file that points at `naming.py` as the eventual solution has been
+pointing at a file nobody calls.
+
+**AND ADOPTING IT AS IT STANDS WOULD NOT HAVE PREVENTED DEFECT 3.** `naming.CARRIES`
+registers which axes a COMPOSER can express; nothing records which axes an ARTEFACT
+carries. So the naming work is two pieces, in this order: **extend `naming.py` to
+record per-artefact axes, then adopt it at every writer, reader and guard.**
+Adoption alone would standardise the composition and leave the guard still free to
+decide, wrongly, that a score panel carries a profile.
 
 **AND THE AUTHORITY WOULD NOT SETTLE THIS EVEN IF ADOPTED.** `naming.CARRIES`
 registers which axes a COMPOSER can express -- `_c(` carries cadence and profile,
