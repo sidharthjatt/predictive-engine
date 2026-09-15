@@ -28,12 +28,12 @@ ORDER:
   === MIDCAP150 ===
   10a. build_scores (mid)   -> MidCap150 scores (SLOW)
   10b. engine_v2_final_mid  -> MidCap150 v2 FINAL
-  10c. make_mid_audit       -> MidCap150 daily audit CSVs
+  10c. make_audit (mid)     -> MidCap150 daily audit CSVs
   10d. make_mid_chart       -> MidCap150 chart + cap-weighted index benchmark
   === NIFTY 100 ===
   10e. build_scores (n100)  -> Nifty 100 scores (SLOW)
   10f. engine_v2_final_n100 -> Nifty 100 v2 FINAL
-  10g. make_n100_audit      -> Nifty 100 daily audit CSVs
+  10g. make_audit (n100)    -> Nifty 100 daily audit CSVs
   10h. make_n100_chart      -> Nifty 100 chart + cap-weighted index benchmark
   === ACROSS UNIVERSES ===
   12b. make_combined_universes -> the published comparison figure
@@ -112,8 +112,7 @@ STEP_DIRS = (ROOT / "results", ROOT / "nautilus")
 # the static ordering check loses the edges the helper writes. results/audit_step.py
 # holds the one audit implementation the two per-universe entry points call.
 STEP_HELPERS = {
-    "make_mid_audit.py":     (R / "audit_step.py",),
-    "make_n100_audit.py":    (R / "audit_step.py",),
+    "make_audit.py":         (R / "audit_step.py",),
     # ONE ENTRY FOR BOTH ROWS. STEP_HELPERS is keyed by script, and after the
     # step 3 merge the two build_scores rows name the same script, so they share
     # this entry rather than needing one each. STEP_HELPERS shrinks with every
@@ -188,7 +187,7 @@ REQUIRED_INPUTS = {
         # v1,v3` impossible from a cold tree; it only ever passed because an
         # earlier default run had left the file on disk.
         (ROOT / "results_mid" / "metrics" / "daily_trades_mid.csv",
-         "STEP 10c make_mid_audit.py", "v2"),
+         "STEP 10c make_audit.py", "v2"),
         # ARM-TAGGED. This input exists only when v1 is selected, so check_inputs
         # skips it otherwise. The tuple stays a literal path in the same shape, so
         # check_pipeline_order still resolves the edge and its inventory is
@@ -202,7 +201,7 @@ REQUIRED_INPUTS = {
         # v1,v3` impossible from a cold tree; it only ever passed because an
         # earlier default run had left the file on disk.
         (ROOT / "results_n100" / "metrics" / "daily_trades_n100.csv",
-         "STEP 10g make_n100_audit.py", "v2"),
+         "STEP 10g make_audit.py", "v2"),
         # ARM-TAGGED. This input exists only when v1 is selected, so check_inputs
         # skips it otherwise. The tuple stays a literal path in the same shape, so
         # check_pipeline_order still resolves the edge and its inventory is
@@ -223,13 +222,13 @@ REQUIRED_INPUTS = {
         # v1,v3` impossible from a cold tree; it only ever passed because an
         # earlier default run had left the file on disk.
         (ROOT / "results_mid" / "metrics" / "daily_trades_mid.csv",
-         "STEP 10c make_mid_audit.py", "v2"),
+         "STEP 10c make_audit.py", "v2"),
         # ARM-TAGGED TOO: this is v2's audit trail, and a selection without v2
         # writes no v2 trail at all. Demanding it unconditionally made `--arm
         # v1,v3` impossible from a cold tree; it only ever passed because an
         # earlier default run had left the file on disk.
         (ROOT / "results_n100" / "metrics" / "daily_trades_n100.csv",
-         "STEP 10g make_n100_audit.py", "v2"),
+         "STEP 10g make_audit.py", "v2"),
     ],
     # STEP 16 reads the PERMANENT panels, which STEP 15b copies from /tmp. Named
     # here so that if the two are ever re-ordered again the run stops with the
@@ -295,11 +294,11 @@ REQUIRED_INPUTS = {
 PIPELINE_ORDER = [
     ("STEP 10a", "build_scores.py",            "mid"),
     ("STEP 10b", "engine_v2_final_mid.py",     "mid"),
-    ("STEP 10c", "make_mid_audit.py",          "mid"),
+    ("STEP 10c", "make_audit.py",              "mid"),
     ("STEP 10d", "make_mid_chart.py",          "mid"),
     ("STEP 10e", "build_scores.py",            "n100"),
     ("STEP 10f", "engine_v2_final_n100.py",    "n100"),
-    ("STEP 10g", "make_n100_audit.py",         "n100"),
+    ("STEP 10g", "make_audit.py",              "n100"),
     ("STEP 10h", "make_n100_chart.py",         "n100"),
     # MOVED FROM STEP 10i, and the move is load-bearing rather than cosmetic.
     # The combined chart is now generic over the selection, so it may need the 58's
