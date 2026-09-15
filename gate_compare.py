@@ -41,6 +41,35 @@ ULP = 2.3e-16          # one unit in the last place, relative
 
 
 # ---------------------------------------------------------------------------
+# CHECKSUM IS THE GATE. GREP IS A HINT.
+# ---------------------------------------------------------------------------
+# POLICY, 2026-09-15. A keyword survey of divergences has twice declared itself
+# complete and been wrong.
+#
+#   step 5  the engine pair was surveyed for render and artefact divergence, and
+#           the survey held -- but only because the pre/post checksum was run.
+#   step 6  the chart pair's survey named two divergent render parameters, dpi and
+#           the ax[1] legend font size. It missed a THIRD: the drawdown legend's
+#           label format, which differs in three ways at once (the split token,
+#           the word "max", and .1f versus .0f). The pattern matched the
+#           ax[1].plot call and never reached the argument on its CONTINUATION
+#           LINE. n100's chart moved by 3,971 pixels -- 0.103% of the image, all
+#           of it inside one legend box -- and nothing in the survey said so.
+#
+# SO: A MERGE IS NOT GATED UNTIL BOTH UNIVERSES' ARTEFACTS ARE BYTE-IDENTICAL
+# PRE/POST ON THE SAME PANEL. Run the cell at HEAD, checksum, apply the merge, run
+# it again, checksum. No survey of differences substitutes for that, and from
+# step 7 on a survey must not be offered as evidence that a merge is clean.
+#
+# AND A COMPARISON MUST EXERCISE WHAT IT CLAIMS TO. The first pixel diff of that
+# n100 chart reported ZERO differences, because the last run executed at that
+# moment was the PRE-merge one -- so it compared the pre-merge file against its
+# own copy and proved nothing. Same class as the prose stripper that passed a
+# two-line test and did nothing on the real tree: a check that passes because it
+# never exercised the thing it claims to check. State which run produced the file
+# you are checksumming, or the checksum is decoration.
+
+# ---------------------------------------------------------------------------
 # THE STANDING GATE FOR STEPS 4-8 OF THE COLLAPSE
 # ---------------------------------------------------------------------------
 # FOUR CELLS, AND THE TWO KINDS ARE NOT INTERCHANGEABLE. Measured 2026-09-15 by
