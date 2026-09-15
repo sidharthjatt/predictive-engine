@@ -40,6 +40,52 @@ from pathlib import Path
 ULP = 2.3e-16          # one unit in the last place, relative
 
 
+# ---------------------------------------------------------------------------
+# THE STANDING GATE FOR STEPS 4-8 OF THE COLLAPSE
+# ---------------------------------------------------------------------------
+# FOUR CELLS, AND THE TWO KINDS ARE NOT INTERCHANGEABLE. Measured 2026-09-15 by
+# running each and recording what it wrote, rather than reasoning about it.
+#
+# arms.registry.selection_suffix() is EMPTY for a full selection, because only a
+# four-arm run may write the canonical v34 artefacts. So:
+#
+#   --arm all  writes  v34_comparison.csv      chart_v34.png      DAILY_LOG_mid.txt
+#   --arm v3   writes  v34_comparison_v3.csv   chart_v34_v3.png   DAILY_LOG_mid_v3.txt
+#
+# These are DIFFERENT ARTEFACTS FROM DIFFERENT NAMING BRANCHES. An all-arm cell
+# does not subsume a single-arm one, and a gate built only on all-arm cells leaves
+# the suffixed branch -- exactly what the merged chart and engine must get right --
+# entirely unexercised. That is the trap this table exists to close.
+#
+# Every cell runs on cached panels; the scoring path is skipped in all four.
+STANDING_GATE = (
+    # (universe, arm,  profile,    runtime, artefacts, what it alone exercises)
+    ("mid",  "all", "research",  "67 s", 43, "canonical unsuffixed v34 artefacts"),
+    ("n100", "all", "research",  "52 s", 43, "canonical, plus chart_n100_v1_v2_v3_v4.png"),
+    ("mid",  "v3",  "research",  "24 s", 20, "the SUFFIXED naming branch on mid"),
+    ("n100", "v2",  "research",  "20 s", 20, "the suffixed branch on n100; the accepted cell"),
+)
+
+# WHAT THE STANDING GATE DOES NOT COVER, stated so coverage is never assumed. Each
+# of these is a real axis of this pipeline that no cell above touches:
+#
+#   --profile tradeable   CANNOT COMPLETE on either universe. mid's audit replay
+#                         disagrees with the engine wherever the participation cap
+#                         binds, fail-closes, and the missing daily trail then
+#                         blocks STEP 10d on mid and STEP 12b on n100. All 47
+#                         tradeable artefacts still regenerate; a completed run and
+#                         mid's tradeable audit do not. See KNOWN_ISSUES.md,
+#                         "The tradeable profile cannot complete a run".
+#   --rebal 40            the _r40 cadence suffix. Exercised by no cell here.
+#   9 of 15 arm subsets   arms.registry.suffix() names any subset (_v1_v3 and so
+#                         on); four singles and one full selection are covered,
+#                         the other ten combinations are not. docs/HANDOFF.md
+#                         records the same gap.
+#   the scoring path      every cell runs on cached panels, so
+#                         build_scores_step.run() returns early. Covering it costs
+#                         a 34-minute forced rebuild.
+
+
 def sha(p):
     return hashlib.sha256(p.read_bytes()).hexdigest()
 
@@ -91,7 +137,21 @@ def compare(bp, lp):
     return ("ULP" if worst <= ULP else "DIFFERS"), f"max rel {worst:.3e} in '{col}'"
 
 
+def print_cells():
+    print("STANDING GATE -- steps 4-8 of the collapse\n")
+    for u, arm, pf, rt, n, why in STANDING_GATE:
+        print(f"  --universe {u:<4} --arm {arm:<3} --profile {pf:<8}"
+              f"  {rt:>5}  {n:>3} artefacts   {why}")
+    print("\n  Both kinds are required: a full selection writes the CANONICAL v34")
+    print("  artefacts and a single arm writes the SUFFIXED ones. Neither subsumes")
+    print("  the other. See the module docstring for what is outside this gate:")
+    print("  the tradeable profile, the _r40 cadence, 10 of 15 arm subsets, and")
+    print("  the scoring path.")
+
+
 def main(argv=None):
+    if (argv if argv is not None else sys.argv[1:])[:1] == ["--cells"]:
+        print_cells(); return 0
     ap = argparse.ArgumentParser()
     ap.add_argument("baseline"); ap.add_argument("live")
     ap.add_argument("--universe", required=True); ap.add_argument("--arm", required=True)
