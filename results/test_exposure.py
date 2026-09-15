@@ -74,11 +74,26 @@ M = config.METRICS_DIR
 # resolves to); what is refused is not saying which.
 _CAP_REQUIRED = object()
 
+# AND THE CAP'S DATA HAS NO SILENT DEFAULT EITHER. `vol20=None` was the signature
+# default from the day the cap was added, so a caller could pass the cap, satisfy
+# _CAP_REQUIRED, and still be refused the cap by the `vol20 is not None` test three
+# hundred lines below -- silently, with the run reporting the selected profile in
+# every filename and every header.
+#
+# THAT IS THE EXACT FAILURE _CAP_REQUIRED WAS BUILT TO ABOLISH, and it abolished
+# half of it. Measured 2026-09-15: results/audit_step.py passed the cap and no
+# vol20, so every `--profile tradeable` audit of mid replayed the RESEARCH
+# strategy and reconciled it against the TRADEABLE curve -- reported as
+# "v1 MISMATCH Rs 3,851,027.09", which is the cap's whole effect to the paisa.
+# Thirteen further callers had the same pairing and were saved only by the profile
+# axis being unable to reach them.
+_VOL20_REQUIRED = object()
+
 
 def backtest_exposure(px, op, sc, dates, pc, mom20, port_vol=None,
                       mode="none", target_vol=None, audit=None, sizing="invvol",
                       const_expo=None, value_at_open=True, rebal=None,
-                      funding="cash", participation_cap=_CAP_REQUIRED, vol20=None):
+                      funding="cash", participation_cap=_CAP_REQUIRED, vol20=_VOL20_REQUIRED):
     """audit=None reproduces the original code path exactly: no overhead, and the
     official numbers are unchanged.
     Passing a dict with holdings/summary/trades/ranking/decisions/skipped keys logs
@@ -147,6 +162,27 @@ def backtest_exposure(px, op, sc, dates, pc, mom20, port_vol=None,
             "fraction of prior-20-session median volume under 'tradeable'. It had "
             "a None default, which meant a caller that omitted it silently "
             "measured the research profile whatever the run had selected.")
+    # THE OTHER HALF OF THE SAME CONTRACT. A cap with no volume series is not a
+    # cap; it is research arithmetic with a tradeable label on the output. The
+    # caller is named because the failure is silent at every other level -- the
+    # profile is right, the filenames are right, and only the numbers are wrong.
+    if participation_cap is not None and vol20 is _VOL20_REQUIRED:
+        import inspect as _insp
+        _f = _insp.stack()[1]
+        raise TypeError(
+            f"backtest_exposure(): participation_cap={participation_cap!r} was "
+            f"passed without vol20, from {_f.filename}:{_f.lineno}.\n"
+            f"  The cap is applied only where a prior-20-session median volume "
+            f"exists for the symbol, so without vol20 NO BUY IS EVER CAPPED and "
+            f"this call measures the research strategy under a "
+            f"'{__import__('profiles').selected()}' label.\n"
+            f"  Pass vol20=tradability.median_volume(u.prepare_data_dir(), "
+            f"_load_calendar(), BT_START_DATE, BT_END_DATE) as both engines and "
+            f"v34_common do, or declare the intent with "
+            f"profiles.research_only(__name__) if this caller is research-only.")
+    if vol20 is _VOL20_REQUIRED:
+        # research: the cap is None, so the volume series is genuinely unused.
+        vol20 = None
     # REBALANCE CADENCE. None means "use the module value", which is what every
     # caller relied on when this was only a module global -- so omitting it is
     # byte-identical to the previous behaviour, and rebal_cadence_sweep.py's
@@ -498,8 +534,12 @@ def main():
 
     rows, curves = [], {}
     for lab, mode in variants:
+        # RESEARCH-ONLY, DECLARED. This caller passes no vol20, so it could not
+        # apply a participation cap even if one were selected; research_only()
+        # makes that a statement rather than an accident, and STOPS the run if
+        # --profile ever reaches here. See profiles.research_only.
         eq, tc, ntr, avg_expo = backtest_exposure(
-            px, op, sc, bd, pc, mom20, port_vol, mode=mode, target_vol=target_vol, participation_cap=_prof.participation_cap())
+            px, op, sc, bd, pc, mom20, port_vol, mode=mode, target_vol=target_vol, participation_cap=_prof.research_only(__name__))
         m = metrics(eq, lab, tc, ntr)
         m["AvgExposure"] = round(avg_expo * 100, 0)
         rows.append(m); curves[lab] = eq

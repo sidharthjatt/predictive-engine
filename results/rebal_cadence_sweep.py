@@ -180,9 +180,13 @@ def run(tag, rebal, ctx, sizing="invvol", mode="breadth", arm="v2", audit=None):
     label, M, px, op, sc, bd, pc, mom20, port_vol, tv = ctx
     test_exposure.REBAL = rebal
     assert test_exposure.REBAL == rebal, "the cadence override did not take"
+    # RESEARCH-ONLY, DECLARED. This caller passes no vol20, so it could not
+    # apply a participation cap even if one were selected; research_only()
+    # makes that a statement rather than an accident, and STOPS the run if
+    # --profile ever reaches here. See profiles.research_only.
     eq, tc, n, expo = backtest_exposure(px, op, sc, bd, pc, mom20, port_vol,
                                         mode=mode, target_vol=tv, sizing=sizing,
-                                        audit=audit, participation_cap=_prof.participation_cap())
+                                        audit=audit, participation_cap=_prof.research_only(__name__))
     m = metrics(eq, f"{arm} REBAL={rebal}", tc, n)
     r = eq.pct_change().dropna()
     annvol = round(float(r.std() * np.sqrt(252) * 100), 2)   # as v34_common.ann_vol_pct

@@ -142,8 +142,12 @@ def pivot(p):
 def arm(px, op, sc, dates, pc, mom20, sizing, audit=None):
     """One always-invested arm. mode="none" matches engine_core.backtest, which has
     no exposure concept, so the sizing contrast is the only thing being measured."""
+    # RESEARCH-ONLY, DECLARED. This caller passes no vol20, so it could not
+    # apply a participation cap even if one were selected; research_only()
+    # makes that a statement rather than an accident, and STOPS the run if
+    # --profile ever reaches here. See profiles.research_only.
     return backtest_exposure(px, op, sc, dates, pc, mom20, port_vol=None,
-                             mode="none", sizing=sizing, audit=audit, participation_cap=_prof.participation_cap())
+                             mode="none", sizing=sizing, audit=audit, participation_cap=_prof.research_only(__name__))
 
 
 def mean_book(audit):

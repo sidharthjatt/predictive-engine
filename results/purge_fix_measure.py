@@ -167,9 +167,13 @@ def arms_from_scores(sp, cfg):
     out = {}
     for tag, sizing, mode in ARMS:
         test_exposure.TOP_N, test_exposure.BUFFER = config.TOP_N, config.BUFFER
+        # RESEARCH-ONLY, DECLARED. This caller passes no vol20, so it could not
+        # apply a participation cap even if one were selected; research_only()
+        # makes that a statement rather than an accident, and STOPS the run if
+        # --profile ever reaches here. See profiles.research_only.
         eq, tc, n, expo = backtest_exposure(px, op, sc, bd, pc, mom20, pv,
                                             mode=mode, target_vol=tv,
-                                            sizing=sizing, participation_cap=_prof.participation_cap())
+                                            sizing=sizing, participation_cap=_prof.research_only(__name__))
         m = metrics(eq, tag, tc, n)
         yearly = {}
         for y, g in eq.groupby(eq.index.year):

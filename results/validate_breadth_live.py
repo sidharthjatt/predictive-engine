@@ -123,9 +123,13 @@ def run_mode(parts, dd, mode, const_expo=None):
     """One backtest. Returns (metrics dict, realised mean exposure)."""
     px, op, sc, pc, mom20, port_vol = parts
     target_vol = port_vol.loc[dd].median()
+    # RESEARCH-ONLY, DECLARED. This caller passes no vol20, so it could not
+    # apply a participation cap even if one were selected; research_only()
+    # makes that a statement rather than an accident, and STOPS the run if
+    # --profile ever reaches here. See profiles.research_only.
     eq, tc, ntr, expo = backtest_exposure(px, op, sc, dd, pc, mom20, port_vol,
                                           mode=mode, target_vol=target_vol,
-                                          const_expo=const_expo, participation_cap=_prof.participation_cap())
+                                          const_expo=const_expo, participation_cap=_prof.research_only(__name__))
     return metrics(eq, mode, tc, ntr), float(expo)
 
 

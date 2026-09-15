@@ -72,8 +72,12 @@ def run(uni, perm, tmp):
 
     rows = []
     for sizing, mode in ARMS:
+        # RESEARCH-ONLY, DECLARED. This caller passes no vol20, so it could not
+        # apply a participation cap even if one were selected; research_only()
+        # makes that a statement rather than an accident, and STOPS the run if
+        # --profile ever reaches here. See profiles.research_only.
         eq, tc, n, _ = backtest_exposure(px, op, sc, bd, pc, mom20, port_vol,
-                                         mode=mode, target_vol=tv, sizing=sizing, participation_cap=_prof.participation_cap())
+                                         mode=mode, target_vol=tv, sizing=sizing, participation_cap=_prof.research_only(__name__))
         s = pd.Series(eq, index=bd[:len(eq)]) if not isinstance(eq, pd.Series) else eq
         # Hash the exact float bytes of the curve, not a formatted rendering.
         h = hashlib.sha256(np.asarray(s.values, dtype=np.float64).tobytes()).hexdigest()

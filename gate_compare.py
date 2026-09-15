@@ -64,18 +64,26 @@ STANDING_GATE = (
     ("n100", "all", "research",  "52 s", 43, "canonical, plus chart_n100_v1_v2_v3_v4.png"),
     ("mid",  "v3",  "research",  "24 s", 20, "the SUFFIXED naming branch on mid"),
     ("n100", "v2",  "research",  "20 s", 20, "the suffixed branch on n100; the accepted cell"),
+    # THE ONLY CELLS WHERE THE PARTICIPATION CAP BINDS. Added 2026-09-15. mid is
+    # the only universe whose cap binds at all -- n100 tradeable reproduces its
+    # research run exactly -- so until these existed, NO cap-binding configuration
+    # had ever been independently replayed, and audit_step measured research under
+    # a tradeable label for as long as the profile existed. v1 carries the largest
+    # cap effect (Rs 3.85M); v2 is the arm whose trail the chart and STEP 12b read.
+    ("mid",  "v1",  "tradeable", "25 s", 20, "the cap BINDING, largest effect"),
+    ("mid",  "v2",  "tradeable", "25 s", 20, "the cap binding on the arm 12b reads"),
 )
 
 # WHAT THE STANDING GATE DOES NOT COVER, stated so coverage is never assumed. Each
 # of these is a real axis of this pipeline that no cell above touches:
 #
-#   --profile tradeable   CANNOT COMPLETE on either universe. mid's audit replay
-#                         disagrees with the engine wherever the participation cap
-#                         binds, fail-closes, and the missing daily trail then
-#                         blocks STEP 10d on mid and STEP 12b on n100. All 47
-#                         tradeable artefacts still regenerate; a completed run and
-#                         mid's tradeable audit do not. See KNOWN_ISSUES.md,
-#                         "The tradeable profile cannot complete a run".
+#   --profile tradeable   RECONCILES since 2026-09-15 (audit_step now pairs the cap
+#                         with vol20), and mid v1/v2 tradeable are gate cells above.
+#                         It still cannot COMPLETE: run_all._present() demands a
+#                         profile-suffixed v_mid_expanding_cache_tradeable.csv, and
+#                         the score panel has no profile dimension, so STEP 16
+#                         blocks. A naming-authority defect, not a cap one. See
+#                         KNOWN_ISSUES.md, "The tradeable profile cannot complete".
 #   --rebal 40            the _r40 cadence suffix. Exercised by no cell here.
 #   9 of 15 arm subsets   arms.registry.suffix() names any subset (_v1_v3 and so
 #                         on); four singles and one full selection are covered,

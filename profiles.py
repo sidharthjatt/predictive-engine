@@ -79,6 +79,41 @@ def participation_cap():
     return PROFILES[selected()]["participation_cap"]
 
 
+def research_only(caller):
+    """Declare that `caller` measures the research profile, and REFUSE if the run
+    selected another one. Returns the research cap, which is None.
+
+    WHY A DECLARATION AND NOT JUST `participation_cap=None`. Thirteen measurement
+    tools passed `participation_cap()` and never passed the `vol20` the cap needs,
+    so under `tradeable` they would have measured research and labelled it
+    tradeable. They never did, but only because the profile axis cannot reach them
+    today: none is in PIPELINE_ORDER, none accepts --profile, none calls
+    set_selection, and no load-bearing module imports them. Verified 2026-09-15,
+    all four routes.
+
+    THOSE ARE PROPERTIES OF TODAY'S TREE, AND THE TREE IS BEING REWRITTEN. Safe by
+    construction lasts until someone adds a flag; safe by declaration lasts. A tool
+    that says `research_only(__name__)` and is later handed `--profile tradeable`
+    STOPS, and the message names it. A tool that merely passes None goes on quietly
+    measuring research under a tradeable label -- which is the whole defect, moved
+    one file along.
+
+    Use this ONLY where research is the intended measurement. A caller that should
+    honour the selected profile passes participation_cap() and the vol20 that goes
+    with it; see backtest_exposure's refusal.
+    """
+    if selected() != DEFAULT:
+        raise SystemExit(
+            f"{caller} is declared research-only, but this run selected "
+            f"profile '{selected()}'.\n"
+            f"  It passes no vol20, so the participation cap could not be applied "
+            f"even though the profile asks for it, and the result would be a "
+            f"research measurement wearing a '{selected()}' label.\n"
+            f"  Either run it without --profile, or give it the vol20 that "
+            f"backtest_exposure needs and drop this declaration.")
+    return PROFILES[DEFAULT]["participation_cap"]
+
+
 def suffix():
     """"" for research, "_tradeable" otherwise -- the artefact name tail.
 

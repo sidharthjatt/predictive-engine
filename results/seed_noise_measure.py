@@ -143,8 +143,12 @@ def make_backtester(p):
         M[ri, ci] = score_vec
         sc = pd.DataFrame(M, index=px.index, columns=px.columns)
         test_exposure.TOP_N, test_exposure.BUFFER = config.TOP_N, config.BUFFER
+        # RESEARCH-ONLY, DECLARED. This caller passes no vol20, so it could not
+        # apply a participation cap even if one were selected; research_only()
+        # makes that a statement rather than an accident, and STOPS the run if
+        # --profile ever reaches here. See profiles.research_only.
         eq, tc, n, expo = backtest_exposure(px, op, sc, bd, pc, mom20, pv,
-                                            mode=mode, target_vol=tv, sizing=sizing, participation_cap=_prof.participation_cap())
+                                            mode=mode, target_vol=tv, sizing=sizing, participation_cap=_prof.research_only(__name__))
         m = metrics(eq, "a", tc, n)
         yearly = {int(y): round(float((g.iloc[-1] / g.iloc[0] - 1) * 100), 2)
                   for y, g in eq.groupby(eq.index.year) if len(g) > 2}
