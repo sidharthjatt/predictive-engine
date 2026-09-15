@@ -3538,7 +3538,7 @@ divergence it describes is a real mechanism in code that still exists. What cann
 be said is which of the two observations describes the engine as it ships. Neither
 has been re-derived against the other.
 
-**OBSERVED TWICE, 2026-09-13, AND THE SECOND IS THE STRONGER.** The first
+**OBSERVED THREE TIMES; THE SECOND IS THE STRONGEST AND THE THIRD THE MOST USEFUL.** The first
 observation compared downstream artefacts, where rounding can absorb a small panel
 difference. The second cleared `/tmp` and re-scored both universes from raw at
 commit `4b906f7` -- 34.5 minutes, a 10-seed LightGBM ensemble over 589,269 and
@@ -3556,7 +3556,21 @@ v_n100_expanding.csv     IDENTICAL
 is the object the 4.441e-16 claim is about, and there is nothing left to absorb a
 difference. Recorded in `meta/BASELINE.txt` of the preserved baseline directory.
 
-**Two observations on one machine, in one venv, on one day is still not a
+**OBSERVATION 3, 2026-09-15, and it was spent on a different question.** Step 3 of
+the collapse merged the two score-build entry points, and the standing gate cleared
+it on cached panels without executing one line of the merged scoring module. A
+forced rebuild -- `--fresh`, mid v3, 20.5 minutes -- was run to close that gap, and
+both panels came back byte-identical again:
+
+```
+raw_panel_mid_20.csv   37b6852b35f0601497827fff8080a8de   before and after
+v_mid_expanding.csv    bf0af8676696dd7fc0d85c7927d18a20   before and after
+```
+
+The score panel also matches the copy preserved on 2026-09-13, so the same
+checksum now spans a module merge as well as two days.
+
+**Three observations on one machine, in one venv, across two days is still not a
 determinism claim.** What can now be said is this: the 4.441e-16 divergence has not
 been reproduced by any measurement taken since, and the original's source remains
 unknown rather than disproved.
