@@ -50,6 +50,7 @@ LIMITS, STATED RATHER THAN PAPERED OVER
 Run standalone to see the full map:
     python3 check_pipeline_order.py
 """
+import ast
 import re
 import sys
 from pathlib import Path
@@ -169,6 +170,121 @@ def _scan(script_path):
     return _scan_text(script_path.read_text())
 
 
+# ---------------------------------------------------------------------------
+# PROSE IS NOT CODE, AND THIS SCANNER USED TO TREAT IT AS CODE
+# ---------------------------------------------------------------------------
+# TWICE A TEXT SCANNER IN THIS REPOSITORY HAS MATCHED A COMMENT *ABOUT* CODE
+# RATHER THAN CODE, and both times the prose was written by the person adding the
+# check. transitional_asserts_check.py's first version matched its own marker
+# comment, which names the subscript it warns about, and reported a literal in a
+# file that no longer had one. Then make_audit.py's docstring explained the step-4
+# merge by spelling the old REGISTRY subscript out -- REGISTRY_CALL matched it,
+# bound a phantom "mid" tag to BOTH pipeline rows, and STEP 10g silently dropped
+# n100's four producer edges because it could no longer choose a directory.
+#
+# WHY NOT A FULL AST REWRITE, which is what fixed the marker check. Three reasons,
+# and they are specific to this scanner rather than general:
+#
+#   1. IT SCANS A STEP CONCATENATED WITH ITS HELPERS AS ONE TEXT, deliberately --
+#      the tag is bound in the entry point and the to_csv that uses it lives in the
+#      helper, and scanning them apart loses every edge. Under ast that stops being
+#      concatenation and becomes cross-module scope analysis: which name in the
+#      helper refers to which binding in the caller. That is an import resolver,
+#      not a refactor.
+#   2. ITS PATTERNS MATCH SHAPES, NOT NODES. `VAR / "literal.csv"` is one BinOp
+#      spelling of many the regexes currently catch across several files, and
+#      rewriting them as node matches changes WHICH EDGES ARE FOUND. The edge
+#      inventory is the thing that must not move silently, and this is the middle
+#      of a collapse that moves files every step.
+#   3. THE DEFECT IS NOT "regex instead of ast". It is that comments and
+#      docstrings reach the matcher at all. That is removable exactly.
+#
+# SO: PROSE IS STRIPPED BEFORE ANY PATTERN RUNS, and a tag that appears ONLY in
+# prose is REPORTED BY LINE rather than bound. Silent binding is what cost the four
+# edges; a named warning is what should have happened.
+def _strip_prose(txt):
+    """(code-only text, [(lineno, text)]) -- comments and docstrings blanked.
+
+    LINE NUMBERS ARE PRESERVED: every removed region keeps its newlines, so a
+    warning can name the line the prose is actually on.
+    """
+    import io, tokenize as _tk
+    prose = []
+    try:
+        lines = txt.splitlines(keepends=True)
+        kill = []                                   # (line, col, endline, endcol)
+        for t in _tk.generate_tokens(io.StringIO(txt).readline):
+            if t.type == _tk.COMMENT:
+                kill.append((t.start[0], t.start[1], t.end[0], t.end[1]))
+        tree = ast.parse(txt)
+        for node in ast.walk(tree):
+            # LIST-VALUED BODIES ONLY. ast.IfExp.body and ast.Lambda.body are
+            # single EXPRESSIONS, not statement lists, so iterating them raises
+            # TypeError -- which the except below swallowed, returning the text
+            # unstripped and silently restoring the very behaviour this function
+            # removes. Caught by testing the stripper on real source rather than a
+            # two-line sample.
+            for field in ("body", "orelse", "finalbody"):
+                val = getattr(node, field, None)
+                if not isinstance(val, list):
+                    continue
+                for stmt in val:
+                    if (isinstance(stmt, ast.Expr)
+                            and isinstance(stmt.value, ast.Constant)
+                            and isinstance(stmt.value.value, str)):
+                        kill.append((stmt.lineno, stmt.col_offset,
+                                     stmt.end_lineno, stmt.end_col_offset))
+    except Exception:
+        # UNPARSEABLE TEXT IS RETURNED UNCHANGED rather than half-stripped. The
+        # caller still gets a scan; it is the pre-2026-09-15 behaviour, and the
+        # prose-collision warning below will not fire. Silent partial stripping
+        # would be worse than not stripping.
+        return txt, []
+    for (l0, c0, l1, c1) in kill:
+        if l0 == l1:
+            seg = lines[l0 - 1][c0:c1]
+            prose.append((l0, seg.strip()[:90]))
+            lines[l0 - 1] = lines[l0 - 1][:c0] + " " * (c1 - c0) + lines[l0 - 1][c1:]
+        else:
+            prose.append((l0, lines[l0 - 1][c0:].strip()[:90]))
+            lines[l0 - 1] = lines[l0 - 1][:c0] + "\n"
+            for i in range(l0, l1 - 1):
+                lines[i] = "\n"
+            lines[l1 - 1] = " " * c1 + lines[l1 - 1][c1:]
+    return "".join(lines), prose
+
+
+def _warn_prose_tags(txt, code, label, scr, tag=None):
+    """A prose tag that would have introduced a SECOND candidate directory.
+
+    ONLY THE HARMFUL CASE WARNS. Prose naming this row's OWN universe is common and
+    harmless -- the transitional-assert markers added at step 2 all quote the
+    subscript they describe -- and it would have bound the directory the row
+    already implies. Warning on those would fire on every clean run, and run.py
+    records what that does to a checker: "a warning that fires every time about
+    something irrelevant is how a checker gets ignored."
+
+    A prose tag naming a DIFFERENT universe is the one that cost four edges: it
+    gives the step two candidate directories, `default` becomes None, and every
+    placeholder path falls into unresolved with the checker still reporting
+    success.
+    """
+    in_code = {m.group(1) for m in REGISTRY_CALL.finditer(code)}
+    for line_no, line in enumerate(txt.splitlines(), 1):
+        for m in REGISTRY_CALL.finditer(line):
+            if m.group(1) in in_code:
+                continue
+            if m.group(1) not in _TAG2DIR:
+                continue
+            if tag is not None and m.group(1) == tag:
+                continue                      # this row's own universe: harmless
+            print(f"  NOTE  {label} {scr}: '{m.group(0)}' appears in a comment or "
+                  f"docstring at line {line_no} and is NOT bound.")
+            print(f"        Before 2026-09-15 it WOULD have bound, and a second "
+                  f"candidate directory makes this step's paths unresolvable.")
+            in_code.add(m.group(1))
+
+
 def _scan_text(txt, tag=None):
     """The scan, over source TEXT rather than one file.
 
@@ -179,6 +295,9 @@ def _scan_text(txt, tag=None):
     placeholder falls into `unresolved`; scanned together, the tag applies. Getting
     this wrong is silent -- the checker reports success with the edges missing.
     """
+    # CODE ONLY, from here down.
+    _raw = txt
+    txt, _ = _strip_prose(txt)
     var2dir, tags = {}, []
     for m in DIR_ASSIGN.finditer(txt):
         d = DIRKEY.get((m.group(2), m.group(3)))
@@ -321,6 +440,10 @@ def analyse(pipeline, results_root=None, resolver=None, helpers=None):
             hp = Path(hp)
             if hp.exists():
                 src += "\n" + hp.read_text()
+        # A TAG IN PROSE IS NAMED, NOT BOUND AND NOT IGNORED. It no longer binds
+        # (see _strip_prose), but staying silent would leave the next person to
+        # rediscover why their docstring moved an edge.
+        _warn_prose_tags(src, _strip_prose(src)[0], label, scr, tag)
         _w, _r, _u = _scan_text(src, tag=tag)
         W.setdefault(scr, set()).update(_w)
         Rd.setdefault(scr, set()).update(_r)
