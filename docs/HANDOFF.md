@@ -1,5 +1,55 @@
 # Handoff — what ships, in the order you unpack it
 
+## BLOCKER 1, ABOVE EVERYTHING ELSE: THE DATA IS NOT IN THIS REPOSITORY
+
+**"Clone it, install requirements.txt, run it" DOES NOT WORK, and the reason has
+nothing to do with the code.** 172 MB of price data is excluded from git by
+`.gitignore:71` (`data/raw/*`) and must be copied separately:
+
+```
+data/raw/MidCap150/clean/          149 files    95 MB   148 constituents + NIFTYMIDCAP150.csv
+data/raw/nifty100_benchmark/       100 files    77 MB    99 constituents + NIFTY100.csv
+```
+
+**THERE IS NO FETCH SCRIPT.** The only downloader in the project,
+`results/extract_membership.py`, retrieves NSE press releases for the survivorship
+work, not prices. **Nothing in this repository can re-acquire this data.** If you
+lose it, it is gone, and a `git clone` gives you a pipeline with nothing to run on.
+
+**THERE IS NO LICENCE.** Nothing records what may be done with it. The rows carry
+their own vendor provenance -- `dhan`, `kite`, `upstox`, mixed within single files
+-- and no grant of any kind accompanies them.
+
+**DO NOT READ THIS REPOSITORY AS NEARLY PORTABLE.** Every other blocker below --
+the two stale citations in `requirements.txt`, the `/tmp` hardcoding, the Python
+floor, the symlink farms -- is a half-hour of work. This one is an acquisition
+problem and it is the whole problem. A reader who fixes the others still cannot
+produce a number.
+
+### The other blockers, in the order they will bite
+
+They are listed here so "below" in the paragraph above means something. None is
+large; all are real.
+
+2. **`requirements.txt` cites two files that do not exist** -- `diagnose_decay.py`
+   and `reality_check.py`. Checked 2026-09-15 by resolving every `.py` named in
+   that file: the other five resolve. A reader following either citation finds
+   nothing and cannot tell whether the dependency is spurious or the file is lost.
+3. **`/tmp` is hardcoded in 37 places** and needs about 1.5 GB free. It is a POSIX
+   assumption, not a configurable path.
+4. **Python 3.12 or newer is a hard floor**, set by `nautilus_trader`.
+5. **The symlink farms must ship EMPTY.** A copy that preserves absolute symlinks
+   pointing at the source machine fails in a way that looks like missing data
+   rather than a bad copy. `rsync` without `-L` and `zip` both do this.
+6. **`--profile tradeable` cannot complete a run.** It reconciles through STEP 15b
+   and dies at STEP 16 on a profile-suffixed score-panel name that should not
+   exist. See `KNOWN_ISSUES.md`, "No component owns which axes an artefact
+   carries".
+7. **Cross-machine reproducibility is untested** -- the next section is about
+   exactly this, and names the four axes nobody has varied.
+
+---
+
 ## Read this paragraph before anything else
 
 **Cross-machine reproducibility has never been tested.** Nobody has run this
