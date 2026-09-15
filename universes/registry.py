@@ -122,6 +122,31 @@ class Universe:
     _symbols: Optional[Callable]  # authoritative symbol list, where one exists
     _prepare: Optional[Callable]  # brings data_dir into existence, where that is needed
 
+    # ------------------------------------------------------------------
+    # WHAT THE ENGINE REPORTS FOR THIS UNIVERSE
+    # ------------------------------------------------------------------
+    # Added 2026-09-15 with step 5, the engine merge. engine_v2_final_mid.py and
+    # engine_v2_final_n100.py had diverged in 95 lines of code beyond their tags --
+    # unlike the step 3 and step 4 pairs, which differed only in the tag -- and some
+    # of that divergence REACHES PUBLISHED ARTEFACTS: v2FINAL_params.json carries a
+    # different key set and key ORDER per universe, and chart_v2FINAL.png carries a
+    # different title.
+    #
+    # IT IS PRESERVED AS DATA, NOT UNIFIED. A merge is verifiable by the gate; an
+    # artefact change is a judgement, and putting both in one commit would leave a
+    # moved byte with two possible causes. Unifying any of this is a separate,
+    # declared change.
+    #
+    # validation_status IS DELIBERATELY NOT A UNIFORM SHAPE. mid carries a dict of
+    # eight measured results; n100 carries a sentence saying the work was not done
+    # on this universe. That asymmetry is the RECORD OF WHICH UNIVERSE GOT THE WORK,
+    # and flattening both into one shape would read as though both were measured.
+    # The type tells them apart: dict means measured, str means not.
+    validation_status: object = None
+    engine_params_keys: tuple = ()        # v2FINAL_params.json keys, IN ORDER
+    engine_params_static: dict = None     # values for keys that are not computed
+    engine_text: dict = None              # banner, chart title, console blocks
+
     def symbols(self):
         """The tradable names, or None when the directory is the definition."""
         return None if self._symbols is None else self._symbols()
@@ -178,7 +203,48 @@ if config_mid is not None:
         index_file=config_mid.INDEX_FILE_MID,
         year_range=None, date_range=(config.BT_START_DATE, config.BT_END_DATE),
         _symbols=lambda: set(config_mid.SYMBOLS_MID),
-        _prepare=config_mid.ensure_constituents_dir
+        _prepare=config_mid.ensure_constituents_dir,
+        # MEASURED. Eight results from the post density-fix panel. The inv-vol half
+        # of the old blanket "validated" claim was FALSE as written, which is why
+        # this is stated per test: a stale validation claim is worse than no claim.
+        validation_status={
+            "measured_on": "post density-fix panel, 2026-08-13, caches rebuilt",
+            "breadth_T1_seed_robustness": ("FAIL 2 of 3 seed sets "
+                                           "(+0.14, -0.02, +0.16); was PASS 3 of 3"),
+            "breadth_T2_sub_period": "PASS both halves (+0.21, +0.36)",
+            "inv_vol_T1_baseline_control": "PASS",
+            "inv_vol_T2_seed_robustness": ("FAIL 0 of 3 seed sets "
+                                           "(-0.05, -0.01, -0.10); was PASS 3 of 3"),
+            "inv_vol_T3_sub_period": "FAIL both halves (-0.04, -0.10); was PASS",
+            "inv_vol_T4_vol_window": ("FAIL 0 of 4 windows beat equal-rupee 1.06 "
+                                      "(1.00/1.00/1.04/1.03); was PASS 4 of 4"),
+        },
+        # THE KEY ORDER IS THE ARTEFACT. json.dumps preserves insertion order, so
+        # this tuple is what makes v2FINAL_params.json byte-identical across the
+        # merge. mid has no "universe" and no "n_symbols"; n100 has both and lacks
+        # "validated"/"rejected". Neither set is more correct -- they are what the
+        # two engines happened to write, and unifying them is a separate change.
+        engine_params_keys=(
+            "model", "sizing", "exposure", "top_n", "buffer", "rebalance_days",
+            "avg_exposure_pct", "sharpe", "maxdd_pct", "cagr_pct", "cash_yield",
+            "survivorship", "vs_buyhold", "validated", "validation_status",
+            "rejected"),
+        engine_params_static={
+            "validated": "see validation_status",
+            "rejected": ["slope regime", "absolute gate", "vol-targeting",
+                         "feature pruning", "100-share sizing"],
+        },
+        engine_text={
+            "banner": "ENGINE v2 FINAL -- cross-sectional ranking + inverse-vol "
+                      "+ breadth scaling",
+            "panel_what": "MidCap150 score panel",
+            "bh_label": "Equal-weight buy & hold (MidCap150)",
+            "chart_title": ("FINAL v2 strategy: ranking + inverse-vol + "
+                            "breadth-scaled exposure\n"
+                            "Breadth cuts exposure in weak markets -> ~half the "
+                            "drawdown, higher Sharpe\n"),
+            "assert_index_absent": False,
+        },
     )
 
 _N100 = None
@@ -198,7 +264,30 @@ if config_n100 is not None:
         index_file=config_n100.INDEX_FILE_N100,
         year_range=None, date_range=(config.BT_START_DATE, config.BT_END_DATE),
         _symbols=lambda: set(config_n100.SYMBOLS_N100),
-        _prepare=config_n100.ensure_constituents_dir
+        _prepare=config_n100.ensure_constituents_dir,
+        # NOT MEASURED, and a STRING rather than a dict so it cannot be mistaken
+        # for mid's eight results. The seed-robustness and sub-period validations
+        # on record were run elsewhere and are not claimed here.
+        validation_status=("not measured on this universe. The seed-robustness "
+                           "and sub-period validations on record were run on the "
+                           "58 and the mid and are not claimed here."),
+        engine_params_keys=(
+            "universe", "model", "sizing", "exposure", "top_n", "buffer",
+            "rebalance_days", "avg_exposure_pct", "n_symbols", "sharpe",
+            "maxdd_pct", "cagr_pct", "cash_yield", "survivorship", "vs_buyhold",
+            "validation_status"),
+        engine_params_static={
+            "universe": "Nifty 100 (99 constituents, NIFTY100.csv excluded by name)",
+        },
+        engine_text={
+            "banner": "ENGINE v2 FINAL -- Nifty 100 universe (99 names, index "
+                      "excluded by name)",
+            "panel_what": "Nifty 100 score panel",
+            "bh_label": "Equal-weight buy & hold (Nifty 100, 99 names)",
+            "chart_title": ("Nifty 100 universe -- ranking + inverse-vol + "
+                            "breadth-scaled exposure\n"),
+            "assert_index_absent": True,
+        },
     )
 
 # ONLY THE UNIVERSES WHOSE CONFIG IS PRESENT. Declaration order is preserved, so

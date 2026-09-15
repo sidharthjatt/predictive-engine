@@ -1,42 +1,32 @@
 """
-engine_v2_final_n100.py -- FINAL v2 STRATEGY (breadth-scaled), Nifty 100 universe
-================================================================================
-Same strategy as engine_v2_final.py, run on the Nifty 100 universe (99 names,
-index excluded by name). Every feature, hyperparameter and rule is byte-identical
-to the other universes; only the universe differs.
+engine_v2_final.py -- FINAL v2 STRATEGY (breadth-scaled), for one universe
 
-  Cross-sectional LightGBM ranking (17 features, monthly retrain, 32d purge)
-    + inverse-vol position sizing
-    + BREADTH SCALING for crash control
+THE PER-UNIVERSE ENTRY POINT, for every universe. Merged 2026-09-15 from
+engine_v2_final_mid.py and engine_v2_final_n100.py. Step 5 of the collapse, and
+the largest of the eight: unlike the step 3 and step 4 pairs, which differed only
+in the tag, these two had diverged in 95 lines of code after universe names were
+normalised, and some of that divergence REACHED PUBLISHED ARTEFACTS.
 
-  At each rebalance, exposure = (stocks with positive 20-day momentum) / total.
-  All positive -> fully invested. Half -> half invested, the rest in cash. It does
-  NOT block individual stocks, and there is no tunable threshold.
+EVERYTHING THAT DIVERGED IS NOW REGISTRY DATA, NOT CODE. universes/registry.py
+carries, per universe: validation_status, engine_params_keys (the exact ordered
+key list for v2FINAL_params.json), engine_params_static, and engine_text (banner,
+panel description, buy&hold label, chart title, and whether the index-absent
+assertion applies). The merge is therefore artefact-neutral by construction, and
+the gate proves it rather than the author asserting it.
 
-  Existing holdings are never resized. Only new positions are sized against the
-  target, so the actual invested percentage can drift above target.
+NOTHING HERE IS UNIFIED. mid's params carry "validated" and "rejected" and no
+"universe"/"n_symbols"; n100's carry the opposite. mid's chart title is two lines
+and n100's is one. Neither set is more correct -- they are what the two engines
+happened to write -- and changing either is a judgement about a published
+artefact, which belongs in its own commit where a moved byte has one possible
+cause.
 
-CASH
-    CASH_YIELD in test_exposure.py is 0.0. Idle cash earns nothing. Deliberately
-    conservative: parking idle cash in a liquid fund is a separate operation and is
-    not modelled here.
+validation_status IS DELIBERATELY ASYMMETRIC. mid's dict of eight measured
+results and n100's sentence saying the work was not done here are a record of
+which universe got the validation, not drift. Type tells them apart.
 
-SURVIVORSHIP -- STATED, NOT IMPLIED
-    The 99 constituents are TODAY'S Nifty 100 members backfilled to 2019. Names
-    that were in the index during the window and were later dropped or delisted are
-    absent from this file entirely, so BOTH the strategy and its equal-weight
-    buy&hold benchmark are inflated. The cap-weighted NIFTY100 index line does not
-    have this problem -- it is the published series -- which is exactly why it is
-    plotted alongside. survivorship.describe_state() is printed below and in the
-    chart subtitle.
-
-VALIDATION IS NOT INHERITED FROM ANOTHER UNIVERSE
-    The seed-robustness and sub-period validations recorded for the 58 and the mid
-    were measured on those universes. They are not re-stated here as though they
-    applied to this one. This run reports its own numbers and makes no validation
-    claim it has not measured.
-
-Run: python3 results/engine_v2_final_n100.py
+Same strategy, same features, same hyperparameters for every universe; only the
+universe differs.
 """
 import sys, json, warnings
 from pathlib import Path
@@ -50,13 +40,18 @@ warnings.filterwarnings("ignore")
 
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-import config, config_n100
+import config
 import cadence
 import arms.registry as arm_reg
-import survivorship as sv
 from engine_core import metrics, precompute
 from test_exposure import backtest_exposure, CASH_YIELD
 import profiles as _prof            # the run's execution-realism profile
+# SURVIVORSHIP REPORTING, BACK-PORTED FROM engine_v2_final_n100.py 2026-09-13.
+# mid has run under the SAME static-membership bias as n100 since it existed --
+# 148 of TODAY'S index members backfilled to 2019 -- and said nothing about it in
+# any output it wrote. n100's engine has reported it all along. The bias was never
+# universe-specific; only the disclosure was.
+import survivorship as sv
 
 REBAL, VOL_WIN = 20, 60
 # REBAL ABOVE IS THE DEFAULT AND STAYS 20. The cadence this RUN selected is read
@@ -70,7 +65,6 @@ START_CAPITAL = 1_000_000
 # Date-based and inclusive. The old year cut (BT_START, BT_END = 2019, 2026)
 # ran to 2026-06-08, six trading days beyond this window.
 BT_START_DATE, BT_END_DATE = config.BT_START_DATE, config.BT_END_DATE
-M = config_n100.METRICS_DIR_N100
 
 
 def _c(path):
@@ -100,41 +94,39 @@ def _c(path):
 
 
 def main(u):
-    # TRANSITIONAL-ASSERT -- removed by the collapse, steps 3-7 of the new order.
-    # transitional_asserts_check.py FAILS while this marker survives, and fails
-    # equally if the marker is deleted while a literal REGISTRY["n100"] subscript
-    # remains below. It goes green only when the literals are actually gone.
-    #
-    # THE CONTRACT, AND WHY THIS STEP ONLY ACCEPTS ONE UNIVERSE.
-    # main(u) is the declaration run.py dispatches on. This file is still the
-    # per-n100 half of a pair, so it can only do n100's work -- and a step that
-    # took a universe and quietly ignored it would be the "selection that silently
-    # does less than it was asked" failure in its purest form. It verifies the
-    # argument instead. The check goes when the pair collapses and the literals
-    # below become u.
-    assert u.tag == "n100", (
-        f"{__name__} is n100's half of an uncollapsed pair; "
-        f"invoked for {u.tag}")
+    # EVERY PER-UNIVERSE VALUE COMES FROM THE REGISTRY, none from this file.
+    # `tag` is spelled as a plain local and used in f-strings as "{tag}" because
+    # check_pipeline_order substitutes THAT placeholder and no other: an f-string
+    # written "{u.tag}" is not a word-character placeholder and every path built
+    # from it would fall into unresolved, taking this step's producer edges with it.
+    tag = u.tag
+    M = Path(u.metrics_dir)
+    _T = u.engine_text
     print("=" * 100)
-    print("ENGINE v2 FINAL -- Nifty 100 universe (99 names, index excluded by name)")
+    print(_T["banner"])
+    print("=" * 100)
+    print("ENGINE v2 FINAL -- cross-sectional ranking + inverse-vol + breadth scaling")
     print("=" * 100)
     print(f"  SURVIVORSHIP: {sv.describe_state()}")
 
+    # UNLISTED FIX 2026-08-28: this read /tmp/v_mid_expanding.csv directly and
+    # raised FileNotFoundError whenever /tmp had been cleared. n100's engine has
+    # always used config.require_cache with the permanent copy as the fallback;
+    # this now matches it. Pre-existing bug, not introduced by the V34 work.
     # Guard loaded per universe -- see engine_core.set_tradeability.
-
     import engine_core as _ec
-
-    from universes.registry import REGISTRY as _REG
-
-    _ec.set_tradeability(_REG["n100"])
-
-    src = config.require_cache(M / "v_n100_expanding_cache.csv",
-                               "/tmp/v_n100_expanding.csv",
-                               what="Nifty 100 score panel")
+    _ec.set_tradeability(u)
+    src = config.require_cache(M / f"v_{tag}_expanding_cache.csv",
+                               str(u.score_tmp),
+                               what=_T["panel_what"])
     p = pd.read_csv(src, parse_dates=["date"])
-    assert config_n100.INDEX_NAME_N100 not in set(p["symbol"].unique()), \
-        "the index is in the score panel as a tradable name"
-
+    # THE INDEX MUST NOT BE IN THE PANEL AS A TRADABLE NAME, where the universe
+    # declares that check. n100's engine has always asserted it; mid's never did.
+    # Preserved as declared per-universe data rather than switched on for both --
+    # turning it on for mid is a behaviour change and belongs in its own commit.
+    if _T.get("assert_index_absent") and u.index_name:
+        assert u.index_name not in set(p["symbol"].unique()), \
+            "the index is in the score panel as a tradable name"
     px = p.pivot_table(index="date", columns="symbol", values="close").ffill()
     op = p.pivot_table(index="date", columns="symbol", values="open").ffill()
     sc = p.pivot_table(index="date", columns="symbol", values="score")
@@ -145,6 +137,14 @@ def main(u):
     port_vol = idx.pct_change().rolling(VOL_WIN).std() * np.sqrt(252)
     tv = port_vol.loc[bd].median()
 
+    # baseline (inv-vol, always invested) and final (breadth-scaled)
+    # The baseline's per-trade log is captured and persisted below. v1 rebalances
+    # every 20 days and pays real costs -- more than v2 does, because it is always
+    # 100% invested and so trades in larger size -- but only its TOTALS used to
+    # survive, in v2FINAL_comparison.csv. A total cannot support a per-date
+    # analysis, which left make_final_chart_fair.py treating v1 as costless.
+    # `audit` only appends to lists; it changes no arithmetic, and the equity
+    # curve is asserted identical to the un-audited baseline below.
     base_audit = {k: [] for k in
                   ("holdings", "summary", "trades", "ranking", "decisions", "skipped")}
     # THE RUN'S CADENCE, PASSED AS AN ARGUMENT. `_reb` is 20 by default, which is
@@ -169,7 +169,7 @@ def main(u):
         import tradability as _tr
         from engine_core import _load_calendar as _lc
         _capkw = {"participation_cap": _cap,
-                  "vol20": _tr.median_volume(_REG["n100"].prepare_data_dir(), _lc(),
+                  "vol20": _tr.median_volume(u.prepare_data_dir(), _lc(),
                                              _cfg.BT_START_DATE, _cfg.BT_END_DATE)}
     base_eq, tcb, nb, _ = backtest_exposure(px, op, sc, bd, pc, mom20, port_vol,
                                             mode="none", target_vol=tv,
@@ -181,7 +181,7 @@ def main(u):
 
     mbase = metrics(base_eq, "Inverse-vol, 100% invested (v1 final)", tcb, nb)
     mfin = metrics(fin_eq, "+ breadth scaling (v2 FINAL)", tcf, nf)
-    mbh = metrics(bh, "Equal-weight buy & hold (Nifty 100, 99 names)")
+    mbh = metrics(bh, _T["bh_label"])
 
     out = pd.DataFrame([mfin, mbase, mbh])
     print("\n" + out.to_string(index=False))
@@ -189,6 +189,7 @@ def main(u):
           f"(rest in cash at {CASH_YIELD*100:g}% yield)")
     out.to_csv(_c(M / "v2FINAL_comparison.csv"), index=False)
 
+    # yearly
     yr = pd.DataFrame({
         "Strategy%": (fin_eq.resample("YE").last().pct_change().dropna()*100).round(1),
         "BuyHold%": (bh.resample("YE").last().pct_change().dropna()*100).round(1)})
@@ -218,21 +219,25 @@ def main(u):
                   "v2_invvol_breadth": fin_eq.values,
                   "buyhold": bh.values}).to_csv(_c(M / "v2FINAL_equity.csv"), index=False)
 
+    # v1 baseline's per-trade log, written the same way daily_trades_58.csv is.
+    # Consumers (make_final_chart_fair.py) read the costs from the engine that
+    # produced the equity curve, rather than re-running the baseline to recover
+    # them. The count is asserted against what the engine itself reported.
     bt = pd.DataFrame(base_audit["trades"])
     assert len(bt) == nb, f"v1 trade log {len(bt)} rows vs engine count {nb}"
     # WRITTEN UNCONDITIONALLY, AND THAT IS A KNOWN LEAK, RECORDED NOT HIDDEN.
-    # `--arm v2` still produces daily_trades_v1_n100.csv -- a file named for an
+    # `--arm v2` still produces daily_trades_v1_mid.csv -- a file named for an
     # arm the run did not select. Gating it was TRIED and reverted: STEP 10d
-    # make_n100_chart.py declares this file in run_all.REQUIRED_INPUTS as a hard
+    # make_mid_chart.py declares this file in run_all.REQUIRED_INPUTS as a hard
     # edge, so a gated write makes `--arm v2` die at check_inputs with a missing
     # file. Removing that edge would weaken the static contract and cost the
     # checker a resolved dependency, which experiments/ARM_SUBSET_SPEC.txt's G6
-    # forbids. Closing this properly means making make_n100_chart.py arm-aware
+    # forbids. Closing this properly means making make_mid_chart.py arm-aware
     # too; see KNOWN_ISSUES.md.
     # GATED ON v1 BEING SELECTED. `--arm v2` no longer produces a file named for
     # an arm the run did not select.
     #
-    # THIS ONLY BECAME POSSIBLE ONCE make_n100_chart.py WENT ARM-AWARE. The first
+    # THIS ONLY BECAME POSSIBLE ONCE make_mid_chart.py WENT ARM-AWARE. The first
     # attempt gated the write while STEP 10d still demanded the file
     # unconditionally through run_all.REQUIRED_INPUTS, so `--arm v2` died at
     # check_inputs. That edge now carries the arm it belongs to and is skipped
@@ -240,11 +245,11 @@ def main(u):
     # literal path stayed put, so the static inventory did not move.
     # THE PRINT IS INSIDE THE CONDITION NOW. It used to sit outside it and name
     # the file unconditionally, so `--arm v3` logged
-    #     "v1 baseline trade log: 852 trades, TC Rs 839,393 -> daily_trades_v1_n100.csv"
+    #     "v1 baseline trade log: 852 trades, TC Rs 839,393 -> daily_trades_v1_mid.csv"
     # and wrote no such file. Two concrete numbers and a filename, all three read
     # as a completed write, for an arm the run did not select. That is an
     # assertion of completion the step never verified, and the file it names is
-    # the one make_n100_chart then fails on.
+    # the one make_mid_chart then fails on.
     #
     # THE COUNTS ARE STILL REPORTED when the write is skipped, because they are a
     # real measurement of the baseline arm -- only the claim about the file is
@@ -252,15 +257,20 @@ def main(u):
     # cadence or profile logs the filename it actually wrote rather than the
     # canonical spelling.
     if "v1" in set(arm_reg.selected_names()):
-        bt.to_csv(_c(M / "daily_trades_v1_n100.csv"), index=False)
+        bt.to_csv(_c(M / f"daily_trades_v1_{tag}.csv"), index=False)
         print(f"   v1 baseline trade log: {len(bt)} trades, TC Rs {bt['tc'].sum():,.0f} "
-              f"-> {_c(M / 'daily_trades_v1_n100.csv').name}")
+              f"-> {_c(M / f'daily_trades_v1_{tag}.csv').name}")
     else:
         print(f"   v1 baseline: {len(bt)} trades, TC Rs {bt['tc'].sum():,.0f} "
               f"-- trade log NOT WRITTEN, v1 is not in this run's arm selection")
 
-    (_c(M / "v2FINAL_params.json")).write_text(json.dumps({
-        "universe": "Nifty 100 (99 constituents, NIFTY100.csv excluded by name)",
+    # THE KEY SET AND KEY ORDER ARE PER-UNIVERSE DATA, and json.dumps preserves
+    # insertion order, so this loop is what keeps v2FINAL_params.json byte-identical
+    # across the merge. mid writes no "universe" and no "n_symbols"; n100 writes
+    # both and writes no "validated"/"rejected". Neither set is more correct --
+    # they are what the two engines happened to write. Unifying them would move a
+    # published artefact, which is a judgement and belongs in its own commit.
+    _vals = {
         "model": "cross-sectional LightGBM, 17 feats, 10-seed, monthly, 32d purge",
         "sizing": "inverse-volatility (1/vol60)",
         "exposure": "breadth scaling = fraction of positive-20d-momentum stocks",
@@ -273,15 +283,22 @@ def main(u):
         "n_symbols": int(p["symbol"].nunique()),
         "sharpe": mfin["Sharpe"], "maxdd_pct": mfin["MaxDD%"], "cagr_pct": mfin["CAGR%"],
         "cash_yield": CASH_YIELD,
+        # STATED IN THE ARTEFACT, not only on the chart, so a reader of
+        # v2FINAL_params.json alone knows which membership basis produced it.
         "survivorship": sv.describe_state(),
         "vs_buyhold": (f"Sharpe {mfin['Sharpe']} vs {mbh['Sharpe']}, "
                        f"MaxDD {mfin['MaxDD%']}% vs {mbh['MaxDD%']}%, "
                        f"CAGR {mfin['CAGR%']}% vs {mbh['CAGR%']}%"),
-        "validation_status": ("not measured on this universe. The seed-robustness "
-                              "and sub-period validations on record were run on the "
-                              "58 and the mid and are not claimed here."),
-    }, indent=2))
+        # A DICT MEANS MEASURED, A STRING MEANS NOT MEASURED ON THIS UNIVERSE.
+        # The asymmetry is the record of which universe got the validation work;
+        # see universes/registry.py, where it is kept deliberately un-flattened.
+        "validation_status": u.validation_status,
+    }
+    _vals.update(u.engine_params_static or {})
+    (_c(M / "v2FINAL_params.json")).write_text(json.dumps(
+        {k: _vals[k] for k in u.engine_params_keys}, indent=2))
 
+    # chart
     fig, ax = plt.subplots(2, 1, figsize=(13, 9), height_ratios=[2, 1])
     for s, c, ls, lab in [
             (fin_eq, "#d62728", "-", f"v2 FINAL: + breadth scaling  "
@@ -297,8 +314,11 @@ def main(u):
     ax[0].axhline(0, color="k", lw=.7, alpha=.5)
     ax[0].set_ylabel("Cumulative return (%)")
     ax[0].yaxis.set_major_formatter(PercentFormatter(decimals=0))
-    ax[0].set_title("Nifty 100 universe -- ranking + inverse-vol + breadth-scaled exposure\n"
-                    + sv.describe_state(), fontsize=10)
+    # THE TITLE REACHES chart_v2FINAL.png, so it is per-universe data rather than
+    # a literal here: mid's two lines and n100's one are different published
+    # artefacts, and unifying them would move a byte for a reason unrelated to
+    # this merge.
+    ax[0].set_title(_T["chart_title"] + sv.describe_state(), fontsize=10)
     ax[0].legend(loc="upper left", fontsize=9)
     ax[0].grid(alpha=.3)
     for s, c, ls, lab in [(fin_eq, "#d62728", "-", "v2 FINAL"),
@@ -322,7 +342,7 @@ def main(u):
     # Nothing above this line is altered; v2FINAL_* keeps its names and columns.
     import v34_common
     v34_comp, v34_subs, _ = v34_common.run_v34(
-        M, "Nifty 100 (99 constituents)", "n100", px, op, sc, bd, pc, mom20, port_vol, tv,
+        M, u.label, tag, px, op, sc, bd, pc, mom20, port_vol, tv,
         backtest_exposure,
         base_eq, tcb, nb, fin_eq, tcf, nf, expo,
         START_CAPITAL,
@@ -332,7 +352,7 @@ def main(u):
          "SLIPPAGE": 0.0015},
         v1_audit=base_audit)
     print("\n" + "=" * 100)
-    print(" V3/V4 FOUR-ARM MEASUREMENT -- Nifty 100 (99 constituents)")
+    print(f" V3/V4 FOUR-ARM MEASUREMENT -- {u.label}")
     print("=" * 100)
     print("\n FULL PERIOD")
     print(v34_comp.to_string(index=False))
@@ -348,36 +368,59 @@ def main(u):
           f"MaxDD {mfin['MaxDD%']:>7.2f}%  Calmar {mfin['Calmar']}")
     print(f"  Buy & hold : CAGR {mbh['CAGR%']:>6.2f}%  Sharpe {mbh['Sharpe']:>5.2f}  "
           f"MaxDD {mbh['MaxDD%']:>7.2f}%  Calmar {mbh['Calmar']}")
+    d_sh = mfin["Sharpe"] - mbh["Sharpe"]
+    d_dd = mfin["MaxDD%"] - mbh["MaxDD%"]
+    d_cagr = mfin["CAGR%"] - mbh["CAGR%"]
+    sh_word = "ahead of" if d_sh > 0 else "behind"
     print(f"""
   Versus equal-weight buy & hold over the same period:
-    Sharpe   {mfin['Sharpe']:>6.2f} vs {mbh['Sharpe']:>6.2f}   ({mfin['Sharpe']-mbh['Sharpe']:+.2f})
-    MaxDD    {mfin['MaxDD%']:>6.2f}% vs {mbh['MaxDD%']:>6.2f}%   ({mfin['MaxDD%']-mbh['MaxDD%']:+.2f} pts)
-    CAGR     {mfin['CAGR%']:>6.2f}% vs {mbh['CAGR%']:>6.2f}%   ({mfin['CAGR%']-mbh['CAGR%']:+.2f} pts)
+    Sharpe   {mfin['Sharpe']:>6.2f} vs {mbh['Sharpe']:>6.2f}   ({d_sh:+.2f})  -- {sh_word} buy & hold
+    MaxDD    {mfin['MaxDD%']:>6.2f}% vs {mbh['MaxDD%']:>6.2f}%   ({d_dd:+.2f} pts)
+    CAGR     {mfin['CAGR%']:>6.2f}% vs {mbh['CAGR%']:>6.2f}%   ({d_cagr:+.2f} pts)
 
-  The strategy holds {expo*100:.0f}% invested on average, so raw CAGR is not the right
-  comparison on its own -- return per deployed rupee and drawdown are. Idle cash
-  earns {CASH_YIELD*100:g}%, so none of the return above comes from interest.
+  The strategy holds {expo*100:.0f}% invested on average, so raw CAGR is not the
+  right comparison on its own -- return per deployed rupee and drawdown are.
+  Idle cash earns {CASH_YIELD*100:g}%, so none of the return above comes from interest.
 
-  The equal-weight buy&hold above is NOT investable: it is 99 of today's index
-  members backfilled. The cap-weighted NIFTY100 index, which does not have that
-  problem, is plotted in make_n100_chart.py.
+{_T.get("bh_caveat", "")}  Standing caveats: no capital gains tax is modelled, survivorship bias inflates
+  both lines, and the edge is not statistically significant. The honest next step
+  for a real product is a less-efficient universe (mid/small caps) or new data
+  (fundamentals), not more tuning here.
 """)
 
     n_names = int(p["symbol"].nunique())
+    equal_sel = TOP_N * n_names / 58.0
     print("=" * 100)
     print("SELECTIVITY -- AN OBSERVATION, NOT A CHANGE")
     print("=" * 100)
     print(f"""
-  TOP_N is {TOP_N}, unchanged from every other universe. Against this one that is
-  the top {TOP_N/n_names*100:.1f}% of {n_names} names, against {TOP_N/58*100:.1f}% of the 58.
-  For equal selectivity TOP_N would be about {TOP_N*n_names/58.0:.0f}. This run does NOT act on
-  that: TOP_N stays at {TOP_N} so the first pass is untuned and directly comparable.
-  Changing it after seeing these numbers would be fitting the parameter to the result.
+  TOP_N is {TOP_N}, unchanged from the 58 and the 74. Against this universe that is
+  a different bet:
+
+      58 names  -> top {TOP_N/58*100:.1f}%
+      74 names  -> top {TOP_N/74*100:.1f}%
+     {n_names} names  -> top {TOP_N/n_names*100:.1f}%
+
+  For the same selectivity as the 58 setup, TOP_N would have to be about
+  {equal_sel:.0f} ({TOP_N}/58 of {n_names}). Under the Fundamental Law, IR is roughly
+  IC x sqrt(breadth), and breadth is one of only two levers that can move IR --
+  every portfolio-construction experiment on this project has failed precisely
+  because it moved neither term. Holding {n_names} candidates but still buying {TOP_N} of
+  them takes the wider universe's breadth and then throws most of it away.
+
+  This run deliberately does NOT act on that. TOP_N stays at {TOP_N} so this first
+  pass is untuned and directly comparable to the 58 and the 74. Changing it is a
+  separate pre-registered experiment, and choosing it after seeing these numbers
+  would be fitting the parameter to the result.
 """)
     print("Saved -> v2FINAL_comparison.csv, v2FINAL_yearly.csv, v2FINAL_equity.csv,")
     print("         v2FINAL_params.json, chart_v2FINAL.png")
 
 
 if __name__ == "__main__":
-    from universes.registry import REGISTRY as _R
-    main(_R["n100"])
+    # STANDALONE, BY TAG. There is no longer a file per universe to imply which.
+    from universes.registry import REGISTRY
+    if len(sys.argv) != 2 or sys.argv[1] not in REGISTRY:
+        raise SystemExit(f"usage: {Path(__file__).name} <universe>   "
+                         f"known: {', '.join(sorted(REGISTRY))}")
+    main(REGISTRY[sys.argv[1]])
