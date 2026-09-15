@@ -27,12 +27,12 @@ This rebuilds both universes, the benchmark comparison, and every chart and CSV.
 ORDER:
   === MIDCAP150 ===
   10a. build_scores (mid)   -> MidCap150 scores (SLOW)
-  10b. engine_v2_final_mid  -> MidCap150 v2 FINAL
+  10b. engine_v2_final(mid)-> MidCap150 v2 FINAL
   10c. make_audit (mid)     -> MidCap150 daily audit CSVs
   10d. make_mid_chart       -> MidCap150 chart + cap-weighted index benchmark
   === NIFTY 100 ===
   10e. build_scores (n100)  -> Nifty 100 scores (SLOW)
-  10f. engine_v2_final_n100 -> Nifty 100 v2 FINAL
+  10f. engine_v2_final(n100)-> Nifty 100 v2 FINAL
   10g. make_audit (n100)    -> Nifty 100 daily audit CSVs
   10h. make_n100_chart      -> Nifty 100 chart + cap-weighted index benchmark
   === ACROSS UNIVERSES ===
@@ -193,7 +193,7 @@ REQUIRED_INPUTS = {
         # check_pipeline_order still resolves the edge and its inventory is
         # unchanged -- only the RUNTIME requirement became conditional.
         (ROOT / "results_mid" / "metrics" / "daily_trades_v1_mid.csv",
-         "STEP 10b engine_v2_final_mid.py", "v1"),
+         "STEP 10b engine_v2_final.py", "v1"),
     ],
     "make_n100_chart.py": [
         # ARM-TAGGED TOO: this is v2's audit trail, and a selection without v2
@@ -207,7 +207,7 @@ REQUIRED_INPUTS = {
         # check_pipeline_order still resolves the edge and its inventory is
         # unchanged -- only the RUNTIME requirement became conditional.
         (ROOT / "results_n100" / "metrics" / "daily_trades_v1_n100.csv",
-         "STEP 10f engine_v2_final_n100.py", "v1"),
+         "STEP 10f engine_v2_final.py", "v1"),
     ],
     # THE COMBINED STEP READS EVERY SELECTED UNIVERSE'S TRADE LOG, and the two
     # retired universes' logs are written by STEP 12 make_daily_audit.py. That is
@@ -293,11 +293,11 @@ REQUIRED_INPUTS = {
 # STEPS 0-9 and 11-14 as gaps rather than renumbering.
 PIPELINE_ORDER = [
     ("STEP 10a", "build_scores.py",            "mid"),
-    ("STEP 10b", "engine_v2_final_mid.py",     "mid"),
+    ("STEP 10b", "engine_v2_final.py",         "mid"),
     ("STEP 10c", "make_audit.py",              "mid"),
     ("STEP 10d", "make_mid_chart.py",          "mid"),
     ("STEP 10e", "build_scores.py",            "n100"),
-    ("STEP 10f", "engine_v2_final_n100.py",    "n100"),
+    ("STEP 10f", "engine_v2_final.py",         "n100"),
     ("STEP 10g", "make_audit.py",              "n100"),
     ("STEP 10h", "make_n100_chart.py",         "n100"),
     # MOVED FROM STEP 10i, and the move is load-bearing rather than cosmetic.

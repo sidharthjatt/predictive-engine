@@ -1353,6 +1353,18 @@ wrong each time is the mapping from what was measured to what was claimed:
 - a module merged and gated without one line of it executing (5)
 - a contract half-enforced, so the guarded half hid the unguarded one (6)
 
+**AND THE GENERAL FORM, WHICH FIVE OF THE SIX SHARE: A FALLBACK THAT SILENTLY
+RESTORES PRE-FIX BEHAVIOUR IS INDISTINGUISHABLE FROM NO FIX.** The safeguard is
+present, the guarantee is absent, and the presence of the safeguard is what stops
+anyone looking for the guarantee. `vol20` defaulting to `None` left the cap
+inert while `_CAP_REQUIRED` stood beside it. And the prose stripper written on
+2026-09-15 to close instance 3's mechanism did the same thing within a day of
+being written: its bare `except` returned the text UNSTRIPPED, so a `TypeError`
+on `ast.IfExp.body` restored the exact behaviour the function existed to remove --
+and it passed its two-line test while doing nothing at all on the real tree. The
+test proved the happy path; the fallback governed every other path and proved
+nothing. **A fallback must fail loudly or not exist.**
+
 **A green check whose subject is not the shipped thing is worse than no check**,
 because it is quoted. Instance 1 left this repository in conversation. Instance 3
 was quoted back at a crash to exonerate the wrong commit. A check nobody had run
