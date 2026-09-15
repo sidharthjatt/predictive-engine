@@ -147,6 +147,19 @@ class Universe:
     engine_params_static: dict = None     # values for keys that are not computed
     engine_text: dict = None              # banner, chart title, console blocks
 
+    # WHAT THE CHART STEP RENDERS FOR THIS UNIVERSE. Added 2026-09-15 with step 6.
+    # make_mid_chart.py and make_n100_chart.py diverged in 204 code lines ignoring
+    # whitespace, and SOME OF IT REACHES THE PNG: two render parameters, one legend
+    # label, and the output stem itself. Preserved, not harmonised, for the same
+    # reason as the engine's: a merge is verifiable by the gate, an artefact change
+    # is a judgement, and they do not belong in one commit.
+    #
+    # Most of the pair's labels are NOT here because they derive from data the
+    # registry already has -- "<tag> buy&hold (equal-weight universe)" from tag,
+    # "<index> (cap-weighted index)" from index_name. Only what cannot be derived
+    # is written down.
+    chart_text: dict = None
+
     def symbols(self):
         """The tradable names, or None when the directory is the definition."""
         return None if self._symbols is None else self._symbols()
@@ -245,6 +258,57 @@ if config_mid is not None:
                             "drawdown, higher Sharpe\n"),
             "assert_index_absent": False,
         },
+        chart_text={
+            "stem": "chart_mid_FINAL",
+            # THE INDEX WINDOW END IS A DATA BOUNDARY, not a market one: it is the
+            # last date this universe's index file carries. mid and n100 differ.
+            "index_window_end": "2026-06-08",
+            "dpi": 140,
+            "legend_fontsize": 8,
+            "rule_width": 94,
+            # mid's chart says the equal-weight line is NOT investable in the
+            # legend itself; n100's says it only in the prose below the chart.
+            # Both statements are true of both universes -- which is an argument
+            # for unifying them, in a commit that declares the artefact change.
+            "bh_not_investable": True,
+            # THE IC / EXTREME-RETURN DIAGNOSTIC BLOCK, mid only. Console output,
+            # no artefact, but it re-reads the score panel, so running it for n100
+            # would be new work rather than new formatting.
+            "diagnostics": True,
+            # THE DRAWDOWN-PANEL LEGEND LABEL, and it reaches the PNG. The two
+            # originals differed in three ways on ONE continuation line: the split
+            # token ("[" vs "  ["), the word "max", and the precision (.0f vs .1f).
+            # A keyword survey of render parameters missed it because the line it
+            # sits on contains no render keyword -- the grep matched the ax[1].plot
+            # call and never reached its argument. Checksum found it; grep did not.
+            "dd_label": lambda lab, mn: f"{lab.split('[')[0].strip()} ({mn:.0f}%)",
+            # THE CHART SUBTITLE REACHES THE PNG, and the two universes' subtitles
+            # are different prose that reads different values -- mid's quotes the
+            # panel-density figures that only its diagnostics block computes.
+            # A CALLABLE, like _symbols and _prepare above, so make_chart.py stays
+            # free of per-universe text. `v` is the values the step computed.
+            "subtitle": lambda v: (
+                f"MidCap150 panel density: {v['n_panel']} of {v['n_all']} names "
+                f"scored, median {v['per_day_median']} priced per day.\n"
+                f"MidCap150 universe ({v['n_all']} constituents, index excluded)  |  "
+                f"v2 holds {v['inv']}% invested on average  |  ALL NUMBERS AFTER TC "
+                f"(Zerodha + 0.15% slippage)\n"
+                f"Benchmarks: {v['index_name']} is the published CAP-WEIGHTED index "
+                f"(investable). Equal-weight buy&hold is the universe, and is NOT "
+                f"investable.\n"
+                f"SURVIVORSHIP: {v['n_late']} of {v['n_all']} names did not exist at "
+                f"2019-01-01, and midcaps that left the index or delisted 2019-2026 "
+                f"are absent from this file altogether.\n"
+                f"Midcap churn far exceeds large-cap churn; the same bias measured "
+                f"about 10 CAGR points on Nifty100. Do not read buy&hold as "
+                f"achievable.\n"
+                "LIQUIDITY AND MARKET-IMPACT FIGURES ARE NOT AVAILABLE FOR THIS "
+                "WINDOW: the depth and participation studies were run on the old "
+                "1,842-day window\n"
+                "ending 2026-06-08 and have not been re-run. Every number here is a "
+                "research backtest with a flat 0.15% slippage and no market-impact "
+                "model.\n"),
+        },
     )
 
 _N100 = None
@@ -287,6 +351,34 @@ if config_n100 is not None:
             "chart_title": ("Nifty 100 universe -- ranking + inverse-vol + "
                             "breadth-scaled exposure\n"),
             "assert_index_absent": True,
+        },
+        chart_text={
+            "stem": "chart_n100",
+            "index_window_end": "2026-06-22",
+            "dpi": 150,
+            "legend_fontsize": 8.5,
+            "rule_width": 100,
+            "bh_not_investable": False,
+            "diagnostics": False,
+            "dd_label": lambda lab, mn: f"{lab.split('  [')[0]} (max {mn:.1f}%)",
+            "subtitle": lambda v: (
+                f"Nifty 100 universe ({v['n_all']} constituents, index excluded "
+                f"by name)  |  v2 holds {v['inv']}% invested on average  |  ALL "
+                f"NUMBERS AFTER TC (Zerodha + 0.15% slippage)\n"
+                f"Benchmarks: NIFTY100 is the published CAP-WEIGHTED index "
+                f"(investable, and NOT survivorship-biased). Equal-weight buy&hold "
+                f"is the universe, and is NOT investable.\n"
+                f"SURVIVORSHIP: these {v['n_all']} are TODAY'S index members "
+                f"backfilled to 2019. Names dropped or delisted from the Nifty 100 "
+                f"during the window are absent entirely,\nso both the strategy and "
+                f"its equal-weight buy&hold are inflated. Do not read that buy&hold "
+                f"as achievable.\n"
+                "LIQUIDITY AND MARKET-IMPACT FIGURES ARE NOT AVAILABLE FOR THIS "
+                "WINDOW: the depth and participation studies were run on the old "
+                "1,842-day window\n"
+                "ending 2026-06-08 and have not been re-run. Every number here is a "
+                "research backtest with a flat 0.15% slippage and no market-impact "
+                "model.\n"),
         },
     )
 

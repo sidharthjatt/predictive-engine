@@ -29,12 +29,12 @@ ORDER:
   10a. build_scores (mid)   -> MidCap150 scores (SLOW)
   10b. engine_v2_final(mid)-> MidCap150 v2 FINAL
   10c. make_audit (mid)     -> MidCap150 daily audit CSVs
-  10d. make_mid_chart       -> MidCap150 chart + cap-weighted index benchmark
+  10d. make_chart (mid)   -> MidCap150 chart + cap-weighted index benchmark
   === NIFTY 100 ===
   10e. build_scores (n100)  -> Nifty 100 scores (SLOW)
   10f. engine_v2_final(n100)-> Nifty 100 v2 FINAL
   10g. make_audit (n100)    -> Nifty 100 daily audit CSVs
-  10h. make_n100_chart      -> Nifty 100 chart + cap-weighted index benchmark
+  10h. make_chart (n100)  -> Nifty 100 chart + cap-weighted index benchmark
   === ACROSS UNIVERSES ===
   12b. make_combined_universes -> the published comparison figure
   15.  make_daily_log          -> forensic daily text log
@@ -181,33 +181,31 @@ CACHE_PERM = _cache_perm()
 # input is still fatal. It only replaces the traceback with a sentence that says
 # which file is missing and who should have written it.
 REQUIRED_INPUTS = {
-    "make_mid_chart.py": [
+    "make_chart.py": [
         # ARM-TAGGED TOO: this is v2's audit trail, and a selection without v2
         # writes no v2 trail at all. Demanding it unconditionally made `--arm
         # v1,v3` impossible from a cold tree; it only ever passed because an
         # earlier default run had left the file on disk.
         (ROOT / "results_mid" / "metrics" / "daily_trades_mid.csv",
-         "STEP 10c make_audit.py", "v2"),
+         "STEP 10c make_audit.py", "u:mid,v2"),
         # ARM-TAGGED. This input exists only when v1 is selected, so check_inputs
         # skips it otherwise. The tuple stays a literal path in the same shape, so
         # check_pipeline_order still resolves the edge and its inventory is
         # unchanged -- only the RUNTIME requirement became conditional.
         (ROOT / "results_mid" / "metrics" / "daily_trades_v1_mid.csv",
-         "STEP 10b engine_v2_final.py", "v1"),
-    ],
-    "make_n100_chart.py": [
+         "STEP 10b engine_v2_final.py", "u:mid,v1"),
         # ARM-TAGGED TOO: this is v2's audit trail, and a selection without v2
         # writes no v2 trail at all. Demanding it unconditionally made `--arm
         # v1,v3` impossible from a cold tree; it only ever passed because an
         # earlier default run had left the file on disk.
         (ROOT / "results_n100" / "metrics" / "daily_trades_n100.csv",
-         "STEP 10g make_audit.py", "v2"),
+         "STEP 10g make_audit.py", "u:n100,v2"),
         # ARM-TAGGED. This input exists only when v1 is selected, so check_inputs
         # skips it otherwise. The tuple stays a literal path in the same shape, so
         # check_pipeline_order still resolves the edge and its inventory is
         # unchanged -- only the RUNTIME requirement became conditional.
         (ROOT / "results_n100" / "metrics" / "daily_trades_v1_n100.csv",
-         "STEP 10f engine_v2_final.py", "v1"),
+         "STEP 10f engine_v2_final.py", "u:n100,v1"),
     ],
     # THE COMBINED STEP READS EVERY SELECTED UNIVERSE'S TRADE LOG, and the two
     # retired universes' logs are written by STEP 12 make_daily_audit.py. That is
@@ -295,11 +293,11 @@ PIPELINE_ORDER = [
     ("STEP 10a", "build_scores.py",            "mid"),
     ("STEP 10b", "engine_v2_final.py",         "mid"),
     ("STEP 10c", "make_audit.py",              "mid"),
-    ("STEP 10d", "make_mid_chart.py",          "mid"),
+    ("STEP 10d", "make_chart.py",              "mid"),
     ("STEP 10e", "build_scores.py",            "n100"),
     ("STEP 10f", "engine_v2_final.py",         "n100"),
     ("STEP 10g", "make_audit.py",              "n100"),
-    ("STEP 10h", "make_n100_chart.py",         "n100"),
+    ("STEP 10h", "make_chart.py",              "n100"),
     # MOVED FROM STEP 10i, and the move is load-bearing rather than cosmetic.
     # The combined chart is now generic over the selection, so it may need the 58's
     # and the 74's per-trade logs -- and those are written by STEP 12 immediately
@@ -394,12 +392,28 @@ def check_inputs(label, script):
     def _wanted(e):
         """Is this input required by THIS run's selection?
 
-        No third field -> always. "u:<tag>" -> only when that universe is
-        selected. Anything else -> the arm it names must be selected.
+        No third field -> always. Otherwise the field is a COMMA-SEPARATED LIST OF
+        QUALIFIERS, ALL of which must hold: "u:<tag>" means that universe must be
+        selected, anything else names an arm that must be selected.
+
+        THE LIST FORM ARRIVED WITH STEP 6. Before the collapse, a chart's inputs
+        were keyed by a per-universe FILENAME -- make_mid_chart.py -- so the file
+        identity supplied the universe and the third field only had to name the
+        arm. One merged make_chart.py serves both universes from one key, so a
+        `--universe mid` run would have been made to demand n100's trade logs.
+        The universe is now written down beside the arm instead of being implied
+        by which file the entry sits under.
         """
         if len(e) < 3:
             return True
-        return (e[2][2:] in _usel) if e[2].startswith("u:") else (e[2] in _sel)
+        for q in str(e[2]).split(","):
+            q = q.strip()
+            if not q:
+                continue
+            ok = (q[2:] in _usel) if q.startswith("u:") else (q in _sel)
+            if not ok:
+                return False
+        return True
 
     _found = []
     missing = [(e[0], e[1]) for e in REQUIRED_INPUTS.get(Path(script).name, [])
