@@ -95,6 +95,17 @@ path-form citations across 23 of the 26**, in `KNOWN_ISSUES.md`,
 
 **Until it happens, use the two lists above rather than the directory.**
 
+**A CITATION NAMING A FILE THAT NO LONGER EXISTS IS DELIBERATE, NOT A BUG TO FIX.**
+The collapse (steps 3-8) merges the per-universe step pairs, and each merge leaves
+prose in `KNOWN_ISSUES.md`, `experiments/`, `diagnostics/` and this file naming a
+predecessor -- `build_scores_mid.py` and `build_scores_n100.py` went at step 3,
+eleven citations with them, and steps 4-7 will add more. **They are left as
+historical record of what those files did**, the same treatment
+`RETIRED_UNIVERSES.md` gives the 58's and 74's scripts, and the same rule that
+left STEPS 0-9 and 11-14 as numbering gaps: a name means what it meant when it was
+written. Each merged module's docstring names its predecessors, so the trail greps
+from either end. **Do not "repair" them.**
+
 ## 2. The trading calendar — ships, and cannot be rebuilt
 
 ```

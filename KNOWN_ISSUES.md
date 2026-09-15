@@ -929,6 +929,120 @@ deliberate and its docstring argues for it; the failure was in use, not in the
 function. Recorded because three instances in one session is a pattern, and the
 next one will cost another run.
 
+## The tradeable profile cannot complete a run, because where the cap binds the audit disagrees with the engine
+
+Found 2026-09-15, by enumerating the cells a step-6 gate would need and running
+each one instead of reasoning about it. Open. **Every gate this project has run
+used the research profile**, which is why a whole profile has been unrunnable for
+at least two days without anyone noticing.
+
+### What breaks
+
+`--profile tradeable` exits 1 on both universes, and both failures trace to one
+absent file:
+
+```
+mid   dies at STEP 10d  make_mid_chart.py needs 1 file(s) that do not exist:
+                          MISSING results_mid/metrics/daily_trades_mid_tradeable.csv
+                          writer STEP 10c make_mid_audit.py
+n100  dies at STEP 12b  make_combined_universes.py needs the SAME file --
+                          results_MID_/metrics/daily_trades_mid_tradeable.csv
+```
+
+n100 completes all eight of its own steps and dies on **mid's** missing file,
+because STEP 12b is cross-universe. One universe's defect makes the profile
+unrunnable for both.
+
+**THE MISSING FILE IS A SYMPTOM, NOT THE DEFECT.** `make_mid_audit` runs, and
+refuses to write its trail, because its replay does not reproduce the engine's
+curve:
+
+```
+mid / v1   v1 equity vs the engine's recorded curve : *** MISMATCH Rs 3,851,027.09 ***
+mid        v2 equity vs the engine's recorded curve : *** MISMATCH Rs   605,030.57 ***
+mid / v3   v3 equity vs the engine's recorded curve : *** MISMATCH Rs 3,510,367.57 ***
+mid / v4   v4 equity vs the engine's recorded curve : *** MISMATCH Rs   958,629.05 ***
+           !! audit logging changed something -- do not go further
+```
+
+The guard is doing its job. **The defect is that the audit replay and the engine
+disagree about what the participation cap does**, by up to Rs 3.85M on a Rs 16.4M
+final equity -- 23% of the terminal value on v1.
+
+### It is specific to where the cap binds, and that is only mid
+
+Measured the same day, all four arms, same command shape:
+
+| cell | audit verdict |
+|---|---|
+| mid, research | **MATCH on all four arms**, trades reconcile (852 / 1,019 / 822 / --) |
+| n100, tradeable | **MATCH on all four arms**, trades reconcile (795 / 965 / 754 / 967) |
+| **mid, tradeable** | **MISMATCH on all four arms** |
+
+n100 passes under tradeable for the reason this file already records elsewhere:
+**the participation cap never binds on n100**, so a tradeable run there reproduces
+the research run exactly and the audit is certifying a configuration the cap did
+not touch. mid is the universe where the cap binds, and it is the one where the
+replay diverges. **The two facts are the same fact.**
+
+It predates the invocation-contract work: reproduced at `67a644d` on 2026-09-13,
+where n100 tradeable dies at STEP 12b on the identical missing mid file.
+
+### What is and is not recoverable -- correcting an earlier count
+
+**An earlier statement in this session that 47 tradeable artefacts on disk "are
+not reproducible by anything runnable" was wrong, and wrong in the direction that
+matters.** It was inferred from the exit code rather than from what the run wrote.
+Measured:
+
+| | tradeable artefacts on disk | reproduced by the failing run |
+|---|---:|---:|
+| mid | 11 | **11** |
+| n100 | 36 | **36** |
+
+**All 47 regenerate.** The engine writes `v34_*_tradeable` and `v2FINAL_*_tradeable`
+at STEP 10b/10f, well before the step that dies. What a tradeable run cannot
+produce is **a completed run** -- no run folder, no `RUN.txt`, no combined chart --
+and, on mid, **no audit trail at all**, which is the thing that would certify the
+figures rather than merely restate them.
+
+### Every tracked citation of a tradeable number, and all of them reproduce
+
+`KNOWN_ISSUES.md` is the only tracked document that cites tradeable figures. The
+other files that contain the word use it in the unrelated liquidity sense
+("untradeable names", `README.md:238`, `experiments/EXPERIMENTS.md:1607,1710,1933`)
+or describe the profile without quoting it (`docs/HANDOFF.md:260`,
+`nautilus/NAUTILUS_STATUS.md:198`). No `experiments/*_PREREG.txt` cites one.
+
+| citation | figures | reproduced 2026-09-15 |
+|---|---|---|
+| `KNOWN_ISSUES.md:2968` | mid v1 tradeable **45.90**, MaxDD −35.88, 860 trades, TC 692,730 | **exact** |
+| `KNOWN_ISSUES.md:2970` | mid v2 tradeable **27.59**, MaxDD −15.68, 1,019 trades, TC 228,963 | **exact** |
+| `KNOWN_ISSUES.md:3011` | the same four, attributed to the snapshot | **exact** |
+| `KNOWN_ISSUES.md:2952-2955` | n100 tradeable = research: 30.56 / 24.43 / 23.14 / 21.36, b&h 24.00 | **exact**, and byte-identical to the research file as recorded |
+
+So **no published figure is unreproducible**, and the refactor is not blocked.
+What the profile cannot give is the *audit* of those figures -- and on mid the
+audit does not merely go missing, it disagrees with the engine by Rs 3.85M.
+
+**This sharpens the existing item** *"The universe where the cap binds is the one
+with no tradeable audit trail"* rather than replacing it. That entry says mid's
+shipping arm "has never been audited at all" on the tradeable profile and calls
+the figures UNRECONCILED. This one says why: the audit has been run, and it does
+not reconcile.
+
+### Not fixed
+
+No change is proposed here. Which of the engine and the audit is right about the
+cap is not established, and **the answer decides whether `45.90` and `27.59` are
+the correct tradeable figures or merely the engine's opinion of them.** That is a
+measurement, not a refactor, and it should not be folded into the collapse.
+
+Until it is settled: `--profile tradeable` produces artefacts but cannot complete,
+the four-cell standing gate runs research only, and that limit is stated in
+`gate_compare.py` rather than assumed.
+
+---
 ## The verification claims describe something other than what ships, four times in one week
 
 Found 2026-09-15, by fixing the fourth one and looking back at the other three.
