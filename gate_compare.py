@@ -70,9 +70,26 @@ STANDING_GATE = (
     # had ever been independently replayed, and audit_step measured research under
     # a tradeable label for as long as the profile existed. v1 carries the largest
     # cap effect (Rs 3.85M); v2 is the arm whose trail the chart and STEP 12b read.
-    ("mid",  "v1",  "tradeable", "25 s", 20, "the cap BINDING, largest effect"),
-    ("mid",  "v2",  "tradeable", "25 s", 20, "the cap binding on the arm 12b reads"),
+    ("mid",  "v1",  "tradeable", "25 s", 20, "the cap BINDING, largest effect  [PARTIAL]"),
+    ("mid",  "v2",  "tradeable", "25 s", 20, "the cap binding on the arm 12b reads  [PARTIAL]"),
 )
+
+# THE TWO TRADEABLE CELLS ARE PARTIAL, AND THAT IS NOT A DETAIL. They exercise the
+# engine and the audit -- STEP 10b, 10c, 10d, 12b, 15, 15b all run, the artefacts
+# are written, and all four mid arms reconcile to under a paisa. They then DIE AT
+# STEP 16: run_all._present() demands a profile-suffixed
+# v_mid_expanding_cache_tradeable.csv, and the score panel carries no profile
+# dimension, so the guard asks for a file that should not exist.
+#
+# SO A GREEN TRADEABLE CELL MEANS "the cap is applied and replayed correctly",
+# NOT "the tradeable pipeline works". STEP 16 and STEP 17 -- the Nautilus export
+# and execution -- have never run under this profile. Do not quote these cells as
+# end-to-end coverage.
+#
+# Parked until after the collapse by explicit decision: it is the third instance of
+# one missing naming authority, and fixing it at the call site would add a fourth
+# place that decides which artefacts carry a profile dimension. See KNOWN_ISSUES,
+# "No component owns which axes an artefact carries".
 
 # WHAT THE STANDING GATE DOES NOT COVER, stated so coverage is never assumed. Each
 # of these is a real axis of this pipeline that no cell above touches:

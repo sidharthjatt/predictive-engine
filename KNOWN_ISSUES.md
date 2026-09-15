@@ -929,6 +929,88 @@ deliberate and its docstring argues for it; the failure was in use, not in the
 function. Recorded because three instances in one session is a pattern, and the
 next one will cost another run.
 
+## No component owns which axes an artefact carries, and that has now produced three defects
+
+Found 2026-09-15, by fixing the participation-cap contract and watching a
+`tradeable` run die one step further along for an unrelated reason. Open, and
+DELIBERATELY NOT FIXED -- see the last section. **This is one design conclusion,
+not three bugs, and the three below are symptoms of it.**
+
+### The conclusion
+
+An artefact's name is composed from three axes -- arm, cadence, profile -- each
+unsuffixed at its default. `naming.py` exists as "the single naming authority" and
+its own docstring records why: the same bug appeared on the cadence axis, then the
+arm axis, then the profile axis, each fixed at its own call site, "so each new axis
+re-opened the same hole somewhere else."
+
+**`naming.py` IS IMPORTED BY NOTHING.** Verified 2026-09-15: no module in the live
+tree imports it. Every writer, reader and guard retypes the composition, and
+`run_all._present()` retypes it as `f.stem + _cd.suffix() + _pf.suffix()`.
+
+**AND THE AUTHORITY WOULD NOT SETTLE THIS EVEN IF ADOPTED.** `naming.CARRIES`
+registers which axes a COMPOSER can express -- `_c(` carries cadence and profile,
+`selection_suffix` carries arm. It says nothing about which axes an ARTEFACT
+carries. That is the missing fact. A score panel carries none of the three; a
+daily trail carries all three; `v2FINAL_equity.csv` carries cadence and profile but
+not arm, because the arms are columns. **Nothing anywhere records this**, so each
+writer, reader and guard decides separately, and they disagree.
+
+### The three defects it has produced
+
+**1. CADENCE -- a reader disagreed with a writer.** `audit_step._reference_curve`
+resolved to the canonical cadence-20 curve under `--rebal 40`, reconciling a
+cadence-40 trail against it: measured, v1 MISMATCH Rs 2,923,934 and v2 MISMATCH
+Rs 1,825,210 on mid. Fixed at that call site by appending `cadence.suffix()`.
+
+**2. PROFILE -- a guard disagreed with a writer.** `f6b970b` (2026-09-12) made the
+engines and charts profile-aware while `check_inputs` did not, so a research file
+left on disk satisfied the guard during a `tradeable` run. Fixed at that call site
+by `_present()`, which demands "exactly the name this run's axes produce".
+
+**3. PROFILE AGAIN, IN THE OPPOSITE DIRECTION -- the guard now over-applies it.**
+`_present()` appends the profile suffix to EVERY entry in `REQUIRED_INPUTS`,
+including the score panel:
+
+```
+nt_export_scores.py needs 1 file(s) that do not exist:
+  MISSING  results_mid/metrics/v_mid_expanding_cache_tradeable.csv
+    present in that directory: v_mid_expanding_cache.csv
+```
+
+**The score panel has no profile dimension.** Scoring runs before any trading, the
+participation cap acts only on fills, and the two profiles' panels are
+byte-identical. The guard is asking for a file that should not exist, and the fix
+at its own call site -- a special case for the score panel -- would create a FOURTH
+place that knows which artefacts carry a profile dimension. That is the disease,
+not the cure.
+
+### What this blocks right now
+
+**`--profile tradeable` reconciles and does not complete, and those are different
+statements.** Since `bc75d66` the audit replays the capped strategy correctly and
+all four mid arms MATCH the engine to under a paisa. The run proceeds through
+STEP 10b, 10c, 10d, 12b, 15 and 15b, writing every artefact including mid's
+tradeable audit trail -- and then dies at **STEP 16** on the name above.
+
+**Nobody should read the cap entry and conclude the profile runs end to end.** It
+does not. What was fixed there was the measurement; what remains here is the name.
+
+### Not fixed, and the sequencing is the decision
+
+Deliberately parked until after the collapse (steps 4-8), by explicit decision on
+2026-09-15. Three instances of one missing authority is a design conclusion, and
+patching the third at its call site would add the fourth place that decides
+independently -- repeating exactly what `naming.py`'s docstring says caused the
+first three.
+
+The work is to give artefacts a declared axis set that writers, readers and guards
+all read. It is sequenced after the collapse because the collapse takes the
+per-universe module pairs from ten files to four: **there will be four composers to
+teach instead of ten.** Doing it first means teaching six modules that are about to
+be deleted.
+
+---
 ## The tradeable profile cannot complete a run, because where the cap binds the audit disagrees with the engine
 
 Found 2026-09-15, by enumerating the cells a step-6 gate would need and running
@@ -1058,9 +1140,17 @@ fill -- reconciling to under a paisa and to the trade.
 
 **THE ITEM ABOVE IS NOW ANSWERED.** It said mid's shipping arm "has never been
 audited at all" on the tradeable profile and called the figures UNRECONCILED. They
-are reconciled, mid's tradeable trail exists for the first time, and `mid v1
-tradeable` and `mid v2 tradeable` are standing gate cells -- mid is the only place
-the cap binds, which is why this survived for as long as it did.
+are reconciled, and mid's tradeable trail exists for the first time.
+
+**THIS IS THE FIRST CAP-BINDING REPLAY IN THE PROJECT'S LIFE.** Not the first
+tradeable audit that passed -- n100's passed, and passed for as long as the profile
+has existed -- but the first time any configuration where the participation cap
+ACTUALLY BINDS has been independently replayed and reconciled. n100's cap never
+binds, so its green audit certified a run the cap did not touch; mid's is the only
+cap that bites, and until 2026-09-15 mid's audit was silently uncapped. **Every
+cap-binding number this project has ever published rested on the engine agreeing
+with itself.** `mid v1 tradeable` and `mid v2 tradeable` are standing gate cells so
+that cannot recur.
 
 **THE PROFILE STILL CANNOT COMPLETE, FOR A DIFFERENT AND SMALLER REASON.** It now
 runs through STEP 15b and dies at STEP 16:
@@ -1078,7 +1168,12 @@ runs before any trading, the cap acts only on fills, and the two profiles' panel
 are byte-identical. So the guard is asking for a file that should not exist. The
 expectation is wrong here, not the writer -- and `_present`'s own docstring says
 the real fix is a single naming authority every writer, reader and guard calls.
-Not fixed; it is a naming-authority question, not a cap one.
+
+**Not fixed, and deliberately so.** It is the third instance of one missing
+authority, not a third bug: see *"No component owns which axes an artefact
+carries"* above, which records all three and why patching this one at its call site
+would make the problem worse. **Do not read this entry as saying the profile runs
+end to end -- it reconciles through STEP 15b and dies at STEP 16.**
 
 ### Superseded: what was open before 2026-09-15
 
