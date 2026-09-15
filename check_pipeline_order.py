@@ -169,7 +169,7 @@ def _scan(script_path):
     return _scan_text(script_path.read_text())
 
 
-def _scan_text(txt):
+def _scan_text(txt, tag=None):
     """The scan, over source TEXT rather than one file.
 
     A STEP AND ITS HELPERS MUST BE SCANNED AS ONE UNIT, not scanned separately and
@@ -200,6 +200,22 @@ def _scan_text(txt):
         d = _TAG2DIR.get(m.group(1))
         if d:
             tags.append((d, m.group(1)))
+    # THE UNIVERSE FROM THE PIPELINE ROW, for a step that no longer names its own.
+    # Before the collapse every per-universe step carried a literal
+    # REGISTRY["mid"], and make_mid_audit.py's comment said in as many words that
+    # the literal was KEPT because this scanner reads it -- "a loop variable there
+    # matches nothing". Merging the pair removes the literal, and without this the
+    # four `audit before chart` edges would vanish and the check would still report
+    # success, which is the exact failure this module exists to catch.
+    #
+    # THE ROW IS A BETTER SOURCE THAN THE LITERAL EVER WAS. PIPELINE_ORDER's third
+    # field is the declaration of which universe the step is invoked for (5c636cf);
+    # the literal was a restatement of it inside the file, which is the duplicated
+    # knowledge the collapse is removing everywhere else.
+    if tag:
+        d = _TAG2DIR.get(tag)
+        if d:
+            tags.append((d, tag))
     own = sorted(set(var2dir.values()) | {d for d, _ in tags})
     default = own[0] if len(own) == 1 else None
 
@@ -280,10 +296,19 @@ def analyse(pipeline, results_root=None, resolver=None, helpers=None):
 
     W, Rd, U = {}, {}, {}
     missing = []
-    for label, scr in ((r[0], r[1]) for r in pipeline):
+    # ONE ROW AT A TIME, AND THE RESULTS UNIONED PER SCRIPT. A merged step appears
+    # at several positions with a DIFFERENT universe each time -- make_audit.py is
+    # STEP 10c for mid and STEP 10g for n100 -- and it genuinely writes both
+    # universes' files across the run. Scanning once would resolve only one of
+    # them; scanning per row and unioning gives the script the full write set it
+    # actually has.
+    for row in pipeline:
+        label, scr = row[0], row[1]
+        tag = row[2] if len(row) > 2 else None
         p = resolver(scr) if resolver else R / scr
         if not p.exists():
-            missing.append((label, scr, str(p)))
+            if (label, scr, str(p)) not in missing:
+                missing.append((label, scr, str(p)))
             continue
         # A STEP'S WRITES MAY LIVE IN A HELPER MODULE IT IMPORTS. When the three
         # near-identical audit scripts collapsed into results/audit_step.py, every
@@ -296,7 +321,10 @@ def analyse(pipeline, results_root=None, resolver=None, helpers=None):
             hp = Path(hp)
             if hp.exists():
                 src += "\n" + hp.read_text()
-        W[scr], Rd[scr], U[scr] = _scan_text(src)
+        _w, _r, _u = _scan_text(src, tag=tag)
+        W.setdefault(scr, set()).update(_w)
+        Rd.setdefault(scr, set()).update(_r)
+        U.setdefault(scr, set()).update(_u)
 
     producers = {}
     for scr, ws in W.items():
@@ -304,6 +332,8 @@ def analyse(pipeline, results_root=None, resolver=None, helpers=None):
             producers.setdefault(key, []).append(scr)
 
     inversions, edges, unresolved = [], [], []
+
+    _u_done = set()
     for label, scr in ((r[0], r[1]) for r in pipeline):
         for key in sorted(Rd.get(scr, ())):
             if key[1] in CACHES:
@@ -319,8 +349,16 @@ def analyse(pipeline, results_root=None, resolver=None, helpers=None):
             if not earlier:
                 inversions.append((label, scr, key[0], key[1],
                                    [f"{step_of[s]} {s}" for s in later]))
-        for key in sorted(U.get(scr, ())):
-            unresolved.append((label, scr, key))
+        # ONCE PER SCRIPT, NOT ONCE PER ROW. U is unioned across a merged step's
+        # rows, so iterating it inside the per-row loop reported every unresolved
+        # key as many times as the script appears -- make_audit.py's two entries
+        # printed four times and the count read 8 where the real figure is 2.
+        # An inflated count in a checker is the same defect class as a deflated
+        # one: the number stops meaning what it says.
+        if scr not in _u_done:
+            _u_done.add(scr)
+            for key in sorted(U.get(scr, ()), key=lambda t: (t[0] or "", t[1])):
+                unresolved.append((step_of[scr], scr, key))
     if missing:
         print("\n" + "!" * 88)
         print("PIPELINE ORDER CHECK -- these steps were NOT analysed: their files")
