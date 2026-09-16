@@ -167,6 +167,25 @@ PLOT_ARMS = ("v2", "v1")
 # the liquidity finding, which is about fill sizes rather than about CAGR, and
 # marked rather than silently re-quoted under numbers they were not measured
 # against. Re-measure and restamp, or delete the note; do not edit the figures.
+# A UNIVERSE WITH NO MEASUREMENT DECLARES THAT, RATHER THAN BEING ABSENT.
+# The note is a MEASURED RESULT -- fill sizes against prior-20-day median volume,
+# and what a realistic depth model costs in CAGR points -- so it cannot be invented
+# for a new universe, and requiring one before that universe may run would make a
+# measurement a precondition for a pipeline that has not been run yet to produce
+# the trades it would measure.
+#
+# BUT AN ABSENT KEY AND AN UNMEASURED UNIVERSE LOOKED IDENTICAL, which is instance
+# seven in KNOWN_ISSUES: a table that tolerates a missing entry is
+# indistinguishable from one that covers it. So the hole is closed without making
+# the note compulsory -- a universe that has not been measured says so, by name:
+#
+#     "<tag>": NOT_MEASURED,
+#
+# registry_coverage_check.py requires the KEY for every registered universe and
+# accepts either a non-empty note or this sentinel. An absent key is still a
+# failure; so is an empty string, which would be a hole wearing a value.
+NOT_MEASURED = None
+
 LIQUIDITY = {
     "n100": ("n100 [measured pre-2026-09-10, close-basis engine]: 3 of 997 fills "
              "exceed 10% of prior-20-day median volume, and ZERO do on the 60-day "
@@ -612,7 +631,11 @@ def _subtitle(UNIV):
     #   point: the same depth model costs n100 0.01 CAGR points and mid 1.80.
     #   Reading mid's 29.18% next to n100's 25.36% without that is reading a gap of
     #   3.8 points that realistic execution more than halves.
-    notes = [LIQUIDITY[u["tag"]] for u in UNIV if u["tag"] in LIQUIDITY]
+    # NOT_MEASURED CONTRIBUTES NOTHING, EXACTLY AS AN ABSENT KEY USED TO. The
+    # difference is upstream: the key must now be there, so "this universe has no
+    # note" is a statement somebody made rather than a gap nobody noticed.
+    notes = [LIQUIDITY[u["tag"]] for u in UNIV
+             if LIQUIDITY.get(u["tag"], NOT_MEASURED) is not NOT_MEASURED]
     liq = ("LIQUIDITY, at Rs 10,00,000 starting capital. " + "\n".join(notes) + "\n"
            if notes else "")
 
