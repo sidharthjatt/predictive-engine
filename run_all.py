@@ -161,109 +161,6 @@ CACHE_TMP = [TMP / "v5_expanding.csv", TMP / "raw_panel_20.csv",
 # missed silently.
 CACHE_PERM = _cache_perm()
 
-# ---------------------------------------------------------------------------
-# INPUT GUARD -- ordering bugs must fail by name, not as a pandas traceback
-# ---------------------------------------------------------------------------
-# Every entry is: consumer script -> [(file it reads, the step that writes it)].
-#
-# WHY THIS EXISTS. make_final_chart_fair.py read daily_trades_58.csv, which was
-# produced two steps LATER. The pipeline appeared to work for months because the
-# file survived in metrics/ from the previous run; the first run against a truly
-# empty metrics/ died with a bare FileNotFoundError raised inside pandas, naming
-# a path but not the step that owed it.
-#
-# ONLY NON-OBVIOUS DEPENDENCIES ARE LISTED -- the ones a reader would not catch
-# by grepping, because the filename and the read() are in different places
-# (helpers like tc_from_log() and before_tc() take a path argument, so the
-# literal never appears next to a read_csv call).
-#
-# THIS GUARD DOES NOT MAKE ANY CONSUMER TOLERANT OF A MISSING FILE. A missing
-# input is still fatal. It only replaces the traceback with a sentence that says
-# which file is missing and who should have written it.
-REQUIRED_INPUTS = {
-    "make_chart.py": [
-        # ARM-TAGGED TOO: this is v2's audit trail, and a selection without v2
-        # writes no v2 trail at all. Demanding it unconditionally made `--arm
-        # v1,v3` impossible from a cold tree; it only ever passed because an
-        # earlier default run had left the file on disk.
-        (ROOT / "results_mid" / "metrics" / "daily_trades_mid.csv",
-         "STEP 10c make_audit.py", "u:mid,v2"),
-        # ARM-TAGGED. This input exists only when v1 is selected, so check_inputs
-        # skips it otherwise. The tuple stays a literal path in the same shape, so
-        # check_pipeline_order still resolves the edge and its inventory is
-        # unchanged -- only the RUNTIME requirement became conditional.
-        (ROOT / "results_mid" / "metrics" / "daily_trades_v1_mid.csv",
-         "STEP 10b engine_v2_final.py", "u:mid,v1"),
-        # ARM-TAGGED TOO: this is v2's audit trail, and a selection without v2
-        # writes no v2 trail at all. Demanding it unconditionally made `--arm
-        # v1,v3` impossible from a cold tree; it only ever passed because an
-        # earlier default run had left the file on disk.
-        (ROOT / "results_n100" / "metrics" / "daily_trades_n100.csv",
-         "STEP 10g make_audit.py", "u:n100,v2"),
-        # ARM-TAGGED. This input exists only when v1 is selected, so check_inputs
-        # skips it otherwise. The tuple stays a literal path in the same shape, so
-        # check_pipeline_order still resolves the edge and its inventory is
-        # unchanged -- only the RUNTIME requirement became conditional.
-        (ROOT / "results_n100" / "metrics" / "daily_trades_v1_n100.csv",
-         "STEP 10f engine_v2_final.py", "u:n100,v1"),
-    ],
-    # THE COMBINED STEP READS EVERY SELECTED UNIVERSE'S TRADE LOG, and the two
-    # retired universes' logs are written by STEP 12 make_daily_audit.py. That is
-    # why this step moved from STEP 10i to STEP 12b: at 10i the 58 and 74 logs did
-    # not exist yet, so a combined chart over those universes could not have been
-    # drawn at all. The mid and n100 edges are declared because a full run always
-    # has both; the 58/74 edges are NOT declared here because those universes can
-    # legitimately be absent from a selection, and check_inputs is a hard failure.
-    "make_combined_universes.py": [
-        # ARM-TAGGED TOO: this is v2's audit trail, and a selection without v2
-        # writes no v2 trail at all. Demanding it unconditionally made `--arm
-        # v1,v3` impossible from a cold tree; it only ever passed because an
-        # earlier default run had left the file on disk.
-        (ROOT / "results_mid" / "metrics" / "daily_trades_mid.csv",
-         "STEP 10c make_audit.py", "v2"),
-        # ARM-TAGGED TOO: this is v2's audit trail, and a selection without v2
-        # writes no v2 trail at all. Demanding it unconditionally made `--arm
-        # v1,v3` impossible from a cold tree; it only ever passed because an
-        # earlier default run had left the file on disk.
-        (ROOT / "results_n100" / "metrics" / "daily_trades_n100.csv",
-         "STEP 10g make_audit.py", "v2"),
-    ],
-    # STEP 16 reads the PERMANENT panels, which STEP 15b copies from /tmp. Named
-    # here so that if the two are ever re-ordered again the run stops with the
-    # missing filename and the step that owes it, instead of dying inside pandas
-    # with "v5_expanding_cache.csv missing" and no indication of who writes it.
-    # nt_export_scores also falls back to /tmp via config.require_cache, so this
-    # fires only when BOTH copies are absent -- a genuine missing panel.
-    # UNIVERSE-TAGGED. The third field is the ARM an input belongs to; a leading
-    # "u:" marks a UNIVERSE instead. Each cache exists only when its universe was
-    # selected, so `--universe mid` from a cold tree has one of these four and not
-    # the other three -- and demanding all four made that selection impossible
-    # from cold. It only ever passed because an earlier full run had left them.
-    # UNIVERSE-TAGGED, like nt_export_scores' own inputs: the port loads the
-    # parquet for each SELECTED universe, and a run that selected one universe has
-    # one of these four.
-    # THE 58's AND THE 74's ENTRIES ARE GONE, deleted 2026-09-16 with the coverage
-    # check. Both universes were deleted on 2026-09-11 and these four rows outlived
-    # them by five days. They were INERT -- their "u:58" / "u:74" qualifiers can
-    # never match a selection, because neither tag can be selected -- but an inert
-    # row in a guard table is the shape _mod2dir's docstring warns about: it reads
-    # as coverage. registry_coverage_check.py now answers what this table covers,
-    # and it can only answer honestly if the table says nothing that is not true.
-    "nt_execute.py": [
-        (ROOT / "nautilus" / "data" / "scores_mid.parquet",
-         "STEP 16 nt_export_scores.py", "u:mid"),
-        (ROOT / "nautilus" / "data" / "scores_n100.parquet",
-         "STEP 16 nt_export_scores.py", "u:n100"),
-    ],
-    "nt_export_scores.py": [
-        (ROOT / "results_mid" / "metrics" / "v_mid_expanding_cache.csv",
-         "STEP 15b save_caches_step.py", "u:mid"),
-        (ROOT / "results_n100" / "metrics" / "v_n100_expanding_cache.csv",
-         "STEP 15b save_caches_step.py", "u:n100"),
-    ],
-}
-
-
 # Execution order, declared once so the static checker can read it. run() asserts
 # every script it is handed appears here, so this list cannot silently drift out of
 # step with main(). Steps 10a/10e are skipped at runtime when their panel is
@@ -319,6 +216,121 @@ PIPELINE_ORDER = [
     # It must follow 16, which writes the parquet it loads.
     ("STEP 17", "nt_execute.py",               None),
 ]
+
+
+# ---------------------------------------------------------------------------
+# INPUT GUARD -- ordering bugs must fail by name, not as a pandas traceback
+# ---------------------------------------------------------------------------
+# Every entry is: consumer script -> [(file it reads, the step that writes it,
+# the axis qualifier)].
+#
+# WHY THIS EXISTS. make_final_chart_fair.py read daily_trades_58.csv, which was
+# produced two steps LATER. The pipeline appeared to work for months because the
+# file survived in metrics/ from the previous run; the first run against a truly
+# empty metrics/ died with a bare FileNotFoundError raised inside pandas, naming
+# a path but not the step that owed it.
+#
+# ONLY NON-OBVIOUS DEPENDENCIES ARE LISTED -- the ones a reader would not catch
+# by grepping, because the filename and the read() are in different places
+# (helpers like tc_from_log() and before_tc() take a path argument, so the
+# literal never appears next to a read_csv call).
+#
+# THIS GUARD DOES NOT MAKE ANY CONSUMER TOLERANT OF A MISSING FILE. A missing
+# input is still fatal. It only replaces the traceback with a sentence that says
+# which file is missing and who should have written it.
+#
+# ---------------------------------------------------------------------------
+# STEP 8 OF THE COLLAPSE: IT IS DERIVED FROM THE REGISTRY, NOT WRITTEN OUT
+# ---------------------------------------------------------------------------
+# This was ten hand-written tuples, five per universe, and every one of them was
+# `<that universe's metrics_dir> / <filename carrying its tag>` -- knowledge the
+# registry already holds. Adding a universe meant finding all five; four of them
+# outlived the 58 and the 74 by five days and were deleted in 6d618ac.
+#
+# THE PATHS COME FROM paths.py, NOT FROM A FORMAT STRING WRITTEN HERE.
+# paths.tagged_artefact(u, "daily_trades") is the existing definition of the
+# daily-audit family's naming -- the one place that puts the tag in the FILENAME
+# as well as the directory -- and re-spelling it here would be a second rule that
+# can disagree with the first. Same for nautilus_scores() and score_cache().
+#
+# THE STEP LABEL IS LOOKED UP FROM PIPELINE_ORDER BY (script, universe), NEVER
+# RESTATED. The third element of each tuple used to read "STEP 10c make_audit.py"
+# for mid and "STEP 10g make_audit.py" for n100 -- those are PIPELINE_ORDER
+# labels, and a copy of them here would be the seventh hardcoded list in this
+# repository, going stale against the rows above exactly as STEP_UNIVERSES and
+# SCORE_BUILD_STEPS did. _step_label raises rather than guessing: a label that
+# cannot be resolved means the producing step is not in PIPELINE_ORDER at all,
+# which is a defect in the pipeline and not a formatting problem here.
+#
+# THIS TABLE IS NOT READ BY check_pipeline_order, AND THE COMMENT THAT SAID IT
+# WAS HAS BEEN REMOVED. check_inputs' docstring claimed "check_pipeline_order
+# reads the literal paths out of this table, and they are still literal paths in
+# the same shape". It does not: analyse() scans PIPELINE_ORDER's step scripts and
+# their STEP_HELPERS, and run_all.py is never among them. The claim was load-
+# bearing for anyone deciding whether these could be computed -- it is why they
+# were not -- so it is corrected rather than left.
+def _step_label(script, tag):
+    """The PIPELINE_ORDER label for one invocation: "STEP 10c make_audit.py".
+
+    `tag` is the universe the producing invocation runs for, or None for a
+    whole-run step. Raises rather than defaulting, because a producer that is not
+    in PIPELINE_ORDER cannot be named in a guard that exists to say who owes a
+    file.
+    """
+    for row in PIPELINE_ORDER:
+        if row[1] == script and (row[2] if len(row) > 2 else None) == tag:
+            return f"{row[0]} {script}"
+    raise SystemExit(
+        f"run_all.REQUIRED_INPUTS: no PIPELINE_ORDER row runs {script} for "
+        f"universe {tag!r}, so the step that owes this input cannot be named.\n"
+        f"  Either the producing step is missing from PIPELINE_ORDER -- in which "
+        f"case it never runs for that universe -- or this dependency is stale. "
+        f"Do not write the label in by hand; fix the row.")
+
+
+def _required_inputs():
+    """The guard table, per registered universe. See the block above."""
+    import paths
+    from universes.registry import REGISTRY
+    out = {"make_chart.py": [], "make_combined_universes.py": [],
+           "nt_execute.py": [], "nt_export_scores.py": []}
+    for u in REGISTRY.values():
+        # ARM-TAGGED. daily_trades_<tag>.csv is v2's audit trail and a selection
+        # without v2 writes no v2 trail at all; daily_trades_v1_<tag>.csv exists
+        # only when v1 is selected. Demanding either unconditionally made
+        # `--arm v1,v3` impossible from a cold tree, and it only ever passed
+        # because an earlier default run had left the file on disk.
+        out["make_chart.py"].append(
+            (paths.tagged_artefact(u, "daily_trades"),
+             _step_label("make_audit.py", u.tag), f"u:{u.tag},v2"))
+        out["make_chart.py"].append(
+            (paths.tagged_artefact(u, "daily_trades_v1"),
+             _step_label("engine_v2_final.py", u.tag), f"u:{u.tag},v1"))
+        # THE COMBINED STEP READS EVERY SELECTED UNIVERSE'S TRADE LOG. It is
+        # qualified by ARM only: the universe is carried by the path, and this
+        # step runs once for whatever the selection holds. That is why it moved
+        # from STEP 10i to STEP 12b -- at 10i the logs did not exist yet.
+        out["make_combined_universes.py"].append(
+            (paths.tagged_artefact(u, "daily_trades"),
+             _step_label("make_audit.py", u.tag), "v2"))
+        # UNIVERSE-TAGGED. The port loads the parquet for each SELECTED universe,
+        # and a run that selected one universe has one of these.
+        out["nt_execute.py"].append(
+            (paths.nautilus_scores(u),
+             _step_label("nt_export_scores.py", None), f"u:{u.tag}"))
+        # STEP 16 reads the PERMANENT panels, which STEP 15b copies from /tmp.
+        # Named so that if the two are ever re-ordered again the run stops with the
+        # missing filename and the step that owes it, instead of dying inside
+        # pandas with no indication of who writes it. nt_export_scores also falls
+        # back to /tmp via config.require_cache, so this fires only when BOTH
+        # copies are absent -- a genuine missing panel.
+        out["nt_export_scores.py"].append(
+            (paths.score_cache(u),
+             _step_label("save_caches_step.py", None), f"u:{u.tag}"))
+    return out
+
+
+REQUIRED_INPUTS = _required_inputs()
 # Kept as the canonical set of pipeline script names. run()'s membership guard used
 # it; run.py needs the same answer when it maps a step to its universe.
 _PIPELINE_SCRIPTS = {row[1] for row in PIPELINE_ORDER}
@@ -333,9 +345,12 @@ def check_inputs(label, script):
     into a hard stop. Entries with no third field are required unconditionally,
     which is all of them but two.
 
-    THE STATIC INVENTORY IS UNAFFECTED. check_pipeline_order reads the literal
-    paths out of this table, and they are still literal paths in the same shape;
-    only the runtime requirement became conditional.
+    THE STATIC INVENTORY IS UNAFFECTED, AND NOT FOR THE REASON THIS DOCSTRING
+    USED TO GIVE. It said check_pipeline_order reads the literal paths out of
+    REQUIRED_INPUTS, so they had to stay literal. It does not: analyse() scans
+    PIPELINE_ORDER's step scripts and their STEP_HELPERS, and run_all.py is never
+    among them. The edge inventory is unaffected because this table was never part
+    of it -- which is what made step 8 possible.
     """
     import arms.registry as _ar
     import cadence as _cd

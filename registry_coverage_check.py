@@ -38,6 +38,19 @@ WHY THE TABLES ARE READ STATICALLY AND NOT BY IMPORTING THEM
     the only way to ask which universes it covers is to read the subscript
     assignments. That is what _subscript_keys does.
 
+THE REQUIRED_INPUTS ROWS CANNOT FAIL ANY MORE, AND THAT IS NOT A PASS
+    Step 8 made run_all.REQUIRED_INPUTS a comprehension over REGISTRY, so the four
+    `run_all.REQUIRED_INPUTS [...]` rows below are derived from the same source
+    this checker compares them against. They are green by construction and a
+    reader must not take them as evidence of anything.
+
+    THEY ARE KEPT BECAUSE THE DERIVATION IS NOT THE GUARANTEE. What they now check
+    is that the comprehension actually produced an entry per universe per
+    consumer -- a `for u in REGISTRY.values()` that someone later narrows to a
+    literal pair, or a consumer key added without a loop, fails here. That is a
+    smaller claim than the one the rows made before step 8, and it is written down
+    rather than left for someone to infer from four green lines.
+
 A TABLE THAT CANNOT BE FOUND IS A FAILURE, NOT AN EMPTY RESULT
     If a table is renamed or deleted, a checker that reads it as "no keys" would
     report every universe missing, or -- worse, depending on how it is written --
