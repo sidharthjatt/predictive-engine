@@ -86,7 +86,21 @@ from universes.registry import REGISTRY
 
 PREREG = ROOT / "experiments" / "HELDOUT_PREREG.txt"
 OUT = ROOT / "diagnostics" / "heldout_prereg_result.txt"
-RESULT_MARKER = "RESULT -- THE RUN"
+# THE ALREADY-SPENT SENTINEL. A machine token rather than a phrase, because the
+# check is `marker in file text` and prose in this file already contains the word
+# RESULT ("A RESULT THAT IS TOO GOOD IS ALSO A FAIL", section 3).
+#
+# IT ERRS OVER-BROAD, DELIBERATELY. A false positive -- the token appearing for
+# some unrelated reason -- refuses a FIRST run, which costs nothing and is
+# recoverable by looking at the file. A false negative would permit a SECOND
+# held-out number, which is not recoverable by anything. Given a choice between
+# refusing a run that should have happened and allowing one that should not, this
+# refuses.
+#
+# IT CANNOT BE UNDER-BROAD FOR ITS OWN BLOCK: the same constant is written into
+# the block this script appends, so the check and the thing it looks for are one
+# definition.
+RESULT_MARKER = "[HELDOUT-PREREG-RESULT-BLOCK]"
 
 # The pre-registration's own numbers, quoted here so the output can compare itself
 # against the file rather than against my memory of it.
@@ -108,11 +122,13 @@ def _fail(*msg):
 # PRECONDITIONS -- section 6's checklist, in its order, before anything is read
 # ---------------------------------------------------------------------------
 def preconditions(W):
-    if RESULT_MARKER in PREREG.read_text():
+    spent = RESULT_MARKER in PREREG.read_text()
+    if spent:
         _fail("REFUSING: experiments/HELDOUT_PREREG.txt already carries a result.",
               "  The window is spendable exactly once (section 4) and it has been",
               "  spent. A second run cannot produce a held-out number; it would",
-              "  produce a second look at data that is no longer held out.")
+              "  produce a second look at data that is no longer held out.",
+              f"  Looked for the sentinel {RESULT_MARKER!r} and found it.")
 
     dirty = subprocess.run(["git", "status", "--porcelain"], cwd=str(ROOT),
                            capture_output=True, text=True, check=True).stdout.strip()
@@ -130,6 +146,11 @@ def preconditions(W):
     anc = subprocess.run(["git", "merge-base", "--is-ancestor", PREREG_COMMIT, "HEAD"],
                          cwd=str(ROOT), capture_output=True, text=True)
     W("  PRECONDITIONS")
+    W(f"    already spent?          NO -- sentinel {RESULT_MARKER} absent from")
+    W(f"                            experiments/HELDOUT_PREREG.txt. The check errs")
+    W(f"                            OVER-BROAD: a false match refuses a first run,")
+    W(f"                            which is recoverable; a miss would allow a")
+    W(f"                            second number, which is not.")
     W("    working tree            clean")
     W(f"    HEAD                    {head}")
     W(f"    pre-registered commit   {PREREG_COMMIT}")
@@ -209,6 +230,15 @@ def universe_series(u, W):
     # over `bd`; using bd_ext would fit a parameter on the held-out window.
     tv = port_vol.loc[bd_in].median()
 
+    W(f"    {u.tag:<5} in-sample window  {bd_in[0].date()} .. {bd_in[-1].date()}"
+      f"   ({len(bd_in):,} sessions)   BT_END_DATE is {config.BT_END_DATE.date()}")
+    if bd_in[-1] != config.BT_END_DATE:
+        W(f"          (last in-sample session is {bd_in[-1].date()}, the last TRADING "
+          f"day on or before BT_END_DATE)")
+    W(f"    {u.tag:<5} extended window   {bd_ext[0].date()} .. {bd_ext[-1].date()}"
+      f"   ({len(bd_ext):,} sessions)   held out: {len(held)}")
+    W(f"    {u.tag:<5} target_vol        {tv:.6f}  PINNED to the in-sample median")
+
     audit = {k: [] for k in
              ("holdings", "summary", "trades", "ranking", "decisions", "skipped")}
     eq, tc, n_tr, expo = backtest_exposure(
@@ -227,8 +257,12 @@ def universe_series(u, W):
               "  shipped v2FINAL_equity.csv carries. The extension is not a",
               "  continuation of the published backtest.")
     rel = float((mine - shipped).abs().div(shipped.abs().clip(lower=1e-12)).max())
-    W(f"    {u.tag:<5} reproduction of shipped v2FINAL_equity.csv over "
-      f"{len(shipped):,} in-sample sessions: max relative difference {rel:.3e}")
+    W(f"    {u.tag:<5} reproduction      shipped v2FINAL_equity.csv over "
+      f"{len(shipped):,} in-sample sessions:")
+    W(f"          max relative difference {rel:.3e}   tolerance {REPRO_TOL:.0e}   "
+      f"{'PASS' if rel <= REPRO_TOL else 'BREACH'}")
+    W(f"          a breach calls _fail() and exits 1 -- it stops the run before any")
+    W(f"          held-out figure is read, it does not annotate the result")
     if rel > REPRO_TOL:
         _fail(f"REFUSING: extending the date index changed the {u.tag} backtest",
               f"  BEFORE 2026-05-29 (max relative difference {rel:.3e}).",
