@@ -618,6 +618,23 @@ persisted by STEP 15b, scoring is skipped and a full run is a couple of minutes.
 
 ## 8. What is not settled, and what you should not assume
 
+- **SURVIVORSHIP IS PERMANENT, NOT OUTSTANDING. Decided 2026-09-16.** It was
+  recorded as "deferred with a known next step": acquire price history for the
+  **186 dropped names** that `full_100.csv` / `full_150.csv` already enumerate.
+  **There is no vendor access and none is coming.** The price data is fixed at
+  2026-06-08 and no further acquisition is possible, so those 186 names will never
+  arrive and the point-in-time membership work cannot be completed.
+  **This is now a standing property of every number this repository produces, not
+  a task on a list.** Both universes are today's index constituents backfilled;
+  names that left before the window ended are absent from every result, every
+  chart and every comparison. What was measured about it stands and is not
+  re-litigated: the bias runs in **both** directions (PIT membership took mid v1
+  from +19.03 to +9.68; adding synthetic dropped losers took it to +30.11 or
+  +5.10 depending on whether the model sees them), v2's risk advantage survives
+  PIT untouched, and **there is no point-in-time membership for n100 at all** —
+  `rebuilt_100.csv` is the MidCap150, overlapping n100 by 8 of 100 names.
+  Do not read any figure here as survivorship-corrected, and do not re-open this
+  as work.
 - **Cross-machine reproducibility.** Untested. This is the open item this file
   exists to flag: nothing in this repository can answer whether anyone else can
   reproduce these numbers, and nobody has tried. It is the first thing a new
