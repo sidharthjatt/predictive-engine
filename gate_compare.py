@@ -156,15 +156,25 @@ STANDING_GATE = (
 
 # THE TWO TRADEABLE CELLS ARE PARTIAL, AND THAT IS NOT A DETAIL. They exercise the
 # engine and the audit -- STEP 10b, 10c, 10d, 12b, 15, 15b all run, the artefacts
-# are written, and all four mid arms reconcile to under a paisa. They then DIE AT
-# STEP 16: run_all._present() demands a profile-suffixed
-# v_mid_expanding_cache_tradeable.csv, and the score panel carries no profile
-# dimension, so the guard asks for a file that should not exist.
+# are written, and all four mid arms reconcile to under a paisa.
 #
-# SO A GREEN TRADEABLE CELL MEANS "the cap is applied and replayed correctly",
-# NOT "the tradeable pipeline works". STEP 16 and STEP 17 -- the Nautilus export
-# and execution -- have never run under this profile. Do not quote these cells as
-# end-to-end coverage.
+# THEY USED TO DIE AT STEP 16, AND NO LONGER DO. run_all._present() demanded a
+# profile-suffixed v_mid_expanding_cache_tradeable.csv; the score panel carries no
+# profile dimension, so the guard was asking for a file that should not exist.
+# Fixed 2026-09-16 by scoping the guard to the axes each input's name declares.
+# `--universe mid --arm v2 --profile tradeable` now runs all nine steps, exit 0.
+#
+# THE CELLS ARE STILL [PARTIAL], AND FOR A STRONGER REASON THAN BEFORE. They no
+# longer stop early -- but NOTHING HERE COMPARES WHAT STEP 16 AND STEP 17 PRODUCE
+# under this profile against anything. Before 2026-09-16 those steps had never run
+# under it at all; now they run and are unmeasured, which is the easier of the two
+# states to mistake for coverage. A green tradeable cell means "the cap is applied
+# and replayed correctly", NOT "the tradeable pipeline is verified".
+#
+# UNTIL A CELL EXISTS THAT ANCHORS THEM, EVERY TRADEABLE ARTEFACT SAYS SO OF
+# ITSELF: profiles.gate_status() is bannered by run.py at both ends of the run and
+# written into v34_params{SFX}.json. Research artefacts are untouched by it, which
+# the standing gate proves.
 #
 # Parked until after the collapse by explicit decision: it is the third instance of
 # one missing naming authority, and fixing it at the call site would add a fourth
@@ -193,6 +203,39 @@ STANDING_GATE = (
 
 def sha(p):
     return hashlib.sha256(p.read_bytes()).hexdigest()
+
+
+# ---------------------------------------------------------------------------
+# A PASS THAT WENT DIRTY HALFWAY IS CAUGHT BY THE ARTEFACT, NOT BY THE HARNESS
+# ---------------------------------------------------------------------------
+# THE REFUSAL AT THE TOP OF main() CHECKS THE TREE ONCE, BEFORE COMPARING, AND
+# THAT IS NOT ENOUGH. On 2026-09-16 a post pass started clean, and the tree was
+# edited while its first cell ran; the second cell recorded
+# working_tree_dirty=true. The gate still reported PASS, and the only sign was in
+# the PROVENANCE detail -- "git_state.commit" on one cell and all four fields on
+# the other. A gate that can be invalidated halfway and is caught only by reading
+# its own verdict carefully is not a gate.
+#
+# THE ARTEFACT CARRIES THE ANSWER, WHICH IS BETTER THAN ANY HARNESS CHECK. Each
+# run stamps `git_state.working_tree_dirty` into its params JSON. Reading it here
+# catches a dirty pass PER CELL, whatever ran the cells, including a harness that
+# checks nothing at all -- and it catches the half that went dirty rather than the
+# pass as a whole.
+#
+# THE FIELD IS EXCLUDED FROM THE DIFF AND CHECKED FOR ITS VALUE. Those are
+# different questions: whether it MOVED between passes is provenance and is
+# forgiven; whether it is TRUE is the pass admitting it cannot be reproduced.
+def dirty_stamp(p):
+    """(commit, n_files) when this artefact records a dirty tree, else None."""
+    if p.suffix != ".json":
+        return None
+    try:
+        g = json.loads(p.read_text()).get("git_state")
+    except Exception:
+        return None
+    if isinstance(g, dict) and g.get("working_tree_dirty") is True:
+        return (str(g.get("commit", "?"))[:12], g.get("modified_or_untracked_files", "?"))
+    return None
 
 
 def why_not_written(stem, universe, arm, profile, known_universes):
@@ -349,8 +392,13 @@ def main(argv=None):
     print()
 
     tally = {}
+    stamped_dirty = []
     print("  --- COMPARED " + "-" * 73)
     for bp, lp in written:
+        for side, q in (("baseline", bp), ("live", lp)):
+            d0 = dirty_stamp(q)
+            if d0:
+                stamped_dirty.append((side, q.name, d0))
         v, d = compare(bp, lp)
         tally[v] = tally.get(v, 0) + 1
         if v != "EXACT":
@@ -370,6 +418,19 @@ def main(argv=None):
             print(f"    {bp.name:<42} the cell did not write it and no rule explains why")
         print("\nRESULT: FAIL -- an artefact went unwritten for a reason this tool cannot")
         print("  name. That is indistinguishable from a step that stopped writing.")
+        return 2
+
+    if stamped_dirty:
+        print()
+        print("  --- PASS RECORDED A DIRTY TREE -- FATAL " + "-" * 47)
+        for side, name, (commit, n) in stamped_dirty:
+            print(f"    {side:<8} {name:<38} commit {commit}, {n} modified or "
+                  f"untracked file(s)")
+        print("\n  That artefact was produced from a tree that is not in git, so")
+        print("  nobody -- including whoever ran it -- can reproduce it. The tree was")
+        print("  clean when the pass STARTED or the refusal above would have fired;")
+        print("  it went dirty while the pass was running. Commit, then run again.")
+        print("\nRESULT: FAIL -- the comparison is against something unreproducible.")
         return 2
 
     bad = tally.get("DIFFERS", 0)

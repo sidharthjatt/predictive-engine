@@ -618,6 +618,17 @@ def execute(plan, args):
     # asks profiles.participation_cap() at call time.
     import profiles as _prof
     _prof.set_selection(args.profile)
+    # LOUD, AT THE START, BEFORE ANY NUMBER EXISTS. A run under a non-default
+    # profile completes and exits 0, which is indistinguishable from a run that was
+    # checked unless something says otherwise. profiles.gate_status() owns the
+    # words; this prints them where the reader is looking before the output
+    # scrolls, and the same sentence is written into v34_params{SFX}.json so it
+    # survives the terminal.
+    _gs = _prof.gate_status()
+    if _gs:
+        print("\n" + "!" * 90)
+        print(f" PROFILE '{_prof.selected()}' -- {_gs}")
+        print("!" * 90, flush=True)
 
     # SAFETY 1 -- the determinism pin is already set, at the top of this file,
     # before any numeric import. Nothing to do here; it is listed so the four are
@@ -734,6 +745,15 @@ def execute(plan, args):
     print(f"DONE in {(time.time()-t_start)/60:.1f} min   "
           f"({len(plan['pipeline'])} pipeline steps, {len(plan['arm_runs'])} arm runs)")
     print("=" * 90)
+    # AND AGAIN AT THE END, because the start banner is 200 lines up by now and
+    # "DONE" is the line a reader stops at. Saying it twice is the point: the one
+    # thing that must not be inferred from a clean exit is that the numbers were
+    # checked.
+    _gs2 = _prof.gate_status()
+    if _gs2:
+        print("!" * 90)
+        print(f" PROFILE '{_prof.selected()}' -- {_gs2}")
+        print("!" * 90, flush=True)
     collect_run_folder(plan, args, t_start)
     return 0
 

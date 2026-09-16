@@ -268,6 +268,15 @@ covers `fddc560` -> `d90e1c1`. Within and around it:
   probes or `measured_universes.py`**, checked by resolving every import of the 19
   load-bearing modules, and none of the three is in `PIPELINE_ORDER`. There is no
   path by which it reaches an artefact.
+- **`87ba029` EARNED ITS KEEP, AND THIS IS THE RECORD OF IT.** It was the ungated
+  commit let through on argument: it made the `PROVENANCE` verdict name the fields
+  that actually moved instead of all four excluded ones. On 2026-09-16 a post pass
+  started clean and was dirtied while its first cell ran; the pass reported PASS,
+  and the ONLY sign was that one cell said `git_state.commit` and the other said
+  all four. Without that commit both cells would have printed all four and the
+  invalid pass would have been indistinguishable from a valid one. The gate is now
+  enforced by `gate_compare.dirty_stamp()` rather than by that detail line being
+  read carefully — but the detail line is what found it.
 - **Documentation-only commits are not gated and are not listed individually**
   — `9a5a1ed`, `77d2a54`, `d90e1c1` and this paragraph change no code. Stating that
   once is what keeps this note finite; stating each would make it a changelog.
