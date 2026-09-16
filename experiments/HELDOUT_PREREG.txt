@@ -72,6 +72,59 @@
    not sufficient; it needs a trading calendar nobody can currently produce.
 
 ================================================================================
+ DECISIONS, 2026-09-16 -- TAKEN ON THE ADDENDUM ABOVE, BEFORE THE RUN
+================================================================================
+ ADDED AFTER SIGNING, LIKE THE ADDENDUM. Sections 1 through 6 are unchanged.
+
+ THE DATA IS FIXED AT 2026-06-08. There is no vendor access and none is coming,
+ so no further sessions will ever exist. That settles the question the addendum
+ left open: WAITING IS NO LONGER WAITING, IT IS DECLINING. 12 pooled sessions is
+ not a weak version of this test; it is the whole test that will ever exist.
+
+ The calendar question is closed with it. nse_trading_calendar.csv does not need
+ extending, because nothing will ever extend past it.
+
+ DECISION 1 -- THE PRE-REGISTRATION STANDS, AND THE COMMIT DEVIATION IS RECORDED
+ RATHER THAN WAIVED.
+
+   Section 1 names commit 806a7fbba9a41a954e0ac75bc5a8064ecbabd414 and a clean
+   working tree, and says that if anything below it changes, the run is a new
+   trial and this pre-registration is void.
+
+   806a7fb IS NOW AN ANCESTOR OF HEAD. The run will not execute at that commit.
+
+   Every parameter section 1 names was verified unchanged on 2026-09-16: TOP_N 8,
+   BUFFER 16, HORIZON 20, PURGE 32 with purge_mode="trading", rebalance 20, the
+   ten seeds in order, profile research with participation_cap None, value_at_open
+   True, BT_END_DATE 2026-05-29, and the real charge model active by section 1's
+   own test ('compute_leg_charges' in the source of engine_core.calc_tc).
+
+   Every intervening change was gated by running both universes' --arm all cells
+   before and after, from a clean tree both times, and comparing every artefact
+   byte for byte. Across those gates the only fields that ever moved were the
+   provenance fields inside git_state -- the commit hash and the tree state -- and
+   that exclusion is itself enforced by gate_compare.PROVENANCE_FIELDS rather than
+   argued at review time.
+
+   SO THE LITERAL CONDITION IS BROKEN AND THE PURPOSE IT SERVED IS MET: the
+   configuration that will execute is provably the frozen one. This is recorded,
+   not waived. ANYONE READING THIS LATER DECIDES FOR THEMSELVES WHETHER THEY
+   ACCEPT IT, which is why the deviation is written down in the same file as the
+   result rather than settled in a commit message.
+
+ DECISION 2 -- RUN IT AT n = 12, BECAUSE 12 IS ALL THERE WILL EVER BE.
+
+   Not because 12 is adequate. Section 3 reasoned about power on roughly 65 pooled
+   sessions and there are 12, so se = sd_in/sqrt(n) is about 2.3 times wider than
+   that arithmetic assumed, and the interval widens with it. The alternative to
+   running at 12 is never running, and never running answers nothing either.
+
+   THE OUTPUT MUST MAKE THIS UNMISSABLE. n, the 65 the file assumed, and the
+   resulting power loss are required to print ABOVE the verdict, and the verdict
+   line itself must state that it was computed on 12 sessions. A PASS HERE MUST BE
+   UNREADABLE AS THE TEST THIS FILE DESIGNED.
+
+================================================================================
 
 WHY THIS FILE EXISTS, AND WHY IT EXISTS TODAY
 
