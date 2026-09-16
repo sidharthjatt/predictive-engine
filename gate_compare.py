@@ -41,6 +41,54 @@ ULP = 2.3e-16          # one unit in the last place, relative
 
 
 # ---------------------------------------------------------------------------
+# THE ONE ACCEPTED NON-IDENTICAL FIELD SET, AND IT LIVES HERE, NOT IN A REVIEW
+# ---------------------------------------------------------------------------
+# STEP 7 PRODUCED THE FIRST PRE/POST PAIR THAT WAS NOT BYTE-IDENTICAL. Six
+# v34_params*.json files moved, one per cell, and all six moved only inside
+# `git_state`, which records the commit the run was produced at and whether the
+# tree was clean. HEAD necessarily differs between a pre-merge and a post-merge
+# run, so that block MUST move; a merge that left it unmoved would mean it was
+# recording nothing.
+#
+# THAT VERDICT WAS REACHED BY SURVEYING WHAT DIFFERED, WHICH IS THE EXACT SHAPE
+# THE POLICY BELOW EXISTS TO REJECT. The conclusion was right and the process was
+# not: an exception argued at review time is available to argue again, for a field
+# that is not provenance, by a reader who wants a green gate. So the exception is
+# DATA HERE, checked by the comparator on every run, and a params file that moves
+# in any other field is DIFFERS exactly as before.
+#
+# SCOPED TO `git_state`, NOT MATCHED BY BARE KEY NAME. "note" in particular is a
+# generic word; excluding it wherever it appears would silently swallow a moved
+# note somewhere else in the document. The block is named on the left of each pair.
+#
+# NOTHING IS ADDED TO THIS TUPLE WITHOUT THE OWNER OF THE REPOSITORY SAYING SO.
+# It is four fields because four fields are provenance. A fifth entry is a request
+# to stop checking something, and it has to look like one.
+PROVENANCE_FIELDS = (
+    ("git_state", "commit"),
+    ("git_state", "working_tree_dirty"),
+    ("git_state", "modified_or_untracked_files"),
+    ("git_state", "note"),
+)
+
+
+def _strip_provenance(doc):
+    """`doc` without the named provenance fields. Returns (doc, [fields removed])."""
+    if not isinstance(doc, dict):
+        return doc, []
+    out = dict(doc)
+    removed = []
+    for block, field in PROVENANCE_FIELDS:
+        blk = out.get(block)
+        if isinstance(blk, dict) and field in blk:
+            blk = dict(blk)
+            blk.pop(field)
+            out[block] = blk
+            removed.append(f"{block}.{field}")
+    return out, removed
+
+
+# ---------------------------------------------------------------------------
 # CHECKSUM IS THE GATE. GREP IS A HINT.
 # ---------------------------------------------------------------------------
 # POLICY, 2026-09-15. A keyword survey of divergences has twice declared itself
@@ -171,6 +219,14 @@ def compare(bp, lp):
         return "DIFFERS", "image bytes (PNGs drift; not a regression verdict on their own)"
     if bp.suffix == ".json":
         a, b = json.loads(bp.read_text()), json.loads(lp.read_text())
+        # PROVENANCE IS STRIPPED AND THE VERDICT IS NAMED, NOT FOLDED INTO EXACT.
+        # Calling it EXACT would hide that the file moved at all, which is the
+        # other half of the same defect: an accepted difference has to stay
+        # visible in the report or the next reader cannot tell it was accepted.
+        sa, ra = _strip_provenance(a)
+        sb, rb = _strip_provenance(b)
+        if (ra or rb) and sa == sb:
+            return "PROVENANCE", f"{', '.join(sorted(set(ra) | set(rb)))} only"
         return "DIFFERS", f"keys {sorted(k for k in set(a) | set(b) if a.get(k) != b.get(k))}"
     if bp.suffix != ".csv":
         return "DIFFERS", "content"
@@ -214,6 +270,46 @@ def main(argv=None):
                     help="epoch seconds; a live file newer than this was written by the cell")
     a = ap.parse_args(argv)
 
+    # ------------------------------------------------------------------
+    # BOTH PASSES RUN CLEAN, AND THIS IS WHERE THAT STOPS BEING A HABIT
+    # ------------------------------------------------------------------
+    # Step 7's post-merge pass ran with 23 modified files in the tree. The
+    # comparison was still sound -- the only field that moved was provenance --
+    # but it was sound by luck: `git_state.working_tree_dirty` was TRUE, so the
+    # artefact itself recorded that the commit did not describe the run, and the
+    # gate compared a reproducible pass against an unreproducible one.
+    #
+    # A DIRTY TREE MEANS THE POST PASS CANNOT BE RE-RUN TO THE SAME BYTES by
+    # anyone, including the person who ran it, because what produced it is not in
+    # git. That is not a comparison; it is a measurement of something that no
+    # longer exists. So this refuses rather than warning: a warning at the top of
+    # a long report is read once.
+    #
+    # THERE IS NO --allow-dirty. Adding one is a request to compare against
+    # something unreproducible, and it should have to be argued for, in this file,
+    # by name.
+    import subprocess
+    try:
+        dirty = subprocess.run(["git", "status", "--porcelain"],
+                               cwd=str(Path(__file__).resolve().parent),
+                               capture_output=True, text=True, check=True).stdout.strip()
+    except Exception as e:                      # not a checkout, or no git
+        dirty = ""
+        print(f"  NOTE  could not read git state ({type(e).__name__}); "
+              f"the clean-tree requirement was NOT checked.")
+    if dirty:
+        n = len(dirty.splitlines())
+        print("REFUSING -- the working tree has "
+              f"{n} modified or untracked file(s).")
+        print("  Both passes of a pre/post gate must run from a clean tree, or the")
+        print("  post pass records working_tree_dirty=true and cannot be reproduced")
+        print("  by anyone from git. Commit the change, then run the post pass.")
+        for line in dirty.splitlines()[:12]:
+            print(f"    {line}")
+        if n > 12:
+            print(f"    ... and {n - 12} more")
+        return 2
+
     B, L = Path(a.baseline), Path(a.live)
     sys.path.insert(0, str(Path(__file__).resolve().parent))
     try:
@@ -249,6 +345,7 @@ def main(argv=None):
             print(f"    {v:<8} {bp.name:<42} {d}")
     print(f"    {tally.get('EXACT', 0)} of {len(written)} byte-exact"
           + (f", {tally.get('ULP', 0)} within one ULP" if tally.get("ULP") else "")
+          + (f", {tally.get('PROVENANCE', 0)} provenance-only" if tally.get("PROVENANCE") else "")
           + (f", {tally.get('DIFFERS', 0)} differ" if tally.get("DIFFERS") else ""))
     print()
     print("  --- NOT WRITTEN BY THIS CELL (never counted) " + "-" * 42)
@@ -264,8 +361,11 @@ def main(argv=None):
         return 2
 
     bad = tally.get("DIFFERS", 0)
+    prov = tally.get("PROVENANCE", 0)
     print(f"\nRESULT: {'FAIL' if bad else 'PASS'} -- {len(written)} artefacts measured, "
-          f"{tally.get('EXACT', 0)} byte-exact, {bad} differing.")
+          f"{tally.get('EXACT', 0)} byte-exact, "
+          + (f"{prov} provenance-only, " if prov else "")
+          + f"{bad} differing.")
     return 1 if bad else 0
 
 
