@@ -424,6 +424,30 @@ def analyse(pipeline, results_root=None, resolver=None, helpers=None):
     # min() is the correct reading and not merely the safe one: the question this
     # map answers is "had this producer run by the time that consumer ran", and a
     # script present at 10a HAS run by 10c whatever else it also does later.
+    #
+    # ------------------------------------------------------------------
+    # AND THAT IS ALSO THIS CHECKER'S LIMIT, RECORDED RATHER THAN PATCHED.
+    # ------------------------------------------------------------------
+    # KEEPING THE EARLIEST POSITION PER SCRIPT, plus unioning each script's reads
+    # and writes across its rows below, means a merged step COLLAPSES TO ONE
+    # POSITION. make_chart.py becomes 10d and make_audit.py becomes 10c; 10c
+    # precedes 10d, so no inversion exists here to report -- even when the n100
+    # invocation at 10h depends on a writer at 10g that mid's invocation at 10d was
+    # made to demand. That happened: on 2026-09-17 a cold `--universe all` died at
+    # STEP 10d asking for results_n100/metrics/daily_trades_n100.csv, and this
+    # checker reported 0 inversions on the same tree, correctly.
+    #
+    # IT IS NOT A DEFECT HERE AND IS NOT FIXED HERE. This module reasons about the
+    # PIPELINE -- an ordering property of PIPELINE_ORDER, per script -- and that is
+    # the right question for what it guards. Making it per-invocation would change
+    # which edges it finds, and the edge inventory is the thing that must not move
+    # silently; the collapse has already moved files under it six times.
+    #
+    # THE OTHER QUESTION HAS ITS OWN CHECK: check_plan_order.py walks the RESOLVED
+    # PLAN one invocation at a time and asks whether each DECLARED input's writer
+    # comes earlier in that same plan. run.py runs it for --list, --dry-run and a
+    # real run. If you are here because an ordering bug got past this file, that is
+    # probably where it lives.
     order = {}
     labels = {}
     for i, row in enumerate(pipeline):
