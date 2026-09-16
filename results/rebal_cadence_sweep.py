@@ -66,6 +66,7 @@ import config
 import test_exposure
 from test_exposure import backtest_exposure
 from universes.registry import REGISTRY
+import measured_universes
 from engine_core import precompute, metrics
 import profiles as _prof            # the run's execution-realism profile
 
@@ -135,9 +136,21 @@ AUDIT_KEYS = ("holdings", "summary", "ranking", "decisions", "trades", "skipped"
 # The LABEL stays local: it is printed into diagnostics/rebal_cadence_sweep.txt.
 # Order is load-bearing -- the sweep is reported universe by universe.
 LABELS = {"n100": "NIFTY 100", "mid": "MIDCAP150"}
+
+# WHICH UNIVERSES THIS STUDY HAS MEASUREMENTS FOR, DECLARED. It was the pair
+# (REGISTRY["n100"], REGISTRY["mid"]), written out here, so a third registered
+# universe was not a KeyError -- it was simply absent, and the sweep reported on
+# two universes and said nothing about the third. SEED_FLOOR cannot be derived for
+# a universe nobody has measured, so the set is declared and the gap is printed.
+# Order is the report order, which is why this is a sequence.
+MEASURED_FOR = ("n100", "mid")
+COVERAGE = measured_universes.declare(
+    "rebal_cadence_sweep", MEASURED_FOR,
+    {f"SEED_FLOOR[{a}]": SEED_FLOOR[a] for a in SEED_FLOOR})
+
 UNIVERSES = {
     u.tag: (LABELS[u.tag], u.metrics_dir, u.score_cache.name, str(u.score_tmp))
-    for u in (REGISTRY["n100"], REGISTRY["mid"])
+    for u in (REGISTRY[t] for t in MEASURED_FOR)
 }
 
 
@@ -213,11 +226,18 @@ def main():
     w("=" * 118)
     w()
     w("  spec        experiments/REBAL_CADENCE_SPEC.txt (PART 8 for the extension)")
-    w(f"  grid        {len(ARMS)} arms x {len(CADENCES)} cadences x 2 universes "
-      f"= {len(ARMS)*len(CADENCES)*2} cells, {len(ARMS)*2} controls")
+    # THE UNIVERSE COUNT IS len(MEASURED_FOR), NOT THE LITERAL 2 IT WAS. With a
+    # third universe declared, the old line reported a grid two-thirds the size of
+    # the one that ran -- a header contradicting its own table.
+    _nu = len(MEASURED_FOR)
+    w(f"  grid        {len(ARMS)} arms x {len(CADENCES)} cadences x {_nu} universes "
+      f"= {len(ARMS)*len(CADENCES)*_nu} cells, {len(ARMS)*_nu} controls")
     w(f"  REBAL on disk (unchanged by this run): {SHIPPED_REBAL}")
     w("  engine      test_exposure.backtest_exposure -- the shipping engine")
     w("  panels      existing score caches. NO REFIT, NO RESCORE.")
+    w()
+    for _l in COVERAGE:
+        w(_l)
     w()
     w("  " + "=" * 114)
     w("  STATED IN THE TABLE, NOT IN A FOOTNOTE:")

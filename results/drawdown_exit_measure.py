@@ -77,6 +77,7 @@ import pandas as pd
 import config
 import test_exposure
 from universes.registry import REGISTRY
+import measured_universes
 from engine_core import precompute, metrics
 
 # ---------------------------------------------------------------- constants
@@ -99,10 +100,12 @@ OUT_EQUITY = ROOT / "diagnostics" / "drawdown_exit_equity.csv"
 # The LABEL stays local: it is printed into diagnostics/drawdown_exit.txt.
 # Order is load-bearing -- the measurement is reported universe by universe.
 LABELS = {"n100": "NIFTY 100", "mid": "MIDCAP150"}
-UNIVERSES = {
-    u.tag: (LABELS[u.tag], u.metrics_dir, u.score_cache.name, str(u.score_tmp))
-    for u in (REGISTRY["n100"], REGISTRY["mid"])
-}
+
+# WHICH UNIVERSES THIS STUDY HAS MEASUREMENTS FOR, DECLARED -- see MEASURED_FOR
+# below, which is where UNIVERSES now comes from. It was the hand-written pair
+# (REGISTRY["n100"], REGISTRY["mid"]), so a third registered universe was absent
+# rather than an error.
+UNIVERSES = None        # bound below, once the declaration has been validated
 
 # G4's EXPECTED COUNTS. Asserted EXACTLY, not as "greater than zero": a check that
 # only notices the exit disappearing cannot notice it firing the wrong number of
@@ -111,6 +114,25 @@ UNIVERSES = {
 TRADABILITY_EXPECT = {
     "mid":  {"symbols": 3, "blocked_days": 1183, "forced_exits": 1},
     "n100": {"symbols": 0, "blocked_days": 0,    "forced_exits": 0},
+}
+
+# THE DECLARATION, AND IT COVERS BOTH MEASURED CONSTANTS. SEED_FLOOR is the
+# measured noise floor and TRADABILITY_EXPECT is G4's exact expected counts;
+# neither can be invented for a universe nobody has measured, and a declared
+# universe missing from EITHER is refused by name rather than defaulted.
+#
+# NOTE THE TWO CONSTANTS ARE WRITTEN IN OPPOSITE ORDERS -- SEED_FLOOR is n100
+# first, TRADABILITY_EXPECT is mid first. Neither is the report order. That is
+# exactly why the order lives here, in one sequence, rather than being taken from
+# whichever constant a reader happened to look at.
+MEASURED_FOR = ("n100", "mid")
+COVERAGE = measured_universes.declare(
+    "drawdown_exit_measure", MEASURED_FOR,
+    {"SEED_FLOOR": SEED_FLOOR, "TRADABILITY_EXPECT": TRADABILITY_EXPECT})
+
+UNIVERSES = {
+    u.tag: (LABELS[u.tag], u.metrics_dir, u.score_cache.name, str(u.score_tmp))
+    for u in (REGISTRY[t] for t in MEASURED_FOR)
 }
 
 # ------------------------------------------------------- the three patches
@@ -339,6 +361,16 @@ def main():
     def w(s=""):
         print(s, flush=True)
         lines.append(s)
+
+    # BEFORE build_patched(), DELIBERATELY. That call textually patches the
+    # shipping function's source at three anchors and ABORTS if any of them fails
+    # to match exactly once -- which is the point of it, and which it has done
+    # before now, when the cadence work renamed REBAL to _rebal. A coverage block
+    # printed after it would be the first thing lost the next time an anchor moves,
+    # and what the study covers is not conditional on the patch applying.
+    for _l in COVERAGE:
+        w(_l)
+    w()
 
     fn, ns, applied, srchash = build_patched()
     CELLS = [(th, wt) for th in THRESHOLDS for wt in WAITS]
