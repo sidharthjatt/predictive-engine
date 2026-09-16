@@ -84,6 +84,7 @@ from joblib import Parallel, delayed
 from engine_core import _fit_seed, HORIZON, PURGE, PURGE_EMBARGO
 from features_v2 import FEATS_V2
 from universes.registry import REGISTRY
+import measured_universes
 
 # The production ensemble. Duplicated in every build_scores*.py; see
 # KNOWN_ISSUES.md on that duplication.
@@ -115,10 +116,19 @@ MONTHS = {
     "mid": ["2017-08", "2019-02", "2019-09", "2020-05", "2023-05"],
 }
 # Order is load-bearing: the report is written universe by universe in this order.
+# WHICH UNIVERSES THIS STUDY HAS MONTHS FOR, DECLARED. The pair was written out
+# here, so a third registered universe was absent rather than an error and the
+# probe reported on two while looking complete. MONTHS is this study's own data --
+# chosen for cut divergence in both directions -- so it cannot be derived for a
+# universe nobody has chosen months for. Order is the report order.
+MEASURED_FOR = ("n100", "mid")
+COVERAGE = measured_universes.declare(
+    "purge_mode_probe", MEASURED_FOR, {"MONTHS": MONTHS})
+
 UNIVERSES = {
     u.tag: {"label": LABELS[u.tag], "raw": u.raw_cache, "scored": u.score_cache,
             "months": MONTHS[u.tag]}
-    for u in (REGISTRY["n100"], REGISTRY["mid"])
+    for u in (REGISTRY[t] for t in MEASURED_FOR)
 }
 
 
@@ -247,6 +257,9 @@ def main():
     w(f"  PURGE = {PURGE} calendar days (legacy)   HORIZON = {HORIZON} trading rows"
       f"   PURGE_EMBARGO = {PURGE_EMBARGO} trading rows")
     w(f"  seeds {SEEDS}")
+    w()
+    for _l in COVERAGE:
+        w(_l)
 
     all_rows, floors = {}, {}
     for tag, cfg in UNIVERSES.items():
