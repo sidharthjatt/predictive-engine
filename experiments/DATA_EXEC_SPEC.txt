@@ -117,6 +117,40 @@ RECONSTRUCTION, STATED BEFORE RUNNING
     TOLERANCE: half a tick, 0.025, because the grid itself is 0.05. Stated in
     advance and not widened afterwards.
 
+    ADDENDUM 2026-09-16 -- WHAT THE DEPARTURE FROM THIS PARAGRAPH RESTS ON.
+    THE SPEC ABOVE IS NOT CHANGED. This records the basis of the implementation
+    that no longer follows it, so the next person to touch tick() knows what they
+    are weighing.
+
+    results/check_b_exec_timing.py does NOT tick-round. Its tick() rounds to 2
+    decimals and its tolerance is 0.005, not the half-tick 0.025 above. The
+    docstring gives the reason: "only 210 of 977 fill prices lie on a 0.05 grid,
+    and the un-rounded open*(1+/-slip) matches every fill to within EXACTLY 0.005
+    -- the signature of 2-decimal storage, not tick rounding."
+
+    THAT MEASUREMENT WAS TAKEN ON AN ORPHANED ARTEFACT. The 977 fills came from
+    nautilus/reports/<universe>/fills.csv, a path the port STOPPED WRITING at
+    commit 8568b78 on 2026-09-05 02:33, which added an arm segment. The file read
+    on 2026-09-09 was a leftover that nothing was maintaining, and under that
+    layout one shared fills.csv per universe held whichever arm ran LAST,
+    unlabelled -- so the 977 fills cannot be attributed to a strategy either.
+
+    RE-MEASURED 2026-09-16, on a NAMED arm at the current path
+    (nautilus/reports/n100/v2/fills.csv, segment from nt_run.reports_segment):
+
+        925 of 965 fill prices lie on the 0.05 grid   (95.9%)
+
+    which is what THIS PARAGRAPH says the port does. On the 2-decimal
+    reconstruction only 224 of 965 fills match the day's open, uniformly across
+    all four arms and both universes (23.2% to 24.9%); eight sampled mismatches
+    all reconstruct exactly as the TICK-ROUNDED open.
+
+    NOTHING WAS CHANGED ON THE STRENGTH OF THAT. Which rounding the port applies
+    is a fact about the port and belongs to this spec, not to one session's
+    measurement -- which is precisely the mistake being recorded here. The figure
+    is printed unconditionally by the probe ("on 0.05 grid ... of ...") so the
+    contradiction cannot be true and unnoticed while it is unresolved.
+
 ALSO CHECKED
     1. Every fill date is a trading day on the panel's own calendar.
     2. Every fill date is the session immediately AFTER a rebalance decision date,

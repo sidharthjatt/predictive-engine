@@ -124,6 +124,13 @@ HISTORY = """\
 def tick(x):
     """Reconstruct the fill price as the port stores it.
 
+    THE MEASUREMENT BELOW WAS TAKEN ON AN ORPHANED FILE, and what that is worth
+    is recorded next to the spec it departs from -- experiments/DATA_EXEC_SPEC.txt,
+    "ADDENDUM 2026-09-16". Read that before changing anything here: the 977 fills
+    came from a path the port had already stopped writing, holding whichever arm
+    ran last. Today's fills are 95.9% on the 0.05 grid, which is what the spec
+    says and what this function does not assume.
+
     CORRECTED AFTER THE FIRST RUN, and the original is named rather than
     silently replaced. The spec assumed the port rounds the fill price to the
     0.05 tick grid, because nt_verify.py passes tick_round=True. Measured: only

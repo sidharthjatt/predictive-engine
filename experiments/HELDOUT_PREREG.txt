@@ -3,6 +3,76 @@
  Written 2026-09-12, BEFORE any data after 2026-05-29 was examined.
 ================================================================================
 
+================================================================================
+ ADDENDUM, 2026-09-16 -- READ BEFORE DECIDING WHETHER TO SPEND THIS WINDOW
+================================================================================
+ ADDED AFTER THIS FILE WAS SIGNED. NOT PART OF THE PRE-REGISTRATION. No line of
+ sections 1 through 6 below is changed: not the frozen configuration, not the
+ statistic, not the pass/fail rule. These are three findings about what running
+ it would actually measure, recorded here rather than in EXPERIMENTS.md or
+ HANDOFF.md because this is the file somebody reads when they decide.
+
+ THE WINDOW IS 6 SESSIONS PER UNIVERSE, 12 POOLED -- NOT 17 AND 48
+
+   Section "WHY THIS FILE EXISTS" states that the raw price data runs beyond
+   BT_END_DATE: "the Nifty 100 files to 2026-06-22 and the MidCap150 files to
+   2026-08-06 -- roughly 17 and 48 trading sessions beyond the backtest".
+
+   MEASURED 2026-09-16, every constituent file in BOTH universes ends
+   2026-06-08. The usable held-out window is 2026-06-01 to 2026-06-08:
+
+       n100    99 constituent files, latest price date 2026-06-08,  6 sessions
+       mid    148 constituent files, latest price date 2026-06-08,  6 sessions
+       pooled                                                      12 sessions
+
+   The score panels already carry them -- 575 rows over 6 sessions on n100 and
+   887 over 6 on mid, scored by a walk-forward that stopped where it stopped --
+   so no refit is needed. The shortfall is in the DATA, not in the machinery.
+
+   AND THIS REPOSITORY'S OWN CODE SAID SO BEFORE THIS FILE WAS SIGNED.
+   validate_sizing.py:222 reads "let the late half run to the end of the price
+   data (2026-06-08) while the full period stopped at BT_END_DATE". That comment
+   arrived in commit ee06823 on 2026-08-30 -- THIRTEEN DAYS BEFORE this
+   pre-registration was written on 2026-09-12. The file was contradicted by the
+   tree it was written in, at the moment it was written.
+
+   WHAT THAT DOES TO THE TEST. Section 3 derives the interval from
+   se = sd_in / sqrt(n), and reasons about power on "roughly 65 pooled sessions".
+   At n = 12 rather than ~65, se is sqrt(65/12) = ABOUT 2.3 TIMES WIDER than the
+   arithmetic in section 3 assumed, and the interval [mu_in - 2*se,
+   mu_in + 2*se] widens with it.
+
+   THE PROCEDURE WILL ABSORB THIS SILENTLY AND STILL RETURN A VERDICT. Nothing
+   in section 3 checks n against the number it was designed around; se is simply
+   computed from whatever n turns out to be, and a wider interval is easier to
+   fall inside. A PASS COMPUTED ON 12 SESSIONS MUST NOT BE READ AS THE TEST THIS
+   FILE DESIGNED. Section 4 already says a pass is consistency and not
+   confirmation; at 12 sessions it is weaker than that sentence was written to
+   describe.
+
+ WHY NOBODY CAN SAY WHETHER THE DATA CHANGED OR THE FIGURES WERE WRONG
+
+   The price data is untracked -- .gitignore:71 excludes data/raw/* -- so git
+   holds no history of it and the two possibilities cannot be told apart.
+   HANDOFF blocker 1, "THE DATA IS NOT IN THIS REPOSITORY", has landed on the one
+   experiment in this project designed to be attributable to a commit. That is
+   the blocker demonstrating its cost, not a coincidence worth a footnote.
+
+ THE CALENDAR CAPS THE WINDOW INDEPENDENTLY OF THE DATA
+
+   data/nse_trading_calendar.csv ends 2026-06-08 and every panel build drops
+   dates that are not on it, so the window cannot pass 2026-06-08 even if longer
+   price files were acquired tomorrow.
+
+   THAT FILE IS SOURCE DATA NOW. It was derived from the universe called "the
+   58", which was deleted on 2026-09-11 along with results/make_trading_calendar.py,
+   and nothing in this repository regenerates it. See docs/HANDOFF.md section 2.
+
+   ANYONE PROPOSING TO WIDEN THIS TEST MUST MEET THAT FIRST. More price data is
+   not sufficient; it needs a trading calendar nobody can currently produce.
+
+================================================================================
+
 WHY THIS FILE EXISTS, AND WHY IT EXISTS TODAY
 
   Every result in this project carries the same unaddressed defect: the shipping
