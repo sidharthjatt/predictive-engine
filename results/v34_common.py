@@ -336,6 +336,13 @@ def run_v34(M, universe_label, universe_tag, px, op, sc, bd, pc, mom20, port_vol
         "git_state": _git_state(),
         "run_date": str(pd.Timestamp.today().date()),
         "spec": "experiments/V34_SPEC.txt",
+        # THE CAVEAT TRAVELS WITH THE NUMBERS. Present only when the profile is
+        # not `research`, so every research artefact is byte-for-byte what it was
+        # -- which the standing gate proves rather than this comment asserting.
+        # profiles.gate_status() returns None under research and the key is
+        # dropped, so the key SET of a gated artefact does not move either.
+        **({"gate_status": profiles.gate_status()}
+           if profiles.gate_status() else {}),
     }, indent=2))
 
     # --- chart: four arms plus the reference on one axis ---

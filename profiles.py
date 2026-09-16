@@ -114,6 +114,43 @@ def research_only(caller):
     return PROFILES[DEFAULT]["participation_cap"]
 
 
+# ---------------------------------------------------------------------------
+# A NON-RESEARCH PROFILE IS UNGATED, AND MUST SAY SO WHEREVER IT PUBLISHES
+# ---------------------------------------------------------------------------
+# `--profile tradeable` could not complete until 2026-09-16; the input guard
+# blocked STEP 16. It completes now. THAT IS NOT THE SAME AS BEING VERIFIED, and
+# the distance between the two is exactly the kind a reader closes by accident:
+# a run that finishes, writes every artefact and exits 0 looks like a run that was
+# checked.
+#
+# IT HAS NEVER BEEN CHECKED. gate_compare.STANDING_GATE's two tradeable cells are
+# [PARTIAL] and stop at STEP 10d/12b/15b; STEP 16 and STEP 17 had never executed
+# under this profile before 2026-09-16, and no cell compares what they produce
+# against anything. Until a gate cell exists, every tradeable number is a number
+# nothing has replayed.
+#
+# SO THE STATEMENT TRAVELS WITH THE NUMBERS, not just with the run: run.py banners
+# it at the start and end of a non-default-profile run, and v34_common writes it
+# into v34_params{SFX}.json. One definition here so the two cannot drift, and so
+# deleting the caveat is one edit that shows up in a diff rather than three.
+UNGATED_NOTICE = (
+    "UNGATED: no gate cell covers this profile. It completes end to end, which is "
+    "not the same as being verified -- STEP 16 and STEP 17 first ran under it on "
+    "2026-09-16 and nothing replays what they produce. Do not publish these "
+    "numbers as checked."
+)
+
+
+def gate_status():
+    """The gate caveat for this run's profile, or None when it is gated.
+
+    `research` is the profile every gate cell uses and every document compares
+    against, so it returns None and nothing is added to a research artefact -- the
+    byte-identical gate depends on that.
+    """
+    return None if is_default() else UNGATED_NOTICE
+
+
 def suffix():
     """"" for research, "_tradeable" otherwise -- the artefact name tail.
 

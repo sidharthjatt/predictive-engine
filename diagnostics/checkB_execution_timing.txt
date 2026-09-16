@@ -1,3 +1,35 @@
+################################################################################
+# STALE -- THIS DESCRIBES A LAYOUT THAT NO LONGER EXISTS. Marked 2026-09-16.
+#
+# THE NUMBERS BELOW ARE REAL AND ARE NOT WITHDRAWN. They measure the Nautilus
+# port's execution timing from its own fill record, and the finding -- 977 of 978
+# fills reconstruct as that day's OPEN, to within 0.005 -- is about the port's
+# semantics, not about where its reports live. That is why this file is marked
+# rather than deleted.
+#
+# WHAT IS STALE IS THE PROVENANCE. It reads
+#     nautilus/reports/<universe>/fills.csv
+# and the port stopped writing that path at commit 8568b78, 2026-09-05 02:33
+# ("S8: one entry point"), which added an arm segment. The leaf has since grown to
+# arm+cadence+profile (reports_segment, a4f6931). The current path is
+#     nautilus/reports/<universe>/<arm[@cadence][@profile]>/fills.csv
+#
+# THIS FILE WAS COMMITTED AT 13:34 THE SAME DAY, ELEVEN HOURS AFTER THAT MOVE
+# (40b938e). So the fills.csv it read was already an orphan: a leftover from
+# before 02:33 that nothing was writing any more. It has been removed since, and
+# results/check_b_exec_timing.py now dies with FileNotFoundError on that path --
+# loudly, which is why nobody noticed: nobody ran it.
+#
+# AND THE ARM IS UNKNOWN, WHICH IS THE PART THAT LIMITS REUSE. Under the old
+# layout one shared fills.csv per universe held whichever arm ran LAST, unlabelled.
+# Nothing in this file records which arm's 978 fills these are. Read the timing
+# finding as a property of the port; do not attribute it to an arm.
+#
+# NOT REGENERATED. Repointing the probe at reports_segment and re-running is
+# separate work, deliberately: the record of what was measured should not vanish
+# because the path moved. When it is regenerated, this header goes with it.
+################################################################################
+
 ====================================================================================================
  CHECK B -- EXECUTION TIMING FROM THE FILL RECORD -- NIFTY 100 (n100)
 ====================================================================================================
