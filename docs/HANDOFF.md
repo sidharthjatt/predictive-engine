@@ -257,6 +257,18 @@ only — it changes what the gate prints about a difference, not which differenc
 accepts — so no artefact was re-run for it. Said here because the next reader takes
 a hash range and assumes coverage across all of it.
 
+**THE SECOND AND THIRD UNGATED COMMITS, ON THE SAME PRINCIPLE.** The later gate
+covers `fddc560` -> `d90e1c1`. Within and around it:
+
+- `fddc560` (item A, the probes) was **not** artefact-gated, and the reason is
+  mechanical rather than argued: **no load-bearing module imports any of the three
+  probes or `measured_universes.py`**, checked by resolving every import of the 19
+  load-bearing modules, and none of the three is in `PIPELINE_ORDER`. There is no
+  path by which it reaches an artefact.
+- **Documentation-only commits are not gated and are not listed individually**
+  — `9a5a1ed`, `77d2a54`, `d90e1c1` and this paragraph change no code. Stating that
+  once is what keeps this note finite; stating each would make it a changelog.
+
 ### WHAT IS DEFINED NEXT — written before any of it is started
 
 **THE RULE, AND IT IS WHY THIS BLOCK EXISTS.** A step whose definition lives only
