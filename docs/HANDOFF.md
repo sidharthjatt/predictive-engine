@@ -216,6 +216,10 @@ implemented afterwards, which is the only reason it exists as a step at all.
   carries the output stem, dpi, legend font size, index-window end, two booleans,
   and the subtitle and drawdown legend label as CALLABLES. Transitional asserts
   reached zero. Two defects introduced and caught here; see the commit.
+- **Phase 2, `d3ae8ec`.** `make_combined_universes`' `DISPLAY`, `COLOURS` and
+  `LIQUIDITY` become `Universe` fields with no default, so a row that omits one
+  fails at construction. `registry_coverage_check` drops 13 tables to 10 and says
+  so. **9 → 6.**
 - **Step 8, `a32ef28`.** Ten hand-written `REQUIRED_INPUTS` tuples become a
   comprehension over `REGISTRY`. Paths from `paths.py`, the step label looked up
   from `PIPELINE_ORDER` by `(script, universe)` and never restated. **14 → 9.**
@@ -287,11 +291,19 @@ covers `fddc560` -> `d90e1c1`. Within and around it:
 in a conversation does not exist, and steps 1 and 8 spent six days proving it.
 Everything below was written down before the first line of its code.
 
-**ADDING A UNIVERSE COSTS 14 HAND-WRITTEN ENTRIES TODAY**, measured 2026-09-16 by
-registering a throwaway universe and wiring it until `registry_coverage_check.py`
-passed: 1 `REPORT_ORDER` + 1 `DISPLAY` + 1 `COLOURS` + 1 `LIQUIDITY` + 1 `FILES`
-block + 4 `PIPELINE_ORDER` rows + 5 `REQUIRED_INPUTS` tuples. **The target is 5,
-not 1**, and the five that stay are decisions rather than duplication.
+**ADDING A UNIVERSE COST 14 HAND-WRITTEN ENTRIES ON THE MORNING OF 2026-09-16**,
+measured by registering a throwaway universe and wiring it until
+`registry_coverage_check.py` passed: 1 `REPORT_ORDER` + 1 `DISPLAY` + 1 `COLOURS`
++ 1 `LIQUIDITY` + 1 `FILES` block + 4 `PIPELINE_ORDER` rows + 5 `REQUIRED_INPUTS`
+tuples.
+
+**IT COSTS 6 NOW.** Step 8 (`a32ef28`) derived the 5 `REQUIRED_INPUTS` tuples;
+Phase 2 (`d3ae8ec`) moved `DISPLAY`, `COLOURS` and `LIQUIDITY` into the row itself.
+What remains is **1 `REPORT_ORDER` + 1 `FILES` block + 4 `PIPELINE_ORDER` rows**,
+and of those the `FILES` block is Phase 3, deferred below. **The floor is 5**, and
+those five are decisions rather than duplication — every one refuses loudly if
+skipped, `REPORT_ORDER` and `PIPELINE_ORDER` through `registry_coverage_check`,
+the three former tables now through the `Universe` constructor itself.
 
 ---
 
@@ -365,7 +377,7 @@ the whole reason the table exists.
 
 ---
 
-#### PHASE 2 — defined 2026-09-16. `DISPLAY`, `COLOURS`, `LIQUIDITY` become registry row fields. **−3 of 9.**
+#### PHASE 2 — **LANDED, `d3ae8ec`.** `DISPLAY`, `COLOURS`, `LIQUIDITY` became registry row fields. **−3 of 9, leaving 6.**
 
 `results/make_combined_universes.py` carries three per-universe tables. Each moves
 to a `Universe` field with **no default**:
