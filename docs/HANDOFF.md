@@ -365,22 +365,50 @@ the whole reason the table exists.
 
 ---
 
-#### PHASE 2 — wanted, not yet started. `DISPLAY`, `COLOURS`, `LIQUIDITY` become registry row fields. **−3.**
+#### PHASE 2 — defined 2026-09-16. `DISPLAY`, `COLOURS`, `LIQUIDITY` become registry row fields. **−3 of 9.**
+
+`results/make_combined_universes.py` carries three per-universe tables. Each moves
+to a `Universe` field with **no default**:
+
+| table | field | what it holds |
+|---|---|---|
+| `DISPLAY` | `display_name` | the chart title's spelling — `"NIFTY 100"`, not `index_name`'s `"NIFTY100"` |
+| `COLOURS` | `chart_colours` | the six-colour tuple, slots 0–5 = v2, v1, buy&hold, index, v3, v4 |
+| `LIQUIDITY` | `liquidity_note` | the measured fill-size note, or `None` for not measured |
 
 **THE DATACLASS KNOCK-ON IS THE PRIZE, NOT THE −3.** As fields with no default, a
 row that omits one fails at construction with a `TypeError` naming the field.
 **Three of `registry_coverage_check.py`'s tables stop being NEEDED rather than
 being silenced** — a field with no default cannot be forgotten, while a checker has
-to remember to look. That is a strictly stronger guarantee than the one this
-project just finished building, and it is the argument for doing it.
+to remember to look. The checker must SAY its table count dropped and why, not
+quietly shrink: a check that covers less than it did is the thing this repository
+keeps catching.
 
-Second reason, independently sufficient: **`LABELS = {"n100": "NIFTY 100", "mid":
-"MIDCAP150"}` appears verbatim in 16 files** — a seventeenth copy of `DISPLAY`,
-spread across the probes. One `display_name` field retires all of them.
+`LIQUIDITY`'s `NOT_MEASURED` declaration survives the move as `liquidity_note=None`
+— presence compulsory (the constructor sees to it), absence declarable.
 
-Not first, because colours, display names and the liquidity prose all reach the
-combined PNG: this is the phase that can move a published figure, and it is held
-to the artefact checksum.
+**CORRECTING SOMETHING I WROTE HERE ON 2026-09-16.** This section previously said
+`LABELS = {"n100": "NIFTY 100", "mid": "MIDCAP150"}` "appears verbatim in 16 files"
+and that "one `display_name` field retires all of them". Both halves are wrong, and
+counted rather than argued:
+
+- **14 files carry it verbatim. Two carry `{"n100": "Nifty 100", "mid":
+  "MidCap150"}`** — different case, different spelling. 16 files have a `LABELS`
+  dict; they are not 16 copies of one string.
+- **The probes have a standing reason to keep theirs local, and it is written
+  down.** `results/purge_mode_probe.py` says: sourcing labels from the registry
+  "would rewrite committed artefacts — `diagnostics/topn_verdict.txt` among them —
+  for a cosmetic reason. Labels are presentation and stay local; paths are facts
+  and do not."
+
+**So the probes are OUT of Phase 2's scope.** Phase 2 is the three tables in
+`make_combined_universes.py`, which is a load-bearing step, and nothing else.
+
+**GATE.** The artefact checksum on `mid all research` and `n100 all research`, both
+passes clean — display names, colours and the liquidity prose all reach the
+combined PNG, so **this is the phase that can move a published figure.** Plus the
+edge inventory diff, the naming gate, and `registry_coverage_check` reporting its
+own reduced table count.
 
 ---
 
