@@ -30,6 +30,9 @@ warnings.filterwarnings("ignore")
 sys.dont_write_bytecode = True
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT)); sys.path.insert(0, str(ROOT / "results"))
+# nautilus/ TOO, because the fills path comes from nt_run.reports_segment --
+# the writer's own rule rather than a second copy of it. See the block below.
+sys.path.insert(0, str(ROOT / "nautilus"))
 
 import numpy as np
 import pandas as pd
@@ -41,24 +44,81 @@ SLIPPAGE = 0.0015
 TICK = 0.05
 TOL = 0.005    # 2-decimal storage; see tick() -- STRICTER than the spec's half-tick
 
-# EVERY PATH HERE COMES FROM universes/registry.py AND paths.py -- the single
-# definitions. This entry previously spelled out four paths per universe, two of
-# which (the Nautilus fills report and the daily_decisions artefact) encode
-# layout rules that live in paths.py: reports are one directory per universe, and
-# the daily-audit family puts the tag in the filename as well as the directory.
+# ---------------------------------------------------------------------------
+# WHICH FILL RECORD THIS READS, AND WHY IT HAS TO SAY SO
+# ---------------------------------------------------------------------------
+# THIS READ A PATH NOTHING HAD WRITTEN FOR ELEVEN DAYS. It asked for
+# `nautilus/reports/<universe>/fills.csv`, and the port stopped writing that at
+# 8568b78 (2026-09-05 02:33), which added an arm segment. The previous diagnostic
+# was committed at 13:34 THE SAME DAY, from a leftover file that nothing was
+# writing any more -- the warm-tree failure, in its purest form: it passed because
+# the old file had not been cleaned up. Once it was, this died with
+# FileNotFoundError, loudly, and nobody noticed because nobody ran it.
 #
+# WORSE THAN THE PATH: THE OLD FILE HAD NO ARM. One shared fills.csv per universe
+# held whichever arm ran LAST, unlabelled, so the finding could not be attributed
+# to anything. That is what this block fixes -- not just where to read, but the
+# record of WHAT was read.
+#
+# THE SEGMENT COMES FROM THE WRITER'S OWN DEFINITION. nt_run.reports_segment() is
+# what builds the directory the port writes into, carrying arm, cadence and
+# profile; re-spelling that rule here would be a second definition that can
+# disagree with the first, which is how the path went stale the first time.
+# Importing nt_run costs about 1.4 s and pulls nautilus_trader; that is the price
+# of having one rule instead of two, and this is a hand-run probe.
+#
+# ONE ARM, DECLARED. v2 is the SHIPPING arm -- breadth-scaled inverse-vol, the
+# strategy every published figure comes from -- so it is the one whose execution
+# timing is worth checking. v1, v3 and v4 sit at sibling paths and are not read.
+# The arm is printed in the report header, because "whichever ran last" is exactly
+# what made the old numbers unusable.
+import arms.registry as _arm_reg
+from nt_run import reports_segment as _reports_segment
+
+ARM = _arm_reg.ARMS["v2"]
+_SEG = _reports_segment(ARM.mode, ARM.sizing)
+
 # The LABEL stays local: it is printed into
 # diagnostics/checkB_execution_timing.txt. Labels are presentation; paths are
 # facts. Order is load-bearing -- the report is written universe by universe.
 LABELS = {"n100": "NIFTY 100", "mid": "MIDCAP150"}
 UNIVERSES = {
-    u.tag: (paths.nautilus_reports(u) / "fills.csv",
+    u.tag: (ROOT / "nautilus" / "reports" / u.tag / _SEG / "fills.csv",
             u.score_cache,
             str(u.score_tmp),
             paths.tagged_artefact(u, "daily_decisions"),
             LABELS[u.tag])
     for u in (REGISTRY["n100"], REGISTRY["mid"])
 }
+
+
+# ---------------------------------------------------------------------------
+# THE RECORD OF WHAT THE PORT DID UNDER THE OLD LAYOUT, CARRIED INTO EVERY RERUN
+# ---------------------------------------------------------------------------
+# A HEADER ADDED TO THE FILE BY HAND WOULD BE ERASED BY THE NEXT RUN. The previous
+# diagnostic was marked stale in place on 2026-09-16, and that marking only
+# survives if the probe itself emits it. So it does. The old finding is not
+# withdrawn: it measured the port's execution semantics, which is not a fact about
+# where its reports live.
+HISTORY = """\
+--------------------------------------------------------------------------------
+ SUPERSEDED MEASUREMENT, KEPT AS THE RECORD OF WHAT THE PORT DID BEFORE 2026-09-05
+--------------------------------------------------------------------------------
+  The version of this diagnostic committed at 40b938e read
+      nautilus/reports/<universe>/fills.csv
+  and found, on n100, 977 of 978 fills reconstructing as that day's OPEN to
+  within 0.005, with one exception (CHOLAFIN, 2020-05-22) and zero fills
+  executing at a close.
+
+  THAT FILE'S ARM IS UNKNOWN. Under the old layout one shared fills.csv per
+  universe held whichever arm ran LAST, unlabelled, so the 978 fills cannot be
+  attributed to a strategy. Read it as a property of the port, not of an arm.
+
+  The port stopped writing that path at 8568b78, 2026-09-05 02:33. The
+  superseded diagnostic was committed eleven hours later, from a file nothing
+  was writing any more.
+--------------------------------------------------------------------------------
+"""
 
 
 def tick(x):
@@ -97,7 +157,23 @@ def run(uni, fills_p, sc_p, sc_tmp, dec_p, label, W):
     W("=" * 100)
     W("")
     W(f"  fills file      {fills_p.relative_to(ROOT)}")
+    # THE ARM IS NAMED, AND THAT IS THE POINT OF THE REPOINT. The superseded
+    # version of this file read a shared fills.csv holding whichever arm ran last,
+    # so its 978 fills belonged to nothing in particular.
+    W(f"  arm             {ARM.name} -- {ARM.label}   (segment '{_SEG}',")
+    W(f"                  from nt_run.reports_segment, the writer's own rule)")
     W(f"  fills recorded  {len(F):,}")
+    # HOW MANY FILL PRICES LIE ON THE 0.05 TICK GRID -- MEASURED, ALWAYS PRINTED.
+    # tick() below reconstructs as round(price*(1+/-slip), 2), on the strength of a
+    # 2026-09-09 measurement that only 210 of 977 fill prices sat on a 0.05 grid.
+    # THAT MEASUREMENT WAS TAKEN ON THE SUPERSEDED FILE, whose arm is unknown. If
+    # this line reads near 100% while the match counts below read low, the
+    # reconstruction assumption is stale and the match counts are a verdict on the
+    # ASSUMPTION, not on execution timing. Stated as a number rather than as a
+    # caveat, so it cannot be true and unnoticed.
+    _ongrid = int((np.abs(F["px"] / 0.05 - np.round(F["px"] / 0.05)) < 1e-9).sum())
+    W(f"  on 0.05 grid    {_ongrid:,} of {len(F):,} fill prices "
+      f"({100*_ongrid/max(len(F),1):.1f}%)")
     W(f"  price panel     {Path(sc_p).name}")
     W(f"  reconstruction  round(price * (1 +/- {SLIPPAGE}), 2)  -- 2-decimal storage")
     W(f"  tolerance       {TOL} -- TIGHTENED from the spec's half-tick 0.025;")
@@ -174,7 +250,7 @@ def run(uni, fills_p, sc_p, sc_tmp, dec_p, label, W):
 
 
 def main():
-    out = []
+    out = [HISTORY, ""]
     for uni, (f, s, st, d, lab) in UNIVERSES.items():
         run(uni, f, s, st, d, lab, out.append)
         out.append("")
