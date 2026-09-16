@@ -69,7 +69,16 @@ BT_START_DATE, BT_END_DATE = config.BT_START_DATE, config.BT_END_DATE
 
 # THE PATHS THIS RUN COMPOSED, IN THE ORDER IT WROTE THEM. Filled by _c() and read
 # only by the two report lines at the end of main(). A list rather than a set so
-# the order the reader sees is the order the files appeared on disk.
+# the order the reader sees is the order the files appeared on disk, and DEDUPED
+# at the point of reporting rather than here.
+#
+# WHY A PATH APPEARS TWICE. daily_trades_v1_<tag>.csv is composed twice -- once in
+# the to_csv call and once in the print that names it -- because the literal has
+# to stay inside the write call for check_pipeline_order to resolve the edge, so
+# the print cannot reuse a local. That is ONE file written once. Reporting it
+# twice is the same defect this list exists to close, one turn smaller, and the
+# `--arm all` gate run is what showed it: "v2FINAL_equity.csv,
+# daily_trades_v1_mid.csv, daily_trades_v1_mid.csv, v2FINAL_params.json".
 _WROTE = []
 
 
@@ -439,7 +448,7 @@ def main(u):
     # when v1 is selected -- which this step writes and the old line never
     # mentioned. Under `--rebal 200` it prints the _r200 names, which are the files
     # that exist.
-    print("Saved -> " + ", ".join(q.name for q in _WROTE))
+    print("Saved -> " + ", ".join(dict.fromkeys(q.name for q in _WROTE)))
 
 
 if __name__ == "__main__":
