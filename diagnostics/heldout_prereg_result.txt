@@ -1,0 +1,81 @@
+==============================================================================
+ HELD-OUT PRE-REGISTRATION -- THE RUN
+ experiments/HELDOUT_PREREG.txt, executed once
+==============================================================================
+
+  PRECONDITIONS
+    already spent?          NO -- sentinel [HELDOUT-PREREG-RESULT-BLOCK] absent from
+                            experiments/HELDOUT_PREREG.txt. The check errs
+                            OVER-BROAD: a false match refuses a first run,
+                            which is recoverable; a miss would allow a
+                            second number, which is not.
+    working tree            clean
+    HEAD                    4558ddab0692fca7cf10752c950a26d9d2ea44cb
+    pre-registered commit   806a7fbba9a41a954e0ac75bc5a8064ecbabd414
+    relationship            ANCESTOR of HEAD
+    frozen configuration    all 11 parameters match section 1
+    real charge model       ACTIVE  ('compute_leg_charges' in engine_core.calc_tc)
+
+  THE EXTENSION
+    score panel        NOT rebuilt, NOT refitted, read from the permanent cache
+    backtest window    extended at the END only, to the last panel date
+    target_vol         PINNED to the in-sample median (not recomputed)
+
+    n100  in-sample window  2019-01-01 .. 2026-05-29   (1,836 sessions)   BT_END_DATE is 2026-05-29
+    n100  extended window   2019-01-01 .. 2026-06-08   (1,842 sessions)   held out: 6
+    n100  target_vol        0.154202  PINNED to the in-sample median
+    n100  reproduction      shipped v2FINAL_equity.csv over 1,836 in-sample sessions:
+          max relative difference 2.219e-16   tolerance 1e-12   PASS
+          a breach calls _fail() and exits 1 -- it stops the run before any
+          held-out figure is read, it does not annotate the result
+    mid   in-sample window  2019-01-01 .. 2026-05-29   (1,836 sessions)   BT_END_DATE is 2026-05-29
+    mid   extended window   2019-01-01 .. 2026-06-08   (1,842 sessions)   held out: 6
+    mid   target_vol        0.158768  PINNED to the in-sample median
+    mid   reproduction      shipped v2FINAL_equity.csv over 1,836 in-sample sessions:
+          max relative difference 2.172e-16   tolerance 1e-12   PASS
+          a breach calls _fail() and exits 1 -- it stops the run before any
+          held-out figure is read, it does not annotate the result
+
+  STEP 1 -- COMPUTED FROM SESSIONS ON OR BEFORE 2026-05-29 ONLY
+    in-sample sessions pooled : 3,670 (n100 1,835 + mid 1,835)
+    mu_in                     : +3.0093 bps/session (+7.58% annualised)
+    sd_in                     : 50.6780 bps/session
+    n  (held-out, pooled)     : 12
+    se = sd_in / sqrt(n)      : 14.6295 bps/session
+
+  STEP 2 -- THE INTERVAL, FIXED BEFORE THE HELD-OUT WINDOW IS READ
+    [ mu_in - 2*se , mu_in + 2*se ] = [ -26.2497 , +32.2682 ] bps/session
+    PASS requires the held-out pooled mean to be POSITIVE and inside it.
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  READ THIS BEFORE THE VERDICT
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    sessions this test actually has   n = 12
+    sessions section 3 assumed        ~ 65
+    se is sd_in/sqrt(n), so it is     2.33x WIDER than that arithmetic
+                                      assumed, and the interval widens with it.
+
+    A WIDER INTERVAL IS EASIER TO FALL INSIDE. Nothing in the procedure
+    checks n against the number it was designed around; se is computed from
+    whatever n turns out to be. THE VERDICT BELOW IS NOT THE TEST THIS FILE
+    DESIGNED. It is that test's procedure run on a fifth of its sessions,
+    because a fifth is all the data that will ever exist.
+
+    n100  held-out sessions 6: 2026-06-01, 2026-06-02, 2026-06-03, 2026-06-04, 2026-06-05, 2026-06-08
+    mid   held-out sessions 6: 2026-06-01, 2026-06-02, 2026-06-03, 2026-06-04, 2026-06-05, 2026-06-08
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+  THE HELD-OUT STATISTIC
+    pooled mean excess        : +0.3515 bps/session (+0.89% annualised, for readability only)
+    positive?                 : True
+    inside [-26.2497, +32.2682]? : True
+
+==============================================================================
+ VERDICT: PASS ON 12 POOLED SESSIONS -- positive and inside the interval.
+ NOT THE TEST SECTION 3 DESIGNED, WHICH ASSUMED ~65 SESSIONS.
+ This verdict was computed with an interval 2.33x wider than that.
+ A PASS HERE IS NOT CONFIRMATION AND MUST NOT BE QUOTED AS VALIDATION.
+ Section 4: it means the in-sample picture did not fall apart immediately
+ outside its window, and at 12 sessions it means less than that sentence
+ was written to describe.
+==============================================================================
