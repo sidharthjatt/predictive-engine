@@ -156,6 +156,96 @@ left STEPS 0-9 and 11-14 as numbering gaps: a name means what it meant when it w
 written. Each merged module's docstring names its predecessors, so the trail greps
 from either end. **Do not "repair" them.**
 
+### THE COLLAPSE — the whole plan, because until now it was not written down
+
+**THIS SECTION EXISTS BECAUSE ITS ABSENCE WAS A DEFECT, NOT A MISSING NICETY.**
+Until 2026-09-16 the collapse was referred to by step number in two places —
+`docs/HANDOFF.md` ("steps 3-8") and `KNOWN_ISSUES.md` ("steps 4-8") — and **no file
+in this repository said what any step was.** The numbers were legible only to
+someone who had been in the conversation where they were agreed. Six steps had
+already landed under them.
+
+**THE RULE THIS SECTION IS WRITTEN UNDER: a step whose definition exists only
+because somebody said it in chat does not exist.** Two entries below say exactly
+that, and they are not placeholders to be filled in from memory.
+
+| step | what it is | commit | state |
+|---|---|---|---|
+| 1 | **NOT ON DISK** | — | **undefined** |
+| 2 | the invocation contract | `5c636cf` | landed |
+| 3 | `build_scores_mid` + `build_scores_n100` → `build_scores(u)` | `e60f5e3` | landed |
+| 4 | `make_mid_audit` + `make_n100_audit` → `make_audit(u)` | `535d6f1` | landed |
+| 5 | the engine pair → `engine_v2_final(u)` | `f533082` | landed |
+| 6 | the chart pair → `make_chart(u)` | `ad7632a` | landed |
+| 7 | `config_mid.py` + `config_n100.py` → registry rows | `5c8cda9` | landed |
+| 8 | **NOT ON DISK** | — | **undefined** |
+
+**STEP 1 AND STEP 8 ARE GENUINELY UNRECORDED.** No commit subject or body names
+either; no document defines either. `5c636cf` calls itself "Step 2 in the new
+order", which establishes that a step 1 was intended and that an earlier `S1`..`S5`
+numbering was replaced — `6f7967f` ("S5: collapse the audit and build_scores clone
+families onto the registry") is from that older scheme and is **not** step 5.
+Do not map the two schemes onto each other from the titles; they do not line up.
+
+**WHAT EACH LANDED STEP ACTUALLY DID**
+
+- **Step 2, `5c636cf` — the invocation contract.** The precondition for every merge
+  that follows: steps 3 through 7 all hit the `main()`-takes-no-arguments wall.
+  A step now declares its arity in its own signature — `def main()` is a whole-run
+  step, `def main(u)` is per-universe — and `run.py` reads that with `ast`. WHICH
+  universe comes from `run_all.PIPELINE_ORDER`'s third field. `STEP_UNIVERSES` and
+  `SCORE_BUILD_STEPS`, the fifth and sixth hardcoded lists in this repository,
+  retired with nothing replacing them.
+- **Step 3, `e60f5e3`.** The two files differed in the registry key they passed and
+  the filenames their docstrings quoted. Nothing else. First time one script
+  appeared at two `PIPELINE_ORDER` positions, which broke `check_pipeline_order`'s
+  `order` map — it now takes the earliest position.
+- **Step 4, `535d6f1`.** The audit pair. The writes moved into
+  `results/audit_step.py`, which is why `STEP_HELPERS` exists.
+- **Step 5, `f533082`.** The largest merge and the only pair that had genuinely
+  diverged: 95 code lines with prose stripped, and some of it reached published
+  artefacts. `v2FINAL_params.json` carries a different key SET and key ORDER per
+  universe. Preserved as registry data — `validation_status`, `engine_params_keys`,
+  `engine_params_static`, `engine_text` — **not unified.**
+- **Step 6, `ad7632a`.** The most divergent pair, 204 code lines. `chart_text`
+  carries the output stem, dpi, legend font size, index-window end, two booleans,
+  and the subtitle and drawdown legend label as CALLABLES. Transitional asserts
+  reached zero. Two defects introduced and caught here; see the commit.
+- **Step 7, `5c8cda9`.** The first merge where neither side was a superset.
+  The two configs' code differed in exactly two expressions, both path shapes, and
+  both are registry data. `check_pipeline_order.REG_ASSIGN` arrived with it,
+  because the old spelling it resolved writes through no longer exists.
+
+**WHAT REMAINS AFTER STEP 7 — measured 2026-09-16, not estimated.** This is the
+inventory whoever defines step 8 should start from; it is not a claim about what
+step 8 is.
+
+- **`run_all.py`, 9 hand-written entries per universe**: 4 `PIPELINE_ORDER` rows
+  (10a–10d) and 5 `REQUIRED_INPUTS` tuples, spread across `make_chart.py`,
+  `make_combined_universes.py`, `nt_execute.py` and `nt_export_scores.py`.
+- **`results/make_combined_universes.py`, 3 required edits per universe**:
+  `DISPLAY`, `COLOURS`, and the `FILES` block. `LIQUIDITY` and `PAIR_CHART` are
+  editorial. Note that step 7 did **not** reduce this file's count — it went 14 to
+  16, because the registry lookups that replaced the config imports are themselves
+  named sites. What step 7 removed was the second DEFINITION of a universe's paths,
+  not the hand-written tags.
+- **`REQUIRED_INPUTS` deriving from the registry is separate work and is not a line
+  in step 8.** Its entries are literal `ROOT / "results_mid" / "metrics" / ...`
+  paths. Deriving them moves a guard table four consumers read and needs its own
+  pre/post edge-inventory diff. (The comment above the `make_chart.py` entries
+  claims the literal shape is what keeps `check_pipeline_order` resolving the edge.
+  That claim is wrong as written: `run_all.py` is never scanned — only
+  `PIPELINE_ORDER`'s step scripts and their `STEP_HELPERS` are.)
+- **The `results/` move** — 26 probes out of `results/`, 58 path-form citations
+  across 23 of them. Sequenced after the collapse; see the paragraph above.
+
+**THE GATE EVERY STEP OF THIS COLLAPSE IS HELD TO** is `gate_compare.py`'s
+`STANDING_GATE`, six cells, run pre and post **on the same panel and from a clean
+tree**. Checksum is the gate; a survey of what differed is not evidence. The one
+accepted non-identical field set is `gate_compare.PROVENANCE_FIELDS` — four fields
+inside `git_state` — and it is enforced by the comparator rather than argued at
+review time (`ebdbf8a`).
+
 ## 2. The trading calendar — ships, and cannot be rebuilt
 
 ```
