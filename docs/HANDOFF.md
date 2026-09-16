@@ -246,6 +246,12 @@ accepted non-identical field set is `gate_compare.PROVENANCE_FIELDS` — four fi
 inside `git_state` — and it is enforced by the comparator rather than argued at
 review time (`ebdbf8a`).
 
+**ONE COMMIT IN THAT RANGE IS UNGATED, BY ARGUMENT RATHER THAN BY OVERSIGHT.** The
+artefact gate covers `5c8cda9` -> `6d618ac`. `87ba029` is comparator reporting
+only — it changes what the gate prints about a difference, not which differences it
+accepts — so no artefact was re-run for it. Said here because the next reader takes
+a hash range and assumes coverage across all of it.
+
 ## 2. The trading calendar — ships, and cannot be rebuilt
 
 ```
