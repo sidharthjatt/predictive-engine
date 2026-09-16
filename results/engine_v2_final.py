@@ -67,6 +67,12 @@ START_CAPITAL = 1_000_000
 BT_START_DATE, BT_END_DATE = config.BT_START_DATE, config.BT_END_DATE
 
 
+# THE PATHS THIS RUN COMPOSED, IN THE ORDER IT WROTE THEM. Filled by _c() and read
+# only by the two report lines at the end of main(). A list rather than a set so
+# the order the reader sees is the order the files appeared on disk.
+_WROTE = []
+
+
 def _c(path):
     """This run's name for an output whose content depends on the cadence.
 
@@ -88,9 +94,21 @@ def _c(path):
     """
     import profiles as _pf
     _sfx = cadence.suffix() + _pf.suffix() if not (cadence.is_default() and _pf.is_default()) else ""
-    if not _sfx:
-        return path
-    return path.with_name(path.stem + _sfx + path.suffix)
+    out = path if not _sfx else path.with_name(path.stem + _sfx + path.suffix)
+    # WHAT THIS RUN ACTUALLY WROTE, RECORDED HERE BECAUSE HERE IS WHERE THE NAME
+    # IS DECIDED. The step used to end by printing a hardcoded list of the
+    # CANONICAL names -- "Saved -> v2FINAL_equity.csv, chart_v2FINAL.png" -- which
+    # under `--rebal 200` named five gated files it had not touched and did not
+    # name the five it had. A reader went looking for an overwrite that had not
+    # happened. A report that misnames its own output is the same class as a check
+    # that misdescribes what it checked, so the report is now derived from the
+    # composer instead of restating it.
+    #
+    # RECORDED AT COMPOSE TIME, NOT AFTER THE WRITE, and that is sound here: every
+    # caller is `<writer>(_c(...))`, and the summary line is only reached if all of
+    # them returned. A write that raises kills the step before anything is printed.
+    _WROTE.append(out)
+    return out
 
 
 def main(u):
@@ -332,7 +350,7 @@ def main(u):
     ax[1].grid(alpha=.3)
     plt.tight_layout()
     plt.savefig(_c(M / "chart_v2FINAL.png"), dpi=150, bbox_inches="tight")
-    print("\n  saved -> chart_v2FINAL.png")
+    print(f"\n  saved -> {_WROTE[-1].name}")
 
     # ------------------------------------------------------------------ V3/V4
     # Four-arm pro-vol measurement, per experiments/V34_SPEC.txt. v1 and v2 above
@@ -358,8 +376,11 @@ def main(u):
     print(v34_comp.to_string(index=False))
     print("\n SUB-PERIODS")
     print(v34_subs.to_string(index=False))
-    print("\n  saved -> v34_comparison.csv, v34_subperiods.csv, v34_equity.csv,")
-    print("           v34_params.json, chart_v34.png")
+    # NO "saved ->" LINE FOR THE v34 FAMILY HERE. Those five files are written by
+    # v34_common.run_v34, which composes their names over THREE axes -- arm,
+    # cadence and profile -- none of which this step can see from the literals it
+    # used to print. run_v34 reports its own writes; a step reporting another
+    # step's output was how the wrong five names came to be printed.
 
     print("\n" + "=" * 100)
     print("VERDICT")
@@ -413,8 +434,12 @@ def main(u):
   separate pre-registered experiment, and choosing it after seeing these numbers
   would be fitting the parameter to the result.
 """)
-    print("Saved -> v2FINAL_comparison.csv, v2FINAL_yearly.csv, v2FINAL_equity.csv,")
-    print("         v2FINAL_params.json, chart_v2FINAL.png")
+    # WHAT WAS WRITTEN, NOT WHAT IS USUALLY WRITTEN. Under the default axes this
+    # prints exactly the five names it always did, plus daily_trades_v1_<tag>.csv
+    # when v1 is selected -- which this step writes and the old line never
+    # mentioned. Under `--rebal 200` it prints the _r200 names, which are the files
+    # that exist.
+    print("Saved -> " + ", ".join(q.name for q in _WROTE))
 
 
 if __name__ == "__main__":
