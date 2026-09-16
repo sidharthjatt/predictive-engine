@@ -288,8 +288,48 @@ def _step_label(script, tag):
         f"Do not write the label in by hand; fix the row.")
 
 
+# ---------------------------------------------------------------------------
+# WHICH AXES AN INPUT'S NAME CARRIES -- THE FOURTH FIELD, AND WHY IT EXISTS
+# ---------------------------------------------------------------------------
+# check_inputs._present() used to compose cadence.suffix() + profiles.suffix()
+# onto EVERY required input, as though all five were alike. Two of them are not.
+#
+#   `--rebal 200` on mid v3 completed eight of nine steps and died at STEP 16
+#   demanding v_mid_expanding_cache_r200.csv. STEP 15b had written
+#   v_mid_expanding_cache.csv and that was correct: the score panel does not vary
+#   with cadence, so there is no r200 copy of it to write. The refusal machinery
+#   was right and its SCOPE was wrong, and the two are indistinguishable at the
+#   call site because the message is identical.
+#
+# THE SAME OVER-APPLICATION IS WHY `--profile tradeable` CANNOT COMPLETE. STEP 16
+# demands v_mid_expanding_cache_tradeable.csv, and the score panel has no profile
+# dimension either. One scope, two blocked axes.
+#
+# MEASURED, NOT ASSUMED, AND THE TWO AXES REST ON DIFFERENT EVIDENCE:
+#
+#   cadence   Built from source at r20 and r200, in one process, determinism
+#             pinned before any numeric import. Raw panel and score panel
+#             BYTE-IDENTICAL, sha256 163ad6db... and 4dae4a55... -- and both equal
+#             the shipped caches. 19.0 and 17.4 minutes of scoring per pass.
+#   profile   The transitive import closure of build_scores_step is seven modules
+#             -- config, engine_core, features_v2, qbeast_in_charges, survivorship,
+#             tradability -- and NONE of them imports or references `profiles`.
+#             Code that never reads a value cannot vary with it.
+#
+# build_scores_step already declared `# naming: axis-free` on both writes. That was
+# a CLAIM; it is now a measured one.
+AXIS_FREE = ""                      # the name carries no run axis at all
+CADENCE_PROFILE = "cadence,profile"  # the two axes _present() may compose
+
+
 def _required_inputs():
-    """The guard table, per registered universe. See the block above."""
+    """The guard table, per registered universe. See the block above.
+
+    EVERY ENTRY IS A 4-TUPLE and the fourth field is compulsory. A default would
+    reproduce exactly the defect being closed: the whole failure was a rule applied
+    uniformly to inputs that do not all carry the same axes, so "unspecified" must
+    not be spellable.
+    """
     import paths
     from universes.registry import REGISTRY
     out = {"make_chart.py": [], "make_combined_universes.py": [],
@@ -302,22 +342,22 @@ def _required_inputs():
         # because an earlier default run had left the file on disk.
         out["make_chart.py"].append(
             (paths.tagged_artefact(u, "daily_trades"),
-             _step_label("make_audit.py", u.tag), f"u:{u.tag},v2"))
+             _step_label("make_audit.py", u.tag), f"u:{u.tag},v2", CADENCE_PROFILE))
         out["make_chart.py"].append(
             (paths.tagged_artefact(u, "daily_trades_v1"),
-             _step_label("engine_v2_final.py", u.tag), f"u:{u.tag},v1"))
+             _step_label("engine_v2_final.py", u.tag), f"u:{u.tag},v1", CADENCE_PROFILE))
         # THE COMBINED STEP READS EVERY SELECTED UNIVERSE'S TRADE LOG. It is
         # qualified by ARM only: the universe is carried by the path, and this
         # step runs once for whatever the selection holds. That is why it moved
         # from STEP 10i to STEP 12b -- at 10i the logs did not exist yet.
         out["make_combined_universes.py"].append(
             (paths.tagged_artefact(u, "daily_trades"),
-             _step_label("make_audit.py", u.tag), "v2"))
+             _step_label("make_audit.py", u.tag), "v2", CADENCE_PROFILE))
         # UNIVERSE-TAGGED. The port loads the parquet for each SELECTED universe,
         # and a run that selected one universe has one of these.
         out["nt_execute.py"].append(
             (paths.nautilus_scores(u),
-             _step_label("nt_export_scores.py", None), f"u:{u.tag}"))
+             _step_label("nt_export_scores.py", None), f"u:{u.tag}", AXIS_FREE))
         # STEP 16 reads the PERMANENT panels, which STEP 15b copies from /tmp.
         # Named so that if the two are ever re-ordered again the run stops with the
         # missing filename and the step that owes it, instead of dying inside
@@ -326,11 +366,25 @@ def _required_inputs():
         # copies are absent -- a genuine missing panel.
         out["nt_export_scores.py"].append(
             (paths.score_cache(u),
-             _step_label("save_caches_step.py", None), f"u:{u.tag}"))
+             _step_label("save_caches_step.py", None), f"u:{u.tag}", AXIS_FREE))
     return out
 
 
 REQUIRED_INPUTS = _required_inputs()
+
+# DECLARE OR FAIL, CHECKED AT IMPORT. The table is derived, so this can only fire
+# on an edit to _required_inputs() -- which is the point: the next person adding a
+# consumer is stopped here rather than inheriting a silent default.
+_undeclared = [(c, e[0].name) for c, lst in REQUIRED_INPUTS.items() for e in lst
+               if len(e) < 4]
+if _undeclared:
+    raise SystemExit(
+        "run_all.REQUIRED_INPUTS: these entries do not declare which axes their "
+        "name carries:\n"
+        + "\n".join(f"    {c}  {n}" for c, n in _undeclared)
+        + "\n  Add AXIS_FREE or CADENCE_PROFILE as the fourth field. There is no "
+          "default, because the defect this closes was a rule applied uniformly to "
+          "inputs that do not all carry the same axes.")
 # Kept as the canonical set of pipeline script names. run()'s membership guard used
 # it; run.py needs the same answer when it maps a step to its universe.
 _PIPELINE_SCRIPTS = {row[1] for row in PIPELINE_ORDER}
@@ -356,7 +410,7 @@ def check_inputs(label, script):
     import cadence as _cd
     _sel = set(_ar.selected_names())
 
-    def _present(f):
+    def _present(f, axes):
         """EXACTLY the name this run's axes produce, or the run does not start.
 
         STOPGAP, 2026-09-12. This is not the fix. The fix is a single naming
@@ -392,8 +446,19 @@ def check_inputs(label, script):
         producers build it, rather than for the canonical name with a fallback.
         """
         import profiles as _pf
-        want = f if (_cd.is_default() and _pf.is_default()) else \
-            f.with_name(f.stem + _cd.suffix() + _pf.suffix() + f.suffix)
+        # ONLY THE AXES THIS INPUT'S NAME ACTUALLY CARRIES. This used to compose
+        # both suffixes onto every input, which is how a correct refusal came to
+        # be raised against a file that does not and should not exist: the score
+        # panel is invariant to both axes, so there is no _r200 or _tradeable copy
+        # of it for STEP 15b to have written. Measured; see the block above
+        # _required_inputs(). An input that DOES carry an axis is unchanged, and
+        # the substitution refusal below is unchanged with it.
+        _sfx = ""
+        if "cadence" in axes and not _cd.is_default():
+            _sfx += _cd.suffix()
+        if "profile" in axes and not _pf.is_default():
+            _sfx += _pf.suffix()
+        want = f if not _sfx else f.with_name(f.stem + _sfx + f.suffix)
         if want.exists():
             return True
         _found.append((f, want, sorted(
@@ -431,7 +496,7 @@ def check_inputs(label, script):
 
     _found = []
     missing = [(e[0], e[1]) for e in REQUIRED_INPUTS.get(Path(script).name, [])
-               if _wanted(e) and not _present(e[0])]
+               if _wanted(e) and not _present(e[0], e[3])]
     if not missing:
         return
     print("\n" + "!" * 90)
@@ -457,6 +522,8 @@ def check_inputs(label, script):
     print("\n  A file of the same name from another profile or cadence is NOT")
     print("  accepted as a substitute, deliberately: it would publish one axis's")
     print("  numbers under another's. See the note on _present() above.")
+    print("  That applies to inputs whose NAME carries the axis. An input declared")
+    print("  AXIS_FREE is asked for by its one true name, because it has no other.")
     print("!" * 90, flush=True)
     sys.exit(1)
 
