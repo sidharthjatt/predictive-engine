@@ -161,6 +161,12 @@ from either end. **Do not "repair" them.**
 
 ### THE COLLAPSE — the whole plan, because until now it was not written down
 
+> **THE COLLAPSE IS COMPLETE AND IS NOT REOPENED.** Adding a universe costs **6
+> hand-written entries against a floor of 5**; the one entry above the floor is the
+> `FILES` block in `results/make_combined_universes.py`, which is Phase 3, deferred
+> with its reason below. Step 1 is undefined and stays undefined. Neither is a
+> backlog item, and neither should be reopened on momentum.
+
 **THIS SECTION EXISTS BECAUSE ITS ABSENCE WAS A DEFECT, NOT A MISSING NICETY.**
 Until 2026-09-16 the collapse was referred to by step number in two places —
 `docs/HANDOFF.md` ("steps 3-8") and `KNOWN_ISSUES.md` ("steps 4-8") — and **no file
