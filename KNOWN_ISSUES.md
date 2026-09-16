@@ -1006,7 +1006,37 @@ tradeable audit trail -- and then dies at **STEP 16** on the name above.
 **Nobody should read the cap entry and conclude the profile runs end to end.** It
 does not. What was fixed there was the measurement; what remains here is the name.
 
-### Not fixed, and the sequencing is the decision
+### The blocker is closed. The authority it was an argument for is not.
+
+**UPDATE 2026-09-16.** `--profile tradeable` completes: `--universe mid --arm v2
+--profile tradeable` runs all nine steps, exit 0, and `--universe mid --arm v3
+--rebal 200` does the same on the cadence axis. Instance 3 above was right about
+the cause — the guard over-applies — and the scope was fixed rather than the cache:
+every `REQUIRED_INPUTS` entry now declares which axes its name carries, the fourth
+field is compulsory with no default, and `_present()` composes only what is
+declared. The score panel's `axis-free` classification is measured, not assumed;
+see instance eight below for the two measurements.
+
+**COMPLETING IS NOT BEING VALIDATED.** STEP 16 and STEP 17 have now RUN under the
+tradeable profile for the first time. Nothing yet measures whether what they
+produced is correct, and no gate cell covers it.
+
+**AND THIS ENTRY'S OWN WARNING STILL STANDS, PARTLY AGAINST THE FIX.** It says a
+special case at the call site "would create a FOURTH place that knows which
+artefacts carry a profile dimension. That is the disease, not the cure." The fix is
+not a special case — every entry declares, uniformly — but the declaration lives at
+the READER and restates what the WRITER already says: `build_scores_step` carries
+`# naming: axis-free` and `audit_step` carries `# naming: arm,cadence,profile via
+artefact_tag`. Two copies of one fact, which can drift.
+
+**SO THE SINGLE AUTHORITY IS STILL OWED, AND THE NEXT STEP IS NOW SMALLER AND
+CHECKABLE:** `naming_declare_check` already reads every writer's `# naming:`
+directive and already measures what a composer carries. Making it cross-check the
+guard's fourth field against the producing writer's directive would turn the two
+copies into one claim and one verification, without a fourth decider. That is the
+work; it is not done.
+
+### The sequencing that was decided, and how it turned out
 
 Deliberately parked until after the collapse (steps 4-8), by explicit decision on
 2026-09-15. Three instances of one missing authority is a design conclusion, and
@@ -1021,7 +1051,7 @@ teach instead of ten.** Doing it first means teaching six modules that are about
 be deleted.
 
 ---
-## The tradeable profile cannot complete a run, because where the cap binds the audit disagrees with the engine
+## The tradeable profile could not complete a run -- first because the audit disagreed with the engine, then because a guard asked for a file that cannot exist (CLOSED 2026-09-16)
 
 Found 2026-09-15, by enumerating the cells a step-6 gate would need and running
 each one instead of reasoning about it. Open. **Every gate this project has run
@@ -1354,6 +1384,7 @@ wrong each time is the mapping from what was measured to what was claimed:
 - a contract half-enforced, so the guarded half hid the unguarded one (6)
 - a table that tolerates a missing entry, so being registered reads as being
   covered (7)
+- a rule applied uniformly to items that do not all carry the same axes (8)
 
 **AND THE GENERAL FORM, WHICH FIVE OF THE SIX SHARE: A FALLBACK THAT SILENTLY
 RESTORES PRE-FIX BEHAVIOUR IS INDISTINGUISHABLE FROM NO FIX.** The safeguard is
@@ -1407,6 +1438,50 @@ because a coverage check silently checking nothing is this same defect one level
 Deriving `REQUIRED_INPUTS` from the registry would remove one of the seven, and is
 deliberately NOT done here: making the silence loud is verifiable on its own, and
 the derivation moves a guard table four consumers read. Refusal first.
+
+**INSTANCE EIGHT, AND IT IS THE PATTERN: A RULE APPLIED UNIFORMLY TO ITEMS THAT DO
+NOT ALL CARRY THE SAME AXES. THE MACHINERY IS CORRECT AND ITS SCOPE IS NOT.**
+
+What makes this one expensive is the last part: **it is indistinguishable at the
+call site from a missing artefact, because the refusal it produces is identical.**
+A guard that correctly refuses a substitute and a guard that demands a file which
+cannot exist print the same sentence, name the same path, and stop the same run.
+Nothing in the message tells you which of the two you are looking at, so the
+reader's first move — look for the step that failed to write it — is the wrong one,
+and it is wrong in a way that cannot be discovered by reading the message again.
+
+**THE INSTANCE, measured 2026-09-16.** `run_all.check_inputs._present()` composed
+`cadence.suffix() + profiles.suffix()` onto **every** required input, as though all
+five carried the same axes. `--universe mid --arm v3 --rebal 200` completed eight
+of nine steps and died at STEP 16 demanding
+`results_mid/metrics/v_mid_expanding_cache_r200.csv`.
+
+**STEP 15b had not failed.** It wrote `v_mid_expanding_cache.csv`, which is its job:
+the score panel does not vary with cadence, so there is no `_r200` copy of it to
+write. The first diagnosis — "a step reported success while not writing what its
+consumer needs" — was wrong, and it was wrong *because the refusal looks the same
+either way*. The correct reading is that the consumer asked for a file that should
+not exist.
+
+**THE MEASUREMENT THAT SETTLED IT**, because the two fixes are opposites and
+picking wrong duplicates caches or silently shares one across cadences:
+
+| axis | evidence |
+|---|---|
+| cadence | Panels built from source at r20 and r200, one process, determinism pinned before any numeric import. Raw and score panels **byte-identical** — `163ad6db…` and `4dae4a55…` — and both equal the shipped caches and the `/tmp` working copies. 19.0 and 17.4 minutes of scoring. |
+| profile | The transitive import closure of `build_scores_step` is seven modules and **none** imports or references `profiles`. Code that never reads a value cannot vary with it. |
+
+`build_scores_step` already carried `# naming: axis-free` on both writes. That was
+a claim; it is now a measured one — and the same over-application was why
+`--profile tradeable` could not complete, STEP 16 having demanded a
+`_tradeable` score panel that has no dimension to produce. **One scope, two blocked
+axes.**
+
+**CLOSED BY SCOPING, NOT BY LOOSENING.** Every `REQUIRED_INPUTS` entry declares
+which axes its name carries; the fourth field is compulsory, checked at import,
+with no default — a default is the defect. No cadence-tagged cache was added and
+the substitution refusal is unchanged, demonstrated in both directions with the
+canonical file present and not accepted.
 
 **A green check whose subject is not the shipped thing is worse than no check**,
 because it is quoted. Instance 1 left this repository in conversation. Instance 3
