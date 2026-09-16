@@ -29,7 +29,7 @@ sys.path.insert(0, str(ROOT)); sys.path.insert(0, str(ROOT / "results"))
 
 import numpy as np
 import pandas as pd
-import config, config_mid, config_n100
+import config
 from features_v2 import EXTREME_RET_HI, EXTREME_RET_LO
 from universes.registry import REGISTRY
 

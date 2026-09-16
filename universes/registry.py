@@ -12,9 +12,24 @@ WHY THIS EXISTS
     other. Adding a universe means editing nineteen files; deleting one means
     finding all nineteen.
 
-    This module is that definition, once. It is DECLARATIVE ONLY -- it reads the
-    existing config modules and reports what is already true. Nothing here changes
-    a path, and adopting it in a caller must not change that caller's behaviour.
+    This module is that definition, once. It began as a DECLARATIVE reader of the
+    existing config modules; at step 7 it absorbed them, and config_mid.py and
+    config_n100.py were deleted in the same commit. Nothing about any path changed
+    in the move -- the values below are the values those files computed, and every
+    artefact was checksummed pre/post on the same panel to prove it.
+
+A UNIVERSE IS NOW ONE ROW HERE, AND THAT IS HOW IT IS REMOVED
+    It used to be removable by deleting its config module, and _optional() existed
+    so that deleting one did not make this module unimportable and take the others
+    down with it. There is no config module to delete any more: a universe is added
+    by writing a row and removed by deleting one, in this file, and neither touches
+    the other rows. The property that mattered -- going through one universe to
+    reach another -- is what the registry exists to prevent, and it still holds.
+
+    DELETING A UNIVERSE'S DATA DOES NOT REMOVE THE UNIVERSE, and it did not before
+    either: config_mid.py globbed a directory that might not exist, got an empty
+    symbol list, and imported fine. A row whose data is gone is a registered
+    universe with no symbols, which is a broken checkout rather than a removal.
 
 WHAT IS DELIBERATELY NOT DERIVED BY FORMULA
     The cache filenames look like they follow a rule -- v5_expanding /
@@ -47,15 +62,13 @@ THERE IS NO `frozen` FLAG ANY MORE, DELIBERATELY
 """
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable, Optional, Tuple
+from typing import Optional, Tuple
 
 import sys
 
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
-
-import importlib
 
 # config IS NOT A UNIVERSE'S CONFIG, IT IS THE PROJECT'S -- BT_START_DATE,
 # BT_END_DATE, read_price_csv and require_cache all live in it and every universe
@@ -65,30 +78,28 @@ import importlib
 # config.py.)
 import config
 
-
-def _optional(name):
-    """Import a per-universe config module, or None if it is not in the tree.
-
-    A UNIVERSE MUST BE REMOVABLE BY DELETING ITS CONFIG AND ITS DATA. Importing
-    all four unconditionally made that impossible: deleting config_n100.py made
-    THIS module unimportable, and since almost everything imports the registry,
-    removing one universe took down the other three. Going through one universe to
-    reach another is exactly what the registry exists to prevent.
-
-    Only ImportError is caught, and only for the module itself. A config that
-    exists but raises -- a missing data directory, a bad symbol list -- is a real
-    fault in a universe that is meant to be present, and is left to propagate.
-    """
-    try:
-        return importlib.import_module(name)
-    except ImportError:
-        return None
-
-
-config_mid = _optional("config_mid")
-config_n100 = _optional("config_n100")
-
 HORIZON = 20          # engine_core.HORIZON; repeated here only to name the caches
+
+
+def _constituents(raw_dir, index_name):
+    """The tradable names in a source folder: every CSV stem EXCEPT the index.
+
+    THE INDEX FILE IS NOT A CONSTITUENT, and after step 7 this is the one place
+    that says so. Both predecessors carried this expression and a paragraph
+    explaining why it cannot be a bare glob, and the paragraph is the part worth
+    keeping: engine_core.build_panel does Path(_src).glob("*.csv") over whatever
+    directory it is handed, and an earlier make_final_chart_fair.py swept
+    NIFTY100.csv in as a 100th "stock" -- so the published index was averaged
+    together with its own members and the resulting line was labelled the
+    benchmark. The exclusion is BY NAME, never by position and never by a bare
+    glob, and prepare_data_dir() asserts it rather than assuming it.
+
+    A MISSING DIRECTORY YIELDS (), NOT AN ERROR, which is what config_mid.py and
+    config_n100.py did at import: Path.glob on a directory that does not exist
+    simply produces nothing. See the module docstring on why that is a broken
+    checkout rather than a universe removal.
+    """
+    return tuple(sorted(f.stem for f in raw_dir.glob("*.csv") if f.stem != index_name))
 
 
 @dataclass(frozen=True)
@@ -119,8 +130,22 @@ class Universe:
     index_file: Optional[Path]
     year_range: Optional[Tuple[int, int]]      # retired universes cut by year; None here
     date_range: Optional[Tuple[object, object]]  # live universes cut by date
-    _symbols: Optional[Callable]  # authoritative symbol list, where one exists
-    _prepare: Optional[Callable]  # brings data_dir into existence, where that is needed
+
+    # THE SOURCE FOLDER AS DELIVERED -- constituents AND the published index in one
+    # directory. Arrived at step 7 from RAW_DATA_DIR_MID / RAW_DATA_DIR_N100. It is
+    # NOT data_dir: data_dir is what build_panel may be pointed at, and pointing it
+    # here would sweep the index in as one more tradable name.
+    #
+    # None MEANS THE DIRECTORY IS THE DEFINITION, which is the retired 58 and 74:
+    # a basket with no published index and no authoritative symbol list, where
+    # data_dir simply exists and symbols() answers None. That shape is kept
+    # expressible because it was a real shape, not because a universe uses it now.
+    raw_data_dir: Optional[Path]
+    # THE TRADABLE NAMES, SORTED, INDEX EXCLUDED. Computed by _constituents() when
+    # the row is built -- eagerly, exactly as config_mid.SYMBOLS_MID was computed
+    # at config import -- so a mid-run change to the source folder cannot move it.
+    # () when raw_data_dir is None.
+    symbol_list: Tuple[str, ...]
 
     # ------------------------------------------------------------------
     # WHAT THE ENGINE REPORTS FOR THIS UNIVERSE
@@ -161,8 +186,13 @@ class Universe:
     chart_text: dict = None
 
     def symbols(self):
-        """The tradable names, or None when the directory is the definition."""
-        return None if self._symbols is None else self._symbols()
+        """The tradable names as a SET, or None when the directory is the definition.
+
+        A set, because that is the shape every caller compares a built panel's
+        symbol index against, and it is what the two lambdas this replaced returned.
+        `symbol_list` is the sorted tuple, for callers that iterate.
+        """
+        return None if self.raw_data_dir is None else set(self.symbol_list)
 
     def prepare_data_dir(self):
         """The directory build_panel should glob, READY TO USE.
@@ -172,17 +202,40 @@ class Universe:
         their source folder holds the published INDEX alongside the constituents,
         and build_panel globs whatever directory it is handed, so pointing it at the
         source would sweep NIFTYMIDCAP150.csv or NIFTY100.csv in as one more
-        tradable name. config_mid/config_n100 solve that by maintaining a symlink
-        directory containing the constituents ONLY, and rebuilding it -- pruning
-        anything stale -- each time it is asked for.
+        tradable name. The answer is a symlink directory holding the constituents
+        ONLY, rebuilt -- pruning anything stale -- each time it is asked for.
 
         That rebuild is the part `data_dir` cannot express. A merged build_scores
         that read data_dir and skipped the call would point build_panel at whatever
         symlinks happened to be on disk, and the index-exclusion guarantee would
         rest on luck rather than on a step that runs. So the universe carries how
         its directory comes into being, next to where it is.
+
+        THE BODY IS ensure_constituents_dir(), WHICH BOTH PREDECESSORS CARRIED. With
+        prose stripped and universe names normalised their two copies were
+        line-for-line identical, so this is one implementation rather than a merge
+        of two: LINKS, NOT COPIES, because the price data keeps a single source of
+        truth in the source folder; and the two asserts are the guarantee, not
+        decoration -- the first catches a farm that does not match the symbol list,
+        the second catches the index leaking in.
         """
-        return self.data_dir if self._prepare is None else self._prepare()
+        if self.raw_data_dir is None:
+            return self.data_dir
+        self.data_dir.mkdir(parents=True, exist_ok=True)
+        wanted = set(self.symbol_list)
+        for link in self.data_dir.glob("*.csv"):        # drop anything stale
+            if link.stem not in wanted:
+                link.unlink()
+        for sym in self.symbol_list:
+            link = self.data_dir / f"{sym}.csv"
+            if not link.exists():
+                link.symlink_to(self.raw_data_dir / f"{sym}.csv")
+        present = tuple(sorted(f.stem for f in self.data_dir.glob("*.csv")))
+        assert present == self.symbol_list, \
+            f"{self.tag}: constituents directory does not match symbol_list"
+        assert self.index_name not in present, \
+            f"{self.tag}: the index leaked into the constituent set"
+        return self.data_dir
 
     def trading_days(self, index):
         """Restrict a price index to this universe's backtest window.
@@ -199,24 +252,59 @@ class Universe:
         return index[(index >= d0) & (index <= d1)]
 
 
-_MID = None
-if config_mid is not None:
-    _MID = Universe(
+# ---------------------------------------------------------------------------
+# WHERE EACH UNIVERSE'S DATA IS AND WHERE ITS ARTEFACTS GO -- arrived at step 7
+# ---------------------------------------------------------------------------
+# FROM config_mid.py AND config_n100.py, deleted in the same commit. Those two
+# modules were 71 and 85 lines. With prose stripped and universe names normalised
+# their CODE differed in exactly two expressions, both path shapes, and neither
+# derivable from the other:
+#
+#   the source folder        mid   data/raw/MidCap150/clean       <- a "clean" leaf
+#                            n100  data/raw/nifty100_benchmark    <- no leaf
+#   the symlink farm         mid   data/raw/MidCap150/constituents  <- under the
+#                                                                     universe folder
+#                            n100  data/raw/N100_constituents       <- under data/raw
+#
+# THEY ARE WRITTEN OUT PER UNIVERSE RATHER THAN REDUCED TO A RULE, for the reason
+# stated at the top of this file about the cache filenames: a stem rule would
+# reproduce one of each pair and silently invent the other. Neither module was a
+# superset of the other -- same nine public names, same order, same function body.
+#
+# RESULTS_DIR_MID AND RESULTS_DIR_N100 DO NOT BECOME FIELDS. Both predecessors
+# defined them and nothing outside those two files ever read either one: they were
+# local intermediates on the way to METRICS_DIR. A field that nothing drives reads
+# as live to the next person -- see the note on the `frozen` flag above.
+_RAW = ROOT / "data" / "raw"
+
+_MID_SOURCE = _RAW / "MidCap150" / "clean"
+_MID_LINKS = _RAW / "MidCap150" / "constituents"
+_MID_METRICS = ROOT / "results_mid" / "metrics"
+_MID_INDEX = "NIFTYMIDCAP150"
+
+_N100_SOURCE = _RAW / "nifty100_benchmark"
+_N100_LINKS = _RAW / "N100_constituents"
+_N100_METRICS = ROOT / "results_n100" / "metrics"
+_N100_INDEX = "NIFTY100"
+
+_MID = Universe(
         tag="mid", label="MidCap150 (148 constituents)",
-        data_dir=config_mid.CONSTITUENTS_DIR_MID,
-        metrics_dir=config_mid.METRICS_DIR_MID,
+        data_dir=_MID_LINKS,
+        raw_data_dir=_MID_SOURCE,
+        symbol_list=_constituents(_MID_SOURCE, _MID_INDEX),
+        metrics_dir=_MID_METRICS,
         score_tmp=Path("/tmp/v_mid_expanding.csv"),
-        score_cache=config_mid.METRICS_DIR_MID / "v_mid_expanding_cache.csv",
+        score_cache=_MID_METRICS / "v_mid_expanding_cache.csv",
         raw_tmp=Path(f"/tmp/raw_panel_mid_{HORIZON}.csv"),
-        raw_cache=config_mid.METRICS_DIR_MID / "raw_panel_mid_cache.csv",
+        raw_cache=_MID_METRICS / "raw_panel_mid_cache.csv",
         nautilus_scores="scores_mid.parquet",
         nautilus_end=str(config.BT_END_DATE.date()),
         purge_mode="trading",
-        index_name=config_mid.INDEX_NAME_MID,
-        index_file=config_mid.INDEX_FILE_MID,
+        index_name=_MID_INDEX,
+        # THE PUBLISHED CAP-WEIGHTED INDEX. Benchmark only, never a tradable name.
+        # Base 1-Apr-2005 = 1000, which the file reproduces exactly.
+        index_file=_MID_SOURCE / f"{_MID_INDEX}.csv",
         year_range=None, date_range=(config.BT_START_DATE, config.BT_END_DATE),
-        _symbols=lambda: set(config_mid.SYMBOLS_MID),
-        _prepare=config_mid.ensure_constituents_dir,
         # MEASURED. Eight results from the post density-fix panel. The inv-vol half
         # of the old blanket "validated" claim was FALSE as written, which is why
         # this is stated per test: a stale validation claim is worse than no claim.
@@ -311,24 +399,30 @@ if config_mid is not None:
         },
     )
 
-_N100 = None
-if config_n100 is not None:
-    _N100 = Universe(
+_N100 = Universe(
         tag="n100", label="Nifty 100 (99 constituents)",
-        data_dir=config_n100.CONSTITUENTS_DIR_N100,
-        metrics_dir=config_n100.METRICS_DIR_N100,
+        data_dir=_N100_LINKS,
+        raw_data_dir=_N100_SOURCE,
+        symbol_list=_constituents(_N100_SOURCE, _N100_INDEX),
+        metrics_dir=_N100_METRICS,
         score_tmp=Path("/tmp/v_n100_expanding.csv"),
-        score_cache=config_n100.METRICS_DIR_N100 / "v_n100_expanding_cache.csv",
+        score_cache=_N100_METRICS / "v_n100_expanding_cache.csv",
         raw_tmp=Path(f"/tmp/raw_panel_n100_{HORIZON}.csv"),
-        raw_cache=config_n100.METRICS_DIR_N100 / "raw_panel_n100_cache.csv",
+        raw_cache=_N100_METRICS / "raw_panel_n100_cache.csv",
         nautilus_scores="scores_n100.parquet",
         nautilus_end=str(config.BT_END_DATE.date()),
         purge_mode="trading",
-        index_name=config_n100.INDEX_NAME_N100,
-        index_file=config_n100.INDEX_FILE_N100,
+        index_name=_N100_INDEX,
+        # THE PUBLISHED CAP-WEIGHTED INDEX. Benchmark only, never a tradable name.
+        # Base 1-Jan-2003 = 1000; the file reads 1,008.00 on 2003-01-02, consistent
+        # with NSE's published methodology. Verified, not assumed.
+        index_file=_N100_SOURCE / f"{_N100_INDEX}.csv",
         year_range=None, date_range=(config.BT_START_DATE, config.BT_END_DATE),
-        _symbols=lambda: set(config_n100.SYMBOLS_N100),
-        _prepare=config_n100.ensure_constituents_dir,
+        # SURVIVORSHIP. These 99 names are TODAY'S index members backfilled to the
+        # start of the backtest; companies that were in the Nifty 100 during the
+        # window and were later dropped or delisted are absent entirely. It is
+        # stated in the chart subtitle and in the forensic log header rather than
+        # left to be inferred, and results/survivorship.py stays at "static".
         # NOT MEASURED, and a STRING rather than a dict so it cannot be mistaken
         # for mid's eight results. The seed-robustness and sub-period validations
         # on record were run elsewhere and are not claimed here.
@@ -385,7 +479,14 @@ if config_n100 is not None:
 # ONLY THE UNIVERSES WHOSE CONFIG IS PRESENT. Declaration order is preserved, so
 # a universe that is still here occupies the same position it always did -- LIVE's
 # order is documented below as declaration order and callers rely on that.
-REGISTRY = {u.tag: u for u in (_MID, _N100) if u is not None}
+REGISTRY = {u.tag: u for u in (_MID, _N100)}
+
+# THE METRICS DIRECTORY IS CREATED AT IMPORT, exactly as config_mid.py and
+# config_n100.py did with METRICS_DIR.mkdir(parents=True, exist_ok=True) at module
+# level. Steps write into it without checking it exists, so the side effect has to
+# survive the merge or the first write on a fresh checkout fails.
+for _u in REGISTRY.values():
+    _u.metrics_dir.mkdir(parents=True, exist_ok=True)
 
 # The universes that ship. Eighteen of the nineteen hand-rolled registries carry
 # exactly these two; only nt_run.py knows all four.

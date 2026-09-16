@@ -38,7 +38,7 @@ import datetime as _dt
 import numpy as np
 import pandas as pd
 import arms.registry as arm_reg
-import config, config_mid, config_n100
+import config
 from universes.registry import REGISTRY
 
 START = 1_000_000

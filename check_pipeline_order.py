@@ -67,6 +67,14 @@ PATH_EXPR = re.compile(
     r'([A-Za-z0-9_.\-]*(?:\{\w+\}[A-Za-z0-9_.\-]*)*'
     r'\.(?:csv|png|json|parquet))["\']')
 DIR_ASSIGN = re.compile(r'\b(\w+)\s*=\s*(config(?:_\w+)?)\.(METRICS_DIR\w*)')
+# A UNIVERSE'S METRICS DIRECTORY BOUND FROM THE REGISTRY, which is the only way to
+# spell it after step 7 folded config_mid.py and config_n100.py into the registry.
+# DIR_ASSIGN and the dotted branch of PATH_EXPR both key on a `config*` module, and
+# no source names one for a universe any more, so without this make_combined_universes
+# loses all eight of its STEP 12b producer edges -- silently, with the check still
+# reporting success. That is the identical failure the audit merge produced when
+# TAG_CALL stopped matching, and it is why this is a pattern rather than a fixup.
+REG_ASSIGN = re.compile(r'\b(\w+)\s*=\s*REGISTRY\[["\'](\w+)["\']\]\.metrics_dir\b')
 # make_final_summary.py binds both dirs in one tuple assignment, optionally wrapped
 # in Path():  M58, M74 = Path(config.METRICS_DIR), Path(config74.METRICS_DIR_74)
 # Missing this left fair_comparison_table.csv -- a real STEP 13 -> 14 edge --
@@ -100,6 +108,14 @@ def _mod2dir():
     Each universe names its own config module and METRICS_DIR constant by
     convention -- config_mid.METRICS_DIR_MID for tag "mid" -- so both halves are
     derived from the tag rather than restated.
+
+    NOTHING IN THE TREE SPELLS THAT FORM ANY MORE. Step 7 folded config_mid.py and
+    config_n100.py into universes/registry.py, so the per-universe entries below
+    match no source line today; REG_ASSIGN is what resolves a universe's metrics
+    directory now. They are kept because they are DERIVED from the registry rather
+    than written down -- they cannot go stale, they cost one dict entry each, and
+    a universe reintroducing a config module would be recognised rather than
+    silently unresolved. A hand-written entry would not have earned that.
 
     config.METRICS_DIR stays in the map, but NOT as a universe: results/metrics is
     the shared, non-universe artefact directory now. See RETIRED_UNIVERSES.md.
@@ -301,6 +317,10 @@ def _scan_text(txt, tag=None):
     var2dir, tags = {}, []
     for m in DIR_ASSIGN.finditer(txt):
         d = DIRKEY.get((m.group(2), m.group(3)))
+        if d:
+            var2dir[m.group(1)] = d
+    for m in REG_ASSIGN.finditer(txt):
+        d = _TAG2DIR.get(m.group(2))
         if d:
             var2dir[m.group(1)] = d
     for line in txt.splitlines():

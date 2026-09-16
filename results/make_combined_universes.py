@@ -261,19 +261,28 @@ def main():
     # else: check_pipeline_order reads the `DIR / "<literal>"` shape out of this
     # source to resolve the step's edges, and a computed name made three of them
     # vanish once already.
+    # THE DIRECTORY IS BOUND TO A NAME FIRST, AND check_pipeline_order READS THAT
+    # BINDING. Until step 7 these were `config_n100.METRICS_DIR_N100 / "..."`, a
+    # spelling the scanner resolved through its (config module, METRICS_DIR name)
+    # map. The config modules are gone, so the map has nothing to match and the
+    # eight STEP 12b producer edges would have fallen into `unresolved` with the
+    # check still reporting success -- the same way four audit edges vanished when
+    # the audit pair merged. check_pipeline_order.REG_ASSIGN recognises this shape
+    # instead. The per-universe name is deliberate: one shared `M` would give the
+    # scanner one variable standing for two directories.
     FILES = {}
     if "n100" in tags:
-        import config_n100
-        FILES["n100"] = (_ci(config_n100.METRICS_DIR_N100 / "v2FINAL_equity.csv"),
-                         _ci(config_n100.METRICS_DIR_N100 / "v2FINAL_params.json"),
-                         _ci(config_n100.METRICS_DIR_N100 / "daily_trades_n100.csv"),
-                         _ci(config_n100.METRICS_DIR_N100 / "daily_trades_v1_n100.csv"))
+        M_n100 = REGISTRY["n100"].metrics_dir
+        FILES["n100"] = (_ci(M_n100 / "v2FINAL_equity.csv"),
+                         _ci(M_n100 / "v2FINAL_params.json"),
+                         _ci(M_n100 / "daily_trades_n100.csv"),
+                         _ci(M_n100 / "daily_trades_v1_n100.csv"))
     if "mid" in tags:
-        import config_mid
-        FILES["mid"] = (_ci(config_mid.METRICS_DIR_MID / "v2FINAL_equity.csv"),
-                        _ci(config_mid.METRICS_DIR_MID / "v2FINAL_params.json"),
-                        _ci(config_mid.METRICS_DIR_MID / "daily_trades_mid.csv"),
-                        _ci(config_mid.METRICS_DIR_MID / "daily_trades_v1_mid.csv"))
+        M_mid = REGISTRY["mid"].metrics_dir
+        FILES["mid"] = (_ci(M_mid / "v2FINAL_equity.csv"),
+                        _ci(M_mid / "v2FINAL_params.json"),
+                        _ci(M_mid / "daily_trades_mid.csv"),
+                        _ci(M_mid / "daily_trades_v1_mid.csv"))
     # LOADED ONCE, PLOTTED POSSIBLY TWICE. The published n100+mid pair chart is
     # drawn from the SAME rows as the N-way chart when both are produced, so the
     # two figures cannot disagree about a number.

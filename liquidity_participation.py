@@ -47,7 +47,8 @@ ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "results"))
 
-import config, config_mid, config_n100
+import config
+from universes.registry import REGISTRY
 
 CAPITALS = [(1_000_000, "Rs 10,00,000  (the backtest)"),
             (5_000_000, "Rs 50,00,000"),
@@ -56,11 +57,14 @@ BANDS = [("under Rs 10", 0, 10), ("Rs 10-50", 10, 50),
          ("Rs 50-250", 50, 250), ("above Rs 250", 250, np.inf)]
 FLAG = 10.0          # participation percentage worth listing individually
 
+# THE SAME THREE FACTS, FROM THE REGISTRY SINCE STEP 7. raw_data_dir is the source
+# folder (index included), not data_dir, because volume_panel() resolves
+# "<sym>.csv" by name and never globs.
 UNIV = [
-    ("n100", config_n100.METRICS_DIR_N100, config_n100.RAW_DATA_DIR_N100,
-     config_n100.SYMBOLS_N100),
-    ("mid", config_mid.METRICS_DIR_MID, config_mid.RAW_DATA_DIR_MID,
-     config_mid.SYMBOLS_MID),
+    ("n100", REGISTRY["n100"].metrics_dir, REGISTRY["n100"].raw_data_dir,
+     REGISTRY["n100"].symbol_list),
+    ("mid", REGISTRY["mid"].metrics_dir, REGISTRY["mid"].raw_data_dir,
+     REGISTRY["mid"].symbol_list),
 ]
 
 

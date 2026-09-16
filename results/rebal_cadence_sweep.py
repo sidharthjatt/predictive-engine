@@ -62,7 +62,7 @@ sys.path.insert(0, str(ROOT)); sys.path.insert(0, str(ROOT / "results"))
 import numpy as np
 import pandas as pd
 
-import config, config_mid, config_n100
+import config
 import test_exposure
 from test_exposure import backtest_exposure
 from universes.registry import REGISTRY

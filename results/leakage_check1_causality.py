@@ -27,7 +27,7 @@ sys.path.insert(0, str(ROOT)); sys.path.insert(0, str(ROOT / "results"))
 
 import numpy as np
 import pandas as pd
-import config, config_mid, config_n100
+import config
 from features_v2 import FEATS_V2, add_stock_features, add_market_relative_features
 from universes.registry import REGISTRY
 
