@@ -72,6 +72,9 @@ PROVENANCE_FIELDS = (
 )
 
 
+_ABSENT = object()
+
+
 def _strip_provenance(doc):
     """`doc` without the named provenance fields. Returns (doc, [fields removed])."""
     if not isinstance(doc, dict):
@@ -226,7 +229,16 @@ def compare(bp, lp):
         sa, ra = _strip_provenance(a)
         sb, rb = _strip_provenance(b)
         if (ra or rb) and sa == sb:
-            return "PROVENANCE", f"{', '.join(sorted(set(ra) | set(rb)))} only"
+            # NAME THE FIELDS THAT MOVED, NOT THE FIELDS THAT ARE EXCLUDED. The
+            # first version printed all four whenever all four were present, so a
+            # pair whose only real difference was `commit` was reported as though
+            # the tree state and the note had moved too. An accepted exception that
+            # overstates itself is the same defect as one that hides: the reader
+            # cannot tell what was actually forgiven.
+            moved = [f"{blk}.{f}" for blk, f in PROVENANCE_FIELDS
+                     if isinstance(a.get(blk), dict) and isinstance(b.get(blk), dict)
+                     and a[blk].get(f, _ABSENT) != b[blk].get(f, _ABSENT)]
+            return "PROVENANCE", (", ".join(moved) + " only") if moved else "identical"
         return "DIFFERS", f"keys {sorted(k for k in set(a) | set(b) if a.get(k) != b.get(k))}"
     if bp.suffix != ".csv":
         return "DIFFERS", "content"
