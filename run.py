@@ -343,10 +343,30 @@ def preflight(args, plan):
                    + ", ".join(sorted(stray)[:8])
                    + (f" (+{len(stray) - 8} more)" if len(stray) > 8 else ""))
 
+    # ------------------------------------------------------------------
+    # EVERY REGISTERED UNIVERSE, IN EVERY TABLE THAT NEEDS A ROW FOR IT
+    # ------------------------------------------------------------------
+    # THE CHECKS ABOVE ASK WHETHER THE SELECTION NAMES SOMETHING THAT EXISTS. This
+    # asks the opposite question, and it is the one nothing was asking: whether
+    # something that exists is NAMED EVERYWHERE IT HAS TO BE. Three of the seven
+    # tables tolerated a missing row in silence, and run_all.PIPELINE_ORDER is the
+    # one that matters -- a registered universe absent from it runs no scores, no
+    # engine, no audit and no chart, and this file reports success.
+    #
+    # IT RUNS ON THE WHOLE REGISTRY, NOT THE SELECTION, for the reason the ordering
+    # check does: coverage is a property of the repository. A run that selected one
+    # universe would otherwise pass while the other is half-wired.
+    import registry_coverage_check as _cov
+    _, misses = _cov.coverage()
+    for tag, table, why in misses:
+        bad.append(f"universe {tag!r} has no entry in {table} -- {why}")
+
     if bad:
         raise SystemExit("REFUSING TO START -- the run names something that does "
-                         "not exist:\n" + "\n".join(f"  {b}" for b in bad)
-                         + "\n  Nothing has run. See RETIRED_UNIVERSES.md.")
+                         "not exist, or something that exists is not named where "
+                         "it must be:\n" + "\n".join(f"  {b}" for b in bad)
+                         + "\n  Nothing has run. See RETIRED_UNIVERSES.md and "
+                           "registry_coverage_check.py.")
 
 
 # The naming schemes a universe's artefacts use. FINAL_*/v2FINAL_* were the

@@ -242,21 +242,20 @@ REQUIRED_INPUTS = {
     # UNIVERSE-TAGGED, like nt_export_scores' own inputs: the port loads the
     # parquet for each SELECTED universe, and a run that selected one universe has
     # one of these four.
+    # THE 58's AND THE 74's ENTRIES ARE GONE, deleted 2026-09-16 with the coverage
+    # check. Both universes were deleted on 2026-09-11 and these four rows outlived
+    # them by five days. They were INERT -- their "u:58" / "u:74" qualifiers can
+    # never match a selection, because neither tag can be selected -- but an inert
+    # row in a guard table is the shape _mod2dir's docstring warns about: it reads
+    # as coverage. registry_coverage_check.py now answers what this table covers,
+    # and it can only answer honestly if the table says nothing that is not true.
     "nt_execute.py": [
-        (ROOT / "nautilus" / "data" / "scores_58.parquet",
-         "STEP 16 nt_export_scores.py", "u:58"),
-        (ROOT / "nautilus" / "data" / "scores_74.parquet",
-         "STEP 16 nt_export_scores.py", "u:74"),
         (ROOT / "nautilus" / "data" / "scores_mid.parquet",
          "STEP 16 nt_export_scores.py", "u:mid"),
         (ROOT / "nautilus" / "data" / "scores_n100.parquet",
          "STEP 16 nt_export_scores.py", "u:n100"),
     ],
     "nt_export_scores.py": [
-        (R / "metrics" / "v5_expanding_cache.csv",
-         "STEP 15b save_caches_step.py", "u:58"),
-        (ROOT / "results74" / "metrics" / "v74_expanding_cache.csv",
-         "STEP 15b save_caches_step.py", "u:74"),
         (ROOT / "results_mid" / "metrics" / "v_mid_expanding_cache.csv",
          "STEP 15b save_caches_step.py", "u:mid"),
         (ROOT / "results_n100" / "metrics" / "v_n100_expanding_cache.csv",
