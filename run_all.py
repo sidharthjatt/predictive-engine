@@ -350,9 +350,22 @@ def _required_inputs():
         # qualified by ARM only: the universe is carried by the path, and this
         # step runs once for whatever the selection holds. That is why it moved
         # from STEP 10i to STEP 12b -- at 10i the logs did not exist yet.
+        # THE UNIVERSE IS NAMED HERE TOO, AND IT WAS NOT. This entry carried "v2"
+        # alone -- the arm, and nothing about whose file it is -- so it was demanded
+        # whatever the selection was. `--universe n100` therefore required mid's
+        # trade log, which that plan never writes, while the step itself reads only
+        # selected_tags() (make_combined_universes.py:184). Latent since step 6 and
+        # invisible because mid's file was always on disk; found by
+        # check_plan_order.py on its first run.
+        #
+        # STEP 12b IS STILL A WHOLE-RUN STEP. Its invocation carries tag=None, so
+        # entry_applies() resolves `u:` against the run's selection -- the correct
+        # scope for a step invoked once. What changed is that the ENTRY now says
+        # which universe's file it is, so it drops when that universe is not
+        # selected instead of being demanded regardless.
         out["make_combined_universes.py"].append(
             (paths.tagged_artefact(u, "daily_trades"),
-             _step_label("make_audit.py", u.tag), "v2", CADENCE_PROFILE))
+             _step_label("make_audit.py", u.tag), f"u:{u.tag},v2", CADENCE_PROFILE))
         # UNIVERSE-TAGGED. The port loads the parquet for each SELECTED universe,
         # and a run that selected one universe has one of these.
         out["nt_execute.py"].append(
@@ -390,7 +403,102 @@ if _undeclared:
 _PIPELINE_SCRIPTS = {row[1] for row in PIPELINE_ORDER}
 
 
-def check_inputs(label, script):
+def entry_applies(e, tag, usel, asel, label="", script=""):
+    """Is this REQUIRED_INPUTS entry required by THIS INVOCATION?
+
+    ONE DEFINITION, CALLED FROM TWO PLACES: check_inputs() below, which asks it at
+    run time about files on disk, and check_plan_order.py, which asks it at plan
+    time about ordering. A second copy of this predicate is exactly the shape this
+    repository keeps finding -- the two would answer differently the day one is
+    edited, and the ordering check would then be verifying a rule the runtime does
+    not use.
+
+    `e`     the entry: (path, writer label, qualifiers[, naming axes])
+    `tag`   the universe of the INVOCATION, or None for a whole-run step
+    `usel`  the universes this run selected      `asel` the arms it selected
+
+    No third field -> always. Otherwise the field is a COMMA-SEPARATED LIST OF
+    QUALIFIERS, ALL of which must hold: "u:<tag>" names a universe, anything else
+    names an arm that must be selected.
+
+    A `u:` QUALIFIER IS EVALUATED AGAINST THE INVOCATION, NOT THE RUN. This is the
+    defect this function grew a parameter for. The qualifier arrived with step 6 to
+    stop a merged make_chart.py demanding the other universe's files, and it was
+    tested with `q[2:] in selected_tags()` -- which asks "did this RUN select
+    n100", not "is this invocation n100". Both hold under `--universe all`, so
+    STEP 10d (mid's chart) demanded n100's trade logs, which STEP 10f and 10g write
+    afterwards. Unsatisfiable on a cold tree, and invisible on a warm one.
+
+    THE LIST FORM ARRIVED WITH STEP 6. Before the collapse, a chart's inputs were
+    keyed by a per-universe FILENAME -- make_mid_chart.py -- so the file identity
+    supplied the universe and the third field only had to name the arm. One merged
+    make_chart.py serves both universes from one key, so a `--universe mid` run
+    would have been made to demand n100's trade logs. The universe is now written
+    down beside the arm instead of being implied by which file the entry sits under.
+    """
+    # ----------------------------------------------------------------------
+    # DECLARE OR FAIL. A per-universe invocation reaching an entry that does not
+    # say which universe it belongs to is an UNDER-DECLARED ENTRY, and it is
+    # refused rather than skipped or assumed.
+    # ----------------------------------------------------------------------
+    # WHY REFUSE RATHER THAN SKIP OR ASSUME. Skipping drops a real input and the
+    # step dies later inside pandas, which is what this table exists to prevent.
+    # Assuming it applies is how the defect above behaved for five days: it read as
+    # coverage and demanded another universe's files. Neither answer can be right,
+    # because the entry does not contain the information needed to choose -- so the
+    # entry is the thing to fix.
+    #
+    # THIS IS WHAT COVERS THE KEYS THAT HAVE NO ENTRIES YET. make_audit.py and
+    # engine_v2_final.py are per-universe steps (main() arity 1) with no
+    # REQUIRED_INPUTS entries at all, so there is nothing to mis-scope today. They
+    # acquire this defect the moment someone adds their first entry without a `u:`,
+    # and this is the line that stops them.
+    #
+    # NO "APPLIES TO EVERY UNIVERSE" MARKER WAS ADDED, and that is a decision
+    # rather than an omission. _required_inputs() emits every entry inside
+    # `for u in REGISTRY.values()`, so a per-universe entry that applies to all
+    # universes cannot be authored -- the loop produces one per universe, each
+    # carrying its own u:. A marker would be vocabulary for a case the table's
+    # shape excludes. AXIS_FREE is NOT that marker: it is the FOURTH field and
+    # answers a different question -- which axes the filename carries -- and the
+    # two sit on the same tuple, so spending that word here would give it two
+    # meanings in one place.
+    quals = [q.strip() for q in str(e[2]).split(",")] if len(e) >= 3 else []
+    if tag is not None and not any(q.startswith("u:") for q in quals):
+        raise SystemExit(
+            f"REQUIRED_INPUTS: {script or '(step)'} is invoked per universe "
+            f"({label or '(step)'}, universe {tag!r}), but this entry does not "
+            f"declare which universe it belongs to:\n"
+            f"    file   {e[0]}\n"
+            f"    writer {e[1]}\n"
+            f"    third field {(str(e[2]) if len(e) >= 3 else '(absent)')!r}\n"
+            f"  A per-universe step must not inherit another universe's inputs. "
+            f"Add a `u:<tag>` qualifier -- entries are emitted inside the "
+            f"`for u in REGISTRY.values()` loop in _required_inputs(), so the tag "
+            f"is `f\"u:{{u.tag}}\"` there. Do not make the step tolerant of the "
+            f"file instead.")
+
+    if len(e) < 3:
+        return True
+    for q in quals:
+        if not q:
+            continue
+        if q.startswith("u:"):
+            # THE tag-IS-None BRANCH IS THE WHOLE-RUN CONTRACT, NOT A FALLBACK.
+            # PIPELINE_ORDER's third field is None for a step whose main() takes no
+            # universe (make_daily_log.py; likewise STEP 12b, 15b, 16, 17). Such a
+            # step is invoked ONCE and legitimately reads every SELECTED universe,
+            # so the run's selection is the correct scope for it -- the only scope
+            # it has. A per-universe invocation has a narrower one and must use it.
+            ok = (q[2:] == tag) if tag is not None else (q[2:] in usel)
+        else:
+            ok = q in asel
+        if not ok:
+            return False
+    return True
+
+
+def check_inputs(label, script, tag):
     """Fail by name before a step runs, rather than from inside pandas.
 
     AN ENTRY MAY CARRY A THIRD FIELD, the arm it belongs to. That input is
@@ -469,30 +577,9 @@ def check_inputs(label, script):
     _usel = set(_ur.selected_tags())
 
     def _wanted(e):
-        """Is this input required by THIS run's selection?
-
-        No third field -> always. Otherwise the field is a COMMA-SEPARATED LIST OF
-        QUALIFIERS, ALL of which must hold: "u:<tag>" means that universe must be
-        selected, anything else names an arm that must be selected.
-
-        THE LIST FORM ARRIVED WITH STEP 6. Before the collapse, a chart's inputs
-        were keyed by a per-universe FILENAME -- make_mid_chart.py -- so the file
-        identity supplied the universe and the third field only had to name the
-        arm. One merged make_chart.py serves both universes from one key, so a
-        `--universe mid` run would have been made to demand n100's trade logs.
-        The universe is now written down beside the arm instead of being implied
-        by which file the entry sits under.
-        """
-        if len(e) < 3:
-            return True
-        for q in str(e[2]).split(","):
-            q = q.strip()
-            if not q:
-                continue
-            ok = (q[2:] in _usel) if q.startswith("u:") else (q in _sel)
-            if not ok:
-                return False
-        return True
+        """This invocation's view of one entry. See entry_applies() above -- ONE
+        definition, shared with check_plan_order.py."""
+        return entry_applies(e, tag, _usel, _sel, label, Path(script).name)
 
     _found = []
     missing = [(e[0], e[1]) for e in REQUIRED_INPUTS.get(Path(script).name, [])

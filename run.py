@@ -498,6 +498,32 @@ def main(argv=None):
     args = ap.parse_args(argv)
 
     plan = build_plan(args)
+
+    # ----------------------------------------------------------------------
+    # CAN THIS PLAN SATISFY ITS OWN DECLARED INPUTS? Before --list, before
+    # --dry-run, and before STEP 10a on a real run.
+    # ----------------------------------------------------------------------
+    # IT ASKS A QUESTION check_pipeline_order CANNOT. That checker reasons per
+    # SCRIPT and keeps each script's earliest position, so a merged step that runs
+    # at several positions collapses to one and its per-invocation edges vanish --
+    # make_chart.py to 10d, make_audit.py to 10c, 10c before 10d, no inversion.
+    # This walks the RESOLVED PLAN, one entry per invocation, and asks whether the
+    # writer of each DECLARED input comes earlier in that same plan.
+    #
+    # AND IT NEVER TOUCHES THE FILESYSTEM. check_inputs is satisfied by a file
+    # whoever left there; this is not, which is why it fails on a warm tree as well
+    # as a cold one. Every tree this project has ever run on was warm.
+    #
+    # IT RUNS FOR --list AND --dry-run TOO, deliberately: the question is about the
+    # plan, and a plan you can print is a plan you can check.
+    if plan["pipeline"] and plan.get("_run_all"):
+        import check_plan_order
+        _ra = plan["_run_all"]
+        check_plan_order.enforce(
+            plan["pipeline"], _ra["REQUIRED_INPUTS"],
+            {u.tag for u in plan["universes"]}, {a.name for a in plan["arms"]},
+            _ra["entry_applies"])
+
     if args.list or args.dry_run:
         print_plan(plan, args, show_paths=args.dry_run)
         return 0
@@ -689,7 +715,12 @@ def execute(plan, args):
         # is the 13 bracket fields and nothing else.
         #
         # SAFETY 4 -- fail by filename and owing step, not from inside pandas.
-        mod["check_inputs"](label, scr)
+        # THE INVOCATION'S UNIVERSE GOES WITH IT. `tag` is this row's third field
+        # and was bound by the loop above and dropped here, so the guard evaluated
+        # every `u:` qualifier against the RUN's selection instead of against the
+        # step being started. Under `--universe all` that made STEP 10d, mid's
+        # chart, demand n100's trade logs -- written at STEP 10f and 10g, after it.
+        mod["check_inputs"](label, scr, tag)
         print("\n" + "=" * 90); print(f">>> {label}  {scr}"); print("=" * 90, flush=True)
         t0 = time.time()
         # IN PROCESS, NOT SPAWNED. Every step has main() (S4). module_state.pinned()

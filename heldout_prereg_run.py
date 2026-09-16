@@ -392,6 +392,11 @@ def main():
     W("=" * 78)
 
     OUT.parent.mkdir(parents=True, exist_ok=True)
+    # naming: axis-free -- this file is the record of ONE run of a pre-registration
+    # that may be run exactly once, so there is no axis for its name to vary over.
+    # The arm, cadence and profile are fixed by section 1 and the run refuses if any
+    # of them has moved; a second name here could only mean a second run, which the
+    # sentinel above forbids.
     OUT.write_text("\n".join(lines) + "\n")
 
     # SPENDING THE WINDOW IS RECORDED IN THE FILE THAT DEFINED IT, as section 3
