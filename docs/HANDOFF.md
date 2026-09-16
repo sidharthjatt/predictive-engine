@@ -41,10 +41,13 @@ large; all are real.
 5. **The symlink farms must ship EMPTY.** A copy that preserves absolute symlinks
    pointing at the source machine fails in a way that looks like missing data
    rather than a bad copy. `rsync` without `-L` and `zip` both do this.
-6. **`--profile tradeable` cannot complete a run.** It reconciles through STEP 15b
-   and dies at STEP 16 on a profile-suffixed score-panel name that should not
-   exist. See `KNOWN_ISSUES.md`, "No component owns which axes an artefact
-   carries".
+6. **CLOSED 2026-09-16 — `--profile tradeable` completes.** It used to die at
+   STEP 16 on a profile-suffixed score-panel name that cannot exist, because the
+   input guard applied every axis to every required input. Each entry now declares
+   which axes its name carries. `--universe mid --arm v2 --profile tradeable` runs
+   all nine steps, exit 0; so does `--universe mid --arm v3 --rebal 200`.
+   **Completing is not being validated:** STEP 16 and STEP 17 have now run under
+   that profile for the first time and no gate cell covers what they produced.
 7. **Cross-machine reproducibility is untested** -- the next section is about
    exactly this, and names the four axes nobody has varied.
 
