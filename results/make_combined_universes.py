@@ -87,31 +87,13 @@ def before_tc(eq, log):
 # PER-UNIVERSE PRESENTATION. Paths and index files come from the registry; only
 # what is genuinely presentational lives here.
 # ---------------------------------------------------------------------------
-# DISPLAY IS NOT index_name AND NOT label. The chart title has always said
-# "NIFTY 100" (with a space) and "MIDCAP150" (without the NIFTY prefix), while
-# registry.index_name holds the FILE's name, "NIFTY100" and "NIFTYMIDCAP150",
-# which is what the per-universe legend rows use. Deriving one from the other
-# would silently retitle a published chart, so both are written down.
-DISPLAY = {"n100": "NIFTY 100", "mid": "MIDCAP150"}
-
-# FOUR COLOURS PER UNIVERSE: v2, v1, buy&hold, index. n100's and mid's are the
-# exact values the two-universe chart used and must not change. The 58's and 74's
-# rows were deleted with those universes; a new universe adds a row here, and
-# _check_colours() below refuses rather than letting it fall back to a default.
-# Slots 0-3 are v2, v1, buy&hold, index and are UNCHANGED -- the published chart
-# depends on them. Slots 4 and 5 are v3 and v4, appended rather than inserted so
-# every existing index keeps pointing at the same colour.
-COLOURS = {
-    "n100": ("#c0392b", "#2e6da4", "#3a9d3a", "#000000", "#7f3f98", "#d95f02"),
-    "mid":  ("#e377c2", "#17becf", "#8fd08f", "#7f7f7f", "#1b9e77", "#e6ab02"),
-}
-
-_missing_colour = set(REGISTRY) - set(COLOURS)
-if _missing_colour:
-    raise SystemExit(
-        f"COLOURS has no row for registered universe(s) {sorted(_missing_colour)}. "
-        f"Add one that does not collide with the published values above; a chart "
-        f"that picks a colour by accident is not reproducible.")
+# THE DISPLAY NAME AND THE COLOURS ARE REGISTRY FIELDS -- phase 2, 2026-09-16.
+# They were two dicts keyed by tag here, DISPLAY and COLOURS, plus a _missing_colour
+# guard that refused at import. Both are now `u.display_name` and `u.chart_colours`,
+# fields with NO DEFAULT: a universe that omits one fails when its row is
+# CONSTRUCTED, with a TypeError naming the field, which is a stronger guarantee
+# than a guard in a consumer that has to remember to look. The values moved
+# verbatim and were compared field by field before the originals were deleted.
 
 # WHICH SLOT OF THAT TUPLE EACH ARM USES. v2 has always been the first colour and
 # v1 the second, so with both selected the chart is unchanged. v3 and v4 are new
@@ -155,46 +137,11 @@ PLOT_ORDER = ("v2", "v1", "v3", "v4")
 # measurement arm on it. It says so when it skips.
 PLOT_ARMS = ("v2", "v1")
 
-# THE LIQUIDITY PARAGRAPH IS A PER-UNIVERSE MEASUREMENT, NOT CHART FURNITURE.
-# It used to be one hardcoded block naming n100 and mid, which is why the chart
-# could not be drawn for any other set without quoting numbers from universes that
-# were not on it. Each note is that universe's own measured result; a universe with
-# no note contributes nothing rather than a placeholder.
-# EVERY NUMBER IN A NOTE IS STAMPED WITH THE ENGINE THAT MEASURED IT. These were
-# measured before adj_close became the canonical price and before the interior-gap
-# guard, and the headline figures they quote have since moved -- n100 v2 is 24.43 /
-# 1.72 and mid v2 is 29.23 / 1.99 as of the 2026-09-11 snapshot. They are kept as
-# the liquidity finding, which is about fill sizes rather than about CAGR, and
-# marked rather than silently re-quoted under numbers they were not measured
-# against. Re-measure and restamp, or delete the note; do not edit the figures.
-# A UNIVERSE WITH NO MEASUREMENT DECLARES THAT, RATHER THAN BEING ABSENT.
-# The note is a MEASURED RESULT -- fill sizes against prior-20-day median volume,
-# and what a realistic depth model costs in CAGR points -- so it cannot be invented
-# for a new universe, and requiring one before that universe may run would make a
-# measurement a precondition for a pipeline that has not been run yet to produce
-# the trades it would measure.
-#
-# BUT AN ABSENT KEY AND AN UNMEASURED UNIVERSE LOOKED IDENTICAL, which is instance
-# seven in KNOWN_ISSUES: a table that tolerates a missing entry is
-# indistinguishable from one that covers it. So the hole is closed without making
-# the note compulsory -- a universe that has not been measured says so, by name:
-#
-#     "<tag>": NOT_MEASURED,
-#
-# registry_coverage_check.py requires the KEY for every registered universe and
-# accepts either a non-empty note or this sentinel. An absent key is still a
-# failure; so is an empty string, which would be a hole wearing a value.
-NOT_MEASURED = None
-
-LIQUIDITY = {
-    "n100": ("n100 [measured pre-2026-09-10, close-basis engine]: 3 of 997 fills "
-             "exceed 10% of prior-20-day median volume, and ZERO do on the 60-day "
-             "window;\nmodelling realistic depth (10% of median daily volume per "
-             "level, three levels) cost 0.01 CAGR points, 25.43% -> 25.42%."),
-    "mid":  ("mid [measured pre-2026-09-10, close-basis engine]: 22 of 985 fills "
-             "exceed 10%, the largest being 1,614% on AIIL; the same depth model "
-             "cost 1.80 CAGR points, 29.16% -> 27.36%."),
-}
+# THE LIQUIDITY PARAGRAPH IS A REGISTRY FIELD -- phase 2, 2026-09-16.
+# It was a dict here, with NOT_MEASURED as its declared absence. It is
+# `u.liquidity_note` now: a measured note, or None meaning nobody has measured this
+# universe. Presence is enforced by the constructor rather than by
+# registry_coverage_check, and the note travels with the universe it describes.
 
 _COUNT_WORD = {2: "both", 3: "all three", 4: "all four"}
 # Keyed by count, not by universe: it survives a universe being added or removed.
@@ -337,8 +284,16 @@ def main():
             # rediscovering that is four chances to disagree.
             "arms": _load_arms(Path(eqf).parent, t, sel),
             "idxname": u.index_name,
-            "display": DISPLAY.get(t, t),
-            "colours": COLOURS.get(t, ("#1f77b4", "#7f7f7f", "#2ca02c", "#000000")),
+            "display": u.display_name,
+            # NO FALLBACK, AND THERE WAS ONE. This read
+            # COLOURS.get(t, ("#1f77b4", "#7f7f7f", "#2ca02c", "#000000")) -- a
+            # four-colour default sitting behind a guard that refused at import for
+            # exactly the case the default existed to serve. Either the guard fires
+            # and the default is dead, or someone removes the guard and a chart
+            # silently picks colours nobody chose; the pair is the silent-fallback
+            # family, in one file, facing both ways. The field has no default and
+            # the row cannot be constructed without it.
+            "colours": u.chart_colours,
         })
 
     print("=" * 108)
@@ -631,11 +586,11 @@ def _subtitle(UNIV):
     #   point: the same depth model costs n100 0.01 CAGR points and mid 1.80.
     #   Reading mid's 29.18% next to n100's 25.36% without that is reading a gap of
     #   3.8 points that realistic execution more than halves.
-    # NOT_MEASURED CONTRIBUTES NOTHING, EXACTLY AS AN ABSENT KEY USED TO. The
-    # difference is upstream: the key must now be there, so "this universe has no
-    # note" is a statement somebody made rather than a gap nobody noticed.
-    notes = [LIQUIDITY[u["tag"]] for u in UNIV
-             if LIQUIDITY.get(u["tag"], NOT_MEASURED) is not NOT_MEASURED]
+    # None CONTRIBUTES NOTHING, exactly as an absent key used to. The difference is
+    # upstream: the field must be supplied, so "this universe has no note" is a
+    # statement somebody made rather than a gap nobody noticed.
+    notes = [REGISTRY[u["tag"]].liquidity_note for u in UNIV
+             if REGISTRY[u["tag"]].liquidity_note is not None]
     liq = ("LIQUIDITY, at Rs 10,00,000 starting capital. " + "\n".join(notes) + "\n"
            if notes else "")
 
