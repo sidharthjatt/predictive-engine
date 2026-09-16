@@ -388,6 +388,10 @@ def main(u):
     # ONE LINE PER SELECTED ARM, in published order, each with its own colour.
     # v2 and v1 keep the exact colours and label shapes they have always had, so
     # the default chart is unchanged.
+    # THE CHARTS THIS RUN ACTUALLY WROTE. Both _render calls below are CONDITIONAL
+    # and neither is guaranteed, so nothing outside this list can say what exists.
+    _rendered = []
+
     def _render(_arms, _path):
         """Build and save the chart for exactly these arms."""
         series = [
@@ -420,6 +424,7 @@ def main(u):
         # compose from arm_reg.suffix(), cadence.suffix() and profiles.suffix();
         # the canonical two-arm figure is written only at an all-default selection.
         plt.savefig(_path, dpi=_CT["dpi"], bbox_inches="tight"); plt.close()
+        _rendered.append(_path)
 
     # ------------------------------------------------------------------
     # TWO CHARTS, THE SAME RULE THE COMBINED CHART ALREADY USES.
@@ -440,9 +445,21 @@ def main(u):
     if set(ARMS_ON) != {"v2", "v1"} or not cadence.is_default() or not profiles.is_default():
         _asf = arm_reg.suffix(ARMS_ON) if set(ARMS_ON) != {"v2", "v1"} else ""
         _render(ARMS_ON, chart_path(M, _CT["stem"], ARMS_ON))
-    # SEE make_n100_chart.py: this named a literal rather than what was written.
-    _canon_png = M / (_CT["stem"] + ".png")
-    print(f"\nsaved -> {_canon_png.name}")
+    # WHAT WAS WRITTEN, WHICH IS NOT THE CANONICAL NAME AND SOMETIMES IS NO NAME.
+    # This printed `<stem>.png` unconditionally -- the canonical figure -- while
+    # BOTH renders above are conditional on the selection. Under `--rebal 200` the
+    # canonical branch does not run at all, and the line still announced
+    # chart_mid_FINAL.png: a gated file this step had not touched, named as though
+    # it had just been written. The comment that stood here said the n100 half had
+    # once "named a literal rather than what was written", so the defect was known
+    # in one direction and reintroduced in the other.
+    #
+    # A RUN THAT RENDERS NOTHING SAYS SO. Silence would read as success, and an
+    # empty list is exactly the case a reader needs told.
+    if _rendered:
+        print("\nsaved -> " + ", ".join(q.name for q in _rendered))
+    else:
+        print("\nsaved -> nothing: no chart was rendered for this selection")
 
 
 if __name__ == "__main__":

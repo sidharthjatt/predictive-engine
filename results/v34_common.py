@@ -301,18 +301,26 @@ def run_v34(M, universe_label, universe_tag, px, op, sc, bd, pc, mom20, port_vol
     # Empty for profile="research", so the published names are unchanged.
     import profiles
     SFX = arm_reg.selection_suffix() + cadence.suffix() + profiles.suffix()
+    # THE PATHS THIS CALL WRITES, IN ORDER. Read only by the report line below, so
+    # that what is printed is derived from what was written rather than restated.
+    _wrote = []
+
     comp = pd.DataFrame(rows)
     comp.to_csv(M / f"v34_comparison{SFX}.csv", index=False)
+    _wrote.append(M / f"v34_comparison{SFX}.csv")
 
     subs = sub_rows(curves, halves, audits)
     subs.to_csv(M / f"v34_subperiods{SFX}.csv", index=False)
+    _wrote.append(M / f"v34_subperiods{SFX}.csv")
 
     eq_cols = {"date": bd}
     for _, _, col, eq, _, _, _, _ in ARM_ON:
         eq_cols[col] = eq.values
     eq_cols["buyhold"] = bh.values
     pd.DataFrame(eq_cols).to_csv(M / f"v34_equity{SFX}.csv", index=False)
+    _wrote.append(M / f"v34_equity{SFX}.csv")
 
+    _wrote.append(M / f"v34_params{SFX}.json")
     (M / f"v34_params{SFX}.json").write_text(json.dumps({
         "universe": universe_label,
         "universe_tag": universe_tag,
@@ -383,6 +391,16 @@ def run_v34(M, universe_label, universe_tag, px, op, sc, bd, pc, mom20, port_vol
     plt.tight_layout()
     # naming: arm,cadence,profile via SFX -- v34_common.py:300
     plt.savefig(M / f"chart_v34{SFX}.png", dpi=150, bbox_inches="tight")
+    _wrote.append(M / f"chart_v34{SFX}.png")
+
+    # THIS STEP REPORTS ITS OWN WRITES, AND IT IS THE ONLY THING THAT CAN. SFX is
+    # composed above from THREE axes -- arm selection, cadence, profile -- so no
+    # caller can name these files from anything it holds. engine_v2_final used to
+    # print the five CANONICAL names on this step's behalf, which under `--rebal
+    # 200` named five gated files nobody had touched and named none of the five
+    # that were written. The names come from the paths, not from a second copy of
+    # the f-strings above.
+    print("\n  saved -> " + ", ".join(q.name for q in _wrote))
     plt.close()
 
     return comp, subs, curves
