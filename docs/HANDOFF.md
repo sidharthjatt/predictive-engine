@@ -178,7 +178,7 @@ that, and they are not placeholders to be filled in from memory.
 | 5 | the engine pair → `engine_v2_final(u)` | `f533082` | landed |
 | 6 | the chart pair → `make_chart(u)` | `ad7632a` | landed |
 | 7 | `config_mid.py` + `config_n100.py` → registry rows | `5c8cda9` | landed |
-| 8 | `REQUIRED_INPUTS` derived from the registry | — | **defined below, not started** |
+| 8 | `REQUIRED_INPUTS` derived from the registry | `a32ef28` | landed |
 
 **STEP 1 IS GENUINELY UNRECORDED.** No commit subject or body names
 either; no document defines either. `5c636cf` calls itself "Step 2 in the new
@@ -186,8 +186,8 @@ order", which establishes that a step 1 was intended and that an earlier `S1`..`
 numbering was replaced — `6f7967f` ("S5: collapse the audit and build_scores clone
 families onto the registry") is from that older scheme and is **not** step 5.
 Do not map the two schemes onto each other from the titles; they do not line up.
-**Step 8 was in the same state until 2026-09-16 and is now defined below**, which
-is the only reason it may be started.
+**Step 8 was in the same state until 2026-09-16.** It was defined below first and
+implemented afterwards, which is the only reason it exists as a step at all.
 
 **WHAT EACH LANDED STEP ACTUALLY DID**
 
@@ -213,6 +213,9 @@ is the only reason it may be started.
   carries the output stem, dpi, legend font size, index-window end, two booleans,
   and the subtitle and drawdown legend label as CALLABLES. Transitional asserts
   reached zero. Two defects introduced and caught here; see the commit.
+- **Step 8, `a32ef28`.** Ten hand-written `REQUIRED_INPUTS` tuples become a
+  comprehension over `REGISTRY`. Paths from `paths.py`, the step label looked up
+  from `PIPELINE_ORDER` by `(script, universe)` and never restated. **14 → 9.**
 - **Step 7, `5c8cda9`.** The first merge where neither side was a superset.
   The two configs' code differed in exactly two expressions, both path shapes, and
   both are registry data. `check_pipeline_order.REG_ASSIGN` arrived with it,
@@ -268,7 +271,7 @@ not 1**, and the five that stay are decisions rather than duplication.
 
 ---
 
-#### ITEM A — the probes declare which universes they have measurements for
+#### ITEM A — the probes declare which universes they have measurements for. **LANDED, `fddc560`.**
 
 **BEFORE STEP 8, and the ordering is deliberate.** Three measurement probes carry
 per-universe MEASURED constants and iterate a hand-written
@@ -315,7 +318,7 @@ NAMES THE GAP rather than quietly narrowing. Probes write into tracked files und
 
 ---
 
-#### ITEM B — STEP 8: `REQUIRED_INPUTS` derived from the registry. **−5 of 14.**
+#### ITEM B — STEP 8: `REQUIRED_INPUTS` derived from the registry. **−5 of 14. LANDED, `a32ef28`.**
 
 All five tuples are `<that universe's metrics_dir> / <filename carrying its tag>`,
 produced by a named step. Pure duplication of what the registry already holds.
