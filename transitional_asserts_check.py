@@ -1,6 +1,11 @@
 #!/usr/bin/env python3
 """transitional_asserts_check.py -- the tree says the collapse is unfinished.
 
+IT STAYS, AND IT IS GREEN BECAUSE THE WORK LANDED, NOT BECAUSE IT STOPPED
+CHECKING: reintroduce one literal REGISTRY["mid"] in a step that takes a
+universe and it fails again, as "MARKER REMOVED, HARDCODING KEPT". Deleting
+it would remove the only thing in the tree that would notice.
+
 WHAT THIS EXISTS FOR. Step 2 of the collapse (commit 5c636cf) gave the eight
 per-universe steps `main(u)` while leaving their literal `REGISTRY["mid"]` /
 `REGISTRY["n100"]` subscripts in place, because check_pipeline_order resolves
@@ -147,7 +152,9 @@ def main():
         return 1
 
     print("RESULT: PASS -- no transitional asserts remain; the collapse is complete.")
-    print("  This check has done its job and can be retired with the work it tracked.")
+    print("  THIS CHECK IS NOT RETIRED BY THAT. It is green because the collapse")
+    print("  landed, not because it stopped checking: reintroduce one literal and")
+    print("  it reports MARKER REMOVED, HARDCODING KEPT and exits non-zero again.")
     return 0
 
 
