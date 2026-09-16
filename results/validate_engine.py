@@ -72,8 +72,7 @@ sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "results"))
 
 import config
-import config_mid
-import config_n100
+from universes.registry import REGISTRY
 from engine_core import metrics, precompute, score_monthly, HORIZON
 from test_exposure import backtest_exposure, TOP_N, BUFFER, START_CAPITAL
 import profiles as _prof            # the run's execution-realism profile
@@ -106,11 +105,11 @@ UNIVERSES = {
     },
     "mid": {
         "label": "MidCap150 (live)",
-        "metrics": config_mid.METRICS_DIR_MID,
-        "perm": config_mid.METRICS_DIR_MID / "v_mid_expanding_cache.csv",
+        "metrics": REGISTRY["mid"].metrics_dir,
+        "perm": REGISTRY["mid"].metrics_dir / "v_mid_expanding_cache.csv",
         "tmp": "/tmp/v_mid_expanding.csv",
         "raw_tmp": "/tmp/raw_panel_mid_20.csv",
-        "raw_perm": config_mid.METRICS_DIR_MID / "raw_panel_mid_cache.csv",
+        "raw_perm": REGISTRY["mid"].metrics_dir / "raw_panel_mid_cache.csv",
         "seed_cache": lambda si: Path(f"/tmp/V2VAL_mid_seed{si}.csv"),
         "purge_mode": "trading",
         "y_end": 2026,
@@ -118,11 +117,11 @@ UNIVERSES = {
     },
     "n100": {
         "label": "Nifty 100 (live)",
-        "metrics": config_n100.METRICS_DIR_N100,
-        "perm": config_n100.METRICS_DIR_N100 / "v_n100_expanding_cache.csv",
+        "metrics": REGISTRY["n100"].metrics_dir,
+        "perm": REGISTRY["n100"].metrics_dir / "v_n100_expanding_cache.csv",
         "tmp": "/tmp/v_n100_expanding.csv",
         "raw_tmp": "/tmp/raw_panel_n100_20.csv",
-        "raw_perm": config_n100.METRICS_DIR_N100 / "raw_panel_n100_cache.csv",
+        "raw_perm": REGISTRY["n100"].metrics_dir / "raw_panel_n100_cache.csv",
         "seed_cache": lambda si: Path(f"/tmp/V2VAL_n100_seed{si}.csv"),
         "purge_mode": "trading",
         "y_end": 2026,

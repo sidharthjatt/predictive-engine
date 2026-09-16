@@ -74,7 +74,7 @@ sys.path.insert(0, str(ROOT)); sys.path.insert(0, str(ROOT / "results"))
 import numpy as np
 import pandas as pd
 
-import config, config_mid, config_n100
+import config
 import test_exposure
 from universes.registry import REGISTRY
 from engine_core import precompute, metrics

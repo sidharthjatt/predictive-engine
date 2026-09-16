@@ -33,14 +33,18 @@ sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "nautilus"))
 sys.path.insert(0, str(ROOT / "results"))
 
-import config_mid, config_n100
 import nt_data, nt_run
 from engine_core import metrics
+from universes.registry import REGISTRY
 
 SLIPPAGE = nt_run.SLIPPAGE
 
-UNIV = [("n100", config_n100.RAW_DATA_DIR_N100, config_n100.SYMBOLS_N100),
-        ("mid", config_mid.RAW_DATA_DIR_MID, config_mid.SYMBOLS_MID)]
+# THE SOURCE FOLDER, NOT data_dir, AND THE SORTED SYMBOL LIST. Both came from
+# config_n100 / config_mid until step 7; both are registry fields now and carry
+# the same values. `symbol_list` is the sorted tuple the configs' SYMBOLS_* were,
+# so the volume panel is loaded in the same order it always was.
+UNIV = [("n100", REGISTRY["n100"].raw_data_dir, REGISTRY["n100"].symbol_list),
+        ("mid", REGISTRY["mid"].raw_data_dir, REGISTRY["mid"].symbol_list)]
 
 
 def perf_from_strat(strat, tag):

@@ -31,7 +31,7 @@ sys.path.insert(0, str(ROOT / "results"))
 
 import numpy as np
 import pandas as pd
-import config, config_mid, config_n100
+import config
 from engine_core import precompute
 import test_exposure
 from test_exposure import backtest_exposure

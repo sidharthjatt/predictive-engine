@@ -30,7 +30,7 @@ sys.path.insert(0, str(ROOT)); sys.path.insert(0, str(ROOT / "results"))
 
 import numpy as np
 import pandas as pd
-import config, config_mid, config_n100
+import config
 from seed_noise_measure import (SEEDS, K_GRID, M_SUBSETS, ARMS, UNIVERSES,
                                 make_backtester, REQUIRED_RAW, assert_columns)
 
