@@ -178,14 +178,16 @@ that, and they are not placeholders to be filled in from memory.
 | 5 | the engine pair → `engine_v2_final(u)` | `f533082` | landed |
 | 6 | the chart pair → `make_chart(u)` | `ad7632a` | landed |
 | 7 | `config_mid.py` + `config_n100.py` → registry rows | `5c8cda9` | landed |
-| 8 | **NOT ON DISK** | — | **undefined** |
+| 8 | `REQUIRED_INPUTS` derived from the registry | — | **defined below, not started** |
 
-**STEP 1 AND STEP 8 ARE GENUINELY UNRECORDED.** No commit subject or body names
+**STEP 1 IS GENUINELY UNRECORDED.** No commit subject or body names
 either; no document defines either. `5c636cf` calls itself "Step 2 in the new
 order", which establishes that a step 1 was intended and that an earlier `S1`..`S5`
 numbering was replaced — `6f7967f` ("S5: collapse the audit and build_scores clone
 families onto the registry") is from that older scheme and is **not** step 5.
 Do not map the two schemes onto each other from the titles; they do not line up.
+**Step 8 was in the same state until 2026-09-16 and is now defined below**, which
+is the only reason it may be started.
 
 **WHAT EACH LANDED STEP ACTUALLY DID**
 
@@ -251,6 +253,142 @@ artefact gate covers `5c8cda9` -> `6d618ac`. `87ba029` is comparator reporting
 only — it changes what the gate prints about a difference, not which differences it
 accepts — so no artefact was re-run for it. Said here because the next reader takes
 a hash range and assumes coverage across all of it.
+
+### WHAT IS DEFINED NEXT — written before any of it is started
+
+**THE RULE, AND IT IS WHY THIS BLOCK EXISTS.** A step whose definition lives only
+in a conversation does not exist, and steps 1 and 8 spent six days proving it.
+Everything below was written down before the first line of its code.
+
+**ADDING A UNIVERSE COSTS 14 HAND-WRITTEN ENTRIES TODAY**, measured 2026-09-16 by
+registering a throwaway universe and wiring it until `registry_coverage_check.py`
+passed: 1 `REPORT_ORDER` + 1 `DISPLAY` + 1 `COLOURS` + 1 `LIQUIDITY` + 1 `FILES`
+block + 4 `PIPELINE_ORDER` rows + 5 `REQUIRED_INPUTS` tuples. **The target is 5,
+not 1**, and the five that stay are decisions rather than duplication.
+
+---
+
+#### ITEM A — the probes declare which universes they have measurements for
+
+**BEFORE STEP 8, and the ordering is deliberate.** Three measurement probes carry
+per-universe MEASURED constants and iterate a hand-written
+`(REGISTRY["n100"], REGISTRY["mid"])` pair:
+
+| probe | constant | what it holds |
+|---|---|---|
+| `results/drawdown_exit_measure.py` | `SEED_FLOOR` | the measured noise floor, v2, CAGR |
+| | `TRADABILITY_EXPECT` | G4's exact expected counts |
+| `results/rebal_cadence_sweep.py` | `SEED_FLOOR` | the floor per arm per universe |
+| `results/purge_mode_probe.py` | `MONTHS` | the months this study cuts on |
+
+**A THIRD UNIVERSE IS INVISIBLE TO ALL THREE.** Not a `KeyError` — the pair is
+written out, so the probe simply reports on two universes and says nothing about
+the third. That is instance seven in the tool set: a study that covers 2 of 3 and
+is indistinguishable from one that covers 3 of 3.
+
+**WHY THIS ONE GOES FIRST.** `SEED_FLOOR` is the measured noise floor. Its
+invented predecessor put every threshold in this project against half the real
+bar, and correcting it changed the project's conclusions. A probe that quietly
+narrows its universe coverage is that failure waiting to happen again, in the one
+measurement that moved everything else.
+
+**THESE ARE NOT DERIVED. THEY ARE DECLARED.** A measurement cannot be computed
+from a registry row. The shape is `LIQUIDITY`'s `NOT_MEASURED`:
+
+- each probe declares the universes it has measurements for, in the order its
+  report is written (that order is load-bearing and stated in each file);
+- `UNIVERSES` is built from that declaration instead of a hand-written pair, so
+  the set the probe iterates cannot disagree with the constants it holds;
+- a declared universe missing from any of the probe's measured constants is a
+  REFUSAL naming the constant — a hole, not a default;
+- **a registered universe the probe has no measurement for is CORRECT and is
+  PRINTED IN THE PROBE'S OWN OUTPUT**, so the diagnostic states its own coverage
+  rather than leaving the reader to infer it from which sections appear.
+
+`rebal_cadence_sweep.SEED_FLOOR` already does exactly this on the ARM axis —
+`None` means NEVER MEASURED and `floor_verdict` returns `UNKNOWN` rather than
+substituting a number. The universe axis is what is missing.
+
+**GATE.** Run a probe with one universe's constants removed and show the output
+NAMES THE GAP rather than quietly narrowing. Probes write into tracked files under
+`diagnostics/`, so any demonstration run must be reverted and the tree left clean.
+
+---
+
+#### ITEM B — STEP 8: `REQUIRED_INPUTS` derived from the registry. **−5 of 14.**
+
+All five tuples are `<that universe's metrics_dir> / <filename carrying its tag>`,
+produced by a named step. Pure duplication of what the registry already holds.
+
+**THE STEP LABEL IS LOOKED UP, NOT RESTATED.** The third element of each tuple is
+`"STEP 10c make_audit.py"` for mid and `"STEP 10g make_audit.py"` for n100 — a
+`PIPELINE_ORDER` label. Restating it here would be the seventh hardcoded list in
+this repository; it is resolved from `PIPELINE_ORDER` by `(script, universe)`.
+
+**IT GOES BEFORE THE OTHER PHASES BECAUSE IT HAS NO ARTEFACT SURFACE.**
+`REQUIRED_INPUTS` is a guard table. Nothing in it reaches a PNG or a CSV. Its only
+observables are the `covered` set handed to `check_pipeline_order.enforce` and
+`check_inputs`' refusal behaviour.
+
+**GATE.** The `covered` set identical pre/post; the edge inventory diff empty;
+artefacts byte-identical on `mid all research` and `n100 all research`, both
+passes from a clean tree; **plus a deletion demonstration** — remove a produced
+input and show the guard still names the file and the step that owes it, which is
+the whole reason the table exists.
+
+---
+
+#### PHASE 2 — wanted, not yet started. `DISPLAY`, `COLOURS`, `LIQUIDITY` become registry row fields. **−3.**
+
+**THE DATACLASS KNOCK-ON IS THE PRIZE, NOT THE −3.** As fields with no default, a
+row that omits one fails at construction with a `TypeError` naming the field.
+**Three of `registry_coverage_check.py`'s tables stop being NEEDED rather than
+being silenced** — a field with no default cannot be forgotten, while a checker has
+to remember to look. That is a strictly stronger guarantee than the one this
+project just finished building, and it is the argument for doing it.
+
+Second reason, independently sufficient: **`LABELS = {"n100": "NIFTY 100", "mid":
+"MIDCAP150"}` appears verbatim in 16 files** — a seventeenth copy of `DISPLAY`,
+spread across the probes. One `display_name` field retires all of them.
+
+Not first, because colours, display names and the liquidity prose all reach the
+combined PNG: this is the phase that can move a published figure, and it is held
+to the artefact checksum.
+
+---
+
+#### PHASE 3 — DEFERRED, and this is the reason, not an omission
+
+The `FILES` block in `make_combined_universes.py`. **−1 of 14: the smallest gain
+of the three, on the most delicate machinery in the repository.**
+
+The four filenames per universe are derivable (`daily_trades_{tag}.csv`), but the
+literal has to stay in the call: `check_pipeline_order` reads `DIR / "<literal>"`
+out of the source, and **a computed name already made three edges vanish once.**
+Doing it means teaching the scanner to expand a `{tag}` placeholder against a loop
+over selected universes — the same class of work as step 7's `REG_ASSIGN`, for one
+fifth of its payoff.
+
+**REVISIT ONLY IF SOMETHING ELSE NEEDS THAT SCANNER WORK ANYWAY.** Deferred by
+decision on 2026-09-16, not left undone by oversight.
+
+---
+
+#### NOT WORTH DOING — 5 of the 14 stay, by design
+
+- **`REPORT_ORDER` (1).** Where a universe sits in a combined report is editorial:
+  position is visible in a filename, a legend and a colour assignment. The registry
+  docstring argues against deriving it and `report_order()` already raises by name.
+- **`PIPELINE_ORDER` (4).** `5c636cf` settled this — "PIPELINE_ORDER is a
+  declaration with no other source; it is the ordering itself, written down."
+  Deriving the rows means generating the labels, and `STEP 10a`..`10h` are
+  load-bearing for identity: that rule is what let "10h crashed" in a six-day-old
+  document be read without ambiguity. Generating them for new universes while
+  pinning the existing ones trades four rows for a label map, which is one table
+  for another. **The correct fix was making the silence loud, and it shipped in
+  `6d618ac`.**
+
+---
 
 ## 2. The trading calendar — ships, and cannot be rebuilt
 
