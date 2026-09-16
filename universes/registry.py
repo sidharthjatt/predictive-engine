@@ -148,6 +148,48 @@ class Universe:
     symbol_list: Tuple[str, ...]
 
     # ------------------------------------------------------------------
+    # WHAT THE COMBINED CHART SHOWS FOR THIS UNIVERSE -- phase 2, 2026-09-16
+    # ------------------------------------------------------------------
+    # THREE TABLES IN results/make_combined_universes.py, MOVED HERE VERBATIM.
+    # They were keyed by tag, so adding a universe meant finding all three; two of
+    # the three refused loudly when one was missing and one did not.
+    #
+    # NO DEFAULTS, AND THAT IS THE POINT RATHER THAN A STYLE CHOICE. A field with
+    # no default cannot be forgotten: a row that omits one fails at CONSTRUCTION
+    # with a TypeError naming the field. A checker has to remember to look, and
+    # three of registry_coverage_check.py's tables stop being NEEDED rather than
+    # being silenced.
+
+    # THE CHART TITLE'S SPELLING, WHICH IS NEITHER index_name NOR label. The title
+    # has always said "NIFTY 100" (with a space) and "MIDCAP150" (without the
+    # NIFTY prefix), while index_name holds the FILE's name -- "NIFTY100",
+    # "NIFTYMIDCAP150" -- which is what the per-universe legend rows use. Deriving
+    # one from the other would silently retitle a published chart.
+    display_name: str
+
+    # FOUR COLOURS PER UNIVERSE PLUS TWO. Slots 0-3 are v2, v1, buy&hold, index and
+    # are UNCHANGED -- the published chart depends on them. Slots 4 and 5 are v3
+    # and v4, appended rather than inserted so every existing index keeps pointing
+    # at the same colour. A new universe adds a tuple that does not collide with
+    # these; a chart that picks a colour by accident is not reproducible.
+    chart_colours: Tuple[str, ...]
+
+    # THE LIQUIDITY PARAGRAPH, WHICH IS A MEASURED RESULT AND NOT CHART FURNITURE.
+    # Fill sizes against prior-20-day median volume, and what a realistic depth
+    # model costs in CAGR points. It cannot be invented for a universe nobody has
+    # measured, so None is the DECLARATION that it was not -- the shape LIQUIDITY's
+    # NOT_MEASURED had, with the constructor now enforcing presence instead of a
+    # checker.
+    #
+    # EVERY NUMBER IN A NOTE IS STAMPED WITH THE ENGINE THAT MEASURED IT. These
+    # were measured before adj_close became the canonical price and before the
+    # interior-gap guard, and the headline figures they quote have since moved.
+    # They are kept as the liquidity finding, which is about fill sizes rather than
+    # about CAGR, and marked rather than silently re-quoted under numbers they were
+    # not measured against. Re-measure and restamp, or set None; do not edit them.
+    liquidity_note: Optional[str]
+
+    # ------------------------------------------------------------------
     # WHAT THE ENGINE REPORTS FOR THIS UNIVERSE
     # ------------------------------------------------------------------
     # Added 2026-09-15 with step 5, the engine merge. engine_v2_final_mid.py and
@@ -305,6 +347,13 @@ _MID = Universe(
         # Base 1-Apr-2005 = 1000, which the file reproduces exactly.
         index_file=_MID_SOURCE / f"{_MID_INDEX}.csv",
         year_range=None, date_range=(config.BT_START_DATE, config.BT_END_DATE),
+        display_name="MIDCAP150",
+        chart_colours=("#e377c2", "#17becf", "#8fd08f", "#7f7f7f",
+                       "#1b9e77", "#e6ab02"),
+        liquidity_note=(
+            "mid [measured pre-2026-09-10, close-basis engine]: 22 of 985 fills "
+            "exceed 10%, the largest being 1,614% on AIIL; the same depth model "
+            "cost 1.80 CAGR points, 29.16% -> 27.36%."),
         # MEASURED. Eight results from the post density-fix panel. The inv-vol half
         # of the old blanket "validated" claim was FALSE as written, which is why
         # this is stated per test: a stale validation claim is worse than no claim.
@@ -418,6 +467,14 @@ _N100 = Universe(
         # with NSE's published methodology. Verified, not assumed.
         index_file=_N100_SOURCE / f"{_N100_INDEX}.csv",
         year_range=None, date_range=(config.BT_START_DATE, config.BT_END_DATE),
+        display_name="NIFTY 100",
+        chart_colours=("#c0392b", "#2e6da4", "#3a9d3a", "#000000",
+                       "#7f3f98", "#d95f02"),
+        liquidity_note=(
+            "n100 [measured pre-2026-09-10, close-basis engine]: 3 of 997 fills "
+            "exceed 10% of prior-20-day median volume, and ZERO do on the 60-day "
+            "window;\nmodelling realistic depth (10% of median daily volume per "
+            "level, three levels) cost 0.01 CAGR points, 25.43% -> 25.42%."),
         # SURVIVORSHIP. These 99 names are TODAY'S index members backfilled to the
         # start of the backtest; companies that were in the Nifty 100 during the
         # window and were later dropped or delisted are absent entirely. It is

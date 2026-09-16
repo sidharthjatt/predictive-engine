@@ -38,6 +38,22 @@ WHY THE TABLES ARE READ STATICALLY AND NOT BY IMPORTING THEM
     the only way to ask which universes it covers is to read the subscript
     assignments. That is what _subscript_keys does.
 
+THREE TABLES LEFT THIS CHECK ON 2026-09-16, AND IT SAYS SO RATHER THAN SHRINKING
+    Phase 2 moved make_combined_universes' DISPLAY, COLOURS and LIQUIDITY into
+    universes/registry.py as Universe fields WITH NO DEFAULT. This check used to
+    cover them; it no longer does, and that is an INCREASE in coverage, not a
+    reduction: a field with no default cannot be forgotten, because the row fails
+    at CONSTRUCTION with a TypeError naming the field, before anything imports
+    this checker. Those three tables stopped being NEEDED rather than being
+    silenced.
+
+    IT IS WRITTEN DOWN BECAUSE THE TABLE COUNT DROPPED FROM 13 TO 10, and a check
+    that covers less than it did is exactly the thing this repository keeps
+    catching. LIQUIDITY's declared absence survives the move as
+    `liquidity_note=None`; _declared_keys, which told a declaration from a hole,
+    went with it -- the constructor now enforces presence and None IS the
+    declaration.
+
 THE REQUIRED_INPUTS ROWS CANNOT FAIL ANY MORE, AND THAT IS NOT A PASS
     Step 8 made run_all.REQUIRED_INPUTS a comprehension over REGISTRY, so the four
     `run_all.REQUIRED_INPUTS [...]` rows below are derived from the same source
@@ -92,44 +108,6 @@ def _tuple_items(tree, name):
                     return {e.value for e in node.value.elts
                             if isinstance(e, ast.Constant) and isinstance(e.value, str)}
     return None
-
-
-def _declared_keys(tree, name, sentinel):
-    """-> (covered, holes) for a table whose entries may DECLARE an absence.
-
-    WHY THIS IS NOT JUST _dict_keys. make_combined_universes.LIQUIDITY holds a
-    MEASURED result per universe -- fill sizes and what a depth model costs -- and
-    requiring one before a new universe may run would make a measurement the
-    precondition for the pipeline that produces what it measures. So the table
-    admits `"<tag>": NOT_MEASURED`, and this reads the VALUE to tell a declaration
-    from a hole:
-
-      a non-empty string literal   a note. covered.
-      the bare name `NOT_MEASURED` an explicit "not measured". covered.
-      anything else                a HOLE, reported separately -- an empty string
-                                   or a stray None is a missing entry wearing a
-                                   value, which is the defect one level in.
-
-    THE KEY IS STILL COMPULSORY. This loosens what may be SAID about a universe,
-    not whether the universe has to be named.
-    """
-    for node in tree.body:
-        if isinstance(node, ast.Assign) and isinstance(node.value, ast.Dict):
-            for t in node.targets:
-                if not (isinstance(t, ast.Name) and t.id == name):
-                    continue
-                covered, holes = set(), []
-                for k, v in zip(node.value.keys, node.value.values):
-                    if not (isinstance(k, ast.Constant) and isinstance(k.value, str)):
-                        continue
-                    if isinstance(v, ast.Constant) and isinstance(v.value, str) and v.value.strip():
-                        covered.add(k.value)
-                    elif isinstance(v, ast.Name) and v.id == sentinel:
-                        covered.add(k.value)
-                    else:
-                        holes.append(k.value)
-                return covered, holes
-    return None, []
 
 
 def _subscript_keys(tree, name):
@@ -194,9 +172,6 @@ def coverage(registry=None):
     comb = ast.parse(COMBINED.read_text(), filename=str(COMBINED))
     mod = _run_all()
 
-    # LIQUIDITY IS READ BY VALUE, NOT ONLY BY KEY. See _declared_keys.
-    _liq_covered, _liq_holes = _declared_keys(comb, "LIQUIDITY", "NOT_MEASURED")
-
     pipeline_by_script = {}
     for row in mod["PIPELINE_ORDER"]:
         if len(row) > 2 and row[2]:
@@ -207,21 +182,8 @@ def coverage(registry=None):
     tables = [
         ("universes/registry.REPORT_ORDER", set(_reg.REPORT_ORDER),
          "dropped from every combined report (report_order raises)"),
-        ("make_combined_universes.COLOURS", _dict_keys(comb, "COLOURS"),
-         "a chart colour picked by accident (import refuses)"),
-        ("make_combined_universes.DISPLAY", _dict_keys(comb, "DISPLAY"),
-         "SILENT -- .get(t, t) draws the raw tag as the display name"),
         ("make_combined_universes.FILES", _subscript_keys(comb, "FILES"),
          "KeyError at FILES[t], deep in the draw, naming nothing"),
-        # A HOLE IS COUNTED AS PRESENT HERE AND REPORTED BELOW WITH ITS OWN,
-        # MORE SPECIFIC REASON. Without this a key with an empty value produced
-        # TWO misses -- "declares nothing" and "has no entry" -- and a count that
-        # says 2 where the reader has one thing to fix is the same defect as a
-        # count that says 1 where there are two.
-        ("make_combined_universes.LIQUIDITY",
-         None if _liq_covered is None else _liq_covered | set(_liq_holes),
-         "no liquidity note AND no declaration that it was not measured; write "
-         "the note, or NOT_MEASURED"),
     ]
     for script, covered in sorted(pipeline_by_script.items()):
         tables.append((f"run_all.PIPELINE_ORDER [{script}]", covered,
@@ -231,13 +193,6 @@ def coverage(registry=None):
                        "SILENT -- this universe's inputs are unguarded"))
 
     misses = []
-    # A KEY PRESENT WITH A VALUE THAT DECLARES NOTHING IS ITS OWN FAILURE, and it
-    # is reported before the coverage loop so it cannot be mistaken for an absence.
-    for tag in sorted(_liq_holes):
-        misses.append((tag, "make_combined_universes.LIQUIDITY",
-                       "the key is present but its value declares nothing -- an "
-                       "empty note is a hole wearing a value. Write the measured "
-                       "note, or NOT_MEASURED"))
     for label, covered, why in tables:
         if covered is None:
             misses.append(("(the table itself)", label,
