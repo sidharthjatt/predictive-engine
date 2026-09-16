@@ -1352,6 +1352,8 @@ wrong each time is the mapping from what was measured to what was claimed:
 - a denominator that includes files the run cannot touch (4)
 - a module merged and gated without one line of it executing (5)
 - a contract half-enforced, so the guarded half hid the unguarded one (6)
+- a table that tolerates a missing entry, so being registered reads as being
+  covered (7)
 
 **AND THE GENERAL FORM, WHICH FIVE OF THE SIX SHARE: A FALLBACK THAT SILENTLY
 RESTORES PRE-FIX BEHAVIOUR IS INDISTINGUISHABLE FROM NO FIX.** The safeguard is
@@ -1364,6 +1366,47 @@ on `ast.IfExp.body` restored the exact behaviour the function existed to remove 
 and it passed its two-line test while doing nothing at all on the real tree. The
 test proved the happy path; the fallback governed every other path and proved
 nothing. **A fallback must fail loudly or not exist.**
+
+**INSTANCE SEVEN, AND IT IS THE PATTERN RATHER THAN A BUG: A TABLE THAT SILENTLY
+TOLERATES A MISSING ENTRY IS INDISTINGUISHABLE FROM A TABLE THAT COVERS IT.** Same
+family as the silent fallback above, and the same mechanism: the structure that
+should produce the guarantee is present, the guarantee is absent, and the presence
+of the structure is what stops anyone checking. A fallback answers the wrong
+question quietly; a table with a hole answers no question at all and looks the
+same from outside.
+
+Found 2026-09-16 by asking what an eleventh universe costs. Seven tables must
+carry a row for every universe in `universes/registry.py`, and **three of the seven
+tolerated a missing row in silence**:
+
+| table | on a missing row, before |
+|---|---|
+| `REPORT_ORDER` | raises, naming the tag |
+| `make_combined.COLOURS` | `SystemExit` at import, naming the tag |
+| `make_combined.FILES` | `KeyError`, loud but unexplained |
+| `make_combined.DISPLAY` | **silent** — `.get(t, t)` draws the raw tag where a display name belongs |
+| `make_combined.LIQUIDITY` | **silent**, and documented as optional |
+| `run_all.PIPELINE_ORDER` | **silent, and the worst of them** |
+| `run_all.REQUIRED_INPUTS` | **silent** — that universe's inputs are unguarded |
+
+**`PIPELINE_ORDER` is the one that matters.** A universe registered but absent from
+it runs **no scores, no engine, no audit and no chart** — and `run.py` reports
+success, over a pipeline that did a fraction of the work, with no line of output
+saying which fraction. Registration and execution were two independent facts and
+nothing compared them.
+
+**Closed by refusal, not by derivation.** `registry_coverage_check.py` asserts
+every registered tag against all seven, reads the four `make_combined` tables with
+`ast` rather than by importing (importing dies on the one case it exists to
+report), and names the tag, the table and the consequence. `run.py` calls it from
+`preflight()`, over the whole registry rather than the selection, because coverage
+is a property of the repository and a one-universe run would otherwise pass while
+the other is half-wired. **A table that cannot be found at all is also a failure**,
+because a coverage check silently checking nothing is this same defect one level up.
+
+Deriving `REQUIRED_INPUTS` from the registry would remove one of the seven, and is
+deliberately NOT done here: making the silence loud is verifiable on its own, and
+the derivation moves a guard table four consumers read. Refusal first.
 
 **A green check whose subject is not the shipped thing is worse than no check**,
 because it is quoted. Instance 1 left this repository in conversation. Instance 3
