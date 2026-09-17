@@ -5108,3 +5108,121 @@ entry is indistinguishable from one that covers it."
 When adding a universe, `registry_coverage_check.py` is the authority on what is
 still missing -- it checked 12 tables at the time of writing and names each gap
 with its consequence. Do not work from a remembered list, including this one.
+
+---
+
+## `unresolved` is not fatal, which is why the same silent failure has happened four times
+
+Written 2026-09-18. OPEN, and this entry exists because it has been a comment in
+`check_pipeline_order.py` rather than a tracked issue, which is why there have
+been four.
+
+### The mechanism
+
+`check_pipeline_order.py` classifies every path expression it finds as a write, a
+read, or `unresolved`. A step that cannot be FOUND is fatal -- that was made fatal
+deliberately, and the comment at its raise says why: *"It was a banner, and that is
+how STEP 16 went unchecked from whenever it was added until 2026-09-04, and STEP 17
+from 2026-09-11."*
+
+**`unresolved` was never given the same treatment.** It is printed at the end of
+the run and gates nothing. The check exits 0 today with six entries in it.
+
+So any change that stops an edge resolving does not fail the build. It removes the
+edge from the ordering check and prints one more line in a list that is six lines
+long already.
+
+### The four instances, all recorded in that file's own comments
+
+| # | what changed | what was lost |
+|---|---|---|
+| 1 | STEP 16 added | the step was unchecked from whenever it was added until 2026-09-04 |
+| 2 | STEP 17 added | unchecked 2026-09-11 until the run that found it |
+| 3 | the three audit scripts collapsed into `audit_step.py` | `TAG_CALL` matched nothing, four producer edges vanished, check still reported success |
+| 4 | `config_mid.py` / `config_n100.py` folded into the registry (step 7) | `DIR_ASSIGN` and `PATH_EXPR`'s dotted branch key on a `config*` module and no source names one any more; without `REG_ASSIGN` all eight STEP 12b producer edges would have gone, silently |
+
+Instances 1 and 2 were fixed by making a missing STEP fatal. Instances 3 and 4
+were each fixed by adding a pattern -- and each was found by a human reading the
+output, not by the check failing.
+
+### THE FIFTH INSTANCE WAS PREVENTED ON 2026-09-18, AND THAT IS A DECISION TAKEN
+
+The planned work was a registry-driven `FILES` loop in
+`results/make_combined_universes.py`, replacing two hand-written per-universe
+blocks. `REG_ASSIGN` and `REGISTRY_CALL` both require a QUOTED LITERAL tag, so
+`M = REGISTRY[t].metrics_dir` matches neither, and the loop's edges would have
+fallen into `unresolved` with the check still reporting success. Instance five, by
+the same mechanism as three and four.
+
+The obvious repair was to teach the scanner to fan a loop-bound variable out over
+its row's declared span. **IT WAS MEASURED BEFORE IT WAS BUILT, AND IT WAS NOT
+BUILT.** Probed on synthetic source:
+
+```
+declared span ('mid','n100'), source writes results_mid ONLY
+    (an `if t == "mid":` guard inside the loop)
+with fan-out, the scanner would credit  results_n100/mid_only_artefact.csv
+```
+
+**That converts the failure from a SILENT MISS into a SILENT INVENTION**, and
+`unresolved` is structurally incapable of catching the second: it grows when
+something fails to resolve, and never when something resolves WRONGLY. A missing
+edge leaves the ordering check weaker; an invented edge makes it assert an
+ordering the code does not have.
+
+So fan-out was rejected and the `FILES` loop was not written. The two hand-written
+blocks stay. They are repetitive, but each one is honest, and
+`registry_coverage_check.py` fails closed when a universe is missing from them --
+which is a real net, unlike `unresolved`. Eight more universes may land as eight
+more blocks. **This is a decision taken, not an idea someone had and dropped.**
+
+See also `run_all.SPANS_REGISTRY`, whose definition records that the sentinel is an
+unverifiable claim about its own source for the same reason.
+
+### Triage of the six current entries, 2026-09-18
+
+Making `unresolved` fatal today would fail the build at six. They are not one kind
+of thing:
+
+**Two are not pipeline edges at all, and are MISATTRIBUTED.**
+`make_chart.py -> results_mid/{sym}.csv` and its n100 twin come from
+`results/make_chart.py:211`, `config.read_price_csv(_raw / f"{sym}.csv")` where
+`_raw = u.prepare_data_dir()` -- the CONSTITUENTS SYMLINK DIRECTORY under
+`data/raw`, not a metrics directory. The scanner has attributed a raw price read to
+`results_mid/`. It lands in `unresolved` only because `{sym}` cannot expand, which
+accidentally conceals the misattribution: were the placeholder expandable it would
+resolve to the WRONG directory. These should be excluded from candidacy, not
+resolved.
+
+**Two are real edges and are fixable.**
+`make_audit.py -> results_{mid,n100}/v2FINAL_equity{_cad}.csv`, from
+`results/audit_step.py:166`, where `_cad = cadence.suffix() + profiles.suffix()`.
+The edge is real -- at the default selection both suffixes are `""` and the file
+is the canonical `v2FINAL_equity.csv` written by `engine_v2_final.py`. The scanner
+refuses to expand a runtime-composed placeholder. Pinning axis suffixes to their
+defaults when scanning would resolve these, and matches the naming rule the whole
+project already uses: the default is unsuffixed.
+
+**Two are real edges and are NOT fixable without the mechanism just rejected.**
+`make_daily_log.py -> ?/daily_skipped_{tag}.csv` and `?/{f}_{tag}.csv`, from
+`results/make_daily_log.py:219-220` inside `load(M, tag)`. Both the directory and
+the tag are FUNCTION PARAMETERS. The reads are real -- the trail files are written
+by `make_audit.py` -- but binding a parameter to a directory is the same capability
+as binding a loop variable, and it carries the same silent-invention risk. Note the
+directory prints as `?`: not even the universe is known.
+
+### WHAT THIS MEANS FOR THE GOAL
+
+"Make `unresolved` fatal" is NOT achievable as stated, and that is the useful
+finding. Two of the six cannot be resolved without building the thing that was
+just declined on safety grounds.
+
+What is achievable is **fatal against a declared allowlist**: exclude the two
+misattributions from candidacy, resolve the two suffix ones, and DECLARE the two
+parameter-bound ones as known-unresolvable with their reason written down -- then
+make any entry outside that list fatal. That is strictly better than today,
+because a NEW unresolved entry becomes a build failure while the known ones stop
+being anonymous. It is the same shape as `REQUIRED_INPUTS`' fourth field: the thing
+that cannot be derived is declared, and the declaration is what fails.
+
+NOT DONE HERE. Recorded so the sixth instance is recognised as the sixth.
