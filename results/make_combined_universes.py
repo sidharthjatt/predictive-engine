@@ -158,12 +158,48 @@ _COUNT_WORD = {2: "both", 3: "all three", 4: "all four"}
 # draw call, rather than here.
 PAIR_CHART = ("n100", "mid")
 
+# THE REGISTRY SIZE THIS PAIR WAS LAST CONFIRMED AGAINST. Widened 2026-09-18, when
+# the registry was about to go from 2 universes to 10.
+#
+# THE GUARD BELOW HAS ALWAYS CAUGHT A PAIR NAMING A UNIVERSE THAT DOES NOT EXIST.
+# It could not catch the failure the comment above predicts -- a pair that stays
+# VALID while quietly ceasing to be the published figure, because the registry grew
+# around it. That failure is silent by construction: every name still resolves and
+# every chart still draws.
+#
+# IT RAISES RATHER THAN WARNS, BY DECISION. PAIR_CHART is the figure the README
+# publishes; a warning scrolls past and one wrong figure shipped silently costs
+# more than confirming a line once per registry change.
+PAIR_CHART_REGISTRY_SIZE = 2
+
 _unknown_pair = set(PAIR_CHART) - set(REGISTRY)
 if _unknown_pair:
     raise SystemExit(
         f"PAIR_CHART names universe(s) the registry does not define: "
         f"{sorted(_unknown_pair)}. The published comparison cannot be drawn. "
         f"Pick a pair from {sorted(REGISTRY)}, or retire the pair chart.")
+
+if len(REGISTRY) != PAIR_CHART_REGISTRY_SIZE:
+    raise SystemExit(
+        f"PAIR_CHART has not been re-confirmed since the registry changed size.\n"
+        f"  registry now holds {len(REGISTRY)} universes: {sorted(REGISTRY)}\n"
+        f"  PAIR_CHART_REGISTRY_SIZE says it was last confirmed at "
+        f"{PAIR_CHART_REGISTRY_SIZE}\n"
+        f"  PAIR_CHART is currently {PAIR_CHART}\n"
+        f"\n"
+        f"  WHAT TO DO, in results/make_combined_universes.py around line 159:\n"
+        f"    1. Decide whether {PAIR_CHART} is still the pair the README should\n"
+        f"       publish now that {sorted(set(REGISTRY) - set(PAIR_CHART))} also\n"
+        f"       exist. CHANGING THE PAIR IS OPTIONAL -- keeping it is a valid and\n"
+        f"       expected answer.\n"
+        f"    2. Set PAIR_CHART_REGISTRY_SIZE = {len(REGISTRY)}. THIS IS REQUIRED\n"
+        f"       EITHER WAY. Bumping it is the record that a human looked; it is\n"
+        f"       not bookkeeping and it is not derived, because deriving it would\n"
+        f"       restore exactly the silence this check exists to break.\n"
+        f"\n"
+        f"  PAIR_CHART IS DELIBERATELY NOT DERIVED FROM THE REGISTRY. Which figure\n"
+        f"  the project publishes is an editorial fact, not a property of the\n"
+        f"  universes -- see the comment above this constant.")
 
 
 def _joined(items):
