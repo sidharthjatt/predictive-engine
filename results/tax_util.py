@@ -387,3 +387,117 @@ def liability_schedule(lots, trading_days):
     due = {r["assessed_on"]: r["total_tax"]
            for r in rows if r["assessed"] and r["total_tax"] > 0}
     return pd.DataFrame(rows), due
+
+
+# ---------------------------------------------------------------------------
+# THE IN-LOOP LEDGER -- because the liability and the trades are circular
+# ---------------------------------------------------------------------------
+# TAX CANNOT BE COMPUTED FROM A FINISHED RUN AND THEN DEDUCTED FROM IT. The
+# deduction reduces cash; cash sizes every order through `int(... // pr)`; the
+# orders are what produce the gains; the gains are the liability. Running
+# untaxed, computing the bill from that log and charging it back is not a
+# conservative approximation -- it charges a bill the taxed portfolio would never
+# have incurred, because after the first deduction it is holding different names
+# in different sizes. A second pass does not converge to anything meaningful and
+# a fixed-point iteration would be a rule the document does not contain.
+#
+# SO THE LEDGER ACCRUES AS THE RUN GOES. Every SELL is bucketed the moment it
+# happens, from the position the engine is actually holding, and each financial
+# year's assessment reads only what had been realised by that date. One pass,
+# self-consistent, and it is what section 3(9)'s sentence describes: the bill
+# for a year reduces the capital available to trade the following one.
+#
+# THIS CLASS HOLDS NO CASH AND MOVES NONE. It is told about fills and asked what
+# is due; results/test_exposure.py owns the cash and does the subtraction.
+class Ledger:
+    """Realised-gain accumulator with per-financial-year assessment.
+
+    buy(sym, qty, price, date)     record an opened lot
+    sell(sym, qty, price, date)    -> realised gain, and bucket it
+    due_on(date)                   -> rupees to deduct BEFORE that day's fills
+    """
+
+    def __init__(self, dates):
+        self.lots = {}
+        self.realized = {}
+        self.assessed = set()
+        self.rows = []
+        # WHEN EACH YEAR FALLS DUE, PRECOMPUTED FROM THE RUN'S OWN CALENDAR.
+        # Section 3(9): the first trading day at or after 31 March. A year whose
+        # date never arrives is simply absent here and is never assessed -- which
+        # is FY2026-27 on this window, and liability_schedule() is what reports
+        # that rather than this.
+        d = pd.DatetimeIndex(sorted(pd.DatetimeIndex(dates)))
+        self.assess_on = {}
+        for fy in sorted({financial_year(x) for x in d}):
+            later = d[d >= pd.Timestamp(year=fy + 1, month=3, day=31)]
+            if len(later):
+                self.assess_on.setdefault(later[0], []).append(fy)
+
+    def buy(self, sym, qty, price, date):
+        self.lots.setdefault(sym, []).append([int(qty), float(price), date])
+
+    def sell(self, sym, qty, price, date):
+        """Realise `qty` of `sym` FIFO. Returns the gain; buckets it by FY."""
+        need, gain = int(qty), 0.0
+        while need > 0 and self.lots.get(sym):
+            lot = self.lots[sym][0]
+            take = min(need, lot[0])
+            held = (date - lot[2]).days
+            g = take * (float(price) - lot[1])
+            fy = financial_year(date)
+            key = ("long_" if held >= LTCG_HOLD_DAYS else "short_") + regime_of(date)
+            self.realized.setdefault(fy, dict.fromkeys(BUCKETS, 0.0))[key] += g
+            self.rows.append({
+                "symbol": sym, "buy_date": lot[2], "sell_date": date,
+                "qty": take, "buy_price": lot[1], "sell_price": float(price),
+                "held_days": held, "is_long": held >= LTCG_HOLD_DAYS,
+                "regime": regime_of(date), "fy": fy, "gain": g})
+            gain += g
+            lot[0] -= take
+            need -= take
+            if lot[0] == 0:
+                self.lots[sym].pop(0)
+        return gain
+
+    def due_on(self, date):
+        """Rupees due on `date`, or 0.0. Each financial year assessed ONCE.
+
+        THE SAME-DAY LEAK IS DETECTED, NOT ASSUMED AWAY. Section 3(9) can put a
+        year's assessment on the last day of that same year -- FY2019-20 falls
+        due 2020-03-31, which is inside FY2019-20 -- and the deduction happens
+        before that day's fills. A sell later the same day lands in a year that
+        has already been assessed exactly once, so its gain is never taxed.
+
+        It does not happen on the current window: no sell falls on an assessment
+        date belonging to its own financial year (checked across both universes,
+        2026-09-17; the one sell that does land on an assessment date is
+        2024-04-01, which is FY2024-25 being assessed for FY2023-24). It is
+        calendar luck, not a property, so `leaked` records it instead of the run
+        losing a gain in silence.
+        """
+        fys = self.assess_on.get(pd.Timestamp(date), [])
+        total = 0.0
+        for fy in fys:
+            if fy in self.assessed:
+                continue
+            self.assessed.add(fy)
+            b = self.realized.get(fy)
+            if b:
+                total += tax_for_fy(fy, b)["total_tax"]
+        return total
+
+    def leaked(self):
+        """Gains realised into a financial year that was already assessed.
+
+        Empty is the expected answer. A non-empty list means section 3(9)'s
+        "assessed exactly once" and the before-fills ordering have collided on
+        this calendar, and some realised gain escaped tax entirely.
+        """
+        out = []
+        for r in self.rows:
+            for d, fys in self.assess_on.items():
+                if r["fy"] in fys and r["sell_date"] >= d:
+                    out.append(r)
+                    break
+        return out

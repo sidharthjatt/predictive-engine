@@ -4626,3 +4626,70 @@ error is bounded by whatever moved in those seven years. A universe with a
 longer history -- and the survivorship work makes clear that longer histories are
 what this project keeps reaching for -- back-applies the same 2026 table over
 however many additional years it brings, with no gate anywhere that would notice.
+
+---
+
+## The tax lump sum is deducted before the day's fills, and the document does not say so
+
+Recorded 2026-09-17 with the in-loop tax hook. This is a STATED DECISION, not a
+defect and not a quoted rule. It is here because a reader comparing our output
+against the reference document would otherwise have no way to tell which of the
+two it is.
+
+### What the document fixes, and what it leaves open
+
+Section 3(9) fixes the amount and the date: each financial year is assessed
+exactly once, on the first trading day at or after 31 March, and the whole tax
+leaves cash as a single lump sum. It gives a reason, quoted:
+
+> "It reduces NAV and therefore reduces the capital available to trade the
+> following year -- tax genuinely compounds against you."
+
+It does not say where in that day the deduction falls. Our engine does several
+things on a single session: it accrues cash, force-exits untradeable names,
+sells the rebalance exits, sizes the entrants from whatever cash is left, and
+fills them. A lump sum can land before or after any of those.
+
+### The decision, and the reasoning
+
+`results/test_exposure.py` TOUCH POINT 6 deducts it FIRST -- immediately after
+the cash-yield line and before any fill that session.
+
+The document's own sentence is only true this way. Order sizing reads cash
+directly, `q = int((invest_val * w * f) // pr)`, and the cash test below it
+refuses an order the balance cannot carry. Money removed after the fills would
+reduce the reported NAV without ever having reduced the capital available to
+trade, which is the opposite of what the quoted sentence describes.
+
+Cash may go negative and is NOT clamped. A clamp would forgive part of a real
+liability and silently improve the result; an overdrawn book simply buys nothing
+that morning, which is the honest consequence.
+
+### The edge this ordering creates, which is detected rather than assumed away
+
+Section 3(9) can put a year's assessment inside that same year. FY2019-20 falls
+due on the first trading day at or after 31-Mar-2020, which is 2020-03-31 --
+still inside FY2019-20. A sell later that same day lands in a financial year
+already assessed "exactly once", so its gain would never be taxed at all.
+
+It does not occur on the current window. Checked across both universes: no sell
+falls on an assessment date belonging to its own financial year, and the only
+sell that lands on an assessment date at all is 2024-04-01, which is FY2024-25
+trading while FY2023-24 is assessed. `tax_util.Ledger.leaked()` reports 0 on
+both universes.
+
+That is calendar luck and not a property. A different cadence, a different
+window or a different universe calendar can put a sell on a 31-March assessment
+date, so `leaked()` exists to name the rows rather than let a run lose a realised
+gain in silence. It is a reporting hook, not a guard: nothing currently fails the
+run when it is non-empty.
+
+### One consequence worth stating separately
+
+Because the liability depends on the trades and the trades depend on the cash,
+the tax charged by a taxed run is NOT the tax computed from an untaxed run's
+trade log. Measured on mid: Rs 833,105 from the untaxed log against Rs 798,365
+actually charged, because after the first deduction the taxed book is holding
+smaller positions and realising smaller gains. The ledger accrues inside the
+loop for this reason, and any figure quoted for "the tax" must say which of the
+two runs produced it.

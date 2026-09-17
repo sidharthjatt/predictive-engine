@@ -37,6 +37,7 @@ import survivorship as sv
 import engine_core
 from engine_core import metrics, precompute
 import profiles as _prof            # the run's execution-realism profile
+import tax_util as _tax_util        # the tax RULES; this file owns the cash
 
 try:
     from qbeast_in_charges import (compute_leg_charges, Broker, Segment,
@@ -93,7 +94,8 @@ _VOL20_REQUIRED = object()
 def backtest_exposure(px, op, sc, dates, pc, mom20, port_vol=None,
                       mode="none", target_vol=None, audit=None, sizing="invvol",
                       const_expo=None, value_at_open=True, rebal=None,
-                      funding="cash", participation_cap=_CAP_REQUIRED, vol20=_VOL20_REQUIRED):
+                      funding="cash", participation_cap=_CAP_REQUIRED, vol20=_VOL20_REQUIRED,
+                      tax_enabled=False):
     """audit=None reproduces the original code path exactly: no overhead, and the
     official numbers are unchanged.
     Passing a dict with holdings/summary/trades/ranking/decisions/skipped keys logs
@@ -196,11 +198,45 @@ def backtest_exposure(px, op, sc, dates, pc, mom20, port_vol=None,
     shares, cash = {}, START_CAPITAL
     cum_tc, n_trades = 0.0, 0
     eq, pending, expo_log = [], None, []
+    # THE TAX LEDGER. None at the default, and `ledger is None` is the only test
+    # on the hot path -- the untaxed run does not construct it, does not record a
+    # lot and does not evaluate a date. tax_enabled is a PARAMETER rather than a
+    # read of tax.selected(), for the same reason rebal and participation_cap are:
+    # the caller owns the selection and the engine stays callable from a test that
+    # never touches the axis.
+    ledger = _tax_util.Ledger(dates) if tax_enabled else None
+    cum_tax = 0.0
+
     cash_daily = (1 + CASH_YIELD) ** (1 / 252) - 1
 
     for i, dt in enumerate(dates):
         prices, opens = px.loc[dt], op.loc[dt]
         cash *= (1 + cash_daily)
+
+        # TOUCH POINT 6 -- THE ANNUAL TAX LUMP SUM, section 3(9) of the tax
+        # reference: each financial year is assessed EXACTLY ONCE, on the first
+        # trading day at or after 31 March, and the whole bill leaves cash in one
+        # deduction.
+        #
+        # BEFORE THIS DAY'S FILLS, DELIBERATELY, AND THAT ORDERING IS OURS. The
+        # document says the deduction "reduces the capital available to trade the
+        # following year", which is only true if the money is gone before the
+        # morning's orders are sized -- `q = int((invest_val * w * f) // pr)` reads
+        # cash further down. The document does not rule on the same-day case, so
+        # this is a stated decision and not a quoted rule; see KNOWN_ISSUES.md.
+        #
+        # CASH MAY GO NEGATIVE HERE AND IS NOT CLAMPED. A clamp would forgive part
+        # of a real liability and silently improve the result; an overdrawn book
+        # buys nothing that morning, which is the honest consequence.
+        if ledger is not None:
+            _due = ledger.due_on(dt)
+            if _due:
+                cash -= _due
+                cum_tax += _due
+                if audit is not None:
+                    audit["skipped"].append({"date": dt, "side": "TAX", "symbol": "",
+                        "reason": f"capital-gains tax assessed, Rs {_due:,.2f}",
+                        "detail": "section 3(9): one lump sum, before this day's fills"})
 
         # TOUCH POINT 4 -- FORCED EXIT ON A SYMBOL GOING UNTRADEABLE.
         #
@@ -228,6 +264,8 @@ def backtest_exposure(px, op, sc, dates, pc, mom20, port_vol=None,
                 pr *= (1 - SLIPPAGE)
                 q = int(shares[s]); tc = calc_tc(pr, q, "SELL")
                 cash += q * pr - tc; cum_tc += tc; n_trades += 1
+                if ledger is not None:
+                    ledger.sell(s, q, round(pr, 2), dt)
                 if audit is not None:
                     audit["trades"].append({"date": dt, "action": "SELL", "symbol": s,
                         "qty": q, "price": round(pr, 2), "value": round(q*pr, 2),
@@ -253,6 +291,8 @@ def backtest_exposure(px, op, sc, dates, pc, mom20, port_vol=None,
                     pr *= (1 - SLIPPAGE)
                     q = int(shares[s]); tc = calc_tc(pr, q, "SELL")
                     cash += q * pr - tc; cum_tc += tc; n_trades += 1
+                    if ledger is not None:
+                        ledger.sell(s, q, round(pr, 2), dt)
                     if audit is not None:
                         audit["trades"].append({"date": dt, "action": "SELL", "symbol": s,
                             "qty": q, "price": round(pr, 2), "value": round(q*pr, 2),
@@ -369,6 +409,8 @@ def backtest_exposure(px, op, sc, dates, pc, mom20, port_vol=None,
                                 "detail": f"need Rs {q*pr+tc:,.0f}, have Rs {cash:,.0f}"})
                         continue
                     cash -= q * pr + tc; cum_tc += tc; n_trades += 1
+                    if ledger is not None:
+                        ledger.buy(s, q, round(pr, 2), dt)
                     if audit is not None:
                         audit["trades"].append({"date": dt, "action": "BUY", "symbol": s,
                             "qty": q, "price": round(pr, 2), "value": round(q*pr, 2),
@@ -499,6 +541,14 @@ def backtest_exposure(px, op, sc, dates, pc, mom20, port_vol=None,
                 "invested_pct": round(mtm / pv * 100, 2) if pv > 0 else 0.0,
                 "cash_pct": round(cash / pv * 100, 2) if pv > 0 else 0.0,
                 "cum_tc": round(cum_tc, 2), "cum_trades": n_trades})
+    # THE LEDGER RIDES OUT ON THE AUDIT DICT, NOT ON THE RETURN TUPLE. Widening
+    # the tuple would break every one of this function's callers, and all of them
+    # are untaxed. A caller that wants the tax trail passes an audit dict and
+    # finds it under "tax"; a caller that does not is unaffected, which is what
+    # keeps tax=off byte-identical rather than merely equal.
+    if audit is not None and ledger is not None:
+        audit["tax"] = {"ledger": ledger, "cum_tax": cum_tax,
+                        "lots": pd.DataFrame(ledger.rows), "leaked": ledger.leaked()}
     return (pd.Series(eq, index=dates), cum_tc, n_trades,
             np.mean(expo_log) if expo_log else 1.0)
 

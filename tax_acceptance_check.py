@@ -121,6 +121,12 @@ print(json.dumps(out))
 def _run_probe(tree):
     """The probe's dict, evaluated inside `tree` at an all-default selection."""
     f = Path(tempfile.mkdtemp()) / "probe.py"
+    # naming: axis-free -- this is the PROBE SOURCE, written to a throwaway temp
+    # directory so it can be executed inside another checkout. It is not an
+    # artefact, nothing reads it, and it is deleted with the temp dir. Declared
+    # rather than left bare because this file was itself the 112th undeclared
+    # write call when it landed -- the ratchet exists to stop exactly that, and a
+    # checker that adds a violation while enforcing the rule is the worst kind.
     f.write_text(PROBE)
     r = subprocess.run([sys.executable, str(f), str(tree)],
                        capture_output=True, text=True, cwd=str(tree))
@@ -205,6 +211,26 @@ def condition_2():
     print(f"    every composer measured for tax                  "
           f"{'PASS' if ok_meas else 'FAIL ' + str(unmeasured)}")
 
+    # THE FROZEN ENGINE MUST STAY OFF THIS AXIS, AND THIS IS HOW IT IS ENFORCED.
+    #
+    # The phase-1 design said "run.py refuses --tax on for 58 and 74", taken from
+    # cadence.py's docstring, which records exactly such a refusal for the
+    # cadence axis. THAT IS NOT IMPLEMENTABLE: the 58 and the 74 were deleted on
+    # 2026-09-11, universes/registry.py holds only mid and n100, and run.py:396
+    # records that the cadence skip-list was itself dropped because "every
+    # universe honours every cadence now". There is no selection left to refuse.
+    #
+    # What the design was actually protecting is still real -- results/
+    # engine_core.py is the frozen engine behind the hash-pinned artefacts and
+    # must not grow a tax path. So the refusal is replaced by an assertion on the
+    # file itself, which is stronger: it cannot be satisfied by a selection that
+    # nobody makes, and it fires on the edit rather than on the run.
+    eng = (ROOT / "results" / "engine_core.py").read_text()
+    eng_clean = not any(t in eng for t in ("import tax", "tax_util", "tax_enabled",
+                                           "Ledger", "CGT_REGIME"))
+    print(f"    engine_core.py carries no tax path                "
+          f"{'PASS' if eng_clean else 'FAIL -- the frozen engine must stay off this axis'}")
+
     # The declaration gate must exercise tax, and no declared site may break.
     r = subprocess.run([sys.executable, str(ROOT / "naming_declare_check.py")],
                        capture_output=True, text=True, cwd=str(ROOT))
@@ -216,7 +242,7 @@ def condition_2():
           f"{'PASS' if ok_probe else 'FAIL'}")
     print(f"    declared sites still honour their axes           "
           f"{'PASS' if ok_hon else 'FAIL'}   ({nothon[0].strip() if nothon else 'not reported'})")
-    return all([ok_axis, ok_last, ok_lit, ok_meas, ok_probe, ok_hon])
+    return all([ok_axis, ok_last, ok_lit, ok_meas, eng_clean, ok_probe, ok_hon])
 
 
 def main():
