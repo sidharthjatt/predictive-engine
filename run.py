@@ -683,7 +683,11 @@ def execute(plan, args):
                 covered={e[0].name for lst in mod["REQUIRED_INPUTS"].values()
                          for e in lst},
                 resolver=mod["script_path"], helpers=mod["STEP_HELPERS"],
-                list_unresolved=bool(plan["pipeline"]))
+                list_unresolved=bool(plan["pipeline"]),
+                # FIELD 4, SPAN -- see run_all.SPANS_REGISTRY. Passed the same way
+                # resolver is: the runner and the checker must not disagree about
+                # which universes a step touches any more than about where it lives.
+                span_of=mod["row_span"])
 
     # SAFETY 3 -- cache restore, so a step reads the panel it expects.
     if args.fresh:

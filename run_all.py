@@ -185,6 +185,75 @@ CACHE_PERM = _cache_perm()
 # collapse meaning exactly what they meant in every log written before it -- the
 # same identity-over-compaction rule the 2026-09-11 retirement set when it left
 # STEPS 0-9 and 11-14 as gaps rather than renumbering.
+# ---------------------------------------------------------------------------
+# THE FOURTH FIELD: SPAN. WHOSE DIRECTORIES A STEP TOUCHES.
+# ---------------------------------------------------------------------------
+# ONE FIELD CANNOT ANSWER TWO QUESTIONS, AND THE THIRD FIELD WAS ANSWERING TWO.
+#
+#   field 3, INVOCATION -- "which universe is this step invoked for". run.py reads
+#           it against the step's main() arity: a tag demands main(u), None demands
+#           main(). run.py:126-130, "Nothing defaults."
+#   field 4, SPAN -- "whose metrics directories does this step's source touch".
+#           check_pipeline_order reads it to resolve producer edges.
+#
+# THEY COINCIDE FOR A PER-UNIVERSE STEP, which is why the scanner could co-opt
+# field 3 and nobody noticed. THEY DIVERGE FOR AN N-WAY STEP: STEP 12b
+# make_combined_universes is invoked ONCE for NO universe -- main() takes zero
+# arguments and None is correct -- while touching EVERY universe's directory.
+# Widening field 3 to carry both would make run.py refuse to start, because a
+# non-None field 3 demands main(u).
+#
+# SPANS_REGISTRY IS RESOLVED LIVE, NOT SNAPSHOTTED, AND THAT IS THE WHOLE POINT.
+# It means "this step is GENERIC OVER THE REGISTRY" -- its source loops over the
+# registered tags rather than naming any -- so the correct span is whatever is
+# registered when the scanner runs. A snapshot tuple would be a second copy of the
+# registry that goes stale the day a ninth universe lands, and it would go stale
+# SILENTLY: the scanner would simply resolve fewer edges, and `unresolved` would
+# not grow to say so.
+#
+# IT IS A CLAIM ABOUT THE CODE, NOT ABOUT TESTING. A step may only use this
+# sentinel if its source really is generic. A step that handles SOME universes and
+# not others must NOT use it -- it lists its subset as an explicit literal tuple,
+# e.g. ("mid", "n100"), which is checked against the registry and is exactly the
+# spelling that says "these, and not whatever arrives later".
+#
+#   None              touches no universe metrics directory (the default, and what
+#                     every per-universe row uses -- field 3 already names it)
+#   ("mid", "n100")   touches exactly these, and does not follow the registry
+#   SPANS_REGISTRY    generic over the registry, resolved live at scan time
+SPANS_REGISTRY = "__spans_registry__"
+
+
+def row_span(row):
+    """The universe tags a PIPELINE_ORDER row's step touches, resolved.
+
+    INDEXED, NEVER UNPACKED, and absent means None -- the same contract field 3
+    arrived under. Every consumer of this table reads by index behind a length
+    guard, so a row that does not carry a fourth element is unaffected.
+    """
+    span = row[3] if len(row) > 3 else None
+    if span is None:
+        return ()
+    if span == SPANS_REGISTRY:
+        from universes.registry import REGISTRY
+        return tuple(REGISTRY)
+    unknown = [t for t in span if t not in _registry_tags()]
+    if unknown:
+        raise SystemExit(
+            f"run_all.PIPELINE_ORDER: row {row[0]} {row[1]} declares a span over "
+            f"universe(s) the registry does not define: {sorted(unknown)}.\n"
+            f"  The fourth field is the set of universes whose metrics directories "
+            f"this step touches.\n"
+            f"  Known: {sorted(_registry_tags())}. Use SPANS_REGISTRY if the step "
+            f"is generic over the registry rather than naming a subset.")
+    return tuple(span)
+
+
+def _registry_tags():
+    from universes.registry import REGISTRY
+    return set(REGISTRY)
+
+
 PIPELINE_ORDER = [
     ("STEP 10a", "build_scores.py",            "mid"),
     ("STEP 10b", "engine_v2_final.py",         "mid"),
@@ -201,7 +270,9 @@ PIPELINE_ORDER = [
     # combine mid and n100. Its mid and n100 inputs are written at 10c and 10g, so
     # they are still upstream; nothing consumes the chart, so nothing downstream
     # moved. Output verified byte-identical across the move.
-    ("STEP 12b", "make_combined_universes.py", None),
+    # FIELD 4: this step is generic over the registry -- it loops the selected
+    # tags rather than naming any. Field 3 stays None: main() takes no universe.
+    ("STEP 12b", "make_combined_universes.py", None, SPANS_REGISTRY),
     ("STEP 15", "make_daily_log.py",           None),
     # ORDERING, AND WHY IT IS A STEP. STEP 16 reads the PERMANENT panels, so the
     # copy from /tmp must happen before it -- the constraint run_all.py used to
