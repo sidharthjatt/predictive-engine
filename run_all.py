@@ -463,6 +463,11 @@ def entry_applies(e, tag, usel, asel, label="", script=""):
     # answers a different question -- which axes the filename carries -- and the
     # two sit on the same tuple, so spending that word here would give it two
     # meanings in one place.
+    # IMPORTED LOCALLY, as cadence and profiles are in this file. run_all is
+    # imported by check_plan_order via runpy at module scope and must not pull an
+    # axis module in at import time.
+    import tax as _tax
+
     quals = [q.strip() for q in str(e[2]).split(",")] if len(e) >= 3 else []
     if tag is not None and not any(q.startswith("u:") for q in quals):
         raise SystemExit(
@@ -483,7 +488,25 @@ def entry_applies(e, tag, usel, asel, label="", script=""):
     for q in quals:
         if not q:
             continue
-        if q.startswith("u:"):
+        if q.startswith("tax:"):
+            # THE TAX QUALIFIER IS EVALUATED AGAINST THE RUN, NOT THE INVOCATION,
+            # AND THAT IS THE OPPOSITE OF `u:` ON PURPOSE.
+            #
+            # `u:` had to move to invocation scope because ONE SCRIPT SERVES TWO
+            # UNIVERSES IN ONE RUN -- merged make_chart.py is STEP 10d for mid and
+            # STEP 10h for n100 -- so "did this RUN select n100" and "is this
+            # INVOCATION n100" are different questions and the plan built from the
+            # wrong one was unsatisfiable.
+            #
+            # There is no such collapse on the tax axis. run.py sets the tax
+            # selection once, no script serves both a taxed and an untaxed
+            # invocation, and run scope and invocation scope are provably the same
+            # value. "Provably" is checked rather than trusted:
+            # tax.is_uniform_over_plan() exists so that the day a per-universe tax
+            # selection is introduced, THAT assertion fires at plan time instead of
+            # this qualifier quietly answering the wrong question for five days.
+            ok = (_tax.selected() if q[4:] == "on" else not _tax.selected())
+        elif q.startswith("u:"):
             # THE tag-IS-None BRANCH IS THE WHOLE-RUN CONTRACT, NOT A FALLBACK.
             # PIPELINE_ORDER's third field is None for a step whose main() takes no
             # universe (make_daily_log.py; likewise STEP 12b, 15b, 16, 17). Such a
