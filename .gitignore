@@ -111,3 +111,4 @@ data/raw/N100_Survivorship/*
 #   the gap above is a known gap rather than an assumed protection.
 forensic_snapshot_*/
 forensic_snapshot_*/
+pre_repoint_baseline/
