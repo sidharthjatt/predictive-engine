@@ -46,6 +46,7 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
+import config                            # noqa: E402
 from universes.registry import REGISTRY   # noqa: E402
 
 
@@ -70,8 +71,24 @@ def main():
     n = 0
     for tmp, perm in pairs():
         if tmp.exists():
+            # THE SIDECAR IS COPIED, NOT REGENERATED FROM THE REGISTRY. Writing
+            # it here from u.raw_data_dir would stamp the CURRENT source onto a
+            # panel built from whatever the source was when the panel was built
+            # -- which is exactly the claim the sidecar exists to check, forged
+            # by the step that persists it. A working panel with no sidecar is
+            # refused rather than blessed on its way to a permanent home.
+            side = config.cache_source_file(tmp)
+            if not side.exists():
+                raise config.CacheSourceError(
+                    f"refusing to persist {tmp}: no source sidecar "
+                    f"({side.name}).\n"
+                    f"  It was written by something that does not record its "
+                    f"source, or it survives from before source recording.\n"
+                    f"  Delete it and rebuild with "
+                    f"`./venv/bin/python run_all.py`.")
             perm.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy(tmp, perm)
+            shutil.copy(side, config.cache_source_file(perm))
             n += 1
     print(f"caches saved (restart-proof). {n} of {len(pairs())} panels persisted.")
 

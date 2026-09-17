@@ -81,6 +81,36 @@ import config
 HORIZON = 20          # engine_core.HORIZON; repeated here only to name the caches
 
 
+class IndexFileError(RuntimeError):
+    """A source directory does not name exactly one index file."""
+
+
+class StaleConstituentFarm(RuntimeError):
+    """A constituents directory holds links that do not come from its source."""
+
+
+def normalise_stem(stem):
+    """The spelling-insensitive key a file stem is compared under.
+
+    WHY EQUALITY ON THE RAW STEM WAS NOT ENOUGH. The exclusion below is by name,
+    and until 2026-09-18 by EXACT name. The supplier's directories spell the
+    same index with spaces -- "NIFTY MIDCAP 150.csv", "NIFTY 100.csv" -- where
+    this repository's own folders spelled it "NIFTYMIDCAP150.csv" and
+    "NIFTY100.csv". Measured against the new folders before the change:
+    _constituents(new_mid, "NIFTYMIDCAP150") returned 149 names and
+    _constituents(new_n100, "NIFTY100") returned 100, each with the index among
+    them, AND BOTH ASSERTS IN prepare_data_dir() PASSED -- the second one looks
+    for the old spelling, which genuinely is not present, so the guard was
+    satisfied by the very rename it exists to catch.
+
+    Whitespace and case only. NOT punctuation, NOT digits, NOT a fuzzy match: a
+    normaliser loose enough to pair two different instruments would silently
+    delete a constituent, which is the same class of error pointing the other
+    way. `IndexFileError` covers what this deliberately does not.
+    """
+    return "".join(stem.split()).casefold()
+
+
 def _constituents(raw_dir, index_name):
     """The tradable names in a source folder: every CSV stem EXCEPT the index.
 
@@ -99,7 +129,26 @@ def _constituents(raw_dir, index_name):
     simply produces nothing. See the module docstring on why that is a broken
     checkout rather than a universe removal.
     """
-    return tuple(sorted(f.stem for f in raw_dir.glob("*.csv") if f.stem != index_name))
+    files = sorted(raw_dir.glob("*.csv"))
+    if not files:
+        return ()
+    if index_name is None:
+        return tuple(f.stem for f in files)
+
+    key = normalise_stem(index_name)
+    hits = [f.stem for f in files if normalise_stem(f.stem) == key]
+    if len(hits) != 1:
+        raise IndexFileError(
+            f"index_name {index_name!r} matches {len(hits)} files in {raw_dir}"
+            + (f": {hits}" if hits else "")
+            + ".\n"
+            "  EXACTLY ONE IS REQUIRED. Zero means the exclusion below removes\n"
+            "  nothing and every constituent list built from this directory is\n"
+            "  one name too long, with the published index sitting in it as a\n"
+            "  tradable stock. More than one means the directory does not say\n"
+            "  which file is the index. Neither can be resolved by guessing:\n"
+            "  correct index_name on the registry row, or correct the folder.")
+    return tuple(f.stem for f in files if normalise_stem(f.stem) != key)
 
 
 @dataclass(frozen=True)
@@ -291,19 +340,100 @@ class Universe:
         """
         if self.raw_data_dir is None:
             return self.data_dir
+        src = self.raw_data_dir.resolve()
+
+        # THE INDEX CHECK RUNS BEFORE ANY LINK IS WRITTEN, not only in the
+        # asserts at the bottom. Those still stand, but they fire after the farm
+        # has been built, so a poisoned symbol_list left 149 links on disk -- the
+        # index among them -- and only then raised. A guard that refuses after
+        # creating the thing it refuses is a guard the next reader has to clean
+        # up after.
+        if self.index_name is not None:
+            key = normalise_stem(self.index_name)
+            leaked = [x for x in self.symbol_list if normalise_stem(x) == key]
+            if leaked:
+                raise IndexFileError(
+                    f"{self.tag}: symbol_list holds the index under "
+                    f"{leaked} while index_name is {self.index_name!r}.\n"
+                    "  These are the same name once whitespace and case are\n"
+                    "  removed, so the published index would be linked into the\n"
+                    "  constituents directory and averaged with its own members.\n"
+                    "  Nothing has been written.")
+
         self.data_dir.mkdir(parents=True, exist_ok=True)
         wanted = set(self.symbol_list)
+
         for link in self.data_dir.glob("*.csv"):        # drop anything stale
             if link.stem not in wanted:
                 link.unlink()
+
+        # EVERY SURVIVING ENTRY MUST ALREADY POINT INTO THE CURRENT SOURCE, and
+        # one that does not is an ERROR rather than something to quietly repair.
+        #
+        # The creation loop below used to read `if not link.exists()`. A link
+        # that exists is not evidence that it points anywhere this universe
+        # still uses: measured on 2026-09-18, repointing mid's raw_data_dir at
+        # the supplier's folder and calling this method left all 148 links
+        # aimed at data/raw/MidCap150/clean, returned normally, and passed both
+        # asserts -- a sha256 over (name -> resolved target) was byte-identical
+        # before and after, so the call was a proven no-op. The prune loop above
+        # did not catch it either: it drops by STEM, and no stem was stale.
+        #
+        # SILENTLY RELINKING WOULD ALSO BE WRONG. A farm full of foreign links
+        # means someone changed raw_data_dir without migrating, or is running
+        # against a tree they did not build; repairing it in passing throws away
+        # the only moment that fact is visible. The caller deletes the farm --
+        # `rm -rf` is the documented migration -- and this rebuilds it.
+        foreign = []
+        for link in sorted(self.data_dir.glob("*.csv")):
+            if not link.is_symlink():
+                foreign.append(f"{link.name}: a regular file, not a symlink")
+                continue
+            target = link.readlink()
+            if not target.is_absolute():
+                target = link.parent / target
+            if target.parent.resolve() != src:
+                foreign.append(f"{link.name} -> {target}")
+        if foreign:
+            shown = "\n".join(f"      {f}" for f in foreign[:5])
+            more = (f"\n      ... and {len(foreign) - 5} more"
+                    if len(foreign) > 5 else "")
+            raise StaleConstituentFarm(
+                f"{self.tag}: {len(foreign)} of "
+                f"{len(list(self.data_dir.glob('*.csv')))} entries in\n"
+                f"    {self.data_dir}\n"
+                f"  do not come from this universe's current raw_data_dir\n"
+                f"    {src}\n{shown}{more}\n"
+                f"  The farm was built against a different source. Delete it and\n"
+                f"  let it be rebuilt:\n"
+                f"      rm -rf {self.data_dir}")
+
+        # DERIVED FROM raw_data_dir EVERY TIME, not only when absent. Each link
+        # is written from the source path on every call, so the farm is a
+        # function of raw_data_dir rather than a cache of one.
         for sym in self.symbol_list:
+            target = self.raw_data_dir / f"{sym}.csv"
+            if not target.exists():
+                raise StaleConstituentFarm(
+                    f"{self.tag}: {target} does not exist, so the farm cannot be\n"
+                    f"  derived from raw_data_dir. symbol_list and the source\n"
+                    f"  directory disagree; a link written here would dangle.")
             link = self.data_dir / f"{sym}.csv"
-            if not link.exists():
-                link.symlink_to(self.raw_data_dir / f"{sym}.csv")
+            if link.is_symlink() or link.exists():
+                link.unlink()
+            link.symlink_to(target)
+
         present = tuple(sorted(f.stem for f in self.data_dir.glob("*.csv")))
         assert present == self.symbol_list, \
             f"{self.tag}: constituents directory does not match symbol_list"
-        assert self.index_name not in present, \
+        assert all(f.readlink().parent.resolve() == src
+                   for f in self.data_dir.glob("*.csv")), \
+            f"{self.tag}: a link in the farm does not resolve into raw_data_dir"
+        # NORMALISED, so the index cannot re-enter under a different spelling of
+        # its own name. See normalise_stem().
+        assert (self.index_name is None
+                or normalise_stem(self.index_name)
+                not in {normalise_stem(x) for x in present}), \
             f"{self.tag}: the index leaked into the constituent set"
         return self.data_dir
 

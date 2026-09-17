@@ -52,6 +52,7 @@ for _p in (str(ROOT), str(ROOT / "results")):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
+import config                                                  # noqa: E402
 from engine_core import build_panel, score_monthly, HORIZON   # noqa: E402
 from features_v2 import FEATS_V2                              # noqa: E402
 
@@ -76,6 +77,14 @@ def run(u):
     """
     cached = Path(u.score_tmp)
     if cached.exists():
+        # A WARM /tmp PANEL IS ONLY WARM IF IT CAME FROM THIS SOURCE. The skip
+        # below is what makes a re-run cheap, and it was also a second way for
+        # an old-vendor panel to be adopted by a repointed universe: the file is
+        # present, so the build never runs and require_cache is never reached.
+        # _verified() raises rather than rebuilding, for the reason given in
+        # config.py -- a cache that quietly regenerates destroys the operator's
+        # evidence that the tree is in a state they did not intend.
+        config._verified(cached, f"{u.tag} score panel (warm /tmp copy)")
         print(f"    score panel cached, skipping build ({cached})", flush=True)
         return
 
@@ -108,6 +117,7 @@ def run(u):
     raw = raw[keep]
     # naming: axis-free -- raw panel is keyed by universe only; it is built before any arm, cadence or profile is applied
     raw.to_csv(u.raw_tmp, index=False)
+    config.write_cache_source(u.raw_tmp, u.raw_data_dir)
     print(f"    done {(time.time()-t0)/60:.1f} min, {len(raw):,} rows", flush=True)
 
     print("[2/2] Monthly scoring, 10-seed ensemble (slow)...", flush=True)
@@ -116,6 +126,7 @@ def run(u):
     # naming: axis-free -- score panel is the model's output, upstream of every arm; all arms read this one file
     scored[["date", "symbol", "open", "close", "score", "year"]].to_csv(
         u.score_tmp, index=False)
+    config.write_cache_source(u.score_tmp, u.raw_data_dir)
     print(f"    done {(time.time()-t0)/60:.1f} min", flush=True)
     if want is None:
         print(f"DONE -- {u.score_tmp} ready")
