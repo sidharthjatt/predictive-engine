@@ -3499,6 +3499,107 @@ section 13.
 
 ---
 
+### 36. The held-out pre-registration, spent — **sd_in IS 16.84x mu_in, SO 12 SESSIONS RESOLVE ALMOST NOTHING; THE PASS IS A CONSEQUENCE OF THAT**
+
+*Pre-registration: `experiments/HELDOUT_PREREG.txt`, written 2026-09-12, BEFORE
+any data after 2026-05-29 was examined. The frozen 11-parameter configuration,
+the excess statistic, the consistency interval and the pass/fail rule were all
+fixed there first. An addendum dated 2026-09-16 records three findings about what
+running it would measure and explicitly changes no line of sections 1–6.*
+
+**THE HEADLINE IS THE DISPERSION.** Pooled over 3,670 in-sample sessions
+(n100 1,835 + mid 1,835):
+
+```
+mu_in  : +3.0093 bps/session   (+7.58% annualised)
+sd_in  : 50.6780 bps/session
+```
+
+**`sd_in / mu_in` = 16.84.** The per-session edge is one seventeenth of the noise
+it sits in. Everything below follows from that ratio, and no verdict computed on
+12 sessions can escape it.
+
+**THE SAMPLE IS A FIFTH OF THE DESIGN, AND THE INTERVAL WIDENED TO MATCH.**
+Section 3 reasoned about power on "roughly 65 pooled sessions". The window that
+actually exists is 6 sessions per universe, 12 pooled — 2026-06-01 to 2026-06-08
+on both. Because `se = sd_in / sqrt(n)` is computed from whatever `n` turns out to
+be, the interval was not held fixed against the shortfall:
+
+```
+n (held-out, pooled)      : 12
+se = sd_in / sqrt(n)      : 14.6295 bps/session
+interval                  : [ -26.2497 , +32.2682 ] bps/session
+```
+
+**That is 2.33x wider than the arithmetic section 3 assumed.** The run's own
+output states the consequence rather than leaving it to a reader:
+
+> A WIDER INTERVAL IS EASIER TO FALL INSIDE. Nothing in the procedure
+> checks n against the number it was designed around; se is computed from
+> whatever n turns out to be. THE VERDICT BELOW IS NOT THE TEST THIS FILE
+> DESIGNED. It is that test's procedure run on a fifth of its sessions,
+> because a fifth is all the data that will ever exist.
+
+**The accept rule**, quoted verbatim from section 3 of the pre-registration:
+
+> PASS   the held-out pooled mean excess is POSITIVE and falls inside that
+>        interval.
+> FAIL   it is negative, or it falls outside the interval in EITHER direction.
+>
+> A RESULT THAT IS TOO GOOD IS ALSO A FAIL, and that is deliberate. An
+> out-of-sample edge several times the in-sample one is evidence that something
+> changed -- a data refresh, a corporate action, a look-ahead -- not evidence of
+> skill. The interval is two-sided on magnitude and one-sided on sign.
+
+**THE RESULT.**
+
+| quantity | value |
+|---|---|
+| held-out pooled mean excess | **+0.3515 bps/session** (+0.89% annualised, readability only) |
+| positive? | True |
+| inside [−26.2497, +32.2682]? | True |
+| **verdict** | **PASS on 12 pooled sessions** |
+
+**The verdict is PASS, and it is recorded as PASS.** It is not softened here. But
+the interval it fell inside spans 58.5 bps and the statistic is 0.35 bps — the
+observation sits at 1.2% of the interval's half-width from the centre. An interval
+that wide would have admitted almost any small positive number, which is what
+"the PASS is a consequence of the width" means concretely. The pre-registration's
+own section 4 says it plainly:
+
+> A PASS HERE IS NOT CONFIRMATION AND MUST NOT BE QUOTED AS VALIDATION.
+
+**WHAT IT DOES ESTABLISH.** That the in-sample picture did not fall apart
+immediately outside its window. Nothing more. It does not correct the 26 prior
+contaminated trials — section 5 is explicit that this is "one clean observation
+appended to a record of 26 contaminated ones. That is an improvement in kind, not
+a repair of what came before."
+
+**THE WINDOW IS SPENT AND CANNOT BE RE-RUN.** `heldout_prereg_run.py:125-131`
+refuses a second run on the `[HELDOUT-PREREG-RESULT-BLOCK]` sentinel now present
+in the pre-registration. There is no larger `n` available: the price data is fixed
+at 2026-06-08.
+
+**NUMBERING — TWO INDEPENDENT SCHEMES, DO NOT RECONCILE THEM.**
+`HELDOUT_PREREG.txt:249-250` directs that the verdict be recorded "in this file
+and in experiments/EXPERIMENTS.md, **as trial 27**". That is the running
+*multiple-testing trial count*, not an entry number. This is **entry 36**.
+**Entry 27 is a different thing entirely** — the TOP_N=8 revalidation. A reader
+who tries to make trial 27 and entry 27 agree will be reconciling two counters
+that were never the same counter.
+
+**Artefacts.** `diagnostics/heldout_prereg_result.txt` (the full output),
+`experiments/HELDOUT_PREREG.txt` (pre-registration plus the appended result
+block). Script: `heldout_prereg_run.py`. Run at HEAD
+`4558ddab0692fca7cf10752c950a26d9d2ea44cb`, working tree clean, against
+pre-registered commit `806a7fbba9a41a954e0ac75bc5a8064ecbabd414` (an ancestor),
+all 11 frozen parameters matching section 1 and the real charge model active.
+Committed as `0b021ae`. The reproduction gate ran before any held-out figure was
+read: max relative difference 2.219e-16 (n100) and 2.172e-16 (mid) against the
+shipped `v2FINAL_equity.csv`, tolerance 1e-12.
+
+---
+
 ## Which purge the shipped panels were built with, measured. 2026-09-02.
 
 Not an experiment and not a trial — a **measurement on the artefacts**, run
