@@ -4693,3 +4693,63 @@ actually charged, because after the first deduction the taxed book is holding
 smaller positions and realising smaller gains. The ledger accrues inside the
 loop for this reason, and any figure quoted for "the tax" must say which of the
 two runs produced it.
+
+---
+
+## A gate count measured before the change it describes is a claim about a tree that no longer exists
+
+Recorded 2026-09-17, at the pattern level, after the second instance. Open as a
+practice; both individual numbers have been corrected.
+
+### The pattern
+
+A commit message reports a gate's figures -- "111 undeclared calls across 50
+sites", "0 defects", "exit 0" -- as evidence that the change it accompanies did
+not move them. The number is obtained by running the gate, then writing the
+message, then staging the change. But several of this project's gates SCAN THE
+WORKING TREE, including files that are not yet tracked. A gate run before
+`git add` is measuring a tree that does not contain the commit, so the figure
+quoted as proof of the commit's innocence was taken from a tree the commit does
+not describe.
+
+It fails in exactly one direction, which is why it survives review: the number is
+always the OLD one, so it always shows no change, so it always looks like the
+evidence the message wanted. A regression introduced by the commit is invisible
+precisely when the message is most confident.
+
+### Both instances
+
+**ecfbac3** reported GATE 1 at 111 undeclared calls across 50 sites. The
+pre-registration runner and its artefacts were added in that commit; the count
+was taken before they were staged.
+
+**7846f67** reported GATE 1 at 111 and stated the count was "byte-identical on
+HEAD and untouched by this commit". It took it to 112.
+`tax_acceptance_check.py`, added by that commit, contains
+`f.write_text(PROBE)` -- a throwaway probe source written to a temp directory,
+but `write_text` is in `naming_declare_check.WRITERS` and the call carried no
+directive. The count was measured before the file was staged, so the message
+reported the figure from a tree without it.
+
+Corrected in 59dff90: the probe write is declared `# naming: axis-free`, and
+GATE 1 is back to 111 across 50 sites.
+
+### What a reader would wrongly conclude
+
+That a gate figure in a commit message is a measurement of that commit. It is
+only a measurement of whatever was on disk when the command ran, and for an
+untracked file that is a tree the commit does not describe. The figures in
+KNOWN_ISSUES.md and in commit messages should be read as claims about a tree,
+and the tree should be named.
+
+### Why this is not fixed with a hook
+
+The obvious fix -- a pre-commit hook that re-runs the gates against the index --
+would run four to six checks on every commit in a repository where one of them
+spawns a backtest. It would also not have caught either instance, because both
+messages were written honestly from a command that really did print that number.
+The defect is in WHEN the command is run, not in what it prints. The practice is
+therefore: run the gate AFTER `git add` and before `git commit`, and quote the
+figure from that run. Recorded here rather than automated, because a practice
+that is written down and cited twice is cheaper than a hook nobody can afford to
+run.

@@ -120,6 +120,22 @@ THE STUB YEARS, DECIDED IN THE OPEN
     NEVER DEDUCTED. assess_dates() reports it as unassessed rather than
     dropping it, because a liability that silently vanishes flatters the result.
 
+TAX PARTIALLY DAMPS ITSELF, AND THE TWO NUMBERS MUST NOT BE SWAPPED
+    The deduction shrinks cash, cash sizes every order, smaller positions realise
+    smaller gains, and a smaller gain is a smaller bill. So a taxed run pays LESS
+    than its own untaxed trade log implies -- tax partially damps itself.
+
+    MEASURED ON mid, full window, v2 breadth arm:
+
+        Rs 833,105   implied by the UNTAXED run's trade log
+        Rs 798,365   actually charged by the TAXED run        (-4.2%)
+
+    THE SECOND NUMBER IS THE ONLY ONE THAT MAY APPEAR IN FY_TAX_STATEMENT. It is
+    what the portfolio paid, it reconciles with FY_EQUITY to the paisa, and the
+    first describes a run that did not happen. The gap is an observation recorded
+    here once, with both figures and which run produced each; it is not a
+    statement column and no artefact carries it as a figure.
+
 WHAT IS NOT MODELLED -- section 3(D), carried over verbatim in substance
     Carry-forward of a net loss: a net-loss year pays nil and the loss is
     DISCARDED, not carried forward. The code floors at zero and resets each
