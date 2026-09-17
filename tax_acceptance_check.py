@@ -245,12 +245,77 @@ def condition_2():
     return all([ok_axis, ok_last, ok_lit, ok_meas, eng_clean, ok_probe, ok_hon])
 
 
+def condition_3():
+    """The LTCG holding-period boundary, asserted rather than assumed.
+
+    WHY THIS FIXTURE EXISTS, AND WHY IT CANNOT COME FROM THE PANEL.
+    results/tax_util.py:80-86 records the reason in terms: zero lots in either
+    shipping universe exceed 365 days, so "100% short-term" is TRUE TODAY -- and
+    true "by 39 days", the gap between the longest real lot (326 on mid, 322 on
+    n100) and the threshold. Every real lot therefore takes the `short_` arm, and
+    NO RUN OF THIS PIPELINE EVER EXERCISES `is_long = held >= LTCG_HOLD_DAYS` in
+    its True state. A cadence change, a longer window or a slower arm could push a
+    lot past 365 and begin firing the long-term branch for the first time in
+    production, with nothing having ever checked it.
+
+    So the boundary is pinned with SYNTHETIC lots, three of them, straddling the
+    threshold. They are not drawn from the panel because the panel cannot reach
+    the boundary -- that is the whole point.
+
+    364 -> short, 365 -> long, 366 -> long.  The comparison is `>=`, so 365 is
+    the FIRST long-term day, not the last short-term one. An edit to `>` would
+    move every 365-day lot from 12.5% to 20% and no existing artefact would
+    change, because no artefact has a 365-day lot in it. This condition is the
+    only thing that would notice.
+    """
+    import pandas as pd
+    sys.path.insert(0, str(ROOT / "results"))
+    import tax_util as T
+
+    dates = [pd.Timestamp("2020-01-01"), pd.Timestamp("2027-04-01")]
+    buy = pd.Timestamp("2020-01-01")
+    cases = ((364, False, "short"), (365, True, "long"), (366, True, "long"))
+
+    print("\n  CONDITION 3 -- the 365-day LTCG boundary (synthetic lots)")
+    ok_all = True
+    for days, want_long, want_arm in cases:
+        led = T.Ledger(dates)
+        sell = buy + pd.Timedelta(days=days)
+        led.buy("FIXTURE", 10, 100.0, buy)
+        led.sell("FIXTURE", 10, 110.0, sell)
+        row = led.rows[-1]
+        got_arm = ("long_" if row["is_long"] else "short_") + T.regime_of(sell)
+        ok = (row["is_long"] is want_long or bool(row["is_long"]) == want_long) \
+             and got_arm.startswith(want_arm)
+        ok_all = ok_all and ok
+        print(f"    held {days:>3}d  is_long={str(bool(row['is_long'])):<5} "
+              f"bucket={got_arm:<11} expect {want_arm:<5} "
+              f"{'PASS' if ok else 'FAIL'}")
+        assert bool(row["is_long"]) == want_long, (
+            f"LTCG boundary moved: a lot held {days} days reported "
+            f"is_long={bool(row['is_long'])}, expected {want_long}. "
+            f"tax_util.LTCG_HOLD_DAYS={T.LTCG_HOLD_DAYS}, comparison must stay "
+            f">=. See tax_util.py:80-86 -- no real lot reaches this boundary, so "
+            f"nothing else in the tree would have caught this.")
+        assert got_arm.startswith(want_arm), (
+            f"LTCG boundary bucket wrong: {days} days -> {got_arm}, "
+            f"expected a {want_arm}_* bucket.")
+
+    assert T.LTCG_HOLD_DAYS == 365, (
+        f"LTCG_HOLD_DAYS is {T.LTCG_HOLD_DAYS}, not 365. Section 3.2 of the "
+        f"reference document fixes it at 365 "
+        f"(is_long = held_days >= LTCG_HOLD_DAYS).")
+    print(f"    LTCG_HOLD_DAYS == 365                            PASS")
+    return ok_all
+
+
 def main():
     print("=" * 78)
     print(" TAX AXIS ACCEPTANCE -- inert at default, real off it")
     print("=" * 78)
     c1 = condition_1()
     c2 = condition_2()
+    c3 = condition_3()
 
     print("\n  NOT COVERED BY THIS CHECK, AND NOT IMPLIED:")
     print("    - file CONTENTS. This checks names. The contents gate is")
@@ -260,7 +325,7 @@ def main():
     print(f"    - RETIRED_UNIVERSES-manifest.txt's 171 hashes: "
           f"{'verifiable' if snap else 'NOT VERIFIABLE -- forensic_snapshot_* absent from this tree'}")
 
-    ok = (c1 is not False) and c2
+    ok = (c1 is not False) and c2 and c3
     print("\n" + "=" * 78)
     print(f" RESULT: {'PASS' if ok else 'FAIL'}"
           + ("   (condition 1 UNAVAILABLE -- see above)" if c1 is None else ""))

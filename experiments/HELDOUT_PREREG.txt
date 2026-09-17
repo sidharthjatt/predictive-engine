@@ -307,15 +307,47 @@ WHY THIS FILE EXISTS, AND WHY IT EXISTS TODAY
  6. EXECUTION CHECKLIST
 --------------------------------------------------------------------------------
 
-  [ ] working tree clean; commit hash recorded in the output
-  [ ] real charge model confirmed active (not the 0.11% fallback)
-  [ ] mu_in, sd_in, n, se computed and RECORDED from in-sample data only
-  [ ] the interval written down before the held-out window is read
-  [ ] held-out statistic computed once
-  [ ] verdict recorded whichever way it falls, here and in EXPERIMENTS.md
+  [x] working tree clean; commit hash recorded in the output
+          EVIDENCE: result block PRECONDITIONS -- "working tree clean" and
+          "HEAD 4558ddab0692fca7cf10752c950a26d9d2ea44cb".
+  [x] real charge model confirmed active (not the 0.11% fallback)
+          EVIDENCE: result block -- "real charge model ACTIVE
+          ('compute_leg_charges' in engine_core.calc_tc)".
+  [x] mu_in, sd_in, n, se computed and RECORDED from in-sample data only
+          EVIDENCE: result block STEP 1, headed "COMPUTED FROM SESSIONS ON OR
+          BEFORE 2026-05-29 ONLY", carrying all four values.
+  [x] the interval written down before the held-out window is read
+          EVIDENCE: result block STEP 2, headed "THE INTERVAL, FIXED BEFORE THE
+          HELD-OUT WINDOW IS READ", printed above THE HELD-OUT STATISTIC.
+  [x] held-out statistic computed once
+          EVIDENCE: exactly one [HELDOUT-PREREG-RESULT-BLOCK] was appended, and
+          heldout_prereg_run.py:125-131 now refuses any further run on that
+          sentinel. A second statistic cannot be produced by this script.
+  [x] verdict recorded whichever way it falls, here and in EXPERIMENTS.md
+          EVIDENCE: the result block below (here), and EXPERIMENTS.md entry 36
+          (written 2026-09-17). Both halves are now satisfied; only the first
+          was, for a day.
   [ ] no second judged test added afterwards
+          DELIBERATELY LEFT UNTICKED. Nothing on disk can evidence it. It is a
+          claim about all future work, not a property of this run, and the only
+          honest state for it is open. Ticking it to tidy the list would assert
+          something no artefact supports.
 
- NOT RUN AS OF 2026-09-12. Nothing after 2026-05-29 has been computed or seen.
+ THE LINE THAT STOOD HERE WAS FALSE, AND IT SAT DIRECTLY ABOVE THE BLOCK THAT
+ FALSIFIED IT. It read:
+
+     "NOT RUN AS OF 2026-09-12. Nothing after 2026-05-29 has been computed or
+      seen."
+
+ THE WINDOW WAS SPENT ON 2026-09-17 -- run at HEAD 4558ddab, committed as
+ 0b021ae, verdict PASS on 12 pooled sessions, and the result block is appended
+ to this file immediately below. Sessions after 2026-05-29 HAVE been computed
+ and seen: 2026-06-01 through 2026-06-08, six per universe.
+
+ CORRECTED 2026-09-17 against HEAD eb7351b. The original carried a date and no
+ commit, so nothing distinguished "still true" from "stale" -- the same defect
+ corrected in docs/HANDOFF.md on the same day. Re-verify this line whenever HEAD
+ moves and replace it; a date on its own was not enough last time.
 ================================================================================
 
 ================================================================================
