@@ -41,7 +41,12 @@ DIRECTIVE SYNTAX -- immediately above the write call, or on the enclosing `def`.
 WHY NON-DEFAULT IS THE ONLY HONEST TEST SELECTION
     At an all-default selection every axis contributes "", so a profile-blind
     writer and a correct one emit identical paths. The gate would pass on both.
-    HONOUR_SELECTION below is deliberately non-default on all three axes.
+    HONOUR_SELECTION below is deliberately non-default on all FOUR axes. It
+    gained `tax` on 2026-09-17 with the tax axis itself, and that addition is the
+    whole of condition 2 of the tax acceptance test: at tax=off a tax-blind
+    writer and a tax-aware one emit identical paths, so the byte-exactness half
+    of that test is passed by a no-op. Only a non-default probe can tell them
+    apart, and only a declaration can be checked against it.
 """
 import argparse
 import ast
@@ -61,7 +66,8 @@ WRITERS = {"to_csv", "savefig", "to_parquet", "dump", "to_json", "write_text"}
 DIRECTIVE = re.compile(r"#\s*naming:\s*(.+?)\s*$")
 
 # Non-default on every axis, so no axis can hide behind an empty suffix.
-HONOUR_SELECTION = {"arms": ["v1", "v3"], "cadence": 40, "profile": "tradeable"}
+HONOUR_SELECTION = {"arms": ["v1", "v3"], "cadence": 40, "profile": "tradeable",
+                    "tax": True}
 
 # THE MEMBERSHIP LIST IS GONE. Gate 2 used to ask "does this expression mention a
 # blessed helper name?", which is a question about spelling. It now asks "does the
@@ -206,9 +212,11 @@ def honour_probe():
     import arms.registry as ar
     import cadence
     import profiles
+    import tax
     ar.set_selection(HONOUR_SELECTION["arms"])
     cadence.set_selection(HONOUR_SELECTION["cadence"])
     profiles.set_selection(HONOUR_SELECTION["profile"])
+    tax.set_selection(HONOUR_SELECTION["tax"])
     return naming, naming.tail()
 
 
@@ -311,7 +319,8 @@ def main():
     print("=" * 78)
     print(f"  honour selection : arms={HONOUR_SELECTION['arms']} "
           f"cadence={HONOUR_SELECTION['cadence']} "
-          f"profile={HONOUR_SELECTION['profile']}  -> tail {tail!r}")
+          f"profile={HONOUR_SELECTION['profile']} "
+          f"tax={HONOUR_SELECTION['tax']}  -> tail {tail!r}")
     print(f"  sites / write calls          : {n_sites} / {n_calls}")
     print(f"  GATE 1  undeclared calls     : {sum(len(v) for _, v in undeclared)}"
           f"  across {len(undeclared)} site(s)")

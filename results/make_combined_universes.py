@@ -408,9 +408,14 @@ def _ci(path):
     siblings reported `cadence, profile`.
     """
     import profiles as _pf
-    if cadence.is_default() and _pf.is_default():
+    import tax as _tax
+    # THE TAX AXIS, 2026-09-17. This helper is the one that was found composing
+    # one axis fewer than its two same-named siblings; it gets the fourth at the
+    # same time they do, so the three cannot drift apart again.
+    if cadence.is_default() and _pf.is_default() and _tax.is_default():
         return path
-    c = path.with_name(path.stem + cadence.suffix() + _pf.suffix() + path.suffix)
+    c = path.with_name(path.stem + cadence.suffix() + _pf.suffix()
+                       + _tax.suffix() + path.suffix)
     return c if c.exists() else path
 
 
@@ -492,8 +497,9 @@ def combined_chart_path(M, tags, out_suffix=""):
     chose, then cadence and profile.
     """
     import profiles as _pf
+    import tax as _tax
     return M / ("chart_COMBINED_" + "_".join(tags) + out_suffix
-                + cadence.suffix() + _pf.suffix() + ".png")
+                + cadence.suffix() + _pf.suffix() + _tax.suffix() + ".png")
 
 
 def _draw(rows, out_path):

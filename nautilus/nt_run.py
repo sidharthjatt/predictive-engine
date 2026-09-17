@@ -119,12 +119,22 @@ def reports_segment(mode, sizing, rebal=None):
     from arms.registry import path_segment
     import cadence as _cad
     import profiles as _pf
+    import tax as _tax
     seg = path_segment(mode, sizing)
     r = _cad.DEFAULT if rebal is None else int(rebal)
     if r != _cad.DEFAULT:
         seg = f"{seg}@r{r}"
     if not _pf.is_default():
         seg = f"{seg}@{_pf.selected()}"
+    # THE TAX AXIS, 2026-09-17, CARRIED HERE EVEN THOUGH NAUTILUS DOES NOT MODEL
+    # TAX -- and that is the point. Site 12 is on record precisely because an
+    # axis that had ALREADY fired was absent from this path, so a run wrote over
+    # another run's reports in place under a directory name that did not
+    # distinguish them. Carrying an axis Nautilus ignores costs one empty string
+    # at the default and cannot destroy anything; omitting one it later honours
+    # is the defect this comment block exists to describe.
+    if not _tax.is_default():
+        seg = f"{seg}@tax"
     return seg
 
 

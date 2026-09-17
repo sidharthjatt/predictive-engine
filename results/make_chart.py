@@ -132,14 +132,19 @@ def _ci(path):
     """
     import cadence as _cd
     import profiles as _pf
-    if _cd.is_default() and _pf.is_default():
+    import tax as _tax
+    # THE TAX AXIS JOINS THE SIBLING'S NAME (2026-09-17): under tax=on the engine
+    # wrote v2FINAL_equity_tax.csv, and reading the canonical file here would
+    # plot an untaxed curve on a chart whose title says otherwise.
+    if _cd.is_default() and _pf.is_default() and _tax.is_default():
         return path
-    c = path.with_name(path.stem + _cd.suffix() + _pf.suffix() + path.suffix)
+    c = path.with_name(path.stem + _cd.suffix() + _pf.suffix() + _tax.suffix()
+                       + path.suffix)
     return c if c.exists() else path
 
 
 def chart_path(M, stem, arms_on):
-    """This run's name for the chart, over all three axes. THE ONE DEFINITION.
+    """This run's name for the chart, over all four axes. THE ONE DEFINITION.
 
     A NAMED FUNCTION SO GATE 2 CAN MEASURE IT. The composition used to live in the
     two `_render(...)` call sites, which meant the write call itself received a
@@ -151,8 +156,10 @@ def chart_path(M, stem, arms_on):
     figure keeps its bare name, and every other selection gets one of its own.
     """
     import profiles as _pf
+    import tax as _tax
     asf = arm_reg.suffix(arms_on) if set(arms_on) != {"v2", "v1"} else ""
-    return M / (stem + asf + cadence.suffix() + _pf.suffix() + ".png")
+    return M / (stem + asf + cadence.suffix() + _pf.suffix() + _tax.suffix()
+                + ".png")
 
 
 def main(u):

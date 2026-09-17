@@ -99,13 +99,17 @@ def artefact_tag(u, arm):
     `arm` may be an Arm or a bare name, because callers hold both.
     """
     import profiles
+    import tax as _tax
     name = getattr(arm, "name", arm)
     tag = u.tag if name == "v2" else f"{u.tag}_{name}"
     # THE PROFILE JOINS THE TAG for the same reason the cadence does: a
     # profile="tradeable" run must not overwrite the research trail that the
     # Nautilus comparison scripts and the daily log read by name. Empty at the
     # default, so v2's unsuffixed names are untouched.
-    return tag + cadence.suffix() + profiles.suffix()
+    # AND THE TAX AXIS, for the same reason again: a tax=on run must not
+    # overwrite the trail the Nautilus comparison scripts and the daily log read
+    # by name. Empty at tax=off, so the unsuffixed names are untouched.
+    return tag + cadence.suffix() + profiles.suffix() + _tax.suffix()
 
 
 def _reference_curve(M, arm_name):

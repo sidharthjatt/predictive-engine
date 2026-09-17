@@ -300,7 +300,14 @@ def run_v34(M, universe_label, universe_tag, px, op, sc, bd, pc, mom20, port_vol
     # those gates read untouched and puts both profiles one directory listing apart.
     # Empty for profile="research", so the published names are unchanged.
     import profiles
-    SFX = arm_reg.selection_suffix() + cadence.suffix() + profiles.suffix()
+    import tax as _tax
+    # THE TAX AXIS JOINS THE NAME (2026-09-17), on the same default-is-unsuffixed
+    # rule as the three before it: empty at tax=off, so every published
+    # v34_* filename is byte-identical to what it has always been, and a tax run
+    # writes a companion rather than overwriting the gated file. Measured, not
+    # assumed -- naming.CARRIES records what this expression was probed to carry.
+    SFX = (arm_reg.selection_suffix() + cadence.suffix() + profiles.suffix()
+           + _tax.suffix())
     # THE PATHS THIS CALL WRITES, IN ORDER. Read only by the report line below, so
     # that what is printed is derived from what was written rather than restated.
     _wrote = []
