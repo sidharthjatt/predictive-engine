@@ -38,16 +38,24 @@ THE DEFAULT-IS-UNSUFFIXED RULE, AND ITS ONE SHARP EDGE
 import arms.registry as _arm
 import cadence as _cadence
 import profiles as _profiles
+import tax as _tax
 
 # The axes, in the order they appear in a name. This order is LOAD-BEARING: it is
 # the order v34_common.py has always used, and changing it renames every
 # non-default artefact in the repository.
-AXES = ("arm", "cadence", "profile")
+#
+# TAX IS APPENDED, NEVER INSERTED (2026-09-17). Appending leaves every existing
+# non-default name -- every _r40, every _tradeable, every arm suffix -- exactly
+# where it was, because the tax suffix is empty at the default and lands after
+# the other three when it is not. Inserting it anywhere else in this tuple
+# renames artefacts that are pinned by SHA-256 in RETIRED_UNIVERSES-manifest.txt.
+AXES = ("arm", "cadence", "profile", "tax")
 
 _SUFFIX = {
     "arm": lambda: _arm.selection_suffix(),
     "cadence": lambda: _cadence.suffix(),
     "profile": lambda: _profiles.suffix(),
+    "tax": lambda: _tax.suffix(),
 }
 
 
@@ -100,6 +108,25 @@ def name(stem, ext, axes=AXES):
 #   _ci            make_combined_universes  cadence               NO ARM, NO PROFILE
 #   selection_suffix  arms/registry.py    arm                     NO CADENCE, NO PROFILE
 #
+# RE-PROBED 2026-09-17, when the TAX axis was added. Adding an axis invalidates
+# every measurement in this table, so all of it was measured again rather than
+# edited by inspection. Two probe artefacts had to be removed before the numbers
+# meant anything, and both would have produced a WRONG table:
+#
+#   _ci is EXISTENCE-GATED -- `return c if c.exists() else path`. Probing it in a
+#   directory without the sibling files measures the fallback, and both _ci
+#   entries reported "(nothing)". The probe now pre-creates every sibling the
+#   four axes can name before it measures.
+#
+#   artefact_tag and chart_path take the ARM AS AN ARGUMENT, not from the
+#   registry selection. Varying arm_reg and holding the argument fixed reported
+#   "NO ARM" for two composers that carry it fine. The probe now varies the
+#   argument alongside the selection.
+#
+# Corrected result: the five legacy composers carried arm/cadence/profile exactly
+# as recorded above and NONE of them carried tax, which is what the four edits of
+# 2026-09-17 fixed. The table below is the post-edit measurement.
+#
 # The two _c composers and the two chart _ci composers carrying no arm is not
 # necessarily a defect: v2FINAL_equity.csv holds every arm as COLUMNS, so the arm
 # is legitimately not in that filename. What was a defect is that a site could
@@ -112,18 +139,29 @@ def name(stem, ext, axes=AXES):
 # RETIREMENT. Each entry leaves this table when its sites route through name()
 # instead. The table is a migration ledger, not a permanent fixture -- when it is
 # empty, delete it.
+# EVERY VALUE IS AN EXPLICIT LITERAL. It used to be `frozenset(AXES)` on eight of
+# the eleven entries, which reads as "carries everything" and is a LIVE REFERENCE
+# to the axis tuple. Adding the tax axis on 2026-09-17 therefore handed those
+# eight an instant, unmeasured green for an axis not one of them composed -- six
+# of them wrongly. That is the precise failure this table was built to stop, and
+# the table's own comment ("over-crediting one hands out an unearned green") was
+# describing it two lines above the construct that caused it.
+#
+# A spelled-out set cannot do that. An axis added to AXES now appears in NO
+# entry's value until somebody measures it and types it in, so the default for a
+# new axis is "unproven", which is the only safe default an enforcement table has.
 CARRIES = {
-    "naming.name":       frozenset(AXES),
-    "naming.tail":       frozenset(AXES),
-    "SFX":               frozenset(AXES),
-    "artefact_tag":      frozenset(AXES),
-    "_c(":               frozenset({"cadence", "profile"}),
-    "_ci(":              frozenset({"cadence", "profile"}),
+    "naming.name":       frozenset({"arm", "cadence", "profile", "tax"}),
+    "naming.tail":       frozenset({"arm", "cadence", "profile", "tax"}),
+    "SFX":               frozenset({"arm", "cadence", "profile", "tax"}),
+    "artefact_tag":      frozenset({"arm", "cadence", "profile", "tax"}),
+    "_c(":               frozenset({"cadence", "profile", "tax"}),
+    "_ci(":              frozenset({"cadence", "profile", "tax"}),
     "selection_suffix":  frozenset({"arm"}),
-    "nt_reports_segment": frozenset(AXES),   # nt_run.reports_segment()
-    "reports_segment":   frozenset(AXES),
-    "chart_path":        frozenset(AXES),
-    "combined_chart_path": frozenset(AXES),
+    "nt_reports_segment": frozenset({"arm", "cadence", "profile", "tax"}),
+    "reports_segment":   frozenset({"arm", "cadence", "profile", "tax"}),
+    "chart_path":        frozenset({"arm", "cadence", "profile", "tax"}),
+    "combined_chart_path": frozenset({"arm", "cadence", "profile", "tax"}),
 }
 
 # `_ci` is three different functions and a textual check cannot tell them apart,

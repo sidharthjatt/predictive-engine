@@ -102,7 +102,14 @@ def _c(path):
     silent rather than fatal. See KNOWN_ISSUES.md.
     """
     import profiles as _pf
-    _sfx = cadence.suffix() + _pf.suffix() if not (cadence.is_default() and _pf.is_default()) else ""
+    import tax as _tax
+    # THE TAX AXIS IS PART OF THIS NAME TOO (2026-09-17). tax=on deducts a
+    # lump sum from cash on a payment date, which changes the cash path, the
+    # integer share counts sized from it and therefore every number this step
+    # writes -- exactly the way `tradeable` does. Writing those into the
+    # canonical filenames would be the same defect on a fourth axis.
+    _all_default = cadence.is_default() and _pf.is_default() and _tax.is_default()
+    _sfx = "" if _all_default else cadence.suffix() + _pf.suffix() + _tax.suffix()
     out = path if not _sfx else path.with_name(path.stem + _sfx + path.suffix)
     # WHAT THIS RUN ACTUALLY WROTE, RECORDED HERE BECAUSE HERE IS WHERE THE NAME
     # IS DECIDED. The step used to end by printing a hardcoded list of the

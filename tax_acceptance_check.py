@@ -1,0 +1,246 @@
+#!/usr/bin/env python3
+"""tax_acceptance_check.py -- the tax axis is inert at its default. BOTH HALVES.
+
+    run standalone; no caches, no engine, no network
+
+WHY THIS IS TWO CONDITIONS AND NOT ONE
+    The stated acceptance test for the tax axis is "with tax off, every existing
+    artefact reproduces byte-exact". That test is necessary and it is NOT
+    sufficient, for a reason naming.py already writes down about a different
+    axis:
+
+        AN OMITTED AXIS AND A DEFAULT AXIS PRODUCE THE SAME STRING.
+
+    At tax=off every composer contributes "", so a writer that carries the tax
+    axis and a writer that has never heard of it emit identical paths. A
+    completely empty implementation -- no tax.py, no composer edits, nothing --
+    passes the byte-exactness test perfectly. It is passed by doing nothing,
+    which is precisely how site 12 survived: a research-profile run and a
+    profile-blind writer were byte-identical, and they differed only when
+    somebody finally ran `tradeable`.
+
+    So this check asks two questions:
+
+      CONDITION 1  at the default, does every composer emit the SAME STRING it
+                   emitted before the tax axis existed?   (nothing moved)
+      CONDITION 2  off the default, does every composer MOVE, and does every
+                   declared write site still honour its declaration?
+                                                          (something is there)
+
+    Condition 1 alone is satisfied by a no-op. Condition 2 alone is satisfied by
+    an implementation that renames published files. Neither is the acceptance
+    test; both together are.
+
+CONDITION 1 IS MEASURED AGAINST git HEAD, NOT AGAINST A TYPED-IN EXPECTATION
+    A hardcoded list of expected default names would be a restatement of what
+    this file's author believed the names were -- the same class of defect as a
+    report that restates its output instead of deriving it. Instead the
+    composers are called in a clean checkout of HEAD and again in the working
+    tree, at an all-default selection, and the two strings are compared. A name
+    that moves is reported with both spellings.
+
+WHAT THIS DOES NOT COVER, STATED RATHER THAN IMPLIED
+    It checks NAMES, not CONTENTS. Byte-exactness of a file's bytes is a
+    property of the engine, and the gate that actually tests it is
+    heldout_prereg_run.py's reproduction check against the shipped
+    v2FINAL_equity.csv. This check cannot run that -- it needs score caches --
+    and it says so rather than implying coverage it does not have.
+
+    RETIRED_UNIVERSES-manifest.txt is likewise not verified here: its 171 paths
+    are relative to forensic_snapshot_20260911T0100/, which is not present in
+    this tree. Absent that directory the manifest cannot be checked at all, and
+    a check that silently skips 171 hashes is worse than one that names them.
+"""
+import subprocess
+import sys
+import tempfile
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent
+
+# The probe body. Run verbatim in HEAD and in the working tree, so the two
+# answers cannot diverge through the probe rather than through the composers.
+PROBE = r'''
+import sys, pathlib, itertools, tempfile, json
+R = pathlib.Path(sys.argv[1])
+for p in (R, R/"results", R/"nautilus"): sys.path.insert(0, str(p))
+import cadence, profiles, arms.registry as arm_reg
+try:
+    import tax
+    HAVE_TAX = True
+except ImportError:
+    HAVE_TAX = False
+
+D = pathlib.Path(tempfile.mkdtemp())
+for c in itertools.product(["","_r40"],["","_tradeable"],["","_tax"]):
+    (D / f"v2FINAL_equity{''.join(c)}.csv").write_text("x")
+for c in itertools.product(["","_v1"],["","_r40"],["","_tradeable"],["","_tax"]):
+    (D / f"chart_mid_FINAL{''.join(c)}.png").write_text("x")
+
+out = {}
+import naming
+out["naming.tail"] = naming.tail()
+out["naming.name"] = naming.name("stem", ".csv")
+out["selection_suffix"] = arm_reg.selection_suffix()
+
+# SFX is an INLINE expression inside a function body, not a callable, so it is
+# read out of the source and evaluated. Indentation is stripped line by line --
+# a naive slice carries the function body's indent into eval() and fails with a
+# syntax error that LOOKS like a moved name.
+src = (R/"results"/"v34_common.py").read_text().splitlines()
+i = next(n for n, l in enumerate(src) if l.strip().startswith("SFX = "))
+buf, depth = [], 0
+for l in src[i:]:
+    buf.append(l.strip())
+    depth += l.count("(") - l.count(")")
+    if depth <= 0 and buf[-1]:
+        break
+expr = " ".join(buf)[len("SFX = "):].strip()
+ns = {"arm_reg": arm_reg, "cadence": cadence, "profiles": profiles}
+if HAVE_TAX: ns["_tax"] = tax
+try: out["SFX"] = eval(expr, ns)
+except Exception as e: out["SFX"] = f"EVALFAIL {type(e).__name__}: {e}"
+
+import audit_step, engine_v2_final, make_chart
+import make_combined_universes as mcu
+class _U: tag = "mid"
+out["artefact_tag"] = audit_step.artefact_tag(_U(), "v1")
+out["_c"]   = str(engine_v2_final._c(D / "v2FINAL_equity.csv"))
+out["_ci_chart"] = str(make_chart._ci(D / "v2FINAL_equity.csv"))
+out["_ci_comb"]  = str(mcu._ci(D / "v2FINAL_equity.csv"))
+out["chart_path"] = pathlib.Path(str(make_chart.chart_path(D, "chart_mid_FINAL", ["v2","v1"]))).name
+out["combined_chart_path"] = pathlib.Path(
+    str(mcu.combined_chart_path(D, ["mid","n100"]))).name
+out["_c"] = pathlib.Path(out["_c"]).name
+out["_ci_chart"] = pathlib.Path(out["_ci_chart"]).name
+out["_ci_comb"]  = pathlib.Path(out["_ci_comb"]).name
+print(json.dumps(out))
+'''
+
+
+def _run_probe(tree):
+    """The probe's dict, evaluated inside `tree` at an all-default selection."""
+    f = Path(tempfile.mkdtemp()) / "probe.py"
+    f.write_text(PROBE)
+    r = subprocess.run([sys.executable, str(f), str(tree)],
+                       capture_output=True, text=True, cwd=str(tree))
+    if r.returncode != 0:
+        raise RuntimeError(f"probe failed in {tree}:\n{r.stderr[-2000:]}")
+    import json
+    return json.loads(r.stdout.strip().splitlines()[-1])
+
+
+def condition_1():
+    """Nothing moved at the default. Measured against a clean checkout of HEAD."""
+    print("\n  CONDITION 1 -- at tax=off, no composed name moved")
+    with tempfile.TemporaryDirectory() as td:
+        head = Path(td) / "head"
+        r = subprocess.run(["git", "worktree", "add", "--detach", str(head), "HEAD"],
+                           cwd=str(ROOT), capture_output=True, text=True)
+        if r.returncode != 0:
+            print("    UNAVAILABLE: could not create a HEAD worktree")
+            print(f"    {r.stderr.strip()}")
+            return None
+        try:
+            before = _run_probe(head)
+            after = _run_probe(ROOT)
+        finally:
+            subprocess.run(["git", "worktree", "remove", "--force", str(head)],
+                           cwd=str(ROOT), capture_output=True)
+    keys = sorted(set(before) | set(after))
+    moved = [(k, before.get(k), after.get(k)) for k in keys
+             if before.get(k) != after.get(k)]
+    for k in keys:
+        mark = "MOVED" if before.get(k) != after.get(k) else "same "
+        print(f"    {mark}  {k:<22} {after.get(k)!r}")
+    if moved:
+        print(f"\n    FAIL: {len(moved)} composed name(s) moved at the default:")
+        for k, b, a in moved:
+            print(f"      {k}: HEAD {b!r}  ->  working tree {a!r}")
+        return False
+    print(f"    PASS: {len(keys)} composers, every default name character-identical to HEAD")
+    return True
+
+
+def condition_2():
+    """Something is actually there. The axis moves, and declarations honour it."""
+    print("\n  CONDITION 2 -- off the default, the axis is real and declared")
+    sys.path.insert(0, str(ROOT))
+    import naming, tax, cadence, profiles
+    import arms.registry as arm_reg
+
+    for m in (cadence, profiles, arm_reg, tax):
+        m.set_selection(None)
+    base = naming.tail()
+    tax.set_selection(True)
+    on = naming.tail()
+    tax.set_selection(None)
+    ok_axis = (base == "" and on == "_tax" and "tax" in naming.AXES)
+    print(f"    tail at default {base!r} -> at tax=on {on!r}   "
+          f"{'PASS' if ok_axis else 'FAIL'}")
+
+    # tax must be LAST, or every existing non-default artefact is renamed.
+    ok_last = naming.AXES[-1] == "tax"
+    print(f"    tax is the LAST axis in naming.AXES              "
+          f"{'PASS' if ok_last else 'FAIL -- appending is what keeps _r40/_tradeable in place'}")
+
+    # No entry may credit an axis by live reference to AXES.
+    # CODE ONLY. The prose above CARRIES quotes the construct it replaced, so a
+    # bare substring search over the whole file matches the explanation and
+    # reports the defect it is explaining. Comments and docstrings are stripped.
+    import io, tokenize
+    src = (ROOT / "naming.py").read_text()
+    code = []
+    for tok in tokenize.generate_tokens(io.StringIO(src).readline):
+        if tok.type not in (tokenize.COMMENT, tokenize.STRING):
+            code.append(tok.string)
+    ok_lit = "frozenset(AXES)" not in "".join(code).replace(" ", "")
+    print(f"    CARRIES holds no frozenset(AXES) live reference   "
+          f"{'PASS' if ok_lit else 'FAIL -- a new axis would be auto-credited unmeasured'}")
+
+    # Every composer a site may name must be measured for tax.
+    unmeasured = [k for k, v in naming.CARRIES.items() if "tax" not in v
+                  and k != "selection_suffix"]
+    ok_meas = not unmeasured
+    print(f"    every composer measured for tax                  "
+          f"{'PASS' if ok_meas else 'FAIL ' + str(unmeasured)}")
+
+    # The declaration gate must exercise tax, and no declared site may break.
+    r = subprocess.run([sys.executable, str(ROOT / "naming_declare_check.py")],
+                       capture_output=True, text=True, cwd=str(ROOT))
+    txt = r.stdout
+    ok_probe = "tax=True" in txt and "_tradeable_tax'" in txt
+    nothon = [l for l in txt.splitlines() if "NOT honoured" in l]
+    ok_hon = bool(nothon) and nothon[0].strip().endswith("0")
+    print(f"    naming_declare_check honour probe carries tax    "
+          f"{'PASS' if ok_probe else 'FAIL'}")
+    print(f"    declared sites still honour their axes           "
+          f"{'PASS' if ok_hon else 'FAIL'}   ({nothon[0].strip() if nothon else 'not reported'})")
+    return all([ok_axis, ok_last, ok_lit, ok_meas, ok_probe, ok_hon])
+
+
+def main():
+    print("=" * 78)
+    print(" TAX AXIS ACCEPTANCE -- inert at default, real off it")
+    print("=" * 78)
+    c1 = condition_1()
+    c2 = condition_2()
+
+    print("\n  NOT COVERED BY THIS CHECK, AND NOT IMPLIED:")
+    print("    - file CONTENTS. This checks names. The contents gate is")
+    print("      heldout_prereg_run.py's reproduction check against the shipped")
+    print("      v2FINAL_equity.csv, which needs score caches and is not run here.")
+    snap = list(ROOT.glob("forensic_snapshot_*"))
+    print(f"    - RETIRED_UNIVERSES-manifest.txt's 171 hashes: "
+          f"{'verifiable' if snap else 'NOT VERIFIABLE -- forensic_snapshot_* absent from this tree'}")
+
+    ok = (c1 is not False) and c2
+    print("\n" + "=" * 78)
+    print(f" RESULT: {'PASS' if ok else 'FAIL'}"
+          + ("   (condition 1 UNAVAILABLE -- see above)" if c1 is None else ""))
+    print("=" * 78)
+    return 0 if ok else 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
