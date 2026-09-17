@@ -221,6 +221,34 @@ CACHE_PERM = _cache_perm()
 #                     every per-universe row uses -- field 3 already names it)
 #   ("mid", "n100")   touches exactly these, and does not follow the registry
 #   SPANS_REGISTRY    generic over the registry, resolved live at scan time
+#
+# SPANS_REGISTRY IS LOAD-BEARING ON THE AUTHOR BEING HONEST, AND NOTHING CHECKS IT.
+# STATED HERE, AT THE POINT OF USE, RATHER THAN LEFT FOR WHOEVER TRUSTS IT.
+#
+# The sentinel is a claim ABOUT THE SOURCE: that the step's paths are built from a
+# loop over the registered tags, so every registered directory really is touched.
+# If that claim is false -- paths built inside an `if t == "mid":` branch, say --
+# check_pipeline_order will credit the step with EVERY registered directory and
+# resolve producer edges the code never produces.
+#
+# THAT IS A FALSE RESOLUTION, AND `unresolved` CANNOT CATCH IT. `unresolved` grows
+# when something fails to resolve; it never grows when something resolves WRONGLY.
+# The failure is therefore silent in the same way the four incidents recorded in
+# check_pipeline_order.py's own comments were silent -- and it is worse, because
+# those left an edge missing while this one invents an edge that passes.
+#
+# IT IS NOT STATICALLY DETECTABLE IN GENERAL. Deciding which loop iterations reach
+# which path expression is path-sensitive analysis, and the scanner is regexes over
+# source text. A heuristic is possible -- refuse the sentinel in a file that
+# compares a loop variable against a registered tag literal -- but it is defeatable
+# and is NOT implemented here; a check that catches the careless case and misses
+# the subtle one would be read as coverage.
+#
+# WHAT WOULD ACTUALLY CHECK IT is a RUN-TIME comparison: after a step executes,
+# compare its declared span against the directories it actually wrote. That is a
+# different mechanism from this table and is not built. Until it is, a row
+# declaring SPANS_REGISTRY is an assertion by its author, and the reviewer of that
+# row is the only thing standing behind it.
 SPANS_REGISTRY = "__spans_registry__"
 
 
