@@ -418,6 +418,10 @@ def main(u):
   The strategy holds {expo*100:.0f}% invested on average, so raw CAGR is not the
   right comparison on its own -- return per deployed rupee and drawdown are.
   Idle cash earns {CASH_YIELD*100:g}%, so none of the return above comes from interest.
+  EVERY FIGURE ABOVE IS BEFORE TAX. Against a held-lots buy & hold taxed by the
+  same rule, n100's edge is +0.46 before tax and -1.59 after -- a -2.05 swing,
+  the turnover cost of 478 annual short-term realisations against one deferred
+  long-term one. See KNOWN_ISSUES.md and ./venv/bin/python bh_lots_after_tax.py.
 
 {_T.get("bh_caveat", "")}  Standing caveats: no capital gains tax is modelled, survivorship bias inflates
   both lines, and the edge is not statistically significant. The honest next step

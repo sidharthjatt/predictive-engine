@@ -4753,3 +4753,90 @@ therefore: run the gate AFTER `git add` and before `git commit`, and quote the
 figure from that run. Recorded here rather than automated, because a practice
 that is written down and cited twice is cheaper than a hook nobody can afford to
 run.
+
+---
+
+## The edge is +0.46 before tax and -1.59 after, on the one universe where the question can be asked
+
+Measured 2026-09-17 in 3f0ef05, reproducible with `./venv/bin/python
+bh_lots_after_tax.py`. Open. This is a RESULT, not a defect, and it is recorded
+here because it changes how every published figure in this repository should be
+read.
+
+### The finding
+
+Against a genuine held-lots buy & hold -- equal-rupee across every priced name on
+session one, no rebalance, a single realisation at BT_END_DATE, the same 0.15%
+slippage and the same Zerodha charge engine as the strategy -- on **n100**, over
+2019-01-01 .. 2026-05-29:
+
+```
+                              FULL     2019-2022   2023-2026
+v2  before tax              24.43%       22.16%      27.21%
+v2  after tax               20.66%       19.71%      21.84%
+bh_lots before tax          23.97%       30.25%      17.11%
+bh_lots after tax           22.25%       30.25%      13.60%
+
+EDGE  v2 - bh_lots   before tax  +0.46      after tax  -1.59      swing -2.05
+```
+
+**The edge does not survive tax.** It is +0.46 points before and -1.59 after, and
+the sign changes.
+
+### The swing is the turnover cost, and it is the whole mechanism
+
+v2 loses **3.77** CAGR points to tax. bh_lots loses **1.72**. The **2.05** points
+between them is not a rate difference applied to the same trades -- it is the
+difference between **478 short-term realisations taxed annually** and **one
+long-term realisation taxed once, deferred to the end of the window**.
+
+Every v2 lot is short-term: maximum holding 322 days on n100 against a 365-day
+threshold, so the long-term branch never fires and 100% of gains are taxed at the
+short-term rate in the financial year they are earned. The tax then leaves cash
+before the next morning's fills, so it also removes the capital that would have
+compounded. bh_lots holds for 2,705 days, realises once at 12.5% long-term, and
+pays nothing until the end -- visible in the sub-periods, where its after-tax
+CAGR equals its before-tax CAGR in 2019-2022 (30.25% both) and takes the entire
+hit in 2023-2026.
+
+That is the cost of churn, measured rather than asserted, and it is the number
+the parked tax_util.py was written to produce and never did.
+
+### On mid, the question is unanswerable, and the tooling now refuses to answer it
+
+mid's bh_lots basket is **53.0% one name** at terminal value -- AIIL, 956x over
+the window -- and 68.4% in three, against a median name multiple of 3.45x.
+Dropping that single name moves the benchmark CAGR by **-13.98 points**, against
+an effect size of 2.05. The instrument cannot resolve the effect.
+
+The cause is survivorship, not arithmetic. `SURVIVORSHIP_MODE=static` means
+today's MidCap150 members backfilled to 2019, so AIIL is in the basket PRECISELY
+BECAUSE it went up 956x. Buy-and-hold is the most survivorship-exposed
+construction available, and mid's 44.34% bh_lots CAGR is what that exposure looks
+like rather than an achievable return.
+
+`bh_lots_after_tax.py` therefore WITHHOLDS the edge when top-name weight exceeds
+11.62%, printing the concentration and the refusal in its place. Annotating the
+number was tried first and was not enough: a figure gets copied out of a terminal
+more often than the caveat beside it does.
+
+### What a reader would wrongly conclude
+
+That the published **+0.89 on mid and +0.43 on n100** are the edge. They are the
+edge **before tax, against a costless daily-rebalanced index that holds no lots
+and cannot be taxed at all**. Both statements remain true and both reproduce
+exactly. But that benchmark cannot answer an after-tax question, and the
+benchmark that can gives +0.46 -> -1.59 on the only universe where it is
+diversified enough to be believed.
+
+A tax=off run is the DEFAULT, so every headline figure this repository prints is
+pre-tax unless it says otherwise.
+
+### What was deliberately not done
+
+Nothing in the strategy was changed in response to this. No parameter, no
+cadence, no arm, no rebalance rule. The result was produced by a measurement that
+ran once against a window that is already spent -- there is nothing left to
+validate a change against, so any change made now would be fitted to a number
+with no out-of-sample left to check it. The finding is recorded and the strategy
+is untouched.
