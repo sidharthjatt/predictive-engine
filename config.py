@@ -220,6 +220,125 @@ def read_price_csv(path, date_col="date", **kw):
 # ---------------------------------------------------------------------------
 # CACHE RESOLUTION -- one place, so a missing cache fails loudly and early
 # ---------------------------------------------------------------------------
+# A CACHE'S IDENTITY IS ITS PATH *AND* THE SOURCE DIRECTORY IT WAS BUILT FROM.
+#
+# Until 2026-09-18 it was the path alone: require_cache() asked `perm.exists()`
+# and returned it. That is the right question only while a universe's raw data
+# never moves. The moment mid and n100 were repointed at the supplier's panel,
+# the caches keyed by tag -- v_mid_expanding_cache.csv, raw_panel_mid_cache.csv
+# and their n100 pair -- kept their names and their homes, so every consumer
+# went on reading 217 MB of the OLD vendor's prices and reporting the result as
+# a number computed on the new one.
+#
+# MEASURED BEFORE THE FIX, not argued: raw_panel_mid_cache.csv carried 256 rows
+# for 360ONE dated before 2019-09-19, and the new source's 360ONE.csv begins ON
+# 2019-09-19 -- 256 rows that the directory the universe now names cannot
+# produce. On a date both vendors carry, the cache read M&MFIN 2019-01-01
+# close=287.8653, the old source 287.8653 and the new source 287.6314.
+#
+# SO THE SOURCE TRAVELS WITH THE CACHE, in a sidecar written by whoever writes
+# the cache, and it is CHECKED on every resolution. The expected value is not
+# supplied by the caller: it is read from the registry row that owns the cache
+# path, so a caller cannot satisfy the check by asserting the wrong source.
+#
+# THERE IS NO WAY TO TURN THIS OFF. No parameter, no default, no environment
+# variable -- a flag that restores the old return would be the old bug with a
+# name. A cache whose provenance cannot be established is REFUSED, and the
+# refusal is a raise that leaves the interpreter non-zero. Refusing is the whole
+# point: a rebuild fallback here would silently discard the operator's evidence
+# that something is wrong, which is how the stale panel survived in the first
+# place.
+SOURCE_SIDECAR_SUFFIX = ".source"
+
+
+class CacheSourceError(RuntimeError):
+    """A cache could not be shown to have been built on the current source."""
+
+
+def cache_source_file(cache_path):
+    """The sidecar recording which raw directory `cache_path` was built from."""
+    p = Path(cache_path)
+    return p.with_name(p.name + SOURCE_SIDECAR_SUFFIX)
+
+
+def write_cache_source(cache_path, raw_data_dir):
+    """Record the source directory beside a cache. Called by whoever writes it.
+
+    RESOLVED, NOT AS GIVEN, because the two sides of the later comparison are
+    reached by different routes -- one from a registry row, one from a string on
+    disk -- and a symlinked or relative spelling of the same directory must not
+    read as a different directory.
+    """
+    if raw_data_dir is None:
+        raise CacheSourceError(
+            f"refusing to record a null source for {cache_path}: a universe "
+            f"with no raw_data_dir has no panel to cache.")
+    # naming: axis-free -- the sidecar's name is its cache's name plus a fixed
+    # suffix, so it carries whatever axes that cache carries and adds none of
+    # its own; there is no arm, cadence, profile or tax choice expressed here.
+    cache_source_file(cache_path).write_text(
+        str(Path(raw_data_dir).resolve()) + "\n")
+
+
+def _cache_owner(path):
+    """The registered universe whose cache `path` is, or None.
+
+    IMPORTED LAZILY. universes/registry.py imports this module at its own import
+    time, so a module-level import here is a cycle. The lazy import is not a
+    style choice and removing it will not fail at edit time -- it fails at the
+    first import of config.py.
+    """
+    from universes.registry import REGISTRY
+    p = Path(path).resolve()
+    for u in REGISTRY.values():
+        for cand in (u.score_cache, u.raw_cache, u.score_tmp, u.raw_tmp):
+            if Path(cand).resolve() == p:
+                return u
+    return None
+
+
+def _verified(cache_path, what):
+    """Return `cache_path` only if its recorded source is the current one."""
+    u = _cache_owner(cache_path)
+    if u is None:
+        raise CacheSourceError(
+            f"{what}: {cache_path}\n"
+            f"  This path is not the score or raw cache of any registered\n"
+            f"  universe, so which raw directory it was built from cannot be\n"
+            f"  established. A panel of unknown provenance is not usable as\n"
+            f"  evidence. Add the row that owns it, or delete the file.")
+
+    expected = Path(u.raw_data_dir).resolve()
+    side = cache_source_file(cache_path)
+    if not side.exists():
+        raise CacheSourceError(
+            f"{what}: {cache_path}\n"
+            f"  No source sidecar ({side.name}), so this cache predates source\n"
+            f"  recording and cannot be shown to match the universe's current\n"
+            f"  raw directory:\n"
+            f"      universe     {u.tag}\n"
+            f"      raw_data_dir {expected}\n"
+            f"  DELETE the cache and rebuild it with\n"
+            f"      ./venv/bin/python run_all.py\n"
+            f"  This is not rebuilt for you: a cache that disappears and\n"
+            f"  reappears during someone else's run is how a wrong panel gets\n"
+            f"  read as a right one.")
+
+    actual = Path(side.read_text().strip()).resolve()
+    if actual != expected:
+        raise CacheSourceError(
+            f"{what}: {cache_path}\n"
+            f"  CACHE SOURCE MISMATCH -- refusing to return it.\n"
+            f"      universe          {u.tag}\n"
+            f"      built from        {actual}\n"
+            f"      universe now uses {expected}\n"
+            f"  Every number computed from this file would be a number about\n"
+            f"  the first directory, reported under a universe that names the\n"
+            f"  second. DELETE the cache and its sidecar and rebuild with\n"
+            f"      ./venv/bin/python run_all.py")
+    return cache_path
+
+
 def require_cache(perm, tmp=None, what="score panel"):
     """Return whichever cache exists, or raise with an actionable message.
 
@@ -243,9 +362,9 @@ def require_cache(perm, tmp=None, what="score panel"):
     from pathlib import Path as _P
     perm = _P(perm)
     if perm.exists():
-        return perm
+        return _verified(perm, what)
     if tmp is not None and _P(tmp).exists():
-        return _P(tmp)
+        return _verified(_P(tmp), what)
     raise FileNotFoundError(
         f"{what} not found.\n"
         f"  looked for permanent : {perm}\n"
