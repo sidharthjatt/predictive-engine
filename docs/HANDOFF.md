@@ -161,11 +161,19 @@ from either end. **Do not "repair" them.**
 
 ### THE COLLAPSE — the whole plan, because until now it was not written down
 
-> **THE COLLAPSE IS COMPLETE AND IS NOT REOPENED.** Adding a universe costs **6
-> hand-written entries against a floor of 5**; the one entry above the floor is the
-> `FILES` block in `results/make_combined_universes.py`, which is Phase 3, deferred
-> with its reason below. Step 1 is undefined and stays undefined. Neither is a
-> backlog item, and neither should be reopened on momentum.
+> **THE COLLAPSE IS COMPLETE AND IS NOT REOPENED.** Adding a universe costs **7
+> hand-written entries against a floor of 5**; the two entries above the floor are
+> the `FILES` block in `results/make_combined_universes.py` (Phase 3, deferred with
+> its reason below) and the `PIPELINE_ORDER` row for `tax_report.py`. Step 1 is
+> undefined and stays undefined. Neither is a backlog item, and neither should be
+> reopened on momentum.
+>
+> **IT WAS 6 UNTIL 2026-09-17.** Wiring `results/tax_report.py` into the pipeline
+> added a fifth `PIPELINE_ORDER` row per universe. That is not collapse work
+> reopening — it is a new step arriving, and a new step costs a row. The number is
+> updated here rather than left at 6 because it is a MEASUREMENT and it moved, and
+> a stale count in an opening line is exactly the defect KNOWN_ISSUES.md records
+> under "A gate count measured before the change it describes".
 
 **THIS SECTION EXISTS BECAUSE ITS ABSENCE WAS A DEFECT, NOT A MISSING NICETY.**
 Until 2026-09-16 the collapse was referred to by step number in two places —
@@ -303,9 +311,12 @@ measured by registering a throwaway universe and wiring it until
 + 1 `LIQUIDITY` + 1 `FILES` block + 4 `PIPELINE_ORDER` rows + 5 `REQUIRED_INPUTS`
 tuples.
 
-**IT COSTS 6 NOW.** Step 8 (`a32ef28`) derived the 5 `REQUIRED_INPUTS` tuples;
-Phase 2 (`d3ae8ec`) moved `DISPLAY`, `COLOURS` and `LIQUIDITY` into the row itself.
-What remains is **1 `REPORT_ORDER` + 1 `FILES` block + 4 `PIPELINE_ORDER` rows**,
+**IT COSTS 7 NOW.** Step 8 (`a32ef28`) derived the 5 `REQUIRED_INPUTS` tuples;
+Phase 2 (`d3ae8ec`) moved `DISPLAY`, `COLOURS` and `LIQUIDITY` into the row itself,
+taking it to 6; wiring `tax_report.py` on 2026-09-17 added a fifth
+`PIPELINE_ORDER` row per universe, taking it to 7. Its `REQUIRED_INPUTS` entry
+costs nothing — step 8's comprehension emits it from `REGISTRY` like the rest.
+What remains is **1 `REPORT_ORDER` + 1 `FILES` block + 5 `PIPELINE_ORDER` rows**,
 and of those the `FILES` block is Phase 3, deferred below. **The floor is 5**, and
 those five are decisions rather than duplication — every one refuses loudly if
 skipped, `REPORT_ORDER` and `PIPELINE_ORDER` through `registry_coverage_check`,

@@ -215,6 +215,27 @@ PIPELINE_ORDER = [
     # itself, so a normal run produced Nautilus input and no Nautilus output.
     # It must follow 16, which writes the parquet it loads.
     ("STEP 17", "nt_execute.py",               None),
+    # STEP 18 IS THE TAX HALF, AND IT IS TWO ROWS BECAUSE THE ARTEFACTS ARE
+    # PER-UNIVERSE. FY_TAX_STATEMENT, FY_EQUITY, HOLDING_PERIOD and
+    # HOLDING_PERIOD_LOTS each carry the tag in their name and hold one
+    # universe's lots, so main() takes a universe (arity 1).
+    #
+    # NEW LABELS, NOT 10i. That label meant make_combined_universes.py until it
+    # moved to STEP 12b, and reusing it would make every log written before the
+    # move ambiguous -- the same identity-over-compaction rule the 2026-09-11
+    # retirement followed when it left STEPS 0-9 and 11-14 as gaps.
+    #
+    # AT THE END, BECAUSE THE ONLY INPUT IS THE SCORE PANEL. Running after
+    # STEP 15b means the PERMANENT panel exists rather than relying on
+    # config.require_cache's /tmp fallback. Nothing consumes what this writes,
+    # so nothing downstream constrains it either.
+    #
+    # THE ROWS ARE UNCONDITIONAL AND THE STEP RETURNS EARLY AT tax=off. The
+    # plan is therefore IDENTICAL under --tax on and --tax off, which is what
+    # lets check_plan_order reason about one order instead of two. See
+    # results/tax_report.main().
+    ("STEP 18a", "tax_report.py",              "mid"),
+    ("STEP 18b", "tax_report.py",              "n100"),
 ]
 
 
@@ -333,7 +354,7 @@ def _required_inputs():
     import paths
     from universes.registry import REGISTRY
     out = {"make_chart.py": [], "make_combined_universes.py": [],
-           "nt_execute.py": [], "nt_export_scores.py": []}
+           "nt_execute.py": [], "nt_export_scores.py": [], "tax_report.py": []}
     for u in REGISTRY.values():
         # ARM-TAGGED. daily_trades_<tag>.csv is v2's audit trail and a selection
         # without v2 writes no v2 trail at all; daily_trades_v1_<tag>.csv exists
@@ -378,6 +399,23 @@ def _required_inputs():
         # back to /tmp via config.require_cache, so this fires only when BOTH
         # copies are absent -- a genuine missing panel.
         out["nt_export_scores.py"].append(
+            (paths.score_cache(u),
+             _step_label("save_caches_step.py", None), f"u:{u.tag}", AXIS_FREE))
+        # STEP 18 RE-RUNS THE BACKTEST, so its only input is the score panel --
+        # the same one nt_export_scores reads, from the same writer.
+        #
+        # NOT QUALIFIED `tax:on`, AND THAT IS DELIBERATE. The score panel exists
+        # on every run; it does not vary with the tax axis and is not produced
+        # by it. Adding `tax:on` here would make the entry drop at tax=off,
+        # which is harmless in effect and FALSE in what it asserts -- it would
+        # say this input is tax-dependent. An entry that misdescribes itself is
+        # the shape of defect this table keeps finding. See the `tax:` branch in
+        # entry_applies() for what a qualified entry would look like.
+        #
+        # AXIS_FREE for the reason the --rebal 200 refusal established: the
+        # score panel carries no axis suffix, so composing one onto it would
+        # demand v_mid_expanding_cache_tax.csv, which nothing writes.
+        out["tax_report.py"].append(
             (paths.score_cache(u),
              _step_label("save_caches_step.py", None), f"u:{u.tag}", AXIS_FREE))
     return out
@@ -505,6 +543,29 @@ def entry_applies(e, tag, usel, asel, label="", script=""):
             # tax.is_uniform_over_plan() exists so that the day a per-universe tax
             # selection is introduced, THAT assertion fires at plan time instead of
             # this qualifier quietly answering the wrong question for five days.
+            #
+            # ZERO ENTRIES USE THIS TODAY, AND SAYING SO IS THE POINT.
+            # Nothing in REQUIRED_INPUTS carries a `tax:` qualifier, because no
+            # step reads a file that only exists under tax=on. STEP 18 WRITES
+            # the four tax artefacts and nothing consumes them, and its own
+            # input -- the score panel -- is not tax-dependent, so qualifying it
+            # would be false (see the tax_report.py entry in _required_inputs).
+            #
+            # THE SHAPE THAT WOULD USE IT is a CONSUMER of a tax artefact:
+            #
+            #     out["some_tax_chart.py"].append(
+            #         (M / "FY_TAX_STATEMENT_<tag>_tax.csv",
+            #          _step_label("tax_report.py", u.tag),
+            #          f"u:{u.tag},tax:on", naming.AXES))
+            #
+            # -- demanded when the run is taxed and dropped when it is not, so a
+            # tax=off plan does not require a file that run never writes.
+            #
+            # IT IS LEFT UNUSED RATHER THAN REVERTED. An unused mechanism that
+            # says it is unused costs one comment; the alternative on offer was
+            # to attach it to the score-panel entry so it would look used, which
+            # would have made the table assert something untrue in order to
+            # avoid this paragraph.
             ok = (_tax.selected() if q[4:] == "on" else not _tax.selected())
         elif q.startswith("u:"):
             # THE tag-IS-None BRANCH IS THE WHOLE-RUN CONTRACT, NOT A FALLBACK.
