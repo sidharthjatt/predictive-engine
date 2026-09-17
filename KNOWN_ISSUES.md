@@ -4544,3 +4544,85 @@ script was deleted on 2026-09-11 with the universe it was silently reading.
 or n100, and no code that would produce one.** `build_panel` now requires
 `data_dir` explicitly — the fallback that caused this is gone — so a replacement
 must name its universe. Writing one is its own decision and is not scheduled.
+
+---
+
+## The tax model is date-exact to the day; the charge engine it sits beside is not
+
+Found 2026-09-17, while verifying the reference document's own section 5
+limitations against our charge engine before implementing its section 3. Open,
+and deliberately not fixed: the charge engine is not to be touched.
+
+### The inconsistency
+
+`results/tax_util.py` splits the capital-gains regime on a single day. Section
+3(8) of the document fixes the rate by the sale date, `CGT_REGIME_CHANGE =
+2024-07-23`, and a lot sold on the 22nd is taxed at 15% while one sold on the
+23rd is taxed at 20%. That is exact to the day, by design, and it is checked.
+
+`results/qbeast_in_charges.py` has no concept of a date at all.
+`compute_leg_charges()` takes `(broker, segment, product, side, price, quantity,
+exchange)` and no date parameter, so there is no argument through which a
+historical rate could be selected. Its `SPEC_LOCK` reads:
+
+```
+"rates_effective": "2026-04-01",   # post Budget-2026 F&O STT hike
+"verified_on":     "2026-06-25",
+```
+
+So **the 2026-04-01 rate table is applied to every fill from 2019-01-01
+onward** -- 1,836 sessions and 505 lots on mid, 478 on n100 -- while the tax
+code beside it distinguishes two regimes seven years into that same window.
+
+Equity-delivery STT is likewise a single constant, `"stt_rate": "0.001"` on both
+sides. The file documents that F&O STT moved twice (Oct'24, Apr'26) and records
+those changes in its own comments, which makes the omission on the equity leg a
+recorded fact rather than an oversight -- but it is still a constant applied
+across a window in which real rates moved.
+
+### What a reader would wrongly conclude
+
+That the combined model is period-accurate because one half of it obviously is.
+The tax figures carry a visible, checkable regime boundary; the cost figures
+carry none, and nothing in an artefact distinguishes the two. A reader who sees
+`FY_TAX_STATEMENT` correctly splitting FY2024-25 at 23 July has every reason to
+assume the charges underneath were computed on the rates in force at the time.
+They were not. They were computed on the rates in force in April 2026.
+
+The direction of the error is not stated here because it is not known: it would
+require the historical rate tables, which are not in this repository.
+
+### Why it is not being fixed
+
+The charge engine is the more faithful half of the model and it was left
+untouched on purpose. Verified against the document's section 5, three of its
+five stated limitations do not apply to us at all:
+
+```
+doc limitation                              ours
+"DP charges are not modelled at all"        MODELLED: DP_BASE[ZERODHA] = 13.00
+  (~Rs 13-16 + GST per scrip per sell day)    -> Rs 15.34 incl GST, SELL only
+"Charges are symmetric; reality is not"     ASYMMETRIC: stamp 0.015% BUY only,
+                                              DP SELL only. Measured: BUY leg
+                                              0.001188, SELL leg 0.001256
+"No brokerage minimum"                      N/A: Zerodha delivery brokerage is
+                                              zero, so a floor cannot bind
+"STT is assumed constant"                   SHARED -- equity delivery is one rate
+"No rate changes over time in COST_PCT"     SHARED -- no date parameter exists
+```
+
+Making the last two period-accurate means adding a date argument to
+`compute_leg_charges()` and a historical rate table behind it. That changes
+every cost figure in the repository, which breaks the reproduction gate against
+the shipped `v2FINAL_equity.csv` and every hash in
+`RETIRED_UNIVERSES-manifest.txt`. It is not a change to make in passing, and the
+held-out window is already spent.
+
+### Why it is recorded now rather than when it becomes a problem
+
+Because the window it is currently wrong over is short and the next one may not
+be. The present backtest starts in 2019 and the rate table is dated 2026, so the
+error is bounded by whatever moved in those seven years. A universe with a
+longer history -- and the survivorship work makes clear that longer histories are
+what this project keeps reaching for -- back-applies the same 2026 table over
+however many additional years it brings, with no gate anywhere that would notice.
