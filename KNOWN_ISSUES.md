@@ -5018,3 +5018,93 @@ liability. A forced liquidation invents a selling rule the document does not
 contain, and those sales would realise gains inside the assessment day, making
 the liability circular. Yield suspension is a no-op at `CASH_YIELD = 0.0`. The
 path stays as written and this entry records that it is untested by measurement.
+
+---
+
+## check_pipeline_order attributes every edge to every step that runs the script, ignoring the universe
+
+Found 2026-09-18 while probing the checkers at `len(REGISTRY) > 2`. RECORDED, NOT
+FIXED, and the reason it is deferred is in the last paragraph.
+
+`check_pipeline_order.py` resolves a producer edge by matching the SCRIPT alone.
+`run_all._step_label()` matches on `(script, tag)` and gets the universe right;
+the edge scanner does not use the tag it already has. So every step that runs
+`make_chart.py` claims every universe's `make_chart` inputs:
+
+```
+STEP 10d  make_chart.py   results_mid/v2FINAL_equity.csv    engine_v2_final.py
+STEP 10d  make_chart.py   results_n100/v2FINAL_equity.csv   engine_v2_final.py   <- 10d is MID's row
+STEP 10h  make_chart.py   results_mid/v2FINAL_equity.csv    engine_v2_final.py   <- 10h is N100's
+```
+
+### It is pre-existing, and it scales as noise rather than as blindness
+
+Measured against a 2-universe baseline on the same day: `STEP 10d` already claims
+`results_n100/` files today, with nothing added. A third universe multiplies the
+cross-attribution -- each `make_chart` step claimed 12 edges at 3 universes rather
+than 4 -- but introduces no new failure mode. At 10 universes each such step would
+claim 40.
+
+**IT CANNOT HIDE A MISSING UNIVERSE, AND IS NOT THE CHECK THAT WOULD.**
+`registry_coverage_check.py` is what answers universe-completeness, and it was
+probed on the same day with a throwaway third row: it fails closed, names the
+universe, names the table, and states the consequence of each gap. The scanner's
+`unresolved` count also scaled 6 -> 8 with the third universe, so it is not blind
+to the universe -- it simply does not discriminate on it when attributing edges.
+
+**What the output therefore does NOT mean.** A line here is not the answer to
+"which step produces this file for this universe". It is "some step running this
+script produces this file for some universe". Read it as a script-level edge list.
+
+### Why it is recorded rather than done
+
+Fixing it changes edge resolution, and `run_all.REQUIRED_INPUTS` is derived from
+the same `PIPELINE_ORDER` table through `_step_label()` -- so a change to how
+edges resolve moves a guard table four consumers read, and needs its own pre/post
+edge-inventory diff. That is the same reason `REQUIRED_INPUTS` derivation was
+itself sequenced separately. It is a one-line discriminator and a multi-step
+verification, and the verification is the cost.
+
+---
+
+## Two tables a new universe would most easily miss, and one of them raises nothing
+
+Found 2026-09-18 by probing `registry_coverage_check.py` with a throwaway third
+universe row. Neither had been listed in any inventory of what adding a universe
+costs. Both are CAUGHT by that check -- this entry records what they are, not a
+gap in the net.
+
+With a third universe registered and its four `PIPELINE_ORDER` rows added, the
+coverage check reported:
+
+```
+universe 'n50' has no entry in universes/registry.REPORT_ORDER
+    consequence: dropped from every combined report (report_order raises)
+universe 'n50' has no entry in make_combined_universes.FILES
+    consequence: KeyError at FILES[t], deep in the draw, naming nothing
+universe 'n50' has no entry in run_all.PIPELINE_ORDER [tax_report.py]
+    consequence: SILENT -- that step never runs for this universe
+```
+
+`FILES` was expected. The other two were not.
+
+**`REPORT_ORDER` is a second, separate list.** A universe can be fully registered,
+fully wired into `PIPELINE_ORDER` and `REQUIRED_INPUTS`, and still be dropped from
+every combined report because `report_order` raises on a tag it does not carry.
+Registration is not membership.
+
+**THE `tax_report.py` ROW IS THE DANGEROUS ONE, BECAUSE ITS ABSENCE RAISES
+NOTHING.** The coverage check labels it `SILENT` in terms: with no
+`PIPELINE_ORDER` row for `tax_report.py`, that step simply never runs for that
+universe. No error, no missing-file failure, no empty artefact -- the universe
+just has no tax artefacts, and every other step succeeds. A reader comparing
+universes would see one with tax outputs and one without and have nothing to tell
+them why. This is the failure mode `registry_coverage_check` exists for, and it
+is the reason its verdict line reads "A table that silently tolerates a missing
+entry is indistinguishable from one that covers it."
+
+### How to use this
+
+When adding a universe, `registry_coverage_check.py` is the authority on what is
+still missing -- it checked 12 tables at the time of writing and names each gap
+with its consequence. Do not work from a remembered list, including this one.

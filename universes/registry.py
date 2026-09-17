@@ -141,6 +141,34 @@ class Universe:
     # data_dir simply exists and symbols() answers None. That shape is kept
     # expressible because it was a real shape, not because a universe uses it now.
     raw_data_dir: Optional[Path]
+
+    # WHAT THIS UNIVERSE'S MEMBERSHIP MEANS FOR ITS NUMBERS -- no default, so a row
+    # that omits it fails at construction. The precedent is d3ae8ec, which made
+    # DISPLAY, COLOURS and LIQUIDITY Universe fields for the same reason: a fact
+    # that matters to every reader must not be omittable by a new row.
+    #
+    # ONE SENTENCE CARRYING BOTH THE MEANING AND THE PROVENANCE, and deliberately
+    # NOT a "static" | "pit" enum. results/survivorship.py:117 already holds
+    # SURVIVORSHIP_MODE as a process-wide global; a per-row enum would be a second
+    # authority for the same word, and a row disagreeing with the global would have
+    # no resolution rule. This field says what the FOLDER's membership means, which
+    # the global cannot express per universe and the folder name does not carry.
+    #
+    # IT EXISTS BECAUSE ONE OF THOSE FOLDER NAMES READS BACKWARDS. A universe
+    # sourced from data/raw/Final_Without_Survivorship_Data must say so in terms:
+    # "Without_Survivorship" means without survivorship DATA -- current
+    # constituents only -- not without survivorship BIAS.
+    #
+    # NOT DERIVED FROM, AND DOES NOT DERIVE, the SURVIVORSHIP: sentences in
+    # chart_text and engine_text. Those interpolate live run values (mid's n_late)
+    # and carry a per-universe benchmark carve-out (n100's cap-weighted index),
+    # so a shared static string would either drop the computed figure or become a
+    # template -- and a template with run-time interpolation stops being a
+    # declaration. ONE AUTHORITY, TWO RENDERINGS: this field is the declaration and
+    # is what fails the build; those are rendered prose for their own figures. If
+    # they are ever unified, the chart text CITES this field rather than restating
+    # it, and that is separate work.
+    survivorship: str
     # THE TRADABLE NAMES, SORTED, INDEX EXCLUDED. Computed by _constituents() when
     # the row is built -- eagerly, exactly as config_mid.SYMBOLS_MID was computed
     # at config import -- so a mid-run change to the source folder cannot move it.
@@ -333,6 +361,11 @@ _MID = Universe(
         tag="mid", label="MidCap150 (148 constituents)",
         data_dir=_MID_LINKS,
         raw_data_dir=_MID_SOURCE,
+        survivorship=(
+            "STATIC. 148 names are TODAY'S MidCap150 members backfilled to "
+            "2019-01-01. Midcaps that left the index or delisted during the window "
+            "are absent entirely, so both the strategy and its equal-weight "
+            "buy&hold are inflated. Source: data/raw/MidCap150/clean."),
         symbol_list=_constituents(_MID_SOURCE, _MID_INDEX),
         metrics_dir=_MID_METRICS,
         score_tmp=Path("/tmp/v_mid_expanding.csv"),
@@ -452,6 +485,12 @@ _N100 = Universe(
         tag="n100", label="Nifty 100 (99 constituents)",
         data_dir=_N100_LINKS,
         raw_data_dir=_N100_SOURCE,
+        survivorship=(
+            "STATIC. 99 names are TODAY'S Nifty 100 members backfilled to "
+            "2019-01-01. Names dropped or delisted during the window are absent "
+            "entirely, so both the strategy and its equal-weight buy&hold are "
+            "inflated. The published NIFTY100 index line is cap-weighted and is "
+            "NOT survivorship-biased. Source: data/raw/nifty100_benchmark."),
         symbol_list=_constituents(_N100_SOURCE, _N100_INDEX),
         metrics_dir=_N100_METRICS,
         score_tmp=Path("/tmp/v_n100_expanding.csv"),
