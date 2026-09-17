@@ -166,20 +166,48 @@ for tag,u in REGISTRY.items():
     print(f"      single realisation in {det['fy']}, regime '{det['regime']}', gain Rs {det['gain']:,.0f}, "
           f"exemption Rs {det['exemption']:,.0f}")
     print(f"      LTCG due Rs {det['tax']:,.0f}   (rate {T.LTCG_RATE[det['regime']]*100:g}%)")
-    print(f"  v2 tax charged in-loop Rs {a['tax']['cum_tax']:,.0f}; unassessed FY2026-27 Rs {v2_unassessed:,.0f}")
 
-    rows=[("v2  before tax",v2_off),("v2  after tax (settled)",v2_settled),
-          ("bh_lots before tax",bh_eq),("bh_lots after tax (settled)",bh_settled),
-          ("bh published (costless, daily-rebal)",bh_pub)]
-    print(f"\n  {'line':<38}{'FULL':>10}{'2019-2022':>12}{'2023-2026':>12}   final equity")
+    # THE LABELS SAY *WHEN*, NOT ONLY *WHETHER*. "after tax (settled)" was true
+    # but silent on the thing that separates the two lines: v2 paid across the
+    # window and lost the use of that capital; bh_lots pays once, at the end.
+    _nded=int(stmt["assessed"].sum())
+    # THE LABELS ARE BOUND ONCE AND REUSED as the res{} keys below. Repeating the
+    # literal at the lookup is what broke when the wording changed.
+    L_V2_POST=f"v2  after tax  ({_nded} deductions in-loop, tail settled at end)"
+    L_BH_POST="bh_lots after tax  (nil in-loop, entire liability settled at end)"
+    L_V2_PRE="v2  before tax"; L_BH_PRE="bh_lots before tax"
+    L_BH_PUB="bh published (costless, daily-rebal)"
+    rows=[(L_V2_PRE,v2_off),(L_V2_POST,v2_settled),
+          (L_BH_PRE,bh_eq),(L_BH_POST,bh_settled),
+          (L_BH_PUB,bh_pub)]
+    print(f"\n  WHEN THE TAX LEFT CASH -- the two lines are not comparable along the path")
+    print(f"      v2       deducted in-loop  Rs {a['tax']['cum_tax']:>12,.0f}"
+          f"      settled at end  Rs {v2_unassessed:>12,.0f}")
+    print(f"      bh_lots  deducted in-loop  Rs {0:>12,.0f}"
+          f"      settled at end  Rs {bh_tx['total_tax']:>12,.0f}")
+    print(f"\n  {'line':<66}{'FULL':>10}{'2019-2022':>12}{'2023-2026':>12}   final equity")
     res={}
     for lab,s in rows:
         full=cagr(s); res[lab]=full
         h=[cagr(s[(s.index.year>=y0)&(s.index.year<=y1)]) for _,y0,y1 in HALVES]
-        print(f"  {lab:<38}{full:>9.2f}%{h[0]:>11.2f}%{h[1]:>11.2f}%   {s.iloc[-1]:>14,.0f}")
-    e_pre =res["v2  before tax"]-res["bh_lots before tax"]
-    e_post=res["v2  after tax (settled)"]-res["bh_lots after tax (settled)"]
-    e_pub =res["v2  before tax"]-res["bh published (costless, daily-rebal)"]
+        print(f"  {lab:<66}{full:>9.2f}%{h[0]:>11.2f}%{h[1]:>11.2f}%   {s.iloc[-1]:>14,.0f}")
+    print()
+    for _l in (
+      "  v2's capital-gains tax leaves cash on the first trading day at or after 31",
+      "  March of each financial year, so it is gone before the next morning's fills and",
+      "  the capital it removes stops compounding for the rest of the run. bh_lots",
+      "  realises once at BT_END_DATE, and its entire liability falls due in FY2026-27 --",
+      "  outside the window -- so nothing is deducted in-loop and both lines are settled",
+      "  together at the final session. The two curves are therefore comparable at the",
+      "  endpoint but not along the path: v2 has been paying since 2020, bh_lots pays",
+      "  once at the end. bh_lots keeps the use of that capital for the whole window,",
+      "  which is not an artefact of the settlement -- it is the deferral a low-turnover",
+      "  book actually earns, and it is already inside the after-tax gap below rather",
+      "  than missing from it."):
+        print(_l)
+    e_pre =res[L_V2_PRE]-res[L_BH_PRE]
+    e_post=res[L_V2_POST]-res[L_BH_POST]
+    e_pub =res[L_V2_PRE]-res[L_BH_PUB]
     # THE GATE. A concentrated basket does not get to print an edge at all.
     # Annotating the number was not enough: a figure gets copied out of a
     # terminal far more often than the caveat beside it does, and this file's own
@@ -188,7 +216,7 @@ for tag,u in REGISTRY.items():
     _t=sum(_v.values()); _top=sorted(_v.items(),key=lambda x:-x[1])
     _w=_top[0][1]/_t
     _yrs=(bd[-1]-bd[0]).days/365.25
-    _impact=(1+res["bh_lots before tax"]/100)*((1-_w)**(1/_yrs)-1)*100
+    _impact=(1+res[L_BH_PRE]/100)*((1-_w)**(1/_yrs)-1)*100
     print(f"\n  bh_lots concentration: top name {_top[0][0]} = {_w*100:.1f}% of terminal "
           f"value, top 3 = {sum(v for _,v in _top[:3])/_t*100:.1f}%")
     print(f"      dropping that one name would move the benchmark CAGR by "

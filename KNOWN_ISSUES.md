@@ -4771,14 +4771,37 @@ slippage and the same Zerodha charge engine as the strategy -- on **n100**, over
 2019-01-01 .. 2026-05-29:
 
 ```
-                              FULL     2019-2022   2023-2026
-v2  before tax              24.43%       22.16%      27.21%
-v2  after tax               20.66%       19.71%      21.84%
-bh_lots before tax          23.97%       30.25%      17.11%
-bh_lots after tax           22.25%       30.25%      13.60%
+                                                          FULL   2019-2022   2023-2026
+v2  before tax                                          24.43%      22.16%      27.21%
+v2  after tax  (8 deductions in-loop, tail settled)     20.66%      19.71%      21.84%
+bh_lots before tax                                      23.97%      30.25%      17.11%
+bh_lots after tax  (nil in-loop, settled at end)        22.25%      30.25%      13.60%
 
 EDGE  v2 - bh_lots   before tax  +0.46      after tax  -1.59      swing -2.05
 ```
+
+WHEN THE TAX LEFT CASH, which is what the two labels carry:
+
+```
+          deducted in-loop        settled at end
+v2           Rs 634,420              Rs       0
+bh_lots      Rs       0              Rs 479,999
+```
+
+Both lines are settled at the final session, so the comparison is like-for-like
+at the endpoint -- `bh_lots_after_tax.py:163-168` deducts v2's unassessed tail
+and bh_lots' whole liability together. It is NOT like-for-like along the path,
+and the labels say so: v2 has been paying since 2020 and lost the compounding on
+every rupee it paid; bh_lots pays once, at the end.
+
+THAT DEFERRAL IS NOT AN ARTEFACT OF THE SETTLEMENT and must not be "corrected"
+out. It is the advantage a low-turnover book actually earns, it is already inside
+the -1.59, and removing it would delete the effect this benchmark exists to
+measure. On n100 v2's unassessed tail is Rs 0, so the settlement pulls forward
+only bh_lots' Rs 479,999 -- and with `CASH_YIELD = 0.0` in this engine
+(results/test_exposure.py:63) discounting that back to its real FY2026-27 due
+date returns exactly the settled figure. The -1.59 is therefore a MEASURE of the
+turnover cost under this construction, not a lower bound on it.
 
 **The edge does not survive tax.** It is +0.46 points before and -1.59 after, and
 the sign changes.
@@ -4840,3 +4863,158 @@ ran once against a window that is already spent -- there is nothing left to
 validate a change against, so any change made now would be fitted to a number
 with no out-of-sample left to check it. The finding is recorded and the strategy
 is untouched.
+
+---
+
+## The two netting orders are opposite, and that asymmetry is carried deliberately
+
+Written 2026-09-17, while implementing section 3 of
+`data/reference/TAX_AND_CHARGES.docx`
+(sha256 `a5be987a1a75238796dd059c777b370b14be43f8a418206c93ee4201ddec8972`).
+DELIBERATE. Do not unify these.
+
+THE DOCUMENT IS DELIBERATELY NOT IN THIS REPOSITORY. It is RegimeSwitch's
+internal reference describing that system's own code, it is not ours to
+redistribute, and this repository is public. The sha256 above is recorded so that
+anyone holding the file can verify every quote in these entries against the exact
+revision they were taken from; a different hash means a different document and
+the quotes must be re-checked before they are relied on.
+
+`results/tax_util.py:313-330` allocates the two taxable bases in **opposite**
+orders:
+
+```
+stcg_old_t = min(max(b["short_old"], 0.0), stcg_taxable)   # OLD-rate first
+ltcg_new_t = min(ltcg_taxable, max(b["long_new"], 0.0))    # NEW-rate first
+```
+
+Both are the reference document's section 3.4, copied expression for expression.
+The document writes STCG as `stcg_old_t = min(max(short_old, 0), stcg_taxable)`
+with the comment "old-rate portion consumed first", and LTCG as
+`ltcg_new_t = min(ltcg_taxable, max(long_new, 0))` with "new-rate portion taxed
+first" -- which is what leaves the annual exemption sitting against the
+pre-cutoff gains, the order the document calls "chronologically correct".
+
+### Why it looks like a bug and is not
+
+The two rules are genuinely asymmetric and no single sentence covers both. A
+reader arriving at `tax_for_fy` will see one base allocated oldest-first and the
+other newest-first within twenty lines of each other, and the obvious tidy-up is
+to pick one and apply it to both.
+
+**That tidy-up would void the comparison this module exists to produce.** We are
+reproducing RegimeSwitch's rules in order to measure our strategy under them, not
+designing a tax engine. A unified rule would be a rule the source document does
+not contain, and every after-tax figure computed under it would be measuring a
+regime that exists nowhere.
+
+### What would justify changing it
+
+Only a change in the source document. Not a reading of the Income Tax Act, not
+symmetry, not simplification. If the document is ever revised, re-quote section
+3.4 and re-derive; until then the asymmetry stands and is checked by the
+verbatim quotes recorded in this file.
+
+---
+
+## The LTCG exemption keys on the financial year, not the sale date
+
+Written 2026-09-17. DELIBERATE, and the document contradicts itself here --
+this records which reading we follow and why. The document itself is not in this
+repository and its sha256 is recorded in the netting-asymmetry entry above,
+against which these quotes can be verified.
+
+`results/tax_util.py:198-206` keys the annual exemption on the financial year:
+
+```
+def exemption_for_fy(fy):
+    return LTCG_EXEMPTION_NEW if fy >= LTCG_EXEMPTION_FY_CUT else LTCG_EXEMPTION_OLD
+```
+
+So a lot **sold in May 2024** is pre-cutoff and taxed at the OLD 10% rate by
+`regime_of()`, yet draws the **NEW Rs 1,25,000** exemption, because it falls in
+FY2024. Rate and exemption key on different conditions, and that is intended.
+
+### The document reads both ways, and section 3.6 settles it
+
+Section 3.1's rate table binds the exemption to the rate row, i.e. to the sale
+date:
+
+```
+Sale before 23-Jul-2024 | 15% | 10% above Rs 1,00,000
+Sale on/after 23-Jul-2024 | 20% | 12.5% above Rs 1,25,000
+```
+
+Section 3.4 binds it to the financial year:
+
+```
+ltcg_taxable = max(ltcg_net - exemption, 0)   # Rs 1.00L (FY<2024) or Rs 1.25L (FY>=2024)
+```
+
+These disagree for FY2024-25, the only straddle year in the window.
+
+**Section 3.6's worked statement is the tiebreak.** Its FY 2024-25 row reads
+`Regime: split @ 23-Jul-2024` and `Exemption: 125,000` -- a year containing
+pre-cutoff sales drawing the full new allowance. That is the FY reading, printed
+by the source implementation itself, so section 3.1's table is loose phrasing in
+a rate summary rather than a competing rule.
+
+### Why it is recorded rather than "fixed"
+
+Reading section 3.1 alone makes the code look like an off-by-one-year bug worth
+Rs 25,000 of exemption. It is not. Anyone proposing to key the exemption on the
+sale date must first explain section 3.6's worked row, which they cannot, because
+that row is the source implementation's own output.
+
+---
+
+## The unclamped negative-cash path has never executed
+
+Written 2026-09-17. DELIBERATE and correct-by-argument -- but, unlike everything
+around it, NOT correct-by-measurement.
+
+`results/test_exposure.py:228-234` deducts the annual tax lump sum without
+clamping:
+
+```
+# CASH MAY GO NEGATIVE HERE AND IS NOT CLAMPED. A clamp would forgive part
+# of a real liability and silently improve the result; an overdrawn book
+# buys nothing that morning, which is the honest consequence.
+...
+                cash -= _due
+```
+
+### It has never happened, measured on both universes
+
+Measured 2026-09-17, tax=on, full 1,836-session in-sample window:
+
+```
+              cum tax        TOUCH POINT 6 events   sessions cash<0   min cash
+mid      Rs 798,365.53                7                   0      Rs 64,075.85  (2021-01-07)
+n100     Rs 634,420.14                8                   0      Rs  1,106.69  (2021-02-05)
+```
+
+Every one of the 15 deductions left cash positive. The smallest post-deduction
+balance was Rs 63,509.83 (n100, 2019-04-01).
+
+### Two things a reader should not conclude
+
+**Not that the branch is dead code.** n100's minimum balance across the whole run
+is Rs 1,106.69 -- the book runs close to fully invested, and a larger liability,
+a different cadence, or a smaller `START_CAPITAL` could reach zero. The branch is
+reachable; it has simply never been reached by a shipping configuration.
+
+**Not that negative cash would compound as debt.** `results/test_exposure.py:63`
+sets `CASH_YIELD = 0.0` -- "no yield assumed on idle cash" -- so `cash_daily` is
+exactly 0.0 and a negative balance accrues nothing. The reference document's
+4.5% (its section 5, `config.py:83`) is RegimeSwitch's and is not ours. The
+compounding-a-debt-at-a-deposit-rate artefact is structurally absent here, and
+any future change to `CASH_YIELD` reintroduces it.
+
+### What was deliberately not done
+
+No clamp, no forced liquidation, no yield suspension. A clamp forgives a real
+liability. A forced liquidation invents a selling rule the document does not
+contain, and those sales would realise gains inside the assessment day, making
+the liability circular. Yield suspension is a no-op at `CASH_YIELD = 0.0`. The
+path stays as written and this entry records that it is untested by measurement.
