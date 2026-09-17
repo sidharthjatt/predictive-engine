@@ -46,6 +46,46 @@ from universes.registry import REGISTRY
 VOL_WIN=60
 HALVES=[("2019-2022",2019,2022),("2023-2026",2023,2026)]
 
+# ---------------------------------------------------------------------------
+# THE CONCENTRATION LIMIT, AND WHY IT IS 11.62% AND NOT A ROUND NUMBER
+# ---------------------------------------------------------------------------
+# A benchmark is an INSTRUMENT. It can only resolve an effect larger than its own
+# sensitivity to a single input. The effect this benchmark exists to measure is
+# the after-tax edge swing -- MEASURED at -2.05 CAGR points on n100 (3f0ef05):
+# v2 loses 3.77 points to tax, a held-lots buy & hold loses 1.72, and the 2.05
+# between them is the turnover cost. If dropping ONE NAME from the basket moves
+# the benchmark's CAGR by more than that, the instrument cannot see the effect,
+# and any edge printed against it is noise wearing a decimal point.
+#
+# So the limit is the top-name weight at which a single name's removal would move
+# the benchmark CAGR by exactly the effect size:
+#
+#     drop a name of weight w  ->  terminal multiple M becomes M(1-w)
+#     dCAGR = (1 + CAGR) * [ (1-w)^(1/y) - 1 ]
+#     set dCAGR = -0.0205, solve for w:
+#         w_max = 1 - [ 1 - 0.0205/(1+CAGR) ]^y
+#
+# Evaluated on the two universes actually measured, over the 2,705-day window:
+#
+#     n100   CAGR 23.97%   ->  w_max 11.62%
+#     mid    CAGR 44.34%   ->  w_max 10.05%
+#
+# THE LIMIT TAKES THE MORE PERMISSIVE OF THE TWO, 11.62%, ON PURPOSE. Taking the
+# tighter one would be choosing the number that rejects mid most comfortably,
+# which is tuning a test to a verdict already known. The looser bound still
+# rejects mid by a factor of 4.6 and still admits n100 with 3.5 points of margin,
+# so the conclusion does not depend on which of the two was used -- and that
+# insensitivity is the reason it can be stated as a choice rather than a fit.
+#
+# WHAT IT DOES NOT CLAIM. Passing does not make a basket well-diversified: n100's
+# top name at 8.1% still moves the benchmark CAGR by -1.41 points, which is most
+# of the effect being measured. It is a floor on usability, not a certificate.
+# The number is pinned to a 7.4-year window and to these CAGRs; a materially
+# different window needs it recomputed, not carried over.
+CONC_LIMIT = 0.1162
+CONC_LIMIT_BASIS = ("2.05-point effect size (n100 after-tax edge swing, 3f0ef05) "
+                    "over a 2,705-day window at 23.97% CAGR")
+
 def cagr(s):
     y=(s.index[-1]-s.index[0]).days/365.25
     return ((s.iloc[-1]/s.iloc[0])**(1/y)-1)*100
@@ -140,14 +180,30 @@ for tag,u in REGISTRY.items():
     e_pre =res["v2  before tax"]-res["bh_lots before tax"]
     e_post=res["v2  after tax (settled)"]-res["bh_lots after tax (settled)"]
     e_pub =res["v2  before tax"]-res["bh published (costless, daily-rebal)"]
-    # CONCENTRATION, PRINTED BESIDE THE EDGE IT INVALIDATES. A basket whose
-    # terminal value is one name is not a benchmark, and the number above is
-    # meaningless without this line sitting next to it.
+    # THE GATE. A concentrated basket does not get to print an edge at all.
+    # Annotating the number was not enough: a figure gets copied out of a
+    # terminal far more often than the caveat beside it does, and this file's own
+    # docstring says so. So the number is WITHHELD and the reason takes its place.
     _v={s_:q*float(px.loc[bd[-1],s_]) for s_,(q,_b) in _SH.items()}
     _t=sum(_v.values()); _top=sorted(_v.items(),key=lambda x:-x[1])
-    print(f"\n  bh_lots concentration: top name {_top[0][0]} = {_top[0][1]/_t*100:.1f}% of "
-          f"terminal value, top 3 = {sum(v for _,v in _top[:3])/_t*100:.1f}%"
-          + ("   <-- NOT A USABLE BENCHMARK" if _top[0][1]/_t > 0.25 else ""))
-    print(f"\n  EDGE  v2 - bh_lots   before tax {e_pre:+.2f} pts      after tax {e_post:+.2f} pts"
-          f"      swing {e_post-e_pre:+.2f}")
-    print(f"  EDGE  v2 - bh published (the +0.89/+0.43 baseline) {e_pub:+.2f} pts")
+    _w=_top[0][1]/_t
+    _yrs=(bd[-1]-bd[0]).days/365.25
+    _impact=(1+res["bh_lots before tax"]/100)*((1-_w)**(1/_yrs)-1)*100
+    print(f"\n  bh_lots concentration: top name {_top[0][0]} = {_w*100:.1f}% of terminal "
+          f"value, top 3 = {sum(v for _,v in _top[:3])/_t*100:.1f}%")
+    print(f"      dropping that one name would move the benchmark CAGR by "
+          f"{_impact:+.2f} pts   (limit {CONC_LIMIT*100:.2f}%)")
+    if _w > CONC_LIMIT:
+        print(f"\n  EDGE  ** WITHHELD **  top-name weight {_w*100:.1f}% exceeds the "
+              f"{CONC_LIMIT*100:.2f}% limit by {_w/CONC_LIMIT:.1f}x.")
+        print(f"        This basket cannot resolve the effect it is being asked to")
+        print(f"        measure: one name moves it {abs(_impact):.2f} pts, against an effect")
+        print(f"        size of 2.05. The universe is SURVIVORSHIP_MODE=static -- today's")
+        print(f"        members backfilled -- so {_top[0][0]} is in this basket because of the")
+        print(f"        run it had. Any edge printed here would be that one name's history.")
+        print(f"        Limit basis: {CONC_LIMIT_BASIS}.")
+    else:
+        print(f"\n  EDGE  v2 - bh_lots   before tax {e_pre:+.2f} pts      after tax {e_post:+.2f} pts"
+              f"      swing {e_post-e_pre:+.2f}")
+    print(f"  EDGE  v2 - bh published (the +0.89/+0.43 baseline) {e_pub:+.2f} pts"
+          f"   [costless daily-rebalanced index, untaxable -- reference only]")
