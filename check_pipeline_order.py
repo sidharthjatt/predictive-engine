@@ -95,6 +95,69 @@ TAG_CALL = re.compile(
 # the registry form as well.
 REGISTRY_CALL = re.compile(r'REGISTRY\[["\'](\w+)["\']\]')
 
+
+# ---------------------------------------------------------------------------
+# NOT EVERY PATH EXPRESSION IS A PIPELINE EDGE
+# ---------------------------------------------------------------------------
+# A VARIABLE BOUND FROM prepare_data_dir() IS RAW PRICE DATA, NOT A METRICS
+# ARTEFACT. results/make_chart.py:209 binds `_raw = u.prepare_data_dir()` and then
+# reads `_raw / f"{sym}.csv"` -- the CONSTITUENTS SYMLINK FARM under data/raw. That
+# is source data this pipeline consumes, not an artefact any step writes, so it is
+# not an ordering edge and no step can be "out of order" with respect to it.
+#
+# THE EXCLUSION IS ON WHAT THE DIRECTORY IS, NOT ON THE PLACEHOLDER. Before this,
+# those two reads landed in `unresolved` because `{sym}` could not expand -- which
+# CONCEALED the real defect rather than being it: the scanner had already resolved
+# `_raw` to `results_mid/` by falling back to `default`, so an improvement to
+# placeholder handling would have started resolving them to the WRONG DIRECTORY,
+# silently, and an exclusion written as "unexpandable placeholder" would have read
+# as though it anticipated that. It would not have.
+RAW_DIR_ASSIGN = re.compile(r'\b(\w+)\s*=\s*\w+\.prepare_data_dir\(\)')
+
+# AN AXIS SUFFIX IS EMPTY AT THE DEFAULT SELECTION, WHICH IS THE CANONICAL NAME.
+# results/audit_step.py:165 binds `_cad = cadence.suffix() + _prof.suffix()` and
+# reads `M / f"v2FINAL_equity{_cad}.csv"`. The edge is real: naming.py's rule is
+# that every axis returns "" at its default, so at the default selection that file
+# IS the canonical v2FINAL_equity.csv written by engine_v2_final.py. Pinning these
+# to "" resolves the edge to the artefact the default pipeline actually produces,
+# which is the same convention every composed name in this project already uses.
+AXIS_SUFFIX_ASSIGN = re.compile(
+    r'\b(\w+)\s*=\s*[\w.]*\b(?:cadence|profiles|_prof|_cad)\b[\w.]*\.suffix\(\)')
+
+# ---------------------------------------------------------------------------
+# THE DECLARED ALLOWLIST -- edges that CANNOT be resolved, named with the reason
+# ---------------------------------------------------------------------------
+# WHAT CANNOT BE DERIVED IS DECLARED, AND THE DECLARATION IS WHAT FAILS. The same
+# shape as run_all.REQUIRED_INPUTS' fourth field. Anything unresolved and NOT on
+# this list is now fatal; these two are named, with why, so they stop being
+# anonymous entries in a list nobody reads.
+#
+# THESE ARE NOT EASY FIXES AND MUST NOT BE TREATED AS ONE. Both come from
+# results/make_daily_log.py:218-220, inside `load(M, tag)`, where BOTH the metrics
+# directory and the universe tag are FUNCTION PARAMETERS -- the directory is not
+# even known well enough to print, which is why it shows as `?`. The reads are
+# genuine: the trail files are written by make_audit.py.
+#
+# RESOLVING THEM MEANS BINDING A PARAMETER TO A DIRECTORY, WHICH IS THE SAME
+# CAPABILITY AS BINDING A LOOP VARIABLE -- and that capability was DECLINED on
+# 2026-09-18 on silent-invention grounds: it makes the scanner resolve edges the
+# code never produces, and `unresolved` cannot catch a wrong resolution because it
+# only grows on a failure to resolve. See KNOWN_ISSUES.md, "`unresolved` is not
+# fatal, which is why the same silent failure has happened four times", and
+# run_all.SPANS_REGISTRY.
+#
+# SO THE NEXT PERSON READING THIS SHOULD NOT BUILD FAN-OUT TO CLOSE THESE TWO.
+# That trade was measured and rejected; closing them this way costs the checker
+# more than it gains.
+ALLOWED_UNRESOLVED = {
+    (None, "daily_skipped_{tag}.csv"): (
+        "make_daily_log.load(M, tag) -- metrics dir AND tag are function "
+        "parameters; binding either is the declined fan-out capability"),
+    (None, "{f}_{tag}.csv"): (
+        "make_daily_log.load(M, tag) -- the filename stem is a parameter too; "
+        "same declined capability"),
+}
+
 def _mod2dir():
     """(config module, METRICS_DIR name) -> results directory, FROM THE REGISTRY.
 
@@ -364,6 +427,10 @@ def _scan_text(txt, tag=None, span=()):
         d = _TAG2DIR.get(t)
         if d:
             tags.append((d, t))
+    # VARIABLES THAT ARE NOT METRICS DIRECTORIES AT ALL -- see RAW_DIR_ASSIGN.
+    nonmetrics = {m.group(1) for m in RAW_DIR_ASSIGN.finditer(txt)}
+    # AXIS SUFFIX VARIABLES, PINNED TO THEIR DEFAULT "" -- see AXIS_SUFFIX_ASSIGN.
+    axis_suffix = {m.group(1) for m in AXIS_SUFFIX_ASSIGN.finditer(txt)}
     own = sorted(set(var2dir.values()) | {d for d, _ in tags})
     default = own[0] if len(own) == 1 else None
 
@@ -374,6 +441,16 @@ def _scan_text(txt, tag=None, span=()):
             continue
         is_write = bool(WRITE_CALL.search(line))
         for mod, var, fname in PATH_EXPR.findall(line):
+            # NOT AN EDGE: the directory is raw price data, not a metrics artefact.
+            # Skipped outright rather than recorded as unresolved -- an unresolved
+            # entry means "this MIGHT be an edge and I could not place it", and
+            # this is not an edge at all.
+            if not mod and var in nonmetrics:
+                continue
+            # AN AXIS SUFFIX IS "" AT THE DEFAULT SELECTION. Substituted before the
+            # placeholder test, so the name becomes the canonical artefact.
+            for _v in axis_suffix:
+                fname = fname.replace("{" + _v + "}", "")
             if mod:                       # config74.METRICS_DIR_74 / "x.csv"
                 d = DIRKEY.get((mod, var), default)
             else:
@@ -580,16 +657,50 @@ def enforce(pipeline, covered, results_root=None, verbose=False, resolver=None,
     """
     inversions, unresolved, edges, missing = analyse(pipeline, results_root, resolver,
                                                      helpers, span_of=span_of)
+
+    # AN UNDECLARED UNRESOLVED EDGE IS NOW FATAL.
+    #
+    # IT WAS A PRINTED LIST THAT GATED NOTHING, AND THAT IS WHY THE SAME SILENT
+    # FAILURE HAPPENED FOUR TIMES -- STEP 16, STEP 17, the audit-script collapse
+    # and the config-module fold. Each removed real producer edges from the
+    # ordering check; each was found by a human reading the output rather than by
+    # the check failing. A missing STEP was made fatal for exactly this reason and
+    # the comment at that raise says so; `unresolved` never got the same treatment.
+    #
+    # THE KNOWN ONES ARE DECLARED, NOT TOLERATED. ALLOWED_UNRESOLVED names each
+    # with why it cannot be resolved. Anything not on that list fails, so the cost
+    # of a change that quietly stops an edge resolving is now a red build rather
+    # than one more line in a list nobody reads.
+    undeclared = [(lbl, scr, key) for lbl, scr, key in unresolved
+                  if key not in ALLOWED_UNRESOLVED]
+    if undeclared:
+        raise SystemExit(
+            "PIPELINE ORDER CHECK FAILED -- "
+            f"{len(undeclared)} unresolved path expression(s) not declared:\n"
+            + "\n".join(f"    {lbl:<9} {scr:<28} {(k[0] or '?')}/{k[1]}"
+                         for lbl, scr, k in undeclared)
+            + "\n\n  An unresolved expression is an edge the ordering check CANNOT SEE.\n"
+              "  It is not a warning: a change that stops an edge resolving removes it\n"
+              "  from the check silently, which has happened four times (see\n"
+              "  KNOWN_ISSUES.md, \"`unresolved` is not fatal\").\n"
+              "\n  Either make it resolvable, or -- if it genuinely cannot be resolved --\n"
+              "  add it to check_pipeline_order.ALLOWED_UNRESOLVED WITH THE REASON.\n"
+              "  Do not add it to silence this; the entry is read by whoever inherits it.")
+
     print(f"  pipeline order check: {len(edges)} resolved cross-step "
           f"dependencies, {len(unresolved)} unresolved, "
           f"{len(inversions)} inversion(s)"
           + ("" if (verbose or list_unresolved) else "  [unresolved not listed: no "
              "pipeline steps selected]"))
+    # NAMED WITH THEIR REASON, NOT COUNTED. Everything reaching this point is on
+    # ALLOWED_UNRESOLVED -- anything else already raised above -- so the line says
+    # what it is and why, rather than leaving a bare count for a reader to wonder
+    # about. The old form printed "(placeholder not expanded; not checked)" for
+    # every entry, which described the symptom and never the reason.
     if verbose or (unresolved and list_unresolved):
-        for label, scr, key in unresolved:
-            d = key[0] or "?"
-            print(f"    unresolved  {scr} -> {d}/metrics/{key[1]}"
-                  f"   (placeholder not expanded; not checked)")
+        for label, scr, key in sorted(unresolved):
+            print(f"    declared-unresolvable  {scr} -> {(key[0] or '?')}/{key[1]}")
+            print(f"        {ALLOWED_UNRESOLVED[key]}")
     # A STEP THAT CANNOT BE FOUND IS FATAL, NOT A BANNER.
     #
     # It was a banner, and that is how STEP 16 went unchecked from whenever it was
