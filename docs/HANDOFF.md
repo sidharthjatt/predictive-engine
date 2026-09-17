@@ -242,28 +242,70 @@ implemented afterwards, which is the only reason it exists as a step at all.
   both are registry data. `check_pipeline_order.REG_ASSIGN` arrived with it,
   because the old spelling it resolved writes through no longer exists.
 
-**WHAT REMAINS AFTER STEP 7 — measured 2026-09-16, not estimated.** This is the
-inventory whoever defines step 8 should start from; it is not a claim about what
-step 8 is.
+**WHAT REMAINS AFTER STEP 7.**
 
-- **`run_all.py`, 9 hand-written entries per universe**: 4 `PIPELINE_ORDER` rows
-  (10a–10d) and 5 `REQUIRED_INPUTS` tuples, spread across `make_chart.py`,
-  `make_combined_universes.py`, `nt_execute.py` and `nt_export_scores.py`.
-- **`results/make_combined_universes.py`, 3 required edits per universe**:
-  `DISPLAY`, `COLOURS`, and the `FILES` block. `LIQUIDITY` and `PAIR_CHART` are
-  editorial. Note that step 7 did **not** reduce this file's count — it went 14 to
-  16, because the registry lookups that replaced the config imports are themselves
+> **LAST VERIFIED 2026-09-17 against HEAD `e79506e`, file by file.** The original
+> block was written 2026-09-16 and labelled "measured, not estimated" — but it
+> carried a measurement date with no commit to check it against, so there was no
+> way to tell it had gone stale within a day. It had. Three of its four bullets
+> were wrong by the time they were read. Anyone re-reading this block after HEAD
+> has moved should re-verify it and replace this line; a date alone is not enough.
+
+This is the inventory whoever defines the next step should start from; it is not
+a claim about what that step is.
+
+- **`REQUIRED_INPUTS` derived from the registry — DONE, `a32ef28`.**
+  `run_all.py:424` is `REQUIRED_INPUTS = _required_inputs()`, and
+  `run_all.py:346-366` loops `for u in REGISTRY.values()` building 4-tuples from
+  `paths.tagged_artefact(u, ...)` and `_step_label(...)`. No literal
+  `ROOT / "results_mid" / "metrics" / ...` path remains in `run_all.py`.
+
+  **THE CORRECTION IS RECORDED RATHER THAN MADE SILENTLY.** This bullet previously
+  read "deriving from the registry is separate work and is not a line in step 8",
+  describing as pending the work that **Step 8, `a32ef28`, two bullets above it in
+  this same document, had already performed**. The doc contradicted itself on the
+  page, and briefs were written from it. That is the failure this block's new
+  verification line exists to catch.
+
+  Still true from the old bullet, and still worth knowing: the claim that the
+  literal path shape is what keeps `check_pipeline_order` resolving the edge is
+  wrong as written — `run_all.py` is never scanned, only `PIPELINE_ORDER`'s step
+  scripts and their `STEP_HELPERS` are.
+
+- **`results/make_combined_universes.py` — 2 of 3 done.** `DISPLAY` and `COLOURS`
+  are `Universe` fields as of phase 2, `d3ae8ec`, and so is `LIQUIDITY`, which this
+  block previously called editorial. The file says so at its own line 90: "THE
+  DISPLAY NAME AND THE COLOURS ARE REGISTRY FIELDS -- phase 2, 2026-09-16", and
+  again at line 140 for `LIQUIDITY`.
+
+  **Genuinely remaining:** the `FILES` block, built locally at line 239, and
+  `PAIR_CHART = ("n100", "mid")` hand-written at line 159 — the latter already
+  guarded by an `_unknown_pair` check against `REGISTRY`, so it fails loudly on an
+  unknown tag rather than silently.
+
+  Still true: step 7 did **not** reduce this file's count — it went 14 to 16,
+  because the registry lookups that replaced the config imports are themselves
   named sites. What step 7 removed was the second DEFINITION of a universe's paths,
   not the hand-written tags.
-- **`REQUIRED_INPUTS` deriving from the registry is separate work and is not a line
-  in step 8.** Its entries are literal `ROOT / "results_mid" / "metrics" / ...`
-  paths. Deriving them moves a guard table four consumers read and needs its own
-  pre/post edge-inventory diff. (The comment above the `make_chart.py` entries
-  claims the literal shape is what keeps `check_pipeline_order` resolving the edge.
-  That claim is wrong as written: `run_all.py` is never scanned — only
-  `PIPELINE_ORDER`'s step scripts and their `STEP_HELPERS` are.)
-- **The `results/` move** — 26 probes out of `results/`, 58 path-form citations
-  across 23 of them. Sequenced after the collapse; see the paragraph above.
+
+- **`PIPELINE_ORDER` — NOT STARTED, and the count is 8, not 4.** `run_all.py:188-196`
+  spells out both universes:
+
+  ```
+  ("STEP 10a", "build_scores.py",    "mid"),   ...   ("STEP 10d", "make_chart.py", "mid"),
+  ("STEP 10e", "build_scores.py",    "n100"),  ...   ("STEP 10h", "make_chart.py", "n100"),
+  ```
+
+  The old bullet's "4 `PIPELINE_ORDER` rows (10a–10d)" was a **per-universe** figure
+  and reads as a total. There are eight rows, four per universe.
+
+- **The `results/` move — 26 probes out of `results/`, 58 path-form citations
+  across 23 of them.** Sequenced after the collapse; see the paragraph above.
+
+  **THESE TWO FIGURES ARE UNCOUNTED, carried unchanged from the 2026-09-16 block
+  and NOT re-verified on 2026-09-17.** The three bullets above were re-counted file
+  by file; this one was not, and it must not inherit their standing by sitting
+  beneath them. Re-count before using it.
 
 **THE GATE EVERY STEP OF THIS COLLAPSE IS HELD TO** is `gate_compare.py`'s
 `STANDING_GATE`, six cells, run pre and post **on the same panel and from a clean
