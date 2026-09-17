@@ -301,7 +301,7 @@ def _warn_prose_tags(txt, code, label, scr, tag=None):
             in_code.add(m.group(1))
 
 
-def _scan_text(txt, tag=None):
+def _scan_text(txt, tag=None, span=()):
     """The scan, over source TEXT rather than one file.
 
     A STEP AND ITS HELPERS MUST BE SCANNED AS ONE UNIT, not scanned separately and
@@ -355,6 +355,15 @@ def _scan_text(txt, tag=None):
         d = _TAG2DIR.get(tag)
         if d:
             tags.append((d, tag))
+    # THE ROW'S DECLARED SPAN, for a step that touches directories it never names.
+    # Appended after the literals rather than replacing them: where the source does
+    # name a universe, that naming still stands on its own, and this adds nothing
+    # new. `tags` feeds a set-valued `own` and set-valued writes/reads, so a tag
+    # contributed twice is indistinguishable from a tag contributed once.
+    for t in span:
+        d = _TAG2DIR.get(t)
+        if d:
+            tags.append((d, t))
     own = sorted(set(var2dir.values()) | {d for d, _ in tags})
     default = own[0] if len(own) == 1 else None
 
@@ -393,7 +402,8 @@ def _scan_text(txt, tag=None):
     return writes, reads, unresolved
 
 
-def analyse(pipeline, results_root=None, resolver=None, helpers=None):
+def analyse(pipeline, results_root=None, resolver=None, helpers=None,
+            span_of=None):
     """pipeline: [(step_label, script_filename[, universe_tag])] in execution order.
 
     THE THIRD FIELD IS READ AND IGNORED HERE, deliberately. This checker reasons
@@ -468,6 +478,21 @@ def analyse(pipeline, results_root=None, resolver=None, helpers=None):
     for row in pipeline:
         label, scr = row[0], row[1]
         tag = row[2] if len(row) > 2 else None
+        # FIELD 4, SPAN -- whose metrics directories this step's source touches.
+        # DISTINCT FROM FIELD 3, which is INVOCATION: run.py reads field 3 against
+        # main()'s arity, so an N-way step whose main() takes no universe must keep
+        # field 3 None even though it writes into every universe's directory. That
+        # divergence is why the scanner could not simply widen field 3 -- doing so
+        # makes run.py refuse to start. See run_all.SPANS_REGISTRY.
+        #
+        # INERT WHILE THE SOURCE STILL NAMES ITS UNIVERSES IN LITERALS. REG_ASSIGN
+        # and REGISTRY_CALL already resolve `M_n100 = REGISTRY["n100"].metrics_dir`,
+        # so for STEP 12b as written today this contributes the same two directories
+        # those literals already contribute and nothing moves. It exists so that a
+        # registry-driven loop -- where `REGISTRY[t]` matches neither pattern,
+        # because both require a quoted literal -- resolves instead of falling
+        # silently into `unresolved`.
+        span = span_of(row) if span_of else ()
         p = resolver(scr) if resolver else R / scr
         if not p.exists():
             if (label, scr, str(p)) not in missing:
@@ -488,7 +513,7 @@ def analyse(pipeline, results_root=None, resolver=None, helpers=None):
         # (see _strip_prose), but staying silent would leave the next person to
         # rediscover why their docstring moved an edge.
         _warn_prose_tags(src, _strip_prose(src)[0], label, scr, tag)
-        _w, _r, _u = _scan_text(src, tag=tag)
+        _w, _r, _u = _scan_text(src, tag=tag, span=span)
         W.setdefault(scr, set()).update(_w)
         Rd.setdefault(scr, set()).update(_r)
         U.setdefault(scr, set()).update(_u)
@@ -537,7 +562,7 @@ def analyse(pipeline, results_root=None, resolver=None, helpers=None):
 
 
 def enforce(pipeline, covered, results_root=None, verbose=False, resolver=None,
-            helpers=None, list_unresolved=True):
+            helpers=None, list_unresolved=True, span_of=None):
     """Fail the pipeline on any inversion not already named in REQUIRED_INPUTS.
 
     `covered` is the set of filenames REQUIRED_INPUTS already guards, so a known
@@ -553,7 +578,8 @@ def enforce(pipeline, covered, results_root=None, verbose=False, resolver=None,
     entries are never invisible; an INVERSION is fatal either way, since ordering
     is a property of the pipeline and not of the selection.
     """
-    inversions, unresolved, edges, missing = analyse(pipeline, results_root, resolver, helpers)
+    inversions, unresolved, edges, missing = analyse(pipeline, results_root, resolver,
+                                                     helpers, span_of=span_of)
     print(f"  pipeline order check: {len(edges)} resolved cross-step "
           f"dependencies, {len(unresolved)} unresolved, "
           f"{len(inversions)} inversion(s)"
@@ -607,7 +633,8 @@ if __name__ == "__main__":
     # script_path() is the single definition and both now use it.
     inv, unres, edges, missing = analyse(mod["PIPELINE_ORDER"],
                                          resolver=mod["script_path"],
-                                         helpers=mod["STEP_HELPERS"])
+                                         helpers=mod["STEP_HELPERS"],
+                                         span_of=mod["row_span"])
     print(f"{'step':<6}{'consumer':<28}{'file':<34}producers")
     for label, scr, key, prods in edges:
         print(f"{label:<6}{scr:<28}{key[0]+'/'+key[1]:<34}{','.join(prods)}")
