@@ -509,9 +509,14 @@ def run_arm(u, arm, rebal=None, out_dir=None):
                                             _cfg.BT_START_DATE, _cfg.BT_END_DATE)
     audit = {k: [] for k in ("holdings", "summary", "trades",
                              "ranking", "decisions", "skipped")}
+    # THE RUN'S TAX SELECTION, as run_v34 above. run_arm writes
+    # runs/<u>/<arm>/comparison.csv and params.json; without this an arm run under
+    # --tax on reported untaxed numbers under a taxed run folder.
+    import tax as _tax_axis
     eq, tc, ntr, expo = backtest_exposure(
         px, op, sc, bd, pc, mom20, port_vol,
         mode=arm.mode, target_vol=tv, sizing=arm.sizing, audit=audit,
+        tax_enabled=_tax_axis.selected(),
         # EVERY universe is valued at the open. The two that opted out of this
         # correction were the retired 58 and 74, and they are gone.
         value_at_open=True, rebal=rebal, **_capkw)
