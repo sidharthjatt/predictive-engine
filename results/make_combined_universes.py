@@ -286,14 +286,14 @@ def main():
         M_nifty100 = REGISTRY["nifty100"].metrics_dir
         FILES["nifty100"] = (_ci(M_nifty100 / "v2FINAL_equity.csv"),
                          _ci(M_nifty100 / "v2FINAL_params.json"),
-                         _ci(M_nifty100 / "daily_trades_n100.csv"),
-                         _ci(M_nifty100 / "daily_trades_v1_n100.csv"))
+                         _ci(M_nifty100 / "daily_trades_nifty100.csv"),
+                         _ci(M_nifty100 / "daily_trades_v1_nifty100.csv"))
     if "midcap150" in tags:
         M_midcap150 = REGISTRY["midcap150"].metrics_dir
         FILES["midcap150"] = (_ci(M_midcap150 / "v2FINAL_equity.csv"),
                         _ci(M_midcap150 / "v2FINAL_params.json"),
-                        _ci(M_midcap150 / "daily_trades_mid.csv"),
-                        _ci(M_midcap150 / "daily_trades_v1_mid.csv"))
+                        _ci(M_midcap150 / "daily_trades_midcap150.csv"),
+                        _ci(M_midcap150 / "daily_trades_v1_midcap150.csv"))
     # n50, ADDED 2026-09-18. WRITTEN OUT, NOT LOOPED, for the reason stated
     # above and in the commit that declined to write the loop: the
     # `DIR / "<literal>"` shape is what check_pipeline_order reads out of this
@@ -304,19 +304,14 @@ def main():
         M_nifty50 = REGISTRY["nifty50"].metrics_dir
         FILES["nifty50"] = (_ci(M_nifty50 / "v2FINAL_equity.csv"),
                         _ci(M_nifty50 / "v2FINAL_params.json"),
-                        _ci(M_nifty50 / "daily_trades_n50.csv"),
-                        _ci(M_nifty50 / "daily_trades_v1_n50.csv"))
+                        _ci(M_nifty50 / "daily_trades_nifty50.csv"),
+                        _ci(M_nifty50 / "daily_trades_v1_nifty50.csv"))
     # midcap50, ADDED 2026-09-18. WRITTEN OUT, NOT LOOPED, for the reason above.
     #
-    # NOTE THE FILENAMES, WHICH DO NOT FOLLOW THE THREE ROWS ABOVE. paths
-    # .tagged_artefact composes "<stem>_<tag>.csv" from the LIVE tag, so this
-    # universe's logs are daily_trades_midcap50.csv and
-    # daily_trades_v1_midcap50.csv. The three rows above still spell mid, n100
-    # and n50 -- tags the registry retired on 2026-09-18 -- and the engine has
-    # not written those names since. Copying their shape here would have added a
-    # fourth reference to a file that is never created. See KNOWN_ISSUES.md;
-    # NOT fixed in this commit, because changing what STEP 12b demands of three
-    # live universes is a behaviour change and belongs in its own review.
+    # ALL FOUR ROWS NOW SPELL THE LIVE TAG. paths.tagged_artefact composes
+    # "<stem>_<tag>.csv" from u.tag, and until 2026-09-18 the three rows above
+    # still said mid, n100 and n50 -- names the engine had not written since the
+    # rename. Six of this step's producer edges resolved to nothing as a result.
     if "midcap50" in tags:
         M_midcap50 = REGISTRY["midcap50"].metrics_dir
         FILES["midcap50"] = (_ci(M_midcap50 / "v2FINAL_equity.csv"),
