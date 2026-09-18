@@ -445,6 +445,28 @@ def gate_tax(res, since, sel):
     statement summing to the engine's cum_tax -- and it is checked there, at that
     tolerance, rather than restated here.
 
+    IT ASSERTS ON THE ASSESSED TAX, NOT THE STATEMENT TOTAL, AND THAT WAS WRONG
+    HERE FOR ONE DAY. This gate first summed every FY_TAX_STATEMENT row, which
+    includes the final year's UNASSESSED liability -- section 3(9) charges
+    FY2026-27 on the first trading day at or after 2027-03-31, outside the
+    window, so no cash was taken for it and it cannot be inside an equity
+    difference measured at the last session. Asserting against the total passed
+    only by being STRICTER than the identity, which is luck rather than design.
+
+    ONE UNIVERSE COULD NOT SHOW IT. midcap50's unassessed row is 0.00, and so is
+    nifty50's, so on either of them the total and the assessed figure are the
+    same number and the label looked right. It took a universe with a non-zero
+    tail -- midcap150 at Rs 33,671.08, nifty100 at Rs 11,521.13 -- to separate
+    them, and it surfaced only when the gate was run on four universes rather
+    than the one it was written against. A gate exercised on a single case is a
+    gate whose labels have not been read.
+
+    ALL THREE FIGURES ARE PRINTED, separately labelled, because the difference
+    between them is what section 3(9) does and a reader should not have to
+    recompute it: assessed (deducted), statement total, and unassessed. Foregone
+    compounding is derived from the ASSESSED figure -- deriving it from the total
+    understates it by the unassessed amount.
+
     SKIPPED, NOT PASSED, when no tax artefacts are on disk: a tax=off run writes
     none, and this gate says so rather than counting silence as agreement.
     """
@@ -510,19 +532,31 @@ def gate_tax(res, since, sel):
 
         with open(stmt, newline="") as fh:
             srows = list(csv.DictReader(fh))
-        cum = sum(float(r["total_tax"]) for r in srows)
+        # ASSESSED ONLY, WHICH IS THE CASH THAT ACTUALLY LEFT THE BOOK. A row
+        # with assessed=False is a liability section 3(9) charges after the
+        # window closes; no cash was taken for it, so it cannot be inside an
+        # equity difference measured at the final session. This is the figure
+        # audit["tax"]["cum_tax"] holds and the only one the identity is true of.
+        def _f(r, k):
+            v = (r.get(k) or "").strip()
+            return v.lower() in ("true", "1", "yes")
+        assessed = sum(float(r["total_tax"]) for r in srows if _f(r, "assessed"))
+        unassessed = sum(float(r["total_tax"]) for r in srows
+                         if not _f(r, "assessed"))
+        total = assessed + unassessed
 
         gap = p_final - t_final
         # (ii) AT LEAST, never equal -- see the docstring.
-        if gap < cum - 0.01:
+        if gap < assessed - 0.01:
             res.fail("GATE 6 tax", f"{t} taxed equity vs ledger",
                      f"the taxed curve is only Rs {gap:,.2f} below the untaxed "
-                     f"one, which is LESS than the Rs {cum:,.2f} the ledger says "
-                     f"was taken. Tax was named but not charged.")
+                     f"one, which is LESS than the Rs {assessed:,.2f} the ledger "
+                     f"says was deducted. Tax was named but not charged.")
             continue
         res.note(f"GATE 6  {t}: taxed equity == FY_EQUITY to a paisa; gap Rs "
-                 f"{gap:,.2f} >= cum_tax Rs {cum:,.2f} "
-                 f"(compounding Rs {gap-cum:,.2f})")
+                 f"{gap:,.2f} >= assessed Rs {assessed:,.2f} "
+                 f"(compounding Rs {gap-assessed:,.2f}; statement total Rs "
+                 f"{total:,.2f}, unassessed Rs {unassessed:,.2f})")
     if checked == 0:
         res.note("GATE 6  SKIPPED -- no tax artefacts on disk (a tax=off run "
                  "writes none). Not counted as passed.")
