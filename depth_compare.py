@@ -43,8 +43,8 @@ SLIPPAGE = nt_run.SLIPPAGE
 # config_n100 / config_mid until step 7; both are registry fields now and carry
 # the same values. `symbol_list` is the sorted tuple the configs' SYMBOLS_* were,
 # so the volume panel is loaded in the same order it always was.
-UNIV = [("n100", REGISTRY["n100"].raw_data_dir, REGISTRY["n100"].symbol_list),
-        ("mid", REGISTRY["mid"].raw_data_dir, REGISTRY["mid"].symbol_list)]
+UNIV = [("nifty100", REGISTRY["nifty100"].raw_data_dir, REGISTRY["nifty100"].symbol_list),
+        ("midcap150", REGISTRY["midcap150"].raw_data_dir, REGISTRY["midcap150"].symbol_list)]
 
 
 def perf_from_strat(strat, tag):

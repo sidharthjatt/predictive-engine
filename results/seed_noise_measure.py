@@ -62,7 +62,7 @@ REQUIRED_RAW = ["date", "symbol", "open", "close", "y_rank", "scorable"]
 # "NIFTY 100"/"MIDCAP150" spelling rather than the registry's descriptive one.
 #
 # THE SET OF UNIVERSES IS THE REGISTRY, not a literal pair. It used to be
-# `(REGISTRY["n100"], REGISTRY["mid"])`, which would have raised KeyError the day
+# `(REGISTRY["nifty100"], REGISTRY["midcap150"])`, which would have raised KeyError the day
 # either tag changed and would silently have measured the wrong two if a third
 # universe were added. A universe with no LABELS entry is refused by name rather
 # than dropped from the measurement.
@@ -77,7 +77,7 @@ REQUIRED_RAW = ["date", "symbol", "open", "close", "y_rank", "scorable"]
 # display_name: "NIFTY 100" and "MIDCAP150" are what goes into
 # diagnostics/seed_noise.txt, so "NIFTY 50" follows them rather than
 # registry.display_name, which happens to agree here and would not always.
-LABELS = {"n100": "NIFTY 100", "mid": "MIDCAP150", "n50": "NIFTY 50"}
+LABELS = {"nifty100": "NIFTY 100", "midcap150": "MIDCAP150", "nifty50": "NIFTY 50"}
 
 _unlabelled = set(REGISTRY) - set(LABELS)
 if _unlabelled:

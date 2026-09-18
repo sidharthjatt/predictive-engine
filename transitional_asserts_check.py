@@ -2,13 +2,13 @@
 """transitional_asserts_check.py -- the tree says the collapse is unfinished.
 
 IT STAYS, AND IT IS GREEN BECAUSE THE WORK LANDED, NOT BECAUSE IT STOPPED
-CHECKING: reintroduce one literal REGISTRY["mid"] in a step that takes a
+CHECKING: reintroduce one literal REGISTRY["midcap150"] in a step that takes a
 universe and it fails again, as "MARKER REMOVED, HARDCODING KEPT". Deleting
 it would remove the only thing in the tree that would notice.
 
 WHAT THIS EXISTS FOR. Step 2 of the collapse (commit 5c636cf) gave the eight
-per-universe steps `main(u)` while leaving their literal `REGISTRY["mid"]` /
-`REGISTRY["n100"]` subscripts in place, because check_pipeline_order resolves
+per-universe steps `main(u)` while leaving their literal `REGISTRY["midcap150"]` /
+`REGISTRY["nifty100"]` subscripts in place, because check_pipeline_order resolves
 `daily_*_{tag}.csv` to a directory by READING those literals and a loop variable
 there matches nothing. The steps therefore ASSERT `u.tag` rather than using `u`.
 
@@ -41,12 +41,12 @@ ROOT = Path(__file__).resolve().parent
 MARKER = "TRANSITIONAL-ASSERT"
 
 # WHAT "STILL HARDCODED" ACTUALLY MEANS, and it is wider than one syntax.
-# The first version of this looked for REGISTRY["mid"] as a regex, and got two
+# The first version of this looked for REGISTRY["midcap150"] as a regex, and got two
 # things wrong at once. It matched its OWN marker comment -- which names the
 # subscript it warns about -- so a genuinely collapsed file still reported one. And
 # it MISSED the engines and the charts, which do not spell it that way: the engines
 # alias the import (`from universes.registry import REGISTRY as _REG`, then
-# _REG["mid"]) and the charts reach their universe through `import config_mid`.
+# _REG["midcap150"]) and the charts reach their universe through `import config_mid`.
 # A check that passes four of eight files for a spelling reason is worse than none.
 #
 # The condition is not a syntax. It is: THIS STEP STILL KNOWS ITS UNIVERSE BY NAME.

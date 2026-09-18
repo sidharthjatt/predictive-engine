@@ -34,7 +34,7 @@ WHY THE TABLES ARE READ STATICALLY AND NOT BY IMPORTING THEM
     may be missing. So its four tables are read with ast, from source.
 
     FILES IS NOT A MODULE-LEVEL TABLE AT ALL. It is built inside main() as
-    `FILES = {}` followed by `FILES["n100"] = (...)` under a membership test, so
+    `FILES = {}` followed by `FILES["nifty100"] = (...)` under a membership test, so
     the only way to ask which universes it covers is to read the subscript
     assignments. That is what _subscript_keys does.
 

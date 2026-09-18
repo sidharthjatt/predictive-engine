@@ -42,8 +42,8 @@ SEED = 0
 CONTAM = ["PATANJALI", "LLOYDSME", "LAURUSLABS", "AIIL",
           "GVT&D", "SUZLON", "PERSISTENT", "JSWENERGY"]
 
-PANEL = config.require_cache(ROOT/"results_mid"/"metrics"/"v_mid_expanding_cache.csv",
-                             "/tmp/v_mid_expanding.csv", what="MidCap150 score panel")
+PANEL = config.require_cache(ROOT/"results_midcap150"/"metrics"/"v_midcap150_expanding_cache.csv",
+                             "/tmp/v_midcap150_expanding.csv", what="MidCap150 score panel")
 P = pd.read_csv(PANEL, parse_dates=["date"])
 
 

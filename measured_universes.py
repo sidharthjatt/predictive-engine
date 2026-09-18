@@ -17,7 +17,7 @@ WHAT THIS IS FOR, AND WHY IT IS NOT DERIVATION
 THE DEFECT THIS CLOSES
     Each of the three built its working set from a hand-written pair:
 
-        UNIVERSES = {u.tag: ... for u in (REGISTRY["n100"], REGISTRY["mid"])}
+        UNIVERSES = {u.tag: ... for u in (REGISTRY["nifty100"], REGISTRY["midcap150"])}
 
     A THIRD UNIVERSE IS NOT A KeyError THERE. It is simply absent: the probe runs,
     reports on two universes, writes a diagnostic that looks complete, and says

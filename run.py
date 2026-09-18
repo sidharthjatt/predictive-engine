@@ -371,7 +371,7 @@ def preflight(args, plan):
 
 # The naming schemes a universe's artefacts use. FINAL_*/v2FINAL_* were the
 # retired 58's and 74's and no live code may emit them again; v34_* is the live
-# pair's and belongs in results_mid/ and results_n100/, never here.
+# pair's and belongs in results_midcap150/ and results_nifty100/, never here.
 _UNIVERSE_ARTEFACT = re.compile(
     r"^(FINAL_|v2FINAL_|v34_|DAILY_LOG_|daily_trades_|daily_summary_|cash_series_)"
     r"|_(" + "|".join(sorted(REGISTRY)) + r")\.(csv|json|txt|png)$")

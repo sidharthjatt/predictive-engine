@@ -55,8 +55,8 @@ RATIOS = [1.0, 1.5, 2.0, 3.0]
 BASE = (8, 16)          # the incumbent, TOP_N=8 at the 2.0x ratio
 
 UNIV = [
-    ("mid 2019", ROOT/"results_mid"/"metrics"/"v_mid_expanding_cache.csv", "/tmp/v_mid_expanding.csv", 2019, 2026),
-    ("mid 2016", ROOT/"results_mid"/"metrics"/"v_mid_expanding_cache.csv", "/tmp/v_mid_expanding.csv", 2016, 2026),
+    ("mid 2019", ROOT/"results_midcap150"/"metrics"/"v_midcap150_expanding_cache.csv", "/tmp/v_midcap150_expanding.csv", 2019, 2026),
+    ("mid 2016", ROOT/"results_midcap150"/"metrics"/"v_midcap150_expanding_cache.csv", "/tmp/v_midcap150_expanding.csv", 2016, 2026),
 ]
 
 

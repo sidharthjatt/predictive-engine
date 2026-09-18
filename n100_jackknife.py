@@ -66,11 +66,11 @@ DROP_SIZE = 8
 # The published n100 figures this run must reproduce before anything else is
 # believed. Read from the artefact at run time, not hardcoded -- these are only
 # here so a reader knows what to expect.
-OFFICIAL = ROOT / "results_n100" / "metrics" / "v2FINAL_equity.csv"
+OFFICIAL = ROOT / "results_nifty100" / "metrics" / "v2FINAL_equity.csv"
 TOLERANCE = 0.05          # percentage points, on strategy and on buy&hold
 
-PANEL = config.require_cache(ROOT/"results_n100"/"metrics"/"v_n100_expanding_cache.csv",
-                             "/tmp/v_n100_expanding.csv", what="Nifty 100 score panel")
+PANEL = config.require_cache(ROOT/"results_nifty100"/"metrics"/"v_nifty100_expanding_cache.csv",
+                             "/tmp/v_nifty100_expanding.csv", what="Nifty 100 score panel")
 P = pd.read_csv(PANEL, parse_dates=["date"])
 
 

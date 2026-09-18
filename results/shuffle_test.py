@@ -62,12 +62,12 @@ GATED_ARMS = ("v1", "v2")         # v2 ships; v1 is the clean selection test
 # written into shuffle_params.json, and the sibling scripts spell the same two
 # universes two other ways. Labels are presentation; paths are facts.
 # Order is load-bearing -- the verdict accumulates universe by universe.
-LABELS = {"n100": "NIFTY 100", "mid": "MIDCAP150"}
+LABELS = {"nifty100": "NIFTY 100", "midcap150": "MIDCAP150"}
 UNIVERSES = {
     u.tag: {"perm": u.score_cache, "tmp": str(u.score_tmp),
             "metrics_dir": u.metrics_dir, "symbols": u.symbols,
             "label": LABELS[u.tag]}
-    for u in (REGISTRY["n100"], REGISTRY["mid"])
+    for u in (REGISTRY["nifty100"], REGISTRY["midcap150"])
 }
 
 

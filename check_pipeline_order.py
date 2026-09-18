@@ -89,7 +89,7 @@ TAG_CALL = re.compile(
 # A STEP MAY NAME ITS UNIVERSE THROUGH THE REGISTRY INSTEAD OF A CONFIG MODULE.
 # TAG_CALL above recognises the original shape -- run(..., config74.METRICS_DIR_74,
 # 2025, "74") -- which is how the audit scripts used to bind their tag. Once they
-# collapsed into one implementation they call audit_step.run(REGISTRY["mid"])
+# collapsed into one implementation they call audit_step.run(REGISTRY["midcap150"])
 # instead, TAG_CALL matched nothing, and every daily_*_{tag}.csv became unresolved:
 # the checker lost four producer edges and still reported success. This recognises
 # the registry form as well.
@@ -108,7 +108,7 @@ REGISTRY_CALL = re.compile(r'REGISTRY\[["\'](\w+)["\']\]')
 # THE EXCLUSION IS ON WHAT THE DIRECTORY IS, NOT ON THE PLACEHOLDER. Before this,
 # those two reads landed in `unresolved` because `{sym}` could not expand -- which
 # CONCEALED the real defect rather than being it: the scanner had already resolved
-# `_raw` to `results_mid/` by falling back to `default`, so an improvement to
+# `_raw` to `results_midcap150/` by falling back to `default`, so an improvement to
 # placeholder handling would have started resolving them to the WRONG DIRECTORY,
 # silently, and an exclusion written as "unexpandable placeholder" would have read
 # as though it anticipated that. It would not have.
@@ -169,7 +169,7 @@ def _mod2dir():
     a write and the ordering check passes with the edge missing.
 
     Each universe names its own config module and METRICS_DIR constant by
-    convention -- config_mid.METRICS_DIR_MID for tag "mid" -- so both halves are
+    convention -- config_mid.METRICS_DIR_MID for tag "midcap150" -- so both halves are
     derived from the tag rather than restated.
 
     NOTHING IN THE TREE SPELLS THAT FORM ANY MORE. Step 7 folded config_mid.py and
@@ -258,7 +258,7 @@ def _scan(script_path):
 # comment, which names the subscript it warns about, and reported a literal in a
 # file that no longer had one. Then make_audit.py's docstring explained the step-4
 # merge by spelling the old REGISTRY subscript out -- REGISTRY_CALL matched it,
-# bound a phantom "mid" tag to BOTH pipeline rows, and STEP 10g silently dropped
+# bound a phantom "midcap150" tag to BOTH pipeline rows, and STEP 10g silently dropped
 # n100's four producer edges because it could no longer choose a directory.
 #
 # WHY NOT A FULL AST REWRITE, which is what fixed the marker check. Three reasons,
@@ -369,7 +369,7 @@ def _scan_text(txt, tag=None, span=()):
 
     A STEP AND ITS HELPERS MUST BE SCANNED AS ONE UNIT, not scanned separately and
     unioned. The tag that resolves daily_trades_{tag}.csv is bound in the ENTRY
-    POINT (audit_step.run(REGISTRY["mid"])) while the to_csv that uses it lives in
+    POINT (audit_step.run(REGISTRY["midcap150"])) while the to_csv that uses it lives in
     the HELPER. Scanned apart, the helper has no tag and every filename with a
     placeholder falls into `unresolved`; scanned together, the tag applies. Getting
     this wrong is silent -- the checker reports success with the edges missing.
@@ -404,7 +404,7 @@ def _scan_text(txt, tag=None, span=()):
             tags.append((d, m.group(1)))
     # THE UNIVERSE FROM THE PIPELINE ROW, for a step that no longer names its own.
     # Before the collapse every per-universe step carried a literal
-    # REGISTRY["mid"], and make_mid_audit.py's comment said in as many words that
+    # REGISTRY["midcap150"], and make_mid_audit.py's comment said in as many words that
     # the literal was KEPT because this scanner reads it -- "a loop variable there
     # matches nothing". Merging the pair removes the literal, and without this the
     # four `audit before chart` edges would vanish and the check would still report
@@ -521,7 +521,7 @@ def analyse(pipeline, results_root=None, resolver=None, helpers=None,
     # precedes 10d, so no inversion exists here to report -- even when the n100
     # invocation at 10h depends on a writer at 10g that mid's invocation at 10d was
     # made to demand. That happened: on 2026-09-17 a cold `--universe all` died at
-    # STEP 10d asking for results_n100/metrics/daily_trades_n100.csv, and this
+    # STEP 10d asking for results_nifty100/metrics/daily_trades_n100.csv, and this
     # checker reported 0 inversions on the same tree, correctly.
     #
     # IT IS NOT A DEFECT HERE AND IS NOT FIXED HERE. This module reasons about the
@@ -563,7 +563,7 @@ def analyse(pipeline, results_root=None, resolver=None, helpers=None,
         # makes run.py refuse to start. See run_all.SPANS_REGISTRY.
         #
         # INERT WHILE THE SOURCE STILL NAMES ITS UNIVERSES IN LITERALS. REG_ASSIGN
-        # and REGISTRY_CALL already resolve `M_n100 = REGISTRY["n100"].metrics_dir`,
+        # and REGISTRY_CALL already resolve `M_n100 = REGISTRY["nifty100"].metrics_dir`,
         # so for STEP 12b as written today this contributes the same two directories
         # those literals already contribute and nothing moves. It exists so that a
         # registry-driven loop -- where `REGISTRY[t]` matches neither pattern,

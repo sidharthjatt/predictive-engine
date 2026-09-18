@@ -568,16 +568,16 @@ _WITHOUT_SURV = _RAW / "Final_Without_Survivorship_Data"
 
 _MID_SOURCE = _WITHOUT_SURV / "Final_NIFTYMidCap150_EoD_Data"
 _MID_LINKS = _RAW / "MidCap150" / "constituents"
-_MID_METRICS = ROOT / "results_mid" / "metrics"
+_MID_METRICS = ROOT / "results_midcap150" / "metrics"
 _MID_INDEX = "NIFTY MIDCAP 150"
 
 _N100_SOURCE = _WITHOUT_SURV / "Final_NIFTY100_EoD_Data"
 _N100_LINKS = _RAW / "N100_constituents"
-_N100_METRICS = ROOT / "results_n100" / "metrics"
+_N100_METRICS = ROOT / "results_nifty100" / "metrics"
 _N100_INDEX = "NIFTY 100"
 
 _MID = Universe(
-        tag="mid", label="MidCap150 (148 constituents)",
+        tag="midcap150", label="MidCap150 (148 constituents)",
         data_dir=_MID_LINKS,
         raw_data_dir=_MID_SOURCE,
         survivorship=(
@@ -587,11 +587,11 @@ _MID = Universe(
             "buy&hold are inflated. Source: data/raw/MidCap150/clean."),
         symbol_list=_constituents(_MID_SOURCE, _MID_INDEX),
         metrics_dir=_MID_METRICS,
-        score_tmp=Path("/tmp/v_mid_expanding.csv"),
-        score_cache=_MID_METRICS / "v_mid_expanding_cache.csv",
-        raw_tmp=Path(f"/tmp/raw_panel_mid_{HORIZON}.csv"),
-        raw_cache=_MID_METRICS / "raw_panel_mid_cache.csv",
-        nautilus_scores="scores_mid.parquet",
+        score_tmp=Path("/tmp/v_midcap150_expanding.csv"),
+        score_cache=_MID_METRICS / "v_midcap150_expanding_cache.csv",
+        raw_tmp=Path(f"/tmp/raw_panel_midcap150_{HORIZON}.csv"),
+        raw_cache=_MID_METRICS / "raw_panel_midcap150_cache.csv",
+        nautilus_scores="scores_midcap150.parquet",
         nautilus_end=str(config.BT_END_DATE.date()),
         purge_mode="trading",
         index_name=_MID_INDEX,
@@ -658,7 +658,7 @@ _MID = Universe(
             "assert_index_absent": False,
         },
         chart_text={
-            "stem": "chart_mid_FINAL",
+            "stem": "chart_midcap150_FINAL",
             # THE INDEX WINDOW END IS A DATA BOUNDARY, not a market one: it is the
             # last date this universe's index file carries. mid and n100 differ.
             "index_window_end": "2026-06-08",
@@ -711,7 +711,7 @@ _MID = Universe(
     )
 
 _N100 = Universe(
-        tag="n100", label="Nifty 100 (99 constituents)",
+        tag="nifty100", label="Nifty 100 (99 constituents)",
         data_dir=_N100_LINKS,
         raw_data_dir=_N100_SOURCE,
         survivorship=(
@@ -722,11 +722,11 @@ _N100 = Universe(
             "NOT survivorship-biased. Source: data/raw/nifty100_benchmark."),
         symbol_list=_constituents(_N100_SOURCE, _N100_INDEX),
         metrics_dir=_N100_METRICS,
-        score_tmp=Path("/tmp/v_n100_expanding.csv"),
-        score_cache=_N100_METRICS / "v_n100_expanding_cache.csv",
-        raw_tmp=Path(f"/tmp/raw_panel_n100_{HORIZON}.csv"),
-        raw_cache=_N100_METRICS / "raw_panel_n100_cache.csv",
-        nautilus_scores="scores_n100.parquet",
+        score_tmp=Path("/tmp/v_nifty100_expanding.csv"),
+        score_cache=_N100_METRICS / "v_nifty100_expanding_cache.csv",
+        raw_tmp=Path(f"/tmp/raw_panel_nifty100_{HORIZON}.csv"),
+        raw_cache=_N100_METRICS / "raw_panel_nifty100_cache.csv",
+        nautilus_scores="scores_nifty100.parquet",
         nautilus_end=str(config.BT_END_DATE.date()),
         purge_mode="trading",
         index_name=_N100_INDEX,
@@ -787,7 +787,7 @@ _N100 = Universe(
             "assert_index_absent": True,
         },
         chart_text={
-            "stem": "chart_n100",
+            "stem": "chart_nifty100",
             # CORRECTED 2026-09-18, with the repoint that made it stale. The old
             # nifty100_benchmark/NIFTY100.csv ended 22-06-2026, so this value
             # was RIGHT until the source changed; Final_NIFTY100_EoD_Data's
@@ -858,7 +858,7 @@ _N100 = Universe(
 # a placeholder number here would be a claim nobody has earned.
 _N50_SOURCE = _WITHOUT_SURV / "Final_NIFTY50_EoD_Data"
 _N50_LINKS = _RAW / "N50_constituents"
-_N50_METRICS = ROOT / "results_n50" / "metrics"
+_N50_METRICS = ROOT / "results_nifty50" / "metrics"
 # THE SUPPLIER SPELLS THIS ONE IN TITLE CASE. Seven of the eight index files
 # shout -- "NIFTY 100", "NIFTY MIDCAP 150", "NIFTY SMLCAP 250" -- and this one
 # is "Nifty 50.csv". It is handled by normalise_stem() like any other spelling,
@@ -866,7 +866,7 @@ _N50_METRICS = ROOT / "results_n50" / "metrics"
 _N50_INDEX = "Nifty 50"
 
 _N50 = Universe(
-        tag="n50", label="Nifty 50 (50 constituents)",
+        tag="nifty50", label="Nifty 50 (50 constituents)",
         data_dir=_N50_LINKS,
         raw_data_dir=_N50_SOURCE,
         survivorship=(
@@ -879,11 +879,11 @@ _N50 = Universe(
             "Final_NIFTY50_EoD_Data."),
         symbol_list=_constituents(_N50_SOURCE, _N50_INDEX),
         metrics_dir=_N50_METRICS,
-        score_tmp=Path("/tmp/v_n50_expanding.csv"),
-        score_cache=_N50_METRICS / "v_n50_expanding_cache.csv",
-        raw_tmp=Path(f"/tmp/raw_panel_n50_{HORIZON}.csv"),
-        raw_cache=_N50_METRICS / "raw_panel_n50_cache.csv",
-        nautilus_scores="scores_n50.parquet",
+        score_tmp=Path("/tmp/v_nifty50_expanding.csv"),
+        score_cache=_N50_METRICS / "v_nifty50_expanding_cache.csv",
+        raw_tmp=Path(f"/tmp/raw_panel_nifty50_{HORIZON}.csv"),
+        raw_cache=_N50_METRICS / "raw_panel_nifty50_cache.csv",
+        nautilus_scores="scores_nifty50.parquet",
         nautilus_end=str(config.BT_END_DATE.date()),
         purge_mode="trading",
         index_name=_N50_INDEX,
@@ -974,7 +974,7 @@ _N50 = Universe(
             "assert_index_absent": True,
         },
         chart_text={
-            "stem": "chart_n50",
+            "stem": "chart_nifty50",
             # THE LAST DATE THIS UNIVERSE'S INDEX FILE CARRIES, read off the
             # file: "Nifty 50.csv" ends 26-08-2026. That is twenty days later
             # than every other supplier index file, which end 06-08-2026.
@@ -1059,7 +1059,7 @@ LIVE = list(REGISTRY.values())
 # from every combined report, which is why report_order() raises on one instead.
 # n50 SITS NEXT TO n100 BECAUSE IT IS A SUBSET OF IT, so the two large-cap
 # lines are adjacent in every combined report rather than separated by mid.
-REPORT_ORDER = ("n100", "n50", "mid", "58", "74")
+REPORT_ORDER = ("nifty100", "nifty50", "midcap150", "58", "74")
 
 
 # ---------------------------------------------------------------------------

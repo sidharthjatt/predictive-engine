@@ -143,7 +143,7 @@ def main(u):
     print("=" * 100)
     print(f"  SURVIVORSHIP: {sv.describe_state()}")
 
-    # UNLISTED FIX 2026-08-28: this read /tmp/v_mid_expanding.csv directly and
+    # UNLISTED FIX 2026-08-28: this read /tmp/v_midcap150_expanding.csv directly and
     # raised FileNotFoundError whenever /tmp had been cleared. n100's engine has
     # always used config.require_cache with the permanent copy as the fallback;
     # this now matches it. Pre-existing bug, not introduced by the V34 work.

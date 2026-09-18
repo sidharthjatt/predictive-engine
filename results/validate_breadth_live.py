@@ -84,12 +84,12 @@ BT_START_DATE, BT_END_DATE = config.BT_START_DATE, config.BT_END_DATE
 # universes/registry.py -- the single definition. The LABEL stays local; this
 # file uses the "Nifty 100"/"MidCap150" spelling, and it is written into
 # breadth_live_params.json as well as printed, so it must not move.
-LABELS = {"n100": "Nifty 100", "mid": "MidCap150"}
+LABELS = {"nifty100": "Nifty 100", "midcap150": "MidCap150"}
 UNIVERSES = {
     u.tag: {"score_perm": u.score_cache, "score_tmp": str(u.score_tmp),
             "raw_perm": u.raw_cache, "raw_tmp": str(u.raw_tmp),
             "metrics": u.metrics_dir, "label": LABELS[u.tag]}
-    for u in (REGISTRY["n100"], REGISTRY["mid"])
+    for u in (REGISTRY["nifty100"], REGISTRY["midcap150"])
 }
 
 # Verbatim from results/validate_breadth.py. Not reordered, not extended.

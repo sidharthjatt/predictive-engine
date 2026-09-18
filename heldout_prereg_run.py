@@ -301,7 +301,7 @@ def main():
     W("")
 
     ins, outs, details = {}, {}, []
-    for tag in ("n100", "mid"):
+    for tag in ("nifty100", "midcap150"):
         a, b, d = universe_series(REGISTRY[tag], W)
         ins[tag], outs[tag] = a, b
         details.append(d)
@@ -310,7 +310,7 @@ def main():
     # ------------------------------------------------------------------
     # STEP 1 -- IN-SAMPLE ONLY. Printed before any held-out number exists.
     # ------------------------------------------------------------------
-    pooled_in = pd.concat([ins["n100"], ins["mid"]])
+    pooled_in = pd.concat([ins["nifty100"], ins["midcap150"]])
     # n IS COUNTED FROM THE DATES, NOT FROM THE HELD-OUT SERIES. Section 3 asks for
     # "the number of held-out sessions actually available", and taking it from the
     # date index rather than from len() of a computed statistic keeps STEP 1 free
@@ -326,7 +326,7 @@ def main():
 
     W("  STEP 1 -- COMPUTED FROM SESSIONS ON OR BEFORE 2026-05-29 ONLY")
     W(f"    in-sample sessions pooled : {len(pooled_in):,} "
-      f"(n100 {len(ins['n100']):,} + mid {len(ins['mid']):,})")
+      f"(n100 {len(ins['nifty100']):,} + mid {len(ins['midcap150']):,})")
     W(f"    mu_in                     : {mu_in*bps:+.4f} bps/session "
       f"({mu_in*252*100:+.2f}% annualised)")
     W(f"    sd_in                     : {sd_in*bps:.4f} bps/session")
@@ -365,7 +365,7 @@ def main():
     # ------------------------------------------------------------------
     # THE HELD-OUT STATISTIC -- COMPUTED ONCE
     # ------------------------------------------------------------------
-    pooled_out = pd.concat([outs["n100"], outs["mid"]])
+    pooled_out = pd.concat([outs["nifty100"], outs["midcap150"]])
     mu_out = float(pooled_out.mean())
     positive = mu_out > 0
     inside = lo <= mu_out <= hi

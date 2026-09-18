@@ -81,14 +81,14 @@ _SEG = _reports_segment(ARM.mode, ARM.sizing)
 # The LABEL stays local: it is printed into
 # diagnostics/checkB_execution_timing.txt. Labels are presentation; paths are
 # facts. Order is load-bearing -- the report is written universe by universe.
-LABELS = {"n100": "NIFTY 100", "mid": "MIDCAP150"}
+LABELS = {"nifty100": "NIFTY 100", "midcap150": "MIDCAP150"}
 UNIVERSES = {
     u.tag: (ROOT / "nautilus" / "reports" / u.tag / _SEG / "fills.csv",
             u.score_cache,
             str(u.score_tmp),
             paths.tagged_artefact(u, "daily_decisions"),
             LABELS[u.tag])
-    for u in (REGISTRY["n100"], REGISTRY["mid"])
+    for u in (REGISTRY["nifty100"], REGISTRY["midcap150"])
 }
 
 

@@ -30,7 +30,7 @@ ONE EXPORT PER REGISTERED UNIVERSE, DERIVED, NOT LISTED
 Source : u.score_cache        for every u in universes/registry.REGISTRY
 Output : nautilus/data/{u.nautilus_scores}
 
-Reads only. Nothing under results/, results74/, results_mid/ or results_n100/ is
+Reads only. Nothing under results/, results74/, results_midcap150/ or results_nifty100/ is
 modified.
 """
 import sys
