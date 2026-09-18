@@ -2769,7 +2769,7 @@ which step.
 
 Found 2026-08-27. Open.
 
-`results_mid/metrics/chart_mid_FINAL.png` renders with this as its first line:
+`results_midcap150/metrics/chart_midcap150_FINAL.png` renders with this as its first line:
 
 > NOT A VALID RESULT -- PANEL DENSITY BLOCKER: only 148 of 148 names are scored,
 > median 130 priced per day. idio_vol_60/beta_60 use rolling(60) on the UNION date
@@ -2838,8 +2838,8 @@ match the panels in the repository.**
 | midcap150  | `aa277d1bd2c86774...` | `1e2d85df4d8fee73...` |
 
 So the numbers on record were computed from a panel that is no longer the one
-`results_n100/metrics/v_n100_expanding_cache.csv` and
-`results_mid/metrics/v_mid_expanding_cache.csv` hold.
+`results_nifty100/metrics/v_nifty100_expanding_cache.csv` and
+`results_midcap150/metrics/v_midcap150_expanding_cache.csv` hold.
 
 **THE PANELS DID NOT MOVE; THE ARTEFACT DID NOT KEEP UP.** Every
 `results*/metrics/` directory was archived before any of this session's work
@@ -5058,7 +5058,7 @@ STEP 10h  make_chart.py   results_mid/v2FINAL_equity.csv    engine_v2_final.py  
 ### It is pre-existing, and it scales as noise rather than as blindness
 
 Measured against a 2-universe baseline on the same day: `STEP 10d` already claims
-`results_n100/` files today, with nothing added. A third universe multiplies the
+`results_nifty100/` files today, with nothing added. A third universe multiplies the
 cross-attribution -- each `make_chart` step claimed 12 edges at 3 universes rather
 than 4 -- but introduces no new failure mode. At 10 universes each such step would
 claim 40.
@@ -5256,11 +5256,11 @@ Making `unresolved` fatal today would fail the build at six. They are not one ki
 of thing:
 
 **Two are not pipeline edges at all, and are MISATTRIBUTED.**
-`make_chart.py -> results_mid/{sym}.csv` and its nifty100 twin come from
+`make_chart.py -> results_midcap150/{sym}.csv` and its nifty100 twin come from
 `results/make_chart.py:211`, `config.read_price_csv(_raw / f"{sym}.csv")` where
 `_raw = u.prepare_data_dir()` -- the CONSTITUENTS SYMLINK DIRECTORY under
 `data/raw`, not a metrics directory. The scanner has attributed a raw price read to
-`results_mid/`. It lands in `unresolved` only because `{sym}` cannot expand, which
+`results_midcap150/`. It lands in `unresolved` only because `{sym}` cannot expand, which
 accidentally conceals the misattribution: were the placeholder expandable it would
 resolve to the WRONG directory. These should be excluded from candidacy, not
 resolved.
@@ -5440,3 +5440,69 @@ have to write that number down and defend it.
 
 NOT DONE HERE. Recorded so the next palette chosen by eye is recognised as the
 second one.
+
+---
+
+## Compound identifiers still carry old tags, and most of them cannot be renamed
+
+Three prose passes on 2026-09-18 renamed the BARE tags in this file: `mid` ->
+`midcap150` (166 of 215), `n100` -> `nifty100` (142 of 170), `n50` -> `nifty50`
+(12 of 13). **None of them touched a compound identifier**, and that is not an
+oversight -- `\bn100\b` does not match `build_scores_n100.py`, because `_n` is not
+a word boundary. Compounds are a separate population of 142 occurrences, surveyed
+disk-first on 2026-09-18.
+
+### THE 49 THAT NAME MERGED SCRIPTS -- DO NOT RENAME THESE
+
+**These eleven names exist on disk under NO name, old or new, because the scripts
+were MERGED rather than renamed:**
+
+| what this file says | what actually happened |
+|---|---|
+| `make_mid_chart.py`, `make_n100_chart.py` | merged into `results/make_chart.py` |
+| `config_mid.py`, `config_n100.py` | merged into `config.py` |
+| `build_scores_mid.py`, `build_scores_n100.py` | merged into `results/build_scores.py` |
+| `engine_v2_final_mid.py`, `engine_v2_final_n100.py` | merged into `results/engine_v2_final.py` |
+| `make_mid_audit.py`, `make_n100_audit.py` | merged into `results/make_audit.py` |
+| `make_combined_n100_mid.py` | merged into `results/make_combined_universes.py` |
+
+**A token-for-token rename here INVENTS ELEVEN FILES THAT HAVE NEVER EXISTED** --
+`make_midcap150_chart.py` is not a file this repository has ever contained. It is
+the false-record mistake, at a third of the compound population in one go.
+
+**WHOEVER DOES THIS REWRITES THE SENTENCES, NOT THE TOKENS.** "the two chart
+scripts" became one script; a sentence built on there being one per universe does
+not survive a substitution, however careful. It is a separate job and is NOT
+QUEUED. Until it is done, every one of these 49 sites is knowingly stale, and
+that is preferable to 49 sites that are confidently wrong.
+
+### Compounds whose file still exists under its OLD name -- also not candidates
+
+`mid_jackknife.py`, `n100_jackknife.py`, `mid_topn_test.py`, `runs/mid/`,
+`diagnostics/shuffle_{mid,n100}.txt`, `diagnostics/topn_{mid,n100}.txt`,
+`diagnostics/n100_jackknife.txt`. The prose pointing at these is CORRECT AS IT
+STANDS. Renaming it breaks a working reference. Same standing note as the bare-tag
+passes: whoever renames these files comes back to this document.
+
+### Four compounds that looked unresolved, and what they turned out to be
+
+Recorded because each cost a lookup and three of the four are now CLOSED:
+
+1. **`results_MID_/metrics/daily_trades_mid_tradeable.csv`** -- **CLOSED.** It is
+   inside a fenced block: verbatim captured console output. The odd casing is what
+   the tool printed. A record, and it stays exactly as it is.
+2. **`mid_v3`** -- **CLOSED.** Not a file but a run/baseline stem, and it exists on
+   disk under that name: `runs/20260917T011927_mid_v3_r20`,
+   `runs/20260917T002447_mid_v3_r20`, and `pre_repoint_baseline/metrics_mid/`
+   *`_mid_v3.csv`. Old name exists, so not a candidate.
+3. **`mid_jackknife.edge`** -- **CLOSED.** Not a file extension. It is a METHOD:
+   `mid_jackknife.py:50`, `def edge(drop=())`. The module exists under its old
+   name; nothing to rename.
+4. **`diagnostics/mid_jackknife.txt` IS ABSENT WHILE `diagnostics/n100_jackknife.txt`
+   EXISTS -- OPEN.** The jackknife diagnostic was written for one universe and not
+   the other, and nothing in this repository says which of the two it is: never
+   produced for midcap150, or produced and deleted. **Do not write prose that
+   assumes the pair is symmetric**, and do not let a reader rediscover this from
+   scratch -- it was found on 2026-09-18 during the compound survey. Resolving it
+   means finding the step that writes `n100_jackknife.txt` and asking why it has
+   no midcap150 sibling.
