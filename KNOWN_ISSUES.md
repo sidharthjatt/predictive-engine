@@ -5506,3 +5506,43 @@ Recorded because each cost a lookup and three of the four are now CLOSED:
    scratch -- it was found on 2026-09-18 during the compound survey. Resolving it
    means finding the step that writes `n100_jackknife.txt` and asking why it has
    no midcap150 sibling.
+
+---
+
+## The chart's `expected` cross-check is deleted, and must not return as a derived value
+
+`results/make_chart.py` printed, directly beneath the measured index window:
+
+```
+    expected                : 6,342 -> 21,926 = 3.46x = 18.16% CAGR
+```
+
+**It was a hardcoded literal, printed for EVERY universe.** Those are midcap150's
+figures. nifty100 measures `11,148.80 -> 25,757.40 = 2.3103x = 11.6567%` and
+nifty50 `10,910.10 -> 24,207.75 = 2.2188x = 10.9808%`, and both printed
+midcap150's numbers underneath their own as though confirming them.
+
+**It was right for one of three universes, and since `43fbd2f` it was right for
+none** -- that commit corrected midcap150's `index_window_end` from `2026-06-08`
+to `2026-08-06`, which moved midcap150's own measured line to
+`23,310.55 / 3.6758x / 18.6968%` and left the literal behind. A line that was
+wrong twice became wrong three times, and nothing failed, because nothing compared
+them.
+
+### Why it was deleted rather than fixed, and why the obvious fix is worse
+
+**DERIVING IT FROM THE SLICE IS A TAUTOLOGY.** `expected` sat one line below a
+figure computed from `_w`; computing `expected` from `_w` as well makes the two
+agree by construction. It would print a permanently green line that CANNOT FAIL.
+A check that cannot fail is worse than no check, because it occupies the place a
+real one would take and reads, to anyone scanning the output, exactly like
+confirmation.
+
+**WHAT WOULD EARN A REGISTRY FIELD: the index provider's own published return for
+this span, per universe.** That is an independent number -- it comes from outside
+the computation it is checking, which is the whole point -- and **this repository
+does not have it.** Until it does there is no check to make, so none is printed.
+
+**DO NOT HELPFULLY REINTRODUCE THIS AS A DERIVED VALUE.** The deletion site in
+`make_chart.py` carries the same reasoning in a comment, so the next reader meets
+it before writing the line back.
