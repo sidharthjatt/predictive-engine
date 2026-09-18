@@ -1,4 +1,37 @@
 ================================================================================
+ SUPERSEDED 2026-09-18 -- THE PANEL THIS WAS COMPUTED ON IS NOT IN THIS CHECKOUT
+================================================================================
+ NOT DELETED, NOT RE-RUN, AND NOT RE-RUNNABLE. Read this before any figure
+ below.
+
+ mid and n100 were repointed from the kite extraction to the supplier's upstox
+ panel on 2026-09-18. See PANEL_MIGRATION.md. The names did not change; the
+ prices did, on 139 of 148 mid names and 90 of 99 n100 names, and so did the
+ per-name history.
+
+ THE PRECONDITION CANNOT BE SATISFIED ANY MORE. This pre-registration's own
+ run gate was a reproduction check -- the shipped v2FINAL_equity.csv over the
+ 1,836 in-sample sessions, maximum relative difference against a tolerance of
+ 1e-12. It passed at 2.219e-16 on the kite panel. On the upstox panel the
+ equity curve it compares against does not exist any more: the artefact of
+ that name now holds different numbers. The gate would fail, and a breach
+ calls _fail() and exits before any held-out figure is read.
+
+ THE WINDOW IS SPENT AND CANNOT BE RESPENT. The result-block sentinel is
+ written below -- deliberately not repeated in this header, because
+ heldout_prereg_run.py tests for that exact literal and a header that carried
+ it would be a fourth copy of the file's own state marker. It is this
+ pre-registration's record that its one run has happened. The statistic was computed once, on 12
+ pooled sessions, on a panel that is gone. Recomputing it on the new panel
+ would be a second number from a pre-registration that permits one, and the
+ fact that the first number is unreproducible does not restore the entitlement.
+
+ SO THE RESULT BELOW IS A HISTORICAL RECORD, NOT A CURRENT CLAIM. It says what
+ was measured, once, on data this repository no longer holds. Do not quote it
+ as a property of the strategy as it stands, and do not re-run it.
+================================================================================
+
+================================================================================
  HELD-OUT PRE-REGISTRATION
  Written 2026-09-12, BEFORE any data after 2026-05-29 was examined.
 ================================================================================
