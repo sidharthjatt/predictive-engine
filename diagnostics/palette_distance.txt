@@ -1,0 +1,104 @@
+==============================================================================
+ CANONICAL COMBINED CHART (v2 + v1 per universe) -- 12 lines
+==============================================================================
+    mid/v2         #e377c2
+    mid/v1         #17becf
+    mid/bh         #8fd08f
+    mid/ix         #7f7f7f
+    n100/v2        #c0392b
+    n100/v1        #2e6da4
+    n100/bh        #3a9d3a
+    n100/ix        #000000
+    n50/v2         #7f4b70
+    n50/v1         #4176fc
+    n50/bh         #34c2a5
+    n50/ix         #932d41
+
+  --- normal: closest 8 pairs
+      dE= 11.74   n100/v1        vs n50/v1        
+      dE= 14.19   mid/bh         vs n50/bh        
+      dE= 15.29   n50/v2         vs n50/ix        
+      dE= 15.60   n100/v2        vs n50/ix        
+      dE= 16.13   mid/v1         vs n50/bh        
+      dE= 17.60   mid/bh         vs n100/bh       
+      dE= 20.36   n100/bh        vs n50/bh        
+      dE= 21.54   mid/ix         vs n100/v1       
+      minimum 11.74; 0 pair(s) below 10, 0 below the JND
+
+  --- deutan: closest 8 pairs
+      dE=  4.24   mid/v2         vs mid/v1          <-- below 10
+      dE=  7.55   n100/v2        vs n100/bh         <-- below 10
+      dE= 13.44   n100/v1        vs n50/v1        
+      dE= 13.58   mid/ix         vs n50/bh        
+      dE= 13.80   mid/v2         vs n50/bh        
+      dE= 14.34   n100/v1        vs n50/v2        
+      dE= 15.28   mid/ix         vs n50/v2        
+      dE= 15.36   n100/v2        vs n50/ix        
+      minimum 4.24; 2 pair(s) below 10, 0 below the JND
+
+  --- protan: closest 8 pairs
+      dE= 11.33   mid/bh         vs n50/bh        
+      dE= 11.84   n100/v1        vs n50/v2        
+      dE= 12.47   mid/v2         vs n100/v1       
+      dE= 12.70   mid/v2         vs n50/v1        
+      dE= 13.84   n100/v1        vs n50/v1        
+      dE= 15.04   mid/v2         vs mid/v1        
+      dE= 16.21   n50/v2         vs n50/ix        
+      dE= 16.54   mid/bh         vs n100/bh       
+      minimum 11.33; 0 pair(s) below 10, 0 below the JND
+
+==============================================================================
+ --arm all (v2, v1, v3, v4 per universe) -- 18 lines
+==============================================================================
+    mid/v2         #e377c2
+    mid/v1         #17becf
+    mid/v3         #1b9e77
+    mid/v4         #e6ab02
+    mid/bh         #8fd08f
+    mid/ix         #7f7f7f
+    n100/v2        #c0392b
+    n100/v1        #2e6da4
+    n100/v3        #7f3f98
+    n100/v4        #d95f02
+    n100/bh        #3a9d3a
+    n100/ix        #000000
+    n50/v2         #7f4b70
+    n50/v1         #4176fc
+    n50/v3         #1551e7
+    n50/v4         #046e59
+    n50/bh         #34c2a5
+    n50/ix         #932d41
+
+  --- normal: closest 8 pairs
+      dE= 11.39   mid/v3         vs n50/bh        
+      dE= 11.61   n100/v3        vs n50/v2        
+      dE= 11.74   n100/v1        vs n50/v1        
+      dE= 12.12   n100/v1        vs n50/v3        
+      dE= 12.67   n50/v1         vs n50/v3        
+      dE= 13.10   mid/v3         vs n100/bh       
+      dE= 14.19   mid/bh         vs n50/bh        
+      dE= 15.29   n50/v2         vs n50/ix        
+      minimum 11.39; 0 pair(s) below 10, 0 below the JND
+
+  --- deutan: closest 8 pairs
+      dE=  3.26   n100/v1        vs n100/v3         <-- below 10
+      dE=  4.24   mid/v2         vs mid/v1          <-- below 10
+      dE=  7.35   n100/v4        vs n100/bh         <-- below 10
+      dE=  7.55   n100/v2        vs n100/bh         <-- below 10
+      dE=  7.88   mid/v3         vs mid/ix          <-- below 10
+      dE= 10.83   n100/v2        vs n100/v4       
+      dE= 11.24   n50/v2         vs n50/v4        
+      dE= 11.61   n50/v4         vs n50/ix        
+      minimum 3.26; 5 pair(s) below 10, 0 below the JND
+
+  --- protan: closest 8 pairs
+      dE= 10.75   mid/v4         vs n100/bh       
+      dE= 10.77   n100/v1        vs n100/v3       
+      dE= 11.24   n100/v3        vs n50/v3        
+      dE= 11.28   mid/v3         vs n50/bh        
+      dE= 11.33   mid/bh         vs n50/bh        
+      dE= 11.39   n100/v2        vs n50/v4        
+      dE= 11.48   n100/v3        vs n50/v2        
+      dE= 11.84   n100/v1        vs n50/v2        
+      minimum 10.75; 0 pair(s) below 10, 0 below the JND
+
