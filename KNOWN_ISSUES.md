@@ -5278,3 +5278,94 @@ declares would catch a one-sided edit. Nothing like that exists, and five more
 universes are coming, each of which will copy one of these three rows.
 
 NOT DONE HERE. Recorded so a one-sided edit is recognised as one.
+
+
+---
+
+## Three chart-line colour pairs are indistinguishable, and nothing checks any palette
+
+Measured 2026-09-18 with CIEDE2000 over sRGB->Lab (D65), and over Vienot 1999
+dichromat simulations for deuteranopia and protanopia, on the exact line set
+`make_combined_universes._series()` draws: per universe its selected arms plus
+its own buy&hold (`chart_colours[2]`) and its own cap-weighted index
+(`chart_colours[3]`). Twelve lines on the canonical chart, eighteen under
+`--arm all`.
+
+### The three, none of which involves n50
+
+| pair | vision | dE2000 |
+|---|---|---|
+| `mid/v2` `#e377c2` vs `mid/v1` `#17becf` | deuteranopia | **4.24** |
+| `n100/v1` `#2e6da4` vs `n100/v3` `#7f3f98` | deuteranopia | **3.26** |
+| `mid/v4` `#e6ab02` vs `n100/bh` `#3a9d3a` | protanopia | **10.75** |
+
+The just-noticeable difference is about 2.3. The first two are barely above it:
+for a reader with deuteranopia those lines are the same colour, and in both
+cases the two lines belong to the SAME universe, so the legend's universe label
+does not separate them either. The third is just over 10 and is listed for
+completeness rather than as a defect.
+
+**In normal colour vision the shipped palettes have no pair below 11.7.** This is
+a colour-vision-deficiency finding, not a general legibility one.
+
+### Known, unfixed, and untouched by the commit that found them
+
+They were found while checking n50's palette, and n50's was replaced in that
+commit. **These three were deliberately not touched.** mid's and n100's tuples
+are used by `chart_mid_FINAL.png`, `chart_v34*.png`, `chart_n100*.png` and every
+combined figure; changing any of them re-renders published artefacts for a
+reason that has nothing to do with the panel migration those artefacts were just
+regenerated for. An artefact that moves should move for one stated reason, and
+"the colour was hard to tell apart under deuteranopia" is a different reason from
+"the panel changed". It belongs in its own commit, with its own before/after.
+
+Linestyle carries some of the load already -- arms solid, buy&hold dashed, index
+dotted -- so `mid/v2` vs `mid/v1` is two solid lines and is the worst of the
+three in practice.
+
+### NOTHING GATES THIS, AND THE NEXT UNIVERSE CAN REINTRODUCE IT
+
+n50's first palette was matplotlib's `tab10` head, chosen by eye. It collided
+with n100 three ways IN NORMAL VISION -- buy&hold `#2ca02c` vs `#3a9d3a` at
+**2.13**, below the JND; index `#111111` vs `#000000` at **2.96**; and n50's
+SHIPPING line `#1f77b4` vs n100's control `#2e6da4` at **4.18** -- and it passed
+every check in this repository. `registry_coverage_check.py` verifies that a
+universe HAS a `chart_colours` entry, and the field having no default means the
+row cannot be constructed without one. Neither asks what the colours ARE.
+
+Five more universes are coming. Each will copy one of the three existing rows.
+
+### Is a check cheap enough for registry_coverage_check.py?
+
+**Computationally, yes, and by a wide margin.** Eight universes at six slots is
+48 colours, 1,128 pairs, three vision models -- microseconds. It needs no new
+dependency: sRGB->Lab, the Vienot matrices and CIEDE2000 are about 90 lines of
+arithmetic, and `requirements.txt` gains nothing. The checker already imports
+`universes.registry` directly at `main()`, so unlike the four tables it reads
+with `ast` there is no import-refusal problem to work around -- the values are
+right there as data.
+
+**The cost is not the code. It is that the check FAILS THE DAY IT IS ADDED**, on
+the three pairs above, none of which this commit is willing to move. So adding it
+means one of:
+
+  - fixing mid's and n100's palettes first, which re-renders published artefacts
+    and is the separate commit described above; or
+  - shipping it with a declared-exception list naming those three pairs and the
+    reason each is tolerated -- the same shape as `gate_compare.py`'s accepted
+    `git_state` field and `check_pipeline_order`'s allowlist, where the exception
+    is DATA the gate reads rather than an argument made at review time.
+
+The second is the cheaper and the more honest of the two, and it has this
+repository's own precedent behind it. It also has the failure mode those
+precedents warn about: an exception list is a place to put a pair you did not
+want to fix, and it grows.
+
+A third consideration decides nothing but is worth stating: the threshold itself
+is a judgement. dE 10 is what n50's replacement was searched against, and it is
+neither a standard nor a measurement -- it is four times the JND, chosen because
+it was achievable against the fixed palettes without moving them. A gate would
+have to write that number down and defend it.
+
+NOT DONE HERE. Recorded so the next palette chosen by eye is recognised as the
+second one.
