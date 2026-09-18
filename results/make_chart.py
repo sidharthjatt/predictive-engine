@@ -228,7 +228,16 @@ def main(u):
           f"{len(idx_raw):,} rows")
     _w = idx_raw[(idx_raw.index >= CUT) & (idx_raw.index <= pd.Timestamp(_CT["index_window_end"]))]
     _y = (_w.index[-1]-_w.index[0]).days/365.25
-    print(f"    2019-01-01 -> 2026-06-08: {_w.iloc[0]:,.2f} -> {_w.iloc[-1]:,.2f} = "
+    # THE LABEL IS DERIVED FROM THE SLICE, NOT RETYPED BESIDE IT. This read
+    # `2019-01-01 -> 2026-06-08` as a hardcoded literal while the upper bound came
+    # from chart_text["index_window_end"], so the two could -- and did -- diverge:
+    # the literal was midcap150's, and nifty100 (bound 2026-08-06) and nifty50
+    # (bound 2026-08-26) both printed 2026-06-08 over numbers measured to their
+    # own bound. Taking the endpoints off _w itself makes divergence impossible,
+    # and reports the sessions actually measured rather than the bound requested --
+    # a bound landing on a holiday is not the last row in the slice.
+    print(f"    {_w.index[0].date()} -> {_w.index[-1].date()}: "
+          f"{_w.iloc[0]:,.2f} -> {_w.iloc[-1]:,.2f} = "
           f"{_w.iloc[-1]/_w.iloc[0]:.4f}x = CAGR {((_w.iloc[-1]/_w.iloc[0])**(1/_y)-1)*100:.4f}%")
     print( "    expected                : 6,342 -> 21,926 = 3.46x = 18.16% CAGR")
     # THE CADENCE-NAMED LOGS. The literals stay in the call for
