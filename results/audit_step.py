@@ -162,7 +162,17 @@ def _reference_curve(M, arm_name):
     # MISMATCH of the cap's whole effect and refuse to write the trail -- the same
     # class of mispairing as the cadence one above, with the same failure mode.
     import profiles as _prof
-    _cad = cadence.suffix() + _prof.suffix()
+    # THE TAX SUFFIX JOINS THE OTHER TWO, 2026-09-18, and it is the same hazard a
+    # third time. This expression was written 2026-09-10 (0ce8ed5) and the tax
+    # axis landed 2026-09-17 (7846f67), so for as long as the axis has existed
+    # this resolved to the UNSUFFIXED curve on a taxed run -- v2FINAL_equity.csv
+    # rather than v2FINAL_equity_tax.csv. The comments above record the identical
+    # mispairing being fixed for cadence and then for profile; nobody added the
+    # fourth axis, and the reconciliation below therefore compared an untaxed
+    # re-run against an untaxed curve left on disk by an EARLIER, DIFFERENT run
+    # and reported MATCH. It could not fail.
+    import tax as _tax_axis
+    _cad = cadence.suffix() + _prof.suffix() + _tax_axis.suffix()
     f = M / f"v2FINAL_equity{_cad}.csv"
     if f.exists():
         df = pd.read_csv(f, parse_dates=["date"]).set_index("date")
@@ -244,9 +254,13 @@ def run(u, arm=None):
         from engine_core import _load_calendar as _lc
         _capkw["vol20"] = _tr.median_volume(
             u.prepare_data_dir(), _lc(), _cfg.BT_START_DATE, _cfg.BT_END_DATE)
+    # THE RUN'S TAX SELECTION. The audit must replay what the engine ran, and
+    # after 21c6624 the engine charges tax; an untaxed re-run would now differ
+    # from the taxed curve by the whole tax effect and refuse to write the trail.
+    import tax as _tax_axis
     eq, tc, ntr, expo = backtest_exposure(
         px, op, sc, bd, pc, mom20, mode=_arm.mode, sizing=_arm.sizing, audit=audit,
-        value_at_open=True,
+        value_at_open=True, tax_enabled=_tax_axis.selected(),
         # THE RUN'S CADENCE. A trail built at 20 while the engine ran at 40 would
         # fail the reconciliation below -- which is the check working, but the fix
         # is to audit the cadence that was actually run.
