@@ -440,8 +440,8 @@ def main(u):
     # ------------------------------------------------------------------
     # A COLD RUN FOUND THIS, AND NO WARM ONE COULD HAVE. The canonical
     # savefig was gated on the selection BEING exactly {v2, v1}, so the
-    # DEFAULT `--arm all` wrote only chart_mid_FINAL_v1_v2_v3_v4.png and never
-    # wrote chart_mid_FINAL.png at all. Every byte-comparison passed, because the
+    # DEFAULT `--arm all` wrote only chart_midcap150_FINAL_v1_v2_v3_v4.png and never
+    # wrote chart_midcap150_FINAL.png at all. Every byte-comparison passed, because the
     # canonical file was still on disk from before the change and nothing
     # overwrote it. Only a run from an empty tree showed it absent.
     #
@@ -458,7 +458,7 @@ def main(u):
     # This printed `<stem>.png` unconditionally -- the canonical figure -- while
     # BOTH renders above are conditional on the selection. Under `--rebal 200` the
     # canonical branch does not run at all, and the line still announced
-    # chart_mid_FINAL.png: a gated file this step had not touched, named as though
+    # chart_midcap150_FINAL.png: a gated file this step had not touched, named as though
     # it had just been written. The comment that stood here said the n100 half had
     # once "named a literal rather than what was written", so the defect was known
     # in one direction and reintroduced in the other.

@@ -24,8 +24,8 @@ WHAT IT CAUGHT, AND WHY NOTHING ELSE COULD
     `--universe all` on a tree with no trade logs died at STEP 10d:
 
         make_chart.py needs 2 file(s) that do not exist:
-          MISSING results_n100/metrics/daily_trades_n100.csv     writer STEP 10g
-          MISSING results_n100/metrics/daily_trades_v1_n100.csv  writer STEP 10f
+          MISSING results_nifty100/metrics/daily_trades_n100.csv     writer STEP 10g
+          MISSING results_nifty100/metrics/daily_trades_v1_n100.csv  writer STEP 10f
 
     Mid's chart demanded n100's trade logs, written two and three steps LATER. The
     cause was a declaration-scope defect -- REQUIRED_INPUTS' `u:` qualifier was

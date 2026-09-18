@@ -59,12 +59,12 @@ ARMS = [("v1", "invvol", "none"), ("v2", "invvol", "breadth"),
 #
 # The LABEL stays local: it is printed into diagnostics/purge_fix_measure.txt.
 # Order is load-bearing -- the measurement is reported universe by universe.
-LABELS = {"n100": "NIFTY 100", "mid": "MIDCAP150"}
+LABELS = {"nifty100": "NIFTY 100", "midcap150": "MIDCAP150"}
 UNIVERSES = {
     u.tag: {"raw": u.raw_cache, "raw_tmp": str(u.raw_tmp),
             "sc": u.score_cache, "sc_tmp": str(u.score_tmp),
             "md": u.metrics_dir, "syms": u.symbols, "label": LABELS[u.tag]}
-    for u in (REGISTRY["n100"], REGISTRY["mid"])
+    for u in (REGISTRY["nifty100"], REGISTRY["midcap150"])
 }
 
 

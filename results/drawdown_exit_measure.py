@@ -85,7 +85,7 @@ THRESHOLDS = [0.10, 0.125, 0.15, 0.20, 0.25]   # spec section 6, fixed in advanc
 WAITS = [5, 20, 40]                            # spec section 12, fixed in advance
 DD_RE_DD_FRAC = 0.5                            # revision 1 only; unused in rev 2
 VOL_WIN = 60
-SEED_FLOOR = {"n100": 0.97, "mid": 1.39}       # entry 29, v2, CAGR ONLY
+SEED_FLOOR = {"nifty100": 0.97, "midcap150": 1.39}       # entry 29, v2, CAGR ONLY
 
 OUT = ROOT / "diagnostics" / "drawdown_exit.txt"
 OUT_CELLS = ROOT / "diagnostics" / "drawdown_exit_cells.csv"
@@ -99,11 +99,11 @@ OUT_EQUITY = ROOT / "diagnostics" / "drawdown_exit_equity.csv"
 #
 # The LABEL stays local: it is printed into diagnostics/drawdown_exit.txt.
 # Order is load-bearing -- the measurement is reported universe by universe.
-LABELS = {"n100": "NIFTY 100", "mid": "MIDCAP150"}
+LABELS = {"nifty100": "NIFTY 100", "midcap150": "MIDCAP150"}
 
 # WHICH UNIVERSES THIS STUDY HAS MEASUREMENTS FOR, DECLARED -- see MEASURED_FOR
 # below, which is where UNIVERSES now comes from. It was the hand-written pair
-# (REGISTRY["n100"], REGISTRY["mid"]), so a third registered universe was absent
+# (REGISTRY["nifty100"], REGISTRY["midcap150"]), so a third registered universe was absent
 # rather than an error.
 UNIVERSES = None        # bound below, once the declaration has been validated
 
@@ -112,8 +112,8 @@ UNIVERSES = None        # bound below, once the declaration has been validated
 # times, and both are defects. Derived from results/tradability.py against the raw
 # data, so a data refresh that changes them fails here and is looked at.
 TRADABILITY_EXPECT = {
-    "mid":  {"symbols": 3, "blocked_days": 1183, "forced_exits": 1},
-    "n100": {"symbols": 0, "blocked_days": 0,    "forced_exits": 0},
+    "midcap150":  {"symbols": 3, "blocked_days": 1183, "forced_exits": 1},
+    "nifty100": {"symbols": 0, "blocked_days": 0,    "forced_exits": 0},
 }
 
 # THE DECLARATION, AND IT COVERS BOTH MEASURED CONSTANTS. SEED_FLOOR is the
@@ -125,7 +125,7 @@ TRADABILITY_EXPECT = {
 # first, TRADABILITY_EXPECT is mid first. Neither is the report order. That is
 # exactly why the order lives here, in one sequence, rather than being taken from
 # whichever constant a reader happened to look at.
-MEASURED_FOR = ("n100", "mid")
+MEASURED_FOR = ("nifty100", "midcap150")
 COVERAGE = measured_universes.declare(
     "drawdown_exit_measure", MEASURED_FOR,
     {"SEED_FLOOR": SEED_FLOOR, "TRADABILITY_EXPECT": TRADABILITY_EXPECT})
@@ -410,7 +410,7 @@ def main():
     w("  NO ACCEPT RULE. NOTHING CAN BE PROMOTED. MaxDD has NO measured noise floor")
     w("  on any arm and entry 28 could not distinguish it from a random null, so the")
     w("  rule's PRIMARY OBJECTIVE REMAINS UNJUDGEABLE. Only CAGR cost is inferable:")
-    w(f"  measured floors n100 {SEED_FLOOR['n100']}, mid {SEED_FLOOR['mid']}.")
+    w(f"  measured floors n100 {SEED_FLOOR['nifty100']}, mid {SEED_FLOOR['midcap150']}.")
     w("  " + "=" * 116)
 
     res, gates_ok = {}, True

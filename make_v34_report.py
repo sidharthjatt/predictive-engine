@@ -27,8 +27,8 @@ sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "results"))
 import config
 
-UNIS = [("n100", "Nifty 100", ROOT / "results_n100" / "metrics"),
-        ("mid", "MidCap150", ROOT / "results_mid" / "metrics")]
+UNIS = [("nifty100", "Nifty 100", ROOT / "results_nifty100" / "metrics"),
+        ("midcap150", "MidCap150", ROOT / "results_midcap150" / "metrics")]
 
 V1 = "v1 invvol, 100% invested"
 V2 = "v2 invvol, breadth-scaled"
@@ -141,7 +141,7 @@ def main():
         core = "held" if dcagr > 0 else "CONTRADICTED"
         W(f"    {tag:<5} the central claim (pro-vol raises CAGR) is {core}: "
           f"CAGR moved {dcagr:+.2f} pt.")
-    same_dir = (verdicts["n100"][0] > 0) == (verdicts["mid"][0] > 0)
+    same_dir = (verdicts["nifty100"][0] > 0) == (verdicts["midcap150"][0] > 0)
     W(f"    The two universes {'AGREE' if same_dir else 'DISAGREE'} on the sign of the "
       f"CAGR change.")
 
@@ -200,9 +200,9 @@ def main():
             signs = {}
             for tag, (label, c, s) in data.items():
                 signs[tag] = c.loc[b, key] - c.loc[a, key]
-            agree = (signs["n100"] > 0) == (signs["mid"] > 0)
-            W(f"    {lab:<10} {metric:<11} n100 {word(signs['n100']):<10} "
-              f"mid {word(signs['mid']):<10} -> "
+            agree = (signs["nifty100"] > 0) == (signs["midcap150"] > 0)
+            W(f"    {lab:<10} {metric:<11} n100 {word(signs['nifty100']):<10} "
+              f"mid {word(signs['midcap150']):<10} -> "
               f"{'agree' if agree else 'DISAGREE'}")
 
     out = ROOT / "diagnostics" / "v34_report.txt"

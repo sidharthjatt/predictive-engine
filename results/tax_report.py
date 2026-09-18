@@ -70,7 +70,7 @@ def artefact_name(stem, tag, ext=".csv"):
     naming.name() appends the same four-axis tail that artefact_tag has already
     applied, so a taxed run wrote FY_TAX_STATEMENT_mid_tax_tax.csv -- the suffix
     twice. It did not show when this module was first written because the
-    then-caller passed a BARE tag ("mid") rather than artefact_tag's output, so
+    then-caller passed a BARE tag ("midcap150") rather than artefact_tag's output, so
     exactly one composition happened and the name looked right. Wiring the step
     supplied the real tag and the second suffix appeared.
 

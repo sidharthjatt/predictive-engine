@@ -108,12 +108,12 @@ OUT = ROOT / "diagnostics" / "purge_mode_probe.txt"
 # MONTHS ARE THIS STUDY'S OWN DATA. Chosen for cut divergence, in BOTH
 # directions, plus months whose cuts coincide, which the run classifies as
 # controls. They describe the probe, not the universe.
-LABELS = {"n100": "NIFTY 100", "mid": "MIDCAP150"}
+LABELS = {"nifty100": "NIFTY 100", "midcap150": "MIDCAP150"}
 MONTHS = {
-    "n100": ["2016-03", "2016-05", "2016-07", "2017-02", "2017-08",
+    "nifty100": ["2016-03", "2016-05", "2016-07", "2017-02", "2017-08",
              "2017-12", "2018-04", "2019-02", "2019-05", "2019-09",
              "2020-05", "2020-10", "2021-05", "2023-05", "2026-05"],
-    "mid": ["2017-08", "2019-02", "2019-09", "2020-05", "2023-05"],
+    "midcap150": ["2017-08", "2019-02", "2019-09", "2020-05", "2023-05"],
 }
 # Order is load-bearing: the report is written universe by universe in this order.
 # WHICH UNIVERSES THIS STUDY HAS MONTHS FOR, DECLARED. The pair was written out
@@ -121,7 +121,7 @@ MONTHS = {
 # probe reported on two while looking complete. MONTHS is this study's own data --
 # chosen for cut divergence in both directions -- so it cannot be derived for a
 # universe nobody has chosen months for. Order is the report order.
-MEASURED_FOR = ("n100", "mid")
+MEASURED_FOR = ("nifty100", "midcap150")
 COVERAGE = measured_universes.declare(
     "purge_mode_probe", MEASURED_FOR, {"MONTHS": MONTHS})
 

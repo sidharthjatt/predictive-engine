@@ -87,7 +87,7 @@ ARMS = [(a.name, a.mode, a.sizing) for a in ARM_REGISTRY.values()]
 # registry's declaration order (58, 74, mid, n100 -> mid, n100), while this
 # report -- like every other script here -- runs n100 first. Using LIVE swapped
 # the two blocks in the output. The order is therefore stated explicitly.
-UNIVERSES = [u.tag for u in (REGISTRY["n100"], REGISTRY["mid"])]
+UNIVERSES = [u.tag for u in (REGISTRY["nifty100"], REGISTRY["midcap150"])]
 
 
 def verify_arm(universe, arm, mode, sizing):

@@ -44,15 +44,15 @@ from universes.registry import REGISTRY
 # The RAW PANEL paths -- permanent and working -- come from
 # universes/registry.py, the single definition. Note the working path is the one
 # that nearly follows a filename rule and does not: raw_panel_20.csv on the 58
-# against raw_panel_mid_20.csv here, with permanent copies named
-# raw_panel_cache.csv and raw_panel_mid_cache.csv. The registry writes all four
+# against raw_panel_midcap150_20.csv here, with permanent copies named
+# raw_panel_cache.csv and raw_panel_midcap150_cache.csv. The registry writes all four
 # out rather than deriving them, for exactly that reason.
 #
 # The LABEL stays local: it is printed into diagnostics/leakage_check2_purge.txt.
 # Order is load-bearing -- the report is written universe by universe.
-LABELS = {"n100": "NIFTY 100", "mid": "MIDCAP150"}
+LABELS = {"nifty100": "NIFTY 100", "midcap150": "MIDCAP150"}
 UNIVERSES = {u.tag: (u.raw_cache, str(u.raw_tmp), LABELS[u.tag])
-             for u in (REGISTRY["n100"], REGISTRY["mid"])}
+             for u in (REGISTRY["nifty100"], REGISTRY["midcap150"])}
 
 
 def run(uni, perm, tmp, label, W):

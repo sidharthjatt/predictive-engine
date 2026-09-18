@@ -45,7 +45,7 @@ VOL_WIN = 60
 # kept local here. Order is load-bearing: the hash table is emitted universe by
 # universe and compared row for row against the previous run.
 UNIVERSES = {u.tag: (u.score_cache, str(u.score_tmp))
-             for u in (REGISTRY["n100"], REGISTRY["mid"])}
+             for u in (REGISTRY["nifty100"], REGISTRY["midcap150"])}
 
 ARMS = [("invvol", "none"), ("invvol", "breadth"),
         ("provol", "none"), ("provol", "breadth")]

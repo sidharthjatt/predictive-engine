@@ -80,12 +80,12 @@ BT_START_DATE, BT_END_DATE = config.BT_START_DATE, config.BT_END_DATE
 # where most of the others use "NIFTY 100"/"MIDCAP150" -- a third spelling of the
 # same two universes. That is exactly why labels are not sourced from the
 # registry: unifying them would rewrite committed artefacts.
-LABELS = {"n100": "Nifty 100", "mid": "MidCap150"}
+LABELS = {"nifty100": "Nifty 100", "midcap150": "MidCap150"}
 UNIVERSES = {
     u.tag: {"score_perm": u.score_cache, "score_tmp": str(u.score_tmp),
             "raw_perm": u.raw_cache, "raw_tmp": str(u.raw_tmp),
             "label": LABELS[u.tag]}
-    for u in (REGISTRY["n100"], REGISTRY["mid"])
+    for u in (REGISTRY["nifty100"], REGISTRY["midcap150"])
 }
 
 # Verbatim from engine_core.py:506 and :536 and :555. Not tuned, not reordered.

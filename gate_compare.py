@@ -140,18 +140,18 @@ def _strip_provenance(doc):
 # Every cell runs on cached panels; the scoring path is skipped in all four.
 STANDING_GATE = (
     # (universe, arm,  profile,    runtime, artefacts, what it alone exercises)
-    ("mid",  "all", "research",  "67 s", 43, "canonical unsuffixed v34 artefacts"),
-    ("n100", "all", "research",  "52 s", 43, "canonical, plus chart_n100_v1_v2_v3_v4.png"),
-    ("mid",  "v3",  "research",  "24 s", 20, "the SUFFIXED naming branch on mid"),
-    ("n100", "v2",  "research",  "20 s", 20, "the suffixed branch on n100; the accepted cell"),
+    ("midcap150",  "all", "research",  "67 s", 43, "canonical unsuffixed v34 artefacts"),
+    ("nifty100", "all", "research",  "52 s", 43, "canonical, plus chart_nifty100_v1_v2_v3_v4.png"),
+    ("midcap150",  "v3",  "research",  "24 s", 20, "the SUFFIXED naming branch on mid"),
+    ("nifty100", "v2",  "research",  "20 s", 20, "the suffixed branch on n100; the accepted cell"),
     # THE ONLY CELLS WHERE THE PARTICIPATION CAP BINDS. Added 2026-09-15. mid is
     # the only universe whose cap binds at all -- n100 tradeable reproduces its
     # research run exactly -- so until these existed, NO cap-binding configuration
     # had ever been independently replayed, and audit_step measured research under
     # a tradeable label for as long as the profile existed. v1 carries the largest
     # cap effect (Rs 3.85M); v2 is the arm whose trail the chart and STEP 12b read.
-    ("mid",  "v1",  "tradeable", "25 s", 20, "the cap BINDING, largest effect  [PARTIAL]"),
-    ("mid",  "v2",  "tradeable", "25 s", 20, "the cap binding on the arm 12b reads  [PARTIAL]"),
+    ("midcap150",  "v1",  "tradeable", "25 s", 20, "the cap BINDING, largest effect  [PARTIAL]"),
+    ("midcap150",  "v2",  "tradeable", "25 s", 20, "the cap binding on the arm 12b reads  [PARTIAL]"),
 )
 
 # THE TWO TRADEABLE CELLS ARE PARTIAL, AND THAT IS NOT A DETAIL. They exercise the
@@ -159,7 +159,7 @@ STANDING_GATE = (
 # are written, and all four mid arms reconcile to under a paisa.
 #
 # THEY USED TO DIE AT STEP 16, AND NO LONGER DO. run_all._present() demanded a
-# profile-suffixed v_mid_expanding_cache_tradeable.csv; the score panel carries no
+# profile-suffixed v_midcap150_expanding_cache_tradeable.csv; the score panel carries no
 # profile dimension, so the guard was asking for a file that should not exist.
 # Fixed 2026-09-16 by scoping the guard to the axes each input's name declares.
 # `--universe mid --arm v2 --profile tradeable` now runs all nine steps, exit 0.
@@ -187,7 +187,7 @@ STANDING_GATE = (
 #   --profile tradeable   RECONCILES since 2026-09-15 (audit_step now pairs the cap
 #                         with vol20), and mid v1/v2 tradeable are gate cells above.
 #                         It still cannot COMPLETE: run_all._present() demands a
-#                         profile-suffixed v_mid_expanding_cache_tradeable.csv, and
+#                         profile-suffixed v_midcap150_expanding_cache_tradeable.csv, and
 #                         the score panel has no profile dimension, so STEP 16
 #                         blocks. A naming-authority defect, not a cap one. See
 #                         KNOWN_ISSUES.md, "The tradeable profile cannot complete".

@@ -37,9 +37,9 @@ from universes.registry import REGISTRY
 # the single definition. The LABEL stays local: it is printed into
 # diagnostics/checkA_close_bad_values.txt. Labels are presentation; paths are
 # facts. Order is load-bearing -- the report is written universe by universe.
-LABELS = {"n100": "NIFTY 100", "mid": "MIDCAP150"}
+LABELS = {"nifty100": "NIFTY 100", "midcap150": "MIDCAP150"}
 UNIVERSES = {u.tag: (u.data_dir, u.metrics_dir, LABELS[u.tag])
-             for u in (REGISTRY["n100"], REGISTRY["mid"])}
+             for u in (REGISTRY["nifty100"], REGISTRY["midcap150"])}
 TOL = 1e-9
 
 

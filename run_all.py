@@ -283,23 +283,23 @@ def _registry_tags():
 
 
 PIPELINE_ORDER = [
-    ("STEP 10a", "build_scores.py",            "mid"),
-    ("STEP 10b", "engine_v2_final.py",         "mid"),
-    ("STEP 10c", "make_audit.py",              "mid"),
-    ("STEP 10d", "make_chart.py",              "mid"),
-    ("STEP 10e", "build_scores.py",            "n100"),
-    ("STEP 10f", "engine_v2_final.py",         "n100"),
-    ("STEP 10g", "make_audit.py",              "n100"),
-    ("STEP 10h", "make_chart.py",              "n100"),
+    ("STEP 10a", "build_scores.py",            "midcap150"),
+    ("STEP 10b", "engine_v2_final.py",         "midcap150"),
+    ("STEP 10c", "make_audit.py",              "midcap150"),
+    ("STEP 10d", "make_chart.py",              "midcap150"),
+    ("STEP 10e", "build_scores.py",            "nifty100"),
+    ("STEP 10f", "engine_v2_final.py",         "nifty100"),
+    ("STEP 10g", "make_audit.py",              "nifty100"),
+    ("STEP 10h", "make_chart.py",              "nifty100"),
     # n50, ADDED 2026-09-18. NEW LABELS, NOT 10i-10l. 10i meant
     # make_combined_universes.py until it moved to STEP 12b, and reusing any of
     # that block would make every log written before the move ambiguous -- the
     # same identity-over-compaction rule the 2026-09-11 retirement followed when
     # it left STEPS 0-9 and 11-14 as gaps rather than renumbering.
-    ("STEP 10m", "build_scores.py",            "n50"),
-    ("STEP 10n", "engine_v2_final.py",         "n50"),
-    ("STEP 10o", "make_audit.py",              "n50"),
-    ("STEP 10p", "make_chart.py",              "n50"),
+    ("STEP 10m", "build_scores.py",            "nifty50"),
+    ("STEP 10n", "engine_v2_final.py",         "nifty50"),
+    ("STEP 10o", "make_audit.py",              "nifty50"),
+    ("STEP 10p", "make_chart.py",              "nifty50"),
     # MOVED FROM STEP 10i, and the move is load-bearing rather than cosmetic.
     # The combined chart is now generic over the selection, so it may need the 58's
     # and the 74's per-trade logs -- and those are written by STEP 12 immediately
@@ -342,9 +342,9 @@ PIPELINE_ORDER = [
     # plan is therefore IDENTICAL under --tax on and --tax off, which is what
     # lets check_plan_order reason about one order instead of two. See
     # results/tax_report.main().
-    ("STEP 18a", "tax_report.py",              "mid"),
-    ("STEP 18b", "tax_report.py",              "n100"),
-    ("STEP 18c", "tax_report.py",              "n50"),
+    ("STEP 18a", "tax_report.py",              "midcap150"),
+    ("STEP 18b", "tax_report.py",              "nifty100"),
+    ("STEP 18c", "tax_report.py",              "nifty50"),
 ]
 
 

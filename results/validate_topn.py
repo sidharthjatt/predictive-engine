@@ -103,12 +103,12 @@ HALVES = [("2019-2022", 2019, 2022), ("2023-2026", 2023, 2026)]
 #
 # Order is load-bearing: run_universe() is called per universe in this order and
 # the combined verdict accumulates in that sequence.
-LABELS = {"n100": "NIFTY 100", "mid": "MIDCAP150"}
+LABELS = {"nifty100": "NIFTY 100", "midcap150": "MIDCAP150"}
 UNIVERSES = {
     u.tag: {"perm": u.score_cache, "tmp": str(u.score_tmp),
             "metrics_dir": u.metrics_dir, "symbols": u.symbols,
             "label": LABELS[u.tag]}
-    for u in (REGISTRY["n100"], REGISTRY["mid"])
+    for u in (REGISTRY["nifty100"], REGISTRY["midcap150"])
 }
 
 

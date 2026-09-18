@@ -156,7 +156,7 @@ _COUNT_WORD = {2: "both", 3: "all three", 4: "all four"}
 # IT IS STILL CHECKED AGAINST THE REGISTRY at import, because the one thing it may
 # not be is a pair that cannot exist -- that would fail at chart time, deep in a
 # draw call, rather than here.
-PAIR_CHART = ("n100", "mid")
+PAIR_CHART = ("nifty100", "midcap150")
 
 # THE REGISTRY SIZE THIS PAIR WAS LAST CONFIRMED AGAINST. Widened 2026-09-18, when
 # the registry was about to go from 2 universes to 10.
@@ -282,30 +282,30 @@ def main():
     # instead. The per-universe name is deliberate: one shared `M` would give the
     # scanner one variable standing for two directories.
     FILES = {}
-    if "n100" in tags:
-        M_n100 = REGISTRY["n100"].metrics_dir
-        FILES["n100"] = (_ci(M_n100 / "v2FINAL_equity.csv"),
-                         _ci(M_n100 / "v2FINAL_params.json"),
-                         _ci(M_n100 / "daily_trades_n100.csv"),
-                         _ci(M_n100 / "daily_trades_v1_n100.csv"))
-    if "mid" in tags:
-        M_mid = REGISTRY["mid"].metrics_dir
-        FILES["mid"] = (_ci(M_mid / "v2FINAL_equity.csv"),
-                        _ci(M_mid / "v2FINAL_params.json"),
-                        _ci(M_mid / "daily_trades_mid.csv"),
-                        _ci(M_mid / "daily_trades_v1_mid.csv"))
+    if "nifty100" in tags:
+        M_nifty100 = REGISTRY["nifty100"].metrics_dir
+        FILES["nifty100"] = (_ci(M_nifty100 / "v2FINAL_equity.csv"),
+                         _ci(M_nifty100 / "v2FINAL_params.json"),
+                         _ci(M_nifty100 / "daily_trades_n100.csv"),
+                         _ci(M_nifty100 / "daily_trades_v1_n100.csv"))
+    if "midcap150" in tags:
+        M_midcap150 = REGISTRY["midcap150"].metrics_dir
+        FILES["midcap150"] = (_ci(M_midcap150 / "v2FINAL_equity.csv"),
+                        _ci(M_midcap150 / "v2FINAL_params.json"),
+                        _ci(M_midcap150 / "daily_trades_mid.csv"),
+                        _ci(M_midcap150 / "daily_trades_v1_mid.csv"))
     # n50, ADDED 2026-09-18. WRITTEN OUT, NOT LOOPED, for the reason stated
     # above and in the commit that declined to write the loop: the
     # `DIR / "<literal>"` shape is what check_pipeline_order reads out of this
     # source to resolve STEP 12b's producer edges, and a computed name made
     # three of them vanish once already. A loop here would convert a silent miss
     # into a silent invention.
-    if "n50" in tags:
-        M_n50 = REGISTRY["n50"].metrics_dir
-        FILES["n50"] = (_ci(M_n50 / "v2FINAL_equity.csv"),
-                        _ci(M_n50 / "v2FINAL_params.json"),
-                        _ci(M_n50 / "daily_trades_n50.csv"),
-                        _ci(M_n50 / "daily_trades_v1_n50.csv"))
+    if "nifty50" in tags:
+        M_nifty50 = REGISTRY["nifty50"].metrics_dir
+        FILES["nifty50"] = (_ci(M_nifty50 / "v2FINAL_equity.csv"),
+                        _ci(M_nifty50 / "v2FINAL_params.json"),
+                        _ci(M_nifty50 / "daily_trades_n50.csv"),
+                        _ci(M_nifty50 / "daily_trades_v1_n50.csv"))
     # LOADED ONCE, PLOTTED POSSIBLY TWICE. The published n100+mid pair chart is
     # drawn from the SAME rows as the N-way chart when both are produced, so the
     # two figures cannot disagree about a number.

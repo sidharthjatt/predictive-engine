@@ -80,9 +80,9 @@ WIN_LO, WIN_HI = pd.Timestamp("2019-01-01"), pd.Timestamp("2026-05-29")
 # NOTE the tuple order here is (label, dir), the reverse of the leakage checks'
 # (dir, label). That inconsistency is preserved rather than tidied, because
 # changing it would touch this file's unpacking for no behavioural gain.
-LABELS = {"n100": "NIFTY 100", "mid": "MIDCAP150"}
+LABELS = {"nifty100": "NIFTY 100", "midcap150": "MIDCAP150"}
 UNIVERSES = {u.tag: (LABELS[u.tag], u.data_dir)
-             for u in (REGISTRY["n100"], REGISTRY["mid"])}
+             for u in (REGISTRY["nifty100"], REGISTRY["midcap150"])}
 
 
 def sha256(path):

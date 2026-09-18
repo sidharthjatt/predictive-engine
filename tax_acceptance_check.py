@@ -75,7 +75,7 @@ D = pathlib.Path(tempfile.mkdtemp())
 for c in itertools.product(["","_r40"],["","_tradeable"],["","_tax"]):
     (D / f"v2FINAL_equity{''.join(c)}.csv").write_text("x")
 for c in itertools.product(["","_v1"],["","_r40"],["","_tradeable"],["","_tax"]):
-    (D / f"chart_mid_FINAL{''.join(c)}.png").write_text("x")
+    (D / f"chart_midcap150_FINAL{''.join(c)}.png").write_text("x")
 
 out = {}
 import naming
@@ -103,14 +103,14 @@ except Exception as e: out["SFX"] = f"EVALFAIL {type(e).__name__}: {e}"
 
 import audit_step, engine_v2_final, make_chart
 import make_combined_universes as mcu
-class _U: tag = "mid"
+class _U: tag = "midcap150"
 out["artefact_tag"] = audit_step.artefact_tag(_U(), "v1")
 out["_c"]   = str(engine_v2_final._c(D / "v2FINAL_equity.csv"))
 out["_ci_chart"] = str(make_chart._ci(D / "v2FINAL_equity.csv"))
 out["_ci_comb"]  = str(mcu._ci(D / "v2FINAL_equity.csv"))
-out["chart_path"] = pathlib.Path(str(make_chart.chart_path(D, "chart_mid_FINAL", ["v2","v1"]))).name
+out["chart_path"] = pathlib.Path(str(make_chart.chart_path(D, "chart_midcap150_FINAL", ["v2","v1"]))).name
 out["combined_chart_path"] = pathlib.Path(
-    str(mcu.combined_chart_path(D, ["mid","n100"]))).name
+    str(mcu.combined_chart_path(D, ["midcap150","nifty100"]))).name
 out["_c"] = pathlib.Path(out["_c"]).name
 out["_ci_chart"] = pathlib.Path(out["_ci_chart"]).name
 out["_ci_comb"]  = pathlib.Path(out["_ci_comb"]).name

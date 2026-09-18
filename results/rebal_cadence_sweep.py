@@ -98,10 +98,10 @@ VOL_WIN = 60
 # None is None-by-oversight: it means no measurement exists, and the code must
 # refuse to render a verdict rather than substitute one.
 SEED_FLOOR = {
-    "v1": {"n100": 1.74, "mid": 2.14},     # measured, entry 29
-    "v2": {"n100": 0.97, "mid": 1.39},     # measured, entry 29 -- the shipping arm
-    "v3": {"n100": None, "mid": None},     # NEVER MEASURED
-    "v4": {"n100": None, "mid": None},     # NEVER MEASURED
+    "v1": {"nifty100": 1.74, "midcap150": 2.14},     # measured, entry 29
+    "v2": {"nifty100": 0.97, "midcap150": 1.39},     # measured, entry 29 -- the shipping arm
+    "v3": {"nifty100": None, "midcap150": None},     # NEVER MEASURED
+    "v4": {"nifty100": None, "midcap150": None},     # NEVER MEASURED
 }
 
 
@@ -135,15 +135,15 @@ AUDIT_KEYS = ("holdings", "summary", "ranking", "decisions", "trades", "skipped"
 #
 # The LABEL stays local: it is printed into diagnostics/rebal_cadence_sweep.txt.
 # Order is load-bearing -- the sweep is reported universe by universe.
-LABELS = {"n100": "NIFTY 100", "mid": "MIDCAP150"}
+LABELS = {"nifty100": "NIFTY 100", "midcap150": "MIDCAP150"}
 
 # WHICH UNIVERSES THIS STUDY HAS MEASUREMENTS FOR, DECLARED. It was the pair
-# (REGISTRY["n100"], REGISTRY["mid"]), written out here, so a third registered
+# (REGISTRY["nifty100"], REGISTRY["midcap150"]), written out here, so a third registered
 # universe was not a KeyError -- it was simply absent, and the sweep reported on
 # two universes and said nothing about the third. SEED_FLOOR cannot be derived for
 # a universe nobody has measured, so the set is declared and the gap is printed.
 # Order is the report order, which is why this is a sequence.
-MEASURED_FOR = ("n100", "mid")
+MEASURED_FOR = ("nifty100", "midcap150")
 COVERAGE = measured_universes.declare(
     "rebal_cadence_sweep", MEASURED_FOR,
     {f"SEED_FLOOR[{a}]": SEED_FLOOR[a] for a in SEED_FLOOR})
@@ -259,9 +259,9 @@ def main():
     w("  (d) CAGR FLOORS ARE PER ARM AND TWO ARMS HAVE NONE:")
     for a in ("v1", "v2", "v3", "v4"):
         f = SEED_FLOOR[a]
-        src = ("measured, entry 29" if f["n100"] is not None
+        src = ("measured, entry 29" if f["nifty100"] is not None
                else "NEVER MEASURED -- verdict UNKNOWN, not borrowed")
-        val = (f"n100 {f['n100']}  mid {f['mid']}" if f["n100"] is not None
+        val = (f"n100 {f['nifty100']}  mid {f['midcap150']}" if f["nifty100"] is not None
                else "no measurement exists")
         w(f"        {a}   {val:34}  {src}")
     w("      UNKNOWN IS NOT A NEAR-MISS. It means no floor was ever measured for")
@@ -355,10 +355,10 @@ def main():
         for c in CADENCES:
             if c == CONTROL:
                 continue
-            da = res["n100"][arm][c]["cagr"] - res["n100"][arm][CONTROL]["cagr"]
-            db = res["mid"][arm][c]["cagr"] - res["mid"][arm][CONTROL]["cagr"]
-            va = floor_verdict(arm, "n100", da, False)
-            vb = floor_verdict(arm, "mid", db, False)
+            da = res["nifty100"][arm][c]["cagr"] - res["nifty100"][arm][CONTROL]["cagr"]
+            db = res["midcap150"][arm][c]["cagr"] - res["midcap150"][arm][CONTROL]["cagr"]
+            va = floor_verdict(arm, "nifty100", da, False)
+            vb = floor_verdict(arm, "midcap150", db, False)
             if "UNKNOWN" in (va, vb):
                 status = "NOT ESTABLISHED -- no floor for this arm"
                 unknown.append((arm, c, da, db))
@@ -406,10 +406,10 @@ def main():
     for c in CADENCES:
         if c == CONTROL:
             continue
-        da = res["n100"]["v2"][c]["cagr"] - res["n100"]["v2"][CONTROL]["cagr"]
-        db = res["mid"]["v2"][c]["cagr"] - res["mid"]["v2"][CONTROL]["cagr"]
-        w(f"    v2 REBAL={c:<3} n100 {da:+.2f} ({floor_verdict('v2','n100',da,False)})"
-          f"   mid {db:+.2f} ({floor_verdict('v2','mid',db,False)})")
+        da = res["nifty100"]["v2"][c]["cagr"] - res["nifty100"]["v2"][CONTROL]["cagr"]
+        db = res["midcap150"]["v2"][c]["cagr"] - res["midcap150"]["v2"][CONTROL]["cagr"]
+        w(f"    v2 REBAL={c:<3} n100 {da:+.2f} ({floor_verdict('v2','nifty100',da,False)})"
+          f"   mid {db:+.2f} ({floor_verdict('v2','midcap150',db,False)})")
 
     w(f"\n  CAPACITY IS NOT MEASURED HERE AND BEARS ON EVERY FAVOURABLE CELL.")
     w("  Fills are synthetic against a QUOTE_DEPTH of 10,000,000 shares at flat")

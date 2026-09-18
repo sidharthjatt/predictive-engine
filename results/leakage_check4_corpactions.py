@@ -43,9 +43,9 @@ from universes.registry import REGISTRY
 # diagnostics/leakage_check4_corpactions.txt, and the sibling scripts spell the
 # same two universes differently. Labels are presentation; paths are facts.
 # Order is load-bearing -- the report is written universe by universe.
-LABELS = {"n100": "NIFTY 100", "mid": "MIDCAP150"}
+LABELS = {"nifty100": "NIFTY 100", "midcap150": "MIDCAP150"}
 UNIVERSES = {u.tag: (u.data_dir, LABELS[u.tag])
-             for u in (REGISTRY["n100"], REGISTRY["mid"])}
+             for u in (REGISTRY["nifty100"], REGISTRY["midcap150"])}
 
 
 def run(uni, d, label, W):

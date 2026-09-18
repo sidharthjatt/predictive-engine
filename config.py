@@ -225,12 +225,12 @@ def read_price_csv(path, date_col="date", **kw):
 # Until 2026-09-18 it was the path alone: require_cache() asked `perm.exists()`
 # and returned it. That is the right question only while a universe's raw data
 # never moves. The moment mid and n100 were repointed at the supplier's panel,
-# the caches keyed by tag -- v_mid_expanding_cache.csv, raw_panel_mid_cache.csv
+# the caches keyed by tag -- v_midcap150_expanding_cache.csv, raw_panel_midcap150_cache.csv
 # and their n100 pair -- kept their names and their homes, so every consumer
 # went on reading 217 MB of the OLD vendor's prices and reporting the result as
 # a number computed on the new one.
 #
-# MEASURED BEFORE THE FIX, not argued: raw_panel_mid_cache.csv carried 256 rows
+# MEASURED BEFORE THE FIX, not argued: raw_panel_midcap150_cache.csv carried 256 rows
 # for 360ONE dated before 2019-09-19, and the new source's 360ONE.csv begins ON
 # 2019-09-19 -- 256 rows that the directory the universe now names cannot
 # produce. On a date both vendors carry, the cache read M&MFIN 2019-01-01
@@ -346,7 +346,7 @@ def require_cache(perm, tmp=None, what="score panel"):
         run_all.py copies /tmp to the permanent caches only at the END of a run,
         so any script reading a permanent path executes BEFORE that copy on a
         fresh run. Three separate failures came from this in two days:
-          - make_mid_chart.py read results_mid/metrics/v_mid_expanding_cache.csv
+          - make_mid_chart.py read results_midcap150/metrics/v_midcap150_expanding_cache.csv
             unconditionally and crashed the pipeline at step 10d;
           - nt_export_scores.py was scheduled before the cache-save block and
             crashed at step 16;

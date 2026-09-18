@@ -61,10 +61,10 @@ FLAG = 10.0          # participation percentage worth listing individually
 # folder (index included), not data_dir, because volume_panel() resolves
 # "<sym>.csv" by name and never globs.
 UNIV = [
-    ("n100", REGISTRY["n100"].metrics_dir, REGISTRY["n100"].raw_data_dir,
-     REGISTRY["n100"].symbol_list),
-    ("mid", REGISTRY["mid"].metrics_dir, REGISTRY["mid"].raw_data_dir,
-     REGISTRY["mid"].symbol_list),
+    ("nifty100", REGISTRY["nifty100"].metrics_dir, REGISTRY["nifty100"].raw_data_dir,
+     REGISTRY["nifty100"].symbol_list),
+    ("midcap150", REGISTRY["midcap150"].metrics_dir, REGISTRY["midcap150"].raw_data_dir,
+     REGISTRY["midcap150"].symbol_list),
 ]
 
 
