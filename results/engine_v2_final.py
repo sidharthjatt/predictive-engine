@@ -185,6 +185,19 @@ def main(u):
     # what REBAL already was, and `_rebal = REBAL if rebal is None else int(rebal)`
     # resolves both to the same 20 -- so the default path is byte-identical.
     _reb = cadence.selected()
+    # THE TAX SELECTION, READ ONCE AND PASSED AS AN ARGUMENT -- exactly as _reb
+    # above and participation_cap below. backtest_exposure's tax_enabled is a
+    # PARAMETER by design (test_exposure.py:203 gives the reason: same as rebal
+    # and participation_cap), so it stays one; what was missing was any caller on
+    # the PUBLISHED path passing it.
+    #
+    # UNTIL 2026-09-18 NO SUCH CALLER EXISTED. tax_enabled defaulted to False at
+    # every one of the 31 call sites except tax_report.py's and
+    # bh_lots_after_tax.py's, so `--tax on` moved filenames and nothing else: 36
+    # of 40 suffixed artefacts were BYTE-IDENTICAL to their untaxed twins and the
+    # other 4 differed only in a header label. The axis renamed; it did not charge.
+    import tax as _tax_axis
+    _taxon = _tax_axis.selected()
     # THE PROFILE'S CAP, RESOLVED ONCE AND PASSED AS AN ARGUMENT.
     # profiles.py records why this is not a global on test_exposure: cadence.py
     # documents rebal_cadence_sweep.py setting test_exposure.REBAL and never
@@ -207,10 +220,12 @@ def main(u):
                                              _cfg.BT_START_DATE, _cfg.BT_END_DATE)}
     base_eq, tcb, nb, _ = backtest_exposure(px, op, sc, bd, pc, mom20, port_vol,
                                             mode="none", target_vol=tv,
-                                            audit=base_audit, rebal=_reb, **_capkw)
+                                            audit=base_audit, rebal=_reb,
+                                            tax_enabled=_taxon, **_capkw)
     fin_eq, tcf, nf, expo = backtest_exposure(px, op, sc, bd, pc, mom20, port_vol,
                                               mode="breadth", target_vol=tv,
-                                              rebal=_reb, **_capkw)
+                                              rebal=_reb, tax_enabled=_taxon,
+                                              **_capkw)
     bh = START_CAPITAL * (1 + px.pct_change().loc[bd].mean(axis=1).fillna(0)).cumprod()
 
     mbase = metrics(base_eq, "Inverse-vol, 100% invested (v1 final)", tcb, nb)
