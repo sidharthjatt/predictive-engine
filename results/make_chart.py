@@ -239,7 +239,18 @@ def main(u):
     print(f"    {_w.index[0].date()} -> {_w.index[-1].date()}: "
           f"{_w.iloc[0]:,.2f} -> {_w.iloc[-1]:,.2f} = "
           f"{_w.iloc[-1]/_w.iloc[0]:.4f}x = CAGR {((_w.iloc[-1]/_w.iloc[0])**(1/_y)-1)*100:.4f}%")
-    print( "    expected                : 6,342 -> 21,926 = 3.46x = 18.16% CAGR")
+    # THE `expected` LINE WAS DELETED HERE, AND MUST NOT COME BACK AS A DERIVED
+    # VALUE. It printed a hardcoded "6,342 -> 21,926 = 3.46x = 18.16% CAGR" for
+    # EVERY universe -- midcap150's figure, shown beneath nifty100's 2.3103x and
+    # nifty50's 2.2188x. It was right for one of three, and since 43fbd2f moved
+    # midcap150's window bound to 2026-08-06 it was right for none.
+    #
+    # DERIVING IT FROM `_w` WOULD MAKE IT AGREE BY CONSTRUCTION. A cross-check fed
+    # by its own subject is a tautology: it would print a green-looking line that
+    # cannot fail, which is worse than no line. The only thing that earns a
+    # registry field here is the INDEX PROVIDER'S OWN PUBLISHED RETURN for this
+    # span, per universe, and this repository does not have it. Until it does,
+    # there is no check to make -- so none is printed.
     # THE CADENCE-NAMED LOGS. The literals stay in the call for
     # check_pipeline_order; _ci picks the _r40 sibling when the engine wrote one.
     # Reading the canonical logs under --rebal 40 gave before_tc a file that does
