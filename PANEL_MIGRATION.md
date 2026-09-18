@@ -124,21 +124,45 @@ as a capability and fill it in. **This repository has no point-in-time data
 wired up, and adding the field would not change that.** When a consumer exists,
 the field arrives with it.
 
-**mid's `chart_text["index_window_end"]` is a standing defect.** It reads
-`2026-06-08`. The field's own definition is "the last date this universe's index
-file carries", and mid's index file ends `06-08-2026` -- **2026-08-06**.
+**midcap150's `chart_text["index_window_end"]` was wrong and is now FIXED;
+WHY it was wrong is UNRESOLVED.** It read `2026-06-08`. The field's own
+definition is "the last date this universe's index file carries", and
+midcap150's index file ends `06-08-2026` -- **2026-08-06**. Corrected
+2026-09-18.
 
-The evidence that this is *not* migration damage: the OLD
+**The correction is settled. The explanation is not, and the two readings are
+recorded here unreconciled rather than one of them written up as the cause.**
+
+*Reading 1 -- day/month transposition.* The OLD
 `data/raw/MidCap150/clean/NIFTYMIDCAP150.csv` also ends `06-08-2026`, so the
-value was already wrong before the repoint. The two dates are the same eight
-characters with day and month exchanged, which is what a `DD-MM-YYYY` file read
-as `MM-DD-YYYY` produces. n100's equivalent is the contrast that makes the case:
-it read `2026-06-22`, the old `NIFTY100.csv` ends `22-06-2026`, so **n100's was
-correct until the repoint** and was corrected to `2026-08-06` with it.
+value was already wrong before the repoint and this is not migration damage. The
+two dates are the same eight characters with day and month exchanged, which is
+what a `DD-MM-YYYY` file read as `MM-DD-YYYY` produces. n100's equivalent is the
+contrast: it read `2026-06-22`, the old `NIFTY100.csv` ends `22-06-2026`, so
+**n100's was correct until the repoint** and was corrected to `2026-08-06`
+with it.
 
-**Fixing mid's changes a published chart subtitle**, which is an artefact change
-and is why it was not folded into the migration commits. It is wrong on disk
-today.
+*Reading 2 -- the value is the panel cutoff, not a mangled index date.*
+`2026-06-08` is EXACTLY the last date in the raw score panel, and not only
+midcap150's: `raw_panel_midcap150_cache.csv`, `raw_panel_nifty100_cache.csv` and
+`raw_panel_nifty50_cache.csv` all end `2026-06-08`. It is also the price-data
+cutoff recorded elsewhere in this project. **Transposition does not predict that
+coincidence** -- there is no reason a mangled `06-08-2026` should land on the
+panel boundary shared by all three universes. Under this reading the field was
+filled from the panel rather than from the index file, i.e. the wrong source for
+its stated definition.
+
+**Neither reading has been eliminated.** Reading 1 explains the character
+pattern; reading 2 explains the value. Do not cite either as the cause in a
+commit message or a code comment until one is ruled out. What would settle it:
+the provenance of the literal when it was first written -- if n100's
+`2026-06-22` also coincided with a panel or price boundary at that time,
+reading 1 survives alone; if it did not, reading 2 needs an account of n100.
+
+**Fixing midcap150's changes a published chart subtitle**, which is an artefact
+change. The reader is display-only -- `make_chart.py` slices the INDEX series
+for one console line and touches neither the score panel nor the engine -- so no
+committed number moved with it.
 
 **A universe's membership is read from the supplier directory at import, and a
 change to it produces no diff in git.** `symbol_list` is
@@ -236,14 +260,53 @@ old names and are correct to:
 
 ### Three artefacts still carry an old tag, and each is deferred on purpose
 
-**1. `"universe_tag"` inside seven `v34_params*.json` and one
-`v2FINAL_params.json`** still reads `"mid"` or `"n100"`. Those files are written
-by `engine_v2_final` at STEP 10n, not by the STEP 15 daily-log pass that the
-rename commit ran. **Deferred because correcting them means re-running the
-engine, and the tax work will re-run it anyway** -- doing it twice would move
-the same artefacts twice for one reason. It is the sharpest of the three: an
-artefact naming a universe the registry no longer defines is the shape of
-inconsistency this project keeps closing.
+**1. `"universe_tag"` inside SIX `v34_params*.json`** still reads `"mid"` or
+`"n100"`. Those files are written by `engine_v2_final` at STEP 10n, not by the
+STEP 15 daily-log pass that the rename commit ran.
+
+**THE COUNT ABOVE WAS "seven `v34_params*.json` and one `v2FINAL_params.json`"
+AND BOTH HALVES WERE WRONG.** Measured on disk 2026-09-18 by parsing every
+`results_*/metrics/*params*.json` and reading the key rather than globbing
+filenames:
+
+- **Seven `v34_params*.json` exist; SIX carry a stale tag.** The seventh,
+  `results_nifty50/metrics/v34_params.json`, reads `"nifty50"` -- correct,
+  because nifty50 was registered under its current name and never renamed. The
+  old count was the count of FILES MATCHING THE GLOB, not of files needing
+  correction.
+- **No `v2FINAL_params.json` carries a `universe_tag` at all.** All four
+  (midcap150, midcap150 `_tradeable`, nifty100, nifty50) lack the key entirely;
+  they carry no universe field of any kind. The claimed eighth file cannot be
+  stale because it holds nothing to be stale.
+
+The six, in full: `results_midcap150/metrics/v34_params.json`,
+`v34_params_v1_tradeable.json`, `v34_params_v2_tradeable.json`,
+`v34_params_v3.json`; `results_nifty100/metrics/v34_params.json`,
+`v34_params_v2.json`.
+
+**THE DEFERRAL'S STATED REASON -- "the tax work will re-run it anyway" -- IS
+FALSE.** A tax run cannot rewrite these files. `tax.suffix()` returns `""` at the
+default and `"_tax"` when on, and `run.py` sets the tax selection ONCE per run
+with no script serving both a taxed and an untaxed invocation (`run_all.py`,
+the `tax:` branch). So `--tax on` writes `*_tax`-suffixed artefacts ALONGSIDE
+these six; every one of the six is an UNSUFFIXED default name, which a tax=on
+run never opens. The deferral was pointed at a collection point that does not
+exist, and left alone these six persist indefinitely.
+
+**OPEN -- one of two, not yet chosen:**
+
+- **(a) The tax plan gains an explicit default-arm re-run**, making the original
+  reasoning true rather than assumed: the tax work then does re-run the
+  unsuffixed arm and does collect these. Cost is a full default-arm engine pass
+  per universe on top of the tax pass.
+- **(b) The six are fixed on their own**, independently of the tax work, by
+  re-running `engine_v2_final` at STEP 10n for midcap150 and nifty100.
+
+**Do not record this as deferred again without naming which.** "Deferred" here
+has already once meant "waiting on something that was never going to happen",
+and that is the whole reason this entry needed rewriting. It is the sharpest of
+the three: an artefact naming a universe the registry no longer defines is the
+shape of inconsistency this project keeps closing.
 
 **2. Two `_tradeable` daily logs** still read `mid_tradeable`.
 `make_daily_log` regenerates for the CURRENT execution-realism profile, and

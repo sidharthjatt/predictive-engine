@@ -661,7 +661,16 @@ _MID = Universe(
             "stem": "chart_midcap150_FINAL",
             # THE INDEX WINDOW END IS A DATA BOUNDARY, not a market one: it is the
             # last date this universe's index file carries. mid and n100 differ.
-            "index_window_end": "2026-06-08",
+            #
+            # CORRECTED 2026-09-18 FROM 2026-06-08. `NIFTY MIDCAP 150.csv` ends
+            # 2026-08-06; the old value cut the printed index window 10 sessions
+            # short of the file. It was display-only -- the sole reader is
+            # make_chart.py, which slices the INDEX series for one console line
+            # and never the score panel or the engine -- so no committed number
+            # moved. WHY it was wrong is recorded as OPEN in PANEL_MIGRATION.md
+            # section 6: the transposition reading does not explain the value
+            # also landing exactly on the raw panel cutoff.
+            "index_window_end": "2026-08-06",
             "dpi": 140,
             "legend_fontsize": 8,
             "rule_width": 94,
