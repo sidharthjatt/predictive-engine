@@ -958,6 +958,54 @@ verified 2026-09-15. Every writer, reader and guard retypes the composition, and
 entry in this file that points at `naming.py` as the eventual solution has been
 pointing at a file nobody calls.
 
+**MEASURED 2026-09-18: TEN EXECUTABLE SITES, NOT THIRTEEN.** An earlier count of
+thirteen included three that are PROSE -- `run_all.py:447`,
+`check_pipeline_order.py:118` and `v34_common.py:178` are comments describing the
+composition, not performing it. Excluding those, ten places compose a chain in
+executable code, and `naming.py`'s adoption cost is not uniform across them:
+
+| | sites | adoption |
+|---|--:|---|
+| drop-in `tail()` or `tail(subset)` | **8** | one call each; several also shed a redundant `is_default()` guard, because a default suffix is already `""` |
+| needs `tail()` to grow a parameter | **1** | `make_chart.py:161` |
+| not a site at all | **1** | `run_all.py:782` |
+
+**`make_chart.py:161` CANNOT ADOPT AS `tail()` STANDS**, and the reason is not
+laziness at that call site. Its arm term is
+`arm_reg.suffix(arms_on) if set(arms_on) != {"v2", "v1"} else ""` -- the arm value
+comes from a **passed-in `arms_on` set**, not from the run's global selection that
+`tail()`'s arm term reads, and it carries a **canonical-pair exemption** giving
+`{v2, v1}` a bare name. `tail()` takes an axes SUBSET; it takes neither an arm
+value nor a per-axis override. Adoption here is an API change, not an edit.
+
+**`run_all.py:782` IS BOUNDED BY DECLARATION, NOT UNDER-SPECIFIED.** It composes
+only the axes an entry DECLARES, and every live entry declares
+`CADENCE_PROFILE = "cadence,profile"`; `naming.AXES` appears there only inside a
+commented-out example. It omits tax because nothing it resolves carries tax. It is
+not a fourth instance and should not be counted as one.
+
+**WHY THIS ENTRY HAS NOT MOVED: IT HOLDS TWO PROBLEMS AND THEY HAVE BEEN
+SCHEDULED AS ONE.**
+
+- **The retyped chain** -- instance 6 of the class entry below, four instances
+  measured, the fourth fixed 2026-09-18 at `arm_sources.py`. **Adoption fixes
+  this**, for eight sites immediately and a ninth after the API change.
+- **The guard side** -- which axes an ARTEFACT carries, as opposed to which a
+  COMPOSER can express. **Adoption does not touch this at all.** A tree where
+  every site calls `tail()` still leaves `_present()` free to decide, wrongly,
+  that a score panel carries a profile, which `run_all.py` records having done.
+
+Two problems, one file, and every previous plan has required both before either
+ships. **That is why neither has.** They are separable: the eight drop-in sites
+can adopt without any per-artefact work, and the per-artefact register can be
+written without waiting for adoption. NOT SCHEDULED HERE -- recorded so the next
+reader does not re-derive the coupling and conclude, again, that it is one job.
+
+Re-verified 2026-09-18: the only importers of `naming` remain
+`naming_declare_check.py:211` and `tax_acceptance_check.py:81`. **Two checkers, no
+producer** -- the same shape `tax.set_selection`'s docstring had when it claimed a
+caller in `run.py` that did not exist.
+
 **AND ADOPTING IT AS IT STANDS WOULD NOT HAVE PREVENTED DEFECT 3.** `naming.CARRIES`
 registers which axes a COMPOSER can express; nothing records which axes an ARTEFACT
 carries. So the naming work is two pieces, in this order: **extend `naming.py` to
