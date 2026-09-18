@@ -193,7 +193,90 @@ still scanned: `pre_repoint_baseline/` is invisible to it only because it holds
 no `.py` files. Anything executable dropped into an ignored directory will be
 audited as project source.
 
-## 7. What this migration did not touch
+## 7. THE NAMING MAP -- this repository holds two naming worlds
+
+**Renamed 2026-09-18, commit `ab0ebd1`.** Code and live artefacts use the new
+names. Records use the old ones, deliberately, and are listed below as records
+rather than as things nobody got round to.
+
+| old tag | new tag | what it is |
+|---|---|---|
+| `mid` | **`midcap150`** | Nifty MidCap 150, 148 constituents |
+| `n100` | **`nifty100`** | Nifty 100, 99 constituents |
+| `n50` | **`nifty50`** | Nifty 50, 50 constituents |
+
+The five universes not yet wired will use `midcap50`, `midcap100`, `nifty200`,
+`nifty500` and `smallcap250`. `.gitignore` already carries their metrics
+directories under those names.
+
+**`58` and `74` ARE NOT RENAMED AND WILL NOT BE.** They were deleted on
+2026-09-11 and `RETIRED_UNIVERSES.md` is their terminal record; renaming a tag
+in a record of something that no longer exists makes the record describe
+something that never did. They keep their positions in
+`universes/registry.REPORT_ORDER`, where a tag absent from the registry is
+skipped rather than raised on.
+
+### If you are reading an old-named thing
+
+**An old tag is not a missing universe.** `mid` in a document, a diagnostic or a
+run folder is `midcap150` before 2026-09-18. Specifically, these still use the
+old names and are correct to:
+
+- `experiments/HELDOUT_PREREG.txt` and `diagnostics/heldout_prereg_result.txt`,
+  including their SUPERSEDED headers -- a signed pre-registration and the record
+  of its one spent run
+- `RETIRED_UNIVERSES.md` and `RETIRED_UNIVERSES-manifest.txt`
+- `pre_repoint_baseline/` and its `MANIFEST.txt`, 128 of whose 132 paths name
+  `metrics_mid/` or `metrics_n100/`; renaming them would invalidate the only
+  surviving copy of the pre-repoint figures
+- every tracked file under `diagnostics/`
+- `runs/*` folder names and everything inside them
+- the frozen specs under `experiments/`
+- all prose, everywhere, until the prose pass
+
+### Three artefacts still carry an old tag, and each is deferred on purpose
+
+**1. `"universe_tag"` inside seven `v34_params*.json` and one
+`v2FINAL_params.json`** still reads `"mid"` or `"n100"`. Those files are written
+by `engine_v2_final` at STEP 10n, not by the STEP 15 daily-log pass that the
+rename commit ran. **Deferred because correcting them means re-running the
+engine, and the tax work will re-run it anyway** -- doing it twice would move
+the same artefacts twice for one reason. It is the sharpest of the three: an
+artefact naming a universe the registry no longer defines is the shape of
+inconsistency this project keeps closing.
+
+**2. Two `_tradeable` daily logs** still read `mid_tradeable`.
+`make_daily_log` regenerates for the CURRENT execution-realism profile, and
+those were produced under `--profile tradeable`. **Deferred to the next
+tradeable run**, which will rewrite them as a side effect of doing its own work.
+
+**3. Registry prose** -- `liquidity_note` opens `"mid [measured
+pre-2026-09-10 ...]"` and nifty100's `validation_status` reads `"... run on the
+58 and the mid ..."`. Both reach a chart caption. **Deferred to the prose pass**,
+which is being done one file at a time under review, because `mid` as an English
+word and `mid` as a tag cannot be separated by any pattern -- see §4 above.
+
+### Two defects the rename itself surfaced
+
+**`run_all.PIPELINE_ORDER`'s script column contains digits.**
+`engine_v2_final.py` does, so a `"[a-z_]+\.py"` pattern matches 12 of the 15
+per-universe rows and silently skips three. It happened twice -- once in the
+survey probe and once in the rename itself -- and both times the only thing that
+caught it was an `assert n == 15` before the write. A regex over this table that
+does not assert its own match count will produce a half-renamed pipeline that
+imports fine until `_step_label` cannot name a producer.
+
+**`results/make_daily_log.py` has no `__main__` guard.** Its body moved into
+`main()` when the pipeline stopped spawning subprocesses, and nothing calls
+`main()` when the file is run directly. `./venv/bin/python results/make_daily_log.py`
+does nothing, writes nothing, prints nothing and **exits 0** -- a silent success,
+which is the failure mode this repository has named more often than any other.
+The first daily-log regeneration in the rename commit "succeeded" that way and
+changed not one byte; it was caught only by diffing the output against the
+saved copies. Call `main()` explicitly, or check that the file you expected to
+change actually changed.
+
+## 8. What this migration did not touch
 
 Registry strings that the repoint made false and that were deliberately left
 for a commit that declares the artefact change:

@@ -1,5 +1,12 @@
 # Known issues
 
+> **NAMING.** The universe tags were renamed on 2026-09-18: `mid` ->
+> `midcap150`, `n100` -> `nifty100`, `n50` -> `nifty50`. Code and live
+> artefacts use the new names; records, diagnostics, `runs/` and all prose
+> still use the old ones and are correct to. **An old tag is not a missing
+> universe.** The map, and the full list of what deliberately keeps the old
+> names, is in [PANEL_MIGRATION.md](PANEL_MIGRATION.md).
+
 > **THE 58 AND THE 74 WERE DELETED ON 2026-09-11.** Both universes, their raw
 > data, their registry entries and the 26 scripts that served them are gone from
 > this repository. Every reference to them below is **historical**: it records what

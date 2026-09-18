@@ -1,5 +1,14 @@
 # RETIRED UNIVERSES -- the 58 and the 74
 
+> **NAMING.** The universe tags were renamed on 2026-09-18: `mid` ->
+> `midcap150`, `n100` -> `nifty100`, `n50` -> `nifty50`. Code and live
+> artefacts use the new names; records, diagnostics, `runs/` and all prose
+> still use the old ones and are correct to. **An old tag is not a missing
+> universe.** The map, and the full list of what deliberately keeps the old
+> names, is in [PANEL_MIGRATION.md](PANEL_MIGRATION.md).
+
+> The 58 and the 74 are NOT renamed. This file is their record.
+
 **Deleted 2026-09-11.** This file is the terminal record. Nothing in this
 repository can regenerate what it describes: the universes' raw data, their
 code and their registry entries are gone, and their artefacts were never
