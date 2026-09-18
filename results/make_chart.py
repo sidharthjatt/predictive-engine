@@ -375,12 +375,14 @@ def main(u):
     print(f"    {n_late} of {n_all} constituents have NO data at 2019-01-01 "
           f"(listed later): {', '.join(late[:8])}{' ...' if n_late > 8 else ''}")
     print(f"    {alive} of {n_all} existed on 2019-01-01.")
-    print( "    More important than the late listers: midcaps that FELL OUT of the index")
-    print( "    or delisted between 2019 and 2026 are absent from this file entirely, and")
-    print( "    midcap churn is far higher than large-cap churn. The equal-weight buy&hold")
-    print( "    line is therefore an upper bound on a portfolio nobody could have held.")
-    print( "    Measured on the Nifty100 equivalent, this bias was worth about 10 points")
-    print( "    of CAGR. The buy&hold number below is NOT achievable.")
+    # FROM THE ROW, NOT FROM HERE. These six lines used to be literal, written
+    # for a midcap universe, and printed under every heading: n50's first run
+    # said "midcap churn is far higher than large-cap churn" on a Nifty 50
+    # chart. Churn is a property OF A UNIVERSE, so the sentence belongs to the
+    # universe. u.churn_note has no default, so a new row cannot omit it and
+    # quietly inherit somebody else's index.
+    for _line in u.churn_note.split("\n"):
+        print(f"    {_line}")
     # THE SUBTITLE IS PER-UNIVERSE PROSE AND IT REACHES THE PNG, so it lives in the
     # registry as a callable and this step only supplies the values. The previous
     # version of this merge inlined mid's subtitle for both universes; it read

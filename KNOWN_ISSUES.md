@@ -5103,11 +5103,48 @@ them why. This is the failure mode `registry_coverage_check` exists for, and it
 is the reason its verdict line reads "A table that silently tolerates a missing
 entry is indistinguishable from one that covers it."
 
+### THE EIGHTH ITEM, AND NO STATIC CHECK SEES IT
+
+`make_combined_universes.PAIR_CHART_REGISTRY_SIZE`. Found 2026-09-18 by RUNNING
+n50, after the probe above had reported every static checker green.
+
+`PAIR_CHART = ("n100", "mid")` is the figure the README publishes, named
+explicitly rather than derived, because which pair is published is an editorial
+fact and deriving it would silently repoint the README the day a third universe
+landed. `PAIR_CHART_REGISTRY_SIZE` is the registry size that pair was last
+confirmed against, and the step refuses to run while the two disagree:
+
+```
+>>> STEP 12b  make_combined_universes.py
+PAIR_CHART has not been re-confirmed since the registry changed size.
+  registry now holds 3 universes: ['mid', 'n100', 'n50']
+  PAIR_CHART_REGISTRY_SIZE says it was last confirmed at 2
+```
+
+**The guard worked exactly as designed.** What it cost was a run: `run.py
+--universe n50` exited 1 at STEP 12b with four of its ten steps unexecuted --
+15, 15b, 16, 17 and 18c never ran -- so n50 had charts and audit CSVs but no
+permanent cache, no nautilus parquet, no execution and no tax artefacts, and the
+8.6 minutes STEP 10m had just spent were only saved by the /tmp working panel.
+
+**Why the probe missed it.** The seven items above were found by adding a row and
+re-running `run_all` import, `registry_coverage_check`, `check_pipeline_order`
+and `check_plan_order` until green. This constant is read at STEP 12b's
+execution, not at import and not by any checker. A survey of what a new universe
+costs, conducted entirely through the static gates, cannot see it.
+
+**It will fire five more times**, once per remaining universe, and each time it
+will be after the expensive step.
+
 ### How to use this
 
 When adding a universe, `registry_coverage_check.py` is the authority on what is
-still missing -- it checked 12 tables at the time of writing and names each gap
-with its consequence. Do not work from a remembered list, including this one.
+still missing FROM THE TABLES IT CHECKS -- it checked 12 at the time of writing
+and names each gap with its consequence. It is NOT the authority on what a
+universe costs: `PAIR_CHART_REGISTRY_SIZE` above is invisible to it, and so is
+anything else read at a step's run time rather than at import. Do not work from a
+remembered list, including this one, and do not assume green checkers mean the
+first run will complete.
 
 ---
 

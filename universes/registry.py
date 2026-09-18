@@ -266,6 +266,22 @@ class Universe:
     # not measured against. Re-measure and restamp, or set None; do not edit them.
     liquidity_note: Optional[str]
 
+    # WHAT THIS UNIVERSE'S SURVIVORSHIP COSTS, IN ITS OWN WORDS. Added
+    # 2026-09-18, and it is a FIELD rather than a shared paragraph because the
+    # shared one was written for a midcap universe and printed on every chart:
+    # n50's run said "midcaps that FELL OUT of the index ... midcap churn is far
+    # higher than large-cap churn" under a Nifty 50 heading. n100's says it too,
+    # and always has.
+    #
+    # CONSOLE OUTPUT, NOT THE PNG. The subtitle that reaches the image is
+    # chart_text["subtitle"]; this is the block make_chart prints above it,
+    # which is what a reader sees in a run log and in a pipeline transcript. It
+    # reaches no file on disk today, which is why moving it moves no artefact.
+    #
+    # NO DEFAULT, like the four fields promoted on 2026-09-18: a universe that
+    # does not say what its own churn does cannot be constructed.
+    churn_note: str
+
     # ------------------------------------------------------------------
     # WHAT THE ENGINE REPORTS FOR THIS UNIVERSE
     # ------------------------------------------------------------------
@@ -586,6 +602,16 @@ _MID = Universe(
         display_name="MIDCAP150",
         chart_colours=("#e377c2", "#17becf", "#8fd08f", "#7f7f7f",
                        "#1b9e77", "#e6ab02"),
+        # VERBATIM, THE TEXT make_chart PRINTED FOR EVERY UNIVERSE. This one was
+        # written for mid and is correct for mid; it moved here unchanged, and
+        # mid's console output is byte-identical across the move.
+        churn_note=(
+            "More important than the late listers: midcaps that FELL OUT of the index\n"
+            "or delisted between 2019 and 2026 are absent from this file entirely, and\n"
+            "midcap churn is far higher than large-cap churn. The equal-weight buy&hold\n"
+            "line is therefore an upper bound on a portfolio nobody could have held.\n"
+            "Measured on the Nifty100 equivalent, this bias was worth about 10 points\n"
+            "of CAGR. The buy&hold number below is NOT achievable."),
         liquidity_note=(
             "mid [measured pre-2026-09-10, close-basis engine]: 22 of 985 fills "
             "exceed 10%, the largest being 1,614% on AIIL; the same depth model "
@@ -712,6 +738,21 @@ _N100 = Universe(
         display_name="NIFTY 100",
         chart_colours=("#c0392b", "#2e6da4", "#3a9d3a", "#000000",
                        "#7f3f98", "#d95f02"),
+        # THE MIDCAP PARAGRAPH, KEPT VERBATIM ON A LARGE-CAP UNIVERSE, AND THAT
+        # IS A GATE AND NOT AN ENDORSEMENT. n100 has printed this text since the
+        # shared block existed; it is wrong here in the same way it was wrong on
+        # n50 -- the Nifty 100 is not a midcap index and "midcap churn is far
+        # higher than large-cap churn" is an argument about a different
+        # universe. Correcting it changes what a reader sees in every n100 run
+        # transcript, which is its own change with its own before/after. The
+        # commit that moved this text was gated on n100's output not moving.
+        churn_note=(
+            "More important than the late listers: midcaps that FELL OUT of the index\n"
+            "or delisted between 2019 and 2026 are absent from this file entirely, and\n"
+            "midcap churn is far higher than large-cap churn. The equal-weight buy&hold\n"
+            "line is therefore an upper bound on a portfolio nobody could have held.\n"
+            "Measured on the Nifty100 equivalent, this bias was worth about 10 points\n"
+            "of CAGR. The buy&hold number below is NOT achievable."),
         liquidity_note=(
             "n100 [measured pre-2026-09-10, close-basis engine]: 3 of 997 fills "
             "exceed 10% of prior-20-day median volume, and ZERO do on the 60-day "
@@ -880,6 +921,27 @@ _N50 = Universe(
         # band does. NOTHING CHECKS ANY OF THIS -- see KNOWN_ISSUES.md.
         chart_colours=("#7f4b70", "#4176fc", "#34c2a5", "#932d41",
                        "#1551e7", "#046e59"),
+        # n50's OWN CHURN, not the midcap paragraph it inherited on its first
+        # run. The Nifty 50 is the most stable index of the eight: its members
+        # are the largest listed companies in the country and they leave it
+        # rarely. That makes the survivorship bias SMALLER here than anywhere
+        # else in this repository -- and it does not make it zero, which is the
+        # part worth saying out loud on a chart whose buy&hold line looks
+        # achievable.
+        #
+        # NO NUMBER IS CLAIMED FOR THE SIZE OF THE BIAS. mid's paragraph quotes
+        # "about 10 points of CAGR" from the Nifty100 measurement; nothing
+        # equivalent has been measured for the Nifty 50, and borrowing a midcap
+        # or large-cap figure would be inventing one.
+        churn_note=(
+            "More important than the late listers: companies that LEFT the Nifty\n"
+            "50 between 2019 and 2026, by falling out of the index or being taken\n"
+            "over, are absent from this file entirely. Nifty 50 turnover is the\n"
+            "lowest of any universe here, so this bias is smaller than on the\n"
+            "midcap panels -- but it is not zero, and it runs one way: the names\n"
+            "that left are the ones that did worst. NOTHING HAS BEEN MEASURED FOR\n"
+            "THIS UNIVERSE. The equal-weight buy&hold line is an upper bound on a\n"
+            "portfolio nobody could have held, and is NOT achievable."),
         # NOT MEASURED. None is the declaration, not a hole -- no depth or
         # participation study has been run on this panel, and the combined chart
         # drops the note rather than printing an empty one.
