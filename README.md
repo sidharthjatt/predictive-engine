@@ -3,6 +3,13 @@
 A cross-sectional equity ranking system for Indian markets, and the record of the
 twenty-five ideas that were tested against it.
 
+> **NAMING.** The universe tags were renamed on 2026-09-18: `mid` ->
+> `midcap150`, `n100` -> `nifty100`, `n50` -> `nifty50`. Code and live
+> artefacts use the new names; records, diagnostics, `runs/` and all prose
+> still use the old ones and are correct to. **An old tag is not a missing
+> universe.** The map, and the full list of what deliberately keeps the old
+> names, is in [PANEL_MIGRATION.md](PANEL_MIGRATION.md).
+
 Strategy one of a planned series on the same market data. Later
 strategies are meant to run against the same universes, the same cost model and
 the same verification harness, so that a comparison between them means something.
