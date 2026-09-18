@@ -5136,6 +5136,36 @@ costs, conducted entirely through the static gates, cannot see it.
 **It will fire five more times**, once per remaining universe, and each time it
 will be after the expensive step.
 
+### THE NINTH ITEM, ALSO INVISIBLE, AND IT HAD BEEN BROKEN SINCE n50 LANDED
+
+`results/seed_noise_measure.LABELS`. Found 2026-09-18 by an import sweep of every
+module in the repository, run as the CONTROL for a rename probe -- so it was
+found by accident, while measuring something else.
+
+```
+LABELS = {"n100": "NIFTY 100", "mid": "MIDCAP150"}
+
+_unlabelled = set(REGISTRY) - set(LABELS)
+if _unlabelled:
+    raise SystemExit("seed_noise_measure: no report label for universe(s) ...")
+```
+
+The guard is good: it refuses by name rather than dropping the universe from the
+measurement, and its comment says why the label is written down rather than
+derived. What nothing did was tell anybody it had fired. **From the moment n50
+was registered, `seed_noise_measure` and `seed_noise_report` were both
+unimportable**, and the commit that wired n50 reported four green checkers. They
+are not imported by `run_all`, so no pipeline run touches them; they are run by
+hand when somebody wants the seed-noise diagnostic, and that person would have
+met a SystemExit with no idea it was a week old.
+
+**Two of the nine items are invisible to every static check**, and they are
+invisible in different ways: `PAIR_CHART_REGISTRY_SIZE` is read at a pipeline
+step's run time, and this one at the import of a module the pipeline never
+imports. A checker that walked every module and tried to import it would have
+caught both — that is what the rename probe's control sweep did, in one command,
+and it is not a thing this repository does.
+
 ### How to use this
 
 When adding a universe, `registry_coverage_check.py` is the authority on what is

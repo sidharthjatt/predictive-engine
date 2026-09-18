@@ -66,7 +66,18 @@ REQUIRED_RAW = ["date", "symbol", "open", "close", "y_rank", "scorable"]
 # either tag changed and would silently have measured the wrong two if a third
 # universe were added. A universe with no LABELS entry is refused by name rather
 # than dropped from the measurement.
-LABELS = {"n100": "NIFTY 100", "mid": "MIDCAP150"}
+# n50 ADDED 2026-09-18, and it should have been added the day n50 was wired.
+# This dict refused at IMPORT from the moment n50 entered the registry --
+# seed_noise_measure and seed_noise_report were both unimportable, and no gate
+# noticed: registry_coverage_check does not read it, and nothing imports these
+# two except a person running them. It is the NINTH thing a new universe needs
+# and the second that no static check sees. See KNOWN_ISSUES.md.
+#
+# THE SPELLING MATCHES THIS FILE'S EXISTING CONVENTION, not the registry's
+# display_name: "NIFTY 100" and "MIDCAP150" are what goes into
+# diagnostics/seed_noise.txt, so "NIFTY 50" follows them rather than
+# registry.display_name, which happens to agree here and would not always.
+LABELS = {"n100": "NIFTY 100", "mid": "MIDCAP150", "n50": "NIFTY 50"}
 
 _unlabelled = set(REGISTRY) - set(LABELS)
 if _unlabelled:
