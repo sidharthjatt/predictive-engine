@@ -460,8 +460,9 @@ class Universe:
 # their CODE differed in exactly two expressions, both path shapes, and neither
 # derivable from the other:
 #
-#   the source folder        mid   data/raw/MidCap150/clean       <- a "clean" leaf
-#                            n100  data/raw/nifty100_benchmark    <- no leaf
+#   the source folder        mid   Final_NIFTYMidCap150_EoD_Data  <- supplier
+#                            n100  Final_NIFTY100_EoD_Data        <-  folders,
+#                                  both under Final_Without_Survivorship_Data/
 #   the symlink farm         mid   data/raw/MidCap150/constituents  <- under the
 #                                                                     universe folder
 #                            n100  data/raw/N100_constituents       <- under data/raw
@@ -477,15 +478,26 @@ class Universe:
 # as live to the next person -- see the note on the `frozen` flag above.
 _RAW = ROOT / "data" / "raw"
 
-_MID_SOURCE = _RAW / "MidCap150" / "clean"
+# REPOINTED 2026-09-18. mid and n100 keep their tags, their metrics
+# directories and their history; what changed underneath them is the panel.
+# Both now read the supplier's without-survivorship set, and the spelling of
+# the index file changed with it -- "NIFTYMIDCAP150" -> "NIFTY MIDCAP 150",
+# "NIFTY100" -> "NIFTY 100". The constituent NAMES are identical across the
+# move (148 and 99, nothing added, nothing dropped); the PRICES are not, and
+# neither is the per-name history: 35 mid names and 16 n100 names now begin
+# later than they did, and 8 mid names and 2 n100 names now begin after
+# BT_START_DATE where they did not before. See PANEL_MIGRATION.md.
+_WITHOUT_SURV = _RAW / "Final_Without_Survivorship_Data"
+
+_MID_SOURCE = _WITHOUT_SURV / "Final_NIFTYMidCap150_EoD_Data"
 _MID_LINKS = _RAW / "MidCap150" / "constituents"
 _MID_METRICS = ROOT / "results_mid" / "metrics"
-_MID_INDEX = "NIFTYMIDCAP150"
+_MID_INDEX = "NIFTY MIDCAP 150"
 
-_N100_SOURCE = _RAW / "nifty100_benchmark"
+_N100_SOURCE = _WITHOUT_SURV / "Final_NIFTY100_EoD_Data"
 _N100_LINKS = _RAW / "N100_constituents"
 _N100_METRICS = ROOT / "results_n100" / "metrics"
-_N100_INDEX = "NIFTY100"
+_N100_INDEX = "NIFTY 100"
 
 _MID = Universe(
         tag="mid", label="MidCap150 (148 constituents)",
