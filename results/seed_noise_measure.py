@@ -77,7 +77,8 @@ REQUIRED_RAW = ["date", "symbol", "open", "close", "y_rank", "scorable"]
 # display_name: "NIFTY 100" and "MIDCAP150" are what goes into
 # diagnostics/seed_noise.txt, so "NIFTY 50" follows them rather than
 # registry.display_name, which happens to agree here and would not always.
-LABELS = {"nifty100": "NIFTY 100", "midcap150": "MIDCAP150", "nifty50": "NIFTY 50"}
+LABELS = {"nifty100": "NIFTY 100", "midcap150": "MIDCAP150",
+          "nifty50": "NIFTY 50", "midcap50": "MIDCAP50"}
 
 _unlabelled = set(REGISTRY) - set(LABELS)
 if _unlabelled:
