@@ -61,17 +61,17 @@ path, no selection -- and the halves separate:
 | **n100** buy & hold, 100% invested | 24.01 | 1.28 | -37.79 |
 | n100 same exposure path, no selection | 18.08 | 1.49 | -19.84 |
 | n100 strategy v2 | 24.43 | 1.72 | -18.38 |
-| **mid** buy & hold, 100% invested | 28.36 | 1.49 | -36.54 |
-| mid same exposure path, no selection | 17.96 | 1.61 | -17.21 |
-| mid strategy v2 | 29.23 | 1.99 | -15.68 |
+| **midcap150** buy & hold, 100% invested | 28.36 | 1.49 | -36.54 |
+| midcap150 same exposure path, no selection | 17.96 | 1.61 | -17.21 |
+| midcap150 strategy v2 | 29.23 | 1.99 | -15.68 |
 
 **The exposure rule alone captures 92.5% of n100's drawdown benefit and 92.7% of
-mid's.** Selection adds 1.46 and 1.53 points of drawdown protection, against the
+midcap150's.** Selection adds 1.46 and 1.53 points of drawdown protection, against the
 19.41 and 20.86 the record quotes versus a fully-invested benchmark.
 
 **Exposure-matched, the selection edge is +6.35 and +11.27 CAGR points** -- not
 the +0.43 and +0.87 the record quotes. The exposure rule spends 5.9 (n100) and
-10.4 (mid) of those points to buy roughly 18 and 19 points of drawdown reduction.
+10.4 (midcap150) of those points to buy roughly 18 and 19 points of drawdown reduction.
 
 Against a fully-invested benchmark those two effects nearly cancel on return and
 stack on drawdown, which is precisely why the published comparison reads the way
@@ -92,7 +92,7 @@ null distribution of the matched edge is the null CAGR distribution shifted:
 | | real edge | null median | null p95 | null max | null sd | draws beating | p |
 |---|---:|---:|---:|---:|---:|---:|---:|
 | n100 | **+6.35** | −6.65 | −2.89 | +1.57 | 2.50 | 0 of 100 | 0.0099 |
-| mid | **+11.27** | −6.72 | −1.68 | +4.06 | 2.88 | 0 of 100 | 0.0099 |
+| midcap150 | **+11.27** | −6.72 | −1.68 | +4.06 | 2.88 | 0 of 100 | 0.0099 |
 
 The real edge is 4.0x and 2.8x the best of 100 random-selection draws, and 5.2
 and 6.2 null standard deviations above the null median.
@@ -116,7 +116,7 @@ benchmark does not move with the seeds:
 | universe | matched edge | sd(CAGR) at K=10 | edge in sigma |
 |---|---:|---:|---:|
 | n100 | +6.35 | 1.07 | **5.9** |
-| mid | +11.27 | 1.01 | **11.2** |
+| midcap150 | +11.27 | 1.01 | **11.2** |
 
 **That assumption is not verified and cannot be, from what survives.** The
 per-seed stores (`results/SEEDNOISE_*.npy`) were never tracked and are gone, so
@@ -138,7 +138,7 @@ more return, nearly all of the drawdown back.
 
 What the table establishes is that the trade is **visible and priced**, which is a
 different statement from saying it is mispriced. Whether 5.9 CAGR points on n100
-and 10.4 on mid is a fair price for roughly 18 and 19 points of drawdown
+and 10.4 on midcap150 is a fair price for roughly 18 and 19 points of drawdown
 reduction is a decision about risk appetite, not a defect. Nobody has been in a
 position to make that decision before, because the two halves were never reported
 together.
@@ -168,14 +168,14 @@ that is not pinned at the test's floor.** Every CAGR p here reads 0.0099, which 
 bound, and it is still above any conventional bar.
 
 **Second: the ordering inverts between the arms.** On v1, at 100% deployment, n100
-is the stronger universe (0.0693 against mid's 0.2673). On v2, with breadth
-scaling on, mid is (0.1188 against n100's 0.3564). The two arms cannot both be
+is the stronger universe (0.0693 against midcap150's 0.2673). On v2, with breadth
+scaling on, midcap150 is (0.1188 against n100's 0.3564). The two arms cannot both be
 cited as pointing the same way, and neither ordering should be carried forward as
 a property of either universe: MaxDD is a single-episode statistic, and on both
 universes that episode is the same one -- the COVID trough of 2020-03-23.
 
 Random selection through the same breadth rule reproduces **91% of n100's
-drawdown advantage and 83% of mid's**. The drawdown result is not significant
+drawdown advantage and 83% of midcap150's**. The drawdown result is not significant
 against the null that controls for exposure, on either universe. The spec
 predicted this in advance -- *"exposure is score-independent"* -- and the file
 records *"the prediction is BORNE OUT"* on both.
@@ -219,14 +219,14 @@ K=10, measured on the current engine:
 | universe | edge vs b&h | sd(CAGR) at K=10 | edge in sigma |
 |---|---:|---:|---:|
 | n100 v2 | +0.43 | 1.07 | **0.40** |
-| mid v2 | +0.89 | 1.01 | **0.88** |
+| midcap150 v2 | +0.89 | 1.01 | **0.88** |
 
 Changing nothing but the random seeds moves the result by more than the entire
 claimed edge.
 
 **2. The benchmark's own instability, and it differs by universe.**
 
-- **mid: the denominator is contaminated.** Six single-day moves above 55% sit
+- **midcap150: the denominator is contaminated.** Six single-day moves above 55% sit
   inside the window -- MEDANTA +548.8%, 360ONE +464.1%, PATANJALI +413.6%,
   SBICARD +109.6% and two more. Buy & hold reads 28.34% as computed and 24.23%
   with those six days neutralised, so the same edge is +0.89 or +5.0 depending on
@@ -235,7 +235,7 @@ claimed edge.
   neutralised benchmark is 27.84%, the range is 0.50 points rather than 4.11, and
   the edge is +0.89 or +1.39 -- not +5.0. Four of the five moves are price holes
   rather than single-day moves and three never reach the benchmark at all. See
-  "The mid benchmark is better defined than this file said, and the edge is
+  "The midcap150 benchmark is better defined than this file said, and the edge is
   worse" below. The correction makes the return case weaker.** This is not a claim that the edge is 5
   points -- survivorship pulls the other way -- it is that the denominator is not
   defined to better than about 4 points.
@@ -295,7 +295,7 @@ second, and only its point estimate.
 
 ### Realised invested capital, labelled
 
-Mean of daily `invested_pct` for v2 over 1,836 days: **n100 67.8%, mid 61.1%**;
+Mean of daily `invested_pct` for v2 over 1,836 days: **n100 67.8%, midcap150 61.1%**;
 medians **67.4%** and **64.5%**. This is *not* the `Deployed%` column of
 `v34_comparison.csv` (56.6% and 54.1%), which is the mean breadth exposure
 multiplier. Two different quantities, and they must not be conflated -- the
@@ -334,7 +334,7 @@ Nothing in this entry is fixed. In order of what it would take:
    than point estimates, and record the EXPOSURE-MATCHED edge per sub-ensemble --
    without it, the 5.9 and 11.2 sigma above rest on an unverified assumption that
    the benchmark does not move with the seeds.
-4. Decide the mid benchmark's data-handling question (truncate or stitch a
+4. Decide the midcap150 benchmark's data-handling question (truncate or stitch a
    symbol's history across a corporate event of that size) rather than leaving
    the denominator undefined.
 
@@ -580,7 +580,7 @@ named source" and cited the vendor as `source=kite`. **There are three vendors �
 indicate a pre-processed private extract rather than a public download, which was
 the correct reading; the vendor count and the existence of a source were not.
 
-**The merge vintages differ by universe:** mid `2026-08-11`, n100 `2026-07-20`,
+**The merge vintages differ by universe:** midcap150 `2026-08-11`, n100 `2026-07-20`,
 N100_Survivorship `2026-07-23` and `2026-07-30`. **The two live universes' prices
 were extracted three weeks apart**, and no result in this project states it. See
 `docs/HANDOFF.md` section 3, corrected in the same pass. What is genuinely missing
@@ -609,11 +609,11 @@ PROPOSED"* and states it *"must be resolved in any spec"*. Still open as of
 so the NSE trading calendar is derived from the **retired 58 universe's** raw
 files. It writes `data/nse_trading_calendar.csv`, and
 `engine_core._load_calendar()` raises `FileNotFoundError` if that artefact is
-absent — **for every universe, including mid and n100**.
+absent — **for every universe, including midcap150 and n100**.
 
 The calendar exists for a measured reason: 70 of 148 MidCap150 source files carry
-rows on NSE holidays, putting 237 phantom dates into the mid union index, 107 of
-them inside the backtest window. Deriving the calendar from mid itself is
+rows on NSE holidays, putting 237 phantom dates into the midcap150 union index, 107 of
+them inside the backtest window. Deriving the calendar from midcap150 itself is
 therefore not viable, and the script's own docstring says so.
 
 **Consequence, stated precisely.** `data/nse_trading_calendar.csv` **is tracked**,
@@ -692,17 +692,17 @@ better fraction.**
 It looked sound, and that is why it was specified: over 2019-01-01 to 2026-05-29 a
 50% threshold reproduces the tracked 58-derived calendar **exactly**, identical
 sets, both universes. **That range is 1,836 of ~6,574 dates.** Extended to the full
-range the files cover, n100 comes out **2 dates short** and mid **22 dates short** —
+range the files cover, n100 comes out **2 dates short** and midcap150 **22 dates short** —
 all pre-2019, all one-directional, the filter dropping dates the calendar has.
 
 **No threshold can fix it.** A threshold T reproduces the calendar only if
 `max(coverage of excluded dates) < T ≤ min(coverage of included dates)`. Measured
 over the full range that requires `24.24% < T ≤ 13.85%` on n100 and
-`47.30% < T ≤ 4.35%` on mid. **Both intervals are empty**; the groups overlap by
+`47.30% < T ≤ 4.35%` on midcap150. **Both intervals are empty**; the groups overlap by
 10.40 and 42.95 points. The binding cases are calendar dates with very thin
-coverage — 2017-12-02 (Sat, 4.35% on mid), 2003-03-22 (Sat, 13.85% / 4.92%),
+coverage — 2017-12-02 (Sat, 4.35% on midcap150), 2003-03-22 (Sat, 13.85% / 4.92%),
 2017-04-04 (Tue, 33.33% / 37.39%), and eighteen consecutive January 2003 sessions
-at 47.54% on mid.
+at 47.54% on midcap150.
 
 **It would have moved published numbers.** The missing dates are pre-2019 and so
 are training rows rather than scored rows, but `build_panel` filters the whole
@@ -809,19 +809,19 @@ both sets of verdicts exist side by side and each says which engine it is about.
 **The shipping engine's verdicts are not the validation engine's, and the
 difference is the point of this entry:**
 
-| | 58 (retired) | mid | n100 |
+| | 58 (retired) | midcap150 | n100 |
 |---|---|---|---|
 | shipping engine, 2026-09-04 | **4 of 4** | **0 of 4** | **4 of 4** |
 | mean book / trades | 8.15 / 734 | 7.98 / 845 | 8.01 / 831 |
 | Sharpe, equal → invvol | 1.24 → 1.24 | 1.87 → **1.81** | 1.45 → 1.62 |
 
-mid goes from "1 of 4" on the validation engine to **0 of 4** on the engine that
+midcap150 goes from "1 of 4" on the validation engine to **0 of 4** on the engine that
 ships, and each of the four fails for its own reason rather than from one common
 cause — T1 by 0.02 on mean book (7.98 against a [8, 16] range), T2 on 0 of 3 seed
 sets, T3 in the 2019-2022 half, T4 on the vol window. The Sharpe column says why:
-**on mid, inverse-vol does not beat equal-rupee** — 1.87 → 1.81 — so the tests
+**on midcap150, inverse-vol does not beat equal-rupee** — 1.87 → 1.81 — so the tests
 that ask "does inverse-vol still win" correctly answer no. Corroborated
-independently on 2026-09-05: an equal-weight arm run through `run.py` on mid
+independently on 2026-09-05: an equal-weight arm run through `run.py` on midcap150
 returns 50.73% CAGR against inverse-vol's 45.87%.
 
 T1 was redefined for this engine and the redefinition is not cosmetic:
@@ -978,7 +978,7 @@ writer, reader and guard decides separately, and they disagree.
 **1. CADENCE -- a reader disagreed with a writer.** `audit_step._reference_curve`
 resolved to the canonical cadence-20 curve under `--rebal 40`, reconciling a
 cadence-40 trail against it: measured, v1 MISMATCH Rs 2,923,934 and v2 MISMATCH
-Rs 1,825,210 on mid. Fixed at that call site by appending `cadence.suffix()`.
+Rs 1,825,210 on midcap150. Fixed at that call site by appending `cadence.suffix()`.
 
 **2. PROFILE -- a guard disagreed with a writer.** `f6b970b` (2026-09-12) made the
 engines and charts profile-aware while `check_inputs` did not, so a research file
@@ -1006,8 +1006,8 @@ not the cure.
 
 **`--profile tradeable` reconciles and does not complete, and those are different
 statements.** Since `bc75d66` the audit replays the capped strategy correctly and
-all four mid arms MATCH the engine to under a paisa. The run proceeds through
-STEP 10b, 10c, 10d, 12b, 15 and 15b, writing every artefact including mid's
+all four midcap150 arms MATCH the engine to under a paisa. The run proceeds through
+STEP 10b, 10c, 10d, 12b, 15 and 15b, writing every artefact including midcap150's
 tradeable audit trail -- and then dies at **STEP 16** on the name above.
 
 **Nobody should read the cap entry and conclude the profile runs end to end.** It
@@ -1015,8 +1015,8 @@ does not. What was fixed there was the measurement; what remains here is the nam
 
 ### The blocker is closed. The authority it was an argument for is not.
 
-**UPDATE 2026-09-16.** `--profile tradeable` completes: `--universe mid --arm v2
---profile tradeable` runs all nine steps, exit 0, and `--universe mid --arm v3
+**UPDATE 2026-09-16.** `--profile tradeable` completes: `--universe midcap150 --arm v2
+--profile tradeable` runs all nine steps, exit 0, and `--universe midcap150 --arm v3
 --rebal 200` does the same on the cadence axis. Instance 3 above was right about
 the cause — the guard over-applies — and the scope was fixed rather than the cache:
 every `REQUIRED_INPUTS` entry now declares which axes its name carries, the fourth
@@ -1078,7 +1078,7 @@ n100  dies at STEP 12b  make_combined_universes.py needs the SAME file --
                           results_MID_/metrics/daily_trades_mid_tradeable.csv
 ```
 
-n100 completes all eight of its own steps and dies on **mid's** missing file,
+n100 completes all eight of its own steps and dies on **midcap150's** missing file,
 because STEP 12b is cross-universe. One universe's defect makes the profile
 unrunnable for both.
 
@@ -1098,24 +1098,24 @@ The guard is doing its job. **The defect is that the audit replay and the engine
 disagree about what the participation cap does**, by up to Rs 3.85M on a Rs 16.4M
 final equity -- 23% of the terminal value on v1.
 
-### It is specific to where the cap binds, and that is only mid
+### It is specific to where the cap binds, and that is only midcap150
 
 Measured the same day, all four arms, same command shape:
 
 | cell | audit verdict |
 |---|---|
-| mid, research | **MATCH on all four arms**, trades reconcile (852 / 1,019 / 822 / --) |
+| midcap150, research | **MATCH on all four arms**, trades reconcile (852 / 1,019 / 822 / --) |
 | n100, tradeable | **MATCH on all four arms**, trades reconcile (795 / 965 / 754 / 967) |
-| **mid, tradeable** | **MISMATCH on all four arms** |
+| **midcap150, tradeable** | **MISMATCH on all four arms** |
 
 n100 passes under tradeable for the reason this file already records elsewhere:
 **the participation cap never binds on n100**, so a tradeable run there reproduces
 the research run exactly and the audit is certifying a configuration the cap did
-not touch. mid is the universe where the cap binds, and it is the one where the
+not touch. midcap150 is the universe where the cap binds, and it is the one where the
 replay diverges. **The two facts are the same fact.**
 
 It predates the invocation-contract work: reproduced at `67a644d` on 2026-09-13,
-where n100 tradeable dies at STEP 12b on the identical missing mid file.
+where n100 tradeable dies at STEP 12b on the identical missing midcap150 file.
 
 ### What is and is not recoverable -- correcting an earlier count
 
@@ -1126,13 +1126,13 @@ Measured:
 
 | | tradeable artefacts on disk | reproduced by the failing run |
 |---|---:|---:|
-| mid | 11 | **11** |
+| midcap150 | 11 | **11** |
 | n100 | 36 | **36** |
 
 **All 47 regenerate.** The engine writes `v34_*_tradeable` and `v2FINAL_*_tradeable`
 at STEP 10b/10f, well before the step that dies. What a tradeable run cannot
 produce is **a completed run** -- no run folder, no `RUN.txt`, no combined chart --
-and, on mid, **no audit trail at all**, which is the thing that would certify the
+and, on midcap150, **no audit trail at all**, which is the thing that would certify the
 figures rather than merely restate them.
 
 ### Every tracked citation of a tradeable number, and all of them reproduce
@@ -1145,17 +1145,17 @@ or describe the profile without quoting it (`docs/HANDOFF.md:260`,
 
 | citation | figures | reproduced 2026-09-15 |
 |---|---|---|
-| `KNOWN_ISSUES.md:2968` | mid v1 tradeable **45.90**, MaxDD −35.88, 860 trades, TC 692,730 | **exact** |
-| `KNOWN_ISSUES.md:2970` | mid v2 tradeable **27.59**, MaxDD −15.68, 1,019 trades, TC 228,963 | **exact** |
+| `KNOWN_ISSUES.md:2968` | midcap150 v1 tradeable **45.90**, MaxDD −35.88, 860 trades, TC 692,730 | **exact** |
+| `KNOWN_ISSUES.md:2970` | midcap150 v2 tradeable **27.59**, MaxDD −15.68, 1,019 trades, TC 228,963 | **exact** |
 | `KNOWN_ISSUES.md:3011` | the same four, attributed to the snapshot | **exact** |
 | `KNOWN_ISSUES.md:2952-2955` | n100 tradeable = research: 30.56 / 24.43 / 23.14 / 21.36, b&h 24.00 | **exact**, and byte-identical to the research file as recorded |
 
 So **no published figure is unreproducible**, and the refactor is not blocked.
-What the profile cannot give is the *audit* of those figures -- and on mid the
+What the profile cannot give is the *audit* of those figures -- and on midcap150 the
 audit does not merely go missing, it disagrees with the engine by Rs 3.85M.
 
 **This sharpens the existing item** *"The universe where the cap binds is the one
-with no tradeable audit trail"* rather than replacing it. That entry says mid's
+with no tradeable audit trail"* rather than replacing it. That entry says midcap150's
 shipping arm "has never been audited at all" on the tradeable profile and calls
 the figures UNRECONCILED. This one says why: the audit has been run, and it does
 not reconcile.
@@ -1164,7 +1164,7 @@ not reconcile.
 
 The cause was `audit_step` passing `participation_cap` without the `vol20` the cap
 is computed against, so its replay ran uncapped. It now builds `vol20` by the same
-expression the engines use. All four mid arms reconcile under `tradeable`:
+expression the engines use. All four midcap150 arms reconcile under `tradeable`:
 
 ```
 mid / v1   MATCH    trades logged   860  (engine reported   860)  OK
@@ -1180,23 +1180,23 @@ fill -- reconciling to under a paisa and to the trade.
 
 | citation | figure | disposition |
 |---|---|---|
-| `KNOWN_ISSUES.md:2968` | mid v1 tradeable 45.90, −35.88, 860, TC 692,730 | **CONFIRMED** |
-| `KNOWN_ISSUES.md:2970` | mid v2 tradeable 27.59, −15.68, 1,019, TC 228,963 | **CONFIRMED** |
+| `KNOWN_ISSUES.md:2968` | midcap150 v1 tradeable 45.90, −35.88, 860, TC 692,730 | **CONFIRMED** |
+| `KNOWN_ISSUES.md:2970` | midcap150 v2 tradeable 27.59, −15.68, 1,019, TC 228,963 | **CONFIRMED** |
 | `KNOWN_ISSUES.md:3011` | the same four, attributed to the snapshot | **CONFIRMED** |
 | `KNOWN_ISSUES.md:2952` | n100 tradeable = research, 30.56 / 24.43 / 23.14 / 21.36 | **CONFIRMED**, unchanged |
 
-**THE ITEM ABOVE IS NOW ANSWERED.** It said mid's shipping arm "has never been
+**THE ITEM ABOVE IS NOW ANSWERED.** It said midcap150's shipping arm "has never been
 audited at all" on the tradeable profile and called the figures UNRECONCILED. They
-are reconciled, and mid's tradeable trail exists for the first time.
+are reconciled, and midcap150's tradeable trail exists for the first time.
 
 **THIS IS THE FIRST CAP-BINDING REPLAY IN THE PROJECT'S LIFE.** Not the first
 tradeable audit that passed -- n100's passed, and passed for as long as the profile
 has existed -- but the first time any configuration where the participation cap
 ACTUALLY BINDS has been independently replayed and reconciled. n100's cap never
-binds, so its green audit certified a run the cap did not touch; mid's is the only
-cap that bites, and until 2026-09-15 mid's audit was silently uncapped. **Every
+binds, so its green audit certified a run the cap did not touch; midcap150's is the only
+cap that bites, and until 2026-09-15 midcap150's audit was silently uncapped. **Every
 cap-binding number this project has ever published rested on the engine agreeing
-with itself.** `mid v1 tradeable` and `mid v2 tradeable` are standing gate cells so
+with itself.** `midcap150 v1 tradeable` and `midcap150 v2 tradeable` are standing gate cells so
 that cannot recur.
 
 **THE PROFILE STILL CANNOT COMPLETE, FOR A DIFFERENT AND SMALLER REASON.** It now
@@ -1273,7 +1273,7 @@ It took a checkout of `67a644d` and a re-run to establish otherwise.
 
 The underlying error was a half-port: `baa5daa` fixed `make_n100_chart` with two
 halves -- the fatality AND the arm-awareness guard -- and only the fatality
-reached mid. `make_n100_chart` was never affected, and no chart was ever drawn
+reached midcap150. `make_n100_chart` was never affected, and no chart was ever drawn
 from a curve it did not request.
 
 **4. THE GATE'S DENOMINATOR.** Every regression verdict quoted in the week to
@@ -1285,7 +1285,7 @@ belonging to other arms and other profiles. Those files are not touched by the
 cell under test. **They match themselves, every time, whatever the change did.**
 
 Measured 2026-09-15: of the 36 deterministic artefacts in the `mid_v3` baseline,
-`--universe mid --arm v3` writes **17**. The other 19 are v2's and the tradeable
+`--universe midcap150 --arm v3` writes **17**. The other 19 are v2's and the tradeable
 profile's.
 
 | verdict as quoted | files that could actually move | leftovers counted as matches |
@@ -1298,7 +1298,7 @@ profile's.
 written by its cell -- and that is precisely why the defect survived: half the
 evidence was sound, and the two universes were quoted side by side.
 
-**The mid figures are worse than the table shows for any commit after `905e598`.**
+**The midcap150 figures are worse than the table shows for any commit after `905e598`.**
 With the chart step crashing, `DAILY_LOG_mid_v3.txt` and `chart_mid_FINAL_v3.png`
 were not rewritten either, so **16** deterministic artefacts could move, not 17 --
 and the two the crash had frozen were being compared, and passing, on mtimes
@@ -1328,7 +1328,7 @@ applied only `if participation_cap is not None and vol20 is not None`. So a call
 could satisfy the mandatory flag, omit the optional data the flag operates on, and
 be refused the cap three hundred lines later without a word.
 
-`results/audit_step.py` did exactly that. Under `--profile tradeable` on mid it
+`results/audit_step.py` did exactly that. Under `--profile tradeable` on midcap150 it
 replayed the RESEARCH strategy and reconciled it against the TRADEABLE curve:
 
 ```
@@ -1539,7 +1539,7 @@ everything else identical:
 | n100 v2 CAGR | 26.15 | 25.49 | **+0.66** |
 | n100 v2 Sharpe | 1.92 | 1.88 | +0.04 |
 | n100 v2 MaxDD | −17.67 | −18.64 | +0.97 |
-| mid v2 CAGR | 29.93 | 30.22 | **−0.29** |
+| midcap150 v2 CAGR | 29.93 | 30.22 | **−0.29** |
 
 **The mechanism is not mysterious.** A last-bit change to a feature can flip a
 LightGBM split decision; a flipped split changes a predicted score by up to
@@ -1588,8 +1588,8 @@ seeds and forming sub-ensembles of every size:
 |---|---|---|---|---|---|
 | n100 | v1 | 2.180·K^(−0.150) | **−0.150** | 2.158 | 1.743 |
 | n100 | v2 | 1.559·K^(−0.226) | **−0.226** | 1.568 | 0.968 |
-| mid | v1 | 3.632·K^(−0.245) | **−0.245** | 3.845 | 2.137 |
-| mid | v2 | 1.801·K^(−0.168) | **−0.168** | 1.876 | 1.393 |
+| midcap150 | v1 | 3.632·K^(−0.245) | **−0.245** | 3.845 | 2.137 |
+| midcap150 | v2 | 1.801·K^(−0.168) | **−0.168** | 1.876 | 1.393 |
 
 **Every exponent is between −0.15 and −0.25, less than half of −0.5.** The
 variation between seeds is therefore largely COMMON rather than independent —
@@ -1601,7 +1601,7 @@ removes far less than the ensemble design assumes.
 independence would have bought 3.2. On n100 v1 it buys a factor of 1.24.
 
 **Extrapolated seeds for ±0.5-point stability**, assuming the fitted exponent
-holds far outside the measured range: n100 v2 **152**, mid v2 **2,044**, mid v1
+holds far outside the measured range: n100 v2 **152**, midcap150 v2 **2,044**, midcap150 v1
 **3,310**, n100 v1 **17,889**. No tested K up to 40 approaches the bar. These are
 extrapolations and are labelled as such; the defensible reading is "far more than
 is practical", not a target.
@@ -1740,7 +1740,7 @@ and backwards**. Checked against the record, row by row:
 |---|---|---|---|
 | 1 | Label purging | **TESTED, FAILED, and REPAIRED for the live universes on 2026-09-02** | `diagnostics/leakage_check2_purge.txt` (the label reached into the scored month in 7 of 126 months and touched its first day in 21 more, both universes); `diagnostics/purge_fix_measure.txt` (corrected purge, min gap 2 on all 126); EXPERIMENTS entry 29 (return impact inconclusive against the seed floor) |
 | 2 | Walk-forward | **TESTED, held** | `diagnostics/leakage_check2_purge.txt` — no training row dated on or after the scored month, all 126 months, both universes |
-| 3 | Execution timing | **TESTED, held — re-run 2026-09-02 against the post-purge-fix fills** | `diagnostics/checkB_execution_timing.txt` — **977 of 978** (n100) and **961 of 963** (mid) fills at the fill day's open, **0 at any close**, all 1,941 one session after a recorded decision date. The earlier 976/977 and 971/973 described the pre-rebuild `fills.csv` and are superseded |
+| 3 | Execution timing | **TESTED, held — re-run 2026-09-02 against the post-purge-fix fills** | `diagnostics/checkB_execution_timing.txt` — **977 of 978** (n100) and **961 of 963** (midcap150) fills at the fill day's open, **0 at any close**, all 1,941 one session after a recorded decision date. The earlier 976/977 and 971/973 described the pre-rebuild `fills.csv` and are superseded |
 | 4 | Feature causality | **TESTED, held** | `diagnostics/leakage_check1_causality.txt` — 17 of 17 bit-exact under two independent future-corruptions, both universes; corroborated by `diagnostics/leakage_check3_normalisation.txt` |
 | 5 | Shuffle test | **TESTED, held** | `diagnostics/shuffle_verdict.txt`, EXPERIMENTS entry 28 — 100-permutation null, 0 of 100 beat the real arm on either gated arm on either universe |
 | 6 | Baseline control | computed in-run, unchanged | `"PASS" if ok1 else "FAIL"` — the one row that was always live |
@@ -1970,7 +1970,7 @@ headline:
 | | rebuilt from the CSV panel | published | offset |
 |---|---|---|---|
 | n100 v2 CAGR | 26.15 | 25.49 | **+0.66** |
-| mid v2 CAGR | 29.93 | 30.22 | **−0.29** |
+| midcap150 v2 CAGR | 29.93 | 30.22 | **−0.29** |
 
 See *The headline is not reproducible from the artefacts on disk to better than
 about a point* above, and `EXPERIMENTS.md` entry 29.
@@ -2161,7 +2161,7 @@ the record, not a proposal to act.**
 **These are the evidence behind validation verdicts.** `FINAL_val_*` holds the
 per-seed, per-sub-period and per-vol-window results of the four-test inverse-vol
 sizing suite — the suite whose outcome this project quotes as "4 of 4 PASS on
-n100, 1 of 4 on mid". `breadth_val_*` holds the equivalent for the breadth suite
+n100, 1 of 4 on midcap150". `breadth_val_*` holds the equivalent for the breadth suite
 on the retired 58.
 
 **No code reads any of the three `FINAL_val_*` files, and no document cites one.**
@@ -2401,7 +2401,7 @@ opposite direction:**
 | universe | cash-short skips at TOP_N=8 | at TOP_N=12 |
 |---|---|---|
 | n100 | 7 | **0** |
-| mid | 1 | **0** |
+| midcap150 | 1 | **0** |
 
 **Why.** `invest_val` is a single portfolio-wide number, and it is split `TOP_N`
 ways. Raising `TOP_N` does not raise the total to be funded — it **shrinks each
@@ -2411,7 +2411,7 @@ one entrant's target against available cash, not the count of entrants.
 
 **A second effect points the same way.** A larger `TOP_N` against a pinned
 `BUFFER=16` holds a fuller book — mean names held rises 9.54 → 12.88 on n100 and
-9.23 → 12.88 on mid — so more of the target set is already held and **skipped by
+9.23 → 12.88 on midcap150 — so more of the target set is already held and **skipped by
 the buy loop**, leaving fewer new entrants to fund at each rebalance. Both effects
 reduce pressure as `TOP_N` rises.
 
@@ -2430,10 +2430,10 @@ masks it rather than fixing it.
 | n100 | v2 invvol, breadth-scaled | 7 | 9.54 | 1 |
 | n100 | v3 provol, 100% invested | 140 | 7.78 | 24 |
 | n100 | v4 provol, breadth-scaled | 9 | 9.52 | 1 |
-| mid | v1 invvol, 100% invested | 92 | 8.04 | 14 |
-| mid | v2 invvol, breadth-scaled | 1 | 9.23 | 0 |
-| mid | v3 provol, 100% invested | 129 | 7.63 | 34 |
-| mid | v4 provol, breadth-scaled | 1 | 9.23 | 0 |
+| midcap150 | v1 invvol, 100% invested | 92 | 8.04 | 14 |
+| midcap150 | v2 invvol, breadth-scaled | 1 | 9.23 | 0 |
+| midcap150 | v3 provol, 100% invested | 129 | 7.63 | 34 |
+| midcap150 | v4 provol, breadth-scaled | 1 | 9.23 | 0 |
 
 The skipped name's rank is median 7 or 8 of 8 in every arm — the tail of the buy
 loop, as the mechanism predicts. `qty < 1 after sizing` is **zero** for v1 and v3
@@ -2441,7 +2441,7 @@ in both universes, so this is not a rounding-to-zero effect; it is cash exhausti
 
 **IT AFFECTS THE PRODUCTION BASELINE, INDEPENDENTLY OF ANY OF THIS.** v1 is the
 always-invested inverse-vol arm that ships. It fails to fill its own eight-name
-target on **12 of 91 rebalances on n100 and 14 of 91 on mid**, and it does so 119
+target on **12 of 91 rebalances on n100 and 14 of 91 on midcap150**, and it does so 119
 and 92 times at the individual-name level. That had never been measured before
 2026-08-28. It is not caused by pro-vol and does not go away when pro-vol does.
 
@@ -2475,7 +2475,7 @@ only levers are to give buffer names a target, to trim them, or to drop them.
 **Five funding models were measured. The two that close the gap both cost
 performance on every universe:**
 
-| model | mid CAGR / blocked | n100 CAGR / blocked | 58 CAGR / blocked | trades |
+| model | midcap150 CAGR / blocked | n100 CAGR / blocked | 58 CAGR / blocked | trades |
 |---|---|---|---|---|
 | current — cash only | 44.69 / 93 | 34.60 / 120 | 23.83 / 137 | baseline |
 | A trim over-target top-N only | 44.28 / 81 | 33.32 / 106 | 24.82 / 128 | +8-11% |
@@ -2496,14 +2496,14 @@ drifted-up winners to buy lower-ranked entrants; it costs **-6.59, -2.67, -1.38*
 **The buffer-preserving models barely move the gap.** A, B and B2 change skipped
 buys by about ±10%, because there is not enough over-target excess *inside* the
 top eight to fund the entrants. **B is counterproductive**: topping up incumbents
-before funding entrants raises skips from 93 to 100 on mid.
+before funding entrants raises skips from 93 to 100 on midcap150.
 
 **And their CAGR effect has no consistent sign** — A is -0.41/-1.28/+0.99, B2 is
-+0.72/-0.88/+0.61 across mid/n100/58. That is inside the seed-noise floor this
++0.72/-0.88/+0.61 across midcap150/n100/58. That is inside the seed-noise floor this
 project measured at sd 0.97-2.14 CAGR points (`EXPERIMENTS.md` entry 29).
 
 **One thing the gap does cost, measurably.** It is why the shipping engine holds a
-mean book of 7.98 on mid — BELOW `TOP_N` — which is the failure
+mean book of 7.98 on midcap150 — BELOW `TOP_N` — which is the failure
 `results/validate_engine.py` reports as T1 on that universe. A, B2, C and D all lift
 it back into `[TOP_N, BUFFER]`; B does not.
 
@@ -2537,14 +2537,14 @@ nothing is topped up, no buffer name is trimmed — `V34_SPEC.txt:125` holds. Th
 measured cells — and `qty < 1 after sizing` stays at zero too, so the failure was
 removed rather than moved into a different skip reason. Mean names held rises into
 `[TOP_N, BUFFER]` everywhere (9.18 / 9.56 / 9.98), clearing the T1 failure
-`results/validate_engine.py` reports on mid.
+`results/validate_engine.py` reports on midcap150.
 
 **And it fails the performance and churn gates, as the four models before it did:**
 
 | universe | arm | CAGR cash → prorata | dCAGR | unfilled | mean held | trades |
 |---|---|---|---|---|---|---|
-| mid | v1 | 45.87 → 41.42 | **-4.45** | 92 → **0** | 8.00 → 9.18 | +16.0% |
-| mid | v3 | 49.70 → 42.91 | **-6.79** | 125 → **0** | 7.58 → 9.18 | +22.7% |
+| midcap150 | v1 | 45.87 → 41.42 | **-4.45** | 92 → **0** | 8.00 → 9.18 | +16.0% |
+| midcap150 | v3 | 49.70 → 42.91 | **-6.79** | 125 → **0** | 7.58 → 9.18 | +22.7% |
 | n100 | v1 | 34.90 → 33.25 | **-1.65** | 118 → **0** | 8.02 → 9.56 | +21.6% |
 | n100 | v3 | 28.10 → 26.76 | **-1.34** | 142 → **0** | 7.65 → 9.56 | +26.4% |
 | 58 | v1 | 24.62 → 22.06 | **-2.56** | 135 → **0** | 8.21 → 9.98 | +28.0% |
@@ -2556,7 +2556,7 @@ precisely so a real loss could not hide inside a band picked afterwards. All six
 breach the 10% churn bar.
 
 **THE COST IS NOT CASH DRAG, AND THAT IS THE POINT.** Mean invested percentage
-*rises* under prorata in every cell — 94.46 → 96.35 on mid v1, 94.16 → 96.89 on
+*rises* under prorata in every cell — 94.46 → 96.35 on midcap150 v1, 94.16 → 96.89 on
 n100 v1. The book is fuller in names and more fully invested and still earns less.
 The loss is **dilution**: the same capital spread over 9.2–10.0 names instead of
 7.6–8.2, and the marginal names are the lowest-ranked of the target set. **The
@@ -2567,7 +2567,7 @@ much harder to attribute the loss to anything but concentration itself.
 
 **One thing the measurement settled that was previously only asserted.** Under
 prorata, v1 and v3 hold the same number of names and make the same number of trades
-within each universe (9.18/9.18 and 969/969 on mid). Under the cash rule they do
+within each universe (9.18/9.18 and 969/969 on midcap150). Under the cash rule they do
 not. That confirms this entry's own claim that the two arms "did not hold the same
 portfolio": the divergence was entirely an artefact of the funding gap, and once
 every target is filled the arms differ only in position size, which is what a
@@ -2596,7 +2596,7 @@ Breadth sets total exposure at every rebalance — `expo = mean(mom_20 > 0)`, wh
 is why average deployment sits at 54–56% rather than 100% — and every published v2
 and v4 figure depends on it entirely. Until 2026-08-29 it had been validated only
 on the retired 58, by `results/validate_breadth.py`, which has never run on n100 or
-mid.
+midcap150.
 
 **Closed by `results/validate_breadth_live.py`**, run on both universes on
 2026-08-29 under `experiments/BREADTH_LIVE_SPEC.txt`. T1 and T2 are copied verbatim
@@ -2609,7 +2609,7 @@ recalibrated for either universe.
 Both universes pass, so the split-result clause of the spec did not fire.
 
 **IT ALSO REPRODUCES SHIPPING v2 EXACTLY.** Its breadth arm returns CAGR 25.49 /
-Sharpe 1.88 / MaxDD −18.64 on n100 and 30.22 / 2.06 / −18.98 on mid — identical to
+Sharpe 1.88 / MaxDD −18.64 on n100 and 30.22 / 2.06 / −18.98 on midcap150 — identical to
 v2 in `v34_comparison.csv` on all three headline figures in both universes.
 
 **THIS IS THE IMPORTANT CONTRAST, AND IT DOES NOT APPLY TO SIZING.**
@@ -2624,7 +2624,7 @@ split itself; the point here is which side of it each validation sits on.
 `validate_breadth_live.py` imports the SHIPPING engine and reproduces v2 to the
 last printed digit, so its PASS is a statement about the code that actually runs.
 `validate_sizing.py` imports the validation engine, which differs structurally from
-production, so its 4-of-4 on n100 and 1-of-4 on mid say nothing directly about the
+production, so its 4-of-4 on n100 and 1-of-4 on midcap150 say nothing directly about the
 shipped inverse-vol sizing. **A reader must not generalise the breadth result to
 the sizing result: they are validated against different engines.**
 
@@ -2663,7 +2663,7 @@ half with the backtest window:
     hd = px.index[(px.index.year >= y0) & (px.index.year <= y1)
                   & (px.index >= BT_START_DATE) & (px.index <= BT_END_DATE)]
 
-so on n100 and mid the full period and the 2023-2026 half end on the same day.
+so on n100 and midcap150 the full period and the 2023-2026 half end on the same day.
 The two files therefore differ deliberately, and this entry is the record of why —
 without it, someone comparing them would reasonably conclude one was a mistake.
 
@@ -2711,7 +2711,7 @@ logs. **No refit and no re-score**; window 2019-01-01 to 2026-05-29, 1,836
 trading days, on the post-purge-fix artefacts of 2026-09-02.
 
 **THE RECORDED CLAIM DESCRIBES A DIFFERENT NAME FROM TODAY'S TOP CONTRIBUTOR.**
-The entry above is built on LLOYDSME as mid's dominant name. Measured:
+The entry above is built on LLOYDSME as midcap150's dominant name. Measured:
 
 | rank | symbol | net realised P&L | share of realised P&L |
 |---|---|---|---|
@@ -2734,15 +2734,15 @@ buy & hold) and neither supersedes nor confirms it.
 | | top 1 | top 3 | top 5 | top 10 | symbols traded |
 |---|---|---|---|---|---|
 | n100 | 11.67% | 27.76% | 39.61% | **61.24%** | 93 |
-| **mid** | 9.49% | 27.73% | **43.48%** | **68.94%** | 122 |
+| **midcap150** | 9.49% | 27.73% | **43.48%** | **68.94%** | 122 |
 
-**mid is roughly 8 points more concentrated than n100 at both the top-5 and
+**midcap150 is roughly 8 points more concentrated than n100 at both the top-5 and
 top-10 cuts, on a universe 50% larger** (148 names against 99). That is the
 direction the record has always asserted, now with a number attached. It is also
 the first time either universe's concentration has been quantified at all.
 
 **WHAT THIS MEASUREMENT IS NOT.** Removing the top contributor arithmetically —
-mid's realised P&L falls 9.5% without TATAINVEST, n100's falls 11.7% without
+midcap150's realised P&L falls 9.5% without TATAINVEST, n100's falls 11.7% without
 MAZDOCK — **is not the strategy re-run without that name.** The model would have
 selected differently and the capital would have gone elsewhere. A true
 leave-one-out requires re-running the engine, which `mid_jackknife.py` does and
@@ -2751,6 +2751,17 @@ this does not. The two must not be quoted interchangeably.
 Artefacts: `diagnostics/attribution_v2.txt`,
 `results_{n100,mid}/metrics/attribution_v2_per_symbol.csv` and
 `attribution_v2_round_trips.csv`.
+
+**UNRESOLVED, AND THE `mid` ABOVE IS DELIBERATELY NOT RENAMED.** Checked
+2026-09-18: `attribution_v2_per_symbol.csv` exists NOWHERE on disk -- not under
+`results_mid/`, which no longer exists, and not under `results_midcap150/`, which
+does. **Do not read this line as a live pointer.** It cannot be told apart from a
+record of an artefact that was produced and later deleted, and the two want
+opposite treatment: a live pointer should carry the new name, a record should keep
+the old one. Renaming it would manufacture a false record of a file that never
+existed under that name, which is the more expensive of the two mistakes.
+Resolving it means finding out whether this artefact was ever written, and by
+which step.
 
 ---
 
@@ -2783,7 +2794,7 @@ has no way to tell which half of the sentence is measured and which half is a
 three-week-old literal, so the stale numbers borrow credibility from the live ones.
 
 **Consequence.** Anyone who opens that PNG concludes the MidCap150 results are
-void. The project treats them as valid — mid is one of the two live universes, it
+void. The project treats them as valid — midcap150 is one of the two live universes, it
 reconciles against the Nautilus port on 93 of 93 rebalances, and its numbers are in
 the README. The chart is the only thing in the repository still saying otherwise,
 and it says it in 14-point type at the top of the image.
@@ -2804,7 +2815,7 @@ reads its inputs by canonical name with no arm, cadence or profile suffix, so it
 plotted whichever run wrote them last and recorded nothing about which.
 
 **SO THE README NOW PUBLISHES NO CHART AT ALL**, and this entry no longer names a
-substitute. The two blockers are independent and both are open: the mid chart
+substitute. The two blockers are independent and both are open: the midcap150 chart
 carries stale blocker text, and the combined chart cannot say what it reads.
 Resolving either one is what puts a figure back. Neither is waiting on the other,
 and the absence of a published chart is not evidence that either was fixed.
@@ -2824,7 +2835,7 @@ match the panels in the repository.**
 | universe | panel sha256 in the committed artefact | panel sha256 today |
 |---|---|---|
 | n100 | `af9a28ac9e58032c...` | `163927a65e89165d...` |
-| mid  | `aa277d1bd2c86774...` | `1e2d85df4d8fee73...` |
+| midcap150  | `aa277d1bd2c86774...` | `1e2d85df4d8fee73...` |
 
 So the numbers on record were computed from a panel that is no longer the one
 `results_n100/metrics/v_n100_expanding_cache.csv` and
@@ -2843,7 +2854,7 @@ regenerated too, or the reverse.
 NOT CONTRADICTED on both live universes, and TOP_N=12 still holds the shallower
 drawdown in the same measurement. The figures do:
 
-| | n100 was | n100 now | mid was | mid now |
+| | n100 was | n100 now | midcap150 was | midcap150 now |
 |---|---|---|---|---|
 | CAGR% (TOP_N=8) | 25.49 | **25.78** | 30.22 | **29.70** |
 | Sharpe | 1.88 | **1.86** | 2.06 | **2.03** |
@@ -2851,12 +2862,12 @@ drawdown in the same measurement. The figures do:
 | dSharpe (8 minus 12) | +0.1900 | **+0.2000** | +0.1200 | **+0.0400** |
 | trades | 981 | 978 | 973 | 963 |
 
-**The mid dSharpe is the one to look at.** TOP_N=8's Sharpe advantage over
+**The midcap150 dSharpe is the one to look at.** TOP_N=8's Sharpe advantage over
 TOP_N=12 on the MidCap150 falls from +0.12 to **+0.04**. The pre-registered rule
 in `experiments/TOPN_SPEC.txt` is not a threshold on that margin, so the verdict
 stands as written -- but +0.04 is inside the seed-noise floor this project
 measured at sd 0.97 to 2.14 CAGR points (`EXPERIMENTS.md` entry 29), and anyone
-quoting the mid TOP_N result as evidence of a margin should quote this number
+quoting the midcap150 TOP_N result as evidence of a margin should quote this number
 rather than the old one.
 
 **Why this is filed as a class and not just a correction.** Nothing checks that a
@@ -2887,14 +2898,14 @@ passed warm**, because a previous default run had left the file on disk.
        left behind.** Stale output that looks like success is worse than a stop.
 
 **FIXED.** `check_inputs` accepts a cadence-named sibling; a requirement may name
-the arm it belongs to (`"v2"`) or the universe (`"u:mid"`) and is skipped when
+the arm it belongs to (`"v2"`) or the universe (`"u:midcap150"`) and is skipped when
 that is not selected; `make_daily_log` skips with a reason when v2 is not selected
 or the cadence is not default -- it is v2's forensic log and says so in its own
 header; `nt_export_scores` exports only the selected universes.
 
 **Verified from an empty tree afterwards:** exit 0, 0 tracebacks, 19.0 min with
-the mid score panel rebuilt from data/ (18.9 min), checker 42/9/0. All 36
-artefacts are mid-scoped and carry `_r40`, `runs/mid/v1@r40` and `v3@r40`, and no
+the midcap150 score panel rebuilt from data/ (18.9 min), checker 42/9/0. All 36
+artefacts are midcap150-scoped and carry `_r40`, `runs/mid/v1@r40` and `v3@r40`, and no
 58, 74 or n100 artefact is produced at all.
 
 **THE TWO UNSUFFIXED FILES ARE CORRECT.** `v_mid_expanding_cache.csv` and
@@ -3059,7 +3070,7 @@ v34_common. Selecting v3 or v4 cannot add a line there because there is no line
 to add. The step now says so on stdout and writes no `_v1_v2_v3_v4`-named file,
 because a filename promising four arms while showing two is worse than no file.
 So "`--arm all` produces a four-arm version of EVERY chart" holds for the
-combined, mid and n100 charts and cannot hold for this one.
+combined, midcap150 and n100 charts and cannot hold for this one.
 
 ### LIMIT 2: v2FINAL_* still carries both v1 and v2 regardless of selection
 
@@ -3231,7 +3242,7 @@ selected instead of a hardcoded pair.
     --universe all          chart_COMBINED_n100_mid_58_74.png  AND  chart_COMBINED_n100_mid.png
 
 **TWO RULES, NOT ONE.** The N-way chart answers "how do the selected universes
-compare" and its filename names exactly the selection. The n100+mid pair chart
+compare" and its filename names exactly the selection. The n100+midcap150 pair chart
 answers a different, standing question -- "how do the two live universes compare"
 -- and it is the figure `docs/README.md` embeds and the top-level README displays.
 It is refreshed whenever BOTH its universes are in the selection, not only when
@@ -3246,7 +3257,7 @@ overwritten with different numbers, it simply stopped being written, which is th
 harder failure to notice. The fix was not to choose between the two charts but to
 recognise they answer different questions.
 
-**At N == 2 the pair chart is not drawn twice.** When the selection IS n100+mid,
+**At N == 2 the pair chart is not drawn twice.** When the selection IS n100+midcap150,
 the N-way chart already writes exactly that file; the extra pass is skipped rather
 than rendering the same figure to the same path.
 
@@ -3322,9 +3333,9 @@ tense.**
 
 ### 1. The return edge is inside the seed noise it is measured through
 
-The published edge against buy & hold is **+0.43 CAGR on n100 and +0.89 on mid**.
+The published edge against buy & hold is **+0.43 CAGR on n100 and +0.89 on midcap150**.
 The seed-noise sd at K=10 is 1.07 and 1.01, so those edges are **0.40 sigma (n100)
-and 0.88 sigma (mid)** -- both below one standard deviation of the ensemble's own
+and 0.88 sigma (midcap150)** -- both below one standard deviation of the ensemble's own
 run-to-run variation.
 
 The figures are in the table under *"Why the headline +0.43 does not resolve"*
@@ -3349,7 +3360,7 @@ mid   v2    -15.68      -19.29   0.1188
 ```
 
 **Random selection through the same breadth rule reproduces 91% of n100's drawdown
-advantage and 83% of mid's.** The exposure rule alone captures **92.5% and 92.7%**
+advantage and 83% of midcap150's.** The exposure rule alone captures **92.5% and 92.7%**
 of the benefit; selection adds **1.46 and 1.53 points** against the 19.41 and 20.86
 the record quotes versus a fully-invested benchmark.
 
@@ -3364,19 +3375,19 @@ the shuffle file records *"the prediction is BORNE OUT"* on both universes. The
 prediction landing is not the same as the claim holding.
 
 **THE SAME FINDING FROM THE OTHER SIDE: turn the exposure rule OFF and almost
-nothing is left on mid.** v1 is v2's selection with breadth scaling off, held at
+nothing is left on midcap150.** v1 is v2's selection with breadth scaling off, held at
 100% deployment. Measured against the fully-invested benchmark:
 
 | | b&h MaxDD% | v2 MaxDD% | v2 advantage | v1 MaxDD% | v1 advantage | share surviving full exposure |
 |---|---:|---:|---:|---:|---:|---:|
-| mid | −36.54 | −15.68 | **20.86** | −35.88 | **0.66** | **3%** |
+| midcap150 | −36.54 | −15.68 | **20.86** | −35.88 | **0.66** | **3%** |
 | n100 | −37.79 | −18.38 | **19.41** | −31.92 | **5.87** | **30%** |
 
 Source: `forensic_snapshot_20260911T0100/results_{mid,n100}/metrics/v34_comparison.csv`,
 which is where the only surviving `v34_comparison.csv` pair lives -- `results/metrics/`
 is empty and the live universe directories are gitignored.
 
-**On mid, 97% of the drawdown advantage is the cash rule and not the selection.**
+**On midcap150, 97% of the drawdown advantage is the cash rule and not the selection.**
 Hold the same names at full deployment and the drawdown goes back to the
 benchmark's: −35.88 against −36.54. n100 is the milder case at 30% surviving, and
 the asymmetry is itself unexplained.
@@ -3411,7 +3422,7 @@ snapshot. So was this.
 | | live tree | snapshot 2026-09-11 01:00 |
 |---|---|---|
 | n100 tradeable artefacts | **0** | **33**, including a complete v2 trail |
-| mid tradeable artefacts | 11 | 17, trail is **v3 at r200 only** |
+| midcap150 tradeable artefacts | 11 | 17, trail is **v3 at r200 only** |
 
 **n100's tradeable v2 audit trail exists and it RECONCILES.** The snapshot carries
 `daily_holdings_n100_tradeable.csv`, `daily_summary_n100_tradeable.csv`,
@@ -3434,10 +3445,10 @@ reconcile -- it is an audit of the research configuration wearing a tradeable
 filename. `EXPERIMENTS.md:1737-1739` recorded the same inertness under the older
 engine: n100 unlimited 25.43 against volume 25.42.
 
-**On mid the cap does bind, and mid is the universe with no v2 trail.** Research
+**On midcap150 the cap does bind, and midcap150 is the universe with no v2 trail.** Research
 against tradeable, from the snapshot:
 
-| mid | CAGR% | MaxDD% | Trades | TC_Rs |
+| midcap150 | CAGR% | MaxDD% | Trades | TC_Rs |
 |---|---:|---:|---:|---:|
 | v1, research | 50.12 | −35.88 | 852 | 839,393 |
 | v1, tradeable | **45.90** | −35.88 | 860 | 692,730 |
@@ -3446,14 +3457,14 @@ against tradeable, from the snapshot:
 
 v2 loses **1.64 CAGR points** and v1 loses **4.22**. Those are the numbers a
 tradeable audit would exist to verify, and **the only tradeable `daily_*` trail
-mid has ever had is `v3 at r200`** -- a measurement arm at a non-default cadence,
+midcap150 has ever had is `v3 at r200`** -- a measurement arm at a non-default cadence,
 in the snapshot, not the shipping arm and not the shipping cadence.
 
 **WHAT THE ITEM REDUCES TO.**
 
 **Neither universe has a reconcilable tradeable audit of a configuration where the
 cap changes anything.** n100's trail is complete, reconciles to a paisa, and
-certifies a run the cap did not touch. mid's cap costs 1.64 CAGR points on the
+certifies a run the cap did not touch. midcap150's cap costs 1.64 CAGR points on the
 shipping arm and has never been audited at all on that arm. The tradeable figures
 are UNRECONCILED, not wrong -- and the check that would settle them has never been
 run where it would mean something.
@@ -3462,8 +3473,8 @@ A further consequence, since the live tree no longer carries n100's tradeable
 artefacts: **that run is not reproducible from the live tree.** It survives only
 in the snapshot, which is untracked working-tree state, not a git object.
 
-**AND THE SNAPSHOT'S CANONICAL mid FILES ARE THEMSELVES TRADEABLE OUTPUT. READ
-THIS BEFORE READING ANY mid FILE OUT OF THE SNAPSHOT.** Established 2026-09-13 by
+**AND THE SNAPSHOT'S CANONICAL midcap150 FILES ARE THEMSELVES TRADEABLE OUTPUT. READ
+THIS BEFORE READING ANY midcap150 FILE OUT OF THE SNAPSHOT.** Established 2026-09-13 by
 a full rebuild. The 11 tradeable artefacts counted above are the ones that SAY
 tradeable in their names. They are not the problem. **The problem is the ones that
 do not.**
@@ -3504,10 +3515,10 @@ output is identical to research anyway. Consistent with this, the snapshot holds
 **zero** tradeable files for the 58 or the 74, whose frozen engines only ever write
 old-style names.
 
-**No mid figure quoted anywhere in this repository has been traced to the
+**No midcap150 figure quoted anywhere in this repository has been traced to the
 mislabelled pair.** The drawdown decomposition that reads the snapshot is built
 from `MaxDD`, and `MaxDD` is IDENTICAL across both files for every cell on both
-universes -- the two disagree on CAGR only, and only on mid. That is luck, not
+universes -- the two disagree on CAGR only, and only on midcap150. That is luck, not
 design.
 
 ### 4. The Nautilus certification was taken on a different window and a different price basis
@@ -3526,7 +3537,7 @@ configuration they certified is not the one that ships:
 The six-day window difference is not cosmetic: `092ee62` moved every published
 figure when the price basis changed, and the certification predates it.
 
-**mid and n100 are STALE, RE-RUNNABLE** -- their inputs exist and `nt_verify` can
+**midcap150 and n100 are STALE, RE-RUNNABLE** -- their inputs exist and `nt_verify` can
 re-establish them. **58 and 74 are NOT RE-DERIVABLE** -- both universes, their raw
 price data and their frozen axis were deleted 2026-09-11, and no figure of theirs
 can be reproduced by anything. That distinction is recorded in
@@ -3630,7 +3641,7 @@ condition, so `--arm v3` logged `v1 baseline trade log: 852 trades, TC Rs 839,39
 -> daily_trades_v1_mid.csv` and wrote nothing. Fixed 2026-09-13.
 
 **That one was identical in both engines -- not a fix applied to one sibling and
-not the other.** Worth stating against the rest of this record, where the mid/n100
+not the other.** Worth stating against the rest of this record, where the midcap150/n100
 pairs diverge: **duplication copies defects as faithfully as it hides
 divergence**, and the ten duplicated modules do both at once.
 
@@ -3652,7 +3663,7 @@ Measured:
 
 | | `_gap_filled=1` rows | inside window | **on the trading calendar** | `tradability.gaps()` interior gaps |
 |---|---:|---:|---:|---:|
-| mid | 840 across 79 symbols | 31 | **0** | 46 gaps, 3 symbols, 1,193 sessions |
+| midcap150 | 840 across 79 symbols | 31 | **0** | 46 gaps, 3 symbols, 1,193 sessions |
 | n100 | 1,253 across 73 symbols | 2 | **0** | 0 |
 
 **EVERY FLAGGED ROW IS OFF-CALENDAR.** They carry `open == close == adj_close` with
@@ -3674,7 +3685,7 @@ the vendor does not mark.
 
 | | `_gap_filled=1` rows | symbols | inside the backtest window | on the trading calendar |
 |---|---:|---:|---:|---:|
-| mid | **840** | 79 of 148 | 31 | **0** |
+| midcap150 | **840** | 79 of 148 | 31 | **0** |
 | n100 | **1,253** | 73 of 99 | 2 | **0** |
 
 Each carries `open == close == adj_close` — a flat bar — with **non-zero volume**
@@ -3702,14 +3713,14 @@ Per-row quality score, 0.62–1.00, in-window and on-calendar:
 
 | | below 0.9 | below 0.8 | below 0.7 |
 |---|---:|---:|---:|
-| mid (240,625 rows) | 45,034 — **18.72%** | 9,483 — 3.94% | 5,305 — 2.20% |
+| midcap150 (240,625 rows) | 45,034 — **18.72%** | 9,483 — 3.94% | 5,305 — 2.20% |
 | n100 (171,625 rows) | 44,965 — **26.20%** | 13,516 — 7.88% | 7,369 — 4.29% |
 
 **It reaches the book.** Against the shipping arm's own holdings:
 
 | | held rows < 0.9 | share of held VALUE | held rows < 0.8 | share of value |
 |---|---:|---:|---:|---:|
-| mid | 3,086 — 18.06% | **10.70%** | 221 — 1.29% | 0.83% |
+| midcap150 | 3,086 — 18.06% | **10.70%** | 221 — 1.29% | 0.83% |
 | n100 | 3,903 — 22.44% | **17.86%** | 826 — 4.75% | 4.45% |
 
 **On n100 roughly one held rupee in six sits on a row the vendor scored below 0.9,
@@ -3718,7 +3729,7 @@ and nothing consults the score.**
 **THE LOW SCORES ARE NOT ON OBSCURE NAMES**, which is what makes this hard to
 dismiss as an illiquidity proxy. Worst offenders below 0.8 are ITC, VEDL, TMPV,
 COALINDIA, SIEMENS, ONGC, BPCL, GAIL on n100; HEROMOTOCO, M&MFIN, OFSS, NMDC,
-HINDPETRO, PETRONET on mid. Several are names with dense corporate-action history,
+HINDPETRO, PETRONET on midcap150. Several are names with dense corporate-action history,
 which would fit a source-disagreement or reconciliation score, but **the scale is
 undocumented and no file in this repository says what `_dq_score` measures.** The
 counts fall steadily from 2019 to 2026, consistent with older data being harder to
@@ -3737,7 +3748,7 @@ Found 2026-09-13, read-only. **This is a precondition on the largest parked item
 the project, not a footnote.**
 
 Survivorship is the open item that has been deferred since the start, and PIT
-membership is the single largest measured hit to any result in this record: **mid
+membership is the single largest measured hit to any result in this record: **midcap150
 v1 from +19.03 to +9.68**. Those slices were computed against
 `data/raw/N100_Survivorship/clean/`. **The shipping engine never reads that tree.**
 `config_n100.py` resolves n100 to `data/raw/nifty100_benchmark/`, and
@@ -3797,7 +3808,7 @@ difference as well as the bias.
 **Not reconciled here, and no attempt made.** Determining which tree is right for a
 backtest ending 2026-05-29 is a data-handling decision -- traded prices as they
 stood, or a series back-adjusted for an action that had not yet happened -- and it
-belongs with the same unmade decision this file already records for the mid
+belongs with the same unmade decision this file already records for the midcap150
 benchmark.
 
 ---
@@ -3849,7 +3860,7 @@ There is no score panel anywhere:
 nothing. The snapshot preserved outputs, not inputs.
 
 **WHAT EVERY REBUILD NOW COSTS.** A re-score, before any downstream step:
-**about 34 minutes** for both universes -- 18.5 mid, 15.7 n100, the figures
+**about 34 minutes** for both universes -- 18.5 midcap150, 15.7 n100, the figures
 `docs/HANDOFF.md` measured on 2026-09-12. Every step that resolves its panel
 through `config.require_cache` inherits that, including `rebal_cadence_sweep.py`,
 both engines and every chart step.
@@ -3868,13 +3879,13 @@ minutes -- and its output compared against `forensic_snapshot_20260911T0100`:
 
 | series | rows | max abs difference |
 |---|---:|---|
-| mid `v34_equity` | 1,836 | **0 -- exact** |
+| midcap150 `v34_equity` | 1,836 | **0 -- exact** |
 | n100 `v34_equity` | 1,836 | **0 -- exact** |
 | n100 `v2FINAL_equity` | 1,836 | **0 -- exact** |
-| mid `v2FINAL_equity` | 1,836 | 3.85e+06 |
+| midcap150 `v2FINAL_equity` | 1,836 | 3.85e+06 |
 
 **Three of four came back bit-identical, and the fourth is not a rebuild
-difference at all.** The snapshot's mid `v2FINAL_*` pair is tradeable output
+difference at all.** The snapshot's midcap150 `v2FINAL_*` pair is tradeable output
 written into canonical filenames -- see *"The universe where the cap binds..."* --
 confirmed by mtime and value: `v34_comparison_tradeable.csv` and
 `v2FINAL_comparison.csv` both carry mtime 2026-09-10 17:14 and identical figures
@@ -3920,7 +3931,7 @@ difference. Recorded in `meta/BASELINE.txt` of the preserved baseline directory.
 **OBSERVATION 3, 2026-09-15, and it was spent on a different question.** Step 3 of
 the collapse merged the two score-build entry points, and the standing gate cleared
 it on cached panels without executing one line of the merged scoring module. A
-forced rebuild -- `--fresh`, mid v3, 20.5 minutes -- was run to close that gap, and
+forced rebuild -- `--fresh`, midcap150 v3, 20.5 minutes -- was run to close that gap, and
 both panels came back byte-identical again:
 
 ```
@@ -3980,7 +3991,7 @@ tested anywhere else.**
 **THE TWO THINGS THIS IS ABOUT TO BITE.** Both are currently on hold, and both
 carry this risk the moment they are not:
 
-- **the `nt_verify` re-run** for mid and n100. It is unblocked -- site 12 no longer
+- **the `nt_verify` re-run** for midcap150 and n100. It is unblocked -- site 12 no longer
   poisons the destination -- but it will certify against a freshly scored panel,
   not the one the 2026-08-27 figures were taken on, so a difference is expected
   and is not evidence of a port defect.
@@ -4017,15 +4028,15 @@ a clone and a zip.
 
 ---
 
-## The mid benchmark is better defined than this file said, and the edge is worse
+## The midcap150 benchmark is better defined than this file said, and the edge is worse
 
 Measured 2026-09-13, read-only, against current data. **This CLOSES the last
-escape route for mid's return edge, and we closed it ourselves.**
+escape route for midcap150's return edge, and we closed it ourselves.**
 
 **THE DIRECTION FIRST, BECAUSE THE ARITHMETIC IS EASY TO MISREAD AS GOOD NEWS.**
-This file said mid's buy & hold denominator was undefined to about four CAGR
+This file said midcap150's buy & hold denominator was undefined to about four CAGR
 points, which left room for the edge to be as large as +5.0 once a data-handling
-choice was made. **It is defined to half a point.** So mid's return edge is
+choice was made. **It is defined to half a point.** So midcap150's return edge is
 **+0.89 and nothing else**, and the +5.0 alternative never existed. The
 correction makes the return case WEAKER, not stronger. Nothing here rescues it.
 
@@ -4067,14 +4078,14 @@ wrong direction. The prose is fixed in the chart as a separate commit.
 
 | | value | what it measures |
 |---|---:|---|
-| mid b&h, as computed | **28.36%** | the benchmark |
+| midcap150 b&h, as computed | **28.36%** | the benchmark |
 | neutralising the six ARTEFACT days | **28.25%** | **0.11 pts** -- the artefact sensitivity |
 | neutralising the six largest BENCHMARK days | **24.23%** | 4.13 pts -- says nothing about artefacts |
 
 **THE DIRECTION, STATED SO NO ONE READS THIS AS A RESCUE.** The artefact
 sensitivity is **0.11 points, not the 4.11 this file first claimed and not the 0.50
 the first correction claimed.** The denominator is therefore TIGHTER than either
-version said, and mid's edge is **+0.89 with less room around it, not more**. Both
+version said, and midcap150's edge is **+0.89 with less room around it, not more**. Both
 sets of numbers were wrong and the conclusion moved FURTHER AGAINST the strategy
 each time. Nothing here rescues anything.
 
@@ -4132,9 +4143,9 @@ seven places** -- `v34_common.py:246` and `:471`, `engine_v2_final_mid.py:173`,
 records the scale of the exposure: *"px and op are pivots with .ffill() applied --
 41 such pivots across 37 files."*
 
-**The practical exposure, measured:** mid has **46 interior gaps across 3 symbols**
+**The practical exposure, measured:** midcap150 has **46 interior gaps across 3 symbols**
 (HEXT 1,069 sessions, PATANJALI 51, AIIL the rest) totalling 1,193 missing
-sessions. **n100 has zero.** Of mid's, only PATANJALI's resumption produces a
+sessions. **n100 has zero.** Of midcap150's, only PATANJALI's resumption produces a
 material return in `bh`. HEXT's resumption enters as **+0.0%** -- the relisting
 close exactly matches the pre-delisting close, 762.55 against 762.55, across 4.3
 years -- which is a fabricated zero rather than a real flat day.
@@ -4147,7 +4158,7 @@ their returns NaN -- but the guard is not the reason they are harmless, and it w
 not catch them if they were.
 
 **So 28.34 is not defective, on the evidence here -- but it is not guarded either.**
-The number the entire mid edge is measured against is protected by a window
+The number the entire midcap150 edge is measured against is protected by a window
 boundary rather than by the guard that exists for this, and the difference has
 never been stated. Not fixed; recorded.
 
@@ -4200,17 +4211,17 @@ is untrustworthy, which is exactly how the numbers being corrected here were mad
 
 ### The two universes' prices are three weeks apart -- tested, benign by proxy
 
-`_merged_at` records mid extracted **2026-08-11** and n100 **2026-07-20**. The
+`_merged_at` records midcap150 extracted **2026-08-11** and n100 **2026-07-20**. The
 pre-registration's statistic pools both universes, so if a later extraction revised
 history the pooled test would mix two vintages. Tested 2026-09-13, read-only.
 
-**THE DIRECT TEST IS IMPOSSIBLE: mid and n100 share ZERO symbols.** MidCap150 and
+**THE DIRECT TEST IS IMPOSSIBLE: midcap150 and n100 share ZERO symbols.** MidCap150 and
 the Nifty 100 are disjoint by index construction. The proxy is
 `N100_Survivorship/clean` (extracted 2026-07-23/30), which overlaps both:
 
 | comparison | shared symbols | rows compared | row-count diffs | adj_close diffs |
 |---|---:|---:|---:|---:|
-| mid (Aug 11) vs surv (Jul 23/30) -- **3 weeks apart** | 54 | **257,202** | 0 | **0** |
+| midcap150 (Aug 11) vs surv (Jul 23/30) -- **3 weeks apart** | 54 | **257,202** | 0 | **0** |
 
 Not one `adj_close`, `close`, `_dq_score` or row count differs across a quarter of
 a million rows over a longer interval than the gap in question.
@@ -4220,12 +4231,12 @@ a million rows over a longer interval than the gap in question.
 
 **Three limits on that clearance, stated:**
 
-1. **It rests on a proxy.** mid and n100 share no symbols, so the gap between those
+1. **It rests on a proxy.** midcap150 and n100 share no symbols, so the gap between those
    two trees specifically can never be tested directly. What was tested is the
    MECHANISM -- does re-extraction revise history -- over a longer interval.
 2. **It tests re-extraction, not build policy.** Two trees can differ enormously
    with no vintage gap at all: n100 (Jul 20) against survivorship (Jul 23/30), three
-   days apart, differs on 70 of 99 symbols. mid-against-n100 has never been checked
+   days apart, differs on 70 of 99 symbols. midcap150-against-n100 has never been checked
    for a policy difference and cannot be, for the same reason.
 3. **The prereg's window closes 2026-05-29**, before both extractions, so this
    concerns revision of history only, never coverage. That is what makes the test
@@ -4241,7 +4252,7 @@ a **TRENT bonus issue, 2026-06-01 to 2026-06-03**, after `BT_END_DATE` and befor
 both extractions.
 
 **The clearance survives, for a narrower reason than the one first given.** It is
-not that extraction date is inert. It is that **mid and n100 share no symbols, so
+not that extraction date is inert. It is that **midcap150 and n100 share no symbols, so
 each universe's prices are internally consistent**, and the pooled statistic
 combines two internally-consistent universes rather than two versions of one.
 
@@ -4348,7 +4359,7 @@ the output is numerically identical to research output anyway.
 ### Two caveats on the clearance, stated
 
 **1. The cap magnitudes are pre-`adj_close` and indicative, not current.** The
-figures used to size the cap's effect -- mid 29.16 -> 27.36 CAGR, n100
+figures used to size the cap's effect -- midcap150 29.16 -> 27.36 CAGR, n100
 25.43 -> 25.42 -- come from `experiments/EXPERIMENTS.md:1733-1739`, measured under
 the engine BEFORE `adj_close` became canonical (commit `092ee62`). The n100 margin
 is 0.01 CAGR, which is why three rows above are marked *thin margin*: they are
@@ -4547,7 +4558,7 @@ stale, **wrong**. All three artefacts are untracked, are absent from the working
 tree, and survive only in `forensic_snapshot_20260911T0100/results/metrics/`. The
 script was deleted on 2026-09-11 with the universe it was silently reading.
 
-**There is currently no feature dictionary, panel sample or panel summary for mid
+**There is currently no feature dictionary, panel sample or panel summary for midcap150
 or n100, and no code that would produce one.** `build_panel` now requires
 `data_dir` explicitly — the fallback that caused this is gone — so a replacement
 must name its universe. Writing one is its own decision and is not scheduled.
@@ -4578,7 +4589,7 @@ historical rate could be selected. Its `SPEC_LOCK` reads:
 ```
 
 So **the 2026-04-01 rate table is applied to every fill from 2019-01-01
-onward** -- 1,836 sessions and 505 lots on mid, 478 on n100 -- while the tax
+onward** -- 1,836 sessions and 505 lots on midcap150, 478 on n100 -- while the tax
 code beside it distinguishes two regimes seven years into that same window.
 
 Equity-delivery STT is likewise a single constant, `"stt_rate": "0.001"` on both
@@ -4695,7 +4706,7 @@ run when it is non-empty.
 
 Because the liability depends on the trades and the trades depend on the cash,
 the tax charged by a taxed run is NOT the tax computed from an untaxed run's
-trade log. Measured on mid: Rs 833,105 from the untaxed log against Rs 798,365
+trade log. Measured on midcap150: Rs 833,105 from the untaxed log against Rs 798,365
 actually charged, because after the first deduction the taxed book is holding
 smaller positions and realising smaller gains. The ledger accrues inside the
 loop for this reason, and any figure quoted for "the tax" must say which of the
@@ -4832,9 +4843,9 @@ hit in 2023-2026.
 That is the cost of churn, measured rather than asserted, and it is the number
 the parked tax_util.py was written to produce and never did.
 
-### On mid, the question is unanswerable, and the tooling now refuses to answer it
+### On midcap150, the question is unanswerable, and the tooling now refuses to answer it
 
-mid's bh_lots basket is **53.0% one name** at terminal value -- AIIL, 956x over
+midcap150's bh_lots basket is **53.0% one name** at terminal value -- AIIL, 956x over
 the window -- and 68.4% in three, against a median name multiple of 3.45x.
 Dropping that single name moves the benchmark CAGR by **-13.98 points**, against
 an effect size of 2.05. The instrument cannot resolve the effect.
@@ -4842,7 +4853,7 @@ an effect size of 2.05. The instrument cannot resolve the effect.
 The cause is survivorship, not arithmetic. `SURVIVORSHIP_MODE=static` means
 today's MidCap150 members backfilled to 2019, so AIIL is in the basket PRECISELY
 BECAUSE it went up 956x. Buy-and-hold is the most survivorship-exposed
-construction available, and mid's 44.34% bh_lots CAGR is what that exposure looks
+construction available, and midcap150's 44.34% bh_lots CAGR is what that exposure looks
 like rather than an achievable return.
 
 `bh_lots_after_tax.py` therefore WITHHOLDS the edge when top-name weight exceeds
@@ -4852,7 +4863,7 @@ more often than the caveat beside it does.
 
 ### What a reader would wrongly conclude
 
-That the published **+0.89 on mid and +0.43 on n100** are the edge. They are the
+That the published **+0.89 on midcap150 and +0.43 on n100** are the edge. They are the
 edge **before tax, against a costless daily-rebalanced index that holds no lots
 and cannot be taxed at all**. Both statements remain true and both reproduce
 exactly. But that benchmark cannot answer an after-tax question, and the
@@ -5255,7 +5266,7 @@ resolve to the WRONG directory. These should be excluded from candidacy, not
 resolved.
 
 **Two are real edges and are fixable.**
-`make_audit.py -> results_{mid,n100}/v2FINAL_equity{_cad}.csv`, from
+`make_audit.py -> results_{midcap150,n100}/v2FINAL_equity{_cad}.csv`, from
 `results/audit_step.py:166`, where `_cad = cadence.suffix() + profiles.suffix()`.
 The edge is real -- at the default selection both suffixes are `""` and the file
 is the canonical `v2FINAL_equity.csv` written by `engine_v2_final.py`. The scanner
@@ -5300,7 +5311,7 @@ a fresh instance created on purpose, with nothing watching it.
 
 ### What it is
 
-`universes/registry.py` carries `chart_text["dd_label"]` on three rows. mid's
+`universes/registry.py` carries `chart_text["dd_label"]` on three rows. midcap150's
 differs from the other two and always did; n100's and n50's are the same
 expression:
 
@@ -5355,9 +5366,9 @@ its own buy&hold (`chart_colours[2]`) and its own cap-weighted index
 
 | pair | vision | dE2000 |
 |---|---|---|
-| `mid/v2` `#e377c2` vs `mid/v1` `#17becf` | deuteranopia | **4.24** |
+| `midcap150/v2` `#e377c2` vs `midcap150/v1` `#17becf` | deuteranopia | **4.24** |
 | `n100/v1` `#2e6da4` vs `n100/v3` `#7f3f98` | deuteranopia | **3.26** |
-| `mid/v4` `#e6ab02` vs `n100/bh` `#3a9d3a` | protanopia | **10.75** |
+| `midcap150/v4` `#e6ab02` vs `n100/bh` `#3a9d3a` | protanopia | **10.75** |
 
 The just-noticeable difference is about 2.3. The first two are barely above it:
 for a reader with deuteranopia those lines are the same colour, and in both
@@ -5371,7 +5382,7 @@ a colour-vision-deficiency finding, not a general legibility one.
 ### Known, unfixed, and untouched by the commit that found them
 
 They were found while checking n50's palette, and n50's was replaced in that
-commit. **These three were deliberately not touched.** mid's and n100's tuples
+commit. **These three were deliberately not touched.** midcap150's and n100's tuples
 are used by `chart_mid_FINAL.png`, `chart_v34*.png`, `chart_n100*.png` and every
 combined figure; changing any of them re-renders published artefacts for a
 reason that has nothing to do with the panel migration those artefacts were just
@@ -5380,7 +5391,7 @@ regenerated for. An artefact that moves should move for one stated reason, and
 "the panel changed". It belongs in its own commit, with its own before/after.
 
 Linestyle carries some of the load already -- arms solid, buy&hold dashed, index
-dotted -- so `mid/v2` vs `mid/v1` is two solid lines and is the worst of the
+dotted -- so `midcap150/v2` vs `midcap150/v1` is two solid lines and is the worst of the
 three in practice.
 
 ### NOTHING GATES THIS, AND THE NEXT UNIVERSE CAN REINTRODUCE IT
@@ -5409,7 +5420,7 @@ right there as data.
 the three pairs above, none of which this commit is willing to move. So adding it
 means one of:
 
-  - fixing mid's and n100's palettes first, which re-renders published artefacts
+  - fixing midcap150's and n100's palettes first, which re-renders published artefacts
     and is the separate commit described above; or
   - shipping it with a declared-exception list naming those three pairs and the
     reason each is tolerated -- the same shape as `gate_compare.py`'s accepted
