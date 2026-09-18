@@ -47,13 +47,26 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 import config                            # noqa: E402
-from universes.registry import REGISTRY   # noqa: E402
+from universes.registry import selected   # noqa: E402
 
 
 def pairs():
-    """(working copy, permanent copy) for every registered universe."""
+    """(working copy, permanent copy) for every SELECTED universe.
+
+    SELECTION, NOT REGISTRATION -- corrected 2026-09-18. This looped
+    REGISTRY.values(), so a run that selected one universe still tried to persist
+    every other universe's /tmp panel. With the provenance check in place that
+    stopped being harmless: `run.py --universe n50` aborted at STEP 15b on MID's
+    restored panel, four steps short of finishing, and n50's own caches -- next
+    in the loop -- were never written.
+
+    A universe nobody selected has no working panel this run produced, and
+    persisting one is at best copying a file the run did not make. registry
+    .selected() defaults to every registered universe when no selection is set,
+    so a standalone invocation behaves exactly as this did.
+    """
     out = []
-    for u in REGISTRY.values():
+    for u in selected():
         out.append((Path(u.score_tmp), Path(u.score_cache)))
         out.append((Path(u.raw_tmp), Path(u.raw_cache)))
     return out

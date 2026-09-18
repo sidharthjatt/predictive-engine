@@ -627,11 +627,23 @@ def _subtitle(UNIV):
     line2 = ("ALL STRATEGY NUMBERS AFTER TC (Zerodha + 0.15% slippage); before-TC "
              "also shown in the legend.")
     if unsel:
+        # A COUNT, NOT A LIST, SINCE 2026-09-18. This named every registered
+        # universe not on the figure, so the PUBLISHED PAIR CHART's caption grew
+        # by one name per universe added: it read "n50 is out of scope and is not
+        # plotted" the day n50 landed, and would have read "n50, mid50, mid100,
+        # n200, small250 and n600 are out of scope" by the end of the migration.
+        # A published figure whose text churns every time something unrelated is
+        # registered cannot be compared with its own previous version.
+        #
+        # THE SENTENCE IS KEPT, because the reader does need to know the figure
+        # is a selection rather than everything there is. What is dropped is
+        # WHICH universes -- that is a fact about the registry, not about this
+        # chart, and it is one `registry_coverage_check.py` prints in full.
         # The double space that separated the two sentences is preserved.
-        if len(unsel) > 1:
-            line2 += f"  {_joined(unsel)} are out of scope and are not plotted."
-        else:
-            line2 += f"  {unsel[0]} is out of scope and is not plotted."
+        n_out = len(unsel)
+        line2 += (f"  {n_out} other registered universe"
+                  f"{'s are' if n_out > 1 else ' is'} out of scope and "
+                  f"{'are' if n_out > 1 else 'is'} not plotted.")
     line2 += "\n"
 
     line3 = ""

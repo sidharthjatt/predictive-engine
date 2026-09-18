@@ -823,16 +823,50 @@ def restore_cache_to_tmp():
     # 58's and 74's -- missed by 85f68a4's sweep, which claimed to have removed
     # every hardcoded universe list. Harmless only because the permanent files it
     # named no longer exist.
+    # IMPORTED HERE, not at module level: run_all is imported by run.py before
+    # the determinism pin's env vars would otherwise be set, and config pulls in
+    # pandas. Every other registry/config use in this function is local for the
+    # same reason.
+    import config
     from universes.registry import REGISTRY
     pairs = [(u.score_cache.name, u.score_tmp.name, u.score_cache.parent)
              for u in REGISTRY.values()] + \
             [(u.raw_cache.name, u.raw_tmp.name, u.raw_cache.parent)
              for u in REGISTRY.values()]
+    # THE SIDECAR TRAVELS WITH THE PANEL, OR THE PANEL DOES NOT TRAVEL.
+    #
+    # This copied the cache alone until 2026-09-18, which put a hole straight
+    # through the provenance check added the same week: build_scores_step
+    # verifies a warm /tmp panel and save_caches_step refuses to persist one
+    # without a sidecar, and this function -- which runs at the START of every
+    # run.py invocation -- was manufacturing exactly that file. MEASURED: on the
+    # migrated tree, `run.py --universe n100` died at STEP 10e, its FIRST step,
+    # on /tmp/v_n100_expanding.csv having no sidecar. n50 was not involved. Any
+    # second run of a tree with permanent caches hit it.
+    #
+    # REFUSAL, NOT SILENT COPYING, when the permanent cache has no sidecar of its
+    # own. Restoring it would put a panel of unknown origin where every
+    # downstream step expects one it can check, which is the thing 8e32551 exists
+    # to prevent; and inventing a sidecar here from the current raw_data_dir
+    # would be forging the claim rather than carrying it. The remedy is in the
+    # message: delete the cache and rebuild.
     for perm_name, tmp_name, folder in pairs:
         perm = folder / perm_name
         if perm.exists() and not (TMP / tmp_name).exists():
+            side = config.cache_source_file(perm)
+            if not side.exists():
+                raise config.CacheSourceError(
+                    f"refusing to restore {perm} into {TMP / tmp_name}: it has "
+                    f"no source sidecar ({side.name}).\n"
+                    f"  A restored panel whose origin cannot be established is "
+                    f"exactly what the provenance check exists to refuse, and\n"
+                    f"  copying it here would place it where every later step "
+                    f"trusts it.\n"
+                    f"  Delete {perm} and rebuild with "
+                    f"`./venv/bin/python run_all.py`.")
             shutil.copy(perm, TMP / tmp_name)
-            print(f"    restored {tmp_name} from permanent cache")
+            shutil.copy(side, config.cache_source_file(TMP / tmp_name))
+            print(f"    restored {tmp_name} from permanent cache (with source)")
 
 def save_permanent_caches():
     """Copy the /tmp panels back to their permanent homes.
