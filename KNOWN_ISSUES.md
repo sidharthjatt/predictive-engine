@@ -5087,7 +5087,7 @@ verification, and the verification is the cost.
 
 ## An operation reports success having done part or none of the work
 
-**One class, five instances inside two weeks, each caught by a different
+**One class, six instances inside two weeks, each caught by a different
 accident.** Four were separate entries in this file until 2026-09-18; they are
 one entry now, because treating them separately is what let the fourth happen
 after the first three were written down -- and the fifth was found after that,
@@ -5098,7 +5098,7 @@ before every commit and in CI. **It is not the answer to the fifth**, which no
 gate catches: nothing can tell a checker that a number in prose was true when it
 was written and is false now. Re-measure before citing.
 
-### The five
+### The six
 
 **1. TEN things a new universe must be wired into, and a survey that said
 seven.** `registry_coverage_check.py` checks twelve tables and is excellent at
@@ -5186,6 +5186,58 @@ was then the basis for deferring the fix to a tax run that could never have
 collected it. **A count nobody re-measured is an assertion, not a measurement**,
 and it reports success -- "we know the size of this" -- having done none of the
 work.
+
+**6. A hand-composed suffix chain, under-specified three times, where a missed
+term makes the check PASS.** `results/audit_step.py:165` binds the reference
+curve the audit reconciles against:
+
+```
+_cad = cadence.suffix() + profiles.suffix()      # tax was missing
+```
+
+| axis | what the mispairing cost | how it was caught |
+|---|---|---|
+| cadence | v1 MISMATCH **Rs 2,923,934**, v2 **Rs 1,825,210** on mid at `--rebal 40` | it failed loudly |
+| profile | "a MISMATCH of the cap's whole effect" | it failed loudly |
+| tax | **Rs 761,619** | **it did not fail** -- found only while GATE 6 was being written |
+
+**THE THIRD INSTANCE IS DIFFERENT IN KIND, AND THAT IS THE ENTRY.** The first two
+resolved to the WRONG curve and the reconciliation reported a MISMATCH -- the
+check working on the wrong pair, which is noisy but safe. The third resolved to
+the UNTAXED curve while the audit re-run was ALSO untaxed, so the two agreed and
+it reported MATCH. **A missed term stopped the check from being able to fail.**
+On a cold tree it is worse rather than better: `_reference_curve` returns None and
+the trail is not written at all.
+
+**THE POINT IS NOT THAT SOMEBODY FORGOT TAX.** Each fix was per-axis, so the
+expression must be extended BY HAND every time an axis is added. `naming.tail()`
+exists precisely so nobody hand-writes the chain -- it composes from `AXES`, and
+an axis added there appears everywhere `tail()` is used. **Thirteen sites compose
+the chain by hand anyway**, and each is one edit away from the same defect.
+
+**A FOURTH INSTANCE IS LIVE AND IS NOT FIXED.** `results/arm_sources.py:41`:
+
+```
+sfx = cadence.suffix() + _pf.suffix()            # no tax term
+```
+
+Measured 2026-09-18: under `--tax on` it returns `v2FINAL_equity.csv`,
+`daily_trades_midcap50.csv` and `v34_equity.csv` -- **byte-identical paths to the
+tax=off selection**. It is `make_chart`'s source lookup (STEP 10t), so a chart
+written under a `_tax` name draws its arm series from untaxed curves, while
+`make_chart.py:161`'s own `_ci()` does carry the tax term. One step, two
+conventions. NOT FIXED HERE.
+
+**IT IS AN AXIS WIRING ITEM, NOT THE ELEVENTH UNIVERSE ONE, AND THE DISTINCTION
+IS LOAD-BEARING.** Wiring midcap50 on 2026-09-18 required no change to either
+expression; both needed changing when the tax AXIS landed. Appending it to the
+ten-item list above would make that list assert something false about what a new
+universe costs -- which is the defect this file records five other instances of.
+**Adding an AXIS requires extending every hand-composed chain**, and no static
+check sees any of them: `registry_coverage_check` reads twelve tables and none is
+this, `check_pipeline_order.py:118` merely NOTES the binding, and
+`tax_acceptance_check` checks names rather than the pairing they resolve to.
+
 
 ### What they have in common
 
