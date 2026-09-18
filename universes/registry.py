@@ -855,8 +855,31 @@ _N50 = Universe(
         index_file=_N50_SOURCE / f"{_N50_INDEX}.csv",
         year_range=None, date_range=(config.BT_START_DATE, config.BT_END_DATE),
         display_name="NIFTY 50",
-        chart_colours=("#1f77b4", "#ff7f0e", "#2ca02c", "#111111",
-                       "#9467bd", "#8c564b"),
+        # MEASURED, NOT PICKED. The first tuple here was matplotlib's tab10
+        # head, chosen by eye, and it collided three ways against n100 in NORMAL
+        # colour vision on the combined chart: buy&hold #2ca02c vs n100's
+        # #3a9d3a at dE2000 2.13 -- below the 2.3 just-noticeable difference --
+        # the index #111111 vs n100's #000000 at 2.96, and this universe's
+        # SHIPPING line #1f77b4 vs n100's control #2e6da4 at 4.18. Under
+        # protanopia it also collided with itself, #ff7f0e against #2ca02c at
+        # 1.90.
+        #
+        # These six were searched out of a 12,015-colour in-gamut Lab grid
+        # (L* 35-72, C* 28-95, so a line reads on white rather than merely
+        # scoring well) under the constraint that mid's and n100's tuples do not
+        # move. Every one clears dE2000 >= 10 against all twelve of their slots
+        # and against each other, in normal vision, deuteranopia and protanopia
+        # (Vienot 1999). Achieved minimum 11.24 overall; 15.29 among the four
+        # slots the CANONICAL combined chart draws, which is the published
+        # figure and is where the margin was spent.
+        #
+        # SLOT ORDER IS SEMANTIC, not the search's output order: buy&hold stays
+        # green as it is on mid and n100, and the index stays the darkest of the
+        # six. It is dark red rather than neutral, because a neutral would have
+        # had to clear n100's black and mid's grey and nothing in the readable
+        # band does. NOTHING CHECKS ANY OF THIS -- see KNOWN_ISSUES.md.
+        chart_colours=("#7f4b70", "#4176fc", "#34c2a5", "#932d41",
+                       "#1551e7", "#046e59"),
         # NOT MEASURED. None is the declaration, not a hole -- no depth or
         # participation study has been run on this panel, and the combined chart
         # drops the note rather than printing an empty one.
