@@ -140,6 +140,22 @@ correct until the repoint** and was corrected to `2026-08-06` with it.
 and is why it was not folded into the migration commits. It is wrong on disk
 today.
 
+**A universe's membership is read from the supplier directory at import, and a
+change to it produces no diff in git.** `symbol_list` is
+`_constituents(<source>, <index_name>)`, evaluated when `universes/registry.py`
+is imported, so the 148, 99 and 50 names are nowhere written down in this
+repository. `data/raw/` is gitignored apart from a `.gitkeep`. If the supplier
+adds, removes or renames a CSV, the affected universe silently becomes a
+different universe: `git status` is clean, every checker passes, and the only
+visible trace is a constituent count in a chart subtitle that nobody diffs.
+
+This is pre-existing design, not something the migration introduced -- the two
+deleted config modules globbed their directories the same way, and the module
+docstring's "a row whose data is gone is a registered universe with no symbols"
+depends on it. It is recorded here because the migration makes it matter more:
+the panel now comes from a supplier folder that this project does not control
+and did not author, and there are six more such folders waiting to be wired.
+
 **`naming_declare_check.py` reports 111 undeclared write calls**, and reported
 111 before any of this work began. Verified by stashing the changes and
 re-running. Nothing in this migration introduced or repaired it; one write added
