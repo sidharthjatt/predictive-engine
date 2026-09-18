@@ -487,6 +487,21 @@ def main(argv=None):
                     help="which kinds of step to run (default all)")
     ap.add_argument("--rebal", type=int, default=None,
                     help="rebalance cadence in trading days; omit for the default 20")
+    # THE FOURTH AXIS GETS ITS ENTRY POINT. It had none until 2026-09-18: tax.py
+    # was implemented, verified by tax_acceptance_check.py on BOTH halves, hooked
+    # into test_exposure and composed by naming.AXES -- and no flag anywhere could
+    # turn it on. The only callers of tax.set_selection() in the repository were
+    # two CHECKERS. A run could not charge tax.
+    #
+    # DEFAULT "off", NOT None, unlike --profile and --rebal. Those two pass None
+    # to their set_selection() to mean "restore the default"; tax.set_selection
+    # takes a bool or None and DEFAULT is False, so "off" and None are the same
+    # selection. The explicit choice is spelled out so `--tax off` appears in
+    # --help and in the plan line as a thing that was decided rather than omitted.
+    ap.add_argument("--tax", default="off", choices=("on", "off"),
+                    help="charge Indian capital-gains tax in-loop (default off). "
+                         "tax=on writes four _tax artefacts per universe and "
+                         "moves no unsuffixed file.")
     ap.add_argument("--profile", default=None, choices=("research", "tradeable"),
                     help="execution-realism profile; research (default) reproduces "
                          "the published history exactly, tradeable applies the "
@@ -644,6 +659,16 @@ def execute(plan, args):
     # asks profiles.participation_cap() at call time.
     import profiles as _prof
     _prof.set_selection(args.profile)
+    # THE FOURTH AXIS, SET ONCE, HERE, BESIDE THE OTHER THREE. tax.set_selection's
+    # docstring said "Called once by run.py" from the day it was written and that
+    # was false until this line existed -- an assertion nobody re-measured, which
+    # is the class this repository keeps finding. The docstring is corrected in
+    # tax.py to describe the shape that is actually here.
+    #
+    # THE BOOL IS BUILT HERE AND NOWHERE ELSE, so there is exactly one place that
+    # knows "on" means True.
+    import tax as _tax
+    _tax.set_selection(args.tax == "on")
     # LOUD, AT THE START, BEFORE ANY NUMBER EXISTS. A run under a non-default
     # profile completes and exits 0, which is indistinguishable from a run that was
     # checked unless something says otherwise. profiles.gate_status() owns the
