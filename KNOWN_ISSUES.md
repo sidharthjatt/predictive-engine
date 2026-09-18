@@ -5226,3 +5226,55 @@ being anonymous. It is the same shape as `REQUIRED_INPUTS`' fourth field: the th
 that cannot be derived is declared, and the declaration is what fails.
 
 NOT DONE HERE. Recorded so the sixth instance is recognised as the sixth.
+
+
+---
+
+## `dd_label` is two identical lambdas, and the next edit will reach only one of them
+
+Recorded 2026-09-18, read-only, while reviewing n50's wiring. **Not a defect
+today: the two copies are byte-identical and produce identical output.** It is
+recorded because the mechanism is the one this file already has a name for --
+*duplication copies defects as faithfully as it hides divergence* -- and this is
+a fresh instance created on purpose, with nothing watching it.
+
+### What it is
+
+`universes/registry.py` carries `chart_text["dd_label"]` on three rows. mid's
+differs from the other two and always did; n100's and n50's are the same
+expression:
+
+```python
+"dd_label": lambda lab, mn: f"{lab.split('  [')[0]} (max {mn:.1f}%)",
+```
+
+Verified by `inspect.getsource` on both objects: identical source text, and
+identical output on a sample input (`'v2 drawdown (max -21.9%)'`). They compare
+unequal only because two lambda objects have different `repr`s, which is exactly
+what would hide the divergence if one were edited.
+
+### Why it was written twice rather than shared
+
+n50's row was authored by following n100's, deliberately: n50 is a strict subset
+of n100 and the two are meant to be read against each other, so the rows were
+kept parallel. The label reaches the PNG's drawdown panel. A shared constant
+would have been the alternative and was not taken, because the registry's whole
+design is that a universe is ONE ROW and rows do not reach into each other --
+the same argument that keeps `FILES` written out per universe instead of looped.
+
+### What makes this the recognisable shape
+
+The drawdown-panel label is the specific thing that a checksum found and a grep
+did not, on 2026-09-15: the line it sits on contains no render keyword, so a
+keyword survey of render parameters missed it. That note is in this file already.
+The label now exists in two places, and the survey that missed it once would
+miss it twice.
+
+### What would actually close it
+
+Not a shared constant -- a comparison. Any check that renders every registered
+universe's `chart_text` values and refuses when two rows disagree in a way no row
+declares would catch a one-sided edit. Nothing like that exists, and five more
+universes are coming, each of which will copy one of these three rows.
+
+NOT DONE HERE. Recorded so a one-sided edit is recognised as one.

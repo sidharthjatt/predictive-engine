@@ -764,20 +764,33 @@ _N100 = Universe(
                 f"Nifty 100 universe ({v['n_all']} constituents, index excluded "
                 f"by name)  |  v2 holds {v['inv']}% invested on average  |  ALL "
                 f"NUMBERS AFTER TC (Zerodha + 0.15% slippage)\n"
-                f"Benchmarks: NIFTY100 is the published CAP-WEIGHTED index "
-                f"(investable, and NOT survivorship-biased). Equal-weight buy&hold "
-                f"is the universe, and is NOT investable.\n"
+                # DERIVED, NOT SPELLED OUT. This read "NIFTY100" until
+                # 2026-09-18, which was the file's name before the repoint;
+                # index_name is "NIFTY 100" now and the subtitle went on
+                # printing the old spelling onto the PNG. mid's row already
+                # derived it. A hardcoded name is a second place for the same
+                # fact to live, and it is the copy that nothing checks.
+                f"Benchmarks: {v['index_name']} is the published CAP-WEIGHTED "
+                f"index (investable, and NOT survivorship-biased). Equal-weight "
+                f"buy&hold is the universe, and is NOT investable.\n"
                 f"SURVIVORSHIP: these {v['n_all']} are TODAY'S index members "
                 f"backfilled to 2019. Names dropped or delisted from the Nifty 100 "
                 f"during the window are absent entirely,\nso both the strategy and "
                 f"its equal-weight buy&hold are inflated. Do not read that buy&hold "
                 f"as achievable.\n"
-                "LIQUIDITY AND MARKET-IMPACT FIGURES ARE NOT AVAILABLE FOR THIS "
-                "WINDOW: the depth and participation studies were run on the old "
-                "1,842-day window\n"
-                "ending 2026-06-08 and have not been re-run. Every number here is a "
-                "research backtest with a flat 0.15% slippage and no market-impact "
-                "model.\n"),
+                # THE STUDY IS NOT MISSING, IT IS ABOUT A PANEL THAT IS GONE.
+                # This used to say the figures were "not available for this
+                # window" and name the old 1,842-day window ending
+                # 2026-06-08, which described the kite extraction rather
+                # than anything in this checkout. The measurement exists and
+                # is recorded in liquidity_note; what it does not do is
+                # describe these prices. See PANEL_MIGRATION.md.
+                "LIQUIDITY AND MARKET-IMPACT FIGURES DO NOT DESCRIBE THIS PANEL: "
+                "the depth and participation studies were measured on the kite "
+                "extraction that\n"
+                "was superseded on 2026-09-18, and have not been repeated on "
+                "this one. Every number here is a research backtest with a flat "
+                "0.15% slippage and no market-impact model.\n"),
         },
     )
 
@@ -788,7 +801,7 @@ _N100 = Universe(
 # WHY THIS ONE FIRST, AND WHY ONE AT A TIME. Every one of n50's 50 names is
 # already in n100, measured on the supplier's directories: n50 is a STRICT
 # SUBSET of n100, which was rebuilt on this same vendor panel over the same
-# 1,836 sessions three commits ago. So n50 introduces no name this repository
+# 1,836 sessions at 9d717b0. So n50 introduces no name this repository
 # has not already priced, and a surprise in its output is attributable to the
 # wiring rather than to data nobody has looked at.
 #
@@ -891,8 +904,11 @@ _N50 = Universe(
                 f"Nifty 50 universe ({v['n_all']} constituents, index excluded "
                 f"by name)  |  v2 holds {v['inv']}% invested on average  |  ALL "
                 f"NUMBERS AFTER TC (Zerodha + 0.15% slippage)\n"
-                f"Benchmarks: Nifty 50 is the published CAP-WEIGHTED index "
-                f"(investable, and NOT survivorship-biased). Equal-weight "
+                # DERIVED, for the reason given on n100's row. This was
+                # correct when written and that is exactly the problem: so was
+                # n100's.
+                f"Benchmarks: {v['index_name']} is the published CAP-WEIGHTED "
+                f"index (investable, and NOT survivorship-biased). Equal-weight "
                 f"buy&hold is the universe, and is NOT investable.\n"
                 f"SURVIVORSHIP: these {v['n_all']} are TODAY'S index members "
                 f"backfilled to 2019. Names dropped or delisted from the Nifty "
