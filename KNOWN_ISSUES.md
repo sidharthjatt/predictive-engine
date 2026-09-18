@@ -5074,114 +5074,85 @@ verification, and the verification is the cost.
 
 ---
 
-## Two tables a new universe would most easily miss, and one of them raises nothing
+## An operation reports success having done part or none of the work
 
-Found 2026-09-18 by probing `registry_coverage_check.py` with a throwaway third
-universe row. Neither had been listed in any inventory of what adding a universe
-costs. Both are CAUGHT by that check -- this entry records what they are, not a
-gap in the net.
+**One class, four instances inside two weeks, each caught by a different
+accident.** They were four separate entries in this file until 2026-09-18; they
+are one entry now, because treating them separately is what let the fourth
+happen after the first three were written down.
 
-With a third universe registered and its four `PIPELINE_ORDER` rows added, the
-coverage check reported:
+`check_all.py` is the answer to all four. One command, five gates, run before
+every commit and in CI.
 
-```
-universe 'n50' has no entry in universes/registry.REPORT_ORDER
-    consequence: dropped from every combined report (report_order raises)
-universe 'n50' has no entry in make_combined_universes.FILES
-    consequence: KeyError at FILES[t], deep in the draw, naming nothing
-universe 'n50' has no entry in run_all.PIPELINE_ORDER [tax_report.py]
-    consequence: SILENT -- that step never runs for this universe
-```
+### The four
 
-`FILES` was expected. The other two were not.
+**1. Nine things a new universe must be wired into, and a survey that said
+seven.** `registry_coverage_check.py` checks twelve tables and is excellent at
+it; the cost survey for wiring a universe was conducted entirely through it and
+the other static checkers, and reported the cost as seven items. Two were
+invisible to all of them: `make_combined_universes.PAIR_CHART_REGISTRY_SIZE`,
+read at STEP 12b's RUN TIME, and `seed_noise_measure.LABELS`, read at the IMPORT
+of a module the pipeline never imports. The first cost a run: `run.py --universe
+n50` exited 1 at STEP 12b with four of ten steps unexecuted, after the expensive
+one.
 
-**`REPORT_ORDER` is a second, separate list.** A universe can be fully registered,
-fully wired into `PIPELINE_ORDER` and `REQUIRED_INPUTS`, and still be dropped from
-every combined report because `report_order` raises on a tag it does not carry.
-Registration is not membership.
+**2. Two modules unimportable for two weeks, beside four green checkers.** From
+the day n50 was registered, `seed_noise_measure` and `seed_noise_report` raised
+`SystemExit` at import. Nothing imports them -- not `run_all`, not any checker --
+so the failure waited for a person. Found in the CONTROL ARM of an unrelated
+rename experiment.
 
-**THE `tax_report.py` ROW IS THE DANGEROUS ONE, BECAUSE ITS ABSENCE RAISES
-NOTHING.** The coverage check labels it `SILENT` in terms: with no
-`PIPELINE_ORDER` row for `tax_report.py`, that step simply never runs for that
-universe. No error, no missing-file failure, no empty artefact -- the universe
-just has no tax artefacts, and every other step succeeds. A reader comparing
-universes would see one with tax outputs and one without and have nothing to tell
-them why. This is the failure mode `registry_coverage_check` exists for, and it
-is the reason its verdict line reads "A table that silently tolerates a missing
-entry is indistinguishable from one that covers it."
+**3. A regex over `PIPELINE_ORDER` matching 12 of 15 rows, twice.** The script
+column contains digits (`engine_v2_final.py`), so `"[a-z_]+\.py"` skips the
+three engine rows. Both times the half-renamed table imported cleanly until
+`_step_label` could not name a producer; both times the only thing that caught
+it at the point of edit was an `assert n == 15` the author happened to write.
 
-### THE EIGHTH ITEM, AND NO STATIC CHECK SEES IT
+**4. `make_daily_log.py` run directly: wrote nothing, exited 0.** Its body moved
+into `main()` when the pipeline stopped spawning subprocesses and the `__main__`
+guard was deleted rather than left calling it. The string `"__main__"` still
+appears in `main()`'s docstring, so a text search passes the file. A regeneration
+pass during the rename "succeeded" that way and changed not one byte; it was
+caught by diffing against copies saved beforehand.
 
-`make_combined_universes.PAIR_CHART_REGISTRY_SIZE`. Found 2026-09-18 by RUNNING
-n50, after the probe above had reported every static checker green.
+### What they have in common
 
-`PAIR_CHART = ("n100", "mid")` is the figure the README publishes, named
-explicitly rather than derived, because which pair is published is an editorial
-fact and deriving it would silently repoint the README the day a third universe
-landed. `PAIR_CHART_REGISTRY_SIZE` is the registry size that pair was last
-confirmed against, and the step refuses to run while the two disagree:
+Not that the checks were missing. **Success and partial success were
+indistinguishable at the only moment anybody looked.** Every one of them would
+have passed `git commit`; three of the four would have passed CI.
 
-```
->>> STEP 12b  make_combined_universes.py
-PAIR_CHART has not been re-confirmed since the registry changed size.
-  registry now holds 3 universes: ['mid', 'n100', 'n50']
-  PAIR_CHART_REGISTRY_SIZE says it was last confirmed at 2
-```
+Related in kind, and already recorded separately because their mechanism is
+different: `unresolved` is not fatal in `check_pipeline_order` (below), and the
+`.source` sidecar the cache-restore path used to drop -- a panel that arrived
+without its provenance and was trusted anyway.
 
-**The guard worked exactly as designed.** What it cost was a run: `run.py
---universe n50` exited 1 at STEP 12b with four of its ten steps unexecuted --
-15, 15b, 16, 17 and 18c never ran -- so n50 had charts and audit CSVs but no
-permanent cache, no nautilus parquet, no execution and no tax artefacts, and the
-8.6 minutes STEP 10m had just spent were only saved by the /tmp working panel.
+### What check_all.py does
 
-**Why the probe missed it.** The seven items above were found by adding a row and
-re-running `run_all` import, `registry_coverage_check`, `check_pipeline_order`
-and `check_plan_order` until green. This constant is read at STEP 12b's
-execution, not at import and not by any checker. A survey of what a new universe
-costs, conducted entirely through the static gates, cannot see it.
+| gate | what it refuses |
+|---|---|
+| 1 IMPORTS | any module in the repository that does not import. Instance 2, on day one. |
+| 2 TABLE | `PIPELINE_ORDER`'s row count against `run_all.PIPELINE_ROW_COUNT`, every script column resolved to a file, and every row naming a REGISTERED universe. Instance 3, at the table rather than at the first consumer. |
+| 3 ENTRY POINTS | a pipeline script with no live `__main__` block, **by AST** -- a grep passes instance 4. |
+| 4 OUTPUTS | with `--since`, a step that ran and left nothing with a moved mtime inside its declared span. Instance 4 again, from the other side. |
+| 5 DELEGATES | the four existing checkers, folded in, so "I ran the checks" means one thing. |
 
-**It will fire five more times**, once per remaining universe, and each time it
-will be after the expensive step.
+Two declarations keep it honest rather than permanently red: `KNOWN_UNIMPORTABLE`
+names four modules that cannot import, each with its reason, and **fails if a
+listed one starts importing** -- a stale exception is how such a list stops
+meaning anything. `NAMING_UNDECLARED_BASELINE` pins
+`naming_declare_check`'s pre-existing 111 undeclared writes and fails only if the
+number grows.
 
-### THE NINTH ITEM, ALSO INVISIBLE, AND IT HAD BEEN BROKEN SINCE n50 LANDED
-
-`results/seed_noise_measure.LABELS`. Found 2026-09-18 by an import sweep of every
-module in the repository, run as the CONTROL for a rename probe -- so it was
-found by accident, while measuring something else.
-
-```
-LABELS = {"n100": "NIFTY 100", "mid": "MIDCAP150"}
-
-_unlabelled = set(REGISTRY) - set(LABELS)
-if _unlabelled:
-    raise SystemExit("seed_noise_measure: no report label for universe(s) ...")
-```
-
-The guard is good: it refuses by name rather than dropping the universe from the
-measurement, and its comment says why the label is written down rather than
-derived. What nothing did was tell anybody it had fired. **From the moment n50
-was registered, `seed_noise_measure` and `seed_noise_report` were both
-unimportable**, and the commit that wired n50 reported four green checkers. They
-are not imported by `run_all`, so no pipeline run touches them; they are run by
-hand when somebody wants the seed-noise diagnostic, and that person would have
-met a SystemExit with no idea it was a week old.
-
-**Two of the nine items are invisible to every static check**, and they are
-invisible in different ways: `PAIR_CHART_REGISTRY_SIZE` is read at a pipeline
-step's run time, and this one at the import of a module the pipeline never
-imports. A checker that walked every module and tried to import it would have
-caught both — that is what the rename probe's control sweep did, in one command,
-and it is not a thing this repository does.
-
-### How to use this
-
-When adding a universe, `registry_coverage_check.py` is the authority on what is
-still missing FROM THE TABLES IT CHECKS -- it checked 12 at the time of writing
-and names each gap with its consequence. It is NOT the authority on what a
-universe costs: `PAIR_CHART_REGISTRY_SIZE` above is invisible to it, and so is
-anything else read at a step's run time rather than at import. Do not work from a
-remembered list, including this one, and do not assume green checkers mean the
-first run will complete.
+**What gate 4 is not.** It was specified as a per-step output manifest. It is not
+one, deliberately: a second list of what each step writes is a list that can
+disagree with the code, which is what `REQUIRED_INPUTS`, `PIPELINE_ORDER`,
+`REPORT_ORDER` and `FILES` each did once. `check_pipeline_order`'s scanner cannot
+supply it either -- `_scan` on an entry point alone returns ZERO writes for all
+ten steps, because a step is scanned concatenated with its helpers. So gate 4
+uses the span the table already declares and asserts an mtime moved inside it.
+Coarser than a manifest; exact on the case that has happened four times. Four
+whole-run steps declare no span at all, and gate 4 SAYS SO per step rather than
+counting them as passed.
 
 ---
 

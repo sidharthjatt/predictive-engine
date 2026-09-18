@@ -282,6 +282,21 @@ def _registry_tags():
     return set(REGISTRY)
 
 
+# HOW MANY ROWS THIS TABLE HAS, DECLARED, so that a bulk edit over it cannot
+# quietly cover part of it. check_all.py asserts len(PIPELINE_ORDER) against this
+# number and fails when they disagree.
+#
+# IT EXISTS BECAUSE A REGEX MATCHED 12 OF 15 ROWS, TWICE. The script column
+# contains digits -- engine_v2_final.py -- so a `"[a-z_]+\.py"` pattern skips the
+# three engine rows and rewrites the rest. Both times the edit was a universe
+# rename, both times the result imported cleanly, and both times the only thing
+# that caught it was an assertion the author happened to write. This constant
+# makes that assertion the repository's rather than the author's.
+#
+# UPDATE IT BY HAND when a row is added or removed. That is the point: a number
+# derived from the table it is checking would agree with any table.
+PIPELINE_ROW_COUNT = 20
+
 PIPELINE_ORDER = [
     ("STEP 10a", "build_scores.py",            "midcap150"),
     ("STEP 10b", "engine_v2_final.py",         "midcap150"),
