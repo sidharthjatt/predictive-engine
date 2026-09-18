@@ -336,15 +336,33 @@ class Universe:
     # while naming a key that needed it raises KeyError. It fails LOUDLY on the
     # only path where its absence matters, which is what the three above did not.
     #
-    # validation_status: None IS REACHABLE AS AN ARTEFACT VALUE and is reported
-    # rather than fixed here -- see the note in the commit that closed the other
-    # three. When "validation_status" appears in engine_params_keys, a row that
-    # left this at None writes `"validation_status": null` into
-    # v2FINAL_params.json: valid JSON, indistinguishable from a deliberate
-    # statement, meaning nothing. Both live rows set it explicitly, so nothing is
-    # currently writing null; changing the default would move no byte today and
-    # is a separate decision.
-    validation_status: object = None
+    # validation_status JOINED THE REQUIRED FIELDS ON 2026-09-18, one commit after
+    # the other three, once the decision was taken. Its default was None, and
+    # None IS REACHABLE AS AN ARTEFACT VALUE: engine_v2_final.py:329 puts this
+    # field straight into v2FINAL_params.json, so a row that left it alone wrote
+    #
+    #     "validation_status": null
+    #
+    # which is valid JSON and indistinguishable from a deliberate statement. A
+    # universe nobody had validated and a universe whose validation status was
+    # never considered produced the same four bytes.
+    #
+    # NOTHING WAS WRITING null WHEN THIS CHANGED -- all three live rows set the
+    # field explicitly -- so this commit moves no byte. It closes the way the
+    # next row could.
+    #
+    # THE SHAPE IS STILL DELIBERATELY NOT UNIFORM. mid carries a dict of eight
+    # measured results; n100 and n50 carry sentences saying the work was not done
+    # on those universes. The type tells them apart: dict means measured, str
+    # means not. Requiring the field does not require a shape, and flattening the
+    # two would read as though both were measured.
+    validation_status: object
+
+    # THE ONE FIELD THAT KEEPS A DEFAULT, and it is different in kind. It is read
+    # as `u.engine_params_static or {}` and then as `_vals[k]` for every key in
+    # engine_params_keys, so a row that omits it while naming a key that needed a
+    # static value raises KeyError. It fails LOUDLY on the only path where its
+    # absence matters, which is exactly what the four fields above did not.
     engine_params_static: dict = None     # values for keys that are not computed
 
     def symbols(self):

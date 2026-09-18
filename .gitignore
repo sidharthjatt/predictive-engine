@@ -37,6 +37,17 @@ results/metrics/
 results74/metrics/
 results_mid/metrics/
 results_n100/metrics/
+# THE SUPPLIER'S OTHER SIX, ALL ADDED AT ONCE ON 2026-09-18 -- five of them
+# before the universe exists. Only n50 is registered today; the rule for the
+# other five is written now so that bringing each one up cannot rediscover this
+# the hard way. A metrics directory holds the >50 MB panel caches, and the first
+# run of an un-ignored universe would offer one to git.
+results_n50/metrics/
+results_mid50/metrics/
+results_mid100/metrics/
+results_n200/metrics/
+results_small250/metrics/
+results_n500/metrics/
 
 # Derived from the score panels by run_all.py STEP 16; stale the moment those
 # are rebuilt.
