@@ -179,7 +179,7 @@ PAIR_CHART = ("nifty100", "midcap150")
 # The guard did its job: it stopped a run rather than letting the pair be read as
 # still-confirmed while the registry grew around it. Bumping this is the record
 # that somebody looked, which is the whole content of the constant.
-PAIR_CHART_REGISTRY_SIZE = 3
+PAIR_CHART_REGISTRY_SIZE = 4
 
 _unknown_pair = set(PAIR_CHART) - set(REGISTRY)
 if _unknown_pair:
@@ -306,6 +306,23 @@ def main():
                         _ci(M_nifty50 / "v2FINAL_params.json"),
                         _ci(M_nifty50 / "daily_trades_n50.csv"),
                         _ci(M_nifty50 / "daily_trades_v1_n50.csv"))
+    # midcap50, ADDED 2026-09-18. WRITTEN OUT, NOT LOOPED, for the reason above.
+    #
+    # NOTE THE FILENAMES, WHICH DO NOT FOLLOW THE THREE ROWS ABOVE. paths
+    # .tagged_artefact composes "<stem>_<tag>.csv" from the LIVE tag, so this
+    # universe's logs are daily_trades_midcap50.csv and
+    # daily_trades_v1_midcap50.csv. The three rows above still spell mid, n100
+    # and n50 -- tags the registry retired on 2026-09-18 -- and the engine has
+    # not written those names since. Copying their shape here would have added a
+    # fourth reference to a file that is never created. See KNOWN_ISSUES.md;
+    # NOT fixed in this commit, because changing what STEP 12b demands of three
+    # live universes is a behaviour change and belongs in its own review.
+    if "midcap50" in tags:
+        M_midcap50 = REGISTRY["midcap50"].metrics_dir
+        FILES["midcap50"] = (_ci(M_midcap50 / "v2FINAL_equity.csv"),
+                        _ci(M_midcap50 / "v2FINAL_params.json"),
+                        _ci(M_midcap50 / "daily_trades_midcap50.csv"),
+                        _ci(M_midcap50 / "daily_trades_v1_midcap50.csv"))
     # LOADED ONCE, PLOTTED POSSIBLY TWICE. The published n100+mid pair chart is
     # drawn from the SAME rows as the N-way chart when both are produced, so the
     # two figures cannot disagree about a number.

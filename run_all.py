@@ -295,7 +295,7 @@ def _registry_tags():
 #
 # UPDATE IT BY HAND when a row is added or removed. That is the point: a number
 # derived from the table it is checking would agree with any table.
-PIPELINE_ROW_COUNT = 20
+PIPELINE_ROW_COUNT = 25
 
 PIPELINE_ORDER = [
     ("STEP 10a", "build_scores.py",            "midcap150"),
@@ -315,6 +315,13 @@ PIPELINE_ORDER = [
     ("STEP 10n", "engine_v2_final.py",         "nifty50"),
     ("STEP 10o", "make_audit.py",              "nifty50"),
     ("STEP 10p", "make_chart.py",              "nifty50"),
+    # midcap50, ADDED 2026-09-18. NEW LABELS AGAIN, 10q-10t, and not 10i-10l
+    # for the reason the n50 block states: a reused label makes every log
+    # written before the reuse ambiguous.
+    ("STEP 10q", "build_scores.py",            "midcap50"),
+    ("STEP 10r", "engine_v2_final.py",         "midcap50"),
+    ("STEP 10s", "make_audit.py",              "midcap50"),
+    ("STEP 10t", "make_chart.py",              "midcap50"),
     # MOVED FROM STEP 10i, and the move is load-bearing rather than cosmetic.
     # The combined chart is now generic over the selection, so it may need the 58's
     # and the 74's per-trade logs -- and those are written by STEP 12 immediately
@@ -360,6 +367,7 @@ PIPELINE_ORDER = [
     ("STEP 18a", "tax_report.py",              "midcap150"),
     ("STEP 18b", "tax_report.py",              "nifty100"),
     ("STEP 18c", "tax_report.py",              "nifty50"),
+    ("STEP 18d", "tax_report.py",              "midcap50"),
 ]
 
 
