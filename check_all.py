@@ -42,6 +42,10 @@ WHAT THIS DOES ABOUT IT
                          block that CALLS something -- by AST, not by grep.
     GATE 4  OUTPUTS      with --since: every step's declared span contains a file
                          whose mtime moved. "Ran, wrote nothing, exited 0" fails.
+    GATE 6  TAX          with --since: under tax=on the numbers must MOVE, by
+                         what the ledger says. The string-only acceptance check
+                         cannot tell a renaming axis from a charging one, and for
+                         the axis's first day that is what it was.
     GATE 5  DELEGATES    registry_coverage_check, check_pipeline_order,
                          check_plan_order, naming_declare_check.
 
@@ -390,6 +394,140 @@ def gate_delegates(res):
             res.note(f"GATE 5  {name}: exit 0")
 
 
+# ---------------------------------------------------------------------------
+# GATE 6 -- the tax axis CHARGES tax, it does not merely rename files
+# ---------------------------------------------------------------------------
+
+def gate_tax(res, since, sel):
+    """CONDITION 3: under tax=on the numbers must move, by what the ledger says.
+
+    WHAT THE STRING-ONLY CHECK COULD NOT DISTINGUISH, AND FOR HOW LONG.
+    tax_acceptance_check.py asks two questions, and says plainly that it "checks
+    NAMES, not CONTENTS":
+
+        CONDITION 1  at the default, does every composer emit the same string?
+        CONDITION 2  off the default, does every composer MOVE?
+
+    Both are satisfied by an axis that renames artefacts and charges nothing.
+    From the day the axis landed (7846f67, 2026-09-17) until 21c6624 that is
+    exactly what it was: backtest_exposure's tax_enabled defaulted to False at
+    every call site on the published path, so `--tax on` produced 36 of 40
+    suffixed artefacts BYTE-IDENTICAL to their untaxed twins and the other four
+    differed only in a header label. Both conditions passed throughout.
+
+    IT IS THE TRAP THAT CHECK'S OWN DOCSTRING OPENS WITH, ONE LEVEL UP. It warns
+    that "AN OMITTED AXIS AND A DEFAULT AXIS PRODUCE THE SAME STRING" and builds
+    condition 2 to catch that. What it cannot catch is a RENAMING axis and a
+    CHARGING axis producing the same strings -- which they do, because the suffix
+    is composed from the selection and not from anything the engine did with it.
+
+    SO THIS GATE ASSERTS CONTENTS, AND IT LIVES HERE RATHER THAN THERE BECAUSE IT
+    NEEDS A REAL RUN. tax_acceptance_check runs standalone with no caches and no
+    engine, and correctly declines to pretend otherwise. --since already means a
+    run happened.
+
+    TWO PARTS, AND THE SECOND IS AN INEQUALITY ON PURPOSE:
+
+      (i)  v34_equity<SFX>'s v2 column at the final session EQUALS FY_EQUITY's
+           last close_equity, to a paisa. Two independent paths -- the engine
+           under tax=on, and tax_report's own re-run -- must land on the same
+           rupee.
+      (ii) v34_equity<SFX> differs from the untaxed v34_equity by AT LEAST
+           cum_tax.
+
+    (ii) IS NOT AN EQUALITY, AND AN EQUALITY THERE WOULD FAIL ON A CORRECT
+    IMPLEMENTATION. The equity gap EXCEEDS the cash taken, by the compounding the
+    removed capital no longer earns: measured on midcap50, gap Rs 761,619.36
+    against cum_tax Rs 492,955.59, a difference of Rs 268,663.77 -- 35.3% of the
+    gap. bh_lots_after_tax.py states the mechanism: "the capital it removes stops
+    compounding for the rest of the run". THAT IS THE AXIS WORKING. The identity
+    that IS an equality is the one reconcile() already checks -- the per-year
+    statement summing to the engine's cum_tax -- and it is checked there, at that
+    tolerance, rather than restated here.
+
+    SKIPPED, NOT PASSED, when no tax artefacts are on disk: a tax=off run writes
+    none, and this gate says so rather than counting silence as agreement.
+    """
+    import csv
+    if since is None:
+        res.note("GATE 6  SKIPPED -- needs --since, i.e. a run to check against. "
+                 "Not counted as passed.")
+        return
+    try:
+        sys.path.insert(0, str(ROOT))
+        from universes.registry import REGISTRY
+    except Exception as e:
+        res.fail("GATE 6 tax", "registry", f"{type(e).__name__}: {e}")
+        return
+    tags = sorted(REGISTRY) if sel in (None, "all") else [t.strip() for t in sel.split(",")]
+    checked = 0
+    for t in tags:
+        u = REGISTRY.get(t)
+        if u is None:
+            continue
+        M = Path(u.metrics_dir)
+        taxed = M / "v34_equity_tax.csv"
+        plain = M / "v34_equity.csv"
+        fy = M / f"FY_EQUITY_{t}_v2_tax.csv"
+        if not fy.exists():
+            fy = next(iter(sorted(M.glob("FY_EQUITY_*_tax.csv"))), None)
+        stmt = next(iter(sorted(M.glob("FY_TAX_STATEMENT_*_tax.csv"))), None)
+        if not taxed.exists() or fy is None or stmt is None:
+            continue
+        checked += 1
+
+        def col(path, name):
+            with open(path, newline="") as fh:
+                rows = list(csv.DictReader(fh))
+            return [r for r in rows], rows[-1]
+
+        trows, tlast = col(taxed, None)
+        if "v2_invvol_breadth" not in tlast:
+            res.fail("GATE 6 tax", f"{t} v34_equity_tax.csv",
+                     "no v2_invvol_breadth column to check")
+            continue
+        t_final = float(tlast["v2_invvol_breadth"])
+
+        with open(fy, newline="") as fh:
+            fyr = list(csv.DictReader(fh))
+        fy_final = float(fyr[-1]["close_equity"])
+
+        # (i) EXACT, to a paisa.
+        if abs(t_final - fy_final) > 0.01:
+            res.fail("GATE 6 tax", f"{t} taxed equity vs FY_EQUITY",
+                     f"v34_equity_tax v2 final Rs {t_final:,.2f} against "
+                     f"FY_EQUITY close_equity Rs {fy_final:,.2f} -- two paths "
+                     f"through the same engine disagree by Rs "
+                     f"{abs(t_final-fy_final):,.2f}")
+            continue
+
+        if not plain.exists():
+            res.note(f"GATE 6  {t}: no untaxed v34_equity.csv to compare against")
+            continue
+        with open(plain, newline="") as fh:
+            prows = list(csv.DictReader(fh))
+        p_final = float(prows[-1]["v2_invvol_breadth"])
+
+        with open(stmt, newline="") as fh:
+            srows = list(csv.DictReader(fh))
+        cum = sum(float(r["total_tax"]) for r in srows)
+
+        gap = p_final - t_final
+        # (ii) AT LEAST, never equal -- see the docstring.
+        if gap < cum - 0.01:
+            res.fail("GATE 6 tax", f"{t} taxed equity vs ledger",
+                     f"the taxed curve is only Rs {gap:,.2f} below the untaxed "
+                     f"one, which is LESS than the Rs {cum:,.2f} the ledger says "
+                     f"was taken. Tax was named but not charged.")
+            continue
+        res.note(f"GATE 6  {t}: taxed equity == FY_EQUITY to a paisa; gap Rs "
+                 f"{gap:,.2f} >= cum_tax Rs {cum:,.2f} "
+                 f"(compounding Rs {gap-cum:,.2f})")
+    if checked == 0:
+        res.note("GATE 6  SKIPPED -- no tax artefacts on disk (a tax=off run "
+                 "writes none). Not counted as passed.")
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--since", type=float, default=None,
@@ -412,6 +550,7 @@ def main(argv=None):
     gate_entry_points(res, rows)
     gate_outputs(res, rows, args.since, args.universe)
     gate_delegates(res)
+    gate_tax(res, args.since, args.universe)
 
     print()
     for n in res.notes:
@@ -427,7 +566,7 @@ def main(argv=None):
                 print(f"      {detail}")
         print()
         return 1
-    print("RESULT: PASS -- all five gates")
+    print("RESULT: PASS -- all six gates")
     return 0
 
 
