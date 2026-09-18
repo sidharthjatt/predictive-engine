@@ -286,10 +286,34 @@ class Universe:
     # on this universe. That asymmetry is the RECORD OF WHICH UNIVERSE GOT THE WORK,
     # and flattening both into one shape would read as though both were measured.
     # The type tells them apart: dict means measured, str means not.
-    validation_status: object = None
-    engine_params_keys: tuple = ()        # v2FINAL_params.json keys, IN ORDER
-    engine_params_static: dict = None     # values for keys that are not computed
-    engine_text: dict = None              # banner, chart title, console blocks
+    # THREE OF THESE HAVE NO DEFAULT, AS OF 2026-09-18, AND THAT IS THE POINT.
+    #
+    # engine_params_keys defaulted to (), engine_text and chart_text to None.
+    # Measured on a Universe constructed without them, before the change:
+    #
+    #   engine_params_keys = ()   ->  engine_v2_final.py:333 writes
+    #       json.dumps({k: _vals[k] for k in u.engine_params_keys}, indent=2)
+    #       which is the two bytes "{}". Valid JSON. No exception, no warning.
+    #       v2FINAL_params.json exists, is well-formed, and says NOTHING -- and
+    #       it is the file that records which arm, which sizing, which CAGR and
+    #       which validation status produced the run beside it.
+    #
+    #   engine_text = None        ->  TypeError at engine_v2_final.py:138
+    #   chart_text  = None        ->  TypeError at make_chart.py:176
+    #       Loud, but not until STEP 10n and STEP 10p -- after build_scores has
+    #       already spent its time on the panel.
+    #
+    # A FIELD WITH NO DEFAULT CANNOT BE FORGOTTEN, because the row fails at
+    # CONSTRUCTION with a TypeError naming the field, before anything imports a
+    # checker. That is the same argument registry_coverage_check.py's docstring
+    # makes about DISPLAY, COLOURS and LIQUIDITY leaving its table: those three
+    # stopped being NEEDED rather than being silenced. These three join them.
+    #
+    # THE ORDER OF THESE LINES IS A DATACLASS CONSTRAINT, not a preference: a
+    # field with no default cannot follow one that has a default, so the three
+    # required fields sit above the two that remain optional.
+    engine_params_keys: tuple             # v2FINAL_params.json keys, IN ORDER
+    engine_text: dict                     # banner, chart title, console blocks
 
     # WHAT THE CHART STEP RENDERS FOR THIS UNIVERSE. Added 2026-09-15 with step 6.
     # make_mid_chart.py and make_n100_chart.py diverged in 204 code lines ignoring
@@ -302,7 +326,26 @@ class Universe:
     # registry already has -- "<tag> buy&hold (equal-weight universe)" from tag,
     # "<index> (cap-weighted index)" from index_name. Only what cannot be derived
     # is written down.
-    chart_text: dict = None
+    chart_text: dict
+
+    # THE TWO THAT KEEP A DEFAULT, AND WHY EACH IS DIFFERENT FROM THE THREE ABOVE.
+    #
+    # engine_params_static: absent means "no key takes a static value". It is
+    # consumed as `_vals.update(u.engine_params_static or {})` and then read as
+    # `_vals[k]` for every key in engine_params_keys, so a row that omits it
+    # while naming a key that needed it raises KeyError. It fails LOUDLY on the
+    # only path where its absence matters, which is what the three above did not.
+    #
+    # validation_status: None IS REACHABLE AS AN ARTEFACT VALUE and is reported
+    # rather than fixed here -- see the note in the commit that closed the other
+    # three. When "validation_status" appears in engine_params_keys, a row that
+    # left this at None writes `"validation_status": null` into
+    # v2FINAL_params.json: valid JSON, indistinguishable from a deliberate
+    # statement, meaning nothing. Both live rows set it explicitly, so nothing is
+    # currently writing null; changing the default would move no byte today and
+    # is a separate decision.
+    validation_status: object = None
+    engine_params_static: dict = None     # values for keys that are not computed
 
     def symbols(self):
         """The tradable names as a SET, or None when the directory is the definition.
@@ -686,7 +729,13 @@ _N100 = Universe(
         },
         chart_text={
             "stem": "chart_n100",
-            "index_window_end": "2026-06-22",
+            # CORRECTED 2026-09-18, with the repoint that made it stale. The old
+            # nifty100_benchmark/NIFTY100.csv ended 22-06-2026, so this value
+            # was RIGHT until the source changed; Final_NIFTY100_EoD_Data's
+            # index file carries 32 further rows and ends 06-08-2026. All 32
+            # are past BT_END_DATE, so no number moved -- what was wrong was
+            # the sentence under the chart saying where the benchmark stops.
+            "index_window_end": "2026-08-06",
             "dpi": 150,
             "legend_fontsize": 8.5,
             "rule_width": 100,
