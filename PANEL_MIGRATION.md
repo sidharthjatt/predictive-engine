@@ -293,20 +293,58 @@ these six; every one of the six is an UNSUFFIXED default name, which a tax=on
 run never opens. The deferral was pointed at a collection point that does not
 exist, and left alone these six persist indefinitely.
 
-**OPEN -- one of two, not yet chosen:**
+**CLOSED 2026-09-18 -- (b) TAKEN, the six corrected on their own.** The
+alternative, (a), was to give the tax plan an explicit default-arm re-run and let
+the tax work collect these as a side effect.
 
-- **(a) The tax plan gains an explicit default-arm re-run**, making the original
-  reasoning true rather than assumed: the tax work then does re-run the
-  unsuffixed arm and does collect these. Cost is a full default-arm engine pass
-  per universe on top of the tax pass.
-- **(b) The six are fixed on their own**, independently of the tax work, by
-  re-running `engine_v2_final` at STEP 10n for midcap150 and nifty100.
+**Why (b): a run exists to produce numbers, and using one as a carrier for a
+naming fix is how the fix gets dropped when the run is rescheduled.** That is not
+hypothetical here -- it is what already happened. This entry's original reason
+attached the correction to the tax work, the tax work has not run, and the six
+sat stale through four commits. Attaching it to a *different* future run would
+have repeated the mistake with a new date on it. A naming fix that depends on
+nothing should wait for nothing.
 
-**Do not record this as deferred again without naming which.** "Deferred" here
-has already once meant "waiting on something that was never going to happen",
-and that is the whole reason this entry needed rewriting. It is the sharpest of
-the three: an artefact naming a universe the registry no longer defines is the
-shape of inconsistency this project keeps closing.
+**What was done, exactly.** `universe_tag` alone, one value per file, six files;
+`"mid"` -> `"midcap150"` and `"n100"` -> `"nifty100"`. No other byte moved.
+Nothing reads the field back -- the only occurrences in any module are the
+`run_v34` parameter and the registry lookup at WRITE time -- so this corrects a
+label, not an input.
+
+**TWO CONSEQUENCES, RECORDED BECAUSE THEY ARE THE COST OF (b) RATHER THAN
+OBJECTIONS TO IT:**
+
+1. **Each file's `git_state` block now describes a run that did not produce every
+   byte of it.** The file says it came from commit `0b021ae` (or `8e32551`,
+   `556f910`) with the tree in a stated condition; that is still true of every
+   measured number in it and is no longer true of `universe_tag`. A hand-edited
+   run artefact is the weaker form of provenance, and it is the price of not
+   waiting for a run.
+2. **`gate_compare.py` accepts exactly one non-identical field set, `git_state`,
+   and says so as data rather than as a review-time argument.** A params file that
+   moves in any other field is DIFFERS. These six have now moved in another field.
+   A pre/post comparison spanning this commit will therefore flag them, and that
+   is the comparator working correctly -- it is not an exception to add. The
+   condition is self-clearing: `universe_tag` is written from `u.tag`, the
+   registry now says `midcap150`/`nifty100`, so the NEXT engine run at STEP 10n
+   rewrites these files with the correct tag from the code path, and the
+   hand-edited state disappears.
+
+**`results_nifty50/metrics/v34_params.json` was correct and was left alone.** It
+reads `"nifty50"` because nifty50 was registered under its current name and has
+never been renamed -- it was wired at `2a6f8a0`, after the tags `mid` and `n100`
+were already in use and before the rename that retired them, so it never held an
+old tag to correct. It is the seventh file the old count included and the reason
+that count and the count of work were different numbers.
+
+**The `pre_repoint_baseline/` copies keep their old tags and MUST.** Four
+`metrics_mid/` and two `metrics_n100/` params files are pinned by SHA-256 in
+`pre_repoint_baseline/MANIFEST.txt`; they are the only surviving record of the
+pre-repoint figures, and an old tag in a historical record is the record, not a
+defect. Hashes verified unchanged by this commit.
+
+It was the sharpest of the three: an artefact naming a universe the registry no
+longer defines is the shape of inconsistency this project keeps closing.
 
 **2. Two `_tradeable` daily logs** still read `mid_tradeable`.
 `make_daily_log` regenerates for the CURRENT execution-realism profile, and

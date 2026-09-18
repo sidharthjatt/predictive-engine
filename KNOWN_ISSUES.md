@@ -5076,15 +5076,18 @@ verification, and the verification is the cost.
 
 ## An operation reports success having done part or none of the work
 
-**One class, four instances inside two weeks, each caught by a different
-accident.** They were four separate entries in this file until 2026-09-18; they
-are one entry now, because treating them separately is what let the fourth
-happen after the first three were written down.
+**One class, five instances inside two weeks, each caught by a different
+accident.** Four were separate entries in this file until 2026-09-18; they are
+one entry now, because treating them separately is what let the fourth happen
+after the first three were written down -- and the fifth was found after that,
+which is why it is filed here rather than opened as its own.
 
-`check_all.py` is the answer to all four. One command, five gates, run before
-every commit and in CI.
+`check_all.py` is the answer to the first four. One command, five gates, run
+before every commit and in CI. **It is not the answer to the fifth**, which no
+gate catches: nothing can tell a checker that a number in prose was true when it
+was written and is false now. Re-measure before citing.
 
-### The four
+### The five
 
 **1. Nine things a new universe must be wired into, and a survey that said
 seven.** `registry_coverage_check.py` checks twelve tables and is excellent at
@@ -5114,6 +5117,18 @@ guard was deleted rather than left calling it. The string `"__main__"` still
 appears in `main()`'s docstring, so a text search passes the file. A regeneration
 pass during the rename "succeeded" that way and changed not one byte; it was
 caught by diffing against copies saved beforehand.
+
+**5. A count that was never re-measured, presented as a measurement, used to
+justify a deferral.** `PANEL_MIGRATION.md` recorded "seven `v34_params*.json` and
+one `v2FINAL_params.json`" carrying a stale `universe_tag`. Measured on disk
+2026-09-18 by parsing every file and reading the key: **six**, not eight. The
+seven counted files matching a glob rather than files needing work -- nifty50's
+is correct and never held an old tag -- and **no `v2FINAL_params.json` has a
+`universe_tag` key at all**, so the claimed eighth could not be stale. The number
+was then the basis for deferring the fix to a tax run that could never have
+collected it. **A count nobody re-measured is an assertion, not a measurement**,
+and it reports success -- "we know the size of this" -- having done none of the
+work.
 
 ### What they have in common
 
