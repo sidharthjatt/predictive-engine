@@ -170,7 +170,16 @@ PAIR_CHART = ("n100", "mid")
 # IT RAISES RATHER THAN WARNS, BY DECISION. PAIR_CHART is the figure the README
 # publishes; a warning scrolls past and one wrong figure shipped silently costs
 # more than confirming a line once per registry change.
-PAIR_CHART_REGISTRY_SIZE = 2
+# RE-CONFIRMED AT 3 ON 2026-09-18, AND THE PAIR DID NOT MOVE. n50 was wired and
+# run that day; it is NOT in the published pair and should not be. Nothing on
+# that universe has been validated -- no seed, sub-period, shuffle or top-N test
+# -- and a figure the README displays is not the place to introduce a universe
+# whose only property so far is that it produced numbers. ('n100', 'mid') stays.
+#
+# The guard did its job: it stopped a run rather than letting the pair be read as
+# still-confirmed while the registry grew around it. Bumping this is the record
+# that somebody looked, which is the whole content of the constant.
+PAIR_CHART_REGISTRY_SIZE = 3
 
 _unknown_pair = set(PAIR_CHART) - set(REGISTRY)
 if _unknown_pair:
