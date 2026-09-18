@@ -32,13 +32,29 @@ import cadence
 
 
 def _axes(*, for_arm_subset=False):
-    """This run's artefact name tail: cadence AND profile, never one alone.
+    """This run's artefact name tail: cadence AND profile AND tax, never a subset.
 
-    Both axes or neither. The profile was absent here while `cadence` was present,
-    which is the whole shape of the bug this function was rewritten to remove.
+    ALL THREE OR NONE. The profile was absent here while `cadence` was present,
+    which is the whole shape of the bug this function was rewritten to remove --
+    and then the TAX term was absent while both of the others were present, which
+    is the same bug a second time in the same function.
+
+    MEASURED 2026-09-18, BEFORE THE FIX: under `--tax on` this returned
+    v2FINAL_equity.csv, daily_trades_midcap50.csv and v34_equity.csv -- byte-
+    identical paths to the tax=off selection. This is make_chart's source lookup
+    (STEP 10t), so chart_<tag>_..._tax.png was drawn with a correct name over
+    UNTAXED arm series, while make_chart.py:161's own _ci() composed all four
+    axes. ONE STEP, TWO CONVENTIONS, and the chart that came out of it was
+    part-taxed rather than wrong in a way anybody would notice.
+
+    THE RULE THIS FUNCTION NOW FOLLOWS is make_chart.py:161's, which is the same
+    chain in the same order. See KNOWN_ISSUES.md instance 6: this is the fourth
+    time a hand-composed chain has been under-specified, and the reason the list
+    of thirteen such sites is worth reading before adding a fifth axis.
     """
     import profiles as _pf
-    sfx = cadence.suffix() + _pf.suffix()
+    import tax as _tax
+    sfx = cadence.suffix() + _pf.suffix() + _tax.suffix()
     return (arm_reg.selection_suffix() + sfx) if for_arm_subset else sfx
 
 
