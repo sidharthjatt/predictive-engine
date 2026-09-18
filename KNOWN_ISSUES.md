@@ -5123,6 +5123,32 @@ distinction worth carrying:**
 The first cost a run: `run.py --universe nifty50` exited 1 at STEP 12b with four
 of ten steps unexecuted, after the expensive one.
 
+**ITEM 1 IMPLIES A PER-UNIVERSE PALETTE, AND THERE IS NOT ONE.** Wiring a
+universe includes choosing `chart_colours`, and on midcap50 that was a real
+search -- 369 pairs, dE2000 >= 10 against all eighteen existing slots under three
+visions. **It governs less than the entry suggests.** Resolved 2026-09-18 by
+reading every consumer in the repository:
+
+| reads `chart_colours` | does not |
+|---|---|
+| `make_combined_universes.py:365` -- the COMBINED chart | `make_chart.py` -- the PER-UNIVERSE chart |
+| `palette_distance.py` -- which measures those same lines | |
+
+`make_chart.py` hardcodes six colours and draws EVERY universe in them:
+`#c0392b` v2, `#2e6da4` v1, `#1b9e77` v3, `#e6ab02` v4, `#3a9d3a` buy&hold,
+`#000000` index. So `chart_<tag>.png` looks the same whatever the tuple says, and
+a searched palette is invisible until two or more universes are selected and
+STEP 12b renders.
+
+**midcap50's PALETTE HAS STILL NEVER BEEN DRAWN.** Its first full run selected one
+universe, so STEP 12b skipped with "it overlays two or more universes and only 1
+is selected". The dE 10.28 figure is a computed floor that nothing has yet
+displayed. **Do not cite it as a visual result.**
+
+**Whether the per-universe charts SHOULD use the tuple is a real question and is
+deliberately not answered here.** Changing `make_chart.py` re-renders three
+universes' published figures, which is an artefact change and its own commit.
+
 **`PIPELINE_ROW_COUNT` IS NOT IN THAT TABLE, AND THE DIFFERENCE IS THE POINT.**
 It is fully visible: omit it and `check_all.py` GATE 2 fails immediately, by name,
 before anything runs -- "PIPELINE_ORDER has 25 rows, PIPELINE_ROW_COUNT says 20".

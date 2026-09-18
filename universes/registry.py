@@ -249,6 +249,22 @@ class Universe:
     # and v4, appended rather than inserted so every existing index keeps pointing
     # at the same colour. A new universe adds a tuple that does not collide with
     # these; a chart that picks a colour by accident is not reproducible.
+    # WHAT THIS FIELD ACTUALLY GOVERNS, AND WHAT IT DOES NOT. Measured
+    # 2026-09-18 by resolving every reader in the repository. It has exactly TWO
+    # consumers: make_combined_universes.py:365, which draws the COMBINED chart,
+    # and palette_distance.py, which measures the same lines.
+    #
+    # THE PER-UNIVERSE CHART DOES NOT READ IT. make_chart.py hardcodes six
+    # colours -- #c0392b v2, #2e6da4 v1, #1b9e77 v3, #e6ab02 v4, #3a9d3a
+    # buy&hold, #000000 index -- and draws EVERY universe in them. So
+    # chart_<tag>.png looks the same whatever this tuple says, and a palette
+    # searched here is not visible until two or more universes are selected and
+    # STEP 12b actually renders. midcap50's was measured to dE2000 >= 10 on
+    # 2026-09-18 and HAS STILL NEVER BEEN DRAWN: its first run selected one
+    # universe, so STEP 12b skipped.
+    #
+    # Whether the per-universe charts SHOULD use this tuple is a real question
+    # and is deliberately not answered here.
     chart_colours: Tuple[str, ...]
 
     # THE LIQUIDITY PARAGRAPH, WHICH IS A MEASURED RESULT AND NOT CHART FURNITURE.
@@ -1166,9 +1182,16 @@ _MC50 = Universe(
                 f"entirely -- in BOTH directions, promoted and demoted -- so the "
                 f"sign of the bias is not known. Do not read that buy&hold as "
                 f"achievable.\n"
+                # THE TRAILING NEWLINE IS LOAD-BEARING. make_chart.py:396 builds
+                # the subtitle as _window_label + subtitle + sv.describe_state(),
+                # concatenated with no separator, so a subtitle that does not end
+                # in a newline runs into SURVIVORSHIP_MODE on the rendered chart.
+                # This read "...on these 49 names.SURVIVORSHIP_MODE=static" on
+                # midcap50's first render. midcap150's and nifty50's rows both end
+                # in "\n"; this one did not.
                 "NOTHING ON THIS UNIVERSE HAS BEEN VALIDATED. No seed, "
                 "sub-period, shuffle or top-N work has been run on these 49 "
-                "names."),
+                "names.\n"),
         },
 )
 
