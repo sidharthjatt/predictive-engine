@@ -5100,15 +5100,35 @@ was written and is false now. Re-measure before citing.
 
 ### The five
 
-**1. Nine things a new universe must be wired into, and a survey that said
+**1. TEN things a new universe must be wired into, and a survey that said
 seven.** `registry_coverage_check.py` checks twelve tables and is excellent at
 it; the cost survey for wiring a universe was conducted entirely through it and
-the other static checkers, and reported the cost as seven items. Two were
-invisible to all of them: `make_combined_universes.PAIR_CHART_REGISTRY_SIZE`,
-read at STEP 12b's RUN TIME, and `seed_noise_measure.LABELS`, read at the IMPORT
-of a module the pipeline never imports. The first cost a run: `run.py --universe
-nifty50` exited 1 at STEP 12b with four of ten steps unexecuted, after the expensive
-one.
+the other static checkers, and reported the cost as seven items.
+
+**THE COUNT WAS NINE UNTIL `b98f64c`, AND IS TEN NOW.** That commit added
+`run_all.PIPELINE_ROW_COUNT`, a hand-maintained declaration of `PIPELINE_ORDER`'s
+length, AFTER the nine were counted -- so this entry undercounted its own subject
+within a week of being written. A universe adds five PIPELINE_ORDER rows, and the
+constant must move with them. Re-measured 2026-09-18 while costing midcap50.
+
+**THREE OF THE TEN ARE INVISIBLE TO EVERY STATIC CHECK, and that is the
+distinction worth carrying:**
+
+| invisible item | when it bites |
+|---|---|
+| `make_combined_universes.PAIR_CHART_REGISTRY_SIZE` | STEP 12b's RUN TIME |
+| `seed_noise_measure.LABELS` | IMPORT of a module the pipeline never imports |
+| the `data/raw/<X>_constituents/` symlink farm | filesystem, not code -- no checker reads it |
+
+The first cost a run: `run.py --universe nifty50` exited 1 at STEP 12b with four
+of ten steps unexecuted, after the expensive one.
+
+**`PIPELINE_ROW_COUNT` IS NOT IN THAT TABLE, AND THE DIFFERENCE IS THE POINT.**
+It is fully visible: omit it and `check_all.py` GATE 2 fails immediately, by name,
+before anything runs -- "PIPELINE_ORDER has 25 rows, PIPELINE_ROW_COUNT says 20".
+A tenth item that fails loudly at the cheapest possible moment is not the same
+kind of cost as three that fail silently, late, or never. **Count it, budget it,
+and do not file it with the other three.**
 
 **2. Two modules unimportable for two weeks, beside four green checkers.** From
 the day nifty50 was registered, `seed_noise_measure` and `seed_noise_report` raised
