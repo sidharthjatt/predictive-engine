@@ -198,6 +198,19 @@ def run_v34(M, universe_label, universe_tag, px, op, sc, bd, pc, mom20, port_vol
     # resolved to when they passed nothing, so the default path is unchanged.
     import cadence
     _reb = cadence.selected()
+    # THE TAX SELECTION, READ ONCE AND PASSED AS AN ARGUMENT -- exactly as _reb
+    # above and participation_cap below. backtest_exposure's tax_enabled is a
+    # PARAMETER by design (test_exposure.py:203 gives the reason: same as rebal
+    # and participation_cap), so it stays one; what was missing was any caller on
+    # the PUBLISHED path passing it.
+    #
+    # UNTIL 2026-09-18 NO SUCH CALLER EXISTED. tax_enabled defaulted to False at
+    # every one of the 31 call sites except tax_report.py's and
+    # bh_lots_after_tax.py's, so `--tax on` moved filenames and nothing else: 36
+    # of 40 suffixed artefacts were BYTE-IDENTICAL to their untaxed twins and the
+    # other 4 differed only in a header label. The axis renamed; it did not charge.
+    import tax as _tax_axis
+    _taxon = _tax_axis.selected()
     # THE PROFILE'S CAP, RESOLVED ONCE AND PASSED AS AN ARGUMENT.
     # profiles.py records why this is not a global on test_exposure: cadence.py
     # documents rebal_cadence_sweep.py setting test_exposure.REBAL and never
@@ -221,7 +234,8 @@ def run_v34(M, universe_label, universe_tag, px, op, sc, bd, pc, mom20, port_vol
     a2 = _blank()
     if "v2" in sel:
         backtest_exposure(px, op, sc, bd, pc, mom20, port_vol, mode="breadth",
-                          target_vol=tv, sizing="invvol", audit=a2, rebal=_reb, **_capkw)
+                          target_vol=tv, sizing="invvol", audit=a2, rebal=_reb,
+                          tax_enabled=_taxon, **_capkw)
 
     # --- the two new arms, same panel and dates as v1/v2 ---
     # COMPUTED ONLY IF SELECTED. A run that asked for v1 and v3 has no use for
@@ -237,12 +251,14 @@ def run_v34(M, universe_label, universe_tag, px, op, sc, bd, pc, mom20, port_vol
         v3_eq, v3_tc, v3_n, _ = backtest_exposure(px, op, sc, bd, pc, mom20, port_vol,
                                                   mode="none", target_vol=tv,
                                                   sizing="provol", audit=a3,
-                                                  rebal=_reb, **_capkw)
+                                                  rebal=_reb, tax_enabled=_taxon,
+                                                  **_capkw)
     if "v4" in sel:
         v4_eq, v4_tc, v4_n, v4_expo = backtest_exposure(px, op, sc, bd, pc, mom20,
                                                         port_vol, mode="breadth",
                                                         target_vol=tv, sizing="provol",
-                                                        audit=a4, rebal=_reb, **_capkw)
+                                                        audit=a4, rebal=_reb,
+                                                        tax_enabled=_taxon, **_capkw)
     bh = start_capital * (1 + px.pct_change().loc[bd].mean(axis=1).fillna(0)).cumprod()
 
     # ONE TABLE DRIVES CURVES, AUDITS, ROWS AND THE EQUITY COLUMNS, so an arm
