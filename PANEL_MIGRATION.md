@@ -156,6 +156,30 @@ depends on it. It is recorded here because the migration makes it matter more:
 the panel now comes from a supplier folder that this project does not control
 and did not author, and there are six more such folders waiting to be wired.
 
+**Palette distinctness is a MANUAL check, run when a universe is wired, and a
+gate was declined rather than forgotten.** `palette_distance.py` measures
+CIEDE2000 between every line the combined chart draws, under normal colour
+vision and under Viénot 1999 deuteranopia and protanopia simulations. It reports
+and exits 0, always. Run it by hand when a universe's `chart_colours` is chosen —
+that is the only moment its answer can change:
+
+```
+./venv/bin/python palette_distance.py            # report
+./venv/bin/python palette_distance.py --write    # also writes the diagnostic
+```
+
+Two reasons it is not a gate, both recorded so the next person does not "fix"
+the omission. First, **the threshold is reverse-engineered**: dE 10 is what
+n50's palette was searched against, and it was chosen because it was the highest
+round number achievable against mid's and n100's tuples *without moving them*. A
+gate would write that number down and defend it as though it came from
+colorimetry. It came from the palettes it would be judging. Second, **it would
+ship pre-failed**: three pairs in the current palettes sit below it, so the gate
+could only be green on its first day with an exception list naming all three. A
+gate whose opening commit is its own exception list is a report with a non-zero
+exit code, and an exception list is somewhere to put the thing nobody wanted to
+fix.
+
 **`naming_declare_check.py` reports 111 undeclared write calls**, and reported
 111 before any of this work began. Verified by stashing the changes and
 re-running. Nothing in this migration introduced or repaired it; one write added
