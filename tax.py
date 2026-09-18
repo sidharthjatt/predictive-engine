@@ -66,11 +66,28 @@ class TaxAxisError(Exception):
 
 
 def set_selection(on):
-    """Record this run's tax selection. Called once by run.py.
+    """Record this run's tax selection.
 
-    None restores the default, matching cadence.set_selection(None) and
-    profiles.set_selection(None) so that module_state.pinned() can round-trip
-    this axis the same way it round-trips the other three.
+    CALLED ONCE BY run.py, IN execute(), beside arms/cadence/profiles. That
+    sentence was in this docstring from the day it was written and was FALSE
+    until 2026-09-18: there was no --tax flag and run.py contained no reference
+    to this module, so the only callers in the repository were two checkers,
+    naming_declare_check.py and tax_acceptance_check.py. The axis was
+    implemented, verified on both halves, hooked into the engine and composed by
+    naming.AXES, and could not be switched on.
+
+    A DOCSTRING NAMING A CALLER THAT DOES NOT EXIST IS AN ASSERTION NOBODY
+    RE-MEASURED, which is the class KNOWN_ISSUES.md records five instances of.
+    It is corrected here rather than quietly made true, because the shape it
+    describes is not quite the shape that arrived.
+
+    WHAT run.py ACTUALLY PASSES IS ALWAYS A BOOL, never None: --tax defaults to
+    "off" rather than to None, so `args.tax == "on"` is the whole conversion and
+    there is exactly one place that knows what "on" means. The None branch below
+    is therefore NOT on run.py's path. It exists for module_state.pinned(), which
+    round-trips this axis as it round-trips the other three, and for
+    tax_acceptance_check.py, which restores the default between its two
+    conditions. Both are real callers; neither is a run.
     """
     global _SELECTED
     if on is None:
