@@ -106,7 +106,13 @@ R = ROOT / "results"
 # PIPELINE_ORDER without touching the set, reproduced the identical failure. A
 # name allowlist cannot generalise to the next file, which was knowable when it
 # was written. The directory list can.
-STEP_DIRS = (ROOT / "results", ROOT / "nautilus")
+# ROOT IS LAST, AND IT IS LAST ON PURPOSE. bh_lots_after_tax.py became a
+# pipeline step on 2026-09-19 and lives at the repository root rather than under
+# results/, so script_path() could not resolve it and GATE 2 failed all four of
+# its rows by name -- which is the gate working. results/ and nautilus/ are still
+# searched FIRST, so nothing that resolved before resolves differently now; the
+# root can only satisfy a name neither of them holds.
+STEP_DIRS = (ROOT / "results", ROOT / "nautilus", ROOT)
 
 # A step whose body lives in a shared helper must be scanned WITH that helper, or
 # the static ordering check loses the edges the helper writes. results/audit_step.py
@@ -295,7 +301,7 @@ def _registry_tags():
 #
 # UPDATE IT BY HAND when a row is added or removed. That is the point: a number
 # derived from the table it is checking would agree with any table.
-PIPELINE_ROW_COUNT = 25
+PIPELINE_ROW_COUNT = 29
 
 PIPELINE_ORDER = [
     ("STEP 10a", "build_scores.py",            "midcap150"),
@@ -364,6 +370,20 @@ PIPELINE_ORDER = [
     # plan is therefore IDENTICAL under --tax on and --tax off, which is what
     # lets check_plan_order reason about one order instead of two. See
     # results/tax_report.main().
+    # bh_lots_after_tax, ADDED 2026-09-19, AND IT IS A ROW RATHER THAN AN IMPORT
+    # ON PURPOSE. STEP 18 composes TAX_TURNOVER from its own FY_EQUITY and this
+    # step's BH_LOTS file, so the dependency is REAL; hiding it inside a
+    # tax_report import would make it invisible to check_plan_order, which walks
+    # the resolved plan and asks whether each declared input's writer comes
+    # earlier in that same plan. It returns early at tax=off, like STEP 18.
+    #
+    # LABELS 17e-17h, unused before today, and NOT 18-anything: these run BEFORE
+    # the 18 block, and a label that sorts after what it precedes is something a
+    # reader has to re-derive every time.
+    ("STEP 17e", "bh_lots_after_tax.py",      "midcap150"),
+    ("STEP 17f", "bh_lots_after_tax.py",      "nifty100"),
+    ("STEP 17g", "bh_lots_after_tax.py",      "nifty50"),
+    ("STEP 17h", "bh_lots_after_tax.py",      "midcap50"),
     ("STEP 18a", "tax_report.py",              "midcap150"),
     ("STEP 18b", "tax_report.py",              "nifty100"),
     ("STEP 18c", "tax_report.py",              "nifty50"),
@@ -486,7 +506,8 @@ def _required_inputs():
     import paths
     from universes.registry import REGISTRY
     out = {"make_chart.py": [], "make_combined_universes.py": [],
-           "nt_execute.py": [], "nt_export_scores.py": [], "tax_report.py": []}
+           "nt_execute.py": [], "nt_export_scores.py": [], "tax_report.py": [],
+           "bh_lots_after_tax.py": []}
     for u in REGISTRY.values():
         # ARM-TAGGED. daily_trades_<tag>.csv is v2's audit trail and a selection
         # without v2 writes no v2 trail at all; daily_trades_v1_<tag>.csv exists

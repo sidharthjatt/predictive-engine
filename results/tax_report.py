@@ -48,6 +48,7 @@ for _p in (str(ROOT), str(ROOT / "results")):
         sys.path.insert(0, _p)
 
 import numpy as np
+import csv
 import pandas as pd
 
 import tax as _tax
@@ -267,6 +268,61 @@ def main(u):
     print(f"    tax artefacts for {u.tag}: cum_tax Rs {audit['tax']['cum_tax']:,.2f}")
     for w in wrote:
         print(f"      saved -> {w.name}")
+
+    # ----------------------------------------------------------------------
+    # TAX_TURNOVER -- the side-by-side this axis exists to produce
+    # ----------------------------------------------------------------------
+    # BOTH TAXED COLUMNS COME FROM REAL RUNS. The strategy's from the taxed
+    # backtest above and from STEP 17e-h's, the benchmark's from STEP 17e-h's
+    # bh_lots basket. NEITHER is computed from an untaxed log: the docstring at
+    # the top of this module records that the implied and charged figures differ
+    # by about 4% and that "the implied one describes a run that did not happen".
+    #
+    # IT IS A SEPARATE FILE, not columns on v34_comparison.csv or
+    # daily_trades_*, for the reason this module already gives: gates read those
+    # and sixteen of them are pinned by SHA-256 in RETIRED_UNIVERSES-manifest.txt.
+    M = Path(u.metrics_dir)
+    bh = M / f"BH_LOTS_{tag}.csv"
+    if not bh.exists():
+        print(f"      TAX_TURNOVER not written: {bh.name} is absent -- STEP 17e-h "
+              f"did not run for {u.tag}")
+        return
+    rows_bh = list(csv.DictReader(open(bh, newline="")))
+    fy_close = float(pd.read_csv(wrote[1])["close_equity"].iloc[-1])
+    BASIS = {
+        "v2 before tax":      "v34_equity.csv (engine, tax=off)",
+        "v2 after tax":       "bh_lots taxed backtest, tail settled at final session",
+        "bh_lots before tax": "bh_lots equal-rupee basket, untaxed",
+        "bh_lots after tax":  "bh_lots equal-rupee basket, liability settled at end",
+        "bh published":       "costless daily-rebalanced index -- untaxable, reference only",
+    }
+    out_rows = []
+    for r in rows_bh:
+        r = dict(r)
+        r["basis"] = BASIS.get(r["line"], "derived from the rows above")
+        out_rows.append(r)
+    tt = M / f"TAX_TURNOVER_{tag}.csv"
+    # naming: arm,cadence,profile,tax via artefact_tag -- `tag` already carries
+    # all four axes, so the stem is appended and nothing else. Same rule as the
+    # four artefacts above; this file exists only under tax=on.
+    pd.DataFrame(out_rows).to_csv(tt, index=False)
+    _cost = [r for r in out_rows if r["line"] == "TAX_COST_OF_TURNOVER"]
+    _c = _cost[0] if _cost else {}
+    if _c.get("cagr_full", "") == "":
+        print(f"      saved -> {tt.name}   TAX_COST_OF_TURNOVER WITHHELD")
+        print(f"        {_c.get('withheld_reason','')[:110]}")
+    else:
+        print(f"      saved -> {tt.name}   TAX_COST_OF_TURNOVER "
+              f"{float(_c['cagr_full']):+.2f} pts")
+    # THE TWO TAXED v2 FIGURES ARE NOT THE SAME NUMBER, AND THAT IS NOT A
+    # DISAGREEMENT. FY_EQUITY's close is the in-loop taxed curve; bh_lots' "v2
+    # after tax" settles the UNASSESSED tail at the final session so the two
+    # lines are comparable at the endpoint. They differ by exactly that tail.
+    _v2_post = [r for r in out_rows if r["line"] == "v2 after tax"]
+    if _v2_post:
+        _d = fy_close - float(_v2_post[0]["final_equity"])
+        print(f"        FY_EQUITY close Rs {fy_close:,.2f} less settled tail "
+              f"Rs {_d:,.2f} = bh_lots' v2-after-tax line")
 
 
 if __name__ == "__main__":

@@ -148,11 +148,37 @@ def bh_lots(px,op,bd):
 # Nothing imports this module -- checked 2026-09-18 across the repository -- so
 # the move costs no caller. `./venv/bin/python bh_lots_after_tax.py` behaves
 # exactly as before.
-def main():
+def main(u):
+    """One universe's after-tax comparison, and the artefact STEP 18 reads.
+
+    ARITY 1, LIKE tax_report's. This looped REGISTRY internally until 2026-09-19,
+    which was fine for a script run by hand and wrong for a PIPELINE_ORDER row:
+    a whole-run step would put run.py:_resolve_arity in the position of refusing a
+    None tag, and check_plan_order could not see that STEP 18 depends on THIS
+    universe's file rather than on the loop having happened.
+
+    IT WRITES BH_LOTS_<tag>_tax.csv, which is the whole reason it is a step.
+    tax_report composes TAX_TURNOVER from this plus its own FY_EQUITY, so the
+    buy&hold side of that comparison comes from a REAL RUN rather than from an
+    untaxed log with arithmetic applied -- tax_report.py:22 records that the
+    implied and charged figures differ by about 4% and that "the implied one
+    describes a run that did not happen".
+
+    THE EARLY RETURN IS THE tax=off CONTRACT, the same one tax_report uses: the
+    row is always in PIPELINE_ORDER and always invoked, and decides at run time
+    to do nothing. The artefact is ABSENT at tax=off, not empty.
+    """
+    import tax as _tax
+    if not _tax.selected():
+        print(f"    tax=off -- no bh_lots artefact for {u.tag} "
+              f"(absent, not empty)")
+        return
+    tag = u.tag
     print("="*96)
-    print(" v2 AFTER TAX vs BUY & HOLD AFTER TAX   (bh_lots: equal-rupee once, no rebalance, realise at end)")
+    print(" v2 AFTER TAX vs BUY & HOLD AFTER TAX   (bh_lots: equal-rupee once, "
+          "no rebalance, realise at end)")
     print("="*96)
-    for tag,u in REGISTRY.items():
+    if True:
         engine_core.set_tradeability(u)
         p=pd.read_csv(config.require_cache(u.score_cache,str(u.score_tmp),what=tag),parse_dates=["date"])
         px=p.pivot_table(index="date",columns="symbol",values="close").ffill()
@@ -257,7 +283,67 @@ def main():
         print(f"  EDGE  v2 - bh published (the +0.89/+0.43 baseline) {e_pub:+.2f} pts"
               f"   [costless daily-rebalanced index, untaxable -- reference only]")
 
+        # ------------------------------------------------------------------
+        # THE ARTEFACT. Five measured lines plus the three gap rows, which is
+        # what this whole axis exists to produce.
+        # ------------------------------------------------------------------
+        # WITHHELD IS A ROW, NOT A MISSING ROW. The guard above refuses to PRINT
+        # a number a concentrated basket cannot resolve; the file records the
+        # refusal in its own column rather than omitting the line, because an
+        # absent row reads as "not computed" and this was computed and rejected.
+        # The step does NOT fail: a withheld edge is a correct outcome.
+        _withheld = _w > CONC_LIMIT
+        _reason = ("" if not _withheld else
+                   f"top-name weight {_w*100:.1f}% exceeds the {CONC_LIMIT*100:.2f}% "
+                   f"limit by {_w/CONC_LIMIT:.1f}x; {_top[0][0]} alone moves the "
+                   f"benchmark {_impact:+.2f} pts against an effect size of 2.05, "
+                   f"and the universe is SURVIVORSHIP_MODE=static so that name is "
+                   f"in the basket because of the run it had")
+        _v2_tax_total = float(a["tax"]["cum_tax"]) + v2_unassessed
+        _lines = [
+            ("v2 before tax",      L_V2_PRE,  v2_off,      0.0),
+            ("v2 after tax",       L_V2_POST, v2_settled,  _v2_tax_total),
+            ("bh_lots before tax", L_BH_PRE,  bh_eq,       0.0),
+            ("bh_lots after tax",  L_BH_POST, bh_settled,  float(bh_tx["total_tax"])),
+            ("bh published",       L_BH_PUB,  bh_pub,      float("nan")),
+        ]
+        _out = []
+        for _key, _lab, _s, _paid in _lines:
+            _h = [cagr(_s[(_s.index.year >= y0) & (_s.index.year <= y1)])
+                  for _, y0, y1 in HALVES]
+            _out.append({"line": _key, "cagr_full": round(res[_lab], 4),
+                         "cagr_2019_2022": round(_h[0], 4),
+                         "cagr_2023_2026": round(_h[1], 4),
+                         "final_equity": round(float(_s.iloc[-1]), 2),
+                         "tax_paid": ("" if _paid != _paid else round(_paid, 2)),
+                         "withheld_reason": ""})
+        _out.append({"line": "gap_before_tax", "cagr_full": round(e_pre, 4),
+                     "cagr_2019_2022": "", "cagr_2023_2026": "",
+                     "final_equity": "", "tax_paid": "", "withheld_reason": ""})
+        _out.append({"line": "gap_after_tax", "cagr_full": round(e_post, 4),
+                     "cagr_2019_2022": "", "cagr_2023_2026": "",
+                     "final_equity": "", "tax_paid": "", "withheld_reason": ""})
+        _out.append({"line": "TAX_COST_OF_TURNOVER",
+                     "cagr_full": "" if _withheld else round(e_post - e_pre, 4),
+                     "cagr_2019_2022": "", "cagr_2023_2026": "",
+                     "final_equity": "", "tax_paid": "",
+                     "withheld_reason": _reason})
+        import audit_step as _as
+        _atag = _as.artefact_tag(u, "v2")
+        _p = Path(u.metrics_dir) / f"BH_LOTS_{_atag}.csv"
+        # naming: arm,cadence,profile,tax via artefact_tag -- `_atag` is
+        # audit_step.artefact_tag's output and already carries all four axes, so
+        # the stem is appended and NOTHING else. Same rule, and the same reason,
+        # as tax_report.py's four artefacts: this file exists only under tax=on.
+        pd.DataFrame(_out).to_csv(_p, index=False)
+        print(f"\n  saved -> {_p.name}"
+              + ("   [TAX_COST_OF_TURNOVER withheld]" if _withheld else ""))
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    # STANDALONE, BY TAG, like every other per-universe step.
+    import sys as _s
+    if len(_s.argv) != 2 or _s.argv[1] not in REGISTRY:
+        raise SystemExit(f"usage: {Path(__file__).name} <universe>   "
+                         f"known: {', '.join(sorted(REGISTRY))}")
+    raise SystemExit(main(REGISTRY[_s.argv[1]]))
