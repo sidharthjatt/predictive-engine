@@ -763,10 +763,141 @@ _N100 = Universe(
         },
     )
 
+
+# ---------------------------------------------------------------------------
+# n50 -- THE FIRST OF THE SUPPLIER'S OTHER SIX, ADDED 2026-09-18
+# ---------------------------------------------------------------------------
+# WHY THIS ONE FIRST, AND WHY ONE AT A TIME. Every one of n50's 50 names is
+# already in n100, measured on the supplier's directories: n50 is a STRICT
+# SUBSET of n100, which was rebuilt on this same vendor panel over the same
+# 1,836 sessions three commits ago. So n50 introduces no name this repository
+# has not already priced, and a surprise in its output is attributable to the
+# wiring rather than to data nobody has looked at.
+#
+# It also has the best coverage of the eight: 46 of 50 names are present at
+# BT_START_DATE (92.0%, against n100's 88.9% and mid's 75.7%), and its latest
+# first date is 2023-08-21 -- it is the only new universe with no name starting
+# in the last two years. The four that start late are MAXHEALTH (2020-08-21),
+# ETERNAL (2021-07-23), NESTLEIND (2023-08-01) and JIOFIN (2023-08-21), all four
+# already among n100's eleven.
+#
+# NOTHING HAS BEEN RUN ON THIS UNIVERSE. No panel, no cache, no artefact, no
+# chart. liquidity_note is None and validation_status says so in words, because
+# a placeholder number here would be a claim nobody has earned.
+_N50_SOURCE = _WITHOUT_SURV / "Final_NIFTY50_EoD_Data"
+_N50_LINKS = _RAW / "N50_constituents"
+_N50_METRICS = ROOT / "results_n50" / "metrics"
+# THE SUPPLIER SPELLS THIS ONE IN TITLE CASE. Seven of the eight index files
+# shout -- "NIFTY 100", "NIFTY MIDCAP 150", "NIFTY SMLCAP 250" -- and this one
+# is "Nifty 50.csv". It is handled by normalise_stem() like any other spelling,
+# and it is written out here rather than derived for exactly that reason.
+_N50_INDEX = "Nifty 50"
+
+_N50 = Universe(
+        tag="n50", label="Nifty 50 (50 constituents)",
+        data_dir=_N50_LINKS,
+        raw_data_dir=_N50_SOURCE,
+        survivorship=(
+            "STATIC. 50 names are TODAY'S Nifty 50 members backfilled to "
+            "2019-01-01. Names dropped or delisted during the window are absent "
+            "entirely, so both the strategy and its equal-weight buy&hold are "
+            "inflated. 4 of the 50 did not exist at BT_START_DATE. The published "
+            "Nifty 50 index line is cap-weighted and is NOT survivorship-biased. "
+            "Source: data/raw/Final_Without_Survivorship_Data/"
+            "Final_NIFTY50_EoD_Data."),
+        symbol_list=_constituents(_N50_SOURCE, _N50_INDEX),
+        metrics_dir=_N50_METRICS,
+        score_tmp=Path("/tmp/v_n50_expanding.csv"),
+        score_cache=_N50_METRICS / "v_n50_expanding_cache.csv",
+        raw_tmp=Path(f"/tmp/raw_panel_n50_{HORIZON}.csv"),
+        raw_cache=_N50_METRICS / "raw_panel_n50_cache.csv",
+        nautilus_scores="scores_n50.parquet",
+        nautilus_end=str(config.BT_END_DATE.date()),
+        purge_mode="trading",
+        index_name=_N50_INDEX,
+        # THE PUBLISHED CAP-WEIGHTED INDEX. Benchmark only, never a tradable
+        # name. NO BASE VALUE IS CLAIMED HERE: the file begins on 03-01-2000 at
+        # 1,592.20, which is a mid-series value, so unlike mid's and n100's rows
+        # there is no base-date reading in this file to verify a methodology
+        # against. Stating one would be repeating NSE's documentation rather
+        # than checking it. The file carries 6,627 rows, 03-01-2000..26-08-2026.
+        index_file=_N50_SOURCE / f"{_N50_INDEX}.csv",
+        year_range=None, date_range=(config.BT_START_DATE, config.BT_END_DATE),
+        display_name="NIFTY 50",
+        chart_colours=("#1f77b4", "#ff7f0e", "#2ca02c", "#111111",
+                       "#9467bd", "#8c564b"),
+        # NOT MEASURED. None is the declaration, not a hole -- no depth or
+        # participation study has been run on this panel, and the combined chart
+        # drops the note rather than printing an empty one.
+        liquidity_note=None,
+        # NOT MEASURED, and a STRING rather than a dict, by the same rule n100
+        # follows: the type tells a measured universe from an unmeasured one.
+        validation_status=("not measured on this universe. No seed-robustness, "
+                           "sub-period, shuffle or top-N work has been run here, "
+                           "and none of the validations on record was run on "
+                           "these 50 names."),
+        engine_params_keys=(
+            "universe", "model", "sizing", "exposure", "top_n", "buffer",
+            "rebalance_days", "avg_exposure_pct", "n_symbols", "sharpe",
+            "maxdd_pct", "cagr_pct", "cash_yield", "survivorship", "vs_buyhold",
+            "validation_status"),
+        # THE KEY SET AND ORDER FOLLOW n100's, not mid's. n50 is a strict subset
+        # of n100 and is read against it, so a params file whose keys are in a
+        # different order would make the two awkward to diff for no gain.
+        engine_params_static={
+            "universe": "Nifty 50 (50 constituents, 'Nifty 50.csv' excluded "
+                        "by name)",
+        },
+        engine_text={
+            "banner": "ENGINE v2 FINAL -- Nifty 50 universe (50 names, index "
+                      "excluded by name)",
+            "panel_what": "Nifty 50 score panel",
+            "bh_label": "Equal-weight buy & hold (Nifty 50, 50 names)",
+            "chart_title": ("Nifty 50 universe -- ranking + inverse-vol + "
+                            "breadth-scaled exposure\n"),
+            "assert_index_absent": True,
+        },
+        chart_text={
+            "stem": "chart_n50",
+            # THE LAST DATE THIS UNIVERSE'S INDEX FILE CARRIES, read off the
+            # file: "Nifty 50.csv" ends 26-08-2026. That is twenty days later
+            # than every other supplier index file, which end 06-08-2026.
+            "index_window_end": "2026-08-26",
+            "dpi": 150,
+            "legend_fontsize": 8.5,
+            "rule_width": 100,
+            "bh_not_investable": False,
+            "diagnostics": False,
+            "dd_label": lambda lab, mn: f"{lab.split('  [')[0]} (max {mn:.1f}%)",
+            "subtitle": lambda v: (
+                f"Nifty 50 universe ({v['n_all']} constituents, index excluded "
+                f"by name)  |  v2 holds {v['inv']}% invested on average  |  ALL "
+                f"NUMBERS AFTER TC (Zerodha + 0.15% slippage)\n"
+                f"Benchmarks: Nifty 50 is the published CAP-WEIGHTED index "
+                f"(investable, and NOT survivorship-biased). Equal-weight "
+                f"buy&hold is the universe, and is NOT investable.\n"
+                f"SURVIVORSHIP: these {v['n_all']} are TODAY'S index members "
+                f"backfilled to 2019. Names dropped or delisted from the Nifty "
+                f"50 during the window are absent entirely,\nso both the "
+                f"strategy and its equal-weight buy&hold are inflated. Do not "
+                f"read that buy&hold as achievable.\n"
+                "NOTHING ON THIS UNIVERSE HAS BEEN VALIDATED. No seed, "
+                "sub-period, shuffle or top-N test has been run on these 50 "
+                "names, and no liquidity or\nmarket-impact study exists for "
+                "this panel. Every number here is a research backtest with a "
+                "flat 0.15% slippage and no market-impact model.\n"),
+        },
+    )
+
 # ONLY THE UNIVERSES WHOSE CONFIG IS PRESENT. Declaration order is preserved, so
 # a universe that is still here occupies the same position it always did -- LIVE's
 # order is documented below as declaration order and callers rely on that.
-REGISTRY = {u.tag: u for u in (_MID, _N100)}
+#
+# n50 IS APPENDED, NEVER INSERTED, so mid and n100 keep positions 0 and 1 and
+# every caller relying on declaration order sees what it saw before. Same
+# constraint as naming.AXES, same reason: position is load-bearing somewhere the
+# row itself does not mention.
+REGISTRY = {u.tag: u for u in (_MID, _N100, _N50)}
 
 # THE METRICS DIRECTORY IS CREATED AT IMPORT, exactly as config_mid.py and
 # config_n100.py did with METRICS_DIR.mkdir(parents=True, exist_ok=True) at module
@@ -807,7 +938,9 @@ LIVE = list(REGISTRY.values())
 # A TAG ABSENT FROM REGISTRY IS SIMPLY SKIPPED, so this stays correct as universes
 # are removed. A registered tag absent from THIS tuple would be dropped silently
 # from every combined report, which is why report_order() raises on one instead.
-REPORT_ORDER = ("n100", "mid", "58", "74")
+# n50 SITS NEXT TO n100 BECAUSE IT IS A SUBSET OF IT, so the two large-cap
+# lines are adjacent in every combined report rather than separated by mid.
+REPORT_ORDER = ("n100", "n50", "mid", "58", "74")
 
 
 # ---------------------------------------------------------------------------

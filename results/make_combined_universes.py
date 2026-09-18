@@ -285,6 +285,18 @@ def main():
                         _ci(M_mid / "v2FINAL_params.json"),
                         _ci(M_mid / "daily_trades_mid.csv"),
                         _ci(M_mid / "daily_trades_v1_mid.csv"))
+    # n50, ADDED 2026-09-18. WRITTEN OUT, NOT LOOPED, for the reason stated
+    # above and in the commit that declined to write the loop: the
+    # `DIR / "<literal>"` shape is what check_pipeline_order reads out of this
+    # source to resolve STEP 12b's producer edges, and a computed name made
+    # three of them vanish once already. A loop here would convert a silent miss
+    # into a silent invention.
+    if "n50" in tags:
+        M_n50 = REGISTRY["n50"].metrics_dir
+        FILES["n50"] = (_ci(M_n50 / "v2FINAL_equity.csv"),
+                        _ci(M_n50 / "v2FINAL_params.json"),
+                        _ci(M_n50 / "daily_trades_n50.csv"),
+                        _ci(M_n50 / "daily_trades_v1_n50.csv"))
     # LOADED ONCE, PLOTTED POSSIBLY TWICE. The published n100+mid pair chart is
     # drawn from the SAME rows as the N-way chart when both are produced, so the
     # two figures cannot disagree about a number.
