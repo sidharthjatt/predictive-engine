@@ -2161,7 +2161,7 @@ the record, not a proposal to act.**
 **These are the evidence behind validation verdicts.** `FINAL_val_*` holds the
 per-seed, per-sub-period and per-vol-window results of the four-test inverse-vol
 sizing suite — the suite whose outcome this project quotes as "4 of 4 PASS on
-n100, 1 of 4 on midcap150". `breadth_val_*` holds the equivalent for the breadth suite
+n100, 1 of 4 on mid". `breadth_val_*` holds the equivalent for the breadth suite
 on the retired 58.
 
 **No code reads any of the three `FINAL_val_*` files, and no document cites one.**
