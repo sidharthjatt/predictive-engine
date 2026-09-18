@@ -4092,3 +4092,101 @@ verdict but a broken implementation behind it (2), and one has a pre-registered
 rule but no verdict at all (26). They are listed anyway, because a trial that
 happened and was not counted is the most dangerous kind of missing record: it
 makes every subsequent multiple-testing correction too generous.
+
+---
+
+## v2 against its own buy & hold, on four universes. 2026-09-18.
+
+**Recorded, not concluded.** Four single runs, one per universe, default cadence
+20, `--profile research`, window 2019-01-01 to 2026-05-29, 1,836 trading days.
+Source: each universe's `results_<tag>/metrics/v34_comparison.csv`, read
+2026-09-18. midcap50 was wired on 2026-09-18 and this was its FIRST run.
+
+### THE RETURN COMPARISON -- ONE OF FOUR
+
+| universe | v2 CAGR% | b&h CAGR% | **v2 - b&h** |
+|---|--:|--:|--:|
+| midcap150 | 27.80 | 25.46 | **+2.34** |
+| midcap50 | 21.41 | 24.34 | **-2.93** |
+| nifty100 | 19.01 | 24.16 | **-5.15** |
+| nifty50 | 13.90 | 20.67 | **-6.77** |
+
+**One universe's v2 beats its own equal-weight buy & hold. Three do not.**
+
+### THE RISK COMPARISON -- FOUR OF FOUR ON DRAWDOWN
+
+| universe | MaxDD% b&h -> v2 | AnnVol% b&h -> v2 | Sharpe b&h -> v2 | Sortino b&h -> v2 | v2 deployed |
+|---|---|---|---|---|--:|
+| midcap150 | -37.73 -> **-20.01** | 18.42 -> 13.65 | 1.35 -> **1.90** | 1.52 -> 2.55 | 54.6% |
+| midcap50 | -37.57 -> **-20.30** | 18.99 -> 13.22 | 1.26 -> **1.56** | 1.46 -> 2.12 | 55.5% |
+| nifty100 | -38.65 -> **-21.87** | 18.67 -> 12.33 | 1.27 -> **1.50** | 1.45 -> 2.07 | 56.8% |
+| nifty50 | -39.11 -> **-23.20** | 17.97 -> 12.26 | 1.15 -> **1.14** | 1.34 -> 1.49 | 57.2% |
+
+Maximum drawdown falls on all four, from a 37-39% band to a 20-23% band.
+Annualised volatility falls on all four, 18-19% to 12-14%. Sortino rises on all
+four. Average exposure lands in 54.6-57.2% on all four without being targeted.
+
+**ONE EXCEPTION, STATED BECAUSE IT IS THE ONLY ONE: nifty50's Sharpe does NOT
+rise.** It goes 1.15 -> 1.14, a fall of 0.01. Its drawdown, volatility and Sortino
+move with the other three; its Sharpe does not. Any sentence of the form "the
+exposure rule raises Sharpe everywhere" is false as written, and the figure that
+makes it false is this one.
+
+### WHAT THESE NUMBERS ARE, IN ONE LINE EACH
+
+- The drawdown and volatility reduction appears on every universe measured.
+- The return advantage over buy & hold appears on one of the four measured.
+- Those two statements are about the same four runs and the same arm.
+
+### WHAT IS NOT ESTABLISHED, AND IS NOT BEING CLAIMED HERE
+
+**NOT that midcap150 is special.** Four universes at one run each cannot
+distinguish a property of that universe from a draw. No attribution is offered:
+not to capitalisation, not to constituent count, not to breadth behaviour, not to
+the panel. **This entry names no cause.**
+
+**NOT that the return edge is absent on the other three.** A single run per
+universe has no error bar. `diagnostics/seed_noise.txt` exists for the earlier
+universes precisely because seed choice moves these figures, and the edge
+differences above are of a size that seed noise has previously been shown to
+cover on this project's other measurements. Three negative single runs are three
+observations, not a refutation.
+
+**NOTHING ON midcap50 IS VALIDATED.** No seed-robustness, no sub-period split, no
+shuffle test, no top-N sweep has been run on these 49 names. Its column above is a
+SINGLE RUN with no measured dispersion, and it is the newest of the four by a day.
+The other three carry validation work of differing depth, which is itself a reason
+not to read the four columns as equally supported.
+
+**SURVIVORSHIP IS STATIC ON ALL FOUR** -- every universe is today's index members
+backfilled to 2019, and names that left during the window are absent from all of
+them. The rate at which that bias is loaded differs, and it is not small:
+
+| universe | names starting after BT_START_DATE |
+|---|--:|
+| midcap50 | 8 of 49 -- **16.3%** |
+| nifty50 | 4 of 50 -- **8.0%** |
+
+midcap50 carries double nifty50's late-lister rate. The direction of the total
+survivorship effect is NOT known for any of the four -- see the survivorship
+record elsewhere in this project, which measured it running BOTH ways -- so this
+table is a statement about composition, not a correction to apply.
+
+### WHAT WOULD SETTLE IT
+
+1. **Seed noise per universe.** Run the existing seed-noise measurement on all
+   four and put an error bar on each v2 - b&h difference. Until that exists, the
+   +2.34 and the -2.93 cannot be compared, because neither has a width.
+2. **Sub-period splits**, the same halves used elsewhere in this file, on all
+   four. A return edge present in one half and absent in the other is a different
+   finding from one present throughout.
+3. **More universes.** Four supplier folders are wired; four more are on disk --
+   midcap100 (98), nifty200 (197), smallcap250 (248), nifty500 (495). One of four
+   and one of eight are different observations, and the marginal cost is now
+   measured rather than fitted: midcap50's full run was 7.0 minutes.
+4. **A pre-registered rule, written before those runs**, saying what result would
+   count as the return edge reproducing and what would count as it failing to.
+   Without one, adding universes to this table is a trial count with no accept
+   rule, which is the failure mode this file was started to prevent.
+
+**Until at least 1 and 4 exist, this entry is four measurements and no verdict.**
