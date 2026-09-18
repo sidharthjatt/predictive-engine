@@ -5287,6 +5287,47 @@ this, `check_pipeline_order.py:118` merely NOTES the binding, and
 `tax_acceptance_check` checks names rather than the pairing they resolve to.
 
 
+### A SECOND SHAPE: a check that cannot produce a false pass, and is still wrong
+
+**This is not a seventh instance. It is the class seen from the other side**, and
+it is worth its own heading because the six above all share a tell that this one
+does not have: they let something through. This one lets nothing through and is
+still false.
+
+**GATE 6 asserted against the wrong number and could not have failed for it.**
+Written 2026-09-18, it summed every `FY_TAX_STATEMENT` row -- including the final
+year's UNASSESSED liability, which section 3(9) charges after the window closes
+and for which no cash was ever deducted -- while its message and its docstring
+called that figure `cum_tax`. Since `total >= assessed`, `gap >= total` implies
+`gap >= assessed`: the assertion was STRICTER than the identity, so **no
+implementation could fail it that would have passed the correct one.** Nothing
+was let through. The label was simply not true, and the derived "foregone
+compounding" it printed was understated by the unassessed amount -- midcap150
+Rs 568,484.22 reported against Rs 602,155.30 actual.
+
+**A GATE EXERCISED ON A SINGLE CASE IS A GATE WHOSE LABELS HAVE NOT BEEN READ.**
+It was written against midcap50, whose unassessed row is 0.00 -- as is nifty50's.
+On either, the total and the assessed figure are the same number and the label
+reads correctly. It took midcap150 (Rs 33,671.08) and nifty100 (Rs 11,521.13) to
+separate them.
+
+**WHAT FOUND IT WAS WIDENING THE INPUT SET, AND THAT IS NOW THE THIRD TIME:**
+
+| defect | what it was doing | what widened |
+|---|---|---|
+| `seed_noise_measure` / `seed_noise_report` unimportable for two weeks beside four green checkers (instance 2) | nothing imported them, so nothing failed | the CONTROL ARM of an unrelated rename experiment |
+| `make_combined_universes.FILES` naming six trade logs that do not exist | six producer edges resolved to nothing, silently | wiring a FOURTH universe -- midcap50, with nothing run on it, had better edge coverage than the three producing the published numbers |
+| GATE 6 labelling the statement total as `cum_tax` | passing, by being stricter | running it on four universes instead of the one it was written against |
+
+**NONE OF THE THREE WAS FOUND BY A CHECK.** Each was found because something was
+run over a wider set than the set it was built against, and the widening was
+incidental every time -- a control arm, a new universe, a second and third and
+fourth run of an existing gate. **A checker validated on one case is evidence
+about one case.** There is no gate for this and this entry does not propose one;
+what it proposes is that a new check be run against every case available before
+it is trusted, and that the cost of doing so be counted as part of writing it.
+
+
 ### What they have in common
 
 Not that the checks were missing. **Success and partial success were
