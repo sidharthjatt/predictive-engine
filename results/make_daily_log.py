@@ -735,3 +735,18 @@ def main():
             _logs_for(REGISTRY[_t], REGISTRY[_t].metrics_dir)
         else:
             print(f"  {_t} not selected for this run -- skipping its daily log")
+
+
+# THE GUARD THAT WAS NOT HERE. main()'s own docstring records that this file's
+# body was moved out of the __main__ guard when the pipeline stopped spawning
+# subprocesses -- and the guard was deleted rather than left calling main(). The
+# result: `./venv/bin/python results/make_daily_log.py` imported the module,
+# defined main(), called nothing, wrote nothing and EXITED 0. A regeneration pass
+# during the 2026-09-18 rename "succeeded" that way and changed not one byte; it
+# was caught by diffing the output against copies saved beforehand.
+#
+# check_all.py GATE 3 now refuses any pipeline script without a live __main__
+# block, by AST rather than by text -- the string "__main__" appears in main()'s
+# docstring above, so a grep passes this file.
+if __name__ == "__main__":
+    raise SystemExit(main())
