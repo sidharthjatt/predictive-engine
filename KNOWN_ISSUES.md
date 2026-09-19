@@ -2625,7 +2625,7 @@ ground.
 `results/hash_58_engine_core.py` was added to the delete list on the judgement that
 it was "superseded by the hash artefacts" — **without running the check that had
 just been applied to the other four.** It is referenced twice:
-`KNOWN_ISSUES.md:646` and `diagnostics/leakage_labels_hashes.txt:28`, the latter as
+`KNOWN_ISSUES.md:2211` and `diagnostics/leakage_labels_hashes.txt:28`, the latter as
 *"Regenerate with: ./venv/bin/python results/hash_58_engine_core.py"* — it is the
 named regeneration path for a cited hash artefact, the exact pattern the table
 above documents. It was tracked in git and was restored intact.
