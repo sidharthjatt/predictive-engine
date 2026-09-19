@@ -3696,9 +3696,12 @@ Not an experiment and not a trial — a **design refuted by measurement**, recor
 because the refutation is the useful artefact. **No code was written and no
 production path changed.**
 
-**THE DESIGN TESTED.** `make_trading_calendar.py` derives the NSE calendar from
+**THE DESIGN TESTED.** `make_trading_calendar.py` derived the NSE calendar from
 the **retired 58 universe's** raw files, and `engine_core._load_calendar()` raises
-without that artefact for every universe. The candidate: build the calendar from
+without that artefact for every universe. **The script was deleted on 2026-09-11,
+commit `2fe48ff`, with the 58 itself** -- after this entry was written, and eight
+days after the measurement below. The calendar is now frozen tracked source data;
+see `RETIRED_UNIVERSES.md` section 6. Nothing in the measurement changes. The candidate: build the calendar from
 the **selected universe's own files**, and drop any date carried by fewer than a
 **single global coverage threshold** of the files active that year — `COVERAGE_MIN
 = 0.50`, named in the spec as an underived constant.

@@ -6,6 +6,25 @@ DECOUPLING THE TRADING CALENDAR FROM THE RETIRED 58 UNIVERSE
 *** that measurement. PARTS 1-7 are left exactly as approved, because they are ***
 *** the design that was tested; they are NOT a description of anything built.  ***
 ================================================================================
+*** OUTCOME 2026-09-11: THE SUBJECT OF THIS SPEC NO LONGER EXISTS.             ***
+***                                                                            ***
+*** The decoupling was never built, and then the thing it would have changed   ***
+*** was deleted. results/make_trading_calendar.py and the 58 universe were     ***
+*** both removed on 2026-09-11 in commit 2fe48ff. Every reference below to     ***
+*** that script -- lines 14, 48 and 317 among them -- names a file that is not ***
+*** in the tree.                                                               ***
+***                                                                            ***
+*** WHAT WAS DECIDED INSTEAD. data/nse_trading_calendar.csv is frozen TRACKED  ***
+*** SOURCE DATA. It is not derived, not regenerated, and not reparented onto   ***
+*** the surviving universes -- their raw files carry 279 phantom market-holiday ***
+*** dates and 247 of those appear in both, so they corroborate each other's    ***
+*** errors instead of cross-checking them. RETIRED_UNIVERSES.md section 6 and  ***
+*** the file's own header carry the full reasoning.                            ***
+***                                                                            ***
+*** THIS SPEC IS KEPT. It is the record of a design that was measured and      ***
+*** refuted before anyone wrote code, and PART 8 is the measurement that       ***
+*** refuted it. Deleting it would leave only the conclusion.                   ***
+================================================================================
 Written 2026-09-03, BEFORE any code is written and before any result of the
 change is seen. The MEASUREMENTS this spec rests on were taken first, on
 2026-09-02 and 2026-09-03, and are named in place.
