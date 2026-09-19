@@ -93,6 +93,22 @@ data/raw/N100_Survivorship/*
 !data/raw/N100_Survivorship/index_membership_nifty100.csv
 
 # =============================================================================
+# EXTERNAL REFERENCE DOCUMENTS -- read by people, not by the pipeline
+# =============================================================================
+# TAX_AND_CHARGES.docx is the source document tax_util.py's section references
+# quote. It is an INPUT TO THE READING, not an artefact this repository
+# produces, and nothing imports or parses it.
+#
+# IT IS IGNORED RATHER THAN COMMITTED BECAUSE A STANDING UNTRACKED FILE COSTS A
+# GATE. check_all.py's tree-clean reading was reported as "clean except
+# data/reference/TAX_AND_CHARGES.docx" on four consecutive days. An exception
+# that never clears stops being read as an exception and starts being read as
+# the shape of the output, and the next genuinely untracked file arrives inside
+# that blind spot. The .csv references above are tracked because they are
+# pipeline inputs; a .docx is not.
+data/reference/*.docx
+
+# =============================================================================
 # EXPLICITLY TRACKED -- listed so nobody adds a rule that swallows them
 # =============================================================================
 # Not ignored by anything above; recorded here as intent.
@@ -104,6 +120,8 @@ data/raw/N100_Survivorship/*
 #   data/reference/*.csv               nse_press_release_manifest.csv,
 #                                      nse_symbol_renames.csv,
 #                                      nse_circulars_2019_2026.csv (9.4 MB)
+#                                      -- .csv only. data/reference/*.docx is
+#                                      ignored, see the section above it.
 #   data/nse_trading_calendar.csv      pipeline input, STEP 0 rebuilds it but it
 #                                      is small and deterministic
 #   nautilus/NAUTILUS_STATUS.md        port status and its correction history
