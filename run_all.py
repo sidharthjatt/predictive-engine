@@ -353,6 +353,24 @@ PIPELINE_ORDER = [
     ("STEP 10z",  "engine_v2_final.py",        "nifty200"),
     ("STEP 10za", "make_audit.py",             "nifty200"),
     ("STEP 10zb", "make_chart.py",             "nifty200"),
+    # ---------------------------------------------------------------------
+    # FROM HERE THE LABELS ARE NUMERIC: STEP 10.01, 10.02, ... Adopted
+    # 2026-09-19, NEW UNIVERSES ONLY. The map is in PANEL_MIGRATION.md
+    # section 7, beside the tag map, because this repository now holds two
+    # pairs of naming worlds and they belong in one document.
+    #
+    # NOTHING ABOVE IS RENAMED, INCLUDING nifty200's four. Renaming those to
+    # save two awkward labels would create a THIRD naming world.
+    #
+    # UNIQUENESS IS THE ONLY MACHINE CONTRACT. Order comes from LIST POSITION
+    # -- check_plan_order.py:70 builds its pos map from enumerate(pipeline) --
+    # and nothing parses or sorts a label. _step_label() matches rows by
+    # (script, tag) and treats the string as opaque. The label must be unique
+    # because it is a dict key there and part of check_all's GATE 2/GATE 4
+    # failure identity; it must be readable because people read it. It does
+    # not have to sort, and commit 615e257 was wrong to present that as a
+    # requirement rather than as the convention it is.
+    # ---------------------------------------------------------------------
     # MOVED FROM STEP 10i, and the move is load-bearing rather than cosmetic.
     # The combined chart is now generic over the selection, so it may need the 58's
     # and the 74's per-trade logs -- and those are written by STEP 12 immediately

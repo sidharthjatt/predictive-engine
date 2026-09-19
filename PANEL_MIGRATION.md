@@ -240,6 +240,68 @@ something that never did. They keep their positions in
 `universes/registry.REPORT_ORDER`, where a tag absent from the registry is
 skipped rather than raised on.
 
+### THE SECOND NAMING WORLD: STEP LABELS, adopted 2026-09-19
+
+The tag map above is one pair of worlds. **Pipeline step labels are a second
+pair, and they live here so there is ONE place to look when a spelling does not
+match.** Two worlds with no map is how a week goes.
+
+**NEW SCHEME, NEW UNIVERSES ONLY: `STEP 10.01`, `STEP 10.02`, ...**
+zero-padded two digits, one per (universe x per-universe step), with
+`STEP 17.01...` and `STEP 18.01...` for those blocks. It covers nine universes
+in the 10-block using 36 of 99 slots, is fixed width, and cannot collide with
+any existing label because every existing one is alphabetic.
+
+**OLD LABELS STAY. NOTHING IS RENAMED.** `10a-10h`, `10m-10t`, `10u-10x`,
+`10y/10z/10za/10zb`, `12b`, `15`, `15b`, `16`, `17`, `17e-17j`, `18a-18f` keep
+their spellings. **This includes nifty200's `10y/10z/10za/10zb`**, wired hours
+before this scheme: renaming those four would create a THIRD naming world to
+save two awkward labels.
+
+**WHY NOT RENAME EVERYTHING.** Surveyed 2026-09-19 before proposing: renaming
+costs **101 prose mentions across 7 documents** -- KNOWN_ISSUES 75,
+docs/HANDOFF 17, this file 3, docs/README 2, RETIRED_UNIVERSES 2, README 1,
+EXPERIMENTS 1 -- plus comments in 22 Python files. Several of those sentences
+are ABOUT the gaps, so they would need rewriting rather than find-replacing. It
+buys consistency and nothing else.
+
+**UNIQUENESS IS THE ONLY MACHINE CONTRACT. Labels are not parsed and not
+sorted.**
+
+- Execution order comes from LIST POSITION, never from the string:
+  `check_plan_order.py:70` builds `pos` from `enumerate(pipeline)`, and
+  `check_pipeline_order` keeps the earliest list index per script.
+- Nothing extracts the number, the series or the letter. No regex reads a
+  label. `run_all._step_label()` matches whole rows by **(script, tag)** and
+  treats the label as opaque.
+- The one sort, `sorted(unresolved)` at `check_pipeline_order.py:701`, orders an
+  ERROR PRINTOUT.
+- What the label must be is UNIQUE: it is a dict key in `check_plan_order`'s
+  `pos` map and part of `check_all`'s GATE 2 / GATE 4 failure identity.
+
+**A CORRECTION TO COMMIT `615e257`.** That commit justified `10za`/`10zb` with
+"so nothing sorts after what it precedes." Lexicographic order IS the project's
+stated readability rule and those labels do satisfy it -- but the commit
+presented it as a requirement, and it is not one. Nothing in the tree would
+have failed had they sorted wrongly. A readability convention stated as a
+machine contract is the same error class as the entry on measurements written
+up as properties.
+
+**FROZEN LABEL SETS -- THESE MUST NOT BE REUSED OR RENAMED:**
+
+| set | why |
+|---|---|
+| `STEP 11`-`STEP 14` | the deliberate gap from the 2026-09-11 retirement, left so a step's name still means what it meant in every older log. 5 prose mentions in KNOWN_ISSUES, plus `check_pipeline_order.py:80` on "a real STEP 13 -> 14 edge" and `run_all.py:358` on STEP 12 |
+| `STEP 10i`-`10l` | burnt: `make_combined_universes`' labels before it moved to STEP 12b |
+| `STEP 0`-`STEP 9` | the retired 58 and 74 |
+| `RETIRED_UNIVERSES.md` + `-manifest.txt` | terminal records, SHA-256 pinned |
+
+**`runs/` IS FREE, AND THIS WAS CHECKED RATHER THAN ASSUMED.** 49 run
+directories: no step label appears in any folder name, in any `RUN.txt`, or in
+any tracked run log. This was expected to be the expensive part of a rename and
+it is not a constraint at all. Recorded because the next person to cost a
+rename will assume the same thing and should not have to re-check it.
+
 ### If you are reading an old-named thing
 
 **An old tag is not a missing universe.** `mid` in a document, a diagnostic or a
