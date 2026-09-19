@@ -1,0 +1,120 @@
+SMALLCAP250 LATE LISTERS -- the 90 names absent at BT_START_DATE
+===============================================================================
+Measured 2026-09-19 by reading the first dated row of all 248 constituent
+files. 90 of 248 = 36.3%, THE HIGHEST RATE OF THE SEVEN UNIVERSES WIRED --
+nearly double midcap100's 21.4% and more than four times nifty50's 8.0%.
+
+THE LIST IS HERE RATHER THAN IN universes/registry.py BECAUSE OF ITS SIZE.
+Every other universe's late listers are named inline on its registry row:
+nifty50 4, midcap50 8, midcap100 21, nifty200 32. Ninety does not fit a row
+that a person reads, and truncating it would make the record incomplete in
+the one universe where it matters most. The row carries the count, the rate
+and a pointer here; this file carries the names. Nothing is omitted.
+
+symbol        first session
+-------------------------------------------------------------------------------
+CHALET        2019-02-07
+INDIAMART     2019-07-04
+AFFLE         2019-08-08
+SUMICHEM      2020-01-27
+COHANCE       2020-03-09
+ANGELONE      2020-10-05
+UTIAMC        2020-10-12
+GLAND         2020-11-20
+HOMEFIRST     2021-02-03
+RAILTEL       2021-02-26
+JUBLINGREA    2021-03-19
+ANURAS        2021-03-24
+CRAFTSMAN     2021-03-25
+CAMS          2021-05-07
+SHYAMMETL     2021-06-24
+SONACOMS      2021-06-24
+KIMS          2021-06-28
+CLEAN         2021-07-19
+DEVYANI       2021-08-16
+CARTRADE      2021-08-20
+NUVOCO        2021-08-23
+APTUS         2021-08-24
+ACUTAAS       2021-09-14
+VIJAYA        2021-09-14
+ABSLAMC       2021-10-11
+SAPPHIRE      2021-11-18
+LATENTVIEW    2021-11-23
+STARHEALTH    2021-12-10
+TEGA          2021-12-13
+ANANDRATHI    2021-12-14
+MAPMYINDIA    2021-12-21
+DATAPATTNS    2021-12-24
+MSUMI         2022-03-28
+CHOICEIN      2022-04-08
+RAINBOW       2022-05-10
+DELHIVERY     2022-05-24
+SPLPETRO      2022-05-24
+PARADEEP      2022-05-27
+SYRMA         2022-08-26
+PPLPHARMA     2022-10-19
+BIKAJI        2022-11-16
+FIVESTAR      2022-11-21
+KAYNES        2022-11-22
+KFINTECH      2022-12-29
+NSLNISP       2023-02-20
+PTCIL         2023-06-09
+NETWEB        2023-07-27
+SBFC          2023-08-16
+CONCORDBIO    2023-08-18
+RRKABEL       2023-09-20
+NUVAMA        2023-09-26
+SIGNATURE     2023-09-27
+BLUEJET       2023-11-01
+HONASA        2023-11-07
+TATATECH      2023-11-30
+DOMS          2023-12-20
+JYOTICNC      2024-01-16
+FORCEMOT      2024-02-14
+INDGN         2024-05-13
+AADHARHFC     2024-05-15
+TBOTEK        2024-05-15
+GODIGIT       2024-05-23
+ABDL          2024-07-02
+EMCURE        2024-07-10
+OLAELEC       2024-08-09
+FIRSTCRY      2024-08-13
+AFCONS        2024-11-04
+SAGILITY      2024-11-12
+ACMESOLAR     2024-11-13
+NIVABUPA      2024-11-14
+SAILIFE       2024-12-18
+IKS           2024-12-19
+IGIL          2024-12-20
+ONESOURCE     2025-01-24
+ATHERENERG    2025-05-06
+BELRISE       2025-05-28
+AEGISVOPAK    2025-06-02
+THELEELA      2025-06-02
+ABLBL         2025-06-23
+TRAVELFOOD    2025-07-14
+CPPLUS        2025-08-05
+JSWCEMENT     2025-08-14
+URBANCO       2025-09-17
+JAINREC       2025-10-01
+CANHLIFE      2025-10-17
+PIRAMALFIN    2025-11-07
+PINELABS      2025-11-14
+EMMVEE        2025-11-18
+PWL           2025-11-18
+TENNIND       2025-11-19
+
+RATE BY UNIVERSE, for comparison:
+
+    smallcap250   90 of 248   36.3%
+    midcap100     21 of  98   21.4%
+    nifty200      32 of 197   16.2%
+    midcap50       8 of  49   16.3%
+    nifty50        4 of  50    8.0%
+
+THE RATE DOES NOT TRACK UNIVERSE SIZE. nifty200 (197 names) carries less
+than half smallcap250's rate at almost the same count. It tracks how far
+down the capitalisation ladder the index reaches, because that is where
+new listings enter. Stated as composition, NOT as a correction: the
+direction of the total survivorship effect is unknown for every universe
+here and has been measured running BOTH ways.

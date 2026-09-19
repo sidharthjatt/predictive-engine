@@ -1517,7 +1517,145 @@ _N200 = Universe(
 )
 
 
-REGISTRY = {u.tag: u for u in (_MID, _N100, _N50, _MC50, _MC100, _N200)}
+# smallcap250 IS APPENDED, NEVER INSERTED, same constraint as every row above.
+_SC250_SOURCE = _WITHOUT_SURV / "Final_NIFTYSmallCap250_EoD_Data"
+_SC250_LINKS = _RAW / "SmallCap250_constituents"
+_SC250_METRICS = ROOT / "results_smallcap250" / "metrics"
+# THE SUPPLIER ABBREVIATES THIS ONE, and it is the only one of the eight that
+# does: "NIFTY SMLCAP 250.csv", not "NIFTY SMALLCAP 250.csv". Written out rather
+# than derived, which is what every row here does and is why the abbreviation
+# cost nothing.
+_SC250_INDEX = "NIFTY SMLCAP 250"
+
+_SC250 = Universe(
+        tag="smallcap250", label="SmallCap250 (248 constituents)",
+        data_dir=_SC250_LINKS,
+        raw_data_dir=_SC250_SOURCE,
+        # smallcap250's OWN NUMBERS, MEASURED 2026-09-19. 90 OF 248 IS 36.3%,
+        # THE HIGHEST RATE OF THE SEVEN AND NEARLY DOUBLE midcap100's 21.4%.
+        # THE NINETY NAMES ARE IN diagnostics/smallcap250_late_listers.txt
+        # rather than inline. Every other row names its late listers here --
+        # nifty50 4, midcap50 8, midcap100 21, nifty200 32 -- and ninety does
+        # not fit a row a person reads. Truncating the list would make the
+        # record incomplete in the universe where it matters most, so the row
+        # carries the count, the rate and the pointer, and the file carries the
+        # names. NOTHING IS OMITTED; it is relocated, and this comment is where
+        # a reader is told so.
+        survivorship=(
+            "STATIC. 248 names are TODAY'S Nifty SmallCap 250 members "
+            "backfilled to 2019-01-01. Names dropped or delisted during the "
+            "window are absent entirely, so both the strategy and its "
+            "equal-weight buy&hold are inflated. 90 OF THE 248 did not exist at "
+            "BT_START_DATE -- 36.3%, THE HIGHEST RATE OF ANY UNIVERSE WIRED "
+            "HERE, against midcap100's 21.4%, nifty200's 16.2% and nifty50's "
+            "8.0%. MORE THAN A THIRD OF THIS PANEL IS NAMES THAT LISTED DURING "
+            "THE WINDOW, and 21 of them first traded in 2025. The ninety are "
+            "named in diagnostics/smallcap250_late_listers.txt. The published "
+            "Nifty SmallCap 250 index line is cap-weighted and is NOT "
+            "survivorship-biased. Source: data/raw/"
+            "Final_Without_Survivorship_Data/Final_NIFTYSmallCap250_EoD_Data."),
+        symbol_list=_constituents(_SC250_SOURCE, _SC250_INDEX),
+        metrics_dir=_SC250_METRICS,
+        score_tmp=Path("/tmp/v_smallcap250_expanding.csv"),
+        score_cache=_SC250_METRICS / "v_smallcap250_expanding_cache.csv",
+        raw_tmp=Path(f"/tmp/raw_panel_smallcap250_{HORIZON}.csv"),
+        raw_cache=_SC250_METRICS / "raw_panel_smallcap250_cache.csv",
+        nautilus_scores="scores_smallcap250.parquet",
+        nautilus_end=str(config.BT_END_DATE.date()),
+        purge_mode="trading",
+        index_name=_SC250_INDEX,
+        # THE PUBLISHED CAP-WEIGHTED INDEX. Benchmark only, never a tradable
+        # name. NO BASE VALUE IS CLAIMED: the file begins 01-04-2005, a
+        # mid-series value. 5,295 rows, 01-04-2005..06-08-2026.
+        index_file=_SC250_SOURCE / f"{_SC250_INDEX}.csv",
+        year_range=None, date_range=(config.BT_START_DATE, config.BT_END_DATE),
+        display_name="NIFTY SMALLCAP 250",
+        # MEASURED 2026-09-19, AGAINST THIRTY-SIX SLOTS. dE2000 = 6.801402,
+        # binary searched to 1e-4 inside the readable band L* 30-72, against all
+        # 36 existing slots AND against each other, over normal vision,
+        # deuteranopia and protanopia. The ceiling series is in
+        # diagnostics/palette_ceiling.txt.
+        #
+        # WORST PAIRS: 6.900 normal (smallcap250/5 vs midcap150/4), 6.980 deutan
+        # (smallcap250/2 vs midcap50/5), 6.801 protan (smallcap250/5 vs
+        # midcap150/4).
+        #
+        # THE CEILING IS STILL FALLING: best single in-band colour 10.2452 at 24
+        # slots, 8.5514 at 30, 7.2555 at 36; T 8.712634, 7.484141, 6.801402.
+        # Still 2.1x the worst pair already shipping (3.26, nifty100/v1 vs
+        # nifty100/v3 under deutan). The band was not left.
+        chart_colours=("#fc8cc4", "#5464d0", "#4890fc", "#487030",
+                       "#c00074", "#3ca464"),
+        # smallcap250's OWN CHURN, AND IT IS THE MOST CHURNING SET HERE. A
+        # smallcap index loses names upward into midcap, downward out of the
+        # 250, and by delisting outright -- three exits rather than two. No
+        # direction is claimed and no number is claimed for the size of the
+        # bias, by the rule every row above follows.
+        churn_note=(
+            "More important than the late listers: companies that LEFT the Nifty\n"
+            "SmallCap 250 between 2019 and 2026 are absent from this file\n"
+            "entirely. A smallcap index loses names THREE ways -- promoted upward\n"
+            "into midcap, dropped out of the 250, and delisted outright -- so the\n"
+            "sign of this bias is not known, let alone its size. NOTHING HAS BEEN\n"
+            "MEASURED FOR THIS UNIVERSE. Its 36.3% late-lister rate is the highest\n"
+            "of the seven and is a statement about composition, NOT a correction\n"
+            "to apply. The equal-weight buy&hold line is a portfolio nobody could\n"
+            "have held, and is NOT achievable."),
+        liquidity_note=None,
+        validation_status=("not measured on this universe. No seed-robustness, "
+                           "sub-period, shuffle or top-N work has been run here, "
+                           "and none of the validations on record was run on "
+                           "these 248 names."),
+        engine_params_keys=(
+            "universe", "model", "sizing", "exposure", "top_n", "buffer",
+            "rebalance_days", "avg_exposure_pct", "n_symbols", "sharpe",
+            "maxdd_pct", "cagr_pct", "cash_yield", "survivorship", "vs_buyhold",
+            "validation_status"),
+        engine_params_static={
+            "universe": "Nifty SmallCap 250 (248 constituents, "
+                        "'NIFTY SMLCAP 250.csv' excluded by name)",
+        },
+        engine_text={
+            "banner": "ENGINE v2 FINAL -- Nifty SmallCap 250 universe (248 "
+                      "names, index excluded by name)",
+            "panel_what": "Nifty SmallCap 250 score panel",
+            "bh_label": "Equal-weight buy & hold (Nifty SmallCap 250, 248 names)",
+            "chart_title": ("Nifty SmallCap 250 universe -- ranking + "
+                            "inverse-vol + breadth-scaled exposure\n"),
+            "assert_index_absent": True,
+        },
+        chart_text={
+            "stem": "chart_smallcap250",
+            "index_window_end": "2026-08-06",
+            "dpi": 150,
+            "legend_fontsize": 8.5,
+            "rule_width": 100,
+            "bh_not_investable": False,
+            "diagnostics": False,
+            "dd_label": lambda lab, mn: f"{lab.split('  [')[0]} (max {mn:.1f}%)",
+            "subtitle": lambda v: (
+                f"Nifty SmallCap 250 universe ({v['n_all']} constituents, index "
+                f"excluded by name)  |  v2 holds {v['inv']}% invested on average"
+                f"  |  ALL NUMBERS AFTER TC (Zerodha + 0.15% slippage)\n"
+                f"Benchmarks: {v['index_name']} is the published CAP-WEIGHTED "
+                f"index (investable, and NOT survivorship-biased). Equal-weight "
+                f"buy&hold is the universe, and is NOT investable.\n"
+                f"SURVIVORSHIP: these {v['n_all']} are TODAY'S index members "
+                f"backfilled to 2019, and 90 of them -- MORE THAN A THIRD, "
+                f"36.3%, the highest of any universe\nhere -- did not exist at "
+                f"the start. Names dropped from the SmallCap 250 during the "
+                f"window are absent entirely, in BOTH directions, so the sign "
+                f"of the bias is not known. Do not read that buy&hold as "
+                f"achievable.\n"
+                # THE TRAILING NEWLINE IS LOAD-BEARING -- see midcap50's row.
+                "NOTHING ON THIS UNIVERSE HAS BEEN VALIDATED. No seed, "
+                "sub-period, shuffle or top-N work has been run on these 248 "
+                "names.\n"),
+        },
+)
+
+
+REGISTRY = {u.tag: u for u in (_MID, _N100, _N50, _MC50, _MC100, _N200, _SC250)}
 
 # THE METRICS DIRECTORY IS CREATED AT IMPORT, exactly as config_mid.py and
 # config_n100.py did with METRICS_DIR.mkdir(parents=True, exist_ok=True) at module
@@ -1560,7 +1698,7 @@ LIVE = list(REGISTRY.values())
 # from every combined report, which is why report_order() raises on one instead.
 # n50 SITS NEXT TO n100 BECAUSE IT IS A SUBSET OF IT, so the two large-cap
 # lines are adjacent in every combined report rather than separated by mid.
-REPORT_ORDER = ("nifty200", "nifty100", "nifty50", "midcap150", "midcap100", "midcap50", "58", "74")
+REPORT_ORDER = ("nifty200", "nifty100", "nifty50", "midcap150", "midcap100", "midcap50", "smallcap250", "58", "74")
 
 
 # ---------------------------------------------------------------------------
