@@ -93,3 +93,34 @@ a third at 5%. It has NOT been tested outside 0.38-0.85 million rows.
 SEE ALSO: KNOWN_ISSUES.md, "build_scores was modelled on symbol count, and the
 third universe broke it by 31%" -- the entry that records the failure itself,
 including that 36.3% causes three separate things on this universe.
+
+===============================================================================
+THE ROW MODEL HELD AT 2.2x ITS FITTED RANGE. 2026-09-20, after nifty500.
+===============================================================================
+
+    predicted   56.5 min scoring   (1,834,542 rows x 30.592 min/million + 0.37)
+    ACTUAL      57.5 min           -- 1.8% OVER
+
+The panel row count was predicted from the raw files BEFORE the run and the
+run's own log confirms it exactly: "done 0.6 min, 1,834,542 rows".
+
+    universe      symbols   panel rows   scoring   rows/min   model err
+    midcap100          98      383,486   12.1 min    31,693   (fitted)
+    nifty200          197      854,197   26.5 min    32,234   (fitted)
+    smallcap250       248      798,981   23.5 min    33,999    -5.2%
+    nifty500          495    1,834,542   57.5 min    31,905    +1.8%
+
+FITTED ON 0.38-0.85M ROWS, TESTED AT 0.80M AND 1.83M. The second test is 2.2x
+beyond the largest point it was built from, and it missed by less than the
+first test did. rows/min across all four universes spans 31,693 to 33,999 --
+a 7% band over a 4.8x range in size.
+
+THE MODEL MISSED HIGH, i.e. the run was SLOWER than predicted, by 1.8%. That is
+the direction a small superlinearity would produce, and it is also the size of
+ordinary machine noise. FOUR POINTS CANNOT SEPARATE THOSE and this file does
+not try: what is established is that cost is linear in panel rows to within a
+few percent across every universe this project has, and that symbol count is
+not the variable. Nothing here licenses a curvature term.
+
+THE SERIES IS CLOSED. All eight supplier folders are wired; there is no ninth
+universe to test against.
