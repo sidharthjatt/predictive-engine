@@ -44,6 +44,69 @@ table into the second is reading a two-benchmark artefact as a result. The two
 columns were never comparable, including before the tax work named the
 difference.
 
+## build_scores was modelled on symbol count, and the third universe broke it by 31%
+
+Found 2026-09-19, when smallcap250 ran. Open only as a record -- the model is
+replaced below. What is worth keeping is how it failed.
+
+**THE MISS.** The prediction was recorded before the run, in
+`diagnostics/build_scores_cost.txt`, precisely so it could fail:
+
+    predicted   34.3 min scoring (power law), 33.9 (linear)
+    ACTUAL      23.5 min      -- 31% below, the falsifier that file named
+
+**NO FUNCTION OF SYMBOL COUNT CAN PRODUCE THIS RESULT.** smallcap250 has 248
+symbols against nifty200's 197 -- **26% MORE** -- and scored **3 minutes
+FASTER**. Any model in symbols, of any shape, is monotonic in symbols and
+predicts the opposite sign.
+
+| universe | symbols | panel rows | scoring | rows/min |
+|---|--:|--:|--:|--:|
+| midcap100 | 98 | 383,486 | 12.1 min | 31,693 |
+| nifty200 | 197 | 854,197 | 26.5 min | 32,234 |
+| smallcap250 | 248 | 798,981 | 23.5 min | 33,999 |
+
+**ROWS IS THE VARIABLE.** Fitting the first two points on rows gives **30.592
+min per million rows, intercept +0.37 min**. That intercept is small and
+POSITIVE, which is what a real fixed cost looks like -- and it is what the
+nifty200 "intercept" claim was reaching for and got backwards. The row model
+predicts smallcap250 at 24.8 against 23.5 actual: **5%, against the symbol
+model's 31%**.
+
+**TWO SUCCESSIVE EXPLANATIONS WERE OFFERED FOR THE SAME MISS AND BOTH WERE
+WRONG.** First, in `615e257`: nifty200's 9% overrun was "the fixed cost the
+linear model ignored" -- backwards, since a positive fixed cost makes scaling
+sub-linear and nifty200 came in above proportional. Then, in `ec2820c`: mild
+superlinearity, `n^1.123`, with the negative intercept named as its signature.
+The second explanation fit the two points better than the first. **It was still
+wrong, because both regressed the wrong variable.**
+
+**A BETTER FIT ON THE WRONG AXIS IS NOT EVIDENCE.** The `n^1.123` power law
+reproduced both measured points closely; that is what fitting two points with
+two parameters does, and it carried no information about whether symbols were
+the right regressor at all. The thing that settled it was a third point chosen
+to be able to disagree -- and it disagreed by 31%.
+
+**THE FACT THAT TIES IT TOGETHER.** Panel rows are symbols x sessions each
+symbol actually traded, and **90 of smallcap250's 248 names postdate
+BT_START_DATE**, so rows and symbols come apart: more names, fewer rows.
+
+**That one number, 36.3%, now causes three separate things: the calendar guard
+firing, the symbol cost model breaking, and the panel being thinner than its
+size suggests.** Each was diagnosed on its own before the common cause was
+visible. The registry row for `smallcap250`, the calendar-guard entry above and
+`diagnostics/build_scores_cost.txt` all point here.
+
+**nifty500'S 70-75 MINUTE ESTIMATE IS WITHDRAWN.** It was computed from symbol
+count -- 495 names scaled against a symbol-count fit -- and is evidence of
+nothing. Count nifty500's panel rows and apply 30.6 min per million. Do not
+scale its 495 names against smallcap250's 248; that is the same error a third
+time.
+
+**The row model has been fitted on two points and tested on one, at 5%. It is
+untested outside 0.38-0.85 million rows**, and nifty500 will be well outside
+that. n = 3 measured universes, 2026-09-19.
+
 ## The calendar density guard was LOOSENED on 2026-09-19, from the global median to the per-year median
 
 **This is a loosening, recorded as one.** The guard is weaker than it was. It is
@@ -90,7 +153,8 @@ era**; the threshold is 1.00, so the nearest miss has **40 points of margin**:
 threshold of 125, an exact tie. It aborted on a coin-flip.
 
 **Why the old rule misfired here.** The global median measures 26 years, most of
-which smallcap250 did not exist for. The gap between global and window median
+which smallcap250 did not exist for. (This is one of THREE consequences of the
+same 36.3% -- see the build_scores entry above for the other two.) The gap between global and window median
 is a measure of how much a universe's composition changed over that span:
 
     nifty50       43 -> 48     stable membership, tiny gap

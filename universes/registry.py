@@ -1541,6 +1541,14 @@ _SC250 = Universe(
         # carries the count, the rate and the pointer, and the file carries the
         # names. NOTHING IS OMITTED; it is relocated, and this comment is where
         # a reader is told so.
+        #
+        # THIS RATE CAUSES THREE SEPARATE THINGS, and they were each diagnosed
+        # alone before the common cause was visible: the calendar density guard
+        # fired here (global median 125 against a 2025 median of 237), the
+        # symbol-count cost model for build_scores broke here by 31%, and this
+        # panel holds FEWER ROWS than nifty200 despite 51 more names. All three
+        # are "a third of the symbols have a fraction of a history". See
+        # KNOWN_ISSUES.md, the build_scores entry.
         survivorship=(
             "STATIC. 248 names are TODAY'S Nifty SmallCap 250 members "
             "backfilled to 2019-01-01. Names dropped or delisted during the "
