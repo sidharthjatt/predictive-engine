@@ -6227,6 +6227,8 @@ that is preferable to 49 sites that are confidently wrong.
 STANDS. Renaming it breaks a working reference. Same standing note as the bare-tag
 passes: whoever renames these files comes back to this document.
 
+**Before DELETING any of these, read "An old-looking name is not evidence of an old-named duplicate" under "If you are reading an old-named thing" in `PANEL_MIGRATION.md`.**
+
 ### Four compounds that looked unresolved, and what they turned out to be
 
 Recorded because each cost a lookup and three of the four are now CLOSED:
