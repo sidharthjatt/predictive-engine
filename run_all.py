@@ -301,7 +301,7 @@ def _registry_tags():
 #
 # UPDATE IT BY HAND when a row is added or removed. That is the point: a number
 # derived from the table it is checking would agree with any table.
-PIPELINE_ROW_COUNT = 35
+PIPELINE_ROW_COUNT = 41
 
 PIPELINE_ORDER = [
     ("STEP 10a", "build_scores.py",            "midcap150"),
@@ -334,6 +334,25 @@ PIPELINE_ORDER = [
     ("STEP 10v", "engine_v2_final.py",         "midcap100"),
     ("STEP 10w", "make_audit.py",              "midcap100"),
     ("STEP 10x", "make_chart.py",              "midcap100"),
+    # nifty200, ADDED 2026-09-19, AND THE 10-SERIES IS NOW EXHAUSTED.
+    #
+    # 10y and 10z are the last single-letter suffixes, and a universe needs
+    # FOUR. 10i-10l are burnt -- they were make_combined_universes' labels
+    # before it moved to STEP 12b, and the n50 block above states why a reused
+    # label makes every log written before the reuse ambiguous. 11-14 are the
+    # deliberate gap left by the 2026-09-11 retirement, left so a step's name
+    # still means what it meant in every older log; repopulating that gap would
+    # spend the record it exists to keep.
+    #
+    # SO THE LAST TWO CARRY A SECOND CHARACTER, WHICH SORTS CORRECTLY:
+    # "10y" < "10z" < "10za" < "10zb" < "12b" lexicographically, so no label
+    # sorts after something it precedes. It is not pretty. THE SEVENTH UNIVERSE
+    # NEEDS A DECISION RATHER THAN ANOTHER SUFFIX -- there is no third character
+    # that keeps this readable, and smallcap250 is next.
+    ("STEP 10y",  "build_scores.py",           "nifty200"),
+    ("STEP 10z",  "engine_v2_final.py",        "nifty200"),
+    ("STEP 10za", "make_audit.py",             "nifty200"),
+    ("STEP 10zb", "make_chart.py",             "nifty200"),
     # MOVED FROM STEP 10i, and the move is load-bearing rather than cosmetic.
     # The combined chart is now generic over the selection, so it may need the 58's
     # and the 74's per-trade logs -- and those are written by STEP 12 immediately
@@ -391,11 +410,13 @@ PIPELINE_ORDER = [
     ("STEP 17g", "bh_lots_after_tax.py",      "nifty50"),
     ("STEP 17h", "bh_lots_after_tax.py",      "midcap50"),
     ("STEP 17i", "bh_lots_after_tax.py",      "midcap100"),
+    ("STEP 17j", "bh_lots_after_tax.py",      "nifty200"),
     ("STEP 18a", "tax_report.py",              "midcap150"),
     ("STEP 18b", "tax_report.py",              "nifty100"),
     ("STEP 18c", "tax_report.py",              "nifty50"),
     ("STEP 18d", "tax_report.py",              "midcap50"),
     ("STEP 18e", "tax_report.py",              "midcap100"),
+    ("STEP 18f", "tax_report.py",              "nifty200"),
 ]
 
 
