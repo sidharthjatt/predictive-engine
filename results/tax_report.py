@@ -108,26 +108,48 @@ def fy_equity(eq, fys):
 def holding_period(lots):
     """The distribution, and the ceiling the long-term branch is measured against.
 
-    `max_held_days` is the number a gate watches: every published figure in this
-    repository rests on the long-term branch never firing, and that rests on an
-    empirical 326-day maximum with 39 days of headroom -- not on a structural
-    property. See tax_util's note on the parked docstring that got this wrong.
+    `max_held_days` is the number `tax_util.max_holding_days()` reads and the
+    LTCG-boundary condition in check_all.py asserts on.
+
+    NO HEADROOM NUMBER IS CARRIED IN THIS DOCSTRING, DELIBERATELY. Whether the
+    long-term branch fires is a PER-UNIVERSE property of the window, not a
+    constant of this repository. A number was carried here once -- "an empirical
+    326-day maximum with 39 days of headroom" -- and by the time it was read it
+    was wrong on two of the four universes, which had 443 and 588 day lots. The
+    figure belongs in the artefact, which is measured, and not in prose, which
+    is not. `note` below is computed from the lots in hand, every clause of it.
     """
     if lots is None or lots.empty:
         return pd.DataFrame()
     h = lots["held_days"]
+    mx = int(h.max())
+    n_long = int(lots["is_long"].sum())
+    margin = int(T.LTCG_HOLD_DAYS - mx)
+    # THE WHOLE SENTENCE IS COMPUTED, INCLUDING WHICH SENTENCE IT IS. The
+    # previous version interpolated the margin into a hardcoded "does not fire",
+    # so nifty50 wrote "does not fire; the margin is -223 days" -- an artefact
+    # contradicting its own adjacent column. A claim beside a computed number
+    # has to be computed from the same data or it will eventually disagree
+    # with it.
+    if mx >= T.LTCG_HOLD_DAYS:
+        verb = "is" if n_long == 1 else "are"
+        claim = (f"the long-term branch FIRES on this window: {n_long} of "
+                 f"{len(lots)} lots {verb} held {T.LTCG_HOLD_DAYS} days or longer, "
+                 f"the longest {mx} days, and LTCG_RATE applies to those lots")
+    else:
+        claim = (f"the long-term branch does not fire on this window; the "
+                 f"margin is {margin} days")
     return pd.DataFrame([{
         "lots": int(len(lots)),
-        "max_held_days": int(h.max()), "min_held_days": int(h.min()),
+        "max_held_days": mx, "min_held_days": int(h.min()),
         "mean_held_days": round(float(h.mean()), 2),
         "median_held_days": float(h.median()),
         "p95_held_days": float(h.quantile(0.95)),
         "long_term_threshold_days": T.LTCG_HOLD_DAYS,
-        "lots_long_term": int(lots["is_long"].sum()),
-        "headroom_days": int(T.LTCG_HOLD_DAYS - h.max()),
-        "note": ("the long-term branch does not fire on this window; the margin "
-                 f"is {int(T.LTCG_HOLD_DAYS - h.max())} days and is EMPIRICAL, "
-                 "not structural -- a cadence or buffer change can cross it"),
+        "lots_long_term": n_long,
+        "headroom_days": margin,
+        "note": claim + (" -- EMPIRICAL, not structural: a cadence or buffer "
+                         "change moves it, in either direction"),
     }])
 
 

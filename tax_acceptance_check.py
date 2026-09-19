@@ -248,25 +248,43 @@ def condition_2():
 def condition_3():
     """The LTCG holding-period boundary, asserted rather than assumed.
 
-    WHY THIS FIXTURE EXISTS, AND WHY IT CANNOT COME FROM THE PANEL.
-    results/tax_util.py:80-86 records the reason in terms: zero lots in either
-    shipping universe exceed 365 days, so "100% short-term" is TRUE TODAY -- and
-    true "by 39 days", the gap between the longest real lot (326 on mid, 322 on
-    n100) and the threshold. Every real lot therefore takes the `short_` arm, and
-    NO RUN OF THIS PIPELINE EVER EXERCISES `is_long = held >= LTCG_HOLD_DAYS` in
-    its True state. A cadence change, a longer window or a slower arm could push a
-    lot past 365 and begin firing the long-term branch for the first time in
-    production, with nothing having ever checked it.
+    WHY THIS FIXTURE EXISTS. The rationale below was rewritten 2026-09-19,
+    because the one it replaced had been overtaken by the data.
 
-    So the boundary is pinned with SYNTHETIC lots, three of them, straddling the
-    threshold. They are not drawn from the panel because the panel cannot reach
-    the boundary -- that is the whole point.
+    IT USED TO SAY THE PANEL COULD NOT REACH THE BOUNDARY. It said no run of
+    this pipeline ever exercises `is_long = held >= LTCG_HOLD_DAYS` in its True
+    state, citing the longest real lot at 326 days with 39 days of headroom, and
+    it justified the synthetic lots on that ground -- they were needed BECAUSE
+    the real data could not get there. **The panel reached it.** The 2026-09-18
+    four-universe runs contain four lots over 365 days:
+
+        nifty100   SOLARINDS   443 days      nifty50   TRENT       588 days
+        nifty50    TATACONSUM  445 days      nifty50   TRENT       383 days
+
+    all four routed to `long_old` and taxed at LTCG_RATE["old"]. The True state
+    is exercised in production now, on two of four universes.
+
+    THE FIXTURES STAY, AND THE REASON IS A BETTER ONE THAN THE OLD REASON.
+    Synthetic lots at 364/365/366 test the boundary DETERMINISTICALLY: exactly
+    one day either side, every run, independent of which universes are wired,
+    which arm is selected, what the cadence is, or whether any real lot happens
+    to land near 365 this month. Real lots at 383 and 588 days exercise the long
+    branch but say nothing about where the branch begins -- they would pass
+    identically under `>`, under `>= 364` and under `>= 380`. A boundary test
+    has to sit ON the boundary, and nothing in the panel is placed there on
+    purpose.
+
+    So the old justification is gone and the fixtures are not: they were never
+    really a substitute for unreachable data, they were a boundary test, and a
+    boundary test does not become unnecessary when the region beyond it becomes
+    occupied.
 
     364 -> short, 365 -> long, 366 -> long.  The comparison is `>=`, so 365 is
     the FIRST long-term day, not the last short-term one. An edit to `>` would
     move every 365-day lot from 12.5% to 20% and no existing artefact would
-    change, because no artefact has a 365-day lot in it. This condition is the
-    only thing that would notice.
+    change, because no artefact has a lot at EXACTLY 365 days in it -- the four
+    real long lots are at 383 and beyond and would survive the edit untouched.
+    This condition is still the only thing that would notice.
     """
     import pandas as pd
     sys.path.insert(0, str(ROOT / "results"))
@@ -295,8 +313,9 @@ def condition_3():
             f"LTCG boundary moved: a lot held {days} days reported "
             f"is_long={bool(row['is_long'])}, expected {want_long}. "
             f"tax_util.LTCG_HOLD_DAYS={T.LTCG_HOLD_DAYS}, comparison must stay "
-            f">=. See tax_util.py:80-86 -- no real lot reaches this boundary, so "
-            f"nothing else in the tree would have caught this.")
+            f">=. Real lots now cross 365 (four of them, nifty100 and nifty50) "
+            f"but none sits AT it -- the nearest is 383 -- so nothing else in "
+            f"the tree would have caught a one-day move in the boundary.")
         assert got_arm.startswith(want_arm), (
             f"LTCG boundary bucket wrong: {days} days -> {got_arm}, "
             f"expected a {want_arm}_* bucket.")
