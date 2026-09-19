@@ -934,7 +934,7 @@ that remain, all of them still saying `python3`:
 | `README.md:269` | `pip install -r requirements.txt`, then `python3 run_all.py` | **FIXED 2026-09-02** — now `./venv/bin/python run_all.py`, with the `sys.executable` mechanism and both failure modes stated |
 | `config.py:242` | error message: ``Run `python3 run_all.py` to build them`` | **FIXED 2026-09-02** — now names the venv interpreter and says why it is not interchangeable. Rendered and read back rather than assumed correct |
 | `run_all.py:81` | comment: `python3 results/build_scores_n100.py` | describes the determinism gap, not an instruction to follow |
-| ~10 module docstrings, e.g. `results/engine_core.py:113`, `results/make_trading_calendar.py:29`, `results/validate_breadth_live.py:52-53` | `python3 results/<script>.py` | unverified; each fails the same way if the venv is not active |
+| ~10 module docstrings, e.g. `results/engine_core.py:113`, `results/make_trading_calendar.py:29` [FILE DELETED 2026-09-11, commit `2fe48ff` -- the line number points into a file that is no longer in the tree], `results/validate_breadth_live.py:52-53` | `python3 results/<script>.py` | unverified; each fails the same way if the venv is not active |
 
 **AMENDED 2026-09-02.** The two rows above read "still wrong, unfixed" when this
 entry was written, because the task that found them was scoped to `run_all.py`
@@ -1112,6 +1112,12 @@ PROPOSED"* and states it *"must be resolved in any spec"*. Still open as of
 
     SOURCE_DIR = config.RAW_DATA_DIR / "nifty50"
 
+**`results/make_trading_calendar.py` WAS DELETED ON 2026-09-11, commit `2fe48ff`,
+with the 58 universe it read. The line number above points into a file that is no
+longer in the tree.** The entry is kept unedited below because it records why the
+calendar is shaped the way it is, and that reasoning is still load-bearing: the
+file it describes writing is still tracked and still read on every panel build.
+
 so the NSE trading calendar is derived from the **retired 58 universe's** raw
 files. It writes `data/nse_trading_calendar.csv`, and
 `engine_core._load_calendar()` raises `FileNotFoundError` if that artefact is
@@ -1158,7 +1164,9 @@ benchmark directory and the 99-file constituents directory that
 `build_scores_n100.py` actually scores — which agree with each other on all 237.
 
 **NOTED WITHOUT BEING TESTED: THE 58 MAY BE ACTING AS A FILTER RATHER THAN MERELY
-AS A SOURCE.** `results/make_trading_calendar.py`'s own docstring reports the same
+AS A SOURCE.** `results/make_trading_calendar.py`'s own docstring -- the file was
+deleted 2026-09-11, commit `2fe48ff`, so the docstring is quoted here from before
+that and cannot now be re-read in the tree -- reports the same
 two counts for MidCap150 — *"237 phantom dates into the mid union index (107
 inside the backtest window)"* — and calls them phantom. The nifty100 comparison
 produces 237 and 107. **Whether the two sets are the same dates is UNTESTED.** The
@@ -2479,7 +2487,7 @@ directory the 32-step pipeline writes to, and who creates it:
 | `results/metrics/per_stock_charts` | `make_per_stock_charts.py` | hardened (parents=True) |
 | `results/metrics/combined_charts` | `make_combined_all.py` | hardened (parents=True) |
 | `nautilus/data` | `nt_export_scores.py:72` | already OK |
-| `data/nse_trading_calendar.csv` (STEP 0) | `make_trading_calendar.py:86` | already OK |
+| `data/nse_trading_calendar.csv` (STEP 0) | `make_trading_calendar.py:86` -- **writer deleted 2026-09-11, commit `2fe48ff`; there is no STEP 0 any more and nothing writes this file** | already OK when measured |
 
 The pipeline never writes to `diagnostics/`, `docs/`, `nautilus/reports` or
 `nautilus/catalog` — references to `diagnostics/` in four pipeline scripts are in

@@ -232,12 +232,26 @@ def _load_calendar():
     if not TRADING_CALENDAR.exists():
         raise FileNotFoundError(
             f"{TRADING_CALENDAR} missing.\n"
-            "  IT CANNOT BE REGENERATED. It is tracked source data, not a derived\n"
-            "  artefact: the universe it was once computed from (the 58) is deleted\n"
-            "  and results/make_trading_calendar.py went with it. Restore the file\n"
-            "  from git. The panel cannot be built without it, because a panel that\n"
+            "\n"
+            "  WHAT TO DO: restore it from git. It is TRACKED, frozen source data --\n"
+            "    git checkout -- data/nse_trading_calendar.csv\n"
+            "\n"
+            "  DO NOT TRY TO REBUILD IT. There is nothing left to rebuild it from.\n"
+            "  It was computed once, from the 58 universe's raw files, by\n"
+            "  results/make_trading_calendar.py. Both were deleted on 2026-09-11 in\n"
+            "  commit 2fe48ff, so that script is not in the tree and restoring it\n"
+            "  would not help: the raw files it read are gone too.\n"
+            "\n"
+            "  IF YOU NEED SESSIONS PAST 2026-06-08, that is a different problem and\n"
+            "  this message is not the answer to it. Extending the file is an\n"
+            "  APPEND-ONLY operation and NO TOOL IN THIS REPOSITORY PERFORMS IT --\n"
+            "  the source for new sessions has not been decided. Do not hand-edit\n"
+            "  the file: a wrong tail silently changes every backtest window.\n"
+            "\n"
+            "  The panel cannot be built without the calendar, because a panel that\n"
             "  silently keeps market-holiday rows is what this filter exists to\n"
-            "  prevent. See RETIRED_UNIVERSES.md.")
+            "  prevent. See RETIRED_UNIVERSES.md section 6 and the file's own\n"
+            "  header.")
     d = pd.read_csv(TRADING_CALENDAR, comment="#", parse_dates=["date"])
     return set(d["date"])
 

@@ -2,12 +2,25 @@
 calendar_coverage_probe.py -- can a coverage threshold replace the 58-derived
 trading calendar?
 
-THE QUESTION. results/make_trading_calendar.py derives the NSE trading calendar
-from the RETIRED 58 universe's raw files, and engine_core._load_calendar() raises
-without that artefact for EVERY universe. The candidate decoupling, specified in
-experiments/CALENDAR_DECOUPLE_SPEC.txt, was: build the calendar from the selected
-universe's own files and drop any date carried by fewer than COVERAGE_MIN of the
-files active that year.
+WHAT THIS PROBE DOES NOW. It reads data/nse_trading_calendar.csv and the raw
+files of each selected universe, and asks whether any single coverage threshold
+could reproduce the tracked calendar from those files. It writes one diagnostic,
+diagnostics/calendar_coverage_probe.txt. It does not write the calendar, and it
+hashes the file before and after its own run to prove that.
+
+THE QUESTION IT WAS BUILT TO SETTLE, AND WHY THAT QUESTION IS CLOSED. The NSE
+trading calendar was derived from the RETIRED 58 universe's raw files, by
+results/make_trading_calendar.py -- a script DELETED ON 2026-09-11, commit
+2fe48ff, along with the 58 and its raw files. engine_core._load_calendar() still
+raises without the resulting artefact, for EVERY universe. The candidate
+decoupling, specified in experiments/CALENDAR_DECOUPLE_SPEC.txt, was: build the
+calendar from the selected universe's own files and drop any date carried by
+fewer than COVERAGE_MIN of the files active that year.
+
+That design was refuted by this probe before it was built, and the calendar is
+now frozen tracked source data rather than a derived artefact. THE PROBE IS
+STILL WORTH RUNNING: it is the standing evidence for why the calendar is frozen,
+and it re-measures that evidence against whatever raw files are on disk today.
 
 THE ANSWER THIS SCRIPT PRODUCES: THE DESIGN IS REFUTED, AND NOT BY A MARGIN THAT
 A DIFFERENT THRESHOLD WOULD CLOSE. The verdict is computed from the measured

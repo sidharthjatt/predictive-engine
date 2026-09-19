@@ -8,6 +8,10 @@
 #
 # provenance:  union of trading dates across the 58 raw CSVs in data/raw/nifty50
 #              (the retired "58" universe), written by results/make_trading_calendar.py
+#              -- THAT SCRIPT NO LONGER EXISTS. It was deleted on 2026-09-11 in
+#              commit 2fe48ff, together with the 58 universe and its raw files.
+#              This file is frozen tracked source data: restore it from git, do
+#              not look for a step that regenerates it.
 # last_derived_sha256:
 #              84365a97ca316000ba992e07e2b32de889006e9fcd419ef34893bbbeb5fed74e
 #              -- sha256 of this file, header included, as that script last wrote
