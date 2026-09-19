@@ -139,16 +139,57 @@ KNOWN_UNIMPORTABLE = {
 }
 
 
+# THE SEVEN, BY NUMBER, so the verdict can subtract rather than be told a total.
+# A gate added below without a line here would not be counted, which is the same
+# defect this file exists to catch, so the count is asserted against it in main().
+ALL_GATES = (1, 2, 3, 4, 5, 6, 7)
+
+
 class Result:
+    """Failures, notes, and -- ADDED 2026-09-20 -- WHICH GATES DID NOT RUN.
+
+    THE DEFECT THIS FIXES IS NOT A WRONG NUMBER. Every skip below was already
+    printed, honestly, in the body: "GATE 4  SKIPPED -- needs --since ... Not
+    counted as passed." The summary line then said "RESULT: PASS -- all seven
+    gates" over the top of it. Both lines were produced by the same run and only
+    one of them is read, because a verdict line is what a verdict line is for.
+
+    A CHECK THAT REPORTS HONESTLY IN ITS BODY AND MISREPORTS IN ITS SUMMARY is
+    its own shape, and it is not the "written, declared to be the fix, never
+    wired" class this repository already tracks: the body here was wired, ran,
+    and was correct. Nothing was unwired and no literal was stale. The summary
+    simply did not read what the body had written -- so the cure is to make the
+    verdict a FUNCTION of the recorded skips rather than a constant string.
+
+    A SKIP STAYS LEGITIMATE AND STAYS EXIT 0. Gate 4 and gate 6 cannot assert
+    anything without a run to check against; refusing to run them is correct,
+    and turning a skip into an error would make the checker permanently red,
+    which is the failure mode declared at KNOWN_UNIMPORTABLE above. What is not
+    legitimate is a skip that the verdict line conceals.
+    """
+
     def __init__(self):
         self.failures = []
         self.notes = []
+        self.skipped = {}
 
     def fail(self, gate, what, detail=""):
         self.failures.append((gate, what, detail))
 
     def note(self, text):
         self.notes.append(text)
+
+    def skip(self, gate_no, text, why):
+        """Record that gate `gate_no` did not assert, and say so in the body too.
+
+        `why` is the short reason the verdict line carries; `text` is the full
+        body line, unchanged from what this file printed before.
+        """
+        self.skipped[gate_no] = why
+        self.notes.append(text)
+
+    def asserted(self):
+        return [g for g in ALL_GATES if g not in self.skipped]
 
 
 # ---------------------------------------------------------------------------
@@ -223,7 +264,8 @@ def gate_table(res):
     except BaseException as e:
         res.fail("GATE 2 table", "run_all is unimportable",
                  f"{type(e).__name__}: {str(e).splitlines()[0][:160]}")
-        res.note("GATE 2  NOT CHECKED -- run_all does not import")
+        res.skip(2, "GATE 2  NOT CHECKED -- run_all does not import",
+                 "run_all does not import")
         return []
     rows = run_all.PIPELINE_ORDER
     declared = getattr(run_all, "PIPELINE_ROW_COUNT", None)
@@ -295,7 +337,8 @@ def _has_live_main(path):
 
 def gate_entry_points(res, rows):
     if not rows:
-        res.note("GATE 3  NOT CHECKED -- no pipeline table")
+        res.skip(3, "GATE 3  NOT CHECKED -- no pipeline table",
+                 "no pipeline table")
         return
     import run_all
     seen, bad = [], 0
@@ -324,13 +367,14 @@ def gate_outputs(res, rows, since, sel):
     declares one -- so there is no second table to go stale.
     """
     if not rows:
-        res.note("GATE 4  NOT CHECKED -- no pipeline table")
+        res.skip(4, "GATE 4  NOT CHECKED -- no pipeline table",
+                 "no pipeline table")
         return
     import run_all
     from universes.registry import REGISTRY
     if since is None:
-        res.note("GATE 4  SKIPPED -- needs --since <epoch>, i.e. a run to check "
-                 "against. Not counted as passed.")
+        res.skip(4, "GATE 4  SKIPPED -- needs --since <epoch>, i.e. a run to "
+                 "check against. Not counted as passed.", "need --since")
         return
     checked = unverifiable = 0
     for row in rows:
@@ -477,8 +521,8 @@ def gate_tax(res, since, sel):
     """
     import csv
     if since is None:
-        res.note("GATE 6  SKIPPED -- needs --since, i.e. a run to check against. "
-                 "Not counted as passed.")
+        res.skip(6, "GATE 6  SKIPPED -- needs --since, i.e. a run to check "
+                 "against. Not counted as passed.", "need --since")
         return
     try:
         sys.path.insert(0, str(ROOT))
@@ -563,8 +607,9 @@ def gate_tax(res, since, sel):
                  f"(compounding Rs {gap-assessed:,.2f}; statement total Rs "
                  f"{total:,.2f}, unassessed Rs {unassessed:,.2f})")
     if checked == 0:
-        res.note("GATE 6  SKIPPED -- no tax artefacts on disk (a tax=off run "
-                 "writes none). Not counted as passed.")
+        res.skip(6, "GATE 6  SKIPPED -- no tax artefacts on disk (a tax=off "
+                 "run writes none). Not counted as passed.",
+                 "no tax artefacts on disk")
 
 
 # ---------------------------------------------------------------------------
@@ -689,8 +734,9 @@ def gate_ltcg(res, sel):
                 pass
 
     if checked == 0:
-        res.note("GATE 7  SKIPPED -- no HOLDING_PERIOD_LOTS artefacts on disk "
-                 "(a tax=off run writes none). Not counted as passed.")
+        res.skip(7, "GATE 7  SKIPPED -- no HOLDING_PERIOD_LOTS artefacts on "
+                 "disk (a tax=off run writes none). Not counted as passed.",
+                 "no HOLDING_PERIOD_LOTS artefacts on disk")
     if stale:
         res.note(f"GATE 7  NOTE, not a failure: {len(stale)} artefact(s) on disk "
                  f"still carry a pre-fix note string and will be corrected by the "
@@ -736,7 +782,29 @@ def main(argv=None):
                 print(f"      {detail}")
         print()
         return 1
-    print("RESULT: PASS -- all seven gates")
+    # THE VERDICT IS COMPUTED FROM THE SKIPS, NEVER TYPED. A constant string is
+    # exactly what went wrong: it survived every skip the body recorded.
+    n = len(ALL_GATES)
+    assert n == 7, f"ALL_GATES holds {n} gates; the wording below says seven"
+    ok = res.asserted()
+    if res.skipped:
+        # GROUPED BY REASON, because the common case is gates 4 and 6 skipping
+        # for the identical reason and "GATE 4 -- need --since; GATE 6 -- need
+        # --since" is a verdict line nobody finishes reading.
+        by_reason = {}
+        for g in sorted(res.skipped):
+            by_reason.setdefault(res.skipped[g], []).append(g)
+        parts = [f"{', '.join('GATE %d' % g for g in gs)} -- {why}"
+                 for why, gs in by_reason.items()]
+        print(f"RESULT: PASS ({len(ok)} of {n} asserted, "
+              f"{len(res.skipped)} skipped: {'; '.join(parts)})")
+        print(f"        ASSERTED: {', '.join('GATE %d' % g for g in ok)}")
+        print("        A SKIPPED GATE IS NOT A PASSED GATE. Exit code is 0 "
+              "because a skip is legitimate,")
+        print("        not because the work was done. Re-run with --since "
+              "<epoch> after a run to assert all seven.")
+    else:
+        print(f"RESULT: PASS -- all {n} gates asserted, none skipped")
     return 0
 
 
