@@ -59,7 +59,7 @@ It is worse than no guard at all. No guard leaves the problem visible; an
 unwired guard converts an open problem into a solved one in every document that
 mentions it, and the mention is what the next reader finds.
 
-**Four instances, all in this repository, all distinct in how far they got:**
+**Five instances, all in this repository, all distinct in how far they got:**
 
 1. **`naming.py`** -- written as "the single naming authority". Its only
    importers are `naming_declare_check.py:211` and
@@ -106,12 +106,54 @@ mentions it, and the mention is what the next reader finds.
    force-push to hide a wrong number is a worse record than the wrong number.
    Recorded here instead.
 
+5. **`make_chart.py`'s palette** -- the largest chart producer in the
+   repository does not import `chart_colours` at all. There is no reference to
+   it anywhere in the file; it hardcodes six colours at `results/make_chart.py`
+   lines 284, 286, 302, 433 and 434 and draws EVERY universe in them. The
+   registry field is the declared palette authority, `palette_distance.py`
+   enforces it, a registry comment guaranteed its separation -- and the
+   per-universe chart, which is the figure most often looked at, ignores all
+   three.
+
+   **MEASURED 2026-09-19, BECAUSE "IT PROBABLY MATCHES ONE OF THEM" IS THE
+   ASSUMPTION THIS CLASS IS MADE OF.** It matches no universe's tuple:
+
+   | universe | slotwise match | set overlap |
+   |---|--:|--:|
+   | nifty100 | 4 of 6 | 4 of 6 |
+   | midcap150 | 2 of 6 | 2 of 6 |
+   | nifty50 | 0 of 6 | 0 of 6 |
+   | midcap50 | 0 of 6 | 0 of 6 |
+
+   **It is a chimera of two of them.** v2 `#c0392b`, v1 `#2e6da4`, bh
+   `#3a9d3a` and ix `#000000` are nifty100's slots 0, 1, 2 and 3; v3 `#1b9e77`
+   and v4 `#e6ab02` are midcap150's slots 4 and 5. Six colours assembled from
+   two different universes' searched tuples, belonging to neither.
+
+   **So it is a SIXTH PALETTE, and `palette_distance.py` has never measured
+   it** -- that script builds its line list from `REGISTRY[t].chart_colours`
+   and this set is not in the registry. Measured here for the first time: its
+   own internal minimum is dE 13.10 normal, **7.55 deutan** (v2 vs bh), 10.75
+   protan. One pair below 10, on the chart every universe is drawn with.
+
+   **Not scheduled and not fixed.** Changing `make_chart.py` re-renders four
+   universes' published figures, which is an artefact change and its own
+   decision -- recorded at the "per-universe palette" paragraph further down
+   this file. What belongs here is only that the authority is unwired, which
+   is the shape, and that nobody had checked what the unwired thing actually
+   contains.
+
 **THE DETECTOR, AND IT IS GREPPABLE.** The signature is: *a function whose
 docstring states what it guards against, and which has no call site.* Both
 halves are mechanical. For every `def` in the tree, take the name, grep the
 tree for it, and subtract its own definition and its own docstring; if what
 remains is empty while the docstring contains a guard verb -- exists so, must,
 fails when, catches, guards, prevents, asserts -- it is an instance.
+
+**IT WOULD CATCH INSTANCE 5.** `chart_colours` is a registry field with a
+stated authority and a consumer that never reads it; the same "declared, not
+imported" grep finds it. That instance was found by eye, not by the sweep,
+which is the argument for writing the sweep.
 
 **IT DOES NOT CATCH INSTANCE 4, AND NOTHING WOULD.** A commit message has no
 call site to be missing; it is prose in a place no checker reads, and it is
