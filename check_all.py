@@ -48,6 +48,11 @@ WHAT THIS DOES ABOUT IT
                          the axis's first day that is what it was.
     GATE 5  DELEGATES    registry_coverage_check, check_pipeline_order,
                          check_plan_order, naming_declare_check.
+    GATE 7  LTCG         the artefacts' claim about the long-term branch must
+                         match the lots. Fails when a universe's longest hold
+                         crosses LTCG_HOLD_DAYS while HOLDING_PERIOD still says
+                         the branch does not fire. This is the gate whose absence
+                         let 443- and 588-day lots appear unannounced.
 
 WHAT GATE 4 IS, AND WHAT IT IS NOT -- READ THIS BEFORE TRUSTING IT
     It was specified as "assert each step declares its outputs, then assert those
@@ -562,6 +567,136 @@ def gate_tax(res, since, sel):
                  "writes none). Not counted as passed.")
 
 
+# ---------------------------------------------------------------------------
+# GATE 7 -- the LTCG ceiling, watched rather than assumed
+# ---------------------------------------------------------------------------
+
+def gate_ltcg(res, sel):
+    """HOLDING_PERIOD's claim about the long-term branch must match its lots.
+
+    THIS GATE EXISTS BECAUSE ITS ABSENCE WAS MEASURED. tax_util.max_holding_days
+    was written with the docstring "EXISTS SO A GATE CAN WATCH THE 326-DAY
+    CEILING ... the failure mode is silent: the long-term rate simply starts
+    applying and every tax figure moves." It then sat with ZERO CALL SITES for
+    its whole life. The ceiling was crossed on 2026-09-18 -- nifty50 588 days,
+    nifty100 443 days, four lots over the threshold -- and the failure mode was
+    silent exactly as predicted, because the thing that was supposed to make
+    noise had never been connected to anything.
+
+    So the assertion here is deliberately the one the prose promised:
+
+        max_holding_days(lots) >= LTCG_HOLD_DAYS  =>  the artefact must SAY SO
+
+    and it is asserted against `tax_report.holding_period`, the producer, not
+    against a file. A file can be stale; the producer is what the next run will
+    write. Checking the producer means the gate goes green the moment the code
+    is right, and red the moment a hardcoded claim is reintroduced -- which is
+    the specific regression that happened.
+
+    WHAT IT DOES NOT DO. It does not assert that no lot crosses 365. Crossing is
+    legitimate: the tax code routes long lots correctly and always did, and
+    midcap150 and midcap50 are short-term only as a property of their windows.
+    The defect was never the crossing. It was an artefact asserting one thing
+    while its own adjacent column said another.
+
+    NO --since. It reads lots that are already on disk and calls a pure
+    function, so there is nothing to date. A universe with no tax artefacts is
+    skipped and counted, not silently passed.
+    """
+    try:
+        sys.path.insert(0, str(ROOT))
+        sys.path.insert(0, str(ROOT / "results"))
+        from universes.registry import REGISTRY
+        import pandas as pd
+        import tax_util as T
+        import tax_report as TR
+    except Exception as e:
+        res.fail("GATE 7 ltcg", "import", f"{type(e).__name__}: {e}")
+        return
+
+    tags = sorted(REGISTRY) if sel in (None, "all") else [t.strip() for t in sel.split(",")]
+    checked, stale = 0, []
+    for t in tags:
+        u = REGISTRY.get(t)
+        if u is None:
+            continue
+        lp = next(iter(sorted(Path(u.metrics_dir).glob(
+            f"HOLDING_PERIOD_LOTS_*_tax.csv"))), None)
+        if lp is None:
+            continue
+        try:
+            lots = pd.read_csv(lp)
+        except Exception as e:
+            res.fail("GATE 7 ltcg", f"{t} {lp.name}", f"{type(e).__name__}: {e}")
+            continue
+        if lots.empty:
+            continue
+        checked += 1
+
+        mx = T.max_holding_days(lots)          # THE CALL SITE. Do not remove it.
+        fires = mx >= T.LTCG_HOLD_DAYS
+        row = TR.holding_period(lots).iloc[0]
+        note = str(row["note"]).lower()
+        says_fires = "fires" in note
+        says_not = "does not fire" in note
+
+        # the count must come from the same predicate that routes the lot
+        routed = int((lots["held_days"] >= T.LTCG_HOLD_DAYS).sum())
+        if int(row["lots_long_term"]) != routed:
+            res.fail("GATE 7 ltcg", f"{t} lots_long_term",
+                     f"artefact counts {int(row['lots_long_term'])} long lots, the "
+                     f"routing predicate (held_days >= {T.LTCG_HOLD_DAYS}) finds "
+                     f"{routed}. The count and the bucket disagree, which means "
+                     f"LTCG may be charged at STCG rates or the reverse.")
+
+        if fires and (says_not or not says_fires):
+            res.fail("GATE 7 ltcg", f"{t} HOLDING_PERIOD note",
+                     f"longest hold is {mx} days, which is >= LTCG_HOLD_DAYS="
+                     f"{T.LTCG_HOLD_DAYS}, and {routed} lot(s) took the long "
+                     f"branch -- but the note still claims the branch does not "
+                     f"fire:\n      {row['note']}\n"
+                     f"      headroom_days={int(row['headroom_days'])} in the same "
+                     f"row already contradicts it. Make the whole sentence "
+                     f"computed; do not hardcode the claim beside a measured "
+                     f"margin. See tax_report.holding_period.")
+        elif not fires and says_fires:
+            res.fail("GATE 7 ltcg", f"{t} HOLDING_PERIOD note",
+                     f"longest hold is {mx} days, under LTCG_HOLD_DAYS="
+                     f"{T.LTCG_HOLD_DAYS}, but the note claims the branch fires:"
+                     f"\n      {row['note']}")
+        else:
+            res.note(f"GATE 7  {t}: max hold {mx}d, "
+                     f"{'FIRES' if fires else 'no fire'}, {routed} long lot(s), "
+                     f"note agrees")
+
+        # the file that is already on disk was written by an earlier run and may
+        # predate a fix. Reported, never failed: no code change can turn it
+        # green, only a re-run, and a gate that cannot be satisfied is ignored.
+        # glob "HOLDING_PERIOD_*" also matches HOLDING_PERIOD_LOTS_*, and
+        # sorted() puts LOTS first because "L" < a lowercase tag. Filter, then
+        # take -- taking then filtering silently reports nothing, which is how
+        # this block did nothing on its first run.
+        onf = next((f for f in sorted(Path(u.metrics_dir).glob(
+            "HOLDING_PERIOD_*_tax.csv")) if "_LOTS_" not in f.name), None)
+        if onf is not None:
+            try:
+                disk = pd.read_csv(onf).iloc[0]
+                dn = str(disk["note"]).lower()
+                if (int(disk["max_held_days"]) >= T.LTCG_HOLD_DAYS) and \
+                        "does not fire" in dn:
+                    stale.append(f"{t}/{onf.name}")
+            except Exception:
+                pass
+
+    if checked == 0:
+        res.note("GATE 7  SKIPPED -- no HOLDING_PERIOD_LOTS artefacts on disk "
+                 "(a tax=off run writes none). Not counted as passed.")
+    if stale:
+        res.note(f"GATE 7  NOTE, not a failure: {len(stale)} artefact(s) on disk "
+                 f"still carry a pre-fix note string and will be corrected by the "
+                 f"next taxed run -- {', '.join(stale)}")
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--since", type=float, default=None,
@@ -585,6 +720,7 @@ def main(argv=None):
     gate_outputs(res, rows, args.since, args.universe)
     gate_delegates(res)
     gate_tax(res, args.since, args.universe)
+    gate_ltcg(res, args.universe)
 
     print()
     for n in res.notes:
@@ -600,7 +736,7 @@ def main(argv=None):
                 print(f"      {detail}")
         print()
         return 1
-    print("RESULT: PASS -- all six gates")
+    print("RESULT: PASS -- all seven gates")
     return 0
 
 
