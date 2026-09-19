@@ -44,6 +44,63 @@ table into the second is reading a two-benchmark artefact as a result. The two
 columns were never comparable, including before the tax work named the
 difference.
 
+## A CLASS: a correct measurement over the set in hand, phrased as a property of the thing measured
+
+Promoted to a class 2026-09-19, after the third instance in two days. Open as a
+class -- the instances are corrected; what is open is that nothing catches the
+next one, and the honest reason is below.
+
+**The shape.** Someone measures every case available and writes down what they
+all share. The measurement is correct. The sentence is not a sentence about
+those cases -- it is a sentence about the mechanism, and it reads as a law. It
+stays true for exactly as long as the set does not grow.
+
+**Three instances, all within two days, two of them in the same entry:**
+
+| claim | measured over | broke on |
+|---|---|---|
+| "No sign changes on any of the four" | 4 universes | midcap100: +1.0392 -> -1.2280 |
+| "the cost is larger where turnover is larger" | 3 universes | midcap100: fewer lots, longer hold, twice the cost |
+| "every pair clears dE2000 >= 10" | 18 slots, cross-universe only | the 5th palette search -- and 5 shipped pairs were ALREADY below it, worst 3.26 |
+
+None was a careless number. Each was a correct measurement, and the third was
+worse than the other two: it was already false when written, because it had
+been measured over cross-universe pairs and stated over all pairs.
+
+**THE DETECTOR, AND IT IS GREPPABLE.** A claim quantified over universes, arms,
+slots or pairs -- "every", "all", "none", "each", "on all four", "in every
+universe" -- with no statement of how many were measured. Grep the prose for
+the quantifier, then look for an n beside it. No n, instance.
+
+**AND HERE IS ITS LIMIT, STATED SO THE ENTRY DOES NOT IMPLY A SWEEP THAT
+CANNOT EXIST.** That detector would have caught instance 1 and instance 3. It
+would NOT have caught instance 2. "Across the THREE universes that reported,
+the cost is larger where turnover is larger" **carried its count**, said three
+out loud, and was still wrong -- because the defect is not a missing n. It is a
+sentence shaped like a mechanism sitting where a sentence about three
+observations belongs. **A grep cannot tell those apart.** Carrying the count
+makes the claim auditable; it does not make it true, and an entry that implied
+otherwise would be committing this class's own error about its own detector.
+
+What closes the gap is not a checker. It is the phrasing rule below.
+
+**THE STANDING RULE THIS IMPLIES, AND IT APPLIES TO EVERY CROSS-UNIVERSE CLAIM
+IN THIS REPOSITORY.** Eight universes exist on disk as supplier folders. FIVE
+are wired -- midcap150, nifty100, nifty50, midcap50, midcap100 -- and THREE are
+not: nifty200, smallcap250, nifty500.
+
+**So every cross-universe claim here is provisional until eight**, and three of
+the eight can still break any of them. Any such claim MUST carry its n and its
+date: "on the five universes wired as of 2026-09-19", not "on every universe".
+The n is what lets the next reader see whether the set has grown since. The
+date is what lets them see whether to re-measure. A claim with neither is
+indistinguishable from a law, which is the whole defect.
+
+Related: the never-wired class above. That one is about a guard that was never
+called; this one is about a measurement that was called correctly and written
+up as more than it was. Both survive because prose is the only place the error
+lives and nothing reads prose.
+
 ## make_daily_log's cash identity does not model the tax deduction, so every taxed run ends "some days failed"
 
 Found 2026-09-19, on midcap100's first taxed run. Open. **The numbers are
