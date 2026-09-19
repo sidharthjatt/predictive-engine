@@ -301,7 +301,7 @@ def _registry_tags():
 #
 # UPDATE IT BY HAND when a row is added or removed. That is the point: a number
 # derived from the table it is checking would agree with any table.
-PIPELINE_ROW_COUNT = 29
+PIPELINE_ROW_COUNT = 35
 
 PIPELINE_ORDER = [
     ("STEP 10a", "build_scores.py",            "midcap150"),
@@ -328,6 +328,12 @@ PIPELINE_ORDER = [
     ("STEP 10r", "engine_v2_final.py",         "midcap50"),
     ("STEP 10s", "make_audit.py",              "midcap50"),
     ("STEP 10t", "make_chart.py",              "midcap50"),
+    # midcap100, ADDED 2026-09-19. NEW LABELS AGAIN, 10u-10x, same rule: a
+    # reused label makes every log written before the reuse ambiguous.
+    ("STEP 10u", "build_scores.py",            "midcap100"),
+    ("STEP 10v", "engine_v2_final.py",         "midcap100"),
+    ("STEP 10w", "make_audit.py",              "midcap100"),
+    ("STEP 10x", "make_chart.py",              "midcap100"),
     # MOVED FROM STEP 10i, and the move is load-bearing rather than cosmetic.
     # The combined chart is now generic over the selection, so it may need the 58's
     # and the 74's per-trade logs -- and those are written by STEP 12 immediately
@@ -384,10 +390,12 @@ PIPELINE_ORDER = [
     ("STEP 17f", "bh_lots_after_tax.py",      "nifty100"),
     ("STEP 17g", "bh_lots_after_tax.py",      "nifty50"),
     ("STEP 17h", "bh_lots_after_tax.py",      "midcap50"),
+    ("STEP 17i", "bh_lots_after_tax.py",      "midcap100"),
     ("STEP 18a", "tax_report.py",              "midcap150"),
     ("STEP 18b", "tax_report.py",              "nifty100"),
     ("STEP 18c", "tax_report.py",              "nifty50"),
     ("STEP 18d", "tax_report.py",              "midcap50"),
+    ("STEP 18e", "tax_report.py",              "midcap100"),
 ]
 
 

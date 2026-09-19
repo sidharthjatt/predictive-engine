@@ -179,7 +179,7 @@ PAIR_CHART = ("nifty100", "midcap150")
 # The guard did its job: it stopped a run rather than letting the pair be read as
 # still-confirmed while the registry grew around it. Bumping this is the record
 # that somebody looked, which is the whole content of the constant.
-PAIR_CHART_REGISTRY_SIZE = 4
+PAIR_CHART_REGISTRY_SIZE = 5
 
 _unknown_pair = set(PAIR_CHART) - set(REGISTRY)
 if _unknown_pair:
@@ -318,6 +318,13 @@ def main():
                         _ci(M_midcap50 / "v2FINAL_params.json"),
                         _ci(M_midcap50 / "daily_trades_midcap50.csv"),
                         _ci(M_midcap50 / "daily_trades_v1_midcap50.csv"))
+    # midcap100, ADDED 2026-09-19. WRITTEN OUT, NOT LOOPED, for the reason above.
+    if "midcap100" in tags:
+        M_midcap100 = REGISTRY["midcap100"].metrics_dir
+        FILES["midcap100"] = (_ci(M_midcap100 / "v2FINAL_equity.csv"),
+                        _ci(M_midcap100 / "v2FINAL_params.json"),
+                        _ci(M_midcap100 / "daily_trades_midcap100.csv"),
+                        _ci(M_midcap100 / "daily_trades_v1_midcap100.csv"))
     # LOADED ONCE, PLOTTED POSSIBLY TWICE. The published n100+mid pair chart is
     # drawn from the SAME rows as the N-way chart when both are produced, so the
     # two figures cannot disagree about a number.

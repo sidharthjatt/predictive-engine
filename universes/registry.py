@@ -1212,10 +1212,173 @@ _MC50 = Universe(
 )
 
 
+# midcap100 IS APPENDED, NEVER INSERTED, same constraint as every row above it.
+_MC100_SOURCE = _WITHOUT_SURV / "Final_NIFTYMidCap100_EoD_Data"
+_MC100_LINKS = _RAW / "MidCap100_constituents"
+_MC100_METRICS = ROOT / "results_midcap100" / "metrics"
+# THE SUPPLIER SHOUTS THIS ONE TOO: "NIFTY MIDCAP 100.csv".
+_MC100_INDEX = "NIFTY MIDCAP 100"
+
+_MC100 = Universe(
+        tag="midcap100", label="MidCap100 (98 constituents)",
+        data_dir=_MC100_LINKS,
+        raw_data_dir=_MC100_SOURCE,
+        # midcap100's OWN NUMBERS, MEASURED 2026-09-19 by reading the first
+        # dated row of all 98 constituent files. NOT midcap50's paragraph with
+        # the count changed: THE LATE-LISTER RATE HERE IS THE HIGHEST OF THE
+        # FIVE, 21.4% against midcap50's 16.3% and nifty50's 8.0%, and a reader
+        # handed either of those for this panel is being told the bias is
+        # roughly half what it is.
+        survivorship=(
+            "STATIC. 98 names are TODAY'S Nifty MidCap 100 members backfilled "
+            "to 2019-01-01. Names dropped or delisted during the window are "
+            "absent entirely, so both the strategy and its equal-weight "
+            "buy&hold are inflated. 21 OF THE 98 did not exist at "
+            "BT_START_DATE -- RVNL (2019-04-11), POLYCAB (2019-04-16), "
+            "KPITTECH (2019-04-22), 360ONE (2019-09-19), IRCTC (2019-10-14), "
+            "PATANJALI (2020-01-27), SBICARD (2020-03-16), POWERINDIA "
+            "(2020-03-30), KALYANKJIL (2021-03-26), NYKAA (2021-11-10), "
+            "POLICYBZR (2021-11-15), PAYTM (2021-11-18), MANKIND (2023-05-09), "
+            "IREDA (2023-11-29), PREMIERENE (2024-09-03), WAAREEENER "
+            "(2024-10-28), SWIGGY (2024-11-13), VMM (2024-12-18), LGEINDIA "
+            "(2025-10-14), LENSKART (2025-11-10) and GROWW (2025-11-12) -- "
+            "which is 21.4% of the universe, THE HIGHEST RATE OF THE FIVE "
+            "UNIVERSES WIRED. The published Nifty MidCap 100 index line is "
+            "cap-weighted and is NOT survivorship-biased. Source: "
+            "data/raw/Final_Without_Survivorship_Data/"
+            "Final_NIFTYMidCap100_EoD_Data."),
+        symbol_list=_constituents(_MC100_SOURCE, _MC100_INDEX),
+        metrics_dir=_MC100_METRICS,
+        score_tmp=Path("/tmp/v_midcap100_expanding.csv"),
+        score_cache=_MC100_METRICS / "v_midcap100_expanding_cache.csv",
+        raw_tmp=Path(f"/tmp/raw_panel_midcap100_{HORIZON}.csv"),
+        raw_cache=_MC100_METRICS / "raw_panel_midcap100_cache.csv",
+        nautilus_scores="scores_midcap100.parquet",
+        nautilus_end=str(config.BT_END_DATE.date()),
+        purge_mode="trading",
+        index_name=_MC100_INDEX,
+        # THE PUBLISHED CAP-WEIGHTED INDEX. Benchmark only, never a tradable
+        # name. NO BASE VALUE IS CLAIMED: the file begins 01-01-2001, a
+        # mid-series value, so like midcap50's row there is no base-date
+        # reading here to check a methodology against. 6,362 rows,
+        # 01-01-2001..06-08-2026.
+        index_file=_MC100_SOURCE / f"{_MC100_INDEX}.csv",
+        year_range=None, date_range=(config.BT_START_DATE, config.BT_END_DATE),
+        display_name="NIFTY MIDCAP 100",
+        # MEASURED, NOT PICKED, AND IT DOES NOT CLEAR dE 10 -- WHICH IS THE
+        # FINDING, NOT A COMPROMISE. Full method, both candidate tuples and the
+        # rejection are in diagnostics/palette_ceiling.txt.
+        #
+        # THE CEILING IS dE2000 = 8.712634, binary searched to 1e-4 inside the
+        # readable band L* 30-72, against all 24 existing slots AND against
+        # each other, under normal vision, deuteranopia and protanopia (Vienot
+        # 1999). dE 10 IS NOT ACHIEVABLE IN THE BAND AT ALL: of the colours
+        # that clear 10 against the 24, ZERO lie in L* 30-72; on a step-4 grid
+        # exactly four in-band colours clear it and all four are the same olive
+        # green, mutually closer than 10. Largest separated subset: 1. Six are
+        # needed.
+        #
+        # WORST PAIRS FOR THIS TUPLE: 10.449 normal (midcap100/5 vs
+        # nifty100/0), 8.849 deutan (midcap100/2 vs midcap150/4), 8.713 protan
+        # (midcap100/4 vs nifty50/3).
+        #
+        # AND 8.713 IS 2.7x BETTER THAN WHAT ALREADY SHIPS. Five WITHIN-universe
+        # pairs are below 10 today, the worst at dE 3.26 (nifty100/v1 vs
+        # nifty100/v3, deutan), and all five co-appear under `--arm all`. The
+        # "every pair clears 10" sentence that used to sit on midcap50's row was
+        # false when written; it is corrected there.
+        #
+        # THE BAND IS THE REQUIREMENT AND dE IS THE PROXY, so the band was not
+        # left. A tuple clearing dE 10 exists outside it -- four of its six
+        # colours near-white, L* 5 to 95 -- and was rejected, as was a
+        # normal-vision-only optimum at T = 20.655653 whose deutan collision is
+        # 2.560, WORSE than anything shipping. Optimising on the vision that is
+        # not binding produces a number, not a ceiling.
+        chart_colours=("#5c804c", "#d89094", "#a05464", "#fc606c",
+                       "#2c503c", "#9c2000"),
+        # midcap100's OWN CHURN. A 100-name midcap index sits between the
+        # MidCap 50 and the MidCap 150 in turnover, and like both it loses names
+        # in BOTH directions -- promoted up into the large-cap indices and
+        # demoted down into smallcap. No direction is claimed.
+        #
+        # NO NUMBER IS CLAIMED FOR THE SIZE OF THE BIAS, by the rule every row
+        # above follows: nothing has been measured on this panel, and the
+        # 21.4% late-lister rate is a COMPOSITION figure, not a correction.
+        churn_note=(
+            "More important than the late listers: companies that LEFT the Nifty\n"
+            "MidCap 100 between 2019 and 2026 are absent from this file entirely.\n"
+            "The index loses names in BOTH directions -- promoted upward into the\n"
+            "large-cap indices, and demoted downward into smallcap -- so the sign\n"
+            "of this bias is not known, let alone its size. NOTHING HAS BEEN\n"
+            "MEASURED FOR THIS UNIVERSE. Its 21.4% late-lister rate is the highest\n"
+            "of the five and is a statement about composition, NOT a correction to\n"
+            "apply. The equal-weight buy&hold line is a portfolio nobody could have\n"
+            "held, and is NOT achievable."),
+        # NOT MEASURED. None is the declaration, not a hole.
+        liquidity_note=None,
+        # NOT MEASURED, and a STRING rather than a dict, by the rule n100, n50
+        # and midcap50 follow: the type tells a measured universe from an
+        # unmeasured one.
+        validation_status=("not measured on this universe. No seed-robustness, "
+                           "sub-period, shuffle or top-N work has been run here, "
+                           "and none of the validations on record was run on "
+                           "these 98 names."),
+        engine_params_keys=(
+            "universe", "model", "sizing", "exposure", "top_n", "buffer",
+            "rebalance_days", "avg_exposure_pct", "n_symbols", "sharpe",
+            "maxdd_pct", "cagr_pct", "cash_yield", "survivorship", "vs_buyhold",
+            "validation_status"),
+        # KEY SET AND ORDER FOLLOW n100's, as every row above does.
+        engine_params_static={
+            "universe": "Nifty MidCap 100 (98 constituents, "
+                        "'NIFTY MIDCAP 100.csv' excluded by name)",
+        },
+        engine_text={
+            "banner": "ENGINE v2 FINAL -- Nifty MidCap 100 universe (98 names, "
+                      "index excluded by name)",
+            "panel_what": "Nifty MidCap 100 score panel",
+            "bh_label": "Equal-weight buy & hold (Nifty MidCap 100, 98 names)",
+            "chart_title": ("Nifty MidCap 100 universe -- ranking + inverse-vol + "
+                            "breadth-scaled exposure\n"),
+            "assert_index_absent": True,
+        },
+        chart_text={
+            "stem": "chart_midcap100",
+            # THE LAST DATE THIS UNIVERSE'S INDEX FILE CARRIES, read off the
+            # file: "NIFTY MIDCAP 100.csv" ends 06-08-2026, with the other six.
+            "index_window_end": "2026-08-06",
+            "dpi": 150,
+            "legend_fontsize": 8.5,
+            "rule_width": 100,
+            "bh_not_investable": False,
+            "diagnostics": False,
+            "dd_label": lambda lab, mn: f"{lab.split('  [')[0]} (max {mn:.1f}%)",
+            "subtitle": lambda v: (
+                f"Nifty MidCap 100 universe ({v['n_all']} constituents, index "
+                f"excluded by name)  |  v2 holds {v['inv']}% invested on average"
+                f"  |  ALL NUMBERS AFTER TC (Zerodha + 0.15% slippage)\n"
+                f"Benchmarks: {v['index_name']} is the published CAP-WEIGHTED "
+                f"index (investable, and NOT survivorship-biased). Equal-weight "
+                f"buy&hold is the universe, and is NOT investable.\n"
+                f"SURVIVORSHIP: these {v['n_all']} are TODAY'S index members "
+                f"backfilled to 2019, and 21 of them did not exist at the start "
+                f"-- 21.4%, the HIGHEST rate of the five\nuniverses wired. Names "
+                f"dropped from the MidCap 100 during the window are absent "
+                f"entirely, in BOTH directions, so the sign of the bias is not "
+                f"known. Do not read that buy&hold as achievable.\n"
+                # THE TRAILING NEWLINE IS LOAD-BEARING -- see midcap50's row for
+                # what it looked like when it was missing.
+                "NOTHING ON THIS UNIVERSE HAS BEEN VALIDATED. No seed, "
+                "sub-period, shuffle or top-N work has been run on these 98 "
+                "names.\n"),
+        },
+)
+
+
 # midcap50 IS APPENDED, NEVER INSERTED, for the reason n50's line gives: mid,
 # n100 and n50 keep positions 0, 1 and 2 and every caller relying on declaration
 # order sees what it saw before.
-REGISTRY = {u.tag: u for u in (_MID, _N100, _N50, _MC50)}
+REGISTRY = {u.tag: u for u in (_MID, _N100, _N50, _MC50, _MC100)}
 
 # THE METRICS DIRECTORY IS CREATED AT IMPORT, exactly as config_mid.py and
 # config_n100.py did with METRICS_DIR.mkdir(parents=True, exist_ok=True) at module
@@ -1258,7 +1421,7 @@ LIVE = list(REGISTRY.values())
 # from every combined report, which is why report_order() raises on one instead.
 # n50 SITS NEXT TO n100 BECAUSE IT IS A SUBSET OF IT, so the two large-cap
 # lines are adjacent in every combined report rather than separated by mid.
-REPORT_ORDER = ("nifty100", "nifty50", "midcap150", "midcap50", "58", "74")
+REPORT_ORDER = ("nifty100", "nifty50", "midcap150", "midcap100", "midcap50", "58", "74")
 
 
 # ---------------------------------------------------------------------------
