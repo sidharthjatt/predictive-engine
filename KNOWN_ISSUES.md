@@ -44,6 +44,107 @@ table into the second is reading a two-benchmark artefact as a result. The two
 columns were never comparable, including before the tax work named the
 difference.
 
+## THE EIGHT-UNIVERSE READ, 2026-09-20 -- n = 8 of 8, and what that does and does not discharge
+
+All eight supplier folders on disk are wired and run. Recorded 2026-09-20.
+
+**PROVISIONAL-UNTIL-EIGHT IS DISCHARGED FOR THE UNIVERSES ON DISK, AND FOR
+NOTHING ELSE.** The standing rule in the class entry below has applied to every
+cross-universe claim here since 2026-09-19. It is satisfied as of 2026-09-20:
+there is no ninth supplier folder, so no further universe can arrive and
+falsify a count. That is the only thing it discharges.
+
+**IT DOES NOT MAKE ANY OF THE BELOW A PROPERTY.** As of 2026-09-20, on these
+eight universes: each has had EXACTLY ONE RUN, at cadence 20, `--profile
+research`. There is NO ERROR BAR on any figure below. No seed-noise band has
+been measured on any of the eight. No accept rule was pre-registered for the
+tax comparison. Eight measurements with n = 1 each is eight measurements, and a
+count over them is a count.
+
+### 1. SIGN -- two of eight cross zero under tax, as measured 2026-09-20
+
+Gaps are v2 minus **bh_lots**, the equal-rupee basket, never `bh published`.
+
+| universe | gap before tax | gap after tax | TAX_COST_OF_TURNOVER | crosses? | late listers |
+|---|--:|--:|--:|---|--:|
+| nifty500 | +4.7050 | +1.9230 | -2.7819 | no | 137/495 = 27.7% |
+| midcap150 | +4.2438 | +1.6633 | -2.5805 | no | 36/148 = 24.3% |
+| nifty200 | +3.5752 | +1.1994 | -2.3757 | no | 32/197 = 16.2% |
+| **smallcap250** | **+2.0294** | **-0.6453** | **-2.6747** | **YES** | 90/248 = 36.3% |
+| **midcap100** | **+1.0392** | **-1.2280** | **-2.2672** | **YES** | 21/98 = 21.4% |
+| nifty100 | -4.3710 | -5.5188 | -1.1478 | no | 11/99 = 11.1% |
+| midcap50 | -4.5592 | -5.9713 | WITHHELD | no | 8/49 = 16.3% |
+| nifty50 | -5.7221 | -6.1598 | -0.4377 | no | 4/50 = 8.0% |
+
+**What these eight rows show, as of 2026-09-20:** two of the eight have a
+positive gap before tax and a negative gap after it. Three have a positive gap
+on both sides. Three have a negative gap on both sides. Tax moved every one of
+the eight gaps in the same direction, against v2.
+
+**NO RELATION BETWEEN LATE LISTING AND CROSSING IS ASSERTED HERE, AND THE TABLE
+IS ORDERED SO THE TEMPTATION IS VISIBLE RATHER THAN HIDDEN.** nifty500 is 27.7%
+and does not cross; smallcap250 is 36.3% and does; midcap100 is 21.4% and does;
+midcap150 is 24.3% and does not. The late-lister column is beside the gaps
+because a reader will want it, not because it explains them. **Nothing was
+regressed and nothing should be read as ordered.**
+
+**BOTH CROSSINGS ARE SMALL.** -1.2280 and -0.6453. This project has previously
+shown seed choice to move measurements of this kind by amounts that cover
+differences of this size, and no seed-noise band has been measured on either
+universe. A crossing of -0.65 is not distinguishable, on the evidence here,
+from a gap of zero.
+
+**midcap50's cost is WITHHELD, not missing.** Its bh_lots basket is 12.4% one
+name against an 11.62% limit. The gap columns are arithmetic and are shown; the
+cost is not, because the benchmark it would be differenced against was
+rejected.
+
+### 2. COST -- linear in panel rows, as measured 2026-09-20
+
+**30.592 min per million panel rows, intercept +0.37 min.** Fitted on two
+universes (0.38M and 0.85M rows) and tested on two more:
+
+| universe | symbols | panel rows | scoring | rows/min | model error |
+|---|--:|--:|--:|--:|--:|
+| midcap100 | 98 | 383,486 | 12.1 min | 31,693 | fitted |
+| nifty200 | 197 | 854,197 | 26.5 min | 32,234 | fitted |
+| smallcap250 | 248 | 798,981 | 23.5 min | 33,999 | -5.2% |
+| nifty500 | 495 | 1,834,542 | 57.5 min | 31,905 | +1.8% |
+
+Held to **1.8% at 1.83M rows, 2.2x the largest point it was fitted on**.
+rows/min spans **31,693 to 33,999** across a **4.8x** span in panel size.
+
+**SYMBOL COUNT IS NOT THE VARIABLE, and two models built on it failed** -- a
+fixed-cost reading and an `n^1.123` superlinear reading, in that order. See the
+entry above. smallcap250 has 26% more symbols than nifty200 and scored 3
+minutes faster, which no model in symbols can produce.
+
+**NO CURVATURE TERM IS ADDED ON 1.8%.** The nifty500 miss is HIGH, which is the
+direction a small superlinearity would give and also the size of ordinary
+machine noise. Four points cannot separate those. Adding a term to fit 1.8% is
+what produced `n^1.123`.
+
+### 3. PALETTE -- four points, both decrement sequences flattening, measured 2026-09-19/20
+
+| existing slots | best single in-band | T (6-tuple) | universe added |
+|--:|--:|--:|---|
+| 24 | 10.2452 | 8.712634 | midcap100 |
+| 30 | 8.5514 | 7.484141 | nifty200 |
+| 36 | 7.2555 | 6.801402 | smallcap250 |
+| 42 | 6.5910 | 6.136133 | nifty500 |
+
+T decrements -1.2285, -0.6827, -0.6653; single-colour -1.6938, -1.2959,
+-0.6645. **Both flattened rather than accelerating**, so **the readable band was
+not exhausted at eight universes**. A linear projection off the first two T
+points would have said about 5.6 for the eighth and understated it by half a
+point.
+
+**nifty500's worst pair is 6.136 and that is 1.9x the worst pair the repository
+already ships.** THE REAL WORST PAIR REMAINS 3.26 -- nifty100/v1 vs
+nifty100/v3, under deuteranopia, a within-universe pair that has shipped
+throughout. Every palette searched since 2026-09-19 clears a threshold the
+incumbent tuples do not.
+
 ## build_scores was modelled on symbol count, and the third universe broke it by 31%
 
 Found 2026-09-19, when smallcap250 ran. Open only as a record -- the model is
