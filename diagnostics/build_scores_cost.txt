@@ -1,0 +1,45 @@
+BUILD_SCORES COST -- the scaling, and a prediction recorded before it is tested
+===============================================================================
+Written 2026-09-19, after nifty200 and BEFORE smallcap250 is run.
+
+MEASURED POINTS. The [2/2] monthly-scoring stage of build_scores.py, the slow
+part of a universe's first run, on this machine, 10-seed ensemble:
+
+    universe      constituents   scoring
+    midcap100          98         12.1 min
+    nifty200          197         26.5 min
+
+A CORRECTION TO COMMIT 615e257, WHICH GOT THE CAUSE BACKWARDS. nifty200 was
+estimated at 24.4 min by scaling midcap100's 12.1 by the 2.01x symbol count,
+and came in at 26.5 -- 9% over. That commit said "the shortfall is in the fixed
+cost the linear model ignored".
+
+THAT IS BACKWARDS. A positive fixed cost makes scaling SUB-linear: the overhead
+is amortised over more symbols, so doubling the symbols less than doubles the
+time. nifty200 came in ABOVE proportional, which is the opposite. The cause is
+mild SUPERLINEARITY -- cost per symbol rises with n -- not an intercept.
+
+    two-point linear   0.14545 min/symbol, intercept -2.15 min
+    power law          cost ~ n^1.123
+
+THE NEGATIVE INTERCEPT IS THE SIGNATURE, NOT A REAL COST. Nothing takes minus
+two minutes. A linear fit forced through two superlinear points tilts its
+intercept below zero to compensate, and reading that as "fixed overhead" is how
+the wrong explanation was reached the first time.
+
+THE PREDICTION, RECORDED BEFORE THE RUN SO IT IS A TEST AND NOT A FIT:
+
+    smallcap250   249 constituents
+        linear  33.9 min       power  34.3 min       total run ~38 min
+
+    nifty500      495 constituents
+        linear  69.8 min       power  74.6 min
+
+BOTH FITS AGREE AT smallcap250 AND DIVERGE AT nifty500 -- 70 against 75, a 7%
+spread. So smallcap250 is the THIRD POINT THAT PICKS BETWEEN THEM, and it can
+only do that if the prediction is written down first. Two points cannot
+distinguish a line from a power law; three can.
+
+WHAT WOULD FALSIFY THE SUPERLINEAR READING: smallcap250 coming in materially
+BELOW 33.9 min. That is what a real fixed cost would look like, and it would
+mean the two-point fit was noise rather than curvature.
