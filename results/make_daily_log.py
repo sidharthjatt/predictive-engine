@@ -236,6 +236,70 @@ def missing_trail(M, tag):
     return [f for f in TRAIL_FILES if not (Path(M) / f"{f}_{tag}.csv").exists()]
 
 
+def tax_due_by_date(summary_dates, trades):
+    """{date: rupees} the engine deducted from cash, or {} when tax is off.
+
+    WHY THIS EXISTS. Section [B]'s cash identity was written before the tax axis
+    and reads
+        opening + yield + sales - purchases - fees = closing
+    which is the whole of the engine's cash movement UNDER tax=off and is short
+    one term under tax=on. test_exposure.backtest_exposure does
+    `cash -= ledger.due_on(dt)` on each assessment date, so on those six-or-so
+    days the recorded closing cash is legitimately BELOW what this identity
+    predicts. The log then reported "*** FAIL ***" on correct data and closed
+    with "VERDICT: some days failed" -- on every taxed run, of every universe,
+    of every arm. THE DATA WAS NEVER WRONG; THE IDENTITY WAS INCOMPLETE.
+
+    THE RUPEES ARE NOT RECONSTRUCTED HERE AND NO TAX ARITHMETIC IS REPEATED.
+    tax_util.Ledger is the class the engine itself uses, `due_on` is the method
+    the engine itself calls, and this replays the run's own filled trades
+    through it in the run's own order -- SELLs then BUYs, and `due_on(d)` asked
+    BEFORE the day's fills, exactly as touch point 6 orders them. Reimplementing
+    FIFO lot matching, bucket netting, the exemption or the rate schedule in
+    this file would be a second copy of results/tax_util.py that could drift
+    from the first, which is the defect this repository keeps finding.
+
+    NOT READ FROM FY_TAX_STATEMENT, and the reason is coverage rather than
+    taste: that artefact is written once per universe, for the v2 tag only, and
+    this log is built for FOUR arms per universe. Three of the four would have
+    had no source. The skipped-order trail does carry a per-arm "TAX" row, but
+    its rupees are a formatted string rounded to paise -- parsing a rendered
+    number back out is reconstruction of the worst kind.
+
+    VERIFIED AGAINST THE ENGINE, not asserted: the amounts this returns were
+    compared with the TAX rows the engine wrote into daily_skipped_<tag>.csv
+    across all 32 taxed (universe, arm) trails on 2026-09-20 -- 32 tags, 0
+    mismatches, agreeing to the paisa on every assessment date.
+
+    RETURNS {} WHEN THE TAX AXIS IS OFF, which is what keeps every untaxed log
+    byte-identical: no term is subtracted, no line is printed, and the caller
+    takes the same branch it always took.
+    """
+    import tax as _taxaxis
+    if not _taxaxis.selected():
+        return {}
+    from tax_util import Ledger, fy_label
+    led = Ledger(summary_dates)
+    tg = {d: g for d, g in trades.groupby("date")}
+    due, label = {}, {}
+    for d in summary_dates:
+        owed = led.due_on(d)
+        if owed:
+            due[d] = owed
+            label[d] = ", ".join(fy_label(f) for f in led.assess_on.get(pd.Timestamp(d), []))
+        g = tg.get(d)
+        if g is None:
+            continue
+        # SELLs BEFORE BUYs, because the engine fills them in that order and a
+        # same-day buy-then-sell of one symbol would otherwise match the wrong
+        # lot and bucket the gain into the wrong holding period.
+        for _, o in g[g.action == "SELL"].iterrows():
+            led.sell(o["symbol"], int(o["qty"]), float(o["price"]), d)
+        for _, o in g[g.action == "BUY"].iterrows():
+            led.buy(o["symbol"], int(o["qty"]), float(o["price"]), d)
+    return {"due": due, "label": label}
+
+
 def build(mdir, tag, arm, raw_idx=None, cal_sorted=None):
     """One forensic log for one already-written audit trail, named by `tag`.
 
@@ -345,6 +409,11 @@ def build(mdir, tag, arm, raw_idx=None, cal_sorted=None):
          f" Survivorship    : {sv.describe_state()}",
          "=" * W, legend_for(arm), "=" * W]
 
+    # THE MISSING TERM IN THE CASH IDENTITY. Empty dict under tax=off.
+    _tx = tax_due_by_date(all_days, t)
+    tax_due = _tx.get("due", {}) if _tx else {}
+    tax_fy = _tx.get("label", {}) if _tx else {}
+
     ok_cash = ok_eq = ok_sh = 0
     ok_ref = n_ref = 0
     n_stale_fill = n_stale_hold = n_hold_rows = 0
@@ -448,7 +517,8 @@ def build(mdir, tag, arm, raw_idx=None, cal_sorted=None):
         yield_amt = prev_cash * CASH_DAILY
         sell_v = float(g[g.action == "SELL"]["value"].sum()) if is_exe else 0.0
         buy_v = float(g[g.action == "BUY"]["value"].sum()) if is_exe else 0.0
-        exp_cash = prev_cash + yield_amt + sell_v - buy_v - fees_today
+        tax_today = float(tax_due.get(d, 0.0))
+        exp_cash = prev_cash + yield_amt + sell_v - buy_v - fees_today - tax_today
         d_cash, d_eq = exp_cash - cash, (cash + mtm) - total
 
         hh = hg.get(d)
@@ -477,9 +547,19 @@ def build(mdir, tag, arm, raw_idx=None, cal_sorted=None):
         L.append("  >>> [B] RECONCILIATION       (does the arithmetic tie out)")
         L.append(f'      CASH    opening Rs {prev_cash:>14,.2f}  + yield {yield_amt:>9,.2f}'
                  f'  + sales {sell_v:>12,.2f}')
-        L.append(f'              - purchases {buy_v:>12,.2f}  - fees {fees_today:>12,.2f}'
-                 f'  (BUY {buy_fees_today:,.2f} + SELL {sell_fees_today:,.2f})'
-                 f'  = Rs {exp_cash:>14,.2f}')
+        if tax_today:
+            # THE TOTAL MOVES TO THE TAX LINE so that "= Rs <exp_cash>" is never
+            # printed beside a subtotal that has not had the tax taken out yet.
+            L.append(f'              - purchases {buy_v:>12,.2f}  - fees {fees_today:>12,.2f}'
+                     f'  (BUY {buy_fees_today:,.2f} + SELL {sell_fees_today:,.2f})')
+            L.append(f'              - capital-gains tax {tax_today:>12,.2f}'
+                     f'  ({tax_fy.get(d, "")} assessed today, section 3(9): one lump'
+                     f' sum, before this day\'s fills)'
+                     f'  = Rs {exp_cash:>14,.2f}')
+        else:
+            L.append(f'              - purchases {buy_v:>12,.2f}  - fees {fees_today:>12,.2f}'
+                     f'  (BUY {buy_fees_today:,.2f} + SELL {sell_fees_today:,.2f})'
+                     f'  = Rs {exp_cash:>14,.2f}')
         L.append(f'              recorded Rs {cash:>14,.2f}   |   difference Rs {d_cash:+.2f}   '
                  f'{"OK" if c_ok else "*** FAIL ***"}')
         L.append(f'      EQUITY  cash {cash:>14,.2f}  + holdings {mtm:>14,.2f}'
@@ -621,7 +701,14 @@ def build(mdir, tag, arm, raw_idx=None, cal_sorted=None):
     L += ["", "=" * W,
           " VERIFICATION SUMMARY -- arithmetic checks across the whole file",
           "=" * W,
-          f"   trading days checked        : {n:,}",
+          f"   trading days checked        : {n:,}",] + ([] if not tax_due else [
+          # ONLY UNDER tax=on, so every untaxed log is byte-identical to the one
+          # this file produced before the tax term existed.
+          f"   TAX deducted (section 3(9)) : {len(tax_due):,} assessment day(s),"
+          f" Rs {sum(tax_due.values()):,.2f} total",
+          f"   {'':<28}  these days are IN the cash identity above, not exempted"
+          f" from it",
+    ]) + [
           f"   CASH identity passed        : {ok_cash:,} / {n:,}"
           f"   {'OK' if ok_cash == n else '*** FAIL ***'}",
           f"   EQUITY identity passed      : {ok_eq:,} / {n:,}"
