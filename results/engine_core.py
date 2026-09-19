@@ -250,10 +250,26 @@ def _check_calendar(cal, panel, tag=""):
 
       RANGE   -- the calendar must span the panel's own range. Catches truncation.
       DENSITY -- every date the filter removes must be THIN, i.e. carry fewer
-                 symbols than the panel's own median day. A phantom holiday shows
-                 ~32 of 148 mid symbols against a median of ~96, so it passes;
-                 a genuine session wrongly dropped would be at full density and
-                 fires the assertion.
+                 symbols than a normal day OF ITS OWN YEAR. A phantom holiday
+                 shows ~32 of 148 mid symbols against that year's ~96, so it
+                 passes; a genuine session wrongly dropped would be AT FULL
+                 DENSITY FOR ITS OWN ERA and fires the assertion.
+
+    "FULL DENSITY" WAS UNQUALIFIED UNTIL 2026-09-19, AND THE OMISSION WAS THE
+    WHOLE DEFECT. Full against what was never stated. The code compared against
+    the median of the panel's ENTIRE history, 2000-2026, which is a good proxy
+    for "a normal day" only while a panel's density is roughly flat across that
+    span. smallcap250's is not: 125 symbols is its 26-year median and 237 is its
+    2025 median, because most of its 248 names did not exist for most of those
+    years. Twenty-three phantom holidays carrying 125-142 symbols cleared the
+    26-year median and aborted the run, while sitting at 0.53-0.60 of their own
+    era. The threshold is per-year now, and the sentence above says which.
+
+    THIS IS A LOOSENING. Measured over seven universes on 2026-09-19, the
+    per-year rule flags a SUBSET of what the global rule flagged -- it passes
+    exactly those 23 dates and changes nothing else anywhere. It is not tighter
+    and is not a correction of an unsound test; it is a deliberately weaker test
+    with measured margin behind it. See KNOWN_ISSUES.md for the margin.
 
     The literal check "calendar covers fewer days than the panel" is deliberately
     NOT used: the mid panel legitimately holds 6,810 dates against the calendar's
@@ -268,14 +284,23 @@ def _check_calendar(cal, panel, tag=""):
             f"trading calendar does not span the {tag} panel: calendar "
             f"{cmin.date()}..{cmax.date()} vs panel {pmin.date()}..{pmax.date()}")
     per_date = panel.groupby("date")["symbol"].nunique()
-    median = per_date.median()
+    # PER-YEAR, NOT GLOBAL. A year with no dates cannot be indexed, so the
+    # global median remains the fallback for a date whose year is somehow
+    # absent -- which cannot happen for a date drawn from this panel, and is
+    # written anyway rather than left to raise a KeyError inside a guard.
+    era = per_date.groupby(per_date.index.year).median()
+    gmed = per_date.median()
     removed = sorted(set(panel["date"].unique()) - cal)
-    dense = [d for d in removed if per_date.get(d, 0) >= median]
+    dense = [d for d in removed
+             if per_date.get(d, 0) >= era.get(d.year, gmed)]
     if dense:
+        worst = max(dense, key=lambda d: per_date.get(d, 0) / era.get(d.year, gmed))
         raise AssertionError(
-            f"trading calendar would remove {len(dense)} FULL-DENSITY date(s) from the "
-            f"{tag} panel (>= median {median:.0f} symbols), e.g. "
-            f"{[str(d.date()) for d in dense[:5]]}. The calendar is wrong or the 58 "
+            f"trading calendar would remove {len(dense)} date(s) from the {tag} "
+            f"panel that are AT FULL DENSITY FOR THEIR OWN YEAR, e.g. "
+            f"{[str(d.date()) for d in dense[:5]]}. Worst is {worst.date()} at "
+            f"{per_date.get(worst, 0):.0f} symbols against a {worst.year} median "
+            f"of {era.get(worst.year, gmed):.0f}. The calendar is wrong or the 58 "
             f"universe it derives from has changed. Refusing to filter.")
     return removed
 
