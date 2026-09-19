@@ -2630,6 +2630,23 @@ just been applied to the other four.** It is referenced twice:
 named regeneration path for a cited hash artefact, the exact pattern the table
 above documents. It was tracked in git and was restored intact.
 
+**AND THEN IT WAS DELETED ON PURPOSE. THE SECOND HALF, ADDED 2026-09-20, BECAUSE
+THE PARAGRAPH ABOVE ENDS AT "restored intact" AND READS AS THOUGH THE FILE IS
+STILL THERE.** It is not. `results/hash_58_engine_core.py` was restored on
+2026-09-03, and deleted on 2026-09-11 in commit `aafe6cb` -- "Delete eight scripts
+the retirement left with nothing to run on" -- with the reason stated there:
+*"hashes the 58's equity curve; the panel is gone"*. The 58, its raw files and its
+cache went the same day in `2fe48ff`, so the script had nothing left to hash.
+
+**THAT IS NOT THE ERROR REPEATING ITSELF.** The 2026-09-03 deletion failed the
+four-test procedure -- the file was cited, and the citation was a live
+regeneration path. By 2026-09-11 the *artefact* it regenerated had become
+unregenerable for a reason that had nothing to do with the script, so the
+citation was history rather than an instruction. `diagnostics/leakage_labels_hashes.txt`
+now says so at the point of citation, and the hashes it carries were not deleted.
+The lesson below is unchanged and is the reason this half is recorded rather than
+left for someone to rediscover.
+
 **THE LESSON IS NOT "BE MORE CAREFUL".** It is that the check must be mechanical
 and applied to every candidate without exception, because the one file exempted by
 judgement was the one that failed. Recorded here so the next cleanup runs the check

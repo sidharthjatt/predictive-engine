@@ -23,12 +23,25 @@ WHY A PROOF IS REQUIRED
 METHOD
     SHA256 over the raw float64 bytes of the equity curve returned by
     engine_core.backtest on the 58 panel, frozen year window, both sizing arms.
-    Regenerate with:
+    Produced on 2026-08-29 by:
 
         ./venv/bin/python results/hash_58_engine_core.py
 
+    THAT LINE IS HISTORY, NOT AN INSTRUCTION. DO NOT TRY TO RUN IT.
+    results/hash_58_engine_core.py was deleted on 2026-09-11 in commit aafe6cb,
+    with seven other scripts the 58's retirement left with nothing to run on.
+    The reason is in that commit: the script hashes the 58's equity curve and
+    the 58 panel is gone -- the universe, its raw files and its cache were all
+    deleted on 2026-09-11 in 2fe48ff. Restoring the script would not help.
+
+    THE HASHES BELOW ARE NOT REGENERABLE AND ARE NOT BEING DELETED. They are
+    the evidence that a 2026-08-29 edit to a frozen file moved no computed
+    value, and that remains true and remains checkable by reading them. What is
+    gone is the ability to recompute them, which is a property of the 58 being
+    retired rather than a defect in this record.
+
     The system python3 has no lightgbm and cannot import engine_core. Both
-    halves of this comparison used ./venv/bin/python.
+    halves of the comparison used ./venv/bin/python.
 
 --------------------------------------------------------------------------------
 THE 58 -- engine_core.backtest, 1,842 days, frozen year window
