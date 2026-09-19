@@ -22,6 +22,28 @@ currently wrong.
 
 ---
 
+## The `b&h` column carried two different benchmarks, and the two are not comparable
+
+Found 2026-09-19, while amending the four-universe entry with tax. Open, in the
+sense that the two columns still sit in one entry and only prose separates them.
+
+`bh published` is a costless, daily-rebalanced index line and is untaxable -- it
+holds no lots, so there is nothing to assess. `bh_lots` is an equal-rupee basket
+of real lots and is the only benchmark that can be taxed. The pre-tax gaps in
+`experiments/EXPERIMENTS.md` ("THE RETURN COMPARISON -- ONE OF FOUR") are
+measured against the first; every tax gap in the same entry ("TAX_COST_OF_TURNOVER"
+and "WHAT TAX DOES TO THE EARLIER FINDING") is measured against the second.
+midcap150's pre-tax gap is +2.34 on one and +4.24 on the other -- the same run,
+1.91 points apart, all of it the benchmark swap.
+
+**The spread does not hold a sign, so it cannot be corrected for by a constant
+or by intuition:** midcap50's equal-rupee basket BEATS its index line (25.97 vs
+24.34) while the other three do not (midcap150 23.55 vs 25.46, nifty100 23.38 vs
+24.16, nifty50 19.62 vs 20.67). A reader who carries a number from the first
+table into the second is reading a two-benchmark artefact as a result. The two
+columns were never comparable, including before the tax work named the
+difference.
+
 ## The strategy sells return to buy drawdown, and the record reports the two halves separately
 
 Found 2026-09-11, by transcribing the live figures into tracked prose for the
