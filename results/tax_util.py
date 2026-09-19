@@ -77,12 +77,14 @@ THE DOCSTRING CLAIM THAT WAS WRONG, AND WHY THE CONCLUSION SURVIVED ANYWAY
         daily_trades_n100.csv               478 lots   max hold 322 days
         daily_trades_mid_v1_tradeable.csv   426 lots   max hold 326 days
 
-    Zero lots exceed 365 days, so "100% short-term" is TRUE today -- by 39 days,
-    empirically, on this window and these arms. It is not a guarantee, and a
-    cadence change, a wider buffer or a longer window could break it silently.
+    THOSE THREE LOGS ARE HISTORICAL -- retired universes, and on them zero lots
+    exceeded 365 days. "100% short-term" was true there. IT IS NOT TRUE NOW: the
+    2026-09-18 four-universe runs put four lots past the threshold, on nifty100
+    and nifty50, and max_holding_days()' own docstring lists them. What was
+    empirical stayed empirical and then changed, which is what empirical means.
 
     So holding period is COMPUTED PER LOT and branched on, never hardcoded, and
-    max_holding_days() exists so a gate can fail loudly the day that 326 crosses
+    max_holding_days() exists so a check can fail loudly when a universe crosses
     365 rather than the long-term branch quietly beginning to fire.
 
 TWO KEYS, TWO DIFFERENT CONDITIONS, AND FY2024-25 EXERCISES BOTH AT ONCE
@@ -272,11 +274,30 @@ def closed_lots(path):
 def max_holding_days(lots):
     """The longest holding period in a lot frame, or None when it is empty.
 
-    EXISTS SO A GATE CAN WATCH THE 326-DAY CEILING. Every published figure in
-    this repository rests on the long-term branch never firing, and that is an
-    EMPIRICAL property with 39 days of headroom, not a structural one. A cadence
-    change or a wider buffer could cross it, and the failure mode is silent: the
-    long-term rate simply starts applying and every tax figure moves.
+    EXISTS SO A GATE CAN WATCH THE LTCG CEILING, AND THE CEILING HAS BEEN
+    CROSSED. This docstring used to say that every published figure in this
+    repository rests on the long-term branch never firing. That is FALSE as of
+    the four-universe runs of 2026-09-18, measured 2026-09-19:
+
+        nifty100   SOLARINDS   2022-07-20 -> 2023-10-06   443 days
+        nifty50    TATACONSUM  2019-05-30 -> 2020-08-17   445 days
+        nifty50    TRENT       2019-07-26 -> 2021-03-05   588 days
+        nifty50    TRENT       2022-08-19 -> 2023-09-06   383 days
+
+    Four lots over 365 days. All four routed to a `long_` bucket, all four taxed
+    at LTCG_RATE["old"] = 0.10 with the annual exemption applied ahead of them,
+    and FY_TAX_STATEMENT carries the resulting long_old amounts -- nifty100
+    FY2023-24 Rs 128,379.35, nifty50 FY2020-21 Rs 105,765.31 and FY2023-24
+    Rs 71,676.15. The routing was correct throughout; only the prose was wrong.
+
+    midcap150 (max 290) and midcap50 (max 322) are still entirely short-term,
+    and that is a property of those two windows, not of the pipeline.
+
+    THE FAILURE MODE THIS FUNCTION WAS WRITTEN AGAINST IS THE ONE THAT HAPPENED:
+    the branch began firing and nothing said so, because this function had no
+    caller for as long as it existed. It has one now -- check_all.py's
+    LTCG-boundary condition. Do not leave it uncalled again; an uncalled guard
+    is prose with a def in front of it.
     """
     if lots is None or lots.empty:
         return None
