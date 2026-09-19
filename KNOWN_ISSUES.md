@@ -3470,6 +3470,16 @@ the midcap150 score panel rebuilt from data/ (18.9 min), checker 42/9/0. All 36
 artefacts are midcap150-scoped and carry `_r40`, `runs/mid/v1@r40` and `v3@r40`, and no
 58, 74 or nifty100 artefact is produced at all.
 
+**`runs/mid/v1@r40` AND `v3@r40` ARE NOT ON DISK, AND WERE ALREADY NOT ON DISK
+BEFORE THE 2026-09-20 RUN-FOLDER DELETION.** Checked on 2026-09-20 before
+anything was removed: no path matching `@r40` existed anywhere in the tree, in
+any of the eleven directories deleted that day, or in
+`forensic_snapshot_20260911T0100`. **The deletion did not break this citation and
+must not be blamed for it.** The measurement above is a real record of a run that
+wrote those directories; they were cleaned up at some point that nothing recorded.
+`runs/mid/` itself survives and was deliberately not deleted -- see the note in
+`PANEL_MIGRATION.md`.
+
 **THE TWO UNSUFFIXED FILES ARE CORRECT.** `v_mid_expanding_cache.csv` and
 `raw_panel_mid_cache.csv` carry no `_r40` because the score panel does not depend
 on the rebalance cadence -- it is the model's output, and the cadence governs how
@@ -6224,10 +6234,17 @@ Recorded because each cost a lookup and three of the four are now CLOSED:
 1. **`results_MID_/metrics/daily_trades_mid_tradeable.csv`** -- **CLOSED.** It is
    inside a fenced block: verbatim captured console output. The odd casing is what
    the tool printed. A record, and it stays exactly as it is.
-2. **`mid_v3`** -- **CLOSED.** Not a file but a run/baseline stem, and it exists on
-   disk under that name: `runs/20260917T011927_mid_v3_r20`,
-   `runs/20260917T002447_mid_v3_r20`, and `pre_repoint_baseline/metrics_mid/`
-   *`_mid_v3.csv`. Old name exists, so not a candidate.
+2. **`mid_v3`** -- **CLOSED, and the claim still holds on a narrower proof.** Not
+   a file but a run/baseline stem. It existed on disk under that name in three
+   places: `runs/20260917T011927_mid_v3_r20`, `runs/20260917T002447_mid_v3_r20`,
+   and `pre_repoint_baseline/metrics_mid/`*`_mid_v3.csv`.
+   **THE TWO `runs/` DIRECTORIES WERE DELETED ON 2026-09-20** with the other nine
+   timestamped old-panel run folders. They were kept until then for exactly this
+   sentence -- they were the on-disk proof that `mid_v3` is a real stem and not a
+   typo, and that is why a cleanup on 2026-09-18 left them alone. The proof is
+   now `pre_repoint_baseline/metrics_mid/`*`_mid_v3.csv`, which is not going
+   anywhere: it is the only surviving copy of the pre-repoint figures. Old name
+   exists, so still not a candidate.
 3. **`mid_jackknife.edge`** -- **CLOSED.** Not a file extension. It is a METHOD:
    `mid_jackknife.py:50`, `def edge(drop=())`. The module exists under its old
    name; nothing to rename.
