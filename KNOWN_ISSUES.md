@@ -44,6 +44,62 @@ table into the second is reading a two-benchmark artefact as a result. The two
 columns were never comparable, including before the tax work named the
 difference.
 
+## A CLASS: written, declared to be the fix, never wired
+
+Found 2026-09-19, by noticing the third instance. Open as a class -- the
+individual instances are fixed or recorded separately; what is open is that
+nothing detects the next one.
+
+**The shape.** A function or module is written. Its docstring states, often
+forcefully, what it guards against or what it makes correct. Other prose starts
+citing it as the answer to that problem. It is never called. The problem it
+names then happens, in silence, and the silence is read as absence.
+
+It is worse than no guard at all. No guard leaves the problem visible; an
+unwired guard converts an open problem into a solved one in every document that
+mentions it, and the mention is what the next reader finds.
+
+**Three instances, all in this repository, all distinct in how far they got:**
+
+1. **`naming.py`** -- written as "the single naming authority". Its only
+   importers are `naming_declare_check.py:211` and
+   `tax_acceptance_check.py:81`. **Two checkers, no producer.** Nothing that
+   actually writes an artefact composes its name through it. Recorded in full
+   further down this file; re-verified 2026-09-18.
+
+2. **`tax.set_selection`** -- its docstring named a caller, and described the
+   axis as working. `--tax on` did not charge tax at any call site on the
+   published path until 9338a5b/21c6624 (2026-09-18): the axis renamed
+   artefacts and charged nothing, and 36 of 40 suffixed files were
+   byte-identical to their untaxed twins. Two acceptance conditions passed
+   throughout, because both compared strings.
+
+3. **`tax_util.max_holding_days`** -- written 2026-09-17 with the docstring
+   "EXISTS SO A GATE CAN WATCH THE 326-DAY CEILING ... the failure mode is
+   silent". **Zero call sites** until 2026-09-19. The ceiling was crossed on
+   2026-09-18 -- nifty50 588 days, nifty100 443, four lots past LTCG_HOLD_DAYS
+   -- and nothing said so. The routing was correct; three separate documents
+   went on asserting the branch never fires. Wired as GATE 7 in `check_all.py`
+   (b3a2c84), and demonstrated red before green, because the point of the
+   class is that nobody had ever watched these fail.
+
+**THE DETECTOR, AND IT IS GREPPABLE.** The signature is: *a function whose
+docstring states what it guards against, and which has no call site.* Both
+halves are mechanical. For every `def` in the tree, take the name, grep the
+tree for it, and subtract its own definition and its own docstring; if what
+remains is empty while the docstring contains a guard verb -- exists so, must,
+fails when, catches, guards, prevents, asserts -- it is an instance.
+
+That check does not exist yet. **This entry is the specification for it, not
+the check.** The next hand can sweep for the pattern by hand in the meantime;
+three instances in one tree is not a coincidence, and the third was found by
+accident while diagnosing something else.
+
+**What would close this:** the sweep above, wired into `check_all.py` with a
+declared baseline count in the manner of `naming_declare_check`, so that a new
+unwired guard is a growth against the baseline rather than a discovery.
+
+
 ## The strategy sells return to buy drawdown, and the record reports the two halves separately
 
 Found 2026-09-11, by transcribing the live figures into tracked prose for the
