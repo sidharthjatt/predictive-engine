@@ -1096,8 +1096,24 @@ _MC50 = Universe(
         # tightest five are midcap50/v4 vs midcap150/v1 (10.28, deutan),
         # midcap50/bh vs nifty50/ix (10.29, deutan), midcap50/v3 vs midcap150/v2
         # (10.40, deutan), midcap50/v1 vs midcap50/ix (10.48, normal) and
-        # midcap50/v3 vs midcap150/v2 (10.59, protan). NO COLLISION IS TOLERATED
-        # HERE: every pair clears dE2000 >= 10.
+        # midcap50/v3 vs midcap150/v2 (10.59, protan).
+        #
+        # THIS COMMENT USED TO END "NO COLLISION IS TOLERATED HERE: every pair
+        # clears dE2000 >= 10." THAT IS FALSE AND WAS FALSE WHEN WRITTEN.
+        # Corrected 2026-09-19. The 10.28 figure is scoped to the pairs this
+        # search covered -- CROSS-UNIVERSE pairs. Five WITHIN-universe pairs
+        # already ship below 10, and all five co-appear on one image under
+        # `--arm all`:
+        #
+        #     dE 3.26  nifty100/v1  vs nifty100/v3      dE 7.55  nifty100/v2  vs nifty100/bh
+        #     dE 4.24  midcap150/v2 vs midcap150/v1     dE 7.88  midcap150/v3 vs midcap150/ix
+        #     dE 7.35  nifty100/v4  vs nifty100/bh
+        #
+        # So the project's real worst pair is 3.26, not 10.28, and a sentence
+        # claiming otherwise made the next universe's palette look like a
+        # regression against a standard nothing actually meets. The measured
+        # ceiling for a fifth universe inside the readable band is dE 8.712634,
+        # not 10 -- see diagnostics/palette_ceiling.txt.
         #
         # THE READABLE BAND IS NOW FULL, AND THIS IS THE NUMBER TO QUOTE WHEN A
         # FIFTH UNIVERSE IS COSTED. Restricting the search to L* 30-72 -- where a
