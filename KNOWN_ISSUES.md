@@ -44,6 +44,80 @@ table into the second is reading a two-benchmark artefact as a result. The two
 columns were never comparable, including before the tax work named the
 difference.
 
+## The calendar density guard was LOOSENED on 2026-09-19, from the global median to the per-year median
+
+**This is a loosening, recorded as one.** The guard is weaker than it was. It is
+not a fix and it did not correct an unsound test.
+
+**What it does.** `engine_core._check_calendar` refuses to filter any phantom
+date that carries as many symbols as a normal day. "Normal day" was the median
+over the panel's whole history, 2000-2026; it is now the median of that date's
+own year.
+
+**What it passes.** Measured over all seven wired universes, n = 7, 2026-09-19:
+**exactly the 23 smallcap250 dates that abort today, and nothing else
+anywhere.**
+
+| universe | global med | window med | phantom | ≥global | ≥era | ≥window |
+|---|--:|--:|--:|--:|--:|--:|
+| midcap150 | 93 | 128 | 237 | 0 | 0 | 0 |
+| nifty100 | 79 | 93 | 237 | 0 | 0 | 0 |
+| nifty50 | 43 | 48 | 228 | 0 | 0 | 0 |
+| midcap50 | 33 | 46 | 237 | 0 | 0 | 0 |
+| midcap100 | 64 | 89 | 237 | 0 | 0 | 0 |
+| nifty200 | 143 | 182 | 237 | 0 | 0 | 0 |
+| **smallcap250** | **125** | **196** | 231 | **23** | **0** | **0** |
+
+`era ⊆ global` and `window ⊆ global` on every universe; `era \ global` and
+`window \ global` are EMPTY everywhere. Both alternatives are strictly looser
+or equal, never tighter. **No date is caught by the new rule that the old rule
+missed.**
+
+**Why it is defensible.** No phantom date on any universe exceeds **0.60 of its
+era**; the threshold is 1.00, so the nearest miss has **40 points of margin**:
+
+| universe | max ratio-to-era | on |
+|---|--:|---|
+| smallcap250 | 0.599 | 2025-12-25 |
+| midcap50 | 0.511 | 2024-12-25 |
+| midcap100 | 0.495 | 2025-12-25 |
+| midcap150 | 0.490 | 2025-12-25 |
+| nifty200 | 0.370 | 2025-12-25 |
+| nifty100 | 0.247 | 2025-12-25 |
+| nifty50 | 0.188 | 2023-12-25 |
+
+**The global rule's margin on smallcap250 was ZERO** -- 125 symbols against a
+threshold of 125, an exact tie. It aborted on a coin-flip.
+
+**Why the old rule misfired here.** The global median measures 26 years, most of
+which smallcap250 did not exist for. The gap between global and window median
+is a measure of how much a universe's composition changed over that span:
+
+    nifty50       43 -> 48     stable membership, tiny gap
+    smallcap250  125 -> 196    the panel more than doubles in density
+
+smallcap250's density by year: 2019 159, 2020 163, 2021 174, 2022 196,
+2023 204, 2024 220, 2025 237, 2026 248.
+
+**THE 36.3% LATE-LISTER RATE AND THIS FAILURE ARE ONE FACT.** smallcap250 is the
+first universe whose composition changes enough across 2000-2026 to decouple the
+global median from the era median, and the reason is already on its registry
+row: 90 of 248 names did not exist at BT_START_DATE, the highest rate of the
+seven. A panel that grows from 125 to 248 names has no single "normal day", and
+the old threshold assumed it did.
+
+**Verification that these are holidays and not sessions.** Union of phantom
+dates across all seven universes: **237. In the NSE calendar: 0.** All 23 of the
+flagged dates are **weekdays, Mon-Fri**, and all fall inside the calendar's span
+(latest 2026-05-28, calendar ends 2026-06-08), so they are not a tail coverage
+gap. Every one of them is partial on all seven panels at once -- 2025-12-25 runs
+0.18 nifty50, 0.25 nifty100, 0.37 nifty200, 0.49 midcap150, 0.60 smallcap250. A
+genuine session wrongly dropped would be near 1.00 somewhere; none is anywhere.
+
+**PROVISIONAL UNTIL EIGHT.** n = 7, measured 2026-09-19. nifty500 is not wired.
+Per the standing rule in the class entry below, this is a claim about seven
+universes and not a property of the guard.
+
 ## A CLASS: a correct measurement over the set in hand, phrased as a property of the thing measured
 
 Promoted to a class 2026-09-19, after the third instance in two days. Open as a
