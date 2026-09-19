@@ -4104,7 +4104,11 @@ Source: each universe's `results_<tag>/metrics/v34_comparison.csv`, read
 
 ### THE RETURN COMPARISON -- ONE OF FOUR
 
-| universe | v2 CAGR% | b&h CAGR% | **v2 - b&h** |
+Restated 2026-09-19 with the benchmark named. The `b&h` column is **`bh
+published`** -- which matters, because there are two of them. See the note that
+follows this table.
+
+| universe | v2 CAGR% | bh published CAGR% | **v2 - bh published** |
 |---|--:|--:|--:|
 | midcap150 | 27.80 | 25.46 | **+2.34** |
 | midcap50 | 21.41 | 24.34 | **-2.93** |
@@ -4112,6 +4116,136 @@ Source: each universe's `results_<tag>/metrics/v34_comparison.csv`, read
 | nifty50 | 13.90 | 20.67 | **-6.77** |
 
 **One universe's v2 beats its own equal-weight buy & hold. Three do not.**
+
+### TWO DIFFERENT BENCHMARKS, AND EVERY GAP ROW MUST NAME WHICH
+
+Added 2026-09-19. There are two buy & hold lines in this project and they are
+not the same series:
+
+- **`bh published`** -- a costless, daily-rebalanced index line. Untaxable: it
+  holds no lots, so there is nothing to assess. Reference only.
+- **`bh_lots before tax`** -- an equal-rupee basket of actual lots, untaxed. It
+  is the only benchmark that CAN be taxed, because it is the only one that owns
+  positions.
+
+| universe | bh published CAGR% | bh_lots before tax CAGR% | difference |
+|---|--:|--:|--:|
+| midcap150 | 25.46 | 23.55 | 1.91 |
+| midcap50 | 24.34 | 25.97 | -1.63 |
+| nifty100 | 24.16 | 23.38 | 0.78 |
+| nifty50 | 20.67 | 19.62 | 1.05 |
+
+**The spread does not even carry a consistent sign.** midcap50's equal-rupee
+basket beats its index line; the other three do not.
+
+**Consequence for reading this entry:** the `v2 - bh published` column above and
+the `gap_before_tax` / `gap_after_tax` rows below are measured against DIFFERENT
+benchmarks. midcap150's pre-tax gap is **+2.34 against bh published** and
+**+4.24 against bh_lots** -- the same run, 1.91 points apart, and the whole of
+that difference is the benchmark swap. A reader who takes a number from the
+first table and compares it with a number from the tax tables is reading a
+two-benchmark artefact as a result. Every row below names its benchmark for
+exactly this reason.
+
+### THE SAME COMPARISON AFTER TAX
+
+Source: each universe's `results_<tag>/metrics/TAX_TURNOVER_<tag>_tax.csv`,
+written 2026-09-19. Same four runs as above. Benchmark throughout this section
+is **bh_lots**, never bh published.
+
+| universe | v2 before tax | v2 after tax | bh_lots before tax | bh_lots after tax |
+|---|--:|--:|--:|--:|
+| midcap150 | 27.80 | 23.51 | 23.55 | 21.85 |
+| midcap50 | 21.41 | 18.19 | 25.97 | 24.16 |
+| nifty100 | 19.01 | 16.17 | 23.38 | 21.68 |
+| nifty50 | 13.90 | 11.96 | 19.62 | 18.12 |
+
+Tax paid by v2: midcap150 Rs 771,494.59; midcap50 Rs 492,955.59; nifty100
+Rs 397,607.08; nifty50 Rs 240,474.46.
+
+**THE v2 AFTER-TAX FIGURE DEPENDS ON THE UNASSESSED TAIL, AND TWO NUMBERS ARE IN
+CIRCULATION.** `FY_EQUITY`'s close is the in-loop taxed curve: FY2026-27 is
+assessed on the first session at or after 31 March 2027, outside the window, so
+its liability is computed and never deducted. `TAX_TURNOVER`'s `v2 after tax`
+settles that tail at the final session, so that v2 and bh_lots are comparable at
+the same endpoint. They differ by exactly the tail, and by nothing else:
+
+| universe | FY_EQUITY (tail unsettled) | TAX_TURNOVER (tail settled) | tail |
+|---|--:|--:|--:|
+| midcap150 | 23.63 | 23.51 | Rs 33,671.08 |
+| nifty100 | 16.23 | 16.17 | Rs 11,521.13 |
+| midcap50 | 18.19 | 18.19 | Rs 0.00 |
+| nifty50 | 11.96 | 11.96 | Rs 0.00 |
+
+**Every gap and cost row below uses the tail-settled column**, because the
+benchmark it is differenced against is settled at the same session. The two
+columns agree on midcap50 and nifty50 and differ on the other two. Quoting 23.63
+next to a gap computed from 23.51 does not reconcile -- it silently moves
+midcap150's cost from -2.58 to -2.46 -- which is why both columns are printed
+rather than one being chosen.
+
+### TAX_COST_OF_TURNOVER
+
+Defined as `gap_after_tax - gap_before_tax`, both gaps v2 minus **bh_lots**. It
+is what turnover costs in tax, against a benchmark taxed by the identical rules.
+
+| universe | lots closed | mean held, days | gap before tax | gap after tax | **TAX_COST_OF_TURNOVER** |
+|---|--:|--:|--:|--:|--:|
+| midcap150 | 499 | 49.76 | +4.24 | +1.66 | **-2.58** |
+| nifty100 | 466 | 54.21 | -4.37 | -5.52 | **-1.15** |
+| nifty50 | 425 | 59.88 | -5.72 | -6.16 | **-0.44** |
+| midcap50 | 424 | 63.72 | -4.56 | -5.97 | **WITHHELD** |
+
+**WHAT IS MEASURED: across the three universes that reported, the cost is larger
+where turnover is larger.** 499 lots at 49.76 mean days -> -2.58; 466 at 54.21
+-> -1.15; 425 at 59.88 -> -0.44. The ordering of the cost matches the ordering
+of both turnover proxies on all three.
+
+**NOT that it scales linearly.** Three points. Nothing here fits a functional
+form, and the three values are not proportional to either proxy: lots fall 15%
+from midcap150 to nifty50 while the cost falls 83%.
+
+**NOT that the fourth would fit.** midcap50 is withheld, and it is the SMALLEST
+universe of the four -- the extrapolation a reader is most tempted to make is
+precisely the point that was not measured. It is also the only one of the four
+whose bh_lots basket beats its index line, per the two-benchmark table above.
+Its arithmetic difference is -1.41. **That number is not the cost**, because the
+benchmark it is differenced against was rejected.
+
+**WHY midcap50 IS WITHHELD**, in the guard's own words, verbatim from the
+`withheld_reason` column:
+
+> top-name weight 12.4% exceeds the 11.62% limit by 1.1x; DIXON alone moves the
+> benchmark -2.22 pts against an effect size of 2.05, and the universe is
+> SURVIVORSHIP_MODE=static so that name is in the basket because of the run it
+> had
+
+The row is written with a blank value rather than omitted. An absent row reads
+as "not computed"; this was computed and rejected, and the file says which.
+
+### WHAT TAX DOES TO THE EARLIER FINDING
+
+The pre-tax reading was **v2 lost to its own benchmark on three of four**.
+Against bh_lots, before tax, it is still three of four -- the count survives the
+benchmark swap even though every individual gap moves. After tax:
+
+| universe | gap before tax | gap after tax | change | sign change? |
+|---|--:|--:|--:|---|
+| midcap150 | +4.24 | +1.66 | -2.58 | no -- stays positive |
+| midcap50 | -4.56 | -5.97 | -1.41 | no -- stays negative |
+| nifty100 | -4.37 | -5.52 | -1.15 | no -- stays negative |
+| nifty50 | -5.72 | -6.16 | -0.44 | no -- stays negative |
+
+**No sign changes on any of the four.** The one positive gap shrinks to 39% of
+its pre-tax size and stays positive; the three negative gaps each widen. Tax
+moves every gap in the same direction -- against v2 -- and carries none of them
+across zero. The three-of-four count is the same after tax as before it.
+
+**This is recorded, not concluded.** Everything the pre-tax entry declined to
+claim it still declines to claim: four single runs, one per universe, no error
+bar on any of them, and midcap150's surviving positive gap is one observation
+whose width is unmeasured. No accept rule was pre-registered for the tax
+comparison either. The tax axis added a column, not a verdict.
 
 ### THE RISK COMPARISON -- FOUR OF FOUR ON DRAWDOWN
 
