@@ -80,7 +80,8 @@ REQUIRED_RAW = ["date", "symbol", "open", "close", "y_rank", "scorable"]
 LABELS = {"nifty100": "NIFTY 100", "midcap150": "MIDCAP150",
           "nifty50": "NIFTY 50", "midcap50": "MIDCAP50",
           "midcap100": "MIDCAP100", "nifty200": "NIFTY 200",
-          "smallcap250": "SMALLCAP250"}
+          "smallcap250": "SMALLCAP250",
+          "nifty500": "NIFTY 500"}
 
 _unlabelled = set(REGISTRY) - set(LABELS)
 if _unlabelled:

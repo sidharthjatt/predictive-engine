@@ -139,6 +139,7 @@ six, minimum taken over normal / deutan / protan.
          4               24              10.2452       8.712634      midcap100
          5               30               8.5514       7.484141      nifty200
          6               36               7.2555       6.801402      smallcap250
+         7               42               6.5910       6.136133      nifty500
 
 THE BAND IS FILLING, AND THE SINGLE-COLOUR FIGURE IS THE LEADING INDICATOR. It
 fell 10.2452 -> 8.5514 while T fell 8.712634 -> 7.484141. The single-colour
@@ -157,9 +158,19 @@ SHRINKING, so the series is not a straight line down and a linear projection
 would understate what is left. smallcap250's worst pairs: 6.900 normal, 6.980
 deutan, 6.801 protan -- still 2.1x the 3.26 already shipping.
 
-NOT EXTRAPOLATED. Three points. Nothing here fits a curve, and the two drops
+THE SERIES IS CLOSED -- ALL EIGHT SUPPLIER FOLDERS ARE WIRED. Final decrements,
+T: -1.2285, -0.6827, -0.6653. Single-colour: -1.6938, -1.2959, -0.6645. BOTH
+FLATTENED rather than accelerating, so the band was NOT exhausted by the eighth
+universe. A linear projection off the first two T points would have predicted
+about 5.6 for the eighth and understated it by half a point; measuring each one
+was the right call and remains it for a ninth.
+
+nifty500's worst pairs: 6.143 normal, 6.143 deutan, 6.136 protan -- still 1.9x
+the 3.26 that already ships.
+
+NOT EXTRAPOLATED. Four points. Nothing here fits a curve, and the two drops
 (1.69 single-colour, 1.23 for T) are not evidence of a constant decrement --
-they are three differences, and they are getting smaller. nifty500 is the one
-universe left; measure, do not project. Recording the series so the next
+they are four differences and they are getting smaller. No universe is left to
+wire; a ninth would need measuring, not projecting. Recording the series so the next
 hand has the measured points rather than re-deriving them, which is the whole
 reason this section exists.

@@ -1663,7 +1663,146 @@ _SC250 = Universe(
 )
 
 
-REGISTRY = {u.tag: u for u in (_MID, _N100, _N50, _MC50, _MC100, _N200, _SC250)}
+# nifty500 IS APPENDED, NEVER INSERTED. It is the EIGHTH and last supplier
+# folder: with this row wired, every universe on disk is in the registry.
+_N500_SOURCE = _WITHOUT_SURV / "Final_NIFTY500_EoD_Data"
+_N500_LINKS = _RAW / "N500_constituents"
+_N500_METRICS = ROOT / "results_nifty500" / "metrics"
+# THE SUPPLIER SPELLS THIS ONE WITH NO SPACE: "NIFTY500.csv". A THIRD
+# CONVENTION, against "NIFTY 200.csv" (spaced) and "NIFTY MIDCAP 100.csv"
+# (spaced, multi-word), and against smallcap250's abbreviated "NIFTY SMLCAP
+# 250.csv". FOUR SUPPLIER SPELLINGS ACROSS EIGHT FOLDERS.
+#
+# IT IS RECORDED AND NOT NORMALISED, DELIBERATELY. _constituents() EXCLUDES THE
+# INDEX BY NAME, so this string is the only thing standing between the index
+# series and the tradable universe. Renaming the file on disk to match a
+# convention would make this row's literal correct about a file the supplier
+# does not ship, and the next re-download would silently put the index back as
+# a constituent -- a 496th "stock" that is the benchmark. That is the
+# silent-failure site this project has already closed once, and the fix was to
+# write the supplier's spelling out rather than derive it.
+_N500_INDEX = "NIFTY500"
+
+_N500 = Universe(
+        tag="nifty500", label="Nifty500 (495 constituents)",
+        data_dir=_N500_LINKS,
+        raw_data_dir=_N500_SOURCE,
+        # nifty500's OWN NUMBERS, MEASURED 2026-09-19. 137 of 495 is 27.7% --
+        # BELOW smallcap250's 36.3% despite being twice the size, because the
+        # Nifty 500 reaches up into the large caps as well as down. The rate
+        # tracks how far down the capitalisation ladder an index reaches, not
+        # how many names it holds.
+        survivorship=(
+            "STATIC. 495 names are TODAY'S Nifty 500 members backfilled to "
+            "2019-01-01. Names dropped or delisted during the window are absent "
+            "entirely, so both the strategy and its equal-weight buy&hold are "
+            "inflated. 137 OF THE 495 did not exist at BT_START_DATE -- 27.7%, "
+            "between smallcap250's 36.3% and midcap100's 21.4%. The published "
+            "Nifty 500 index line is cap-weighted and is NOT "
+            "survivorship-biased. Source: data/raw/"
+            "Final_Without_Survivorship_Data/Final_NIFTY500_EoD_Data."),
+        symbol_list=_constituents(_N500_SOURCE, _N500_INDEX),
+        metrics_dir=_N500_METRICS,
+        score_tmp=Path("/tmp/v_nifty500_expanding.csv"),
+        score_cache=_N500_METRICS / "v_nifty500_expanding_cache.csv",
+        raw_tmp=Path(f"/tmp/raw_panel_nifty500_{HORIZON}.csv"),
+        raw_cache=_N500_METRICS / "raw_panel_nifty500_cache.csv",
+        nautilus_scores="scores_nifty500.parquet",
+        nautilus_end=str(config.BT_END_DATE.date()),
+        purge_mode="trading",
+        index_name=_N500_INDEX,
+        # THE PUBLISHED CAP-WEIGHTED INDEX. Benchmark only, never a tradable
+        # name. NO BASE VALUE IS CLAIMED: the file begins 03-01-2000, a
+        # mid-series value. 6,612 rows, 03-01-2000..06-08-2026 -- the longest
+        # index series of the eight.
+        index_file=_N500_SOURCE / f"{_N500_INDEX}.csv",
+        year_range=None, date_range=(config.BT_START_DATE, config.BT_END_DATE),
+        display_name="NIFTY 500",
+        # MEASURED 2026-09-19, AGAINST FORTY-TWO SLOTS -- the last palette this
+        # registry needs. dE2000 = 6.136133, binary searched to 1e-4 inside the
+        # readable band L* 30-72, against all 42 existing slots AND against each
+        # other, over normal vision, deuteranopia and protanopia.
+        #
+        # WORST PAIRS: 6.143 normal (nifty500/2 vs midcap100/4), 6.143 deutan
+        # (nifty500/1 vs midcap50/1), 6.136 protan (nifty500/4 vs midcap150/4).
+        #
+        # THE SERIES CLOSES, AND ITS DECREMENTS FLATTENED RATHER THAN
+        # ACCELERATED: T 8.712634 -> 7.484141 -> 6.801402 -> 6.136133, falling
+        # by 1.23, 0.68, 0.67. Best single in-band colour 10.2452 -> 8.5514 ->
+        # 7.2555 -> 6.5910. A ninth universe is not costed here, but the band
+        # was not exhausted by the eighth. Still 1.9x the worst pair already
+        # shipping (3.26, nifty100/v1 vs nifty100/v3 under deutan).
+        chart_colours=("#fc6834", "#30505c", "#2c5850", "#682c84",
+                       "#70a890", "#84508c"),
+        # nifty500's OWN CHURN. The widest index here, and the one that loses
+        # names most slowly at the top and fastest at the bottom -- a name
+        # leaves the 500 by falling out of it entirely, which is a longer fall
+        # than leaving the 200 or the 100. No direction is claimed.
+        churn_note=(
+            "More important than the late listers: companies that LEFT the Nifty\n"
+            "500 between 2019 and 2026 are absent from this file entirely. This is\n"
+            "the widest index wired here, so a name leaves it only by dropping out\n"
+            "of the top 500 altogether or delisting -- but it still loses names in\n"
+            "BOTH directions and the sign of this bias is not known, let alone its\n"
+            "size. NOTHING HAS BEEN MEASURED FOR THIS UNIVERSE. Its 27.7%\n"
+            "late-lister rate is a statement about composition, NOT a correction\n"
+            "to apply. The equal-weight buy&hold line is a portfolio nobody could\n"
+            "have held, and is NOT achievable."),
+        liquidity_note=None,
+        validation_status=("not measured on this universe. No seed-robustness, "
+                           "sub-period, shuffle or top-N work has been run here, "
+                           "and none of the validations on record was run on "
+                           "these 495 names."),
+        engine_params_keys=(
+            "universe", "model", "sizing", "exposure", "top_n", "buffer",
+            "rebalance_days", "avg_exposure_pct", "n_symbols", "sharpe",
+            "maxdd_pct", "cagr_pct", "cash_yield", "survivorship", "vs_buyhold",
+            "validation_status"),
+        engine_params_static={
+            "universe": "Nifty 500 (495 constituents, "
+                        "'NIFTY500.csv' excluded by name -- no space, the "
+                        "supplier's spelling)",
+        },
+        engine_text={
+            "banner": "ENGINE v2 FINAL -- Nifty 500 universe (495 names, "
+                      "index excluded by name)",
+            "panel_what": "Nifty 500 score panel",
+            "bh_label": "Equal-weight buy & hold (Nifty 500, 495 names)",
+            "chart_title": ("Nifty 500 universe -- ranking + inverse-vol + "
+                            "breadth-scaled exposure\n"),
+            "assert_index_absent": True,
+        },
+        chart_text={
+            "stem": "chart_nifty500",
+            "index_window_end": "2026-08-06",
+            "dpi": 150,
+            "legend_fontsize": 8.5,
+            "rule_width": 100,
+            "bh_not_investable": False,
+            "diagnostics": False,
+            "dd_label": lambda lab, mn: f"{lab.split('  [')[0]} (max {mn:.1f}%)",
+            "subtitle": lambda v: (
+                f"Nifty 500 universe ({v['n_all']} constituents, index excluded "
+                f"by name)  |  v2 holds {v['inv']}% invested on average"
+                f"  |  ALL NUMBERS AFTER TC (Zerodha + 0.15% slippage)\n"
+                f"Benchmarks: {v['index_name']} is the published CAP-WEIGHTED "
+                f"index (investable, and NOT survivorship-biased). Equal-weight "
+                f"buy&hold is the universe, and is NOT investable.\n"
+                f"SURVIVORSHIP: these {v['n_all']} are TODAY'S index members "
+                f"backfilled to 2019, and 137 of them did not exist at the "
+                f"start -- 27.7%. Names dropped from the\nNifty 500 during the "
+                f"window are absent entirely, in BOTH directions, so the sign "
+                f"of the bias is not known. Do not read that buy&hold as "
+                f"achievable.\n"
+                # THE TRAILING NEWLINE IS LOAD-BEARING -- see midcap50's row.
+                "NOTHING ON THIS UNIVERSE HAS BEEN VALIDATED. No seed, "
+                "sub-period, shuffle or top-N work has been run on these 495 "
+                "names.\n"),
+        },
+)
+
+
+REGISTRY = {u.tag: u for u in (_MID, _N100, _N50, _MC50, _MC100, _N200, _SC250, _N500)}
 
 # THE METRICS DIRECTORY IS CREATED AT IMPORT, exactly as config_mid.py and
 # config_n100.py did with METRICS_DIR.mkdir(parents=True, exist_ok=True) at module
@@ -1706,7 +1845,7 @@ LIVE = list(REGISTRY.values())
 # from every combined report, which is why report_order() raises on one instead.
 # n50 SITS NEXT TO n100 BECAUSE IT IS A SUBSET OF IT, so the two large-cap
 # lines are adjacent in every combined report rather than separated by mid.
-REPORT_ORDER = ("nifty200", "nifty100", "nifty50", "midcap150", "midcap100", "midcap50", "smallcap250", "58", "74")
+REPORT_ORDER = ("nifty500", "nifty200", "nifty100", "nifty50", "midcap150", "midcap100", "midcap50", "smallcap250", "58", "74")
 
 
 # ---------------------------------------------------------------------------

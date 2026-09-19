@@ -301,7 +301,7 @@ def _registry_tags():
 #
 # UPDATE IT BY HAND when a row is added or removed. That is the point: a number
 # derived from the table it is checking would agree with any table.
-PIPELINE_ROW_COUNT = 47
+PIPELINE_ROW_COUNT = 53
 
 PIPELINE_ORDER = [
     ("STEP 10a", "build_scores.py",            "midcap150"),
@@ -376,6 +376,11 @@ PIPELINE_ORDER = [
     ("STEP 10.02", "engine_v2_final.py",        "smallcap250"),
     ("STEP 10.03", "make_audit.py",             "smallcap250"),
     ("STEP 10.04", "make_chart.py",             "smallcap250"),
+    # nifty500, ADDED 2026-09-19. THE EIGHTH AND LAST SUPPLIER FOLDER.
+    ("STEP 10.05", "build_scores.py",           "nifty500"),
+    ("STEP 10.06", "engine_v2_final.py",        "nifty500"),
+    ("STEP 10.07", "make_audit.py",             "nifty500"),
+    ("STEP 10.08", "make_chart.py",             "nifty500"),
     # MOVED FROM STEP 10i, and the move is load-bearing rather than cosmetic.
     # The combined chart is now generic over the selection, so it may need the 58's
     # and the 74's per-trade logs -- and those are written by STEP 12 immediately
@@ -435,6 +440,7 @@ PIPELINE_ORDER = [
     ("STEP 17i", "bh_lots_after_tax.py",      "midcap100"),
     ("STEP 17j", "bh_lots_after_tax.py",      "nifty200"),
     ("STEP 17.01", "bh_lots_after_tax.py",     "smallcap250"),
+    ("STEP 17.02", "bh_lots_after_tax.py",     "nifty500"),
     ("STEP 18a", "tax_report.py",              "midcap150"),
     ("STEP 18b", "tax_report.py",              "nifty100"),
     ("STEP 18c", "tax_report.py",              "nifty50"),
@@ -442,6 +448,7 @@ PIPELINE_ORDER = [
     ("STEP 18e", "tax_report.py",              "midcap100"),
     ("STEP 18f", "tax_report.py",              "nifty200"),
     ("STEP 18.01", "tax_report.py",            "smallcap250"),
+    ("STEP 18.02", "tax_report.py",            "nifty500"),
 ]
 
 
