@@ -2207,8 +2207,11 @@ below stay as the design for whenever they are built.
 `engine_core.py` is frozen for the retired 58, so the edit was proved
 byte-identical rather than argued to be harmless: 2 of 2 equity curves on the 58
 and 8 of 8 on the live universes unchanged —
-`diagnostics/leakage_labels_hashes.txt`, regenerable with
-`results/hash_58_engine_core.py`.
+`diagnostics/leakage_labels_hashes.txt`. **NOT regenerable:**
+`results/hash_58_engine_core.py` was deleted on 2026-09-11 in `aafe6cb` and the
+58 panel it hashed is gone, so the hashes stand as evidence of what was measured
+rather than as something that can be reproduced. That file carries the reason at
+the point of citation.
 
 ### The defect as found
 
