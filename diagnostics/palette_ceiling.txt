@@ -126,3 +126,32 @@ THE STANDARD BEING ENFORCED ON A NEW UNIVERSE WAS STRICTER THAN THE STANDARD
 THE SHIPPED PALETTES MEET, by a factor of three on the worst pair. Recorded
 here rather than acted on; changing an existing tuple re-renders published
 figures and is its own decision.
+
+5. THE CEILING SERIES -- COST THE NEXT UNIVERSE AGAINST THIS, DO NOT RE-DERIVE
+-------------------------------------------------------------------------------
+Same method each time: step-4 grid over sRGB, readable band L* 30-72, binary
+search to 1e-4, dE2000 against every existing slot AND against the tuple's own
+six, minimum taken over normal / deutan / protan.
+
+    universes     existing slots   best single      T (6-tuple)     universe
+    already wired  searched against  in-band colour   achievable      added
+    -------------  ----------------  --------------  -------------  ---------
+         4               24              10.2452       8.712634      midcap100
+         5               30               8.5514       7.484141      nifty200
+
+THE BAND IS FILLING, AND THE SINGLE-COLOUR FIGURE IS THE LEADING INDICATOR. It
+fell 10.2452 -> 8.5514 while T fell 8.712634 -> 7.484141. The single-colour
+number is a CEILING on T -- six colours must also separate from each other, so
+T is always lower -- and it is cheap to compute, so it is the number to check
+first when costing universe seven.
+
+BOTH REMAIN WELL ABOVE WHAT ALREADY SHIPS. The project's worst pair is 3.26
+(nifty100/v1 vs nifty100/v3, deutan), so nifty200's 7.484 is 2.3x it and
+midcap100's 8.713 was 2.7x.
+
+NOT EXTRAPOLATED. Two points. Nothing here fits a curve, and the two drops
+(1.69 single-colour, 1.23 for T) are not evidence of a constant decrement --
+they are two differences. smallcap250 (248 names) and nifty500 (495) are the
+two universes left; measure, do not project. Recording the series so the next
+hand has the measured points rather than re-deriving them, which is the whole
+reason this section exists.

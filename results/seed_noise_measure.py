@@ -79,7 +79,7 @@ REQUIRED_RAW = ["date", "symbol", "open", "close", "y_rank", "scorable"]
 # registry.display_name, which happens to agree here and would not always.
 LABELS = {"nifty100": "NIFTY 100", "midcap150": "MIDCAP150",
           "nifty50": "NIFTY 50", "midcap50": "MIDCAP50",
-          "midcap100": "MIDCAP100"}
+          "midcap100": "MIDCAP100", "nifty200": "NIFTY 200"}
 
 _unlabelled = set(REGISTRY) - set(LABELS)
 if _unlabelled:
