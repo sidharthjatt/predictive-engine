@@ -1,0 +1,128 @@
+PALETTE CEILING -- what a fifth universe's six colours can actually achieve
+===============================================================================
+Measured 2026-09-19, while costing midcap100. Nothing here is quoted from an
+earlier survey; every number below was re-derived on the registry as it stands
+at four universes / 24 slots.
+
+METHOD. Grid over the sRGB cube at step 4 (262,144 points), CIEDE2000 in
+CIE L*a*b*, colour-blind simulation by Vienot 1999 as implemented in
+palette_distance.py. Readable band is L* 30-72 -- the band a line reads on
+white, and the band nifty50's palette was drawn from.
+
+
+1. CO-APPEARANCE: THERE IS NO REDUCTION. THE GLOBAL RULE IS THE REAL RULE.
+-------------------------------------------------------------------------------
+Every image any producer can draw that reads `chart_colours` was enumerated:
+
+    make_chart.py                 reads NOTHING. No reference to chart_colours
+                                  in the file; it hardcodes six colours and
+                                  draws every universe in them. Imposes no
+                                  constraint. (See the never-wired entry in
+                                  KNOWN_ISSUES.md -- this is instance 5.)
+    canonical combined chart      any >=2 universes, arms CANON_ARMS = v2+v1
+                                  -> slots {0,1} + bh=2 + ix=3
+    arm-selection combined chart  make_combined_universes.py:410, any arm
+                                  subset other than {v2,v1}, into a SUFFIXED
+                                  file -> slots {ARM_SLOT[a]} + {2,3}, and
+                                  ARM_SLOT = {v2:0, v1:1, v3:4, v4:5}
+    PAIR_CHART                    fixed (nifty100, midcap150), CANON_ARMS
+                                  -> slots {0,1,2,3} of those two
+
+    images enumerated                       166
+    co-appearing slot pairs                 276
+    full cross product of 24 slots          276
+    pairs that can NEVER share an image       0
+
+`--arm all` is the DEFAULT and emits a four-arm chart beside the published
+two-arm one, so slots 4 and 5 are drawn alongside 0, 1, 2 and 3 for every
+selected universe. There is no pair of the 24 slots that cannot land on one
+image. THE "AGAINST ALL 24 SLOTS" RULE IS NOT OVER-STRICT; it is exactly the
+co-appearance requirement, and constraining to co-appearing pairs only changes
+nothing.
+
+
+2. THE L* HOLE: dE 10 IS UNREACHABLE INSIDE THE READABLE BAND
+-------------------------------------------------------------------------------
+Colours clearing dE2000 >= 10 against all 24 slots, all three visions:
+
+    anywhere in sRGB                     1,927 of 40,000 sampled
+    of those, inside L* 30-72                0
+    L* range of the qualifying pool       1.7 .. 99.0
+
+The pool is near-black and near-white with a hole exactly where a line is
+readable. A 6-tuple at dE 10 EXISTS but only outside the band: e.g.
+#dcf4f2 #f9ee87 #090a8b #a9facb #140d26 #23edfa, at L* 94.5 93.0 16.2 92.2 5.2
+85.9 -- four of them near-white.
+
+On the systematic step-4 grid, exactly FOUR in-band colours clear dE >= 10:
+
+    dE 10.25   #588050   L* 49.6
+    dE 10.11   #647c50   L* 49.1
+    dE 10.02   #687c54   L* 49.5
+    dE 10.02   #5c8050   L* 49.8
+
+All four are the same olive green, mutually closer than 10. The largest
+mutually-separated subset is 1. Six are needed.
+
+
+3. THE BINARY SEARCH: THE LARGEST T FOR WHICH A 6-TUPLE EXISTS IN BAND
+-------------------------------------------------------------------------------
+Binary searched to 1e-4, 400 randomised greedy restarts per probe. T is
+reported unrounded, because rounding it to 10 or to 8.5 is how a measured
+ceiling becomes a remembered one.
+
+  (a) CONSTRAINED UNDER NORMAL VISION ONLY
+
+      T = 20.655653
+      #405000 #8c8010 #cca890 #805014 #acacd8 #fc7478
+      L*  31.4  53.0  71.5  38.5  71.7  65.4
+
+      worst pair, normal   dE 20.720   midcap100/3 vs midcap50/2
+      worst pair, deutan   dE  2.560   midcap100/4 vs midcap150/1
+      worst pair, protan   dE  3.349   midcap100/0 vs midcap100/3
+
+      **THIS TUPLE IS REJECTED.** T is high, and it is high because normal
+      vision is not the binding constraint and never was. Optimising against it
+      alone produces a tuple whose deutan collision, 2.560, is WORSE THAN
+      ANYTHING CURRENTLY SHIPPED -- worse than the 3.26 that is already the
+      project's worst pair. A threshold measured on the vision that is not
+      binding is not a ceiling, it is a number.
+
+  (b) CONSTRAINED ACROSS ALL THREE VISIONS -- TAKEN
+
+      T = 8.712634
+      #5c804c #d89094 #a05464 #fc606c #2c503c #9c2000
+      L*  49.8  67.0  45.3  61.8  30.9  34.2
+
+      worst pair, normal   dE 10.449   midcap100/5 vs nifty100/0
+      worst pair, deutan   dE  8.849   midcap100/2 vs midcap150/4
+      worst pair, protan   dE  8.713   midcap100/4 vs nifty50/3
+
+      Best achievable in band against the 24, min over three visions: 10.2452
+      for a single colour; 8.712634 once six must also separate from each other.
+
+T = 8.712634 IS THE CEILING, AND IT IS BELOW 10. A fifth universe cannot be
+given a readable palette at dE 10. It can be given one at 8.71, whose worst
+pair under any vision is 2.7x better than the worst pair already shipping.
+
+
+4. THE FIVE SHIPPED PAIRS ALREADY BELOW 10, AND THEY ALL CO-APPEAR
+-------------------------------------------------------------------------------
+palette_distance.py on the current four universes, deutan:
+
+    dE  3.26   nifty100/v1    vs nifty100/v3
+    dE  4.24   midcap150/v2   vs midcap150/v1
+    dE  7.35   nifty100/v4    vs nifty100/bh
+    dE  7.55   nifty100/v2    vs nifty100/bh
+    dE  7.88   midcap150/v3   vs midcap150/ix
+
+All five are WITHIN-universe, which is why the midcap50 registry comment's
+"every pair clears dE2000 >= 10" reads as true -- it was scoped to the
+cross-universe pairs that search covered. Nothing in the co-appearance
+enumeration distinguishes those cases: all five land on the same image under
+`--arm all`.
+
+THE STANDARD BEING ENFORCED ON A NEW UNIVERSE WAS STRICTER THAN THE STANDARD
+THE SHIPPED PALETTES MEET, by a factor of three on the worst pair. Recorded
+here rather than acted on; changing an existing tuple re-renders published
+figures and is its own decision.

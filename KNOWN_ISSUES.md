@@ -5304,6 +5304,38 @@ displayed. **Do not cite it as a visual result.**
 deliberately not answered here.** Changing `make_chart.py` re-renders three
 universes' published figures, which is an artefact change and its own commit.
 
+**THE CEILING IS MEASURED NOW, AND IT IS 8.712634, NOT 10.** Amended 2026-09-19
+while costing midcap100, the fifth universe this paragraph was written to warn
+about. The warning was right that the band was full and wrong about what
+follows from it.
+
+- **The "against all 24 slots" rule is not over-strict.** 166 drawable images
+  were enumerated; the co-appearing slot pairs number 276 and the full cross
+  product numbers 276. **Zero pairs can never share an image**, because
+  `--arm all` is the default and draws slots 4 and 5 beside 0-3 for every
+  selected universe. Constraining the search to co-appearing pairs changes
+  nothing.
+- **dE 10 is genuinely unreachable inside L* 30-72.** On a step-4 grid,
+  exactly four in-band colours clear it and all four are the same olive green
+  (`#588050`, `#647c50`, `#687c54`, `#5c8050`, L* ~49.5), mutually closer than
+  10. Largest mutually-separated subset: 1. Six are needed.
+- **T = 8.712634 across all three visions**, binary searched to 1e-4. Not
+  rounded, deliberately -- rounding a measured ceiling to 8.5 or to 10 is how
+  it becomes a remembered one, which is the defect this file records five
+  times.
+- **Optimising under normal vision alone gives T = 20.655653 and is a trap.**
+  Normal vision was never the binding constraint. That tuple's deutan collision
+  is 2.560, WORSE than anything currently shipped.
+- **The standard being enforced on a new universe was stricter than the one the
+  shipped palettes meet.** Five within-universe pairs already ship below 10,
+  the worst at 3.26 (nifty100/v1 vs v3, deutan), and all five co-appear. The
+  taken tuple's worst pair under any vision is 8.713 -- 2.7x better than the
+  project's current worst.
+
+Full numbers, method and the rejected tuple: `diagnostics/palette_ceiling.txt`.
+The midcap50 registry comment claiming "every pair clears dE2000 >= 10" was
+corrected in the same commit; it was false when written.
+
 **`PIPELINE_ROW_COUNT` IS NOT IN THAT TABLE, AND THE DIFFERENCE IS THE POINT.**
 It is fully visible: omit it and `check_all.py` GATE 2 fails immediately, by name,
 before anything runs -- "PIPELINE_ORDER has 25 rows, PIPELINE_ROW_COUNT says 20".
