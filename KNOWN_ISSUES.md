@@ -59,7 +59,7 @@ It is worse than no guard at all. No guard leaves the problem visible; an
 unwired guard converts an open problem into a solved one in every document that
 mentions it, and the mention is what the next reader finds.
 
-**Three instances, all in this repository, all distinct in how far they got:**
+**Four instances, all in this repository, all distinct in how far they got:**
 
 1. **`naming.py`** -- written as "the single naming authority". Its only
    importers are `naming_declare_check.py:211` and
@@ -83,12 +83,41 @@ mentions it, and the mention is what the next reader finds.
    (b3a2c84), and demonstrated red before green, because the point of the
    class is that nobody had ever watched these fail.
 
+4. **`b3a2c84`'s own subject line** -- "max_holding_days() gets a call site,
+   **seven years** after the docstring promised it one." There is no seven
+   years. `git log -S"def max_holding_days"` puts the function at `041bc66`,
+   **2026-09-17**: it had a caller two days later. The number was carried over
+   from the backtest window, 7.4 years, and turned into rhetoric.
+
+   **This is the only instance where the false number is in the message of the
+   commit that removes the others**, and that is worth saying plainly rather
+   than burying. `1529bfd` deleted "a 326-day maximum with 39 days of headroom"
+   from a docstring on the grounds that a number in prose has nothing computing
+   it and will eventually be wrong. `b3a2c84`, the next commit, put a new one
+   in its own subject. The discipline held for one commit.
+
+   **Two days is the stronger fact anyway**, which is the part that makes the
+   rhetoric not merely false but a loss: a guard unwired for the whole of its
+   two-day life, and the ceiling crossed on day two. The invented number
+   replaced a better true one.
+
+   **Not amended. The history stands**, because rewriting it would remove the
+   only instance of this class that is visible without reading code, and a
+   force-push to hide a wrong number is a worse record than the wrong number.
+   Recorded here instead.
+
 **THE DETECTOR, AND IT IS GREPPABLE.** The signature is: *a function whose
 docstring states what it guards against, and which has no call site.* Both
 halves are mechanical. For every `def` in the tree, take the name, grep the
 tree for it, and subtract its own definition and its own docstring; if what
 remains is empty while the docstring contains a guard verb -- exists so, must,
 fails when, catches, guards, prevents, asserts -- it is an instance.
+
+**IT DOES NOT CATCH INSTANCE 4, AND NOTHING WOULD.** A commit message has no
+call site to be missing; it is prose in a place no checker reads, and it is
+immutable once pushed. The sweep covers instances 1-3, which are code. Instance
+4 is here to mark the boundary of the detector, not to be found by it -- the
+only control on a commit message is reading it before writing it.
 
 That check does not exist yet. **This entry is the specification for it, not
 the check.** The next hand can sweep for the pattern by hand in the meantime;
