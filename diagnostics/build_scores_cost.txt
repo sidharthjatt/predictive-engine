@@ -43,3 +43,49 @@ distinguish a line from a power law; three can.
 WHAT WOULD FALSIFY THE SUPERLINEAR READING: smallcap250 coming in materially
 BELOW 33.9 min. That is what a real fixed cost would look like, and it would
 mean the two-point fit was noise rather than curvature.
+
+===============================================================================
+THE PREDICTION WAS TESTED AND FAILED. 2026-09-19, after smallcap250.
+===============================================================================
+
+    predicted   34.3 min scoring (power law), 33.9 (linear)
+    ACTUAL      23.5 min
+
+THE FALSIFIER NAMED ABOVE FIRED. This file said: "what would falsify the
+superlinear reading: smallcap250 coming in materially BELOW 33.9 min." It came
+in 31% below. The superlinear reading is dead, and so is the fixed-cost reading
+that preceded it.
+
+BOTH EXPLANATIONS WERE WRONG BECAUSE BOTH USED THE WRONG VARIABLE. smallcap250
+has 248 symbols against nifty200's 197 -- 26% MORE -- and scored FASTER, 23.5
+against 26.5 min. No model in the symbol count can produce that. Cost is not a
+function of symbol count at all.
+
+    universe      symbols   panel rows   scoring   rows/min
+    midcap100          98      383,486   12.1 min    31,693
+    nifty200          197      854,197   26.5 min    32,234
+    smallcap250       248      798,981   23.5 min    33,999
+
+IT IS THE ROWS, AND IT IS CLOSE TO LINEAR IN THEM. Fitting the first two points
+on rows gives 30.592 min per million rows with an intercept of +0.37 min -- a
+SMALL POSITIVE intercept, which is what a real fixed cost looks like -- and
+predicts smallcap250 at 24.8 against an actual 23.5, a 5% over-prediction
+rather than 31%.
+
+WHY SYMBOLS AND ROWS COME APART, AND IT IS THE SAME FACT AS EVERYTHING ELSE ON
+THIS UNIVERSE. A panel's rows are symbols x sessions each symbol actually
+trades. smallcap250 has 90 of 248 names that did not exist at BT_START_DATE --
+36.3%, the highest of the seven -- so a third of its symbols contribute a
+fraction of a full history. More names, fewer rows. The late-lister rate is why
+the symbol-count model broke here, exactly as it is why the calendar guard
+fired here.
+
+THE STANDING ESTIMATE FOR nifty500 IS THEREFORE WITHDRAWN AND REPLACED. The
+70-75 min figure was computed from symbol count and is not evidence of
+anything. nifty500's row count is not yet measured; count its panel rows first
+and apply 30.6 min per million, and DO NOT scale its 495 names against
+smallcap250's 248.
+
+WHAT THIS RECORD IS NOW: three measured points, one falsified hypothesis, one
+surviving one. The surviving model has been fitted on two points and tested on
+a third at 5%. It has NOT been tested outside 0.38-0.85 million rows.

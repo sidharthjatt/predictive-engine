@@ -138,6 +138,7 @@ six, minimum taken over normal / deutan / protan.
     -------------  ----------------  --------------  -------------  ---------
          4               24              10.2452       8.712634      midcap100
          5               30               8.5514       7.484141      nifty200
+         6               36               7.2555       6.801402      smallcap250
 
 THE BAND IS FILLING, AND THE SINGLE-COLOUR FIGURE IS THE LEADING INDICATOR. It
 fell 10.2452 -> 8.5514 while T fell 8.712634 -> 7.484141. The single-colour
@@ -149,9 +150,16 @@ BOTH REMAIN WELL ABOVE WHAT ALREADY SHIPS. The project's worst pair is 3.26
 (nifty100/v1 vs nifty100/v3, deutan), so nifty200's 7.484 is 2.3x it and
 midcap100's 8.713 was 2.7x.
 
-NOT EXTRAPOLATED. Two points. Nothing here fits a curve, and the two drops
+THE FOURTH POINT, smallcap250 AGAINST 36 SLOTS, CONFIRMS THE DIRECTION AND NOT
+A RATE. Single-colour drops 10.2452 -> 8.5514 -> 7.2555 (-1.69, -1.30) and T
+drops 8.712634 -> 7.484141 -> 6.801402 (-1.23, -0.68). BOTH DECREMENTS ARE
+SHRINKING, so the series is not a straight line down and a linear projection
+would understate what is left. smallcap250's worst pairs: 6.900 normal, 6.980
+deutan, 6.801 protan -- still 2.1x the 3.26 already shipping.
+
+NOT EXTRAPOLATED. Three points. Nothing here fits a curve, and the two drops
 (1.69 single-colour, 1.23 for T) are not evidence of a constant decrement --
-they are two differences. smallcap250 (248 names) and nifty500 (495) are the
-two universes left; measure, do not project. Recording the series so the next
+they are three differences, and they are getting smaller. nifty500 is the one
+universe left; measure, do not project. Recording the series so the next
 hand has the measured points rather than re-deriving them, which is the whole
 reason this section exists.
