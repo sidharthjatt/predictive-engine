@@ -44,6 +44,67 @@ table into the second is reading a two-benchmark artefact as a result. The two
 columns were never comparable, including before the tax work named the
 difference.
 
+## make_daily_log's cash identity does not model the tax deduction, so every taxed run ends "some days failed"
+
+Found 2026-09-19, on midcap100's first taxed run. Open. **The numbers are
+correct; the check is wrong about them.**
+
+`results/make_daily_log.py:668` reports `reconciliation cash 1829/1836 ...
+*** CHECK FAILURES ***` on all four arms of every taxed universe. The seven
+mismatched days on midcap100 are not arbitrary:
+
+```
+2019-04-01  cash   +1,609.11      2024-04-01  cash +183,155.54
+2021-03-31  cash  +81,069.11      2025-04-01  cash +113,226.62
+2022-03-31  cash  +71,687.51      2026-04-01  cash +107,200.98
+2023-03-31  cash  +66,581.61
+                                  total       Rs 624,530.48
+```
+
+**They are the Section 3(9) assessment dates, and they sum to GATE 6's assessed
+tax to the paisa.** The cash identity at `make_daily_log.py:82` is `opening
+cash + yield + sale proceeds - purchases - fees = closing cash`. Tax is
+deducted before the day's fills and is not a fee, a purchase or a sale, so on
+exactly the days tax moves cash the identity is short by exactly the tax.
+
+**IT IS UNIVERSAL, NOT A midcap100 DEFECT.** Every taxed universe shows it, and
+on every one the mismatched-cash total equals its own assessed figure:
+
+| universe | mismatched days | cash total | GATE 6 assessed |
+|---|--:|--:|--:|
+| midcap150 | 6 | 737,823.51 | 737,823.52 |
+| midcap100 | 7 | 624,530.48 | 624,530.48 |
+| nifty100 | 7 | 386,085.95 | 386,085.95 |
+| nifty50 | 6 | 240,474.46 | 240,474.46 |
+| midcap50 | 8 | 492,955.60 | 492,955.59 |
+
+The day counts differ because the number of assessed financial years differs
+per universe, not because the defect varies.
+
+**THIS IS NOT A DEFECT IN THE NUMBERS, AND THAT IS WHY IT IS FILED HERE RATHER
+THAN AS A CORRECTNESS BUG.** The tax is right. GATE 6 proves it independently:
+`taxed equity == FY_EQUITY to a paisa` on all five, and `tax_report.reconcile`
+raises rather than writing if the statement and the engine's deductions
+disagree. Two checks agree the tax is correct and a third reports failure
+because it was written before tax existed.
+
+**THE DEFECT IS A CHECK THAT REPORTS FAILURE ON CORRECT BEHAVIOUR.** Every
+taxed run ends `VERDICT: some days failed -- see above.` A reader who
+investigates once, finds the tax, and moves on has learned that this verdict
+does not mean what it says -- and the next time the cash identity breaks for a
+REAL reason, it will print the same line into the same trained blindness.
+
+**SAME SHAPE AS THE UNTRACKED `.docx`** that `.gitignore` closed in f2d20a4: a
+standing exception that makes a real gate unreadable. That one was cosmetic and
+cost nothing; this one sits on the only per-day arithmetic check in the
+pipeline. An exception that never clears stops being read as an exception.
+
+**Not fixed.** The fix is to give the identity a tax term -- the ledger already
+knows the amount and the date, `Ledger.due_on` returns exactly the rupees
+deducted before that day's fills -- but changing `make_daily_log` rewrites
+every DAILY_LOG artefact on five universes, which is an artefact change and its
+own commit. Named, measured, recorded.
+
 ## A CLASS: written, declared to be the fix, never wired
 
 Found 2026-09-19, by noticing the third instance. Open as a class -- the
