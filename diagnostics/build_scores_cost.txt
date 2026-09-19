@@ -89,3 +89,7 @@ smallcap250's 248.
 WHAT THIS RECORD IS NOW: three measured points, one falsified hypothesis, one
 surviving one. The surviving model has been fitted on two points and tested on
 a third at 5%. It has NOT been tested outside 0.38-0.85 million rows.
+
+SEE ALSO: KNOWN_ISSUES.md, "build_scores was modelled on symbol count, and the
+third universe broke it by 31%" -- the entry that records the failure itself,
+including that 36.3% causes three separate things on this universe.
