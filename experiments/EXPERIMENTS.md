@@ -4111,11 +4111,16 @@ follows this table.
 | universe | v2 CAGR% | bh published CAGR% | **v2 - bh published** |
 |---|--:|--:|--:|
 | midcap150 | 27.80 | 25.46 | **+2.34** |
+| midcap100 | 25.52 | 26.82 | **-1.31** |
 | midcap50 | 21.41 | 24.34 | **-2.93** |
 | nifty100 | 19.01 | 24.16 | **-5.15** |
 | nifty50 | 13.90 | 20.67 | **-6.77** |
 
-**One universe's v2 beats its own equal-weight buy & hold. Three do not.**
+**One universe's v2 beats its own equal-weight buy & hold. FOUR do not** --
+three at the time this was written, four since midcap100 was wired and run on
+2026-09-19. Its row is a SINGLE RUN of a universe wired the same day and
+carries the highest survivorship loading of the five (21 of 98 late listers,
+21.4%); see the after-tax section below.
 
 ### TWO DIFFERENT BENCHMARKS, AND EVERY GAP ROW MUST NAME WHICH
 
@@ -4131,6 +4136,7 @@ not the same series:
 | universe | bh published CAGR% | bh_lots before tax CAGR% | difference |
 |---|--:|--:|--:|
 | midcap150 | 25.46 | 23.55 | 1.91 |
+| midcap100 | 26.82 | 24.48 | 2.35 |
 | midcap50 | 24.34 | 25.97 | -1.63 |
 | nifty100 | 24.16 | 23.38 | 0.78 |
 | nifty50 | 20.67 | 19.62 | 1.05 |
@@ -4156,12 +4162,22 @@ is **bh_lots**, never bh published.
 | universe | v2 before tax | v2 after tax | bh_lots before tax | bh_lots after tax |
 |---|--:|--:|--:|--:|
 | midcap150 | 27.80 | 23.51 | 23.55 | 21.85 |
+| midcap100 | 25.52 | 21.50 | 24.48 | 22.73 |
 | midcap50 | 21.41 | 18.19 | 25.97 | 24.16 |
 | nifty100 | 19.01 | 16.17 | 23.38 | 21.68 |
 | nifty50 | 13.90 | 11.96 | 19.62 | 18.12 |
 
-Tax paid by v2: midcap150 Rs 771,494.59; midcap50 Rs 492,955.59; nifty100
-Rs 397,607.08; nifty50 Rs 240,474.46.
+Tax paid by v2: midcap150 Rs 771,494.59; midcap100 Rs 656,939.61; midcap50
+Rs 492,955.59; nifty100 Rs 397,607.08; nifty50 Rs 240,474.46.
+
+**READ midcap100'S ROW WITH ITS SURVIVORSHIP LOADING, NOT BESIDE midcap50'S
+WITHOUT IT. 21 OF ITS 98 NAMES -- 21.4% -- DID NOT EXIST AT BT_START_DATE**,
+against midcap50's 8 of 49 (16.3%) and nifty50's 4 of 50 (8.0%). It is the
+highest late-lister rate of the five. That is a statement about COMPOSITION and
+not a correction to apply -- the direction of the total survivorship effect is
+not known for any universe here, and has been measured running BOTH ways -- but
+a reader comparing the two midcap rows without it is comparing panels loaded
+differently by a third again.
 
 **THE v2 AFTER-TAX FIGURE DEPENDS ON THE UNASSESSED TAIL, AND TWO NUMBERS ARE IN
 CIRCULATION.** `FY_EQUITY`'s close is the in-loop taxed curve: FY2026-27 is
@@ -4173,6 +4189,7 @@ the same endpoint. They differ by exactly the tail, and by nothing else:
 | universe | FY_EQUITY (tail unsettled) | TAX_TURNOVER (tail settled) | tail |
 |---|--:|--:|--:|
 | midcap150 | 23.63 | 23.51 | Rs 33,671.08 |
+| midcap100 | 21.62 | 21.50 | Rs 32,409.13 |
 | nifty100 | 16.23 | 16.17 | Rs 11,521.13 |
 | midcap50 | 18.19 | 18.19 | Rs 0.00 |
 | nifty50 | 11.96 | 11.96 | Rs 0.00 |
@@ -4193,17 +4210,35 @@ is what turnover costs in tax, against a benchmark taxed by the identical rules.
 |---|--:|--:|--:|--:|--:|
 | midcap150 | 499 | 49.76 | +4.24 | +1.66 | **-2.58** |
 | nifty100 | 466 | 54.21 | -4.37 | -5.52 | **-1.15** |
+| midcap100 | 450 | 57.42 | +1.04 | -1.23 | **-2.27** |
 | nifty50 | 425 | 59.88 | -5.72 | -6.16 | **-0.44** |
 | midcap50 | 424 | 63.72 | -4.56 | -5.97 | **WITHHELD** |
 
-**WHAT IS MEASURED: across the three universes that reported, the cost is larger
-where turnover is larger.** 499 lots at 49.76 mean days -> -2.58; 466 at 54.21
--> -1.15; 425 at 59.88 -> -0.44. The ordering of the cost matches the ordering
-of both turnover proxies on all three.
+midcap100 added 2026-09-19, its own run, wired the same day.
 
-**NOT that it scales linearly.** Three points. Nothing here fits a functional
-form, and the three values are not proportional to either proxy: lots fall 15%
-from midcap150 to nifty50 while the cost falls 83%.
+**THE TURNOVER ORDERING HELD ON THREE AND BROKE ON THE FOURTH. AMENDED
+2026-09-19.** This paragraph read: "across the three universes that reported,
+the cost is larger where turnover is larger -- 499 lots at 49.76 mean days ->
+-2.58; 466 at 54.21 -> -1.15; 425 at 59.88 -> -0.44. The ordering of the cost
+matches the ordering of both turnover proxies on all three." **midcap100 sits
+between nifty100 and nifty50 on both proxies and outside them both on cost:**
+
+| universe | lots | mean held | cost |
+|---|--:|--:|--:|
+| midcap150 | 499 | 49.76 | -2.58 |
+| nifty100 | 466 | 54.21 | -1.15 |
+| **midcap100** | **450** | **57.42** | **-2.27** |
+| nifty50 | 425 | 59.88 | -0.44 |
+
+Fewer lots and a longer mean hold than nifty100, and TWICE the cost. The
+ordering matched on three and does not match on four, under either proxy.
+**What is measured now is four costs and no ordering.**
+
+**NOT that it scales linearly** -- and this was already the right refusal for a
+reason that has now been demonstrated rather than argued. Four points, no
+functional form, and the values are not proportional to either proxy: lots fall
+15% from midcap150 to nifty50 while the cost falls 83%, and the intermediate
+point does not lie between.
 
 **NOT that the fourth would fit.** midcap50 is withheld, and it is the SMALLEST
 universe of the four -- the extrapolation a reader is most tempted to make is
@@ -4225,27 +4260,50 @@ as "not computed"; this was computed and rejected, and the file says which.
 
 ### WHAT TAX DOES TO THE EARLIER FINDING
 
-The pre-tax reading was **v2 lost to its own benchmark on three of four**.
-Against bh_lots, before tax, it is still three of four -- the count survives the
-benchmark swap even though every individual gap moves. After tax:
-
 | universe | gap before tax | gap after tax | change | sign change? |
 |---|--:|--:|--:|---|
 | midcap150 | +4.24 | +1.66 | -2.58 | no -- stays positive |
+| **midcap100** | **+1.04** | **-1.23** | **-2.27** | **YES -- positive to negative** |
 | midcap50 | -4.56 | -5.97 | -1.41 | no -- stays negative |
 | nifty100 | -4.37 | -5.52 | -1.15 | no -- stays negative |
 | nifty50 | -5.72 | -6.16 | -0.44 | no -- stays negative |
 
-**No sign changes on any of the four.** The one positive gap shrinks to 39% of
-its pre-tax size and stays positive; the three negative gaps each widen. Tax
-moves every gap in the same direction -- against v2 -- and carries none of them
-across zero. The three-of-four count is the same after tax as before it.
+**THIS SECTION SAID "NO SIGN CHANGES ON ANY OF THE FOUR". THAT IS NOW FALSE.
+AMENDED 2026-09-19.** It read: "Tax moves every gap in the same direction --
+against v2 -- and carries none of them across zero." The first half survives;
+the second does not. **midcap100 crosses**: +1.0392 before tax, -1.2280 after,
+cost -2.2672. Its v2 beats its own equal-rupee basket before tax and loses to
+it after. Tax alone decides which side of zero that universe sits on.
+
+**FOUR OF FOUR WAS A COUNT, NEVER A PROPERTY, AND THE SENTENCE READ AS THOUGH
+IT WERE ONE.** "Carries none of them across zero" is a claim about tax; what
+had been measured was four universes in which it happened not to. The
+distinction is invisible while the count holds and is the whole content of the
+record once it does not.
+
+**IT IS THE SAME ERROR AS "every pair clears dE2000 >= 10"**, written on
+midcap50's registry row on 2026-09-18 and false by 2026-09-19 for the identical
+reason: both were true of what had been measured and asserted about what had
+not, and both read as true until a fifth universe was added. Neither was a
+careless number. Each was a correct measurement over a set, phrased as a
+property of the thing being measured. That is the shape to watch for, and it
+now has two instances in two days.
+
+**The counts, restated for five.** Against bh published, v2 beats its own
+buy & hold on 1 of 5 (midcap100 is -1.31). Against bh_lots before tax, 2 of 5
+are positive; after tax, 1 of 5. The pre-tax three-of-four became four-of-five
+by adding a universe, and the after-tax count changed because of tax rather
+than because of the addition -- those are two different things happening in the
+same table and the rows are marked so they are not read as one.
 
 **This is recorded, not concluded.** Everything the pre-tax entry declined to
-claim it still declines to claim: four single runs, one per universe, no error
-bar on any of them, and midcap150's surviving positive gap is one observation
-whose width is unmeasured. No accept rule was pre-registered for the tax
-comparison either. The tax axis added a column, not a verdict.
+claim it still declines to claim: five single runs, one per universe, NO ERROR
+BAR ON ANY OF THEM, and midcap100's crossing is ONE OBSERVATION whose width is
+unmeasured -- a gap of +1.04 is small enough that seed noise has previously
+been shown to cover differences of this size on this project's other
+measurements. No accept rule was pre-registered for the tax comparison. **Do
+not read "tax flips the sign" as a finding about tax.** It is one run in which
+it did.
 
 ### THE RISK COMPARISON -- FOUR OF FOUR ON DRAWDOWN
 
