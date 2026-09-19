@@ -31,8 +31,12 @@ continuous. That is a deliberate choice and it is the reason this file has to
 exist: nothing in a filename, a tag or a path distinguishes a pre-migration
 artefact from a post-migration one.
 
-Migration executed 2026-09-18. The cold rebuild is
-`runs/20260918T024833_mid-n100_all_r20/`, 178 artefacts.
+Migration executed 2026-09-18. The cold rebuild was
+`runs/20260918T024833_mid-n100_all_r20/`, 178 artefacts. **That directory was
+deleted on 2026-09-20** along with the other ten timestamped old-panel run
+folders. The name and the count stay here because they are this migration's
+provenance: they say which run the migration was executed from, and that remains
+true whether or not the folder is still on disk. Nothing else cited it.
 
 ## 2. What did NOT change
 
@@ -317,6 +321,31 @@ old names and are correct to:
   surviving copy of the pre-repoint figures
 - every tracked file under `diagnostics/`
 - `runs/*` folder names and everything inside them
+
+**AN OLD-LOOKING NAME IS NOT EVIDENCE OF AN OLD-NAMED DUPLICATE. CHECK BEFORE
+YOU DELETE.** Added 2026-09-20, after a cleanup nearly removed three directories
+on the assumption that `runs/mid/`, `runs/n100/` and `runs/n50/` were the same
+data as `runs/midcap150/`, `runs/nifty100/` and `runs/nifty50/` under the tags
+those universes carried before the repoint. **They are not.** Measured on
+2026-09-20, file by file: different inodes and different bytes on every one of
+the sixteen files under `runs/mid/` against its `runs/midcap150/` counterpart,
+and the same answer for the other two pairs. They hold PRE-REPOINT results. Their
+canonical homes `results_mid/`, `results_n100/` and `results_n50/` no longer
+exist, and `pre_repoint_baseline/` does not cover them -- it copies
+`metrics_mid/` and `metrics_n100/`, not these `runs/` trees. **So these three are
+the only copy of what they hold, on this machine or anywhere else, and they were
+deliberately held back when the eleven timestamped old-panel run folders were
+deleted on 2026-09-20.** Three point nine megabytes is not a reason to lose the
+only copy of anything.
+
+The eleven that were deleted were safe for the opposite reason, and it was
+checked rather than assumed: every file in them was hard-linked from somewhere
+that survives, `runs/mid/` included -- `runs/mid/v1/comparison.csv` and
+`runs/20260917T011812_mid_all_r20/runs/mid/v1/comparison.csv` were the same
+inode, 71786073. **Deleting a hard link is not deleting data, and deleting the
+last hard link is. The difference is the whole question, and `du` will not tell
+you which one you are looking at:** `du` on those eleven folders reported 135 MB,
+and the disk got back 23 MB.
 - the frozen specs under `experiments/`
 - all prose, everywhere, until the prose pass
 
