@@ -36,7 +36,15 @@ for v in ("OMP_NUM_THREADS","MKL_NUM_THREADS","OPENBLAS_NUM_THREADS",
           "VECLIB_MAXIMUM_THREADS","NUMEXPR_NUM_THREADS"): os.environ[v]="1"
 os.environ["PYTHONHASHSEED"]="0"
 import sys; from pathlib import Path
-ROOT=Path("/Users/sidharthchoudhary/Downloads/algo_trading_project")
+# ROOT IS THIS FILE'S OWN DIRECTORY AND MUST STAY THAT WAY. It was an absolute
+# literal naming one developer's checkout until 2026-09-20. Because the next line
+# puts ROOT at sys.path[0], and check_all.py's GATE 1 imports every module in the
+# repository, importing this file redirected every LATER `import config` and
+# `import universes.registry` in that process to the other tree. Gates 6, 7 and 8
+# run after gate 1, so a clone's gate suite read the literal's tree and reported
+# on artefacts that were not its own. Measured 2026-09-20: a fresh clone reported
+# "GATE 8  20 published artefact(s) checked" with no params file on its own disk.
+ROOT=Path(__file__).resolve().parent
 for p in (ROOT,ROOT/"results",ROOT/"nautilus"): sys.path.insert(0,str(p))
 import numpy as np, pandas as pd
 import cadence, config, profiles, engine_core, tax_util as T
