@@ -140,6 +140,35 @@ UNGATED_NOTICE = (
     "numbers as checked."
 )
 
+# A TRADEABLE FILENAME DOES NOT MEAN THE CAP CHANGED ANYTHING. Measured 2026-09-20
+# at commit 7dd37d6, and the wording is deliberate: this is what the cap did on
+# those runs, not a property of the cap or of the universe.
+#
+# On midcap150 the cap fired on NO fill in either arm. daily_skipped_midcap150_v1_
+# tradeable.csv and daily_skipped_midcap150_tradeable.csv carry zero rows with
+# reason "participation cap" (n=850 and n=1006 fills). The highest participation
+# any fill reached was 0.709 of its prior-20-session median on v1 and 0.345 on v2,
+# against a cap of 1.00. All eight of {trades, skipped, holdings, summary} x {v1,
+# v2} are BYTE-IDENTICAL to their unsuffixed research twins.
+#
+# nifty100 was already recorded as inert in KNOWN_ISSUES.md. So as of this commit
+# neither published universe has a run in which the cap bound.
+#
+# THIS IS A DATED MEASUREMENT AND IT WILL ROT. It depends on the capital, the
+# universe and the data, all of which move. Re-measure by counting "participation
+# cap" rows in the run's own daily_skipped artefact; do not carry this sentence
+# forward on trust.
+CAP_INERT_NOTICE = (
+    "CAP DID NOT BIND: measured 2026-09-20 at commit 7dd37d6, the participation "
+    "cap fired on no fill of midcap150 v1 (n=850) or v2 (n=1006) -- zero rows with "
+    "reason 'participation cap' in the run's daily_skipped artefact, highest "
+    "participation 0.709 and 0.345 against a cap of 1.00 -- and every midcap150 "
+    "tradeable artefact is byte-identical to its research twin. nifty100 is "
+    "recorded inert too. These are not capped results; they are research results "
+    "under a tradeable filename. Count the 'participation cap' rows in THIS run's "
+    "daily_skipped artefact before repeating that."
+)
+
 
 def gate_status():
     """The gate caveat for this run's profile, or None when it is gated.
@@ -148,7 +177,7 @@ def gate_status():
     against, so it returns None and nothing is added to a research artefact -- the
     byte-identical gate depends on that.
     """
-    return None if is_default() else UNGATED_NOTICE
+    return None if is_default() else f"{UNGATED_NOTICE} {CAP_INERT_NOTICE}"
 
 
 def suffix():
