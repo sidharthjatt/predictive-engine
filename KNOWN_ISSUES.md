@@ -4052,6 +4052,38 @@ tradeable audit would exist to verify, and **the only tradeable `daily_*` trail
 midcap150 has ever had is `v3 at r200`** -- a measurement arm at a non-default cadence,
 in the snapshot, not the shipping arm and not the shipping cadence.
 
+### CORRECTION 2026-09-20: the cap does not bind on midcap150 either
+
+**The table above is from the snapshot and the tree has moved past it.** Re-measured
+at commit `7dd37d6` against the artefacts now on disk, the midcap150 cap fires on
+**no fill in either arm**:
+
+- `daily_skipped_midcap150_v1_tradeable.csv` and `daily_skipped_midcap150_tradeable.csv`
+  carry **zero** rows with reason `participation cap`, over n=850 and n=1006 fills.
+  Every skip in them is `cash short (before TC)`.
+- Highest participation any fill reached is **0.709** of its prior-20-session median
+  on v1 and **0.345** on v2, against a cap of **1.00**.
+- All eight of {`daily_trades`, `daily_skipped`, `daily_holdings`, `daily_summary`}
+  x {v1, v2} are **byte-identical** to their unsuffixed research twins, and
+  `v34_comparison.csv` carries the same v1 and v2 rows as the two
+  `v34_comparison_v*_tradeable.csv` files: v1 CAGR 36.85 / 850 trades / final equity
+  10,209,897.06, v2 27.80 / 1006 / 6,150,398.56.
+
+So the sentence "On midcap150 the cap does bind" and the Rs 3.85M cap effect quoted
+in `gate_compare.py` are **withdrawn as descriptions of the current tree**. They
+describe the snapshot and are kept above as history. **As of this commit neither
+published universe has a run in which the participation cap changed a single fill**,
+and the two tradeable gate cells replay a configuration the cap did not touch --
+which is the same thing this item already says about nifty100.
+
+The correction is written where a reader meets the numbers: `profiles.CAP_INERT_NOTICE`
+travels into every tradeable `v34_params{SFX}.json` and is bannered by `run.py`, and
+`gate_compare.py`'s register no longer describes the cells as cap-binding.
+
+**This is a dated measurement, not a property.** Capital, universe and data all move
+it. Count the `participation cap` rows in the run's own `daily_skipped` artefact
+before repeating either claim.
+
 **WHAT THE ITEM REDUCES TO.**
 
 **Neither universe has a reconcilable tradeable audit of a configuration where the
@@ -6318,3 +6350,90 @@ does not have it.** Until it does there is no check to make, so none is printed.
 **DO NOT HELPFULLY REINTRODUCE THIS AS A DERIVED VALUE.** The deletion site in
 `make_chart.py` carries the same reasoning in a comment, so the next reader meets
 it before writing the line back.
+
+## Two definitions of "prior-20-session median volume", and one is gone
+
+Found and fixed 2026-09-20, at commit `7dd37d6`.
+
+`tradability.median_volume` -- the one the participation cap actually consumes --
+is `rolling(20).median().shift(1)` over the trading calendar, restricted to the
+backtest window, with no `volume > 0` filter and **no value at all until 20
+sessions exist**. `liquidity_participation.py` had its own: the last 20 dated rows
+of the symbol's own file with `volume > 0`, taking whatever was there even when
+fewer than 20 existed.
+
+Both called themselves "prior-20-session median volume". They are not the same
+number. Measured over every fill in the two midcap150 tradeable arms:
+
+| | v1 (n=842 with both) | v2 (n=998 with both) |
+|---|---:|---:|
+| differ by more than 1% | 175 (20.78%) | 215 (21.54%) |
+| differ by more than 10% | 61 | 77 |
+| identical | 658 | 772 |
+| largest divergence | 140.11% | 140.11% |
+
+The largest is AUBANK 2019-10-29, where the cap's definition gives 16,661 and the
+other 6,939. On v1 the two even disagree about whether a fill clears a 0.10 cap, on
+n=1 fill of 842.
+
+**`liquidity_participation.py` now calls `tradability.median_volume`** and has no
+definition of its own. `volume_panel()` is deleted; it had no caller outside that
+file. The cap's definition survives because a measurement of the cap that used a
+different median than the cap would be measuring something nobody runs.
+
+**`diagnostics/liquidity_participation.txt` on disk predates this change.** Its
+figures -- including the 1,614.52% quoted in `EXPERIMENTS.md` and
+`DRAWDOWN_EXIT_SPEC.txt`, and the "22 of 985 fills above 10%" in `EXP20_PREREG.txt`
+-- were produced by the deleted definition. Regenerate before citing them again.
+
+## The concentration figure: one basis, and the one that was rejected
+
+Settled 2026-09-20 at commit `7dd37d6`, on the midcap150 tradeable arms.
+
+**THE SURVIVING DEFINITION.** Share of total return earned on fills that would be
+hard to execute:
+
+> Match every fill into lots, FIFO per symbol, from `daily_trades`. A lot's P&L is
+> `(exit price - entry price) x qty`; a lot still open at the window end is marked
+> at its final holding price, so **every lot is counted, not just the closed ones**.
+> Rank lots by the participation ratio of their ENTRY fill -- `qty / med20`, the
+> cap's own denominator -- and take the top decile. The figure is their summed P&L
+> over **total return, final equity minus starting capital**.
+
+Entry-side ranking because the entry is the fill whose size you choose; total
+return as the denominator because that is the number a reader is deciding about,
+and it includes the transaction cost the lots do not carry.
+
+| | lots | top-decile cutoff | lots in decile | share of total return |
+|---|---:|---:|---:|---:|
+| midcap150 v1 | 421 | q/med20 >= 0.0269 | 43 | **6.83%** |
+| midcap150 v2 | 499 | q/med20 >= 0.0110 | 50 | **5.50%** |
+
+The attribution reconciles: closed P&L plus unrealised minus TC comes to
+Rs 9,209,690 against v1's actual total return of Rs 9,209,897, and Rs 5,150,186
+against v2's Rs 5,150,399 -- a gap of about Rs 210 on each, from rounding in the
+published TC.
+
+**REJECTED, 2026-09-20: "realised P&L on closed lots only".** This was the Stage 1
+basis and it gave 7.19% (v1) and 6.89% (v2). Rejected because its denominator is
+the P&L of closed lots rather than the return anyone earned, so it silently drops
+both the unrealised P&L and the transaction cost, and the number it produces cannot
+be checked against final equity. It is recorded here rather than deleted because
+the two figures differ by only about a third of a point and someone will otherwise
+recompute it and think the difference is a bug.
+
+**ALSO REJECTED: the 18-19% that circulated before Stage 1.** It has no surviving
+basis. Nothing in this tree produces it, and none of the eight bases computed on
+2026-09-20 comes near it -- the closest, winners-only closed lots, gives 12.43% on
+v1 and 9.61% on v2. The 18-19% figures that ARE in the tree are participation
+percentages in `diagnostics/liquidity_participation.txt`, not return shares, which
+is the most likely origin. **Do not cite 18-19% for concentration of return.**
+
+**A STAGE 1 CAVEAT WITHDRAWN.** Stage 1 said roughly half of equity sat in
+still-open positions and labelled its figure "closed half only". That was wrong: it
+compared the open lots' COST BASIS against final equity. Only n=8 lots are open per
+arm, worth Rs 62,265 unrealised on v1 and Rs 33,306 on v2 -- **0.7% and 0.6% of
+total return**. Closed lots are 99.3% and 99.4% of it. Final holdings are indeed
+98.07% and 87.43% of final equity, but that is market value of positions bought
+along the way, not P&L still to be attributed. The question is answerable on
+essentially the whole return, and no figure above needs a "closed half" label.

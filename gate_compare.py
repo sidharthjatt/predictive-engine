@@ -144,14 +144,30 @@ STANDING_GATE = (
     ("nifty100", "all", "research",  "52 s", 43, "canonical, plus chart_nifty100_v1_v2_v3_v4.png"),
     ("midcap150",  "v3",  "research",  "24 s", 20, "the SUFFIXED naming branch on mid"),
     ("nifty100", "v2",  "research",  "20 s", 20, "the suffixed branch on n100; the accepted cell"),
-    # THE ONLY CELLS WHERE THE PARTICIPATION CAP BINDS. Added 2026-09-15. mid is
-    # the only universe whose cap binds at all -- n100 tradeable reproduces its
-    # research run exactly -- so until these existed, NO cap-binding configuration
-    # had ever been independently replayed, and audit_step measured research under
-    # a tradeable label for as long as the profile existed. v1 carries the largest
-    # cap effect (Rs 3.85M); v2 is the arm whose trail the chart and STEP 12b read.
-    ("midcap150",  "v1",  "tradeable", "25 s", 20, "the cap BINDING, largest effect  [PARTIAL]"),
-    ("midcap150",  "v2",  "tradeable", "25 s", 20, "the cap binding on the arm 12b reads  [PARTIAL]"),
+    # THE TWO TRADEABLE CELLS. Added 2026-09-15 to cover the participation cap, and
+    # they exercise the cap's CODE PATH -- vol20 is built, passed and consulted on
+    # every buy -- but on today's data it never shrinks an order.
+    #
+    # THEY WERE ADDED AS "the cap BINDING, largest effect (Rs 3.85M)" AND THAT IS
+    # NO LONGER WHAT THEY ARE. Measured 2026-09-20 at commit 7dd37d6: zero rows
+    # with reason "participation cap" in either arm's daily_skipped artefact
+    # (n=850 fills on v1, n=1006 on v2), highest participation 0.709 and 0.345
+    # against a cap of 1.00, and all eight of {trades, skipped, holdings, summary}
+    # x {v1, v2} byte-identical to their unsuffixed research twins. The Rs 3.85M
+    # belonged to an earlier snapshot; the tree has moved since and nothing
+    # re-checked the sentence.
+    #
+    # SO THE STATEMENT "mid is the only universe whose cap binds" IS WITHDRAWN.
+    # n100 was already recorded inert; as of this commit mid is inert too, and no
+    # cell in this gate replays a run in which the cap changed a single fill. What
+    # these cells prove is that the tradeable naming branch and the cap's plumbing
+    # reconcile -- not that a cap-shrunk order has ever been replayed.
+    #
+    # This is a dated measurement of these runs, not a property of the cap. Capital,
+    # universe and data all move it. Re-count the "participation cap" rows in the
+    # run's own daily_skipped artefact rather than trusting this comment.
+    ("midcap150",  "v1",  "tradeable", "25 s", 20, "tradeable branch; cap inert 2026-09-20  [PARTIAL]"),
+    ("midcap150",  "v2",  "tradeable", "25 s", 20, "the arm 12b reads; cap inert  [PARTIAL]"),
 )
 
 # THE TWO TRADEABLE CELLS ARE PARTIAL, AND THAT IS NOT A DETAIL. They exercise the
@@ -175,6 +191,12 @@ STANDING_GATE = (
 # ITSELF: profiles.gate_status() is bannered by run.py at both ends of the run and
 # written into v34_params{SFX}.json. Research artefacts are untouched by it, which
 # the standing gate proves.
+#
+# THAT SAME NOTICE NOW ALSO CARRIES profiles.CAP_INERT_NOTICE, so a reader who
+# meets a tradeable artefact is told in the artefact that its cap did not bind on
+# 2026-09-20 and that it is not, on that date, a capped result. A green tradeable
+# cell means "the cap is applied and replayed correctly" -- and on these runs
+# applying it changed nothing.
 #
 # Parked until after the collapse by explicit decision: it is the third instance of
 # one missing naming authority, and fixing it at the call site would add a fourth
