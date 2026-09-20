@@ -1,3 +1,25 @@
+==============================================================================
+PRE-REPOINT DIAGNOSTIC -- DO NOT QUOTE THESE FIGURES WITHOUT RE-RUNNING.
+Produced 2026-08-14 15:34.
+Stamped 2026-09-20.
+
+The universes were repointed at Final_Without_Survivorship_Data on 2026-09-18.
+This file was produced before that, so every figure in it describes price data
+the tree no longer holds.
+
+Two figures from this era have been re-measured since, and each moved further
+than the finding it supported: the largest midcap150 participation went
+1,614.52% -> 34.46%, and the depth-model cost went 1.80 -> 0.04 CAGR points.
+Neither move is attributed. Do not assume the numbers below are approximately
+right, and do not quote them without re-running the measurement.
+
+THIS FILE CANNOT BE RE-RUN. No generator script for it survives in the tree,
+and two of its three universes -- the 58 and the 74 -- were deleted on
+2026-09-11 along with their raw data and registry entries. It was scheduled
+for a re-run on 2026-09-20 and the re-run was found to be impossible, not
+skipped. Treat it as a historical record only.
+==============================================================================
+
 EFFECT OF THE REAL NSE TICK RULE ON THE PORT (main run, not the proof)
 ============================================================================================
 universemode               final equity  fills  delta vs 0.05

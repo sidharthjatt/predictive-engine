@@ -755,7 +755,10 @@ def gate_ltcg(res, sel):
 # GATE 8 -- a published artefact must name the price data it was built from
 # ---------------------------------------------------------------------------
 
-# THE ARTEFACTS THAT PREDATE THE data_source FIELD. Listed 2026-09-20.
+# THE ARTEFACTS THAT PREDATE THE data_source FIELD. Listed 2026-09-20 with 18
+# names; down to 16 on 2026-09-20 when midcap150 v3 and nifty100 v2 were re-run.
+# The gate failed on both the moment they gained the field and named the lines to
+# delete, which is the list working as intended rather than an incident.
 #
 # The field was added by 7dd37d6 on 2026-09-20. These 18 params files, across all
 # eight universes, were written before it existed, so they carry no data_source and
@@ -778,12 +781,10 @@ GATE8_EXEMPT = (
     "results_midcap100/metrics/v34_params_tax.json",
     "results_midcap150/metrics/v34_params.json",
     "results_midcap150/metrics/v34_params_tax.json",
-    "results_midcap150/metrics/v34_params_v3.json",
     "results_midcap50/metrics/v34_params.json",
     "results_midcap50/metrics/v34_params_tax.json",
     "results_nifty100/metrics/v34_params.json",
     "results_nifty100/metrics/v34_params_tax.json",
-    "results_nifty100/metrics/v34_params_v2.json",
     "results_nifty200/metrics/v34_params.json",
     "results_nifty200/metrics/v34_params_tax.json",
     "results_nifty50/metrics/v34_params.json",
@@ -793,7 +794,7 @@ GATE8_EXEMPT = (
     "results_smallcap250/metrics/v34_params.json",
     "results_smallcap250/metrics/v34_params_tax.json",
 )
-GATE8_EXEMPT_N = 18          # asserted below; move it when the tuple moves
+GATE8_EXEMPT_N = 16          # asserted below; move it when the tuple moves
 
 
 def gate_data_source(res, sel):
