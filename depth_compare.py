@@ -69,11 +69,48 @@ def run_mode(u, mode, raw_dir, syms):
 
 
 def main():
+    import subprocess, datetime
+    import config as _cfg
+    try:
+        _commit = subprocess.run(["git", "rev-parse", "--short", "HEAD"], cwd=ROOT,
+                                 capture_output=True, text=True).stdout.strip()
+    except Exception:
+        _commit = "unknown"
     print("=" * 104)
     print(" DEPTH MODEL -- 'unlimited' (default, unchanged) vs 'volume'")
     print(f" levels {nt_data.DEPTH_LEVELS} | top-level depth "
           f"{nt_data.DEPTH_FRACTION:.0%} of prior-{nt_data.DEPTH_VOL_WIN}d median "
           f"daily volume | spacing {SLIPPAGE:.2%} per level")
+    print("=" * 104)
+    print(f" Generated {datetime.date.today()} at commit {_commit}.")
+    for _t, _rd, _ in UNIV:
+        _u = REGISTRY[_t]
+        _fp = _cfg.data_fingerprint(_u.data_dir, _u.raw_data_dir)
+        print(f"   {_t}: {_fp.get('n_files')} files, {_fp.get('digest')}")
+        print(f"     {_fp.get('raw_data_dir')}")
+    print(" SUPERSEDES THE COPY DATED 2026-09-17, which was produced before the")
+    print(" universes were repointed at Final_Without_Survivorship_Data on")
+    print(" 2026-09-18. That run reported midcap150 unlimited 29.16 / volume 27.36,")
+    print(" a depth cost of 1.80 CAGR points over 985 fills with 19 orders walking,")
+    print(" and nifty100 25.43 / 25.42 over 997 fills. Those figures are superseded.")
+    print(" WHAT MOVED AND WHAT IS NOT KNOWN. The depth cost on midcap150 is now")
+    print(" 0.04 CAGR points, not 1.80. The unlimited BASELINE moved too (29.16 ->")
+    print(" 27.79), so the change is not confined to the depth model: the backtest")
+    print(" underneath it is running on different prices and produces 1,006 fills")
+    print(" rather than 985. The depth model's own volume source is NOT the cause --")
+    print(" measured 2026-09-20, holding today's prices fixed and swapping only the")
+    print(" volume source between the old data/raw/MidCap150/clean and today's")
+    print(" constituents gives 27.75 and 1,020 fill events either way, identical.")
+    print(" Beyond that the move is NOT ATTRIBUTED. Reproducing the 2026-09-17 run")
+    print(" would need both its data and its code, and the code has moved since.")
+    print(" AIIL. The old run's 19 walked orders are not recorded individually, so")
+    print(" this cannot be measured from the depth diagnostic. What is on record:")
+    print(" the liquidity diagnostic of the same era and data listed 22 midcap150")
+    print(" fills above 10% participation and 13 of them were AIIL; today's list has")
+    print(" 12 fills and none is AIIL. AIIL's price file now starts 2024-04-23")
+    print(" against 2015-06-11 before the repoint, so its 2021 orders are gone.")
+    print(" That is consistent with AIIL having driven the old figure and is not a")
+    print(" measurement of it.")
     print("=" * 104)
 
     for u, raw_dir, syms in UNIV:
