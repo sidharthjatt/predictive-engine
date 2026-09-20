@@ -629,9 +629,14 @@ _MID = Universe(
             "Measured on the Nifty100 equivalent, this bias was worth about 10 points\n"
             "of CAGR. The buy&hold number below is NOT achievable."),
         liquidity_note=(
-            "mid [measured pre-2026-09-10, close-basis engine]: 22 of 985 fills "
-            "exceed 10%, the largest being 1,614% on AIIL; the same depth model "
-            "cost 1.80 CAGR points, 29.16% -> 27.36%."),
+            "midcap150 [re-measured 2026-09-20]: 12 of 998 fills with a "
+            "prior-20-session median exceed 10% (n=1,006 fills), the largest "
+            "34.46% on TATAINVEST 2019-12-26. SUPERSEDES [pre-2026-09-10, "
+            "close-basis engine]: 22 of 985 fills exceed 10%, largest 1,614% on "
+            "AIIL -- that order is in no current daily_trades, because AIIL's "
+            "price file now starts 2024-04-23. The depth-model figure is "
+            "unrestated and still from the older run: 1.80 CAGR points, "
+            "29.16% -> 27.36%."),
         # MEASURED. Eight results from the post density-fix panel. The inv-vol half
         # of the old blanket "validated" claim was FALSE as written, which is why
         # this is stated per test: a stale validation claim is worse than no claim.
@@ -779,10 +784,12 @@ _N100 = Universe(
             "Measured on the Nifty100 equivalent, this bias was worth about 10 points\n"
             "of CAGR. The buy&hold number below is NOT achievable."),
         liquidity_note=(
-            "n100 [measured pre-2026-09-10, close-basis engine]: 3 of 997 fills "
-            "exceed 10% of prior-20-day median volume, and ZERO do on the 60-day "
-            "window;\nmodelling realistic depth (10% of median daily volume per "
-            "level, three levels) cost 0.01 CAGR points, 25.43% -> 25.42%."),
+            "nifty100 [re-measured 2026-09-20]: 3 of 932 fills with a "
+            "prior-20-session median exceed 10% (n=940 fills), and ZERO do on the "
+            "60-day window. SUPERSEDES [pre-2026-09-10, close-basis engine]: 3 of "
+            "997 fills.\nThe depth figure is unrestated and still from the older "
+            "run: modelling realistic depth (10% of median daily volume per level, "
+            "three levels) cost 0.01 CAGR points, 25.43% -> 25.42%."),
         # SURVIVORSHIP. These 99 names are TODAY'S index members backfilled to the
         # start of the backtest; companies that were in the Nifty 100 during the
         # window and were later dropped or delisted are absent entirely. It is

@@ -138,3 +138,5 @@ OUTPUT
 --------------------------------------------------------------------------------
 Separate script. Nothing written into results/, results_mid/ or results_n100/.
 The results go to diagnostics/. English only. No tuning.
+
+[2026-09-20] The figures quoted under THE MEASURED PROBLEM are superseded. Nothing above this line is changed: a pre-registration records what was believed when it was written. Corrected figures are in diagnostics/liquidity_participation.txt, with the reason, and in EXPERIMENTS.md beside the original bullets.

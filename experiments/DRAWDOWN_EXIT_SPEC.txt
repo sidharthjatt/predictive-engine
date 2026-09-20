@@ -421,6 +421,25 @@ WHAT THIS MEANS FOR THE ACCEPT RULE, STATED PLAINLY:
      the exact fills are superseded; the ORDER OF MAGNITUDE is the point and it
      is not sensitive to either change.)
 
+     SUPERSEDED 2026-09-20, AND THE ORDER OF MAGNITUDE DID NOT SURVIVE.
+     Re-measured on midcap150 at the same Rs 10,00,000: 12 of 998 fills with a
+     prior-20-session median exceed 10% (n=1,006 fills in all), the largest is
+     TATAINVEST 2019-12-26 at 34.46%, and the under-Rs-10 band's p90 is 0.325%
+     over 18 fills, not 282%. No AIIL fill exceeds 10%.
+
+     The 2021-06-07 AIIL order is not in any current daily_trades. AIIL's price
+     file now begins 2024-04-23, so the tree holds no 2021 row for it at all --
+     the figure was not recomputed smaller, the run that produced it cannot be
+     reproduced. The universes were repointed at Final_Without_Survivorship_Data
+     on 2026-09-18.
+
+     WHAT THIS DOES AND DOES NOT DO TO THE ARGUMENT. It removes the measured
+     instance: 34.46% is a large order, not sixteen days of a name's volume. The
+     structural objection is untouched -- an exit still sells the entire book in
+     one session, into a falling market, against a synthetic QUOTE_DEPTH of
+     10,000,000 shares at flat 15 bps regardless of size. That assumption is the
+     reason this section exists and no measurement here has tested it.
+
      A DRAWDOWN EXIT WOULD PLACE MANY SUCH ORDERS SIMULTANEOUSLY. NOTHING IN THIS
      MEASUREMENT, OR ANYWHERE IN THIS REPOSITORY, CAN SAY WHAT THEY WOULD FILL
      AT. Any backtested benefit from a full exit is an upper bound and should be

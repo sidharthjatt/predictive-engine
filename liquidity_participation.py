@@ -132,9 +132,39 @@ def band_of(p):
 
 
 def main():
+    import subprocess
+    try:
+        _commit = subprocess.run(["git", "rev-parse", "--short", "HEAD"], cwd=ROOT,
+                                 capture_output=True, text=True).stdout.strip()
+    except Exception:
+        _commit = "unknown"
     print("=" * 108)
     print(" LIQUIDITY PARTICIPATION -- order quantity as a share of median daily volume")
     print(" Measurement only. Nothing is changed.")
+    print("=" * 108)
+    print(f" Generated {pd.Timestamp.today().date()} at commit {_commit}.")
+    print(" MEDIAN VOLUME IS tradability.median_volume, the one the participation cap")
+    print(" consumes: rolling(20).median().shift(1) over the trading calendar, inside")
+    print(" the backtest window, no volume>0 filter, no value until 20 sessions exist.")
+    print(" This file previously used a different median of its own -- last 20 dated")
+    print(" rows with volume>0, however few -- and the two disagree by more than 1% on")
+    print(" about a fifth of fills. Figures below are NOT comparable to a copy of this")
+    print(" file generated before 2026-09-20.")
+    print(" Fill counts also moved when the universes were repointed at")
+    print(" Final_Without_Survivorship_Data on 2026-09-18, so both the definition and")
+    print(" the underlying daily_trades differ from the superseded copy.")
+    print(" WHICH OF THE TWO MOVED THE NUMBERS, measured 2026-09-20 on the CURRENT")
+    print(" daily_trades so only the definition varies: on midcap150 (n=1006 fills)")
+    print(" the old definition gives median 0.058% / p90 0.962% / p99 11.070% / max")
+    print(" 34.458% and the new gives 0.057% / 0.928% / 11.128% / 34.458%, with 12")
+    print(" fills above 10% either way. The aggregate barely moves. Per FILL the two")
+    print(" differ by more than 1% on about a fifth of fills, which is why only one")
+    print(" definition is kept, but it is NOT what changed the headline figures.")
+    print(" THE 1,614.52% IS GONE BECAUSE ITS DATA IS GONE. That was AIIL SELL")
+    print(" 2021-06-07, 29,465 shares against a 1,825-share median. AIIL's file now")
+    print(" starts 2024-04-23, so the tree holds no 2021 row for it and no fill of")
+    print(" that size exists in any current daily_trades. It was not recomputed to a")
+    print(" smaller number; the run that produced it cannot be reproduced.")
     print("=" * 108)
 
     for tag, mdir, data_dir in UNIV:
