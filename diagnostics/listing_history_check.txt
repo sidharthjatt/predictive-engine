@@ -1,3 +1,19 @@
+==============================================================================
+PRE-REPOINT DIAGNOSTIC -- DO NOT QUOTE THESE FIGURES WITHOUT RE-RUNNING.
+Produced 2026-08-20 23:30.
+Stamped 2026-09-20.
+
+The universes were repointed at Final_Without_Survivorship_Data on 2026-09-18.
+This file was produced before that, so every figure in it describes price data
+the tree no longer holds.
+
+Two figures from this era have been re-measured since, and each moved further
+than the finding it supported: the largest midcap150 participation went
+1,614.52% -> 34.46%, and the depth-model cost went 1.80 -> 0.04 CAGR points.
+Neither move is attributed. Do not assume the numbers below are approximately
+right, and do not quote them without re-running the measurement.
+==============================================================================
+
 ========================================================================================================
  LISTING HISTORY -- is a 252-observation filter already in force?
  dist_high_252 = c / c.rolling(252).max() - 1, no min_periods; scorable needs all 17

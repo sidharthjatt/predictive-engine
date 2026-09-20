@@ -6456,8 +6456,19 @@ Surveyed 2026-09-20 at commit `8015eb6`. The universes were repointed at
 date describes price data the tree no longer holds. This is an inventory, not a
 re-measurement -- none of the figures below has been re-run.
 
-**Published metrics artefacts: 10, all from 2026-09-17 01:19.** They are two arms
-that nothing has re-run since:
+**RE-RUN 2026-09-20 at commit `aa385d8`. This paragraph is kept as the record of
+what was stale and is no longer current.** Both arms were re-run on the repointed
+data; both params files now carry a `data_source`, GATE 8 failed on both for still
+being listed as exemptions, and `GATE8_EXEMPT` dropped from 18 names to 16. The new
+figures reproduce `PANEL_MIGRATION.md` §4's "new" column exactly: midcap150 v3
+39.78 CAGR / 1.44 Sharpe / −54.10 MaxDD / 814 trades / final equity 11,945,809.95,
+and nifty100 v2 19.01 / 1.50 / −21.87 / 940 / 3,628,639.83. The old figures were
+52.69 / 1.86 / −29.60 / 822 / 22,977,199.75 and 24.43 / 1.72 / −18.38 / 965 /
+5,047,246.65. The moves are not attributed; §4 of PANEL_MIGRATION records that
+midcap150 v3's drawdown move has not been investigated.
+
+**Published metrics artefacts: 10, all from 2026-09-17 01:19.** They were two arms
+that nothing had re-run since:
 
 - `results_midcap150/metrics/` -- `v34_comparison_v3.csv`, `v34_equity_v3.csv`,
   `v34_subperiods_v3.csv`, `chart_v34_v3.png`, `chart_midcap150_FINAL_v3.png`
@@ -6490,6 +6501,25 @@ ones whose headline numbers are quoted elsewhere in this file or in
 `liquidity_participation.txt` and `depth_compare.txt` were on this list and were
 regenerated on 2026-09-20. Both now carry their date, commit and data digest;
 nothing else here does.
+
+**ALL 36 WERE STAMPED 2026-09-20.** Each now opens with a header giving its
+production date, saying it predates the repoint, giving the two re-measured figures
+that moved further than the findings they supported, and saying its numbers are not
+to be quoted without a re-run. Ten of the 36 have no row in
+`diagnostics/INVENTORY.csv`, so their production date is genuinely unknown and the
+header says so rather than guessing: `PIPELINE_AUDIT.txt`, `breadth_live_mid.txt`,
+`breadth_live_n100.txt`, `n100_jackknife.txt`, `nt_verify_n100.txt`,
+`topn_centralise_hashes.txt`, `v34_report.txt`, `validate_sizing_mid.txt`,
+`validate_sizing_n100.txt`, `verify_v34_arms.txt`. The 2026-09-17 00:12 filesystem
+stamp they all share is when the tree was copied, not when they were measured.
+
+**`task3_impact.txt` CANNOT BE RE-RUN, and that is a finding rather than a gap in
+this turn's work.** It was scheduled for a re-run on 2026-09-20 because Stage 2B's
+impact model was to be judged against it. No generator script for it survives
+anywhere in the tree, and two of its three universes -- the 58 and the 74 -- were
+deleted on 2026-09-11 with their raw data and registry entries. Its header says so.
+**Stage 2B has no pre-repoint impact baseline to be judged against**, and one
+cannot be reconstructed from this repository.
 
 **WHY THIS MATTERS MORE THAN THE DATE SUGGESTS.** Two figures have now been re-run
 after the repoint and both moved further than "a data refresh" implies: the largest

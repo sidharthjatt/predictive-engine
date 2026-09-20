@@ -92,21 +92,21 @@ moved most, −18.98% to −15.68%.
 
 | arm | CAGR% | Sharpe | Sortino | MaxDD% | Calmar | Trades | AnnVol% | Deployed% | FinalEquity |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| v1 invvol, 100% invested | 30.56 | 1.47 | 1.91 | -31.92 | 0.96 | 795 | 19.87 | 100.0 | 7204469.86 |
-| v2 invvol, breadth-scaled | 24.43 | 1.72 | 2.31 | -18.38 | 1.33 | 965 | 13.47 | 56.6 | 5047246.65 |
-| v3 provol, 100% invested | 23.14 | 1.01 | 1.29 | -41.57 | 0.56 | 754 | 23.94 | 100.0 | 4671849.85 |
-| v4 provol, breadth-scaled | 21.36 | 1.29 | 1.71 | -22.32 | 0.96 | 967 | 16.27 | 56.6 | 4193714.59 |
-| buy & hold equal-weight | 24.0 | 1.28 | 1.46 | -37.79 | 0.64 | 0 | 18.4 | 100.0 | 4920590.49 |
+| v1 invvol, 100% invested | 25.77 | 1.26 | 1.68 | -36.03 | 0.72 | 773 | 20.21 | 100.0 | 5461733.57 |
+| v2 invvol, breadth-scaled | 19.01 | 1.50 | 2.07 | -21.87 | 0.87 | 940 | 12.33 | 56.8 | 3628639.83 |
+| v3 provol, 100% invested | 27.29 | 1.14 | 1.54 | -41.07 | 0.66 | 716 | 24.10 | 100.0 | 5970524.87 |
+| v4 provol, breadth-scaled | 21.33 | 1.34 | 1.82 | -24.54 | 0.87 | 934 | 15.62 | 56.8 | 4187801.56 |
+| buy & hold equal-weight | 24.16 | 1.27 | 1.45 | -38.65 | 0.63 | 0 | 18.67 | 100.0 | 4969254.64 |
 
 ### MidCap150 — 148 symbols
 
 | arm | CAGR% | Sharpe | Sortino | MaxDD% | Calmar | Trades | AnnVol% | Deployed% | FinalEquity |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| v1 invvol, 100% invested | 50.12 | 1.96 | 2.54 | -35.88 | 1.4 | 852 | 22.4 | 100.0 | 20257161.48 |
-| v2 invvol, breadth-scaled | 29.23 | 1.99 | 2.59 | -15.68 | 1.86 | 1019 | 13.57 | 54.1 | 6677756.94 |
-| v3 provol, 100% invested | 52.69 | 1.86 | 2.51 | -29.6 | 1.78 | 822 | 24.88 | 100.0 | 22977199.75 |
-| v4 provol, breadth-scaled | 33.23 | 1.94 | 2.55 | -16.76 | 1.98 | 1019 | 15.71 | 54.1 | 8373227.87 |
-| buy & hold equal-weight | 28.34 | 1.49 | 1.68 | -36.54 | 0.78 | 0 | 18.21 | 100.0 | 6353371.24 |
+| v1 invvol, 100% invested | 36.85 | 1.54 | 1.98 | -40.84 | 0.90 | 850 | 22.37 | 100.0 | 10209897.06 |
+| v2 invvol, breadth-scaled | 27.80 | 1.90 | 2.55 | -20.01 | 1.39 | 1006 | 13.65 | 54.6 | 6150398.56 |
+| v3 provol, 100% invested | 39.78 | 1.44 | 1.92 | -54.10 | 0.74 | 814 | 25.95 | 100.0 | 11945809.95 |
+| v4 provol, breadth-scaled | 34.21 | 1.89 | 2.68 | -24.56 | 1.39 | 1002 | 16.61 | 54.6 | 8840521.94 |
+| buy & hold equal-weight | 25.46 | 1.35 | 1.52 | -37.73 | 0.67 | 0 | 18.42 | 100.0 | 5375524.94 |
 
 The shipping arm is v2 (breadth-scaled, inverse-vol). v1 is the always-invested
 variant; v3 and v4 are measurement arms on pro-vol sizing and are not shipped.
@@ -130,20 +130,35 @@ silently reprinted.
 Read those honestly, and read this paragraph before the tables above.
 
 Against the equal-weight buy & hold of its own universe — the harder comparison,
-and the one that matters — **the shipping arm's return edge is now 0.43 CAGR
-points on n100 (24.43 vs 24.00) and 0.89 on mid (29.23 vs 28.34).** Before the
-`adj_close` and interior-gap corrections this README claimed 2.18 and 1.99. The
-edge did not shrink because the strategy changed; it shrank because the earlier
-figures were measured on a price basis that flattered it. On n100, 0.43 points is
-inside anything this project would call significant, and no measured noise floor
-exists to test it against — see `diagnostics/seed_noise.txt`, which reports a
-mismatch and no spread.
+and the one that matters — **the shipping arm now LOSES to its own basket on
+nifty100, 19.01 against 24.16, and beats it on midcap150, 27.80 against 25.46.**
+That is a sign change on nifty100, not a shrinking edge.
 
-**The drawdown result is the defensible one and it improved.** n100 −18.38%
-against buy & hold's −37.79%, mid −15.68% against −36.54%: less than half the
-depth, for a return that is still ahead. That is what a rule which goes to cash
-when breadth collapses ought to produce, and it is the part of the claim the
-corrections did not weaken.
+> *Superseded 2026-09-20: this paragraph read "the shipping arm's return edge is
+> now 0.43 CAGR points on n100 (24.43 vs 24.00) and 0.89 on mid (29.23 vs 28.34)",
+> and before that 2.18 and 1.99. The tables above and these figures are from the
+> runs on disk after the 2026-09-18 repoint at
+> `Final_Without_Survivorship_Data`; the superseded numbers were measured on the
+> previous vendor's prices. Those are two vendors' prices for the same names over
+> the same window, so neither set checks the other and the move is not a
+> correction of an error. It is not attributed further: see
+> `PANEL_MIGRATION.md` §4, which records the same ten-arm comparison and states
+> that midcap150 v3's drawdown move, −29.60 to −54.10, has not been investigated.*
+
+No measured noise floor exists to test any of these gaps against — see
+`diagnostics/seed_noise.txt`, which reports a mismatch and no spread.
+
+**The drawdown result is the part that still holds, and it is weaker than it was.**
+nifty100 −21.87% against buy & hold's −38.65%, midcap150 −20.01% against −37.73%:
+a little over half the depth on both, not less than half. On midcap150 the return
+is still ahead; on nifty100 it is not. That a rule which goes to cash when breadth
+collapses cuts drawdown is the part of the claim that survived the repoint.
+
+> *Superseded 2026-09-20: this paragraph read "n100 −18.38% against buy & hold's
+> −37.79%, mid −15.68% against −36.54%: less than half the depth, for a return that
+> is still ahead." Every arm's drawdown worsened on both universes, buy & hold
+> included, which `PANEL_MIGRATION.md` §4 records as uniform in a way the CAGR
+> column is not.*
 
 Two universes were retired, and on **2026-09-11 they were deleted** -- code, raw
 data and registry entries. Their figures are kept here because the experiment
