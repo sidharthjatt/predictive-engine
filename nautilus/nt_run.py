@@ -124,6 +124,16 @@ def reports_segment(mode, sizing, rebal=None):
     r = _cad.DEFAULT if rebal is None else int(rebal)
     if r != _cad.DEFAULT:
         seg = f"{seg}@r{r}"
+    # THE PROFILE GOES INTO THE PATH AND NOWHERE ELSE. This segment keeps a
+    # tradeable run from overwriting a research run's reports, which is what it
+    # was added for and all it does. NOTHING DOWNSTREAM OF THIS LINE READS THE
+    # PROFILE: nt_strategy.py sizes at :391 with no participation cap, and
+    # `participation_cap`, `vol20` and `median_volume` appear nowhere under
+    # nautilus/. So `@tradeable` in a report path records which profile the run
+    # SELECTED, not which one it APPLIED -- the fills beneath it are uncapped.
+    # Recorded 2026-09-20 as the current limitation; see the note at the sizing
+    # line in nt_strategy.py and the note files in the two @tradeable directories
+    # on disk.
     if not _pf.is_default():
         seg = f"{seg}@{_pf.selected()}"
     # THE TAX AXIS, 2026-09-17, CARRIED HERE EVEN THOUGH NAUTILUS DOES NOT MODEL
