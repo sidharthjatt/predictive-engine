@@ -235,14 +235,26 @@ script were deleted on 2026-09-11, so **this figure cannot be regenerated and no
 equivalent exists for either surviving universe.** See
 [RETIRED_UNIVERSES.md](RETIRED_UNIVERSES.md).*
 
-**mid holds positions it could not have bought.** At the backtest's own
-Rs 10,00,000, 22 of 985 fills exceed 10% of the stock's prior-20-day median volume.
-The worst is AIIL on 2021-06-07 at 1,614% of median daily volume — sixteen days of
-the entire market's volume in that name, in one order. Modelling depth properly
-costs mid 1.80 CAGR points, 29.16% to 27.36%, with Sharpe going 2.00 to 1.90. n100
-is far cleaner: 3 fills of 997 above 10%, and the same depth model costs it 0.01
-points. Details in `diagnostics/liquidity_participation.txt` and
-`diagnostics/depth_compare.txt`. A filter that removed untradeable names was tested
+**midcap150 holds positions it could not have bought.** Re-measured 2026-09-20 at
+the backtest's own Rs 10,00,000: **12 of 998 fills** with a prior-20-session median
+exceed 10% of it (n=1,006 fills in all). The worst is TATAINVEST on 2019-12-26 at
+**34.46%**. nifty100 is cleaner: **3 of 932** above 10% (n=940). Modelling depth
+properly costs mid 1.80 CAGR points, 29.16% to 27.36%, with Sharpe going 2.00 to
+1.90, and costs n100 0.01 points. Details in
+`diagnostics/liquidity_participation.txt` and `diagnostics/depth_compare.txt`.
+
+> *Superseded 2026-09-20: this paragraph read "22 of 985 fills", "3 fills of 997",
+> and "the worst is AIIL on 2021-06-07 at 1,614% of median daily volume — sixteen
+> days of the entire market's volume in that name, in one order." Two things moved.
+> The universes were repointed at `Final_Without_Survivorship_Data` on 2026-09-18,
+> so the fill counts are from different runs; and AIIL's price file now begins
+> 2024-04-23, so the tree holds no 2021 row for it and that order does not exist in
+> any current `daily_trades`. The 1,614% was not recomputed smaller — the run that
+> produced it cannot be reproduced. Separately, `liquidity_participation.py` had its
+> own median-volume definition until 2026-09-20 and now uses the participation cap's;
+> measured on the same fills that change moves the aggregate almost not at all
+> (midcap150 max 34.458% either way). The depth-model CAGR figures are from
+> `depth_compare.py` and are not restated here.* A filter that removed untradeable names was tested
 as EXP20 and rejected, failing one sub-period gate by 0.02 Sharpe.
 
 Those depth figures are measured on the Nautilus port, not on the research engine,

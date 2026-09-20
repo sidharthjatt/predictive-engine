@@ -754,6 +754,48 @@ def gate_ltcg(res, sel):
 # ---------------------------------------------------------------------------
 # GATE 8 -- a published artefact must name the price data it was built from
 # ---------------------------------------------------------------------------
+
+# THE ARTEFACTS THAT PREDATE THE data_source FIELD. Listed 2026-09-20.
+#
+# The field was added by 7dd37d6 on 2026-09-20. These 18 params files, across all
+# eight universes, were written before it existed, so they carry no data_source and
+# the gate failed all 18 on every run. That is 18 red lines that no commit can
+# clear except re-running the artefact, and a gate that is permanently red is a
+# gate nobody reads. The artefacts are not defective; the reporting was.
+#
+# NOTHING IS BACKFILLED AND NOTHING IS FORGIVEN. An exemption says only "this file
+# predates the field", never "this file's provenance is known". It is still true
+# that these 18 cannot say what price data produced them, and that is still a
+# reason not to quote them. The remedy is unchanged: re-run the artefact.
+#
+# THE LIST ONLY SHRINKS. Re-running any of these writes a data_source, and the gate
+# then FAILS on it for still being listed, naming the line to delete. A new
+# artefact without the field is not on the list, so it fails the ordinary way. The
+# count is asserted against the length of this tuple, so a name cannot be added
+# here without the number moving in the same diff.
+GATE8_EXEMPT = (
+    "results_midcap100/metrics/v34_params.json",
+    "results_midcap100/metrics/v34_params_tax.json",
+    "results_midcap150/metrics/v34_params.json",
+    "results_midcap150/metrics/v34_params_tax.json",
+    "results_midcap150/metrics/v34_params_v3.json",
+    "results_midcap50/metrics/v34_params.json",
+    "results_midcap50/metrics/v34_params_tax.json",
+    "results_nifty100/metrics/v34_params.json",
+    "results_nifty100/metrics/v34_params_tax.json",
+    "results_nifty100/metrics/v34_params_v2.json",
+    "results_nifty200/metrics/v34_params.json",
+    "results_nifty200/metrics/v34_params_tax.json",
+    "results_nifty50/metrics/v34_params.json",
+    "results_nifty50/metrics/v34_params_tax.json",
+    "results_nifty500/metrics/v34_params.json",
+    "results_nifty500/metrics/v34_params_tax.json",
+    "results_smallcap250/metrics/v34_params.json",
+    "results_smallcap250/metrics/v34_params_tax.json",
+)
+GATE8_EXEMPT_N = 18          # asserted below; move it when the tuple moves
+
+
 def gate_data_source(res, sel):
     """Every v34_params*.json must record a data source that is still current.
 
@@ -788,6 +830,14 @@ def gate_data_source(res, sel):
 
     The gate SKIPS only when no params file exists at all, which is a tree with
     nothing to check rather than a check that declined.
+
+    THE 18 EXEMPTIONS ARE A CLOSED LIST, NOT A PATTERN. GATE8_EXEMPT above names
+    every artefact that predates the field. A file without data_source that is not
+    on the list fails. A file on the list that has GAINED the field fails too, and
+    says to delete the line -- so re-running an artefact shrinks the list and the
+    gate insists on it. On a full run the number of exemptions actually used is
+    checked against GATE8_EXEMPT_N and every listed path must still exist, so the
+    list cannot grow, rot, or quietly cover something it was never meant to.
     """
     import json
     try:
@@ -811,6 +861,9 @@ def gate_data_source(res, sel):
 
     live = {}                      # tag -> fingerprint, computed at most once
     checked = 0
+    exempt_used = set()            # listed paths that were seen, and had no field
+    seen_paths = set()             # every params path this run actually looked at
+    full_scan = sel in (None, "all")
     for t in tags:
         u = REGISTRY.get(t)
         if u is None:
@@ -820,18 +873,34 @@ def gate_data_source(res, sel):
             continue
         for f in sorted(M.glob("v34_params*.json")):
             checked += 1
+            nm = name(f)
+            seen_paths.add(nm)
             try:
                 doc = json.loads(f.read_text())
             except Exception as e:
-                res.fail("GATE 8 data source", name(f),
+                res.fail("GATE 8 data source", nm,
                          f"unreadable: {type(e).__name__}: {e}")
                 continue
             rec = doc.get("data_source")
             if not isinstance(rec, dict):
-                res.fail("GATE 8 data source", name(f),
+                if nm in GATE8_EXEMPT:
+                    # Predates the field. Listed, dated and counted, not forgiven:
+                    # it still cannot say what produced it. Re-run it to clear it.
+                    exempt_used.add(nm)
+                    continue
+                res.fail("GATE 8 data source", nm,
                          "no data_source field, so which price data produced this "
                          "artefact cannot be established. NOT BACKFILLED: a source "
                          "written in now would be a guess. Re-run the artefact.")
+                continue
+            if nm in GATE8_EXEMPT:
+                res.fail("GATE 8 data source", nm,
+                         "this artefact is on GATE8_EXEMPT but now HAS a "
+                         "data_source, so it has been re-run since the list was "
+                         "written. Delete its line from GATE8_EXEMPT in "
+                         "check_all.py and reduce GATE8_EXEMPT_N by one. The list "
+                         "is meant to shrink; leaving a cleared artefact on it "
+                         "hides the next one that genuinely lacks the field.")
                 continue
             if t not in live:
                 live[t] = config.data_fingerprint(u.data_dir, u.raw_data_dir)
@@ -851,8 +920,36 @@ def gate_data_source(res, sel):
                  "no published artefact to check. Not counted as passed.",
                  "no params artefacts on disk")
         return
+
+    # THE LIST IS PINNED BY COUNT AND BY EXISTENCE, on a full scan only -- a run
+    # scoped to one universe legitimately never visits most of these paths.
+    if full_scan:
+        gone = [x for x in GATE8_EXEMPT if x not in seen_paths]
+        if gone:
+            res.fail("GATE 8 exemptions", "check_all.py",
+                     "GATE8_EXEMPT names {} artefact(s) that are not on disk:\n"
+                     "          {}\n"
+                     "      A listed path that no longer exists is a stale "
+                     "exemption. Delete the line(s) and reduce GATE8_EXEMPT_N "
+                     "to match.".format(len(gone), "\n          ".join(gone)))
+        if len(GATE8_EXEMPT) != GATE8_EXEMPT_N:
+            res.fail("GATE 8 exemptions", "check_all.py",
+                     f"GATE8_EXEMPT holds {len(GATE8_EXEMPT)} names but "
+                     f"GATE8_EXEMPT_N says {GATE8_EXEMPT_N}. The count exists so a "
+                     f"name cannot be added without the number moving in the same "
+                     f"diff. Set them equal deliberately.")
+        elif len(exempt_used) != GATE8_EXEMPT_N:
+            res.fail("GATE 8 exemptions", "check_all.py",
+                     f"{len(exempt_used)} of {GATE8_EXEMPT_N} listed artefacts "
+                     f"were actually missing a data_source this run. The others "
+                     f"either gained the field (each is failed by name above) or "
+                     f"were not visited. Bring GATE8_EXEMPT and GATE8_EXEMPT_N "
+                     f"back in line with the tree.")
+
     res.note(f"GATE 8  {checked} published artefact(s) checked against the "
-             f"registry's current raw_data_dir and a sha256 over the whole input")
+             f"registry's current raw_data_dir and a sha256 over the whole input; "
+             f"{len(exempt_used)} of {GATE8_EXEMPT_N} listed exemptions predate the "
+             f"field (2026-09-20) and still cannot say what produced them")
 
 
 def main(argv=None):

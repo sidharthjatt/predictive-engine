@@ -2603,7 +2603,7 @@ unreproducible, which is worse than either keeping or losing both.
 | `results/leakage_check2_purge.py` | `leakage_check2_purge.txt`, `leakage_purge_gaps.csv` | 5 documents |
 | `results/leakage_check4_corpactions.py` | `leakage_check4_corpactions.txt` | LEAKAGE_SPEC.txt, DATA_EXEC_SPEC.txt, LEAKAGE_AUDIT.txt |
 | `make_v34_report.py` | `v34_report.txt`, `v34_comparison.csv` | 14 documents |
-| `liquidity_participation.py` | `liquidity_participation.txt` — the 1,614.52% figure | DRAWDOWN_EXIT_SPEC.txt, EXPERIMENTS.md |
+| `liquidity_participation.py` | `liquidity_participation.txt` — the 1,614.52% figure, **superseded 2026-09-20**, now 34.46% max on midcap150 (n=1,006 fills) | DRAWDOWN_EXIT_SPEC.txt, EXPERIMENTS.md, README.md |
 | `verify_v34_arms.py` | `verify_v34_arms.txt` | V34_SPEC.txt |
 | `results/save_ewma_comparison.py` | `ewma_vs_rolling_REPORT.txt` | EXPERIMENTS.md, rejected_experiments_REPORT.txt |
 | `depth_compare.py` | depth/fills comparison | KNOWN_ISSUES.md, NAUTILUS_STATUS.md |

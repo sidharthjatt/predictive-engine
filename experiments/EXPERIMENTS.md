@@ -1575,6 +1575,14 @@ assumes, **at the backtest's own size of Rs 10,00,000**:
 - p90 of **282%** in the under-Rs-10 price band
 - **22 of 985 fills** above 10% participation
 
+  *Superseded 2026-09-20. Re-measured on midcap150 at the same Rs 10,00,000:
+  **12 of 998** fills with a prior-20-session median exceed 10% (n=1,006 in all),
+  the under-Rs-10 band's p90 is **0.325%** over 18 fills, and **no AIIL fill
+  exceeds 10%** — AIIL's four current fills are all 2025-2026. AIIL's price file
+  now starts 2024-04-23, so the 2021 orders behind the old bullets are not in the
+  tree. Kept visible because the three bullets are what EXP20 was pre-registered
+  against.*
+
 And modelling depth natively rather than as flat slippage costs mid **1.80 CAGR
 points and 0.10 Sharpe** (29.16% → 27.36%, Sharpe 2.00 → 1.90, 19 orders walking
 the book), against **0.01 points** for n100.
@@ -3103,9 +3111,14 @@ was found, and none is alleged.**
 - **NOTHING ABOUT CAPACITY, AND THIS RULE IS THE WORST CASE FOR THE FILL MODEL.**
   An exit sells the entire book in one session, into a falling market, against a
   synthetic `QUOTE_DEPTH` of 10,000,000 shares at flat 15 bps regardless of order
-  size. `diagnostics/liquidity_participation.txt` already records a mid SELL at
-  **1,614.52%** of its symbol's prior-20-day median volume. Nothing here can say
-  what a full liquidation on 13 March 2020 would actually have filled at.
+  size. `diagnostics/liquidity_participation.txt` recorded a mid SELL at
+  **1,614.52%** of its symbol's prior-20-day median volume. *Superseded 2026-09-20:
+  that fill was AIIL 2021-06-07, and AIIL's price file now begins 2024-04-23, so no
+  current `daily_trades` holds it. The largest participation now measured on
+  midcap150 is **34.46%** (TATAINVEST, 2019-12-26, n=1,006 fills). The point the
+  sentence is making survives at the smaller number: an exit still sells the whole
+  book in one session against a synthetic depth of 10,000,000 shares.* Nothing here
+  can say what a full liquidation on 13 March 2020 would actually have filled at.
 - **NOTHING ABOUT A POSITION-LEVEL STOP**, which is a different rule the spec
   explicitly does not address.
 - **NOTHING ABOUT SEED STABILITY.** One ten-seed panel; entry 29 established that
@@ -3290,8 +3303,10 @@ is the direct cause of both failures.**
 - **NOTHING ABOUT CAPACITY, AND WHIPSAW MAKES IT WORSE.** 77 full liquidations and
   76 full re-entries, against a synthetic `QUOTE_DEPTH` of 10,000,000 shares at
   flat 15 bps regardless of size, when
-  `diagnostics/liquidity_participation.txt` already records a mid SELL at
-  **1,614.52%** of its symbol's prior-20-day median volume.
+  `diagnostics/liquidity_participation.txt` recorded a mid SELL at **1,614.52%** of
+  its symbol's prior-20-day median volume. *Superseded 2026-09-20: that fill is not
+  in any current `daily_trades` (AIIL's data now starts 2024-04-23); the largest on
+  midcap150 today is 34.46%, n=1,006 fills.*
 - **NOTHING BEYOND THE ONE 2020 EPISODE.** The 2021–2026 triggers are the
   unresolved 2020 breach, not new events. **Repeated firings within one episode
   are not repeated tests of the rule.**
@@ -3481,8 +3496,10 @@ reader must not draw one.
 - **Nothing about the chained-reset case**, per above.
 - **Nothing about capacity.** Fills are synthetic against a `QUOTE_DEPTH` of
   10,000,000 shares at flat 15 bps regardless of size, and an exit still sells the
-  entire book in one session; `diagnostics/liquidity_participation.txt` records a
-  mid SELL at **1,614.52%** of its symbol's prior-20-day median volume.
+  entire book in one session; `diagnostics/liquidity_participation.txt` recorded a
+  mid SELL at **1,614.52%** of its symbol's prior-20-day median volume. *Superseded
+  2026-09-20: not in any current `daily_trades` (AIIL's data now starts
+  2024-04-23); largest on midcap150 today is 34.46%, n=1,006 fills.*
 - **Nothing about seed stability.** One ten-seed panel. Entry 29 established that
   redrawing the seeds moves v2 by sd 0.97–1.39 on its own — the same magnitude as
   every INSIDE cell above.

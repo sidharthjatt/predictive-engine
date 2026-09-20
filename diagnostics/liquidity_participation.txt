@@ -2,12 +2,36 @@
  LIQUIDITY PARTICIPATION -- order quantity as a share of median daily volume
  Measurement only. Nothing is changed.
 ============================================================================================================
+ Generated 2026-09-20 at commit ef43f99.
+ MEDIAN VOLUME IS tradability.median_volume, the one the participation cap
+ consumes: rolling(20).median().shift(1) over the trading calendar, inside
+ the backtest window, no volume>0 filter, no value until 20 sessions exist.
+ This file previously used a different median of its own -- last 20 dated
+ rows with volume>0, however few -- and the two disagree by more than 1% on
+ about a fifth of fills. Figures below are NOT comparable to a copy of this
+ file generated before 2026-09-20.
+ Fill counts also moved when the universes were repointed at
+ Final_Without_Survivorship_Data on 2026-09-18, so both the definition and
+ the underlying daily_trades differ from the superseded copy.
+ WHICH OF THE TWO MOVED THE NUMBERS, measured 2026-09-20 on the CURRENT
+ daily_trades so only the definition varies: on midcap150 (n=1006 fills)
+ the old definition gives median 0.058% / p90 0.962% / p99 11.070% / max
+ 34.458% and the new gives 0.057% / 0.928% / 11.128% / 34.458%, with 12
+ fills above 10% either way. The aggregate barely moves. Per FILL the two
+ differ by more than 1% on about a fifth of fills, which is why only one
+ definition is kept, but it is NOT what changed the headline figures.
+ THE 1,614.52% IS GONE BECAUSE ITS DATA IS GONE. That was AIIL SELL
+ 2021-06-07, 29,465 shares against a 1,825-share median. AIIL's file now
+ starts 2024-04-23, so the tree holds no 2021 row for it and no fill of
+ that size exists in any current daily_trades. It was not recomputed to a
+ smaller number; the run that produced it cannot be reproduced.
+============================================================================================================
 
 ============================================================================================================
- N100
+ NIFTY100
 ============================================================================================================
-  fills measured 997 | symbols 94 | window 2019-01-02 -> 2026-06-08
-  median prior-day history per fill: 4,421 days
+  fills measured 940 | symbols 86 | window 2019-01-02 -> 2026-05-08
+  fills with a 20-session median: 932 | 60-session: 911. A fill inside the first 20 (or 60) sessions of the window has none, and the cap does not fire on it either.
 
   --------------------------------------------------------------------------------------------------------
   CAPITAL Rs 10,00,000  (the backtest)   (quantity x1)
@@ -15,27 +39,27 @@
 
     participation vs prior-20d median daily volume
       band              fills    median       p90       p99         max
-      under Rs 10           7    0.112%    0.497%    0.763%      0.793%
-      Rs 10-50             42    0.028%    0.137%   17.465%     29.325%
-      Rs 50-250           235    0.026%    0.644%    2.322%     13.012%
-      above Rs 250        713    0.017%    0.149%    1.828%     20.707%
-      ALL                 997    0.019%    0.255%    2.124%     29.325%
-      fills above 10% participation: 3 (0.30% of fills)
+      under Rs 10           7    0.111%    1.023%    1.423%      1.467%
+      Rs 10-50             56    0.019%    0.265%   16.260%     35.424%
+      Rs 50-250           196    0.014%    0.405%    2.699%      6.447%
+      above Rs 250        673    0.009%    0.090%    1.357%     18.033%
+      ALL                 932    0.010%    0.148%    1.637%     35.424%
+      fills above 10% participation: 3 (0.32% of fills)
 
     participation vs prior-60d median daily volume
       band              fills    median       p90       p99         max
-      under Rs 10           7    0.251%    0.425%    0.439%      0.441%
-      Rs 10-50             42    0.032%    0.119%    1.297%      1.416%
-      Rs 50-250           235    0.025%    0.607%    1.496%      1.993%
-      above Rs 250        713    0.017%    0.098%    1.723%      3.756%
-      ALL                 997    0.018%    0.164%    1.509%      3.756%
+      under Rs 10           6    0.254%    0.463%    0.487%      0.490%
+      Rs 10-50             51    0.030%    0.152%    0.821%      1.093%
+      Rs 50-250           190    0.015%    0.387%    1.116%      2.822%
+      above Rs 250        664    0.010%    0.073%    1.079%      1.938%
+      ALL                 911    0.011%    0.126%    1.092%      2.822%
       fills above 10% participation: 0 (0.00% of fills)
 
-    EVERY FILL ABOVE 10% PARTICIPATION (prior-20d median), 3 of 997
+    EVERY FILL ABOVE 10% PARTICIPATION (prior-20d median), 3 of 940
       date        symbol       side         qty     price   med vol 20d    part%
-      2019-01-30  VBL          BUY          678     46.89         2,312   29.33%
-      2019-12-26  HAL          BUY          208    360.54         1,004   20.71%
-      2022-07-20  MAZDOCK      BUY        1,573    133.13        12,089   13.01%
+      2019-01-30  VBL          BUY          819     46.89         2,312   35.42%
+      2019-05-30  HAL          SELL         231    356.64         1,281   18.03%
+      2019-12-26  HAL          BUY          190    360.54         1,109   17.13%
 
   --------------------------------------------------------------------------------------------------------
   CAPITAL Rs 50,00,000   (quantity x5)
@@ -43,35 +67,33 @@
 
     participation vs prior-20d median daily volume
       band              fills    median       p90       p99         max
-      under Rs 10           7    0.559%    2.484%    3.817%      3.965%
-      Rs 10-50             42    0.141%    0.686%   87.327%    146.626%
-      Rs 50-250           235    0.130%    3.220%   11.609%     65.059%
-      above Rs 250        713    0.087%    0.744%    9.138%    103.534%
-      ALL                 997    0.093%    1.275%   10.618%    146.626%
-      fills above 10% participation: 11 (1.10% of fills)
+      under Rs 10           7    0.554%    5.115%    7.113%      7.335%
+      Rs 10-50             56    0.097%    1.325%   81.298%    177.119%
+      Rs 50-250           196    0.071%    2.024%   13.494%     32.236%
+      above Rs 250        673    0.047%    0.448%    6.785%     90.164%
+      ALL                 932    0.052%    0.739%    8.186%    177.119%
+      fills above 10% participation: 9 (0.97% of fills)
 
     participation vs prior-60d median daily volume
       band              fills    median       p90       p99         max
-      under Rs 10           7    1.255%    2.127%    2.196%      2.204%
-      Rs 10-50             42    0.161%    0.593%    6.485%      7.078%
-      Rs 50-250           235    0.124%    3.033%    7.479%      9.967%
-      above Rs 250        713    0.083%    0.490%    8.615%     18.781%
-      ALL                 997    0.089%    0.818%    7.543%     18.781%
-      fills above 10% participation: 4 (0.40% of fills)
+      under Rs 10           6    1.269%    2.316%    2.436%      2.450%
+      Rs 10-50             51    0.148%    0.758%    4.106%      5.466%
+      Rs 50-250           190    0.074%    1.934%    5.581%     14.111%
+      above Rs 250        664    0.049%    0.366%    5.397%      9.688%
+      ALL                 911    0.053%    0.631%    5.460%     14.111%
+      fills above 10% participation: 1 (0.11% of fills)
 
-    EVERY FILL ABOVE 10% PARTICIPATION (prior-20d median), 11 of 997
+    EVERY FILL ABOVE 10% PARTICIPATION (prior-20d median), 9 of 940
       date        symbol       side         qty     price   med vol 20d    part%
-      2019-01-30  VBL          BUY        3,390     46.89         2,312  146.63%
-      2019-12-26  HAL          BUY        1,040    360.54         1,004  103.53%
-      2022-07-20  MAZDOCK      BUY        7,865    133.13        12,089   65.06%
-      2019-01-30  NESTLEIND    SELL         840    568.90         2,728   30.79%
-      2019-08-27  HAL          BUY        1,100    322.83         5,272   20.86%
-      2020-06-22  NESTLEIND    BUY          900    811.29         5,079   17.72%
-      2022-03-25  MAZDOCK      SELL       5,235    124.66        38,279   13.68%
-      2019-12-26  VBL          BUY        3,825     62.29        31,687   12.07%
-      2019-09-26  HAL          SELL       1,100    372.42         9,991   11.01%
-      2022-08-19  PFC          BUY       19,375     96.10       180,867   10.71%
-      2019-06-28  HAL          SELL         835    358.46         7,867   10.61%
+      2019-01-30  VBL          BUY        4,095     46.89         2,312  177.12%
+      2019-05-30  HAL          SELL       1,155    356.64         1,281   90.16%
+      2019-12-26  HAL          BUY          950    360.54         1,109   85.66%
+      2019-05-30  VBL          BUY        7,880     56.23        24,445   32.24%
+      2019-08-27  VBL          SELL       7,880     56.96        40,137   19.63%
+      2020-05-22  HAL          SELL       1,970    273.04        10,944   18.00%
+      2021-07-05  VBL          SELL       5,310     96.52        40,315   13.17%
+      2019-09-26  HAL          SELL       1,095    372.42        10,561   10.37%
+      2019-08-27  HAL          BUY        1,095    322.83        10,843   10.10%
 
   --------------------------------------------------------------------------------------------------------
   CAPITAL Rs 2,00,00,000   (quantity x20)
@@ -79,98 +101,71 @@
 
     participation vs prior-20d median daily volume
       band              fills    median       p90       p99         max
-      under Rs 10           7    2.236%    9.937%   15.269%     15.861%
-      Rs 10-50             42    0.563%    2.745%  349.308%    586.505%
-      Rs 50-250           235    0.519%   12.880%   46.436%    260.237%
-      above Rs 250        713    0.347%    2.976%   36.552%    414.136%
-      ALL                 997    0.373%    5.099%   42.472%    586.505%
-      fills above 10% participation: 68 (6.82% of fills)
+      under Rs 10           7    2.214%   20.460%   28.453%     29.342%
+      Rs 10-50             56    0.386%    5.300%  325.193%    708.478%
+      Rs 50-250           196    0.283%    8.095%   53.977%    128.943%
+      above Rs 250        673    0.189%    1.794%   27.141%    360.656%
+      ALL                 932    0.209%    2.954%   32.744%    708.478%
+      fills above 10% participation: 41 (4.40% of fills)
 
     participation vs prior-60d median daily volume
       band              fills    median       p90       p99         max
-      under Rs 10           7    5.021%    8.508%    8.786%      8.817%
-      Rs 10-50             42    0.644%    2.372%   25.939%     28.310%
-      Rs 50-250           235    0.497%   12.133%   29.917%     39.870%
-      above Rs 250        713    0.331%    1.961%   34.459%     75.124%
-      ALL                 997    0.358%    3.270%   30.170%     75.124%
-      fills above 10% participation: 50 (5.02% of fills)
+      under Rs 10           6    5.074%    9.265%    9.746%      9.799%
+      Rs 10-50             51    0.590%    3.031%   16.425%     21.863%
+      Rs 50-250           190    0.296%    7.738%   22.325%     56.444%
+      above Rs 250        664    0.197%    1.462%   21.590%     38.751%
+      ALL                 911    0.213%    2.523%   21.841%     56.444%
+      fills above 10% participation: 35 (3.84% of fills)
 
-    EVERY FILL ABOVE 10% PARTICIPATION (prior-20d median), 68 of 997
+    EVERY FILL ABOVE 10% PARTICIPATION (prior-20d median), 41 of 940
       date        symbol       side         qty     price   med vol 20d    part%
-      2019-01-30  VBL          BUY       13,560     46.89         2,312  586.51%
-      2019-12-26  HAL          BUY        4,160    360.54         1,004  414.14%
-      2022-07-20  MAZDOCK      BUY       31,460    133.13        12,089  260.24%
-      2019-01-30  NESTLEIND    SELL       3,360    568.90         2,728  123.14%
-      2019-08-27  HAL          BUY        4,400    322.83         5,272   83.46%
-      2020-06-22  NESTLEIND    BUY        3,600    811.29         5,079   70.88%
-      2022-03-25  MAZDOCK      SELL      20,940    124.66        38,279   54.70%
-      2019-12-26  VBL          BUY       15,300     62.29        31,687   48.28%
-      2019-09-26  HAL          SELL       4,400    372.42         9,991   44.04%
-      2022-08-19  PFC          BUY       77,500     96.10       180,867   42.85%
-      2019-06-28  HAL          SELL       3,340    358.46         7,867   42.46%
-      2019-08-27  VBL          SELL      13,560     56.96        34,585   39.21%
-      2019-01-30  SOLARINDS    SELL       1,580    985.62         4,240   37.26%
-      2019-05-02  HAL          BUY        3,340    335.00         9,091   36.74%
-      2019-12-26  SOLARINDS    BUY        2,260   1060.59         6,425   35.17%
-      2020-02-19  INDHOTEL     BUY       10,820    127.19        33,526   32.27%
-      2019-12-26  INDHOTEL     BUY       10,900    140.64        36,994   29.46%
-      2022-04-26  LODHA        BUY        4,540    506.71        15,622   29.06%
-      2022-11-17  PFC          SELL      77,500     96.18       271,663   28.53%
-      2019-06-28  SOLARINDS    BUY        1,080   1153.73         4,445   24.29%
-      2019-06-28  INDHOTEL     SELL      10,120    152.94        41,703   24.27%
-      2019-03-29  HINDZINC     BUY        9,060    286.59        37,672   24.05%
-      2020-01-23  INDHOTEL     SELL      10,900    139.88        45,979   23.71%
-      2019-05-30  CHOLAFIN     SELL       3,960    296.10        16,918   23.41%
-      2021-09-01  VBL          BUY       31,900    113.07       138,555   23.02%
-      2025-08-12  MUTHOOTFIN   BUY        1,500   2596.29         6,582   22.79%
-      2019-01-02  SOLARINDS    BUY        1,580   1083.92         6,938   22.77%
-      2020-02-19  HAL          SELL       4,160    359.39        18,403   22.60%
-      2025-05-20  TECHM        SELL       8,120   1602.59        36,538   22.22%
-      2020-06-22  BAJAJHLDNG   SELL         720   2536.29         3,247   22.17%
-      2019-01-02  INDHOTEL     BUY       11,480    141.75        51,880   22.13%
-      2019-01-02  CHOLAFIN     BUY        3,600    250.88        16,379   21.98%
-      2019-01-30  INDHOTEL     SELL      11,480    131.21        52,936   21.69%
-      2022-04-26  RECLTD       BUY       46,700     95.50       229,825   20.32%
-      2021-03-05  SOLARINDS    SELL       3,360   1397.90        16,618   20.22%
-      2020-07-20  SOLARINDS    SELL       2,880   1032.75        14,502   19.86%
-      2020-05-22  VBL          BUY       22,000     51.68       111,472   19.74%
-      2021-02-05  SOLARINDS    BUY        3,360   1231.84        17,381   19.33%
-      2023-07-11  COALINDIA    BUY       49,840    234.16       274,145   18.18%
-      2019-07-26  INDHOTEL     BUY        4,280    145.54        24,620   17.38%
-      2020-07-20  INDHOTEL     BUY       20,100     76.90       115,839   17.35%
-      2022-08-19  MAZDOCK      SELL      31,460    161.26       183,511   17.14%
-      2020-11-10  SOLARINDS    BUY        2,180   1023.98        12,815   17.01%
-      2019-05-30  BAJAJFINSV   BUY        2,320    814.22        13,710   16.92%
-      2022-06-22  BEL          SELL      38,500     76.88       228,102   16.88%
-      2020-04-23  SOLARINDS    BUY        2,880    887.33        17,565   16.40%
-      2020-01-23  CGPOWER      SELL      65,240      8.84       411,324   15.86%
-      2021-10-29  VBL          SELL      31,900    109.74       201,577   15.83%
-      2020-11-10  INDHOTEL     SELL      13,580    103.86        92,452   14.69%
-      2023-07-11  HDFCAMC      SELL       7,720   1124.71        52,941   14.58%
-      2021-12-28  PFC          BUY       27,760     96.70       193,186   14.37%
-      2020-03-20  SOLARINDS    SELL       2,260    971.54        16,776   13.47%
-      2022-02-23  VBL          BUY       19,080    122.18       146,195   13.05%
-      2024-04-01  MAZDOCK      BUY        6,960    941.41        53,775   12.94%
-      2019-09-26  ADANIENSOL   BUY        7,720    235.45        61,159   12.62%
-      2021-03-05  TORNTPHARM   BUY        2,500   1249.87        19,983   12.51%
-      2022-02-23  MAZDOCK      BUY       20,940    122.53       168,760   12.41%
-      2019-11-27  INDHOTEL     SELL       4,280    144.18        34,981   12.24%
-      2024-02-29  HINDZINC     SELL      38,720    308.44       322,389   12.01%
-      2021-02-05  BAJAJFINSV   SELL       3,300    976.53        28,589   11.54%
-      2019-02-27  INDHOTEL     BUY       10,120    136.85        92,807   10.90%
-      2021-02-05  INDHOTEL     BUY       18,000    118.26       166,764   10.79%
-      2025-04-21  MOTHERSON    BUY       77,900     87.56       723,735   10.76%
-      2022-05-25  PFC          BUY       21,840     87.09       205,868   10.61%
-      2019-03-29  PIDILITIND   BUY        3,500    623.88        33,426   10.47%
-      2020-08-17  INDHOTEL     SELL      20,100     92.25       193,783   10.37%
-      2021-08-03  NESTLEIND    BUY        5,400    884.83        52,448   10.30%
-      2022-07-20  SOLARINDS    BUY        1,740   2708.06        17,323   10.04%
+      2019-01-30  VBL          BUY       16,380     46.89         2,312  708.48%
+      2019-05-30  HAL          SELL       4,620    356.64         1,281  360.66%
+      2019-12-26  HAL          BUY        3,800    360.54         1,109  342.65%
+      2019-05-30  VBL          BUY       31,520     56.23        24,445  128.94%
+      2019-08-27  VBL          SELL      31,520     56.96        40,137   78.53%
+      2020-05-22  HAL          SELL       7,880    273.04        10,944   72.00%
+      2021-07-05  VBL          SELL      21,240     96.52        40,315   52.69%
+      2019-09-26  HAL          SELL       4,380    372.42        10,561   41.47%
+      2019-08-27  HAL          BUY        4,380    322.83        10,843   40.39%
+      2019-01-30  SOLARINDS    SELL       1,440    985.62         4,240   33.96%
+      2024-05-30  PIDILITIND   SELL       3,640   1506.77        12,117   30.04%
+      2020-10-13  ADANIPOWER   BUY      162,900      7.26       555,185   29.34%
+      2019-05-30  INDHOTEL     SELL      10,440    145.20        35,590   29.33%
+      2022-03-25  MAZDOCK      SELL      11,680    124.66        39,823   29.33%
+      2019-03-29  HINDZINC     BUY        9,800    279.02        37,672   26.01%
+      2019-05-30  CHOLAFIN     BUY        4,400    296.98        16,918   26.01%
+      2019-12-26  SOLARINDS    SELL       1,380   1057.41         6,425   21.48%
+      2019-05-02  HAL          BUY        4,620    335.00        22,108   20.90%
+      2019-05-30  BAJAJFINSV   BUY        2,720    814.22        13,710   19.84%
+      2020-07-20  SOLARINDS    SELL       2,840   1032.75        14,502   19.58%
+      2019-07-26  INDHOTEL     BUY        4,540    145.54        24,620   18.44%
+      2019-05-30  SOLARINDS    BUY        1,380   1172.76         7,526   18.34%
+      2020-04-23  HAL          BUY        7,880    274.11        43,877   17.96%
+      2021-09-01  VBL          BUY       23,980    113.07       138,555   17.31%
+      2022-04-26  LODHA        BUY        2,960    506.71        17,615   16.80%
+      2020-05-22  VBL          BUY       20,740     51.68       125,994   16.46%
+      2020-04-23  SOLARINDS    BUY        2,840    887.33        17,565   16.17%
+      2021-02-05  SOLARINDS    BUY        2,800   1231.84        17,381   16.11%
+      2020-01-23  HAL          SELL       3,800    429.85        24,870   15.28%
+      2020-07-20  INDHOTEL     BUY       17,660     76.90       115,839   15.25%
+      2019-06-28  CHOLAFIN     SELL       4,400    285.57        29,275   15.03%
+      2020-01-23  CGPOWER      SELL      59,800      8.84       411,324   14.54%
+      2020-11-10  SOLARINDS    BUY        1,860   1023.98        12,815   14.51%
+      2020-11-10  INDHOTEL     SELL      13,180    109.09        92,452   14.26%
+      2020-12-09  VBL          SELL      20,740     79.26       153,886   13.48%
+      2022-06-22  BEL          SELL      29,800     76.88       228,102   13.06%
+      2021-06-07  SOLARINDS    SELL       2,800   1573.24        23,660   11.83%
+      2022-03-25  VBL          BUY       14,620    129.29       124,842   11.71%
+      2022-08-19  IRFC         BUY      319,400     21.43     2,754,425   11.60%
+      2021-04-07  INDHOTEL     SELL      19,000    106.48       171,480   11.08%
+      2021-12-28  PFC          BUY       19,440     96.70       193,186   10.06%
 
 ============================================================================================================
- MID
+ MIDCAP150
 ============================================================================================================
-  fills measured 985 | symbols 124 | window 2019-01-02 -> 2026-06-08
-  median prior-day history per fill: 3,983 days
+  fills measured 1,006 | symbols 123 | window 2019-01-02 -> 2026-05-08
+  fills with a 20-session median: 998 | 60-session: 974. A fill inside the first 20 (or 60) sessions of the window has none, and the cap does not fire on it either.
 
   --------------------------------------------------------------------------------------------------------
   CAPITAL Rs 10,00,000  (the backtest)   (quantity x1)
@@ -178,46 +173,36 @@
 
     participation vs prior-20d median daily volume
       band              fills    median       p90       p99         max
-      under Rs 10          24    0.126%  282.285% 1609.502%   1614.521%
-      Rs 10-50             44    0.046%   15.254%   36.829%     40.413%
-      Rs 50-250           176    0.061%    2.989%   19.828%     30.942%
-      above Rs 250        741    0.053%    0.725%    7.627%     26.584%
-      ALL                 985    0.055%    1.249%   22.062%   1614.521%
-      fills above 10% participation: 22 (2.23% of fills)
+      under Rs 10          18    0.122%    0.325%    0.447%      0.456%
+      Rs 10-50             43    0.019%    0.304%    0.724%      0.763%
+      Rs 50-250           164    0.083%    3.095%   19.629%     34.458%
+      above Rs 250        773    0.056%    0.729%    6.373%     21.238%
+      ALL                 998    0.057%    0.928%   11.128%     34.458%
+      fills above 10% participation: 12 (1.20% of fills)
 
     participation vs prior-60d median daily volume
       band              fills    median       p90       p99         max
-      under Rs 10          24    0.148%  245.480% 1282.959%   1491.899%
-      Rs 10-50             44    0.037%   16.949%   69.421%     91.303%
-      Rs 50-250           176    0.066%    3.125%   12.304%     19.386%
-      above Rs 250        741    0.052%    0.570%    3.941%     15.089%
-      ALL                 985    0.054%    1.005%   16.125%   1491.899%
-      fills above 10% participation: 19 (1.93% of fills)
+      under Rs 10          18    0.136%    0.316%    0.520%      0.553%
+      Rs 10-50             42    0.018%    0.371%    0.746%      0.864%
+      Rs 50-250           156    0.069%    2.548%   18.036%     24.647%
+      above Rs 250        758    0.055%    0.578%    4.085%     10.354%
+      ALL                 974    0.057%    0.734%    7.555%     24.647%
+      fills above 10% participation: 6 (0.62% of fills)
 
-    EVERY FILL ABOVE 10% PARTICIPATION (prior-20d median), 22 of 985
+    EVERY FILL ABOVE 10% PARTICIPATION (prior-20d median), 12 of 1006
       date        symbol       side         qty     price   med vol 20d    part%
-      2021-06-07  AIIL         SELL      29,465      9.59         1,825 1614.52%
-      2021-05-07  AIIL         BUY       29,465      6.66         1,850 1592.70%
-      2020-09-14  AIIL         BUY       23,330      2.40         7,025  332.10%
-      2021-02-05  AIIL         SELL      23,330      6.04        14,050  166.05%
-      2021-10-29  AIIL         BUY        1,937     38.35         4,793   40.41%
-      2022-06-22  AIIL         BUY        1,461     28.85         4,554   32.08%
-      2019-09-26  COCHINSHIP   BUY          729    173.56         2,356   30.94%
-      2022-05-25  AIIL         SELL       3,186     30.35        11,755   27.10%
-      2021-09-01  GODFRYPHLP   SELL         625    329.50         2,351   26.58%
-      2020-01-23  LAURUSLABS   BUY        1,302     80.58         4,942   26.34%
-      2022-08-19  AIIL         SELL       1,461     30.35         6,876   21.25%
-      2024-02-01  GODFRYPHLP   SELL         710    823.00         3,447   20.60%
-      2023-12-05  GODFRYPHLP   BUY          710    704.30         3,589   19.78%
-      2023-07-11  AIIL         BUY        2,041     71.11        11,560   17.66%
-      2023-02-10  BLUESTARCO   BUY          345    681.02         2,135   16.16%
-      2022-04-26  AIIL         BUY        3,186     37.46        20,470   15.56%
-      2021-12-28  AIIL         BUY        2,479     35.45        17,060   14.53%
-      2023-08-08  AIIL         SELL       2,041     97.25        14,810   13.78%
-      2022-03-25  GODFRYPHLP   SELL         349    366.48         2,688   12.98%
-      2021-11-30  AIIL         SELL       1,937     29.96        15,440   12.55%
-      2020-08-17  TATAINVEST   BUY        2,348     77.52        19,245   12.20%
-      2019-10-29  COCHINSHIP   SELL         729    192.71         6,436   11.33%
+      2019-12-26  TATAINVEST   BUY        1,573     80.22         4,565   34.46%
+      2022-08-19  MOTILALOFS   BUY        1,686    194.54         6,373   26.45%
+      2022-07-20  GODFRYPHLP   SELL         410    371.09         1,930   21.24%
+      2023-02-10  BLUESTARCO   BUY          381    681.02         2,135   17.84%
+      2020-01-23  TATAINVEST   SELL       1,573     83.03        10,070   15.62%
+      2019-10-29  TATAINVEST   SELL       1,452     82.93         9,815   14.79%
+      2023-09-06  360ONE       SELL         884    529.06         6,062   14.58%
+      2019-02-27  COCHINSHIP   BUY          510    173.71         3,740   13.64%
+      2020-04-23  SUNDARMFIN   BUY           75   1276.91           580   12.92%
+      2021-01-07  UNOMINDA     BUY          860    199.43         7,682   11.20%
+      2019-09-26  TATAINVEST   BUY        1,452     83.42        13,050   11.13%
+      2021-05-07  GODFRYPHLP   BUY          776    289.83         7,759   10.00%
 
   --------------------------------------------------------------------------------------------------------
   CAPITAL Rs 50,00,000   (quantity x5)
@@ -225,94 +210,86 @@
 
     participation vs prior-20d median daily volume
       band              fills    median       p90       p99         max
-      under Rs 10          24    0.631% 1411.423% 8047.512%   8072.603%
-      Rs 10-50             44    0.229%   76.270%  184.145%    202.066%
-      Rs 50-250           176    0.307%   14.944%   99.138%    154.711%
-      above Rs 250        741    0.263%    3.623%   38.135%    132.922%
-      ALL                 985    0.277%    6.246%  110.309%   8072.603%
-      fills above 10% participation: 70 (7.11% of fills)
+      under Rs 10          18    0.611%    1.626%    2.233%      2.282%
+      Rs 10-50             43    0.097%    1.521%    3.622%      3.816%
+      Rs 50-250           164    0.413%   15.475%   98.144%    172.289%
+      above Rs 250        773    0.278%    3.643%   31.863%    106.190%
+      ALL                 998    0.286%    4.640%   55.642%    172.289%
+      fills above 10% participation: 62 (6.21% of fills)
 
     participation vs prior-60d median daily volume
       band              fills    median       p90       p99         max
-      under Rs 10          24    0.740% 1227.398% 6414.795%   7459.494%
-      Rs 10-50             44    0.186%   84.747%  347.103%    456.517%
-      Rs 50-250           176    0.329%   15.626%   61.522%     96.929%
-      above Rs 250        741    0.260%    2.851%   19.703%     75.444%
-      ALL                 985    0.271%    5.024%   80.624%   7459.494%
-      fills above 10% participation: 67 (6.80% of fills)
+      under Rs 10          18    0.680%    1.578%    2.601%      2.764%
+      Rs 10-50             42    0.091%    1.854%    3.729%      4.319%
+      Rs 50-250           156    0.345%   12.738%   90.180%    123.237%
+      above Rs 250        758    0.273%    2.890%   20.423%     51.768%
+      ALL                 974    0.284%    3.668%   37.776%    123.237%
+      fills above 10% participation: 47 (4.83% of fills)
 
-    EVERY FILL ABOVE 10% PARTICIPATION (prior-20d median), 70 of 985
+    EVERY FILL ABOVE 10% PARTICIPATION (prior-20d median), 62 of 1006
       date        symbol       side         qty     price   med vol 20d    part%
-      2021-06-07  AIIL         SELL     147,325      9.59         1,825 8072.60%
-      2021-05-07  AIIL         BUY      147,325      6.66         1,850 7963.51%
-      2020-09-14  AIIL         BUY      116,650      2.40         7,025 1660.50%
-      2021-02-05  AIIL         SELL     116,650      6.04        14,050  830.25%
-      2021-10-29  AIIL         BUY        9,685     38.35         4,793  202.07%
-      2022-06-22  AIIL         BUY        7,305     28.85         4,554  160.39%
-      2019-09-26  COCHINSHIP   BUY        3,645    173.56         2,356  154.71%
-      2022-05-25  AIIL         SELL      15,930     30.35        11,755  135.51%
-      2021-09-01  GODFRYPHLP   SELL       3,125    329.50         2,351  132.92%
-      2020-01-23  LAURUSLABS   BUY        6,510     80.58         4,942  131.71%
-      2022-08-19  AIIL         SELL       7,305     30.35         6,876  106.23%
-      2024-02-01  GODFRYPHLP   SELL       3,550    823.00         3,447  102.99%
-      2023-12-05  GODFRYPHLP   BUY        3,550    704.30         3,589   98.90%
-      2023-07-11  AIIL         BUY       10,205     71.11        11,560   88.28%
-      2023-02-10  BLUESTARCO   BUY        1,725    681.02         2,135   80.78%
-      2022-04-26  AIIL         BUY       15,930     37.46        20,470   77.82%
-      2021-12-28  AIIL         BUY       12,395     35.45        17,060   72.66%
-      2023-08-08  AIIL         SELL      10,205     97.25        14,810   68.90%
-      2022-03-25  GODFRYPHLP   SELL       1,745    366.48         2,688   64.92%
-      2021-11-30  AIIL         SELL       9,685     29.96        15,440   62.73%
-      2020-08-17  TATAINVEST   BUY       11,740     77.52        19,245   61.00%
-      2019-10-29  COCHINSHIP   SELL       3,645    192.71         6,436   56.63%
-      2020-08-17  LLOYDSME     SELL      22,715     10.32        47,107   48.22%
-      2024-08-27  NAUKRI       BUY        1,640   1502.51         3,402   48.20%
-      2024-05-30  AIIL         BUY        6,590    168.25        13,699   48.10%
-      2019-10-29  TATAINVEST   SELL       4,700     82.93         9,815   47.89%
-      2023-11-06  NAUKRI       BUY        2,110    855.28         4,430   47.62%
-      2022-12-15  AIIL         SELL       5,145     48.93        11,639   44.20%
-      2020-09-14  TATAINVEST   SELL      11,740     80.68        26,710   43.95%
-      2021-12-28  AJANTPHARM   BUY          825   1456.19         1,893   43.58%
-      2021-07-05  BDL          BUY        4,545    186.91        10,966   41.44%
-      2022-03-25  AIIL         SELL      12,395     36.35        37,265   33.26%
-      2024-05-02  AIIL         SELL       4,035    169.54        12,624   31.96%
-      2021-05-07  GODFRYPHLP   SELL       2,325    288.97         7,759   29.97%
-      2019-08-27  TATAINVEST   BUY        4,700     77.57        16,200   29.01%
-      2023-10-06  AIIL         SELL      13,980    111.63        51,100   27.36%
-      2020-07-20  LLOYDSME     BUY       22,715      9.38        84,031   27.03%
-      2020-06-22  BLUESTARCO   SELL       1,075    249.62         3,980   27.01%
-      2022-01-25  PATANJALI    SELL       3,420    282.91        13,229   25.85%
-      2020-01-23  ASTRAL       BUY          940    622.53         3,647   25.77%
-      2022-10-18  MOTILALOFS   BUY        4,725    180.26        18,752   25.20%
-      2025-09-11  TATAINVEST   BUY        6,280    680.02        25,898   24.25%
-      2025-05-20  MEDANTA      BUY        3,265   1184.57        14,441   22.61%
-      2025-02-14  AIIL         SELL       4,825    335.90        21,383   22.56%
-      2023-09-06  AIIL         BUY       13,980     92.39        64,155   21.79%
-      2019-01-30  COCHINSHIP   BUY        1,150    179.65         5,394   21.32%
-      2022-02-23  GODFRYPHLP   BUY        1,745    339.91         8,694   20.07%
-      2019-11-27  ASTRAL       SELL         725    609.13         4,058   17.87%
-      2021-03-05  TATAINVEST   SELL       5,415    113.03        30,750   17.61%
-      2025-04-21  LICI         BUY       13,030    406.05        74,225   17.55%
-      2025-07-15  TATAINVEST   SELL       4,550    654.92        26,273   17.32%
-      2024-06-28  TATAINVEST   BUY        5,210    652.58        30,897   16.86%
-      2019-01-30  DIXON        SELL         935    438.07         5,681   16.46%
-      2021-10-29  PATANJALI    BUY        3,420    317.81        21,132   16.18%
-      2019-12-26  360ONE       BUY          865    271.66         5,368   16.11%
-      2019-01-02  DIXON        BUY          935    410.62         6,764   13.82%
-      2019-09-26  PATANJALI    BUY      144,310      1.30     1,053,810   13.69%
-      2020-01-23  DIXON        BUY          405    837.25         3,119   12.98%
-      2021-03-05  PERSISTENT   BUY        1,040    845.70         8,075   12.88%
-      2019-11-27  PATANJALI    SELL     144,310      1.15     1,158,613   12.46%
-      2021-04-07  GODFRYPHLP   BUY        2,325    303.05        18,842   12.34%
-      2019-12-26  DIXON        SELL         435    746.88         3,539   12.29%
-      2021-02-05  TATAINVEST   BUY        5,415    111.57        44,105   12.28%
-      2025-05-20  GMRAIRPORT   BUY       51,375     88.13       421,480   12.19%
-      2025-11-11  GMRAIRPORT   BUY       25,085     95.73       219,923   11.41%
-      2020-01-23  IPCALAB      BUY          720    615.92         6,416   11.22%
-      2024-01-03  GVT&D        SELL       4,275    579.13        39,623   10.79%
-      2021-04-07  PATANJALI    SELL       2,110    237.97        19,802   10.66%
-      2023-09-06  MCX          SELL       4,480    358.46        42,540   10.53%
-      2023-02-10  TATAINVEST   BUY        3,615    226.34        36,140   10.00%
+      2019-12-26  TATAINVEST   BUY        7,865     80.22         4,565  172.29%
+      2022-08-19  MOTILALOFS   BUY        8,430    194.54         6,373  132.27%
+      2022-07-20  GODFRYPHLP   SELL       2,050    371.09         1,930  106.19%
+      2023-02-10  BLUESTARCO   BUY        1,905    681.02         2,135   89.21%
+      2020-01-23  TATAINVEST   SELL       7,865     83.03        10,070   78.10%
+      2019-10-29  TATAINVEST   SELL       7,260     82.93         9,815   73.97%
+      2023-09-06  360ONE       SELL       4,420    529.06         6,062   72.91%
+      2019-02-27  COCHINSHIP   BUY        2,550    173.71         3,740   68.18%
+      2020-04-23  SUNDARMFIN   BUY          375   1276.91           580   64.60%
+      2021-01-07  UNOMINDA     BUY        4,300    199.43         7,682   55.98%
+      2019-09-26  TATAINVEST   BUY        7,260     83.42        13,050   55.63%
+      2021-05-07  GODFRYPHLP   BUY        3,880    289.83         7,759   50.01%
+      2019-06-28  TATAINVEST   BUY        4,215     90.29         8,540   49.36%
+      2021-09-01  KPRMILL      BUY        1,575    358.74         3,385   46.53%
+      2019-07-26  COCHINSHIP   BUY          945    178.27         2,483   38.05%
+      2021-02-05  BLUESTARCO   SELL       1,890    398.20         5,419   34.87%
+      2020-06-22  SUNDARMFIN   SELL         375   1330.65         1,099   34.12%
+      2019-07-26  TATAINVEST   SELL       4,215     84.07        13,020   32.37%
+      2021-11-30  COCHINSHIP   BUY        3,950    172.81        12,213   32.34%
+      2021-11-30  PATANJALI    SELL       4,415    306.20        14,249   30.98%
+      2021-01-07  BLUESTARCO   BUY        1,890    407.94         6,163   30.66%
+      2021-05-07  TATAINVEST   BUY        7,935    105.46        27,995   28.34%
+      2021-09-30  PATANJALI    BUY        4,415    353.19        16,379   26.96%
+      2019-02-27  MOTILALOFS   SELL         730    147.28         2,734   26.70%
+      2019-10-29  COCHINSHIP   SELL         945    192.71         4,091   23.10%
+      2019-01-30  MOTILALOFS   BUY          730    160.37         3,277   22.27%
+      2025-09-11  TATAINVEST   BUY        5,230    680.02        25,898   20.19%
+      2019-11-27  ASTRAL       SELL         780    609.13         4,058   19.22%
+      2022-04-26  BLUESTARCO   BUY        1,735    569.88         9,416   18.43%
+      2019-03-29  ASTRAL       BUY          780    525.79         4,296   18.16%
+      2019-01-30  DIXON        SELL       1,025    438.07         5,681   18.04%
+      2021-08-03  PHOENIXLTD   SELL       1,410    450.82         7,836   17.99%
+      2021-02-05  PATANJALI    BUY        2,240    246.60        12,578   17.81%
+      2025-05-20  TATAINVEST   SELL       5,110    636.74        30,146   16.95%
+      2022-03-25  GODFRYPHLP   SELL         975    366.45         5,756   16.94%
+      2022-01-25  PATANJALI    BUY        2,210    283.75        13,229   16.71%
+      2025-11-11  MEDANTA      BUY        1,505   1191.48         9,157   16.44%
+      2022-11-17  MOTILALOFS   SELL       8,430    171.07        51,351   16.42%
+      2025-05-20  GICRE        BUY        7,000    435.15        46,213   15.15%
+      2025-08-12  BHARTIHEXA   SELL       1,200   1753.57         7,966   15.06%
+      2024-12-20  TATAINVEST   BUY        5,225    667.00        34,699   15.06%
+      2020-01-23  DIXON        BUY          460    837.25         3,119   14.75%
+      2025-07-15  TATAINVEST   SELL       3,595    654.92        26,273   13.68%
+      2021-02-05  UNOMINDA     SELL       4,300    257.31        31,834   13.51%
+      2020-12-09  SUNDARMFIN   BUY          350   1801.70         2,623   13.34%
+      2022-04-26  GODFRYPHLP   BUY        2,050    410.67        15,411   13.30%
+      2020-05-22  KPRMILL      BUY        2,565     85.51        19,315   13.28%
+      2023-05-15  TATAINVEST   BUY        4,860    212.32        37,220   13.06%
+      2019-12-26  DIXON        SELL         460    746.88         3,539   13.00%
+      2025-05-20  GMRAIRPORT   BUY       48,665     88.13       384,265   12.66%
+      2021-06-07  GODFRYPHLP   SELL       3,880    311.88        30,736   12.62%
+      2025-01-20  TATAINVEST   SELL       5,225    637.44        41,486   12.59%
+      2021-04-07  PATANJALI    SELL       2,240    237.97        17,845   12.55%
+      2021-07-05  TATAINVEST   SELL       7,935    116.23        64,715   12.26%
+      2019-03-29  NAUKRI       BUY          955    374.96         7,791   12.26%
+      2025-11-11  GMRAIRPORT   BUY       25,470     95.73       215,871   11.80%
+      2020-12-09  GODFRYPHLP   BUY        3,220    318.83        28,566   11.27%
+      2022-02-23  GODFRYPHLP   BUY          975    339.91         8,694   11.21%
+      2021-05-07  PATANJALI    BUY        2,105    225.34        19,732   10.67%
+      2023-09-06  TATAINVEST   SELL       4,860    245.63        47,075   10.32%
+      2021-02-05  360ONE       BUY        2,905    277.17        28,222   10.29%
+      2021-03-05  360ONE       SELL       2,905    297.05        28,652   10.14%
 
   --------------------------------------------------------------------------------------------------------
   CAPITAL Rs 2,00,00,000   (quantity x20)
@@ -320,178 +297,165 @@
 
     participation vs prior-20d median daily volume
       band              fills    median       p90       p99         max
-      under Rs 10          24    2.522% 5645.694%32190.049%  32290.411%
-      Rs 10-50             44    0.914%  305.080%  736.582%    808.262%
-      Rs 50-250           176    1.226%   59.775%  396.550%    618.846%
-      above Rs 250        741    1.051%   14.492%  152.540%    531.689%
-      ALL                 985    1.107%   24.985%  441.235%  32290.411%
-      fills above 10% participation: 157 (15.94% of fills)
+      under Rs 10          18    2.443%    6.505%    8.933%      9.127%
+      Rs 10-50             43    0.390%    6.085%   14.488%     15.266%
+      Rs 50-250           164    1.652%   61.902%  392.575%    689.157%
+      above Rs 250        773    1.114%   14.571%  127.452%    424.760%
+      ALL                 998    1.143%   18.559%  222.570%    689.157%
+      fills above 10% participation: 144 (14.43% of fills)
 
     participation vs prior-60d median daily volume
       band              fills    median       p90       p99         max
-      under Rs 10          24    2.962% 4909.594%25659.181%  29837.975%
-      Rs 10-50             44    0.744%  338.987% 1388.411%   1826.066%
-      Rs 50-250           176    1.315%   62.505%  246.089%    387.714%
-      above Rs 250        741    1.041%   11.403%   78.810%    301.775%
-      ALL                 985    1.083%   20.095%  322.494%  29837.975%
-      fills above 10% participation: 162 (16.45% of fills)
+      under Rs 10          18    2.722%    6.311%   10.403%     11.057%
+      Rs 10-50             42    0.364%    7.415%   14.917%     17.276%
+      Rs 50-250           156    1.382%   50.951%  360.721%    492.946%
+      above Rs 250        758    1.090%   11.559%   81.694%    207.071%
+      ALL                 974    1.136%   14.672%  151.103%    492.946%
+      fills above 10% participation: 128 (13.14% of fills)
 
-    EVERY FILL ABOVE 10% PARTICIPATION (prior-20d median), 157 of 985
+    EVERY FILL ABOVE 10% PARTICIPATION (prior-20d median), 144 of 1006
       date        symbol       side         qty     price   med vol 20d    part%
-      2021-06-07  AIIL         SELL     589,300      9.59         1,82532290.41%
-      2021-05-07  AIIL         BUY      589,300      6.66         1,85031854.05%
-      2020-09-14  AIIL         BUY      466,600      2.40         7,025 6641.99%
-      2021-02-05  AIIL         SELL     466,600      6.04        14,050 3321.00%
-      2021-10-29  AIIL         BUY       38,740     38.35         4,793  808.26%
-      2022-06-22  AIIL         BUY       29,220     28.85         4,554  641.56%
-      2019-09-26  COCHINSHIP   BUY       14,580    173.56         2,356  618.85%
-      2022-05-25  AIIL         SELL      63,720     30.35        11,755  542.04%
-      2021-09-01  GODFRYPHLP   SELL      12,500    329.50         2,351  531.69%
-      2020-01-23  LAURUSLABS   BUY       26,040     80.58         4,942  526.86%
-      2022-08-19  AIIL         SELL      29,220     30.35         6,876  424.93%
-      2024-02-01  GODFRYPHLP   SELL      14,200    823.00         3,447  411.95%
-      2023-12-05  GODFRYPHLP   BUY       14,200    704.30         3,589  395.60%
-      2023-07-11  AIIL         BUY       40,820     71.11        11,560  353.11%
-      2023-02-10  BLUESTARCO   BUY        6,900    681.02         2,135  323.11%
-      2022-04-26  AIIL         BUY       63,720     37.46        20,470  311.28%
-      2021-12-28  AIIL         BUY       49,580     35.45        17,060  290.62%
-      2023-08-08  AIIL         SELL      40,820     97.25        14,810  275.62%
-      2022-03-25  GODFRYPHLP   SELL       6,980    366.48         2,688  259.67%
-      2021-11-30  AIIL         SELL      38,740     29.96        15,440  250.91%
-      2020-08-17  TATAINVEST   BUY       46,960     77.52        19,245  244.01%
-      2019-10-29  COCHINSHIP   SELL      14,580    192.71         6,436  226.54%
-      2020-08-17  LLOYDSME     SELL      90,860     10.32        47,107  192.88%
-      2024-08-27  NAUKRI       BUY        6,560   1502.51         3,402  192.80%
-      2024-05-30  AIIL         BUY       26,360    168.25        13,699  192.42%
-      2019-10-29  TATAINVEST   SELL      18,800     82.93         9,815  191.54%
-      2023-11-06  NAUKRI       BUY        8,440    855.28         4,430  190.50%
-      2022-12-15  AIIL         SELL      20,580     48.93        11,639  176.82%
-      2020-09-14  TATAINVEST   SELL      46,960     80.68        26,710  175.81%
-      2021-12-28  AJANTPHARM   BUY        3,300   1456.19         1,893  174.33%
-      2021-07-05  BDL          BUY       18,180    186.91        10,966  165.78%
-      2022-03-25  AIIL         SELL      49,580     36.35        37,265  133.05%
-      2024-05-02  AIIL         SELL      16,140    169.54        12,624  127.85%
-      2021-05-07  GODFRYPHLP   SELL       9,300    288.97         7,759  119.86%
-      2019-08-27  TATAINVEST   BUY       18,800     77.57        16,200  116.05%
-      2023-10-06  AIIL         SELL      55,920    111.63        51,100  109.43%
-      2020-07-20  LLOYDSME     BUY       90,860      9.38        84,031  108.13%
-      2020-06-22  BLUESTARCO   SELL       4,300    249.62         3,980  108.04%
-      2022-01-25  PATANJALI    SELL      13,680    282.91        13,229  103.41%
-      2020-01-23  ASTRAL       BUY        3,760    622.53         3,647  103.10%
-      2022-10-18  MOTILALOFS   BUY       18,900    180.26        18,752  100.79%
-      2025-09-11  TATAINVEST   BUY       25,120    680.02        25,898   96.99%
-      2025-05-20  MEDANTA      BUY       13,060   1184.57        14,441   90.43%
-      2025-02-14  AIIL         SELL      19,300    335.90        21,383   90.26%
-      2023-09-06  AIIL         BUY       55,920     92.39        64,155   87.16%
-      2019-01-30  COCHINSHIP   BUY        4,600    179.65         5,394   85.27%
-      2022-02-23  GODFRYPHLP   BUY        6,980    339.91         8,694   80.29%
-      2019-11-27  ASTRAL       SELL       2,900    609.13         4,058   71.46%
-      2021-03-05  TATAINVEST   SELL      21,660    113.03        30,750   70.44%
-      2025-04-21  LICI         BUY       52,120    406.05        74,225   70.22%
-      2025-07-15  TATAINVEST   SELL      18,200    654.92        26,273   69.27%
-      2024-06-28  TATAINVEST   BUY       20,840    652.58        30,897   67.45%
-      2019-01-30  DIXON        SELL       3,740    438.07         5,681   65.83%
-      2021-10-29  PATANJALI    BUY       13,680    317.81        21,132   64.73%
-      2019-12-26  360ONE       BUY        3,460    271.66         5,368   64.45%
-      2019-01-02  DIXON        BUY        3,740    410.62         6,764   55.29%
-      2019-09-26  PATANJALI    BUY      577,240      1.30     1,053,810   54.78%
-      2020-01-23  DIXON        BUY        1,620    837.25         3,119   51.93%
-      2021-03-05  PERSISTENT   BUY        4,160    845.70         8,075   51.51%
-      2019-11-27  PATANJALI    SELL     577,240      1.15     1,158,613   49.82%
-      2021-04-07  GODFRYPHLP   BUY        9,300    303.05        18,842   49.36%
-      2019-12-26  DIXON        SELL       1,740    746.88         3,539   49.16%
-      2021-02-05  TATAINVEST   BUY       21,660    111.57        44,105   49.11%
-      2025-05-20  GMRAIRPORT   BUY      205,500     88.13       421,480   48.76%
-      2025-11-11  GMRAIRPORT   BUY      100,340     95.73       219,923   45.63%
-      2020-01-23  IPCALAB      BUY        2,880    615.92         6,416   44.89%
-      2024-01-03  GVT&D        SELL      17,100    579.13        39,623   43.16%
-      2021-04-07  PATANJALI    SELL       8,440    237.97        19,802   42.62%
-      2023-09-06  MCX          SELL      17,920    358.46        42,540   42.13%
-      2023-02-10  TATAINVEST   BUY       14,460    226.34        36,140   40.01%
-      2021-07-05  GODFRYPHLP   BUY       12,500    324.64        31,392   39.82%
-      2023-06-12  GODFRYPHLP   BUY       11,460    575.05        30,133   38.03%
-      2019-08-27  KPRMILL      BUY       11,640    108.46        30,660   37.96%
-      2019-09-26  KPRMILL      SELL      11,640    112.83        30,997   37.55%
-      2024-09-24  AIIL         BUY       19,300    350.52        51,621   37.39%
-      2022-11-17  MOTILALOFS   SELL      18,900    171.07        51,351   36.81%
-      2026-01-07  LICI         BUY       36,120    425.67        99,229   36.40%
-      2019-03-29  NAUKRI       BUY        2,740    374.96         7,791   35.17%
-      2024-11-22  MEDANTA      BUY        4,440   1073.21        13,394   33.15%
-      2025-02-14  TATAINVEST   BUY        6,340    533.00        19,485   32.54%
-      2021-02-05  360ONE       BUY        9,180    277.17        28,222   32.53%
-      2024-09-24  TATAINVEST   SELL      20,840    698.95        64,887   32.12%
-      2021-03-05  360ONE       SELL       9,180    297.05        28,652   32.04%
-      2020-12-09  PATANJALI    BUY        8,440    229.34        26,441   31.92%
-      2020-03-20  KPRMILL      SELL      10,320     80.42        32,535   31.72%
-      2020-01-23  360ONE       SELL       3,460    324.71        11,121   31.11%
-      2019-12-26  APARINDS     BUY        2,880    391.09         9,428   30.55%
-      2019-12-26  KPRMILL      BUY       10,320    132.87        34,527   29.89%
-      2026-05-08  SBICARD      BUY       28,160    650.92        94,848   29.69%
-      2020-10-13  GVT&D        SELL      13,700     87.92        46,658   29.36%
-      2025-06-17  TATAINVEST   BUY       18,200    672.61        63,152   28.82%
-      2019-05-30  TATAINVEST   SELL       4,260     88.37        14,940   28.51%
-      2025-03-18  SBICARD      BUY        6,900    851.12        24,579   28.07%
-      2022-10-18  AIIL         BUY       20,580     48.47        73,539   27.98%
-      2023-04-13  PHOENIXLTD   BUY        4,700    645.27        16,820   27.94%
-      2022-07-20  NIACL        BUY       88,220     82.47       315,931   27.92%
-      2023-07-11  GVT&D        BUY       11,200    217.68        40,457   27.68%
-      2020-10-13  PATANJALI    SELL       3,780    191.71        14,006   26.99%
-      2023-03-13  LLOYDSME     SELL      30,200    323.51       119,527   25.27%
-      2019-09-26  GVT&D        SELL       4,120    172.24        16,772   24.56%
-      2023-11-06  AIIL         BUY       16,140    150.18        66,619   24.23%
-      2025-09-11  GMRAIRPORT   BUY      174,540     87.62       746,207   23.39%
-      2020-09-14  GVT&D        BUY       13,700     99.25        63,048   21.73%
-      2025-10-10  PATANJALI    SELL      22,940    591.11       107,734   21.29%
-      2026-01-07  UBL          BUY       10,980   1584.37        51,977   21.12%
-      2022-03-25  BDL          BUY       10,960    285.41        52,201   21.00%
-      2024-06-28  GODFRYPHLP   BUY        6,220   1432.14        29,629   20.99%
-      2019-06-28  NIACL        BUY        8,260    151.13        39,723   20.79%
-      2024-06-28  GODREJPROP   BUY        3,380   3130.24        16,316   20.72%
-      2021-10-29  LLOYDSME     BUY       19,620     90.24        97,994   20.02%
-      2023-01-12  TATAINVEST   SELL       7,420    230.35        37,730   19.67%
-      2023-08-08  GVT&D        SELL      11,200    280.38        58,926   19.01%
-      2019-08-27  NIACL        SELL       8,260    108.34        43,563   18.96%
-      2022-08-19  NIACL        SELL      88,220     91.41       465,813   18.94%
-      2021-07-05  MCX          BUY       11,320    302.45        60,952   18.57%
-      2026-04-08  360ONE       BUY        3,680    980.32        19,838   18.55%
-      2019-05-02  GLAXO        SELL       2,160   1283.17        11,740   18.40%
-      2022-07-20  LLOYDSME     BUY       30,200    149.12       164,800   18.33%
-      2019-01-02  TIINDIA      BUY        3,700    350.47        20,767   17.82%
-      2019-08-27  PATANJALI    SELL     132,940      1.70       752,376   17.67%
-      2021-02-05  APLAPOLLO    BUY        4,080    466.70        23,538   17.33%
-      2020-08-17  GODFRYPHLP   SELL       9,540    322.47        55,608   17.16%
-      2025-11-11  LINDEINDIA   BUY        2,300   5888.82        13,463   17.08%
-      2023-11-06  TATAINVEST   BUY       11,820    324.39        69,435   17.02%
-      2020-08-17  SUNDARMFIN   BUY        1,420   1366.85         8,404   16.90%
-      2023-10-06  APLAPOLLO    SELL       4,280   1614.37        25,456   16.81%
-      2021-12-28  PERSISTENT   SELL       2,060   2306.54        12,306   16.74%
-      2019-10-29  DIXON        BUY        1,740    609.48        10,402   16.73%
-      2023-08-08  MCX          BUY       17,920    326.39       107,882   16.61%
-      2020-07-20  GODFRYPHLP   BUY        9,540    313.67        58,519   16.30%
-      2023-03-13  CONCOR       BUY        8,020    468.70        49,280   16.27%
-      2024-09-24  GODFRYPHLP   SELL       6,220   2451.12        39,165   15.88%
-      2020-04-23  PERSISTENT   BUY        7,600    244.77        49,136   15.47%
-      2020-02-19  APLAPOLLO    BUY        5,320    201.80        34,740   15.31%
-      2021-02-05  CRISIL       BUY        2,760   1933.90        18,165   15.19%
-      2019-06-28  MCX          SELL       8,980    166.15        59,280   15.15%
-      2026-03-06  UBL          SELL      10,980   1638.24        73,968   14.84%
-      2023-08-08  COCHINSHIP   BUY       14,380    330.90        98,013   14.67%
-      2024-11-22  TATAINVEST   BUY        5,720    655.77        38,996   14.67%
-      2023-09-06  APLAPOLLO    BUY        4,280   1808.91        29,188   14.66%
-      2023-11-06  GODFRYPHLP   SELL      11,460    714.41        79,078   14.49%
-      2020-01-23  GODFRYPHLP   BUY        2,720    471.71        19,174   14.19%
-      2021-03-05  CRISIL       SELL       2,760   1902.29        19,611   14.07%
-      2019-01-02  CONCOR       BUY        2,860    439.70        20,608   13.88%
-      2025-01-20  TATAINVEST   SELL       5,720    637.44        41,486   13.79%
-      2020-01-23  APARINDS     SELL       2,880    448.33        20,889   13.79%
-      2019-07-26  PATANJALI    BUY      132,940      1.35       981,670   13.54%
-      2019-03-29  GLAXO        BUY        2,160   1300.00        17,731   12.18%
-      2019-07-26  TIINDIA      SELL       3,460    362.61        28,612   12.09%
-      2019-08-27  GVT&D        BUY        4,120    159.14        35,513   11.60%
-      2022-01-25  APLAPOLLO    BUY        3,500    935.40        30,207   11.59%
-      2026-02-05  GMRAIRPORT   SELL     100,340     98.42       925,571   10.84%
-      2023-05-15  3MINDIA      BUY          260  23569.75         2,425   10.72%
-      2024-04-01  GODREJIND    SELL      11,680    788.82       110,707   10.55%
-      2019-09-26  ASTRAL       BUY        2,900    671.86        27,515   10.54%
-      2025-08-12  AIIL         SELL      19,700    577.13       194,856   10.11%
-      2022-03-25  GODREJIND    BUY       11,700    482.32       116,369   10.05%
+      2019-12-26  TATAINVEST   BUY       31,460     80.22         4,565  689.16%
+      2022-08-19  MOTILALOFS   BUY       33,720    194.54         6,373  529.07%
+      2022-07-20  GODFRYPHLP   SELL       8,200    371.09         1,930  424.76%
+      2023-02-10  BLUESTARCO   BUY        7,620    681.02         2,135  356.83%
+      2020-01-23  TATAINVEST   SELL      31,460     83.03        10,070  312.41%
+      2019-10-29  TATAINVEST   SELL      29,040     82.93         9,815  295.87%
+      2023-09-06  360ONE       SELL      17,680    529.06         6,062  291.63%
+      2019-02-27  COCHINSHIP   BUY       10,200    173.71         3,740  272.73%
+      2020-04-23  SUNDARMFIN   BUY        1,500   1276.91           580  258.40%
+      2021-01-07  UNOMINDA     BUY       17,200    199.43         7,682  223.90%
+      2019-09-26  TATAINVEST   BUY       29,040     83.42        13,050  222.53%
+      2021-05-07  GODFRYPHLP   BUY       15,520    289.83         7,759  200.03%
+      2019-06-28  TATAINVEST   BUY       16,860     90.29         8,540  197.42%
+      2021-09-01  KPRMILL      BUY        6,300    358.74         3,385  186.12%
+      2019-07-26  COCHINSHIP   BUY        3,780    178.27         2,483  152.20%
+      2021-02-05  BLUESTARCO   SELL       7,560    398.20         5,419  139.50%
+      2020-06-22  SUNDARMFIN   SELL       1,500   1330.65         1,099  136.49%
+      2019-07-26  TATAINVEST   SELL      16,860     84.07        13,020  129.49%
+      2021-11-30  COCHINSHIP   BUY       15,800    172.81        12,213  129.37%
+      2021-11-30  PATANJALI    SELL      17,660    306.20        14,249  123.94%
+      2021-01-07  BLUESTARCO   BUY        7,560    407.94         6,163  122.66%
+      2021-05-07  TATAINVEST   BUY       31,740    105.46        27,995  113.38%
+      2021-09-30  PATANJALI    BUY       17,660    353.19        16,379  107.82%
+      2019-02-27  MOTILALOFS   SELL       2,920    147.28         2,734  106.80%
+      2019-10-29  COCHINSHIP   SELL       3,780    192.71         4,091   92.40%
+      2019-01-30  MOTILALOFS   BUY        2,920    160.37         3,277   89.09%
+      2025-09-11  TATAINVEST   BUY       20,920    680.02        25,898   80.78%
+      2019-11-27  ASTRAL       SELL       3,120    609.13         4,058   76.89%
+      2022-04-26  BLUESTARCO   BUY        6,940    569.88         9,416   73.70%
+      2019-03-29  ASTRAL       BUY        3,120    525.79         4,296   72.63%
+      2019-01-30  DIXON        SELL       4,100    438.07         5,681   72.16%
+      2021-08-03  PHOENIXLTD   SELL       5,640    450.82         7,836   71.97%
+      2021-02-05  PATANJALI    BUY        8,960    246.60        12,578   71.23%
+      2025-05-20  TATAINVEST   SELL      20,440    636.74        30,146   67.80%
+      2022-03-25  GODFRYPHLP   SELL       3,900    366.45         5,756   67.76%
+      2022-01-25  PATANJALI    BUY        8,840    283.75        13,229   66.82%
+      2025-11-11  MEDANTA      BUY        6,020   1191.48         9,157   65.74%
+      2022-11-17  MOTILALOFS   SELL      33,720    171.07        51,351   65.67%
+      2025-05-20  GICRE        BUY       28,000    435.15        46,213   60.59%
+      2025-08-12  BHARTIHEXA   SELL       4,800   1753.57         7,966   60.26%
+      2024-12-20  TATAINVEST   BUY       20,900    667.00        34,699   60.23%
+      2020-01-23  DIXON        BUY        1,840    837.25         3,119   58.98%
+      2025-07-15  TATAINVEST   SELL      14,380    654.92        26,273   54.73%
+      2021-02-05  UNOMINDA     SELL      17,200    257.31        31,834   54.03%
+      2020-12-09  SUNDARMFIN   BUY        1,400   1801.70         2,623   53.36%
+      2022-04-26  GODFRYPHLP   BUY        8,200    410.67        15,411   53.21%
+      2020-05-22  KPRMILL      BUY       10,260     85.51        19,315   53.12%
+      2023-05-15  TATAINVEST   BUY       19,440    212.32        37,220   52.23%
+      2019-12-26  DIXON        SELL       1,840    746.88         3,539   51.98%
+      2025-05-20  GMRAIRPORT   BUY      194,660     88.13       384,265   50.66%
+      2021-06-07  GODFRYPHLP   SELL      15,520    311.88        30,736   50.49%
+      2025-01-20  TATAINVEST   SELL      20,900    637.44        41,486   50.38%
+      2021-04-07  PATANJALI    SELL       8,960    237.97        17,845   50.21%
+      2021-07-05  TATAINVEST   SELL      31,740    116.23        64,715   49.05%
+      2019-03-29  NAUKRI       BUY        3,820    374.96         7,791   49.03%
+      2025-11-11  GMRAIRPORT   BUY      101,880     95.73       215,871   47.19%
+      2020-12-09  GODFRYPHLP   BUY       12,880    318.83        28,566   45.09%
+      2022-02-23  GODFRYPHLP   BUY        3,900    339.91         8,694   44.86%
+      2021-05-07  PATANJALI    BUY        8,420    225.34        19,732   42.67%
+      2023-09-06  TATAINVEST   SELL      19,440    245.63        47,075   41.30%
+      2021-02-05  360ONE       BUY       11,620    277.17        28,222   41.17%
+      2021-03-05  360ONE       SELL      11,620    297.05        28,652   40.56%
+      2021-07-05  PHOENIXLTD   BUY        5,640    417.51        14,238   39.61%
+      2023-07-11  360ONE       SELL       5,560    487.97        14,194   39.17%
+      2019-01-30  NIACL        SELL       9,720    177.93        25,406   38.26%
+      2020-09-14  SCHAEFFLER   BUY        2,740    815.22         7,448   36.79%
+      2023-09-06  MCX          SELL      16,000    358.46        43,840   36.50%
+      2022-04-26  COCHINSHIP   SELL      15,800    171.97        43,769   36.10%
+      2024-01-03  GVT&D        SELL      13,900    579.13        39,623   35.08%
+      2024-02-29  PHOENIXLTD   BUY        4,520   1397.09        13,259   34.09%
+      2019-10-29  AUBANK       SELL       5,520    342.49        16,661   33.13%
+      2019-05-30  TATAINVEST   SELL       4,580     88.37        14,940   30.66%
+      2019-02-27  NIACL        BUY        6,960    172.16        22,865   30.44%
+      2025-02-14  TATAINVEST   BUY        5,760    533.00        19,485   29.56%
+      2019-12-26  APARINDS     BUY        2,740    391.09         9,428   29.06%
+      2026-05-08  SBICARD      BUY       25,820    650.92        89,403   28.88%
+      2023-09-06  GODFRYPHLP   BUY        7,580    701.06        26,481   28.62%
+      2019-12-26  KPRMILL      BUY        9,820    132.87        34,527   28.44%
+      2020-06-22  KPRMILL      SELL      10,260    100.45        37,967   27.02%
+      2022-05-25  TATAINVEST   BUY        9,260    149.82        35,270   26.25%
+      2022-06-22  TATAINVEST   SELL       9,260    129.80        35,365   26.18%
+      2023-07-11  GVT&D        BUY       10,560    217.68        40,457   26.10%
+      2020-08-17  BLUESTARCO   SELL      11,260    272.59        44,445   25.33%
+      2021-01-07  GODFRYPHLP   SELL      12,880    318.87        56,326   22.87%
+      2024-10-23  TATAINVEST   SELL       8,440    681.98        37,039   22.79%
+      2025-06-17  TATAINVEST   BUY       14,380    672.61        63,152   22.77%
+      2022-03-25  PATANJALI    SELL       8,840    294.56        39,205   22.55%
+      2025-03-18  SBICARD      BUY        6,540    851.12        29,118   22.46%
+      2019-10-29  TIINDIA      BUY        4,040    374.56        18,100   22.32%
+      2021-02-05  APLAPOLLO    BUY        5,160    466.70        23,538   21.92%
+      2026-01-07  UBL          BUY       11,360   1584.37        51,977   21.86%
+      2023-03-13  CONCOR       BUY       10,440    468.70        49,280   21.19%
+      2023-06-12  GODFRYPHLP   SELL       6,380    573.33        30,133   21.17%
+      2023-06-12  LICI         BUY       34,180    303.05       161,447   21.17%
+      2025-09-11  LICI         BUY       32,220    444.35       152,335   21.15%
+      2023-01-12  TATAINVEST   SELL       7,920    230.35        37,730   20.99%
+      2023-01-12  360ONE       BUY        5,480    472.46        26,459   20.71%
+      2019-06-28  NIACL        BUY        8,140    151.13        39,723   20.49%
+      2020-04-23  KPRMILL      SELL       9,820     92.11        48,462   20.26%
+      2024-06-28  GODFRYPHLP   BUY        5,940   1432.14        29,629   20.05%
+      2023-08-08  GVT&D        SELL      10,560    280.38        58,926   17.92%
+      2021-01-07  APLAPOLLO    SELL       5,800    446.78        32,864   17.65%
+      2021-10-29  APLAPOLLO    SELL       4,800    808.69        27,734   17.31%
+      2020-07-20  BLUESTARCO   BUY       11,260    245.12        65,123   17.29%
+      2021-09-30  APLAPOLLO    BUY        4,800    826.24        28,098   17.08%
+      2026-04-08  360ONE       BUY        3,160    980.32        18,813   16.80%
+      2022-01-25  AIAENG       SELL       2,720   1899.15        16,219   16.77%
+      2019-06-28  MCX          SELL       9,900    166.15        61,755   16.03%
+      2023-11-06  TATAINVEST   BUY       11,100    324.39        69,435   15.99%
+      2020-12-09  BERGEPAINT   SELL       3,740    557.49        23,674   15.80%
+      2026-03-06  UBL          SELL      11,360   1638.24        73,968   15.36%
+      2020-05-22  JSL          BUY       30,100     26.74       197,173   15.27%
+      2019-05-30  NIACL        SELL       4,740    164.35        31,272   15.16%
+      2023-01-12  BLUESTARCO   SELL       6,900    623.71        46,119   14.96%
+      2023-08-08  MCX          BUY       16,000    326.39       107,882   14.83%
+      2020-01-23  TIINDIA      BUY        4,060    524.89        27,503   14.76%
+      2021-12-28  AIAENG       BUY        2,720   1797.39        18,580   14.64%
+      2024-08-27  GODFRYPHLP   SELL       5,940   1890.46        40,606   14.63%
+      2023-10-06  GODFRYPHLP   SELL       7,580    713.87        51,880   14.61%
+      2020-03-20  GODFRYPHLP   SELL       1,860    271.25        12,906   14.41%
+      2020-02-19  APLAPOLLO    BUY        5,000    201.80        34,740   14.39%
+      2019-03-29  COCHINSHIP   SELL      10,200    196.55        71,494   14.27%
+      2019-03-29  BLUESTARCO   BUY        9,440    334.80        67,482   13.99%
+      2023-02-10  360ONE       SELL       5,480    454.33        39,453   13.89%
+      2025-04-21  TATAINVEST   BUY       20,440    632.95       147,500   13.86%
+      2019-07-26  LINDEINDIA   SELL       2,060    499.00        15,234   13.52%
+      2025-07-15  GICRE        SELL      28,000    383.97       207,904   13.47%
+      2020-05-22  KPITTECH     BUY       20,860     39.01       155,522   13.41%
+      2019-12-26  PHOENIXLTD   SELL       4,140    391.41        31,264   13.24%
+      2020-01-23  APARINDS     SELL       2,740    448.33        20,889   13.12%
+      2021-11-30  360ONE       BUY        3,540    361.29        27,679   12.79%
+      2023-08-08  COCHINSHIP   BUY       12,460    330.90        98,013   12.71%
+      2019-09-26  NIACL        SELL       8,140    100.25        68,054   11.96%
+      2025-12-09  NIACL        BUY       36,060    156.52       312,082   11.55%
+      2019-10-29  SUNDARMFIN   BUY        1,140   1614.42         9,973   11.43%
+      2025-11-11  HONAUT       SELL         260  35965.97         2,292   11.34%
+      2019-09-26  ASTRAL       BUY        3,120    671.86        27,515   11.34%
+      2023-08-08  360ONE       BUY       17,680    507.66       157,457   11.23%
+      2025-10-10  3MINDIA      BUY          340  29313.91         3,125   10.88%
+      2022-06-22  BLUESTARCO   SELL       6,940    469.30        66,072   10.50%
+      2026-02-05  3MINDIA      SELL         340  35711.35         3,244   10.48%
+      2019-05-30  MCX          BUY        9,900    165.55        94,650   10.46%
+      2020-08-17  JSL          SELL      33,960     45.08       336,436   10.09%
+      2019-05-02  NIACL        BUY        4,740    180.27        47,372   10.01%
