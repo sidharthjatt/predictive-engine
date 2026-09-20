@@ -186,11 +186,29 @@ STANDING_GATE = (
 #
 #   --profile tradeable   RECONCILES since 2026-09-15 (audit_step now pairs the cap
 #                         with vol20), and mid v1/v2 tradeable are gate cells above.
-#                         It still cannot COMPLETE: run_all._present() demands a
-#                         profile-suffixed v_midcap150_expanding_cache_tradeable.csv, and
-#                         the score panel has no profile dimension, so STEP 16
-#                         blocks. A naming-authority defect, not a cap one. See
-#                         KNOWN_ISSUES.md, "The tradeable profile cannot complete".
+#                         The cells remain [PARTIAL] for the reason given above
+#                         them: nothing here compares what STEP 16 and STEP 17
+#                         produce under this profile against anything.
+#
+#                         THE CLAIM THAT FOLLOWED WAS DISCHARGED ON 2026-09-16 BY
+#                         COMMIT 211f151, and is kept because it is the reason the
+#                         fourth field in REQUIRED_INPUTS exists:
+#
+#                           "It still cannot COMPLETE: run_all._present() demands a
+#                            profile-suffixed v_midcap150_expanding_cache_tradeable.csv,
+#                            and the score panel has no profile dimension, so
+#                            STEP 16 blocks. A naming-authority defect, not a cap
+#                            one. See KNOWN_ISSUES.md, 'The tradeable profile
+#                            cannot complete'."
+#
+#                         run_all._present() (run_all.py:819) now composes a
+#                         suffix only for the axes an input's own name carries,
+#                         taken from the compulsory fourth field of its
+#                         REQUIRED_INPUTS entry. The score panel is declared
+#                         AXIS_FREE (run_all.py:555, entries at :608, :617, :634),
+#                         so the guard asks for v_midcap150_expanding_cache.csv by
+#                         its one true name and STEP 16 does not block. The block
+#                         at lines 161-165 above records the same discharge.
 #   --rebal 40            the _r40 cadence suffix. Exercised by no cell here.
 #   9 of 15 arm subsets   arms.registry.suffix() names any subset (_v1_v3 and so
 #                         on); four singles and one full selection are covered,

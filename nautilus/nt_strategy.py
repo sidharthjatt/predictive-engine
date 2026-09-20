@@ -388,6 +388,22 @@ class PredictiveEngineStrategy(Strategy):
             # previous close instead left every quantity slightly off (LT 52 vs 51,
             # LTFOODS 790 vs 770 on the first rebalance) and those errors compounded
             # across 93 rebalances.
+            #
+            # NO PARTICIPATION CAP IS APPLIED HERE, AND THAT IS THE CURRENT STATE
+            # OF THIS PORT, not a plan. The reference engine caps a buy at
+            # profiles.participation_cap() x the symbol's prior-20-session median
+            # volume (results/test_exposure.py:379-390). This line has no
+            # equivalent: `participation_cap`, `vol20` and `median_volume` appear
+            # nowhere in nautilus/, and the strategy is handed scores, not
+            # quantities, so no capped size reaches it by another route either.
+            #
+            # THE CONSEQUENCE IS A LABEL THAT OVERSTATES WHAT RAN. nt_run.py:127-128
+            # puts the selected profile in the report directory's name, so
+            # `--profile tradeable` writes nautilus/reports/<universe>/<arm>@tradeable/
+            # -- and every quantity in it came from this uncapped line. A
+            # tradeable-labelled report from this file is a research-strategy
+            # report. The two such directories on disk, midcap150 v1@tradeable and
+            # v2@tradeable written 2026-09-17, each carry a note saying so.
             q = int((self._invest_val * weight) // px)
             if q < 1:
                 continue
