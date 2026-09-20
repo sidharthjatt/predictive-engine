@@ -339,6 +339,64 @@ def _verified(cache_path, what):
     return cache_path
 
 
+# ---------------------------------------------------------------------------
+# THE SAME QUESTION, ONE LAYER UP: WHAT DATA DID A PUBLISHED ARTEFACT COME FROM
+# ---------------------------------------------------------------------------
+# The sidecar above protects CACHES. _cache_owner() matches only score_cache,
+# raw_cache, score_tmp and raw_tmp, so a daily_trades or a v34_params -- the files
+# people read and quote -- is covered by nothing.
+#
+# MEASURED 2026-09-20, WHICH IS WHY THIS EXISTS. midcap150's two tradeable
+# artefacts were written 2026-09-17 against data/raw/MidCap150/clean. The universe
+# was repointed at Final_Without_Survivorship_Data on 2026-09-18. Neither artefact
+# said which source it came from, no gate compared one against the other, and the
+# only reason it surfaced at all was someone reconstructing a median by hand. All
+# seven gates were green throughout.
+#
+# WHOLE FILE, NOT A ROW COUNT. A row count catches a truncated or extended
+# history and nothing else. The participation cap eats the VOLUME column, and a
+# supplier that revised volume while leaving dates and prices untouched would pass
+# a row count, pass a date-range check and pass a re-derivation of fill prices --
+# every test available before this one. Hashing every byte catches it. It costs
+# 0.11 s over midcap150's 96 MB and 0.30 s over nifty500's 312 MB, measured, which
+# is small enough that there is no argument for a cheaper and weaker answer.
+#
+# THE LINK FARM IS WHAT IS HASHED, not raw_data_dir, because the farm is what
+# build_panel globs. raw_data_dir is recorded beside it: if the two ever disagree
+# the artefact carries both halves and the difference is readable.
+def data_fingerprint(data_dir, raw_data_dir):
+    """What a published artefact records about the price data it was built from.
+
+    Returns a dict with the resolved link directory, the resolved raw_data_dir,
+    where the symlinks actually point, the file count, and a sha256 over every
+    byte of every CSV in the farm.
+    """
+    import hashlib
+    d = Path(data_dir)
+    files = sorted(d.glob("*.csv"))
+    h = hashlib.sha256()
+    targets = set()
+    for f in files:
+        targets.add(str((f.resolve()).parent))
+        h.update(f.stem.encode())
+        h.update(hashlib.sha256(f.resolve().read_bytes()).digest())
+    if len(targets) == 1:
+        target = targets.pop()
+    elif not targets:
+        target = None
+    else:
+        target = f"MIXED: {len(targets)} directories"
+    return {
+        "link_dir": str(d.resolve()),
+        "link_target_dir": target,
+        "raw_data_dir": str(Path(raw_data_dir).resolve()) if raw_data_dir else None,
+        "n_files": len(files),
+        "digest": "sha256:" + h.hexdigest(),
+        "digest_covers": ("every byte of every CSV in link_dir, the volume column "
+                          "included; recompute with config.data_fingerprint()"),
+    }
+
+
 def require_cache(perm, tmp=None, what="score panel"):
     """Return whichever cache exists, or raise with an actionable message.
 

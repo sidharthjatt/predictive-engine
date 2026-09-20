@@ -48,6 +48,14 @@ WHAT THIS DOES ABOUT IT
                          the axis's first day that is what it was.
     GATE 5  DELEGATES    registry_coverage_check, check_pipeline_order,
                          check_plan_order, naming_declare_check.
+    GATE 8  DATA SOURCE  every v34_params*.json names the price data it was
+                         built from -- resolved raw_data_dir, symlink target and a
+                         sha256 over the whole input -- and that source is still
+                         the one the registry uses. FAILS CLOSED: a missing field
+                         is a failure. This is the only gate that opens a price
+                         file. It exists because midcap150's tradeable artefacts
+                         were built on a source the tree no longer has, and the
+                         other seven were green for three days.
     GATE 7  LTCG         the artefacts' claim about the long-term branch must
                          match the lots. Fails when a universe's longest hold
                          crosses LTCG_HOLD_DAYS while HOLDING_PERIOD still says
@@ -142,7 +150,7 @@ KNOWN_UNIMPORTABLE = {
 # THE SEVEN, BY NUMBER, so the verdict can subtract rather than be told a total.
 # A gate added below without a line here would not be counted, which is the same
 # defect this file exists to catch, so the count is asserted against it in main().
-ALL_GATES = (1, 2, 3, 4, 5, 6, 7)
+ALL_GATES = (1, 2, 3, 4, 5, 6, 7, 8)
 
 
 class Result:
@@ -743,6 +751,110 @@ def gate_ltcg(res, sel):
                  f"next taxed run -- {', '.join(stale)}")
 
 
+# ---------------------------------------------------------------------------
+# GATE 8 -- a published artefact must name the price data it was built from
+# ---------------------------------------------------------------------------
+def gate_data_source(res, sel):
+    """Every v34_params*.json must record a data source that is still current.
+
+    WHAT THIS CATCHES, MEASURED RATHER THAN IMAGINED. midcap150's two tradeable
+    artefacts were written 2026-09-17 01:20 from data/raw/MidCap150/clean. The
+    universe was repointed at Final_Without_Survivorship_Data on 2026-09-18.
+    Afterwards 33 of the 1,019 fills in daily_trades_midcap150_tradeable.csv named
+    a (symbol, date) pair with no price row in the tree at all, and 34 more
+    recorded a fill price the tree does not imply. All seven gates stayed green
+    for three days, because not one of them opens a price file.
+
+    WHY THE OTHER SEVEN COULD NOT HAVE CAUGHT IT. Gates 1, 2 and 3 are static:
+    modules, a table, and ASTs. Gate 4 stats mtimes, so a run against the wrong
+    source moves them exactly like a correct one. Gate 5 delegates to four naming
+    and wiring checkers. Gates 6 and 7 compare artefacts against other artefacts
+    from the same run, which is self-consistent by construction. The missing
+    comparison is artefact against INPUT, and this is it.
+
+    THE MECHANISM IS BORROWED, NOT INVENTED. config.write_cache_source and
+    config._verified have recorded and enforced a cache's source since
+    2026-09-19; the rule was correct and lived one layer too low, because
+    _cache_owner() matches only score_cache, raw_cache, score_tmp and raw_tmp. A
+    daily_trades and a v34_params -- the files people read and quote -- were
+    covered by nothing. This raises the same rule to the published artefact.
+
+    IT FAILS CLOSED. A params file with no data_source is a FAILURE, not a skip:
+    an artefact that cannot say what it was built from is exactly the state the
+    tradeable cells were in, and treating silence as acceptable would re-admit it
+    by default. Nothing is backfilled -- a source written in now for an artefact
+    produced before the field existed would be a guess presented as provenance,
+    which is worse than the gap. The remedy is to re-run the artefact.
+
+    The gate SKIPS only when no params file exists at all, which is a tree with
+    nothing to check rather than a check that declined.
+    """
+    import json
+    try:
+        import config
+        from universes.registry import REGISTRY
+    except Exception as e:
+        res.fail("GATE 8 data source", "registry",
+                 f"{type(e).__name__}: {e}")
+        return
+    tags = sorted(REGISTRY) if sel in (None, "all") else [t.strip() for t in sel.split(",")]
+
+    def name(f):
+        """Repo-relative where possible, absolute otherwise. A metrics_dir outside
+        ROOT is legal -- runs/ hard-links artefacts, and a test can point one at a
+        scratch directory -- and relative_to() raises on exactly that, which would
+        turn a reportable failure into a traceback from inside the gate."""
+        try:
+            return str(Path(f).relative_to(ROOT))
+        except ValueError:
+            return str(f)
+
+    live = {}                      # tag -> fingerprint, computed at most once
+    checked = 0
+    for t in tags:
+        u = REGISTRY.get(t)
+        if u is None:
+            continue
+        M = Path(u.metrics_dir)
+        if not M.exists():
+            continue
+        for f in sorted(M.glob("v34_params*.json")):
+            checked += 1
+            try:
+                doc = json.loads(f.read_text())
+            except Exception as e:
+                res.fail("GATE 8 data source", name(f),
+                         f"unreadable: {type(e).__name__}: {e}")
+                continue
+            rec = doc.get("data_source")
+            if not isinstance(rec, dict):
+                res.fail("GATE 8 data source", name(f),
+                         "no data_source field, so which price data produced this "
+                         "artefact cannot be established. NOT BACKFILLED: a source "
+                         "written in now would be a guess. Re-run the artefact.")
+                continue
+            if t not in live:
+                live[t] = config.data_fingerprint(u.data_dir, u.raw_data_dir)
+            cur = live[t]
+            for key in ("raw_data_dir", "link_target_dir", "digest"):
+                if rec.get(key) != cur.get(key):
+                    res.fail("GATE 8 data source", name(f),
+                             f"{key} MISMATCH -- this artefact describes data the "
+                             f"universe no longer uses.\n"
+                             f"          artefact  {rec.get(key)}\n"
+                             f"          tree now  {cur.get(key)}\n"
+                             f"      Every number in it is a number about the first "
+                             f"and is filed under a universe that names the second.")
+                    break
+    if not checked:
+        res.skip(8, "GATE 8  SKIPPED -- no v34_params*.json on disk, so there is "
+                 "no published artefact to check. Not counted as passed.",
+                 "no params artefacts on disk")
+        return
+    res.note(f"GATE 8  {checked} published artefact(s) checked against the "
+             f"registry's current raw_data_dir and a sha256 over the whole input")
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--since", type=float, default=None,
@@ -767,6 +879,7 @@ def main(argv=None):
     gate_delegates(res)
     gate_tax(res, args.since, args.universe)
     gate_ltcg(res, args.universe)
+    gate_data_source(res, args.universe)
 
     print()
     for n in res.notes:
@@ -785,7 +898,7 @@ def main(argv=None):
     # THE VERDICT IS COMPUTED FROM THE SKIPS, NEVER TYPED. A constant string is
     # exactly what went wrong: it survived every skip the body recorded.
     n = len(ALL_GATES)
-    assert n == 7, f"ALL_GATES holds {n} gates; the wording below says seven"
+    assert n == 8, f"ALL_GATES holds {n} gates; the wording below says eight"
     ok = res.asserted()
     if res.skipped:
         # GROUPED BY REASON, because the common case is gates 4 and 6 skipping
@@ -802,7 +915,7 @@ def main(argv=None):
         print("        A SKIPPED GATE IS NOT A PASSED GATE. Exit code is 0 "
               "because a skip is legitimate,")
         print("        not because the work was done. Re-run with --since "
-              "<epoch> after a run to assert all seven.")
+              "<epoch> after a run to assert all eight.")
     else:
         print(f"RESULT: PASS -- all {n} gates asserted, none skipped")
     return 0

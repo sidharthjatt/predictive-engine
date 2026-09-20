@@ -37,6 +37,8 @@ import matplotlib.pyplot as plt
 from matplotlib.ticker import PercentFormatter
 
 from engine_core import metrics
+import config as _config
+import universes.registry as _uni_registry
 
 
 def _window_label(eq=None):
@@ -357,6 +359,17 @@ def run_v34(M, universe_label, universe_tag, px, op, sc, bd, pc, mom20, port_vol
         "reference": "equal-weight buy & hold of the same universe, same panel",
         "constants": consts,
         "git_state": _git_state(),
+        # WHICH PRICE DATA THIS RUN READ. git_state pins the CODE and already
+        # says when it cannot ("working_tree_dirty"); nothing pinned the DATA
+        # until 2026-09-20, and that is the half that moved: midcap150's two
+        # tradeable artefacts were built on data/raw/MidCap150/clean, the
+        # universe was repointed a day later, and no artefact and no gate could
+        # say so. GATE 8 in check_all.py reads this field back and refuses a
+        # mismatch. See config.data_fingerprint for what the digest covers and
+        # why it is the whole file rather than a row count.
+        "data_source": _config.data_fingerprint(
+            _uni_registry.REGISTRY[universe_tag].data_dir,
+            _uni_registry.REGISTRY[universe_tag].raw_data_dir),
         "run_date": str(pd.Timestamp.today().date()),
         "spec": "experiments/V34_SPEC.txt",
         # THE CAVEAT TRAVELS WITH THE NUMBERS. Present only when the profile is
