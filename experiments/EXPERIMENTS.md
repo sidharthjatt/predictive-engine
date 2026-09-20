@@ -1587,6 +1587,18 @@ And modelling depth natively rather than as flat slippage costs mid **1.80 CAGR
 points and 0.10 Sharpe** (29.16% → 27.36%, Sharpe 2.00 → 1.90, 19 orders walking
 the book), against **0.01 points** for n100.
 
+> *Superseded 2026-09-20. `depth_compare.py` re-run on the repointed data reports
+> midcap150 **0.04 CAGR points and 0.01 Sharpe** (27.79% → 27.75%, Sharpe 1.90 →
+> 1.89, 11 orders walking, n=1,006 fills) and nifty100 **0.00 points** (19.00% →
+> 19.00%, 3 orders walking, n=940). The unlimited baseline moved as well, 29.16 →
+> 27.79, so this is not a depth-model change alone. The move is NOT attributed:
+> holding today's prices fixed and swapping only the depth model's volume source
+> between the pre-repoint `clean` folder and today's constituents gives 27.75 and
+> 1,020 fill events either way, so the volume panel is ruled out; reproducing the
+> 2026-09-17 run would need both its data and its code, and the code has moved. The
+> result tables below are left as they were recorded -- they are what those runs
+> produced.*
+
 > An order for sixteen days of a stock's median volume does not execute at the
 > opening price. It moves the price, or it does not execute.
 >

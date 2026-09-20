@@ -4035,7 +4035,10 @@ MaxDD −31.92 / −18.38 / −41.57 / −22.32 / −37.79.
 research run exactly, so the trail reconciles because there is nothing to
 reconcile -- it is an audit of the research configuration wearing a tradeable
 filename. `EXPERIMENTS.md:1737-1739` recorded the same inertness under the older
-engine: nifty100 unlimited 25.43 against volume 25.42.
+engine: nifty100 unlimited 25.43 against volume 25.42. *(Superseded 2026-09-20:
+re-run on the repointed data, nifty100 is 19.00 unlimited against 19.00 volume,
+n=940 fills, 3 orders walking. The inertness the sentence is citing holds under
+both runs.)*
 
 **On midcap150 the cap does bind, and midcap150 is the universe with no v2 trail.** Research
 against tradeable, from the snapshot:
@@ -4985,7 +4988,15 @@ the output is numerically identical to research output anyway.
 **1. The cap magnitudes are pre-`adj_close` and indicative, not current.** The
 figures used to size the cap's effect -- midcap150 29.16 -> 27.36 CAGR, nifty100
 25.43 -> 25.42 -- come from `experiments/EXPERIMENTS.md:1733-1739`, measured under
-the engine BEFORE `adj_close` became canonical (commit `092ee62`). The nifty100 margin
+the engine BEFORE `adj_close` became canonical (commit `092ee62`).
+
+> *Superseded 2026-09-20, and the caveat understated it. `depth_compare.py` re-run
+> on the repointed data gives midcap150 27.79 -> 27.75 (a 0.04-point cost, n=1,006
+> fills, 11 orders walking) and nifty100 19.00 -> 19.00 (n=940, 3 walking). The
+> midcap150 magnitude these rows were sized against was 1.80 points; it is now
+> 0.04. The nifty100 margin was 0.01 and is now 0.00. Anything marked "thin margin"
+> on the strength of those numbers is resting on a magnitude that has since
+> collapsed, and the move is not attributed -- see `diagnostics/depth_compare.txt`.* The nifty100 margin
 is 0.01 CAGR, which is why three rows above are marked *thin margin*: they are
 decidable at two decimal places and by no wider a gap than that, against a
 magnitude taken from a superseded engine.
@@ -6437,3 +6448,53 @@ total return**. Closed lots are 99.3% and 99.4% of it. Final holdings are indeed
 98.07% and 87.43% of final equity, but that is market value of positions bought
 along the way, not P&L still to be attributed. The question is answerable on
 essentially the whole return, and no figure above needs a "closed half" label.
+
+## What still rests on pre-repoint data
+
+Surveyed 2026-09-20 at commit `8015eb6`. The universes were repointed at
+`Final_Without_Survivorship_Data` on **2026-09-18**. Anything produced before that
+date describes price data the tree no longer holds. This is an inventory, not a
+re-measurement -- none of the figures below has been re-run.
+
+**Published metrics artefacts: 10, all from 2026-09-17 01:19.** They are two arms
+that nothing has re-run since:
+
+- `results_midcap150/metrics/` -- `v34_comparison_v3.csv`, `v34_equity_v3.csv`,
+  `v34_subperiods_v3.csv`, `chart_v34_v3.png`, `chart_midcap150_FINAL_v3.png`
+- `results_nifty100/metrics/` -- `v34_comparison_v2.csv`, `v34_equity_v2.csv`,
+  `v34_subperiods_v2.csv`, `chart_v34_v2.png`, `chart_nifty100_v2.png`
+
+Every other artefact under `results_*/metrics` (683 files across eight universes)
+and all 399 under `nautilus/reports` post-date the repoint. Two of the 18 GATE 8
+exemptions -- `v34_params_v3.json` on midcap150 and `v34_params_v2.json` on
+nifty100 -- are these same two arms, which is why they have no `data_source`.
+
+**Diagnostics: 36 of 63 predate the repoint**, all stamped 2026-09-17 00:12. The
+ones whose headline numbers are quoted elsewhere in this file or in
+`experiments/`:
+
+`v34_report.txt`, `verify_v34_arms.txt`, `validate_sizing_mid.txt`,
+`validate_sizing_n100.txt`, `breadth_live_mid.txt`, `breadth_live_n100.txt`,
+`n100_jackknife.txt`, `task1_v1_vs_v2.txt`, `task2_ic_decay.txt`,
+`task3_impact.txt`, `edge_alive_n100.txt`, `vol_scaled_comparison.txt`,
+`equity_gap.txt`, `equity_gap_reconcile.txt`, `mid_reconcile_cause.txt`,
+`mid_weight_proof.txt`, `mid_investval_probe.txt`, `locked_cash_check.txt`,
+`listing_history_check.txt`, `n100_membership_v2_report.txt`,
+`nt_reports_verify.txt`, `nt_verify_n100.txt`, `nt_verify_after_bartick.txt`,
+`nt_verify_after_finalday.txt`, `nt_verify_post_finalday.txt`,
+`nt_verify_post_runall.txt`, `bar_tick_fix_ab.txt`, `bar_tick_fix_detail.txt`,
+`equity_final_day_fix.txt`, `task3_ntverify.txt`, `topn_centralise_hashes.txt`,
+`PIPELINE_AUDIT.txt`, `nse_tick_circulars.txt`, and the three under
+`diagnostics/membership/`.
+
+`liquidity_participation.txt` and `depth_compare.txt` were on this list and were
+regenerated on 2026-09-20. Both now carry their date, commit and data digest;
+nothing else here does.
+
+**WHY THIS MATTERS MORE THAN THE DATE SUGGESTS.** Two figures have now been re-run
+after the repoint and both moved further than "a data refresh" implies: the largest
+midcap150 participation went from 1,614.52% to 34.46%, and the depth cost from 1.80
+CAGR points to 0.04. In both cases the change was larger than the finding itself.
+**Do not assume a pre-repoint diagnostic is approximately right.** Either re-run it
+or quote it with its date.
+

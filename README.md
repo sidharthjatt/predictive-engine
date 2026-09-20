@@ -239,9 +239,11 @@ equivalent exists for either surviving universe.** See
 the backtest's own Rs 10,00,000: **12 of 998 fills** with a prior-20-session median
 exceed 10% of it (n=1,006 fills in all). The worst is TATAINVEST on 2019-12-26 at
 **34.46%**. nifty100 is cleaner: **3 of 932** above 10% (n=940). Modelling depth
-properly costs mid 1.80 CAGR points, 29.16% to 27.36%, with Sharpe going 2.00 to
-1.90, and costs n100 0.01 points. Details in
-`diagnostics/liquidity_participation.txt` and `diagnostics/depth_compare.txt`.
+properly now costs midcap150 **0.04 CAGR points**, 27.79% to 27.75%, with Sharpe
+going 1.90 to 1.89 and 11 orders walking the book (n=1,006 fills, re-run
+2026-09-20), and costs nifty100 **0.00 points**, 19.00% to 19.00%, 3 orders walking
+(n=940). Details in `diagnostics/liquidity_participation.txt` and
+`diagnostics/depth_compare.txt`.
 
 > *Superseded 2026-09-20: this paragraph read "22 of 985 fills", "3 fills of 997",
 > and "the worst is AIIL on 2021-06-07 at 1,614% of median daily volume — sixteen
@@ -258,12 +260,21 @@ properly costs mid 1.80 CAGR points, 29.16% to 27.36%, with Sharpe going 2.00 to
 as EXP20 and rejected, failing one sub-period gate by 0.02 Sharpe.
 
 Those depth figures are measured on the Nautilus port, not on the research engine,
-so they do not line up exactly with the results table above. The port reads mid at
-29.16% where the research engine reads 29.18%, and n100 at 25.43% against 25.36%.
-That gap is the documented difference between the two systems at the traded 0.05
-tick grid, described earlier, and it is why the depth cost is quoted port-to-port:
-29.16% to 27.36% is one system measured twice, which is the only way the 1.80-point
-figure means anything.
+so they do not line up exactly with the results table above. The depth cost is
+quoted port-to-port -- 27.79% to 27.75% is one system measured twice -- which is
+the only way the figure means anything.
+
+> *Superseded 2026-09-20: this paragraph read "the port reads mid at 29.16% where
+> the research engine reads 29.18%, and n100 at 25.43% against 25.36%", and quoted
+> the depth cost as 1.80 points, 29.16% to 27.36%. `depth_compare.py` was re-run on
+> 2026-09-20 against the repointed data and now reports midcap150 27.79% unlimited
+> against 27.75% volume, and nifty100 19.00% against 19.00%. The port-versus-engine
+> comparison above is not restated: those research-engine figures were measured
+> before the repoint too and nobody has re-run them. The depth cost fell from 1.80
+> points to 0.04, the unlimited baseline moved with it (29.16 to 27.79), and the
+> move is NOT attributed -- swapping only the depth model's volume source changes
+> nothing, and reproducing the 2026-09-17 run would need its code as well as its
+> data. See `diagnostics/depth_compare.txt`.*
 
 **The trial count is understated.** The pre-registrations maintained a running
 count and it drifted. The true number of looks at this dataset is at least 25 and

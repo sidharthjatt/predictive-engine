@@ -2,33 +2,62 @@
  DEPTH MODEL -- 'unlimited' (default, unchanged) vs 'volume'
  levels 3 | top-level depth 10% of prior-20d median daily volume | spacing 0.15% per level
 ========================================================================================================
+ Generated 2026-09-20 at commit 8015eb6.
+   nifty100: 99 files, sha256:8ea52d03d1c57842e08cc8e85868f0d2e536ecb150367f9b3f3fcf1b8e4019a1
+     /Users/sidharthchoudhary/Downloads/algo_trading_project/data/raw/Final_Without_Survivorship_Data/Final_NIFTY100_EoD_Data
+   midcap150: 148 files, sha256:816f29b400f08d5096544fbda42ba6a5f611344284b4dfb43d91d22777c0e58d
+     /Users/sidharthchoudhary/Downloads/algo_trading_project/data/raw/Final_Without_Survivorship_Data/Final_NIFTYMidCap150_EoD_Data
+ SUPERSEDES THE COPY DATED 2026-09-17, which was produced before the
+ universes were repointed at Final_Without_Survivorship_Data on
+ 2026-09-18. That run reported midcap150 unlimited 29.16 / volume 27.36,
+ a depth cost of 1.80 CAGR points over 985 fills with 19 orders walking,
+ and nifty100 25.43 / 25.42 over 997 fills. Those figures are superseded.
+ WHAT MOVED AND WHAT IS NOT KNOWN. The depth cost on midcap150 is now
+ 0.04 CAGR points, not 1.80. The unlimited BASELINE moved too (29.16 ->
+ 27.79), so the change is not confined to the depth model: the backtest
+ underneath it is running on different prices and produces 1,006 fills
+ rather than 985. The depth model's own volume source is NOT the cause --
+ measured 2026-09-20, holding today's prices fixed and swapping only the
+ volume source between the old data/raw/MidCap150/clean and today's
+ constituents gives 27.75 and 1,020 fill events either way, identical.
+ Beyond that the move is NOT ATTRIBUTED. Reproducing the 2026-09-17 run
+ would need both its data and its code, and the code has moved since.
+ AIIL. The old run's 19 walked orders are not recorded individually, so
+ this cannot be measured from the depth diagnostic. What is on record:
+ the liquidity diagnostic of the same era and data listed 22 midcap150
+ fills above 10% participation and 13 of them were AIIL; today's list has
+ 12 fills and none is AIIL. AIIL's price file now starts 2024-04-23
+ against 2015-06-11 before the repoint, so its 2021 orders are gone.
+ That is consistent with AIIL having driven the old figure and is not a
+ measurement of it.
+========================================================================================================
 
 ========================================================================================================
- N100
+ NIFTY100
 ========================================================================================================
   running unlimited ...
-    CAGR   25.43  Sharpe  1.88  MaxDD  -18.61  submitted  997  orders filled  997  fill events  997  walked    0  unfilled   0
+    CAGR   19.00  Sharpe  1.50  MaxDD  -21.87  submitted  940  orders filled  940  fill events  940  walked    0  unfilled   0
   running volume ...
     volume loaded for 99 symbols
-    CAGR   25.42  Sharpe  1.88  MaxDD  -18.61  submitted  997  orders filled  997  fill events 1002  walked    3  unfilled   0
-      fills per walking order: 2 levels x1, 3 levels x2
+    CAGR   19.00  Sharpe  1.50  MaxDD  -21.83  submitted  940  orders filled  940  fill events  944  walked    3  unfilled   0
+      fills per walking order: 2 levels x2, 3 levels x1
 
                   CAGR%   Sharpe   MaxDD%  trades   fills  walked  unfilled
-  unlimited       25.43     1.88   -18.61     997     997       0         0
-  volume          25.42     1.88   -18.61    1002     997       3         0
-  delta           -0.01    +0.00    +0.00      +5      +5
+  unlimited       19.00     1.50   -21.87     940     940       0         0
+  volume          19.00     1.50   -21.83     944     940       3         0
+  delta           +0.00    +0.00    +0.04      +4      +4
 
 ========================================================================================================
- MID
+ MIDCAP150
 ========================================================================================================
   running unlimited ...
-    CAGR   29.16  Sharpe  2.00  MaxDD  -18.95  submitted  985  orders filled  985  fill events  985  walked    0  unfilled   0
+    CAGR   27.79  Sharpe  1.90  MaxDD  -20.02  submitted 1006  orders filled 1006  fill events 1006  walked    0  unfilled   0
   running volume ...
     volume loaded for 148 symbols
-    CAGR   27.36  Sharpe  1.90  MaxDD  -18.94  submitted  986  orders filled  986  fill events 1011  walked   19  unfilled   0
-      fills per walking order: 2 levels x13, 3 levels x6
+    CAGR   27.75  Sharpe  1.89  MaxDD  -20.03  submitted 1006  orders filled 1006  fill events 1020  walked   11  unfilled   0
+      fills per walking order: 2 levels x8, 3 levels x3
 
                   CAGR%   Sharpe   MaxDD%  trades   fills  walked  unfilled
-  unlimited       29.16     2.00   -18.95     985     985       0         0
-  volume          27.36     1.90   -18.94    1011     986      19         0
-  delta           -1.80    -0.10    +0.01     +26     +26
+  unlimited       27.79     1.90   -20.02    1006    1006       0         0
+  volume          27.75     1.89   -20.03    1020    1006      11         0
+  delta           -0.04    -0.01    -0.01     +14     +14
