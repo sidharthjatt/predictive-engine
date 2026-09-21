@@ -4,16 +4,16 @@
   Every verdict below is on test_exposure.backtest_exposure. engine_core's
   own FINAL_val_*.csv are untouched and still describe engine_core.backtest.
 
-  test                                                58         mid        n100
-  T1 baseline structure (REDEFINED)                 PASS        FAIL        PASS
-  T2 seed robustness                                PASS        FAIL        PASS
-  T3 sub-period                                     PASS        FAIL        PASS
-  T4 param sensitivity                              PASS        FAIL        PASS
+  test                                         midcap150    nifty100
+  T1 baseline structure (REDEFINED)                 PASS        PASS
+  T2 seed robustness                                FAIL        PASS
+  T3 sub-period                                     FAIL        FAIL
+  T4 param sensitivity                              FAIL        FAIL
 
-  mean book / trades                          8.15 / 734  7.98 / 845  8.01 / 831
-  Sharpe equal -> invvol                      1.24->1.24  1.87->1.81  1.45->1.62
+  mean book / trades                          8.03 / 861  8.02 / 784
+  Sharpe equal -> invvol                       1.51->1.5   1.2->1.25
 
   THE LIVE UNIVERSES ARE THE ONES THAT DESCRIBE WHAT SHIPS:
-    mid    0 of 4 passed
-    n100   4 of 4 passed
+    midcap150 1 of 4 passed
+    nifty100 2 of 4 passed
 ========================================================================================================
