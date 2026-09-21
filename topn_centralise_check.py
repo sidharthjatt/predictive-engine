@@ -2,10 +2,22 @@
 topn_centralise_check.py -- equity-curve hashes for the TOP_N/BUFFER centralisation.
 
 RUN IT AS:
-    ./venv/bin/python topn_centralise_check.py before /tmp/topn_before.csv
+    ./venv/bin/python topn_centralise_check.py before
     ...make the edit...
-    ./venv/bin/python topn_centralise_check.py after  /tmp/topn_after.csv
-    ./venv/bin/python topn_centralise_check.py report /tmp/topn_before.csv /tmp/topn_after.csv
+    ./venv/bin/python topn_centralise_check.py after
+    ./venv/bin/python topn_centralise_check.py report
+
+THE HASH FILES LIVE IN diagnostics/, NOT IN /tmp, AND THAT IS WHAT MAKES THIS
+SCRIPT USABLE BY A RUNNER AT ALL. `before` is the BASELINE this check compares
+against; a baseline in /tmp does not survive a reboot and is not in the tree, so
+before 2026-09-22 there was nothing for `report` to read and this script could
+not participate in a gate run. The three commands now default to
+diagnostics/topn_hash_before.csv, diagnostics/topn_hash_after.csv and a
+comparison of the two. An explicit path may still be passed as the second
+argument, so existing invocations that named one keep working.
+
+NOTHING ABOUT WHAT IS COMPARED CHANGED. Same universes, same four sizing/mode
+combinations, same equity curves, same sha256. Only where the file is written.
 
 The system python3 has no lightgbm and cannot import engine_core. Use the venv,
 and use the SAME interpreter for both halves or the comparison is not like for
@@ -26,6 +38,16 @@ warnings.filterwarnings("ignore")
 sys.dont_write_bytecode = True
 
 ROOT = Path(__file__).resolve().parent
+
+
+def HASHES(label):
+    """Where a hash run is recorded. IN THE TREE, not in /tmp.
+
+    The baseline is the whole point of this check and /tmp does not keep it, so
+    the default landed somewhere a later `report` could not find. diagnostics/ is
+    where this script's own report already goes.
+    """
+    return ROOT / "diagnostics" / f"topn_hash_{label}.csv"
 sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "results"))
 
@@ -124,11 +146,10 @@ def report(before_csv, after_csv):
     L.append(f" git commit {commit}   working tree {'DIRTY' if dirty else 'clean'}")
     L.append("")
     L.append(" REGENERATE THIS FILE:")
-    L.append("   ./venv/bin/python topn_centralise_check.py before /tmp/topn_before.csv")
+    L.append("   ./venv/bin/python topn_centralise_check.py before")
     L.append("   ...apply or revert the edit...")
-    L.append("   ./venv/bin/python topn_centralise_check.py after  /tmp/topn_after.csv")
-    L.append("   ./venv/bin/python topn_centralise_check.py report /tmp/topn_before.csv \\")
-    L.append("                                                     /tmp/topn_after.csv")
+    L.append("   ./venv/bin/python topn_centralise_check.py after")
+    L.append("   ./venv/bin/python topn_centralise_check.py report")
     L.append(" The system python3 has no lightgbm and cannot import engine_core.")
     L.append("")
     L.append(" WHAT MOVED, AND WHAT DID NOT")
@@ -190,7 +211,14 @@ def report(before_csv, after_csv):
 def main():
     label = sys.argv[1] if len(sys.argv) > 1 else "before"
     if label == "report":
-        return report(sys.argv[2], sys.argv[3])
+        b = Path(sys.argv[2]) if len(sys.argv) > 2 else HASHES("before")
+        a = Path(sys.argv[3]) if len(sys.argv) > 3 else HASHES("after")
+        for f in (b, a):
+            if not f.exists():
+                print(f"  MISSING: {f}\n  Run `topn_centralise_check.py before` "
+                      f"and `... after` first; there is nothing to compare.")
+                return 2
+        return report(b, a)
     # THE HASH-WRITING MODE HAS NO VERDICT, AND ONE IS NOT INVENTED HERE. It emits
     # one sha256 per (universe, sizing, mode) and nothing else; whether those
     # hashes are right is only answerable against a BASELINE taken before the
@@ -205,11 +233,11 @@ def main():
     for uni, (perm, tmp) in UNIVERSES.items():
         out += run(uni, perm, tmp)
     df = pd.DataFrame(out)
-    dest = Path(sys.argv[2]) if len(sys.argv) > 2 else Path(f"/tmp/topn_hash_{label}.csv")
+    dest = Path(sys.argv[2]) if len(sys.argv) > 2 else HASHES(label)
     df.to_csv(dest, index=False)
     print(f"\nwrote {dest}")
     print("\n  NO VERDICT: this mode records hashes only. Compare two runs with "
-          "`topn_centralise_check.py report <before.csv> <after.csv>`.")
+          "`topn_centralise_check.py report`.")
     return 0
 
 
