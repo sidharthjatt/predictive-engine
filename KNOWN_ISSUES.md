@@ -22,6 +22,87 @@ currently wrong.
 
 ---
 
+## validate_engine's five failures are not engine bugs: inverse-vol's edge is not robust
+
+Investigated 2026-09-22, each of the five test-universe pairs separately. One test
+defect was found and fixed. **The other four failures, and the residue of the
+fifth, are properties of the strategy and are reported, not repaired.** Open, in
+the sense that the shipping sizing rule does not do what the tests ask of it.
+
+### THE ONE TEST DEFECT, FIXED: the window was not the shipping window
+
+`validate_engine.py` sliced its backtest window by YEAR -- `year >= 2019 &
+year <= y_end` -- which runs to the end of the price data, 2026-06-08, while
+`config.BT_END_DATE` is 2026-05-29. This file validates the SHIPPING engine and
+was measuring six trading days that do not ship. It is the same defect
+`validate_sizing.py`'s T3 already records and `engine_core.py:543` still carries;
+nobody had looked for it here.
+
+Fixed on the main window, T2's window and T3's halves, which are now intersected
+with `config.BT_START_DATE`/`BT_END_DATE`. The panel went from 1842 trading days
+to 1836.
+
+**IT CHANGES NO VERDICT.** Measured under both definitions before the fix was
+applied, so the fix could not be mistaken for a threshold move:
+
+    pair              year window   config window   verdict
+    midcap150 T3        -0.1007       -0.1007       FAIL both
+    midcap150 T4        -0.0130       -0.0099       FAIL both
+    nifty100  T3        -0.0200       -0.0161       FAIL both
+    nifty100  T4        -0.0053       -0.0081       FAIL both
+
+Published `v2val_*` figures move slightly: nifty100's equal-rupee reference Sharpe
+1.199132 -> 1.208810, midcap150's 1.508436 -> 1.543998.
+
+### THE FIVE PAIRS, ONE AT A TIME (config window, cold refit, 2026-09-22)
+
+**midcap150 T2 -- seed robustness. REAL, and it is the headline finding.**
+Inverse-vol loses on 0 of 3 alternate seed sets: -0.0913, -0.0836, -0.0616
+Sharpe. Consistently negative, not marginal. The primary run agrees: equal-rupee
+Sharpe 1.55 against inverse-vol 1.46.
+
+**midcap150 T4 -- vol window. REAL, and it agrees with T2.** Three of four
+windows are negative: -0.0042, -0.0043, +0.0752, -0.0099. Only vol_win=90 wins,
+and VOL_WIN ships at 60, which is one of the losers.
+
+**midcap150 T3 -- sub-period. REAL, and the sign flips hard.** 2019-2022 is
+-0.1007; 2023-2026 is +0.3029. Two regimes with opposite answers.
+
+**ON midcap150, INVERSE-VOL DOES NOT BEAT EQUAL-RUPEE.** Three independent tests
+say so and the primary run says so. This is not a defect to fix. It contradicts
+the premise the sizing rule was adopted on and that is what it is.
+
+**nifty100 T3 -- sub-period. REAL but small.** 2019-2022 +0.0432, 2023-2026
+-0.0161.
+
+**nifty100 T4 -- vol window. REAL but small.** Only vol_win=40 is negative, at
+-0.0081; the shipping 60 and the longer windows all win.
+
+**nifty100 is the opposite case**: inverse-vol wins the headline, 1.15 -> 1.26,
+and wins all three alternate seed sets, and fails T3 and T4 by margins of 0.008
+to 0.016 Sharpe.
+
+### NO NOISE BAND WAS ADDED, DELIBERATELY
+
+nifty100's two failures are smaller than the refit noise this repository
+documents elsewhere (CAGR moves +/-0.5% per retrain). A band would plausibly turn
+them into INCONCLUSIVE. It was not added, because the band would have been chosen
+with the failing numbers already in hand, which is the same act as moving a
+threshold to clear a result. If a band is ever wanted it must be pre-registered
+against a measured seed floor, before the tests are re-read.
+
+### WHAT THE TESTS DO NOT ASK, AND PROBABLY SHOULD
+
+All four gate SHARPE. **Inverse-vol improves MAXIMUM DRAWDOWN almost everywhere
+it loses Sharpe** -- nifty100's three seed sets go -40.1% to -34.0%, -38.5% to
+-38.2%, -40.5% to -37.4%, and midcap150's vol-window sweep runs -38.3% to -40.8%
+against an equal-rupee book that is worse. A risk-reduction rule judged only on
+Sharpe is being asked a question it was not built to answer. Adding a drawdown
+gate is a NEW test needing its own pre-registration, not a fix to these, and it
+was not done.
+
+---
+
 ## nt_verify's ARM A control could not be satisfied, and it hid a real midcap150 finding
 
 Found and fixed 2026-09-22. The control is repaired; what it was concealing is

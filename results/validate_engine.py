@@ -195,7 +195,15 @@ def run_universe(tag, cfg, W, fast=False):
     src = config.require_cache(cfg["perm"], cfg["tmp"], what=f"{tag} score panel")
     p = pd.read_csv(src, parse_dates=["date"])
     px, op, sc = pivot(p)
-    bd = px.index[(px.index.year >= 2019) & (px.index.year <= cfg["y_end"])]
+    # THE WINDOW IS config's, NOT A YEAR SLICE. Until 2026-09-22 this was
+    # `year >= 2019 & year <= y_end`, which runs to the end of the price data
+    # (2026-06-08) while config.BT_END_DATE is 2026-05-29. This file validates
+    # the SHIPPING engine, so it measured six trading days that do not ship.
+    # Same defect validate_sizing.py's T3 records and engine_core.py:543 still
+    # has. y_end is kept as a per-universe upper bound and still applies.
+    bd = px.index[(px.index >= config.BT_START_DATE)
+                  & (px.index <= config.BT_END_DATE)
+                  & (px.index.year <= cfg["y_end"])]
     pc = precompute(px)
     mom20 = px / px.shift(20) - 1
     W(f"  panel       {len(bd)} trading days, {px.shape[1]} symbols, "
@@ -268,7 +276,9 @@ def run_universe(tag, cfg, W, fast=False):
                 ps = score_monthly(raw, seeds, purge_mode=cfg["purge_mode"])
                 ps[["date", "symbol", "open", "close", "score"]].to_csv(cache, index=False)
             pxs, ops, scs = pivot(ps)
-            bds = pxs.index[(pxs.index.year >= 2019) & (pxs.index.year <= cfg["y_end"])]
+            bds = pxs.index[(pxs.index >= config.BT_START_DATE)
+                            & (pxs.index <= config.BT_END_DATE)
+                            & (pxs.index.year <= cfg["y_end"])]
             pcs = precompute(pxs)
             m20s = pxs / pxs.shift(20) - 1
             e_e, _, _, _ = arm(pxs, ops, scs, bds, pcs, m20s, "equal")
@@ -296,7 +306,11 @@ def run_universe(tag, cfg, W, fast=False):
     W("\n  T3. SUB-PERIOD SPLIT -- does it work in BOTH halves independently?")
     t3_rows = []
     for hname, y0, y1 in HALVES:
-        hd = px.index[(px.index.year >= y0) & (px.index.year <= y1)]
+        # INTERSECTED WITH THE BACKTEST WINDOW, so the two halves cover exactly
+        # the period the full run covers and no more.
+        hd = px.index[(px.index.year >= y0) & (px.index.year <= y1)
+                      & (px.index >= config.BT_START_DATE)
+                      & (px.index <= config.BT_END_DATE)]
         if len(hd) < 30:
             continue
         e_e, _, _, _ = arm(px, op, sc, hd, pc, mom20, "equal")

@@ -4,7 +4,7 @@
   engine      test_exposure.backtest_exposure (value_at_open default = causally clean sizing)
   contrast    inverse-vol vs equal-rupee, mode="none" (100% invested)
   TOP_N=8  BUFFER=16  purge_mode="trading"
-  panel       1842 trading days, 99 symbols, 2019-01-01 -> 2026-06-08
+  panel       1836 trading days, 99 symbols, 2019-01-01 -> 2026-05-29
 
   T1. BASELINE STRUCTURE -- is selection doing what it is specified to do?
       REDEFINED for this engine. engine_core's T1 asserted mean positions was
@@ -12,32 +12,32 @@
       has no cap, so its book floats in [TOP_N, BUFFER] = [8, 16] by
       design. A book pinned at TOP_N would mean the buffer had stopped working.
       structural target : mean book in [8, 16]  and  400-1400 trades
-      got               : mean book 8.02 (in range), 784 trades (in band)
-      reference         : equal-rupee CAGR 26.64%, Sharpe 1.2 | inverse-vol CAGR 25.56%, Sharpe 1.25
+      got               : mean book 8.02 (in range), 773 trades (in band)
+      reference         : equal-rupee CAGR 26.94%, Sharpe 1.21 | inverse-vol CAGR 25.77%, Sharpe 1.26
       CAGR is not checked -- it moves +/-0.5% per refit. Structure is.
       -> PASS
 
   T2. SEED ROBUSTNESS -- does inverse-vol still win on OTHER score seeds?
-      seed set 1/3 from cache V2VAL_n100_seed0.csv
-        equal 1.35 -> invvol 1.46 (delta +0.1107 exact) | MaxDD -40.1% -> -34.0%
-      seed set 2/3 from cache V2VAL_n100_seed1.csv
-        equal 1.12 -> invvol 1.22 (delta +0.0949 exact) | MaxDD -38.5% -> -38.2%
-      seed set 3/3 from cache V2VAL_n100_seed2.csv
-        equal 1.10 -> invvol 1.29 (delta +0.1894 exact) | MaxDD -40.5% -> -37.4%
-      -> improved on 3/3 seed sets (smallest margin +0.0949 Sharpe). PASS
+      seed set 1/3 -- scoring (refits the model, slow) ...
+        equal 1.36 -> invvol 1.47 (delta +0.1076 exact) | MaxDD -40.1% -> -34.0%
+      seed set 2/3 -- scoring (refits the model, slow) ...
+        equal 1.15 -> invvol 1.25 (delta +0.0969 exact) | MaxDD -38.5% -> -38.2%
+      seed set 3/3 -- scoring (refits the model, slow) ...
+        equal 1.11 -> invvol 1.30 (delta +0.1888 exact) | MaxDD -40.5% -> -37.4%
+      -> improved on 3/3 seed sets (smallest margin +0.0969 Sharpe). PASS
 
   T3. SUB-PERIOD SPLIT -- does it work in BOTH halves independently?
       2019-2022: equal 0.92 -> invvol 0.97 (delta +0.0432 exact) | buy&hold 1.19
-      2023-2026: equal 1.45 -> invvol 1.43 (delta -0.0200 exact) | buy&hold 1.39
-      -> FAIL -- only works in one sub-period   (smallest margin -0.0200 Sharpe)
+      2023-2026: equal 1.47 -> invvol 1.45 (delta -0.0161 exact) | buy&hold 1.45
+      -> FAIL -- only works in one sub-period   (smallest margin -0.0161 Sharpe)
 
   T4. PARAMETER SENSITIVITY -- does the vol window matter?
-      vol_win= 40: CAGR  24.15%  Sharpe  1.19  MaxDD  -36.19%   margin vs equal-rupee -0.0053
-      vol_win= 60: CAGR  25.56%  Sharpe  1.25  MaxDD  -36.03%   margin vs equal-rupee +0.0498
-      vol_win= 90: CAGR  26.39%  Sharpe  1.28  MaxDD  -35.61%   margin vs equal-rupee +0.0811
-      vol_win=120: CAGR  26.61%  Sharpe  1.28  MaxDD  -35.70%   margin vs equal-rupee +0.0835
-      reference: equal-rupee Sharpe 1.199132 (exact)
-      -> all four beat equal-rupee? FAIL -- depends on the exact window   (smallest margin -0.0053 Sharpe)
+      vol_win= 40: CAGR  24.35%  Sharpe  1.20  MaxDD  -36.19%   margin vs equal-rupee -0.0081
+      vol_win= 60: CAGR  25.77%  Sharpe  1.26  MaxDD  -36.03%   margin vs equal-rupee +0.0469
+      vol_win= 90: CAGR  26.61%  Sharpe  1.29  MaxDD  -35.61%   margin vs equal-rupee +0.0786
+      vol_win=120: CAGR  26.83%  Sharpe  1.29  MaxDD  -35.70%   margin vs equal-rupee +0.0809
+      reference: equal-rupee Sharpe 1.208810 (exact)
+      -> all four beat equal-rupee? FAIL -- depends on the exact window   (smallest margin -0.0081 Sharpe)
 
   ----------------------------------------------------------------------------------------------------
     T1 baseline structure (REDEFINED)          PASS
