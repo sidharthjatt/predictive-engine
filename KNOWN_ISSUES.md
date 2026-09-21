@@ -22,6 +22,77 @@ currently wrong.
 
 ---
 
+## validate_engine's T2 cache had the same weak key, and engine_core's is dead code
+
+Found 2026-09-22 while looking for the production instance of the
+`validate_sizing` cache defect recorded below. Two findings, and they point in
+different directions. The fix is applied; this records what was and was not the
+production path, because the search was started on a wrong premise and the wrong
+premise is the useful part.
+
+### `engine_core.py:764` IS NOT THE PRODUCTION SCORING PATH. It is dead code.
+
+`/tmp/FINAL_seed{i}.csv` is keyed on the seed index alone -- not even the
+universe. That looks like the worst instance in the tree. It is unreachable:
+
+* It sits inside `engine_core.main()`, which carries the comment
+  `# FROZEN: engine_core.main() is the retired 58.`
+* **Nothing calls `main()`.** No module imports it, and `engine_core.py` is not
+  a row in `run_all.PIPELINE_ORDER`. It is reachable only by running the file.
+* **Both of its inputs are gone.** It reads `/tmp/v5_expanding.csv` (line 711)
+  and `/tmp/raw_panel_20.csv` (line 761). Both are the retired 58's, deleted
+  with the universe on 2026-09-11, and neither is on disk.
+* No `/tmp/FINAL_seed*.csv` exists, so there was nothing to invalidate.
+
+**It was NOT fixed, deliberately.** Adding a content key to a function that
+cannot run, on a universe that no longer exists, changes nothing and would imply
+the path is live. It is recorded here instead. If the 58 is ever restored this
+must be fixed before `main()` is run.
+
+The live scoring path has no seed cache of this kind: `score_monthly` is called
+by the build steps, whose panels are the permanent `*_cache.csv` artefacts under
+each metrics directory, covered by `config.require_cache` and by the entry below
+on score caches.
+
+### `results/validate_engine.py` IS reachable, and had the identical defect -- FIXED
+
+The live universes cached T2's fits at `/tmp/V2VAL_mid_seed{i}.csv` and
+`/tmp/V2VAL_n100_seed{i}.csv` -- universe and seed INDEX, no code hash, no panel
+hash. `validate_engine.py` is wired into `check_all.py --slow` and ran on
+2026-09-22, reading six caches written 2026-09-21. Same class as the entry below,
+on a path that actually executes.
+
+**Fixed** by the shared key in `seed_cache_key.py`. The name is now
+`/tmp/V2VAL_{mid,n100}_seed{i}_{key}.csv`, over `engine_core.py`,
+`validate_engine.py`, `config.py`, the raw panel's content, the tag, the seed
+values and `purge_mode` -- the last because it is per-universe in this file and
+two universes differing only by it must not share an entry.
+
+### THE KEY NOW HAS ONE DEFINITION, NOT TWO
+
+`validate_sizing.py` carried a private copy from earlier the same day.
+`seed_cache_key.py` holds it once and both call it. Four tables in this
+repository have already gone stale as duplicates -- `REQUIRED_INPUTS`,
+`PIPELINE_ORDER`, `REPORT_ORDER`, `FILES` -- and a correctness key is a bad
+candidate for a fifth. The module hashes itself as well.
+
+### THE STALE CACHES WERE NOT ACTUALLY STALE, AND THAT IS MEASURED, NOT ASSUMED
+
+Recorded before deletion, the 2026-09-21 `V2VAL` files and the cold `VALSIZE`
+refits of 2026-09-22 have **identical sha256 prefixes, pair for pair**:
+
+    midcap150 seed0   7a801e10b459a159     seed1  6488d7f861544e28
+    midcap150 seed2   a5bd16656d762a2b
+    nifty100  seed1   30d07b3ac27704da     seed2  62de855f17724a94
+
+Two scripts, two days, one output per (universe, seed set). `score_monthly` is
+reproducible and the caches matched what the current code produces. **The risk
+was real and had not yet bitten.** Neither `validate_engine`'s "5 of 8" nor
+`validate_sizing`'s "2 of 4 / 1 of 4" was corrupted by reuse. What was wrong was
+that no run could have told you either way.
+
+---
+
 ## validate_sizing's T2 cache was keyed on universe and seed index alone — FIXED 2026-09-22
 
 Found 2026-09-22, immediately after `validate_sizing.py` was wired into

@@ -73,6 +73,7 @@ sys.path.insert(0, str(ROOT / "results"))
 
 import config
 from universes.registry import REGISTRY
+from seed_cache_key import seed_cache_key
 from engine_core import metrics, precompute, score_monthly, HORIZON
 from test_exposure import backtest_exposure, TOP_N, BUFFER, START_CAPITAL
 import profiles as _prof            # the run's execution-realism profile
@@ -98,7 +99,12 @@ UNIVERSES = {
         "raw_perm": config.METRICS_DIR / "raw_panel_cache.csv",
         # engine_core's own T2 wrote these. Reusing them keeps T2 identical to the
         # old T2 on everything except the engine under test, which is the point.
-        "seed_cache": lambda si: Path(f"/tmp/FINAL_seed{si}.csv"),
+        # THE 58 IS UNRUNNABLE AND THIS PATH IS DEAD. The comment above
+        # described reusing engine_core.main()'s own T2 caches; those are
+        # /tmp/FINAL_seed{i}.csv, main() has no caller, and both of its inputs
+        # (/tmp/v5_expanding.csv, /tmp/raw_panel_20.csv) went with the universe
+        # on 2026-09-11. It takes the key for one signature across the table.
+        "seed_cache": lambda si, k: Path(f"/tmp/FINAL_seed{si}_{k}.csv"),
         "purge_mode": "calendar",
         "y_end": 2026,
         "live": False,
@@ -110,7 +116,7 @@ UNIVERSES = {
         "tmp": "/tmp/v_midcap150_expanding.csv",
         "raw_tmp": "/tmp/raw_panel_midcap150_20.csv",
         "raw_perm": REGISTRY["midcap150"].metrics_dir / "raw_panel_midcap150_cache.csv",
-        "seed_cache": lambda si: Path(f"/tmp/V2VAL_mid_seed{si}.csv"),
+        "seed_cache": lambda si, k: Path(f"/tmp/V2VAL_mid_seed{si}_{k}.csv"),
         "purge_mode": "trading",
         "y_end": 2026,
         "live": True,
@@ -122,7 +128,7 @@ UNIVERSES = {
         "tmp": "/tmp/v_nifty100_expanding.csv",
         "raw_tmp": "/tmp/raw_panel_nifty100_20.csv",
         "raw_perm": REGISTRY["nifty100"].metrics_dir / "raw_panel_nifty100_cache.csv",
-        "seed_cache": lambda si: Path(f"/tmp/V2VAL_n100_seed{si}.csv"),
+        "seed_cache": lambda si, k: Path(f"/tmp/V2VAL_n100_seed{si}_{k}.csv"),
         "purge_mode": "trading",
         "y_end": 2026,
         "live": True,
@@ -242,7 +248,18 @@ def run_universe(tag, cfg, W, fast=False):
         raw = pd.read_csv(raw_src, parse_dates=["date"])
         t2_rows = []
         for si, seeds in enumerate(SEED_SETS):
-            cache = cfg["seed_cache"](si)
+            # KEYED ON CODE, PANEL CONTENT, TAG, SEEDS AND PURGE MODE. Until
+            # 2026-09-22 this was the tag and the seed INDEX, so it could not
+            # miss on a code or panel change and read stale fits back as current.
+            # purge_mode is in the key because it is per-universe here and two
+            # universes differing only by it must not share a cache entry.
+            key = seed_cache_key(
+                code_files=[ROOT / "results" / "engine_core.py",
+                            ROOT / "results" / "validate_engine.py",
+                            ROOT / "config.py"],
+                panel_path=raw_src,
+                parts=(tag, sorted(seeds), cfg["purge_mode"]))
+            cache = cfg["seed_cache"](si, key)
             if cache.exists():
                 ps = pd.read_csv(cache, parse_dates=["date"])
                 W(f"      seed set {si+1}/3 from cache {cache.name}")
