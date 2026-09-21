@@ -2229,14 +2229,17 @@ midcap150   baseline 27.80   basket 25.46    n = 1,836 sessions
 
 ### What it establishes
 
-**The published figures sit below their own distributions.** At σ = 0.01% all ten
-nifty100 draws and all five midcap150 draws came in above the published number —
-15 of 15, and 39 of all 45 perturbed cells (exact one-sided p = 2.7e−07 under a
-symmetric null). nifty100's 19.01 is 0.31 points below the minimum of its ten
-draws; midcap150's 27.80 is 0.23 below the minimum of its five. **They are
-legitimate draws and they reproduce bit-for-bit. They are extreme draws, which is
-a different problem from being wrong, and it is the one that governs how many
-digits can be quoted.**
+**The published figures sit in the tails of their own distributions.** At σ = 0.01%
+all ten nifty100 draws and nine of ten midcap150 draws came in above the published
+number — 19 of 20, and 43 of all 50 perturbed cells (exact one-sided p = 1.0e−07
+under a symmetric null). nifty100's 19.01 is 0.31 points below the minimum of its
+ten draws. midcap150's 27.80 is NOT below the minimum of its ten: the block was
+taken from five seeds to ten on 2026-09-21 and seed 909 returned 27.69, 0.11 below
+the published figure. The n = 5 reading that said otherwise is superseded — it was
+the smallest of five draws describing itself as unreachable. **They are legitimate
+draws and they reproduce bit-for-bit. They are extreme draws, which is a different
+problem from being wrong, and it is the one that governs how many digits can be
+quoted.**
 
 **A hundredth of a percent moves the result as much as the whole ensemble does.**
 nifty100 at σ = 0.01%, n = 10, sd 1.03 against the 0.968-point seed floor at
