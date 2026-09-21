@@ -1,21 +1,30 @@
 """
-degeneracy_measure.py -- why does the published figure sit below the minimum of
-its own perturbed draws?
+degeneracy_measure.py -- why does the published figure sit in the tail of its own
+perturbed draws?
 ==============================================================================
 
 WHAT THIS ANSWERS, AND WHY IT WAS ASKED
 
-    price_noise_measure.py established, over 45 full re-runs on 2026-09-20/21:
+    price_noise_measure.py established, over 50 full re-runs on 2026-09-20/21:
 
-        39 of 45 perturbed cells came in ABOVE their own unperturbed baseline
-        (p = 2.7e-07 against a fair coin), 15 of 15 at sigma = 0.01%, and both
-        published CAGR figures sit BELOW THE MINIMUM of their own 0.01% draws --
-        nifty100 by 0.31 points, midcap150 by 0.23.
+        43 of 50 perturbed cells came in ABOVE their own unperturbed baseline
+        (p = 1.0e-07 against a fair coin), 19 of 20 at sigma = 0.01%, and
+        nifty100's published CAGR sits BELOW THE MINIMUM of its ten 0.01% draws
+        by 0.31 points.
 
     A baseline below the minimum of its own draws is not a spread. A spread puts
-    the unperturbed value somewhere inside the cloud. This one is outside it, on
-    one side, on both universes. That says something DEGENERATE happens on the
-    unperturbed input which any perturbation, however small, removes.
+    the unperturbed value somewhere inside the cloud. That says something
+    DEGENERATE happens on the unperturbed input which any perturbation, however
+    small, removes.
+
+    THE MIDCAP150 HALF OF THAT READING DID NOT SURVIVE ITS OWN EXTENSION. At
+    n = 5 its 27.80 was 0.23 below the minimum of its draws. Taking the block to
+    n = 10 on 2026-09-21 -- which is what this investigation queued first, so the
+    control would carry the same weight as nifty100 -- returned 27.69 on seed 909.
+    So on midcap150 the published figure is an extreme draw, not an unreachable
+    one, and the "below the minimum" framing now rests on nifty100 alone. The
+    displacement itself is unchanged and is still strongly one-sided; it is the
+    stronger of the two claims that went.
 
     This script counts the degeneracies. It does not remove them and it does not
     change the engine. Three candidate channels were named and all three are
