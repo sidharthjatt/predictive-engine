@@ -69,7 +69,6 @@ Reads the panels. Writes only the /tmp seed caches -- nothing in the repository.
     python3 validate_sizing.py --universe=n100          # cost estimate, then stop
     python3 validate_sizing.py --universe=n100 --run     # run the suite
 """
-import hashlib
 import sys, time, warnings
 sys.dont_write_bytecode = True
 warnings.filterwarnings("ignore")
@@ -85,6 +84,7 @@ import config
 from engine_core import (backtest, precompute, metrics, score_monthly,
                          TOP_N, START_CAPITAL, HORIZON)
 from universes.registry import REGISTRY
+from seed_cache_key import seed_cache_key
 # Date window from config.py, NOT engine_core's year ints -- see config.py.
 BT_START_DATE, BT_END_DATE = config.BT_START_DATE, config.BT_END_DATE
 
@@ -108,38 +108,18 @@ VOL_WINDOWS = [40, 60, 90, 120]
 TRADE_LO, TRADE_HI = 400, 1400      # engine_core.py:495, unchanged
 
 
-# THE T2 CACHE KEY. It was /tmp/VALSIZE_{universe}_seed{i}.csv -- universe and
-# seed-set index and NOTHING ELSE. That key cannot miss on a code change or a
-# panel change, so a --run could reuse fits made by a different engine against a
-# different panel and print a verdict over them. On 2026-09-22 a --slow run
-# finished both universes in 0.0 and 0.1 min against caches written 2026-09-21,
-# which is what exposed it.
-#
-# WHAT GOES INTO THE KEY, AND WHY EACH ONE.
-#   engine_core.py   implements score_monthly, which IS the cached computation.
-#   validate_sizing.py  chooses the seed sets and the columns written to the
-#                    cache. A comment-only edit here busts a ~23 min cache per
-#                    universe; that is the intended trade. A key that is cheap
-#                    to satisfy is the thing being fixed.
-#   config.py        supplies BT_START_DATE and BT_END_DATE.
-#   the raw panel    the data fit against, hashed by CONTENT, not by mtime or
-#                    path. Two panels at one path is exactly how this repository
-#                    lost track of which source produced midcap150's artefacts.
-#   the seed list    the seeds of THIS set, not the index into SEED_SETS.
-#
-# A MISS IS A REFIT, NOT A WARNING. There is no override flag: an escape hatch
-# on a correctness key is the silent reuse this replaces.
+# THE T2 CACHE KEY LIVES IN seed_cache_key.py, shared with validate_engine's T2,
+# which had the identical defect. See that file for what goes into the key and
+# why there is no override flag. What this file contributes is its own source --
+# it chooses SEED_SETS and the columns written to the cache -- plus the universe
+# tag and the seed values of the set being fit.
 def _t2_cache_key(u, seeds, raw_path):
-    h = hashlib.sha256()
-    for f in (ROOT / "results" / "engine_core.py",
-              ROOT / "validate_sizing.py",
-              ROOT / "config.py"):
-        h.update(f.read_bytes())
-    with open(raw_path, "rb") as fh:
-        for chunk in iter(lambda: fh.read(1 << 20), b""):
-            h.update(chunk)
-    h.update(repr((u, sorted(seeds))).encode())
-    return h.hexdigest()[:16]
+    return seed_cache_key(
+        code_files=[ROOT / "results" / "engine_core.py",
+                    ROOT / "validate_sizing.py",
+                    ROOT / "config.py"],
+        panel_path=raw_path,
+        parts=(u, sorted(seeds)))
 
 
 def universe_from_argv():
