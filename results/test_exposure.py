@@ -453,7 +453,17 @@ def backtest_exposure(px, op, sc, dates, pc, mom20, port_vol=None,
                 _members = engine_core.MEMBERSHIP.members_on(dt)
                 s_ = s_[[k for k in s_.index if k in _members]]
             if len(s_) >= TOP_N:
-                rk = s_.sort_values(ascending=False)
+                # kind="mergesort" IS STABLE; pandas' default "quicksort" is not.
+                # Two names with the same score were ordered by whatever introsort
+                # happened to leave, so nothing decided which of them was held.
+                # Measured 2026-09-21 by results/degeneracy_measure.py: there are
+                # no ties -- 0 at the TOP_N cut and 0 at the BUFFER cut on all 92
+                # rebalances of both live universes, and no duplicate score
+                # anywhere in either ranking. The two kinds return an IDENTICAL
+                # full ranking on all 92, so this moves no published number. It is
+                # here so that a tie arriving later is broken by panel order
+                # rather than by the sort algorithm's internal state.
+                rk = s_.sort_values(ascending=False, kind="mergesort")
                 top = list(rk.index[:TOP_N])
                 keep = set(rk.index[:BUFFER])
                 # TOUCH POINT 3 -- forced exits join the sell set. `to_sell` is

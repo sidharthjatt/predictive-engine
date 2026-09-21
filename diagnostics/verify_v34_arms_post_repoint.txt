@@ -1,0 +1,75 @@
+==============================================================================
+POST-REPOINT RE-RUN of the V34 correctness gate, 2026-09-21.
+
+diagnostics/verify_v34_arms.txt records GATE PASSED, 32 of 32 arms VERIFIED.
+That file carries a PRE-REPOINT banner and says not to quote it without
+re-running. It was never re-run after the universes were repointed at
+Final_Without_Survivorship_Data on 2026-09-18.
+
+This is that re-run. THE GATE NOW FAILS on midcap150 v2 and v3.
+
+It was produced twice, once with results/test_exposure.py:456 on pandas'
+default quicksort and once with kind="mergesort", and the two outputs are
+byte-identical. The failure predates that change and is unrelated to it.
+
+The divergences are single-share position sizes, not symbol sets.
+experiments/V34_SPEC.txt requires VERIFIED at 92 of 92 for every arm and says
+that if any arm fails, no performance number may be reported for it. midcap150
+v2 is the shipping arm.
+
+NOTHING WAS ADJUSTED TO MAKE THIS MATCH. The output below is verbatim.
+==============================================================================
+
+====================================================================================================
+ V34 CORRECTNESS GATE -- nt_verify, four arms, both universes
+====================================================================================================
+  window 2019-01-01 to 2026-05-29   (from config.py, shared by engine and port)
+  the applied columns are what each side RECORDED at its decision point,
+  not what it was asked to apply, so they cannot report a rule the code
+  did not actually use.
+
+  NIFTY100
+    arm  intended        port applied     reference applied   result          verdict
+    v1   none/invvol     none/invvol      none/invvol         92 of 92        VERIFIED
+    v2   breadth/invvol  breadth/invvol   breadth/invvol      92 of 92        VERIFIED
+    v3   none/provol     none/provol      none/provol         92 of 92        VERIFIED
+    v4   breadth/provol  breadth/provol   breadth/provol      92 of 92        VERIFIED
+
+  MIDCAP150
+    arm  intended        port applied     reference applied   result          verdict
+    v1   none/invvol     none/invvol      none/invvol         92 of 92        VERIFIED
+    v2   breadth/invvol  breadth/invvol   breadth/invvol      89 of 92        NOT VERIFIED
+    v3   none/provol     none/provol      none/provol         23 of 92        NOT VERIFIED
+    v4   breadth/provol  breadth/provol   breadth/provol      92 of 92        VERIFIED
+
+====================================================================================================
+ GATE FAILED
+====================================================================================================
+
+  midcap150 v2 (intended breadth/invvol): 89 of 92 identical
+    port applied 'breadth/invvol'   reference applied 'breadth/invvol'
+    first diverging rebalance: 2020-08-14
+      symbol              port   reference
+      ALKEM                 51          51
+      BLUESTARCO           563         563
+      GLENMARK             135         135
+      JKCEMENT              66          66
+      JSL                 1697        1698   <-- differs
+      MCX                  393         393
+      SUZLON             24685       24685
+      TATACOMM             101         101
+      TATAELXSI            122         122
+
+  midcap150 v3 (intended none/provol): 23 of 92 identical
+    port applied 'none/provol'   reference applied 'none/provol'
+    first diverging rebalance: 2019-06-27
+      symbol              port   reference
+      GODFRYPHLP           361         361
+      GODREJPROP           145         145
+      IDEA               10142       10142
+      LINDEINDIA           211         211
+      LTTS                  38          38
+      MAHABANK            8989        8988   <-- differs
+      TIINDIA              350         350
+
+  Per the spec, NO performance number is reported for a failing arm.
