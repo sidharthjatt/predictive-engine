@@ -22,6 +22,83 @@ currently wrong.
 
 ---
 
+## LEAKAGE_SPEC CHECK 3 is specified, is cited as evidence, and has never existed
+
+Found 2026-09-22, while wiring the dormant gates into `check_all.py`. Open.
+
+`experiments/LEAKAGE_SPEC.txt:140` defines CHECK 3, NORMALISATION SCOPE: enumerate
+every scaling, ranking, percentile or standardisation applied to a feature or to
+the label between the raw CSV and the model's input, and for each state the file
+and line, the operation, the scope, and a verdict in which whole-panel scope on
+anything the model sees is a leak. Line 254 names its output,
+`diagnostics/leakage_check3_normalisation.txt`, in the spec's OUTPUTS block
+alongside the other three.
+
+**No script implements it.** There is no `leakage_check3*` file anywhere in the
+tree, nothing matching `*normalis*` or `*normaliz*`, and no code path writes that
+filename. This is a MISSING SCRIPT, not a defect in an existing one: checks 1, 2
+and 4 all have scripts under `results/`, and check 3 has a specification and an
+output filename and nothing in between.
+
+**What makes this worse than an unwritten check.** `KNOWN_ISSUES.md` line 2417 --
+row 4, feature causality, of the corrected leakage table -- cites
+`diagnostics/leakage_check3_normalisation.txt` as CORROBORATING EVIDENCE for that
+row holding. The file has never been on disk. A reader auditing row 4 finds a
+named artefact, goes looking for it, and finds nothing; the row's primary
+evidence, `diagnostics/leakage_check1_causality.txt`, does exist and does hold, so
+the row's verdict is not overturned by this. What is wrong is the second citation,
+which points at an artefact no run has ever produced.
+
+**Status in the runner.** Nothing is wired for check 3 because there is nothing to
+wire. It is not a skip in `check_all.py`'s delegate table, because a skip names a
+script that exists and could not assert. This one has no script.
+
+**Do not read the other three checks' green as covering normalisation scope.**
+Whole-panel normalisation is the one leak class none of checks 1, 2 or 4 would
+detect: check 1 corrupts the future and asks whether features move, check 2
+measures the training cut, check 4 compares close against adj_close. A scaler fit
+over the whole panel passes all three.
+
+---
+
+## `leakage_check2_purge.py` is retired, and the rule it tested is no longer the engine's
+
+Recorded 2026-09-22 when the dormant gates were wired. Not a defect; this is the
+disposal record, kept here so that a reader who finds the file does not wire it.
+
+`results/leakage_check2_purge.py` builds the training cut the CALENDAR way.
+`engine_core.score_monthly` takes `purge_mode` and defaults to `"trading"`, so the
+script audits a path production does not execute. Its 14 failing months -- 7 on
+nifty100 and 7 on midcap150, of 105 each, measured 2026-09-21 -- are the legacy
+defect the trading mode fixed, not a live leak.
+
+**It is removed from the active check suite** and appears in `check_all.py`'s
+`RETIRED_DELEGATES` with that reason, printed as `RETIRED` on its own line in the
+gate 5 table rather than dropped silently. It was never in `DELEGATES` before
+2026-09-22, so nothing stopped running that had been running.
+
+**The file stays in the tree and in git history. It is not deleted.** It is the
+calendar-rule record, and the 14 months are the measurement that justified the
+trading mode.
+
+**What now covers the live rule.** `results/leakage_check2_trading_purge.py`, wired
+into `check_all.py` and passing: gap min = median = max = 2 TRADING days, exactly
+`PURGE_EMBARGO`, across 252 month-universe pairs (126 months per universe, both
+live universes, 0 skipped by the engine). Months with the label reaching into the
+scored month: 0. Months at gap 0: 0. It calls `score_monthly` itself with the real
+panel and the registry's `purge_mode` rather than reimplementing the cut, and
+stubs only the model fit.
+
+**The two scripts count different populations and both figures stand.** The trading
+check counts months the ENGINE trained, 126 per universe; the calendar sibling
+counts months it measured under its own cut, 105. The difference is not attributed.
+
+Until 2026-09-22 the line in `diagnostics/gate_verdicts.txt` reading "THE LIVE
+PURGE RULE IS TESTED BY NO SCRIPT IN THIS TREE" was true. It is now false and the
+sentence is superseded by this entry.
+
+---
+
 ## The `b&h` column carried two different benchmarks, and the two are not comparable
 
 Found 2026-09-19, while amending the four-universe entry with tax. Open, in the
