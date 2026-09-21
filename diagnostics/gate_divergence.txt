@@ -1,0 +1,134 @@
+========================================================================================
+V34 GATE DIVERGENCE -- diagnosis, not reconciliation
+========================================================================================
+window 2019-01-01 to 2026-05-29, tick 0.01 fixed on both sides (the gate's own setting)
+
+  midcap150 v2 (breadth/invvol): 89 of 92 rebalances identical
+    rebalances with any divergence        : 3
+    positions differing                   : 3
+    share difference, min / max           : -1 / -1
+    positions differing by exactly 1      : 3 of 3
+    largest single divergence             : Rs 44.00
+    total absolute rupee divergence       : Rs 53.64
+    port shares above reference           : 0
+    port shares below reference           : 3
+    final equity  port Rs   6,149,081.92   reference Rs   6,149,092.57
+                  difference Rs         -10.65  (-0.0002%)
+    CAGR          port  27.7942%   reference  27.7943%   difference -0.0000 points
+    The CAGR difference is BELOW THE REPORTING PRECISION of 2 decimals.
+    It is not zero: at full precision it is -0.000030 points.
+
+  midcap150 v3 (none/provol): 23 of 92 rebalances identical
+    rebalances with any divergence        : 69
+    positions differing                   : 219
+    share difference, min / max           : -415 / +1
+    positions differing by exactly 1      : 91 of 219
+    largest single divergence             : Rs 1,186,879.25
+    total absolute rupee divergence       : Rs 2,694,187.49
+    port shares above reference           : 1
+    port shares below reference           : 218
+    final equity  port Rs  11,941,599.22   reference Rs  12,072,337.67
+                  difference Rs    -130,738.45  (-1.0830%)
+    CAGR          port  39.7762%   reference  39.9819%   difference -0.2057 points
+
+========================================================================================
+========================================================================================
+V34 GATE DIVERGENCE -- diagnosis, not reconciliation
+========================================================================================
+window 2019-01-01 to 2026-05-29, tick 0.01 fixed on both sides (the gate's own setting)
+
+  SCOPE. 4 arms x 8 registered universes = 32 possible pairs.
+  verify_v34_arms.py hardcodes ['nifty100', 'midcap150'] at line 90, so it runs 8 of them.
+  Universes never verified by any arm: ['midcap100', 'midcap50', 'nifty200', 'nifty50', 'nifty500', 'smallcap250']
+
+  nifty100 v1 (none/invvol): 92 of 92 rebalances identical
+    rebalances with any divergence        : 0
+    positions differing                   : 0
+    verdict: VERIFIED
+
+  nifty100 v2 (breadth/invvol): 92 of 92 rebalances identical
+    rebalances with any divergence        : 0
+    positions differing                   : 0
+    verdict: VERIFIED
+
+  nifty100 v3 (none/provol): 92 of 92 rebalances identical
+    rebalances with any divergence        : 0
+    positions differing                   : 0
+    verdict: VERIFIED
+
+  nifty100 v4 (breadth/provol): 92 of 92 rebalances identical
+    rebalances with any divergence        : 0
+    positions differing                   : 0
+    verdict: VERIFIED
+
+  midcap150 v1 (none/invvol): 92 of 92 rebalances identical
+    rebalances with any divergence        : 0
+    positions differing                   : 0
+    verdict: VERIFIED
+
+  midcap150 v2 (breadth/invvol): 89 of 92 rebalances identical
+    rebalances with any divergence        : 3
+    positions differing                   : 3
+    share difference, min / max           : -1 / -1
+    positions differing by exactly 1      : 3 of 3
+    largest single divergence             : Rs 44.00
+    total absolute rupee divergence       : Rs 53.64
+    port shares above reference           : 0
+    port shares below reference           : 3
+    verdict: NOT VERIFIED
+
+  midcap150 v3 (none/provol): 23 of 92 rebalances identical
+    rebalances with any divergence        : 69
+    positions differing                   : 219
+    share difference, min / max           : -415 / +1
+    positions differing by exactly 1      : 91 of 219
+    largest single divergence             : Rs 1,186,879.25
+    total absolute rupee divergence       : Rs 2,694,187.49
+    port shares above reference           : 1
+    port shares below reference           : 218
+    verdict: NOT VERIFIED
+
+  midcap150 v4 (breadth/provol): 92 of 92 rebalances identical
+    rebalances with any divergence        : 0
+    positions differing                   : 0
+    verdict: VERIFIED
+
+========================================================================================
+========================================================================================
+V34 GATE DIVERGENCE -- diagnosis, not reconciliation
+========================================================================================
+window 2019-01-01 to 2026-05-29, tick 0.01 fixed on both sides (the gate's own setting)
+
+  PART 4 -- what check_all.py actually runs
+
+  check_all.py invokes 4 of 20 gate-like scripts, through its DELEGATES tuple at check_all.py:115.
+
+  INVOKED:
+    check_pipeline_order.py
+    check_plan_order.py
+    naming_declare_check.py
+    registry_coverage_check.py
+
+  NOT INVOKED BY check_all.py (16):
+    gate_compare.py
+    nautilus/nt_verify.py
+    nautilus/verify_next_open_execution.py
+    results/check_a_close_values.py
+    results/check_b_exec_timing.py
+    results/leakage_check1_causality.py
+    results/leakage_check2_purge.py
+    results/leakage_check4_corpactions.py
+    results/validate_breadth_live.py
+    results/validate_engine.py
+    results/validate_topn.py
+    tax_acceptance_check.py
+    topn_centralise_check.py
+    transitional_asserts_check.py
+    validate_sizing.py
+    verify_v34_arms.py
+
+  A green check_all.py therefore says nothing about any of the scripts in
+  the second list. verify_v34_arms.py is one of them, which is why it was
+  red from 2026-09-18 to 2026-09-21 with every gate reporting PASS.
+
+========================================================================================
