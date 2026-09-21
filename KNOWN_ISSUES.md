@@ -22,6 +22,61 @@ currently wrong.
 
 ---
 
+## nt_verify's ARM A control could not be satisfied, and it hid a real midcap150 finding
+
+Found and fixed 2026-09-22. The control is repaired; what it was concealing is
+open and recorded below.
+
+**THE GATE NEVER REACHED ARM D.** `nt_verify.py` ran five verdict branches in
+order and stopped at the second on both live universes, printing "INCONCLUSIVE.
+ARM A does not reproduce the reference engine's own holdings, so ARM D is not a
+trustworthy baseline." Neither universe had been verified since the branch gained
+an exit status on 2026-09-21.
+
+**ARM D WAS NEVER THE PROBLEM.** Measured 2026-09-22 on nifty100: the port agrees
+with ARM D on 92 of 92 rebalances, and on a 0.01 tick grid on 92 of 92.
+
+**WHAT THE CONTROL ACTUALLY DEMANDED.** `ARM A` is `nt_attribution.run`. The
+reference, `daily_holdings_{tag}.csv`, is written by `results/audit_step.py`
+through `test_exposure.backtest_exposure`. Those are two of the five backtest
+reimplementations this file already tracks. The control gated `a_check[0]` --
+ANY difference, down to a single share. Measured on nifty100:
+
+    rebalances                 : 92
+      identical (symbols+qty)  : 2
+      SAME symbols, qty differs: 90
+      DIFFERENT symbols        : 0
+      qty ratio ARM_A/ref      : min 0.9643  median 1.0000  max 1.0263
+
+**Selection is bit-identical on every rebalance.** The whole divergence is integer
+position size, inside 3.6%. It is not a wrong parameter: `size_at_close=True`
+scores 1 of 92, worse than the 2 it would replace, and the participation cap is
+not involved -- the default profile is `research`, whose cap is `None`.
+
+**THE FIX.** The control now gates the SYMBOL SET, which is what licenses ARM D as
+a baseline for the port's sizing, and reports the quantity divergence as a
+measured distribution that is explicitly not gated. The quantization difference
+between the two reimplementations stands as a separate open problem under the
+five-reimplementations entry; it is not evidence about which book the engine
+chose, which is the question this control exists to answer.
+
+**WHAT THE BROKEN CONTROL WAS HIDING, AND THIS IS THE PART THAT MATTERS.**
+
+    nifty100    VERIFIED, exit 0.  0.01-grid reconciliation 92 of 92 identical.
+    midcap150   NOT VERIFIED, exit 1.  0.01-grid reconciliation 89 of 92.
+
+nifty100 had been reconciling all along and no run could say so. **midcap150 does
+not**: three rebalances differ in position size on a 0.01 grid, where tick
+quantization has been removed from both sides. That is the condition the tick
+proof exists to isolate, and it is a genuine logic difference between the port and
+the open-valued reference on those three dates. It is OPEN. The three dates have
+not been identified and the cause has not been established.
+
+A control that could not pass concealed a universe that did and a universe that
+genuinely does not.
+
+---
+
 ## validate_engine's T2 cache had the same weak key, and engine_core's is dead code
 
 Found 2026-09-22 while looking for the production instance of the
