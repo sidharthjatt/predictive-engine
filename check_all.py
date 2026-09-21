@@ -46,8 +46,15 @@ WHAT THIS DOES ABOUT IT
                          what the ledger says. The string-only acceptance check
                          cannot tell a renaming axis from a charging one, and for
                          the axis's first day that is what it was.
-    GATE 5  DELEGATES    registry_coverage_check, check_pipeline_order,
-                         check_plan_order, naming_declare_check.
+    GATE 5  DELEGATES    every gate-like script in the tree that can return a
+                         verdict, run and reported ONE LINE EACH. It was four
+                         scripts until 2026-09-22; the other sixteen were never
+                         called by anything. Scripts that check one universe per
+                         invocation are listed once per live tag, because a
+                         single call checks one and says nothing about the other.
+                         The refit ones need --slow; without it they are named
+                         skips. Three cannot assert at all and are listed with
+                         the reason. See DELEGATES.
     GATE 8  DATA SOURCE  every v34_params*.json names the price data it was
                          built from -- resolved raw_data_dir, symlink target and a
                          sha256 over the whole input -- and that source is still
@@ -109,11 +116,84 @@ SKIP_DIRS = {"venv", ".git", "__pycache__", "node_modules", "runs",
              "pre_repoint_baseline"}
 SKIP_PREFIX = ("forensic_snapshot_",)
 
-# The four checkers this folds in. Each already exits non-zero on failure; this
-# runs them and reports them together rather than replacing them, because each
-# one's message is better than any summary of it.
-DELEGATES = ("registry_coverage_check.py", "check_pipeline_order.py",
-             "check_plan_order.py", "naming_declare_check.py")
+# THE DELEGATE TABLE. It was a tuple of four bare filenames run with no
+# arguments, which is why sixteen gate-like scripts sat dormant: a script that
+# needs an argument could not be expressed here at all.
+#
+# Each row is (script, args, slow, blocked).
+#
+#   args     the argument list, so a script that checks one universe per run can
+#            appear TWICE with different tags. validate_sizing.py and
+#            nt_verify.py both silently check a single universe otherwise.
+#   slow     it refits the model. Run only under --slow; otherwise recorded as a
+#            named skip, never as a pass.
+#   blocked  it cannot return a meaningful verdict as it stands, with the reason.
+#            Always a skip. Listed rather than omitted, because a gate nobody
+#            lists is a gate nobody remembers, which is how these went dormant.
+#
+# WHY --run APPEARS ON THE SLOW ROWS. validate_sizing.py and
+# validate_breadth_live.py return early WITHOUT it, and the early return exits 0
+# having asserted nothing -- `return` with no value, then `sys.exit(main())`.
+# Wiring them without --run would have produced a green over zero tests, which
+# is the defect class this file exists to catch.
+DELEGATES = (
+    # The four that were already here.
+    ("registry_coverage_check.py",            [], False, None),
+    ("check_pipeline_order.py",               [], False, None),
+    ("check_plan_order.py",                   [], False, None),
+    ("naming_declare_check.py",               [], False, None),
+
+    # Cheap, and each already carries an exit status.
+    ("results/leakage_check1_causality.py",   [], False, None),
+    ("results/leakage_check2_trading_purge.py", [], False, None),
+    ("results/validate_topn.py",              [], False, None),
+    ("results/check_a_close_values.py",       [], False, None),
+    ("results/check_b_exec_timing.py",        [], False, None),
+    ("nautilus/verify_next_open_execution.py", [], False, None),
+    ("tax_acceptance_check.py",               [], False, None),
+    ("transitional_asserts_check.py",         [], False, None),
+
+    # ONE UNIVERSE PER INVOCATION. nt_verify.py defaults to the first REGISTERED
+    # universe, which is not a statement about what ships; naming both tags is.
+    ("nautilus/nt_verify.py",                 ["--universe=nifty100"],  False, None),
+    ("nautilus/nt_verify.py",                 ["--universe=midcap150"], False, None),
+
+    # SLOW. validate_engine.py iterates both live universes inside one run, so it
+    # is wired ONCE and must not be given a tag. The other two do not, so they
+    # are wired once per tag.
+    ("results/validate_engine.py",            [], True, None),
+    ("validate_sizing.py",                    ["--universe=nifty100",  "--run"], True, None),
+    ("validate_sizing.py",                    ["--universe=midcap150", "--run"], True, None),
+    ("results/validate_breadth_live.py",      ["--universe=nifty100",  "--run"], True, None),
+    ("results/validate_breadth_live.py",      ["--universe=midcap150", "--run"], True, None),
+
+    # BLOCKED, each with the reason rather than an invented pass condition.
+    ("gate_compare.py", [], False,
+     "cannot run standalone: needs two positional artefact paths plus "
+     "--universe, --arm and --since, and this runner has no artefact pair to "
+     "hand it"),
+    ("topn_centralise_check.py", [], False,
+     "report mode compares a before/after pair and only "
+     "diagnostics/topn_hash_after.csv exists; no baseline is stored in the tree"),
+    ("results/leakage_check4_corpactions.py", [], False,
+     "descriptive, no pass condition definable without a corporate-action "
+     "dataset or a ruling on how many unexplained candidates are acceptable; "
+     "it exits 0 whatever it finds"),
+)
+
+# RETIRED, AND NOT IN THE TABLE ABOVE. results/leakage_check2_purge.py audits the
+# CALENDAR purge rule, which engine_core.score_monthly no longer takes --
+# purge_mode defaults to "trading". Its 14 failing months are the legacy defect
+# the trading mode fixed, not a live leak, so wiring it would make this runner
+# permanently red for a path production does not execute. The live rule IS now
+# tested, by results/leakage_check2_trading_purge.py, which is in the table: gap
+# min = median = max = 2 trading days across 252 month-universe pairs. The file
+# is kept in the tree as the calendar-rule record and is not deleted.
+RETIRED_DELEGATES = {
+    "results/leakage_check2_purge.py":
+        "retired 2026-09-22: audits the calendar purge rule the engine no longer "
+        "uses; superseded by results/leakage_check2_trading_purge.py",
+}
 
 # naming_declare_check reports a KNOWN, PRE-EXISTING count of undeclared write
 # calls and exits 1 for it. That number was 111 before this checker existed and
@@ -180,6 +260,10 @@ class Result:
         self.failures = []
         self.notes = []
         self.skipped = {}
+        # ONE ROW PER DELEGATE, so gate 5's summary cannot hide a member of it.
+        # The gate-level skip above says how many did not assert; this says
+        # which, and why, by name.
+        self.delegates = []
 
     def fail(self, gate, what, detail=""):
         self.failures.append((gate, what, detail))
@@ -195,6 +279,10 @@ class Result:
         """
         self.skipped[gate_no] = why
         self.notes.append(text)
+
+    def delegate(self, label, status, detail=""):
+        """Record one delegate's outcome: PASS, FAIL, SKIP or RETIRED."""
+        self.delegates.append((label, status, detail))
 
     def asserted(self):
         return [g for g in ALL_GATES if g not in self.skipped]
@@ -420,35 +508,76 @@ def gate_outputs(res, rows, since, sel):
 # ---------------------------------------------------------------------------
 # GATE 5 -- the four that already existed, run together
 # ---------------------------------------------------------------------------
-def gate_delegates(res):
-    for name in DELEGATES:
+def gate_delegates(res, slow):
+    """Run every wired delegate and record a status for each, by name.
+
+    WHAT CHANGED, 2026-09-22. This ran four scripts with no arguments. The other
+    sixteen gate-like scripts in the tree were never called by anything, and
+    three of them cannot be called without an argument, so no amount of adding
+    filenames to a tuple would have reached them.
+
+    A SKIP IS NOT A PASS AND IS NOT A FAILURE. A blocked or slow-and-not-asked-for
+    delegate is recorded here, counted, and named in the verdict line through
+    res.skip below. The one thing it must never do is leave no trace, which is
+    what "run four of twenty" looked like from the outside: a green run.
+    """
+    ran = skipped = 0
+    for name, args, is_slow, blocked in DELEGATES:
+        label = " ".join([name] + args)
         p = ROOT / name
-        if not p.exists():
-            res.fail("GATE 5 delegates", name, "not found")
+        if blocked is not None:
+            res.delegate(label, "SKIP", blocked)
+            skipped += 1
             continue
-        r = subprocess.run([sys.executable, str(p)], capture_output=True, text=True)
+        if is_slow and not slow:
+            res.delegate(label, "SKIP", "refits the model; needs --slow")
+            skipped += 1
+            continue
+        if not p.exists():
+            res.fail("GATE 5 delegates", label, "not found")
+            res.delegate(label, "FAIL", "not found")
+            continue
+        r = subprocess.run([sys.executable, str(p)] + args,
+                           capture_output=True, text=True)
+        ran += 1
         if name == "naming_declare_check.py":
             # ITS FAILURE IS A KNOWN NUMBER, AND THE CHECK IS THAT IT DOES NOT GROW.
             import re
             m = re.search(r"GATE 1 \(blocking\): (\d+) write call", r.stdout)
             n = int(m.group(1)) if m else None
             if n is None:
-                res.fail("GATE 5 delegates", name,
+                res.fail("GATE 5 delegates", label,
                          "could not read its undeclared-write count")
+                res.delegate(label, "FAIL", "undeclared-write count unreadable")
             elif n > NAMING_UNDECLARED_BASELINE:
-                res.fail("GATE 5 delegates", name,
+                res.fail("GATE 5 delegates", label,
                          f"undeclared write calls rose to {n} from a baseline of "
                          f"{NAMING_UNDECLARED_BASELINE}")
+                res.delegate(label, "FAIL",
+                             f"undeclared writes {n} > baseline "
+                             f"{NAMING_UNDECLARED_BASELINE}")
             else:
-                res.note(f"GATE 5  {name}: {n} undeclared writes "
-                         f"(baseline {NAMING_UNDECLARED_BASELINE})")
+                res.delegate(label, "PASS",
+                             f"{n} undeclared writes "
+                             f"(baseline {NAMING_UNDECLARED_BASELINE})")
             continue
         if r.returncode != 0:
             tail = [l for l in (r.stdout + r.stderr).splitlines() if l.strip()][-3:]
-            res.fail("GATE 5 delegates", name,
+            res.fail("GATE 5 delegates", label,
                      f"exit {r.returncode}: " + " | ".join(tail))
+            res.delegate(label, "FAIL", f"exit {r.returncode}")
         else:
-            res.note(f"GATE 5  {name}: exit 0")
+            res.delegate(label, "PASS", "exit 0")
+
+    for name, why in sorted(RETIRED_DELEGATES.items()):
+        res.delegate(name, "RETIRED", why)
+
+    res.note(f"GATE 5  {ran} delegates ran, {skipped} skipped, "
+             f"{len(RETIRED_DELEGATES)} retired")
+    if skipped:
+        res.skip(5, f"GATE 5  {skipped} of {len(DELEGATES)} delegates did not "
+                    f"assert. Not counted as passed.",
+                 f"{skipped} delegates not asserted")
 
 
 # ---------------------------------------------------------------------------
@@ -963,6 +1092,20 @@ def main(argv=None):
     # A checker that fails correct behaviour teaches people to ignore it.
     ap.add_argument("--universe", default="all",
                     help="comma-separated tags the run selected, or 'all'")
+    # THE REFIT DELEGATES ARE OFF BY DEFAULT. Without this flag they are
+    # recorded as named skips, not as passes: validate_sizing is 1,134 LightGBM
+    # fits per universe, which its own cost block measures at ~22.7 min.
+    #
+    # WHAT IT ACTUALLY COSTS DEPENDS ON /tmp, AND THAT IS NOT A GUARANTEE. The
+    # 2026-09-22 --slow run finished both universes in 0.0 and 0.1 min because
+    # /tmp/VALSIZE_{universe}_seed{0,1,2}.csv were already on disk from
+    # 2026-09-21. Those caches are keyed by universe and seed ONLY -- no code
+    # hash, no panel hash -- so they are reused whatever the engine now does,
+    # and they do not survive a reboot. A cold --slow run is the ~45 min; a warm
+    # one asserts against fits it did not perform and cannot tell you which.
+    ap.add_argument("--slow", action="store_true",
+                    help="also run the delegates that refit the model "
+                         "(validate_engine, validate_sizing, validate_breadth_live)")
     args = ap.parse_args(argv)
 
     res = Result()
@@ -974,12 +1117,18 @@ def main(argv=None):
     rows = gate_table(res)
     gate_entry_points(res, rows)
     gate_outputs(res, rows, args.since, args.universe)
-    gate_delegates(res)
+    gate_delegates(res, args.slow)
     gate_tax(res, args.since, args.universe)
     gate_ltcg(res, args.universe)
     gate_data_source(res, args.universe)
 
     print()
+    if res.delegates:
+        print("  GATE 5 DELEGATES, ONE LINE EACH")
+        w = max(len(d[0]) for d in res.delegates)
+        for label, status, detail in res.delegates:
+            print(f"    {status:<8}{label:<{w}}  {detail}")
+        print()
     for n in res.notes:
         print("  " + n)
     print()

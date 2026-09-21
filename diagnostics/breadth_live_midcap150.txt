@@ -13,11 +13,11 @@
  T1. SEED ROBUSTNESS -- does breadth beat 100% invested on 3 independent seed sets?
 ========================================================================================================
   GATED on BOTH: dSharpe > 0 and dMaxDD > 3 points, on ALL three sets.
-    seed set 1/3 [5, 55, 555] scoring (refits the model) ...
+    seed set 1/3 [5, 55, 555] from cache VALBREADTH_midcap150_seed0.csv
       Sharpe 1.46 -> 1.98 (+0.52)    MaxDD -41.17% -> -18.98% (+22.19 pt)    deployed 54.6%
-    seed set 2/3 [13, 26, 39] scoring (refits the model) ...
+    seed set 2/3 [13, 26, 39] from cache VALBREADTH_midcap150_seed1.csv
       Sharpe 1.47 -> 1.78 (+0.31)    MaxDD -42.41% -> -21.15% (+21.26 pt)    deployed 54.6%
-    seed set 3/3 [101, 202, 303] scoring (refits the model) ...
+    seed set 3/3 [101, 202, 303] from cache VALBREADTH_midcap150_seed2.csv
       Sharpe 1.47 -> 1.84 (+0.37)    MaxDD -43.90% -> -20.03% (+23.87 pt)    deployed 54.6%
 
     Sharpe improved on 3/3 seed sets  -> PASS
