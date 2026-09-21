@@ -2182,6 +2182,112 @@ legitimate draw. What this establishes is that the method's own variance-reducti
 step is under-delivering by a factor of two or more in the exponent, and that no
 figure from it is stable to better than about a point at K=10.
 
+## The published v2 CAGR is not reproducible under rounding-level price changes, and it is not the centre of its own distribution
+
+Measured 2026-09-20 (nifty100) and 2026-09-21 (midcap150) by
+`results/price_noise_measure.py`; per-run record in
+`diagnostics/price_noise_runs.csv`, report in `diagnostics/price_noise.txt`.
+Open. **This is a finding about what the published numbers are, not a caveat on
+one of them.**
+
+### Why it was asked
+
+nifty100 v2 went from +0.43 CAGR points over its own basket to −5.15 when the
+universe was repointed on 2026-09-18. Decomposing the fall by name on 2026-09-20
+showed it was not located where the data changed: 53 of the 99 constituents carry
+108% of the drop in final equity and every one of those 53 has an in-window
+`adj_close` identical to the old panel's to within 0.01%. MAZDOCK alone carries
+42.8% of it with 1,477 of 1,477 in-window sessions unchanged. The names whose
+prices genuinely moved were net positive.
+
+### What was run
+
+45 full re-runs of v2 — panel rebuilt, 10-seed ensemble refitted, backtest
+re-executed, nothing reused from stored fills. `adj_close` multiplied by (1 + ε),
+ε ~ Normal(0, σ), drawn independently per (symbol, date). **The ten production
+seeds are held fixed in every run**, so this dispersion is on top of the seed
+noise the entry above records, not a re-measurement of it.
+
+σ = 0 is run first through the same code path and must reproduce the published
+`v34_comparison.csv` row; the gate is asserted at run time and stops the grid on
+a mismatch. It passed on both universes on every start.
+
+```
+nifty100    baseline 19.01   basket 24.16    n = 1,836 sessions
+   sigma  runs   mean     min     max     sd  spread  overlap
+   0.01%    10  20.76   19.32   22.55   1.03    3.23    0.662
+   0.05%     5  20.75   16.78   24.13   2.62    7.35    0.638
+   0.10%     5  21.85   20.08   24.83   1.92    4.75    0.600
+   0.50%     5  21.58   19.57   25.25   2.26    5.68    0.483
+
+midcap150   baseline 27.80   basket 25.46    n = 1,836 sessions
+   0.01%     5  30.42   28.03   31.88   1.51    3.85    0.707
+   0.05%     5  29.24   27.55   31.31   1.69    3.76    0.682
+   0.10%     5  30.45   27.29   32.52   2.45    5.23    0.649
+   0.50%     5  28.74   24.78   32.11   2.77    7.33    0.511
+```
+
+### What it establishes
+
+**The published figures sit below their own distributions.** At σ = 0.01% all ten
+nifty100 draws and all five midcap150 draws came in above the published number —
+15 of 15, and 39 of all 45 perturbed cells (exact one-sided p = 2.7e−07 under a
+symmetric null). nifty100's 19.01 is 0.31 points below the minimum of its ten
+draws; midcap150's 27.80 is 0.23 below the minimum of its five. **They are
+legitimate draws and they reproduce bit-for-bit. They are extreme draws, which is
+a different problem from being wrong, and it is the one that governs how many
+digits can be quoted.**
+
+**A hundredth of a percent moves the result as much as the whole ensemble does.**
+nifty100 at σ = 0.01%, n = 10, sd 1.03 against the 0.968-point seed floor at
+K = 10 recorded above — 1.06 times it, with the seeds frozen.
+
+**Both signs of the edge are reachable in both universes.** nifty100's published
+−5.15 ranges −7.38 to +1.09 over its 25 perturbed cells and beats its basket in 2
+of them; midcap150's published +2.34 ranges −0.68 to +7.06 over its 20 and loses
+to its basket in 1. The arm that "loses to its basket" and the arm that "beats
+its basket" are the same arm at two points of one distribution.
+
+**It is not specific to the universe that embarrassed it.** midcap150 was run as
+the control precisely because it keeps a positive edge, and it shows the same
+displacement. Its 0.01% block is n = 5, p = 0.031 — suggestive, not the 1-in-1,024
+nifty100 has, and it has not been taken to ten seeds.
+
+**The only monotone quantity in the grid is the holdings overlap**, 0.662 → 0.483
+on nifty100 and 0.707 → 0.511 on midcap150. Neither the spread nor the mean
+orders with σ at n = 5 per block.
+
+### What was ruled out, and what is not offered
+
+**No mechanism is proposed for the one-sidedness.** The one asymmetry in the
+construction was measured and points the wrong way. `canonical_price` falls back
+to the raw close when `adj_close` leaves [low, high], and under noise it fires on
+1.3% of nifty100 rows and 2.3% of midcap150 rows against 0.036% and 0.007% at
+baseline. It is one-sided by count — 3,259 to 3,389 upward corrections against
+2,808 to 2,971 downward on nifty100, tracking the 6,176 rows that sit on the low
+against 5,766 on the high — but its net effect on delivered ε is **−2.8e−06 to
+−5.2e−06**, a downward displacement, while every outcome moved up.
+
+The draw itself is unbiased: realised mean ε is 5e−08 to 1.7e−07 per run against
+a sampling sd of 1.45e−07 over 473,311 rows. The write path preserves it; a
+round trip through the CSVs reproduces the intended value to 7.3e−12 per row and
+the mean to 5e−10.
+
+**The construction was not adjusted.** Changing it to make the noise land cleanly
+would have measured a different engine and made the levels incomparable.
+
+### What it does not settle
+
+**Whether the 2026-09-18 repoint caused the −5.15 is still open.** Its 5.42-point
+move is inside the spread at σ = 0.05%, 0.10% and 0.50% and outside it at 0.01%.
+What can be said is that 5.42 is not a large number for this arm: it is between
+one and two spreads of a change too small to see.
+
+**Why the arm is this sensitive is not addressed here.** Whether the answer is
+the ensemble, the ranking rule's behaviour at near-ties, the breadth gate, or the
+sizing, this measurement does not distinguish them and nothing in it should be
+read as doing so.
+
 ## STEP 2's leakage checklist performs no checks
 
 **Diagnosed in:** `diagnostics/PIPELINE_AUDIT.txt` section 7, **dated

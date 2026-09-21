@@ -88,6 +88,47 @@ figure here differs from the ones this README carried before 2026-09-11**, which
 were measured on the close-price basis before those two corrections; mid's MaxDD
 moved most, −18.98% to −15.68%.
 
+> ### READ THIS BEFORE QUOTING ANY v2 FIGURE BELOW
+>
+> **The shipping arm's published CAGR is not reproducible under changes to the
+> price data too small to see, and it is not the centre of its own distribution.**
+> Measured 2026-09-20 and 2026-09-21 by `results/price_noise_measure.py`: 45 full
+> re-runs of v2 — panel rebuilt, 10-seed ensemble refitted, backtest re-executed —
+> on price data perturbed by multiplying `adj_close` by (1 + ε), ε ~ Normal(0, σ),
+> drawn per symbol per day. The ten production seeds are held fixed throughout, so
+> this dispersion is on top of the seed noise `KNOWN_ISSUES.md` already records.
+>
+> | | σ | n | published | mean | min | max | sd |
+> |---|---|---:|---:|---:|---:|---:|---:|
+> | nifty100 v2 | 0.01% | 10 | 19.01 | 20.76 | 19.32 | 22.55 | 1.03 |
+> | | 0.50% | 5 | 19.01 | 21.58 | 19.57 | 25.25 | 2.26 |
+> | midcap150 v2 | 0.01% | 5 | 27.80 | 30.42 | 28.03 | 31.88 | 1.51 |
+> | | 0.50% | 5 | 27.80 | 28.74 | 24.78 | 32.11 | 2.77 |
+>
+> At σ = 0.01% — a perturbation smaller than the difference between the two price
+> panels on 53 of nifty100's 99 names — **every one of the fifteen draws across
+> both universes came in above the published figure**, and across all 45 cells 39
+> did (p = 2.7e−07). Both published numbers sit below the minimum of their own
+> 0.01% draws. On nifty100 at n = 10 the sd is 1.03 against the 0.968-point
+> seed-noise floor, so a hundredth of a percent on the prices moves the result as
+> much as the whole ensemble does.
+>
+> **The edge against the basket takes both signs in both universes.** nifty100's
+> published −5.15 ranges −7.38 to +1.09 across its 25 perturbed cells; midcap150's
+> published +2.34 ranges −0.68 to +7.06 across its 20. The arm beats its basket in
+> 2 of 25 nifty100 runs and loses to it in 1 of 20 midcap150 runs.
+>
+> Mean daily holdings overlap against the unperturbed run falls from 0.662 at
+> σ = 0.01% to 0.483 at σ = 0.50% on nifty100, and 0.707 to 0.511 on midcap150.
+>
+> **Nothing below is deleted or restated.** Every figure in the tables reproduces
+> bit-for-bit from the price CSVs and is asserted on every grid start by an
+> identity gate. They are legitimate draws. What is measured here is that they are
+> extreme draws of their own input distribution, which is a different problem from
+> being wrong, and the one that governs how many digits of them can be quoted.
+> No mechanism for the one-sidedness is offered; see `KNOWN_ISSUES.md` for what
+> was ruled out.
+
 ### Nifty 100 — 99 symbols
 
 | arm | CAGR% | Sharpe | Sortino | MaxDD% | Calmar | Trades | AnnVol% | Deployed% | FinalEquity |
@@ -133,6 +174,14 @@ Against the equal-weight buy & hold of its own universe — the harder compariso
 and the one that matters — **the shipping arm now LOSES to its own basket on
 nifty100, 19.01 against 24.16, and beats it on midcap150, 27.80 against 25.46.**
 That is a sign change on nifty100, not a shrinking edge.
+
+**Neither sign survives a perturbation of the prices too small to see, and that
+was measured rather than suspected.** Across 45 full re-runs on 2026-09-20 and
+2026-09-21, nifty100's −5.15 ranges −7.38 to +1.09 and midcap150's +2.34 ranges
+−0.68 to +7.06; each universe produces the opposite sign in at least one cell.
+Both figures above remain what the runs on disk say. Neither should be quoted as
+though its sign were established. See the box before the tables and
+`KNOWN_ISSUES.md`.
 
 > *Superseded 2026-09-20: this paragraph read "the shipping arm's return edge is
 > now 0.43 CAGR points on n100 (24.43 vs 24.00) and 0.89 on mid (29.23 vs 28.34)",
