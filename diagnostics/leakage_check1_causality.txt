@@ -1,8 +1,8 @@
 ====================================================================================================
- CHECK 1 -- FEATURE CAUSALITY -- NIFTY 100 (n100)
+ CHECK 1 -- FEATURE CAUSALITY -- NIFTY 100 (nifty100)
 ====================================================================================================
 
-  symbols 99   panel rows 482,116
+  symbols 99   panel rows 473,311
   dates sampled 24 spread across 2019-01-01 .. 2026-05-29
   cells compared per feature: 24 dates x 99 symbols x 2 corruptions = 4,752
   corruption (a) replace: future rows overwritten with a synthetic random walk
@@ -40,10 +40,10 @@
 
 
 ====================================================================================================
- CHECK 1 -- FEATURE CAUSALITY -- MIDCAP150 (mid)
+ CHECK 1 -- FEATURE CAUSALITY -- MIDCAP150 (midcap150)
 ====================================================================================================
 
-  symbols 148   panel rows 596,822
+  symbols 148   panel rows 572,399
   dates sampled 24 spread across 2019-01-01 .. 2026-05-29
   cells compared per feature: 24 dates x 148 symbols x 2 corruptions = 7,104
   corruption (a) replace: future rows overwritten with a synthetic random walk

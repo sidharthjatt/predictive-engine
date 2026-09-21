@@ -1,0 +1,111 @@
+==============================================================================
+THE SIXTEEN GATES check_all.py NEVER CALLS -- run 2026-09-21
+==============================================================================
+
+check_all.py invokes four scripts, the DELEGATES tuple at check_all.py:115.
+Twenty scripts in the tree are gate-like by name. This is the state of the
+other sixteen, each run directly on 2026-09-21. Nothing was fixed and no
+threshold was changed; where a script failed, the failure is the output.
+
+WHAT "RED" MEANS HERE, AND WHY MOST OF THESE CANNOT BE RED
+
+    Only five of the sixteen emit a binary verdict at all. The rest are
+    descriptive audits that exit 0 whatever they find, so wiring them into
+    check_all.py would catch nothing without first giving them a verdict. That
+    is a property of the scripts, not of the tree they ran against.
+
+RED -- a verdict, and it is a failure
+
+  results/validate_engine.py          midcap150 1 of 4, nifty100 2 of 4
+  validate_sizing.py                  nifty100 2 of 4, midcap150 1 of 4
+  nautilus/nt_verify.py               INCONCLUSIVE on midcap150
+
+    validate_engine and validate_sizing are two separate suites testing the
+    same inverse-vol sizing rule the shipping v2 arm uses, and they agree:
+    T3 sub-period fails on both universes in both suites, T4 parameter
+    sensitivity fails on both universes in both suites, and nifty100's T2
+    passes in both while midcap150's T2 fails in both. The agreement is
+    reported; no cause is attributed.
+
+GREEN -- a verdict, and it passes
+
+  results/leakage_check1_causality.py all 17 features bit-exact, both universes
+  results/validate_topn.py            identity gate ok on both universes
+  results/validate_breadth_live.py    PASS on nifty100 and on midcap150
+  tax_acceptance_check.py             RESULT: PASS
+  transitional_asserts_check.py       RESULT: PASS
+
+NO VERDICT -- runs, exits 0, reports numbers only
+
+  results/leakage_check2_purge.py     tests the CALENDAR purge; the engine
+                                      defaults to purge_mode="trading". The 7
+                                      failing months are the legacy defect
+                                      score_monthly's own docstring records as
+                                      fixed. Stale, not red.
+  results/leakage_check4_corpactions.py  2 candidates on nifty100, 1 on
+                                      midcap150; provenance UNVERIFIED
+  results/check_a_close_values.py     2,578 close/adj_close disagreements
+  results/check_b_exec_timing.py      3 fills off the open by 0.01
+  topn_centralise_check.py            writes hashes; a before/after differ with
+                                      no baseline in the tree
+  nautilus/verify_next_open_execution.py  synthetic 5-bar demo; zero universes
+
+CANNOT RUN AS INVOKED
+
+  results/validate_engine.py          FileNotFoundError: 58 score panel not
+                                      found. The retired 58 is first in its
+                                      UNIVERSES dict (validate_engine.py:92,
+                                      live=False) and main() iterates all of
+                                      them, so the default invocation dies
+                                      before reaching either live universe.
+                                      Needs --universe=nifty100
+                                      --universe=midcap150. It is RED once it
+                                      can run, so it was invisible twice over.
+  gate_compare.py                     needs two positional artefact paths plus
+                                      --universe, --arm and --since <epoch>. A
+                                      per-cell differ, not a standalone gate.
+
+WHAT EACH ONE ACTUALLY COVERS
+
+    Every script that names universes hardcodes nifty100 and midcap150 -- the
+    same shape as verify_v34_arms.py:90. Six of the eight registered universes
+    (midcap50, midcap100, nifty50, nifty200, nifty500, smallcap250) are LIVE and
+    are covered by NONE of these sixteen. nt_verify.py is narrower still: it
+    defaults to next(iter(nt_run.UNIVERSES)), which is midcap150 alone.
+
+    Arms: validate_topn pins mode="breadth"; check_b reads only v2 fills;
+    topn_centralise_check covers 4 sizing/mode combinations on 2 universes;
+    verify_next_open_execution covers no arm at all.
+
+RECORDED OUTPUT, AND WHERE IT DISAGREES
+
+    Every recorded output in diagnostics/ for these scripts predates the
+    2026-09-18 repoint. The four leakage/checkA files were last written
+    2026-09-05 and carry NO pre-repoint banner, unlike the 36 stamped in
+    2cbf7a7. Their panels were a different size: nifty100 482,116 rows against
+    473,311 now, midcap150 596,822 against 572,399. They also predate the
+    n100/mid -> nifty100/midcap150 rename.
+
+    validate_engine_verdict.txt disagrees materially with this run:
+
+        recorded    58 4 of 4    mid 0 of 4    n100 4 of 4
+        measured                 midcap150 1 of 4   nifty100 2 of 4
+
+    nifty100 went from 4 of 4 to 2 of 4; T3 and T4 newly fail there. The
+    disagreement is reported, not reconciled, and no cause is attributed.
+
+    The rename also left 12 stale-tag diagnostics in place -- validate_engine_
+    n100.txt, validate_engine_mid.txt, topn_n100.txt, validate_sizing_mid.txt
+    and others. The renamed scripts write *_nifty100.txt and *_midcap150.txt
+    ALONGSIDE them, so the tree now carries both and the pre-repoint copies are
+    never overwritten.
+
+CAVEAT ON check_b_exec_timing.py
+
+    It reads nautilus/reports/<universe>/v2/fills.csv, which is gitignored and
+    holds whatever ran last. This session's own gate runs regenerated those
+    files at tick 0.01 fixed, not the production 0.05/nse tick, so its numbers
+    describe this session's runs. Its own header records that defect. The known
+    latent profile defect is unchanged and was not touched: its output names no
+    profile.
+==============================================================================

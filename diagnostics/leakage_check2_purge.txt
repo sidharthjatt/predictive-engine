@@ -1,8 +1,8 @@
 ====================================================================================================
- CHECK 2 -- TRAINING MASK AND PURGE -- NIFTY 100 (n100)
+ CHECK 2 -- TRAINING MASK AND PURGE -- NIFTY 100 (nifty100)
 ====================================================================================================
 
-  panel raw_panel_n100_cache.csv   rows 479,333   symbols 99
+  panel raw_panel_nifty100_cache.csv   rows 470,711   symbols 99
   PURGE = 32 CALENDAR days      HORIZON = 20 TRADING rows
   panel trading days 6574  2000-01-03 .. 2026-06-08
 
@@ -41,10 +41,10 @@
 
 
 ====================================================================================================
- CHECK 2 -- TRAINING MASK AND PURGE -- MIDCAP150 (mid)
+ CHECK 2 -- TRAINING MASK AND PURGE -- MIDCAP150 (midcap150)
 ====================================================================================================
 
-  panel raw_panel_mid_cache.csv   rows 589,269   symbols 148
+  panel raw_panel_midcap150_cache.csv   rows 564,850   symbols 148
   PURGE = 32 CALENDAR days      HORIZON = 20 TRADING rows
   panel trading days 6573  2000-01-04 .. 2026-06-08
 
