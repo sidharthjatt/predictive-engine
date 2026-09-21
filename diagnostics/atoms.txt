@@ -1,0 +1,172 @@
+================================================================================================
+ATOMS IN THE FEATURES, AND THE SPLITS THAT SIT ON THEM -- PART A
+================================================================================================
+atom = a value occurring 100+ times (min_child_samples in _fit_seed)
+window 2019-01-01 to 2026-05-29
+
+  A0 -- distinct values per date, unperturbed. A feature near 100% is
+        continuous; one far below it is discrete by construction.
+
+  nifty100: median 79 names per date
+    feature                 median distinct/date    share of names
+    mom_20                                    78            98.7%
+    mom_120                                   78            98.7%
+    mom_12_1                                  78            98.7%
+    rev_5                                     78            98.7%
+    rev_1                                     78            98.7%
+    vol_20                                    78            98.7%
+    vol_ratio                                 78            98.7%
+    idio_vol_60                               78            98.7%
+    beta_60                                   78            98.7%
+    downside_vol_60                           78            98.7%
+    amihud_20                                 78            98.7%
+    turnover_z                                78            98.7%
+    vol_price_div                              2             2.5%
+    trend_consistency_20                      10            12.7%
+    path_smooth_60                            78            98.7%
+    dist_high_252                             75            94.9%
+    rsi_14                                    78            98.7%
+
+  midcap150: median 94 names per date
+    feature                 median distinct/date    share of names
+    mom_20                                    92            97.9%
+    mom_120                                   93            98.9%
+    mom_12_1                                  92            97.9%
+    rev_5                                     92            97.9%
+    rev_1                                     92            97.9%
+    vol_20                                    92            97.9%
+    vol_ratio                                 93            98.9%
+    idio_vol_60                               92            97.9%
+    beta_60                                   93            98.9%
+    downside_vol_60                           92            97.9%
+    amihud_20                                 92            97.9%
+    turnover_z                                92            97.9%
+    vol_price_div                              2             2.1%
+    trend_consistency_20                      10            10.6%
+    path_smooth_60                            93            98.9%
+    dist_high_252                             88            93.6%
+    rsi_14                                    93            98.9%
+
+  A1 -- atom mass per feature
+
+  nifty100, unperturbed: 470,711 panel rows
+    feature                        n   top count  top share  >=100 share   atoms  >=1000 share
+    mom_20                   441,155       3,518    0.797%       0.999%       2        0.797%
+    mom_120                  441,155       4,703    1.066%       1.159%       2        1.066%
+    mom_12_1                 441,155       5,662    1.283%       1.307%       2        1.283%
+    rev_5                    441,155       3,632    0.823%       1.134%       2        1.134%
+    rev_1                    441,155       3,917    0.888%       1.247%       2        1.247%
+    vol_20                   441,155       5,993    1.358%       1.358%       1        1.358%
+    vol_ratio                441,155         777    0.176%       0.334%       2        0.000%
+    idio_vol_60              441,155       7,202    1.633%       1.633%       1        1.633%
+    beta_60                  441,155       2,145    0.486%       0.486%       1        0.486%
+    downside_vol_60          441,155       5,754    1.304%       1.304%       1        1.304%
+    amihud_20                441,155       9,752    2.211%       2.211%       1        2.211%
+    turnover_z               441,155       4,211    0.955%       0.955%       1        0.955%
+    vol_price_div            441,155         860    0.195%      46.101%   1,121        0.000%
+    trend_consistency_20     441,155       1,028    0.233%       0.440%       3        0.233%
+    path_smooth_60           441,155       3,414    0.774%       0.774%       1        0.774%
+    dist_high_252            441,155       4,684    1.062%       1.062%       1        1.062%
+    rsi_14                   441,155         550    0.125%       0.202%       2        0.000%
+
+  nifty100, sigma=0.0001 seed=101: 470,711 panel rows
+    feature                        n   top count  top share  >=100 share   atoms  >=1000 share
+    mom_20                   443,353       3,557    0.802%       1.002%       2        0.802%
+    mom_120                  443,353       4,754    1.072%       1.166%       2        1.072%
+    mom_12_1                 443,353       5,710    1.288%       1.312%       2        1.288%
+    rev_5                    443,353       3,656    0.825%       1.135%       2        1.135%
+    rev_1                    443,353       3,955    0.892%       1.249%       2        1.249%
+    vol_20                   443,353       6,027    1.359%       1.359%       1        1.359%
+    vol_ratio                443,353         770    0.174%       0.331%       2        0.000%
+    idio_vol_60              443,353       7,237    1.632%       1.632%       1        1.632%
+    beta_60                  443,353       2,141    0.483%       0.483%       1        0.483%
+    downside_vol_60          443,353       5,756    1.298%       1.298%       1        1.298%
+    amihud_20                443,353       9,691    2.186%       2.186%       1        2.186%
+    turnover_z               443,353       4,234    0.955%       0.955%       1        0.955%
+    vol_price_div            443,353       1,204    0.272%      62.213%   1,339        1.228%
+    trend_consistency_20     443,353       1,011    0.228%       0.422%       3        0.228%
+    path_smooth_60           443,353       3,424    0.772%       0.772%       1        0.772%
+    dist_high_252            443,353       4,705    1.061%       1.061%       1        1.061%
+    rsi_14                   443,353         558    0.126%       0.203%       2        0.000%
+
+  midcap150, unperturbed: 564,850 panel rows
+    feature                        n   top count  top share  >=100 share   atoms  >=1000 share
+    mom_20                   523,059       4,934    0.943%       1.123%       2        0.943%
+    mom_120                  523,059       5,965    1.140%       1.182%       2        1.140%
+    mom_12_1                 523,059       8,399    1.606%       1.606%       1        1.606%
+    rev_5                    523,059       5,310    1.015%       1.281%       2        1.281%
+    rev_1                    523,059       5,524    1.056%       1.368%       2        1.368%
+    vol_20                   523,059       7,577    1.449%       1.449%       1        1.449%
+    vol_ratio                523,059         599    0.115%       0.223%       2        0.000%
+    idio_vol_60              523,059       7,070    1.352%       1.352%       1        1.352%
+    beta_60                  523,059       2,666    0.510%       0.544%       2        0.510%
+    downside_vol_60          523,059       6,868    1.313%       1.313%       1        1.313%
+    amihud_20                523,059      10,823    2.069%       2.069%       1        2.069%
+    turnover_z               523,059       6,178    1.181%       1.181%       1        1.181%
+    vol_price_div            523,059         885    0.169%      28.699%     950        0.000%
+    trend_consistency_20     523,059         976    0.187%       0.368%       3        0.000%
+    path_smooth_60           523,059       4,454    0.852%       0.852%       1        0.852%
+    dist_high_252            523,059       5,533    1.058%       1.058%       1        1.058%
+    rsi_14                   523,059         638    0.122%       0.202%       2        0.000%
+
+  midcap150, sigma=0.0001 seed=101: 564,850 panel rows
+    feature                        n   top count  top share  >=100 share   atoms  >=1000 share
+    mom_20                   525,563       4,962    0.944%       1.122%       2        0.944%
+    mom_120                  525,563       6,006    1.143%       1.184%       2        1.143%
+    mom_12_1                 525,563       8,438    1.606%       1.606%       1        1.606%
+    rev_5                    525,563       5,334    1.015%       1.280%       2        1.280%
+    rev_1                    525,563       5,569    1.060%       1.371%       2        1.371%
+    vol_20                   525,563       7,473    1.422%       1.422%       1        1.422%
+    vol_ratio                525,563         575    0.109%       0.218%       2        0.000%
+    idio_vol_60              525,563       7,023    1.336%       1.336%       1        1.336%
+    beta_60                  525,563       2,698    0.513%       0.546%       2        0.513%
+    downside_vol_60          525,563       6,884    1.310%       1.310%       1        1.310%
+    amihud_20                525,563      10,863    2.067%       2.067%       1        2.067%
+    turnover_z               525,563       6,200    1.180%       1.180%       1        1.180%
+    vol_price_div            525,563       1,265    0.241%      46.439%   1,334        0.657%
+    trend_consistency_20     525,563       1,175    0.224%       0.420%       3        0.224%
+    path_smooth_60           525,563       4,507    0.858%       0.858%       1        0.858%
+    dist_high_252            525,563       5,569    1.060%       1.060%       1        1.060%
+    rsi_14                   525,563         653    0.124%       0.205%       2        0.000%
+
+  atom sets for Part B written to /tmp/atom_measure/atoms.json
+================================================================================================
+================================================================================================
+ATOMS IN THE FEATURES, AND THE SPLITS THAT SIT ON THEM -- PART B
+================================================================================================
+atom = a value occurring 100+ times (min_child_samples in _fit_seed)
+window 2019-01-01 to 2026-05-29
+
+  nifty100: 21,604,949 realised splits, 948,933,590,171 row-visits at those nodes
+    threshold EXACTLY equal to an atom      : 9,374 (0.043% of splits, 0.028% of rows)
+    threshold ADJACENT to an atom           : 469,759 (2.174% of splits, 2.924% of rows)
+    ROW-WEIGHTED ADJACENCY FRACTION         : 2.9238%
+    ten highest-row-count splits sitting on an atom:
+         438,528 rows  vol_price_div          threshold     0.88358317  atom     0.88374748
+         434,794 rows  turnover_z             threshold      2.9998362  atom              3
+         433,670 rows  downside_vol_60        threshold      2.9998916  atom              3
+         433,080 rows  turnover_z             threshold      2.9998362  atom              3
+         433,060 rows  turnover_z             threshold      2.9998362  atom              3
+         433,053 rows  turnover_z             threshold      2.9998362  atom              3
+         433,053 rows  turnover_z             threshold      2.9998362  atom              3
+         432,986 rows  turnover_z             threshold      2.9998362  atom              3
+         432,986 rows  turnover_z             threshold      2.9998362  atom              3
+         431,913 rows  idio_vol_60            threshold      2.9999944  atom              3
+
+  midcap150: 21,872,385 realised splits, 1,059,706,599,274 row-visits at those nodes
+    threshold EXACTLY equal to an atom      : 9,276 (0.042% of splits, 0.033% of rows)
+    threshold ADJACENT to an atom           : 376,369 (1.721% of splits, 2.131% of rows)
+    ROW-WEIGHTED ADJACENCY FRACTION         : 2.1312%
+    ten highest-row-count splits sitting on an atom:
+         519,067 rows  vol_price_div          threshold     0.68277213  atom     0.68266247
+         519,067 rows  vol_price_div          threshold     0.68277213  atom     0.68266247
+         519,067 rows  vol_price_div          threshold     0.68277213  atom     0.68266247
+         519,067 rows  amihud_20              threshold      2.9999669  atom              3
+         519,067 rows  amihud_20              threshold      2.9999669  atom              3
+         519,067 rows  amihud_20              threshold      2.9999669  atom              3
+         519,067 rows  amihud_20              threshold      2.9999669  atom              3
+         519,067 rows  amihud_20              threshold      2.9999669  atom              3
+         519,067 rows  amihud_20              threshold      2.9999669  atom              3
+         516,351 rows  amihud_20              threshold      2.9999669  atom              3
+
+================================================================================================
