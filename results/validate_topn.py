@@ -394,9 +394,12 @@ def main():
         W("  in at least one universe, so the harness is wrong and NO verdict is")
         W("  reported for either arm. This is a correctness gate, not a performance")
         W("  gate: failure voids the run rather than producing a result.")
+        W("")
+        W("  RESULT: FAIL -- identity gate did not hold on "
+          + ", ".join(sorted(u for u, r in results.items() if not r["gate_ok"])) + ".")
         (ROOT / "diagnostics" / "topn_verdict.txt").write_text("\n".join(out_all) + "\n")
         print("\n".join(out_all))
-        return
+        return 1
 
     per_uni = {}
     for uni, r in results.items():
@@ -482,10 +485,30 @@ def main():
     W("  no promotion, no second value, no re-run at a changed criterion -- and")
     W("  that is the whole of the difference.")
     W("=" * 100)
+    # THE VERDICT LINE AND THE EXIT STATUS, ADDED 2026-09-21. No criterion, gate
+    # or number above changed.
+    #
+    # ONLY THE IDENTITY GATE IS GATED, AND DELIBERATELY SO. `per_uni` above holds
+    # whether TOP_N=12 beat TOP_N=8 on the pre-registered Sharpe criterion. That
+    # is a TRIAL OUTCOME -- this file says so itself, "THIS COUNTS AS A TRIAL" --
+    # and a trial that does not come out is a result, not a broken repository.
+    # Exiting non-zero on it would convert a research finding into a runner
+    # failure and would create pressure to re-run it at a changed criterion,
+    # which is the one thing the spec forbids.
+    #
+    # The identity gate is different in kind: it asserts the harness reproduces
+    # the shipped v2 row, and this file already states that its failure "voids
+    # the run rather than producing a result". That is a correctness condition
+    # and it is the one carried into the exit status.
+    W("")
+    W("  RESULT: PASS -- identity gate held on all "
+      f"{len(results)} universe(s): {', '.join(sorted(results))}. "
+      "The TOP_N trial outcome above is reported, not gated.")
 
     (ROOT / "diagnostics" / "topn_verdict.txt").write_text("\n".join(out_all) + "\n")
     print("\n".join(out_all))
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

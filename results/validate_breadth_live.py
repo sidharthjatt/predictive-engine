@@ -356,7 +356,20 @@ def main():
     print(f"           {M/'breadth_live_params.json'}")
     print(f"           {out}")
     print(f"  runtime {params['runtime_sec']/60:.1f} min")
+    # THE EXIT STATUS, ADDED 2026-09-21. This file already computed the verdict
+    # and already wrote it into breadth_live_params.json as "verdict"; what it
+    # did not do was return it, so it exited 0 whether the universe passed or
+    # failed. Nothing measured changed here and the verdict is not recomputed --
+    # the same n_ok and passed that produced the printed block produce this.
+    #
+    # T3 IS NOT GATED AND STILL IS NOT. It is the constant-exposure control and
+    # this file already excludes it from the verdict; that exclusion is carried
+    # through unchanged, and params["t3_gated"] stays False.
+    rc = 0 if n_ok == len(passed) else 1
+    print(f"\n  RESULT: {params['verdict']} -- {n_ok} of {len(passed)} gated "
+          f"criteria hold on {U['label']} ({u}). T3 not gated.")
+    return rc
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

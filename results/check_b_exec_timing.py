@@ -23,6 +23,7 @@ half a tick, 0.025, fixed in the spec before running.
 Nothing is corrected.
 """
 import sys
+from datetime import datetime
 import warnings
 from pathlib import Path
 
@@ -254,16 +255,64 @@ def run(uni, fills_p, sc_p, sc_tmp, dec_p, label, W):
         W(f"  decision file {Path(dec_p).name} absent -- the 'right open' check")
         W("  could not be run, only the 'an open' check above.")
     W("")
+    return {"n": len(R), "at_a_close": len(only_bc),
+            "off_calendar": len(R) - int(R["on_calendar"].sum()),
+            "not_matching_open": len(bad)}
 
 
 def main():
     out = [HISTORY, ""]
+    res = {}
     for uni, (f, s, st, d, lab) in UNIVERSES.items():
-        run(uni, f, s, st, d, lab, out.append)
+        res[uni] = (run(uni, f, s, st, d, lab, out.append), f)
         out.append("")
+    # THE VERDICT LINE AND THE EXIT STATUS, ADDED 2026-09-21. No measurement,
+    # candidate rule or printed number above changed.
+    #
+    # THE VERDICT NAMES ITS INPUT AND THAT INPUT'S mtime, because this file reads
+    # nautilus/reports/<universe>/<seg>/fills.csv, which is GITIGNORED and holds
+    # whatever last wrote it. A run of nt_verify or verify_v34_arms at a
+    # non-production tick regenerates it, so a verdict that did not say which file
+    # it read, and when that file was written, would be reporting on someone
+    # else's run under this file's name. Measured 2026-09-21: this session's own
+    # gate runs had rewritten both fills.csv at tick 0.01 fixed rather than the
+    # production 0.05/nse grid.
+    #
+    # WHAT IS GATED: no fill may execute at a CLOSE rather than an open, and every
+    # fill must fall on the panel's trading calendar. Those are the two claims
+    # this file exists to test and both are categorical in its own text.
+    #
+    # WHAT IS NOT GATED: `not_matching_open`. Three of 1,006 fills differ from the
+    # day's open by 0.01 and this file states no tolerance for that, adjudicates
+    # none, and separately classes near-ties as "a limit of the instrument, not an
+    # exception". Picking a tolerance here would be inventing a pass condition
+    # rather than reading one, so the count is reported and left ungated.
+    bad_u = {u: r for u, (r, _) in res.items()
+             if r["at_a_close"] or r["off_calendar"]}
+    out.append("  INPUT READ (gitignored; holds whatever last wrote it):")
+    for u, (r, f) in sorted(res.items()):
+        fp = Path(f)
+        mt = (datetime.fromtimestamp(fp.stat().st_mtime).strftime("%Y-%m-%d %H:%M")
+              if fp.exists() else "ABSENT")
+        out.append(f"    {u:<10} {fp} written {mt}  ({r['n']:,} fills)")
+    tot_close = sum(r["at_a_close"] for r, _ in res.values())
+    tot_offcal = sum(r["off_calendar"] for r, _ in res.values())
+    tot_nmo = sum(r["not_matching_open"] for r, _ in res.values())
+    out.append(f"  ungated, reported only: {tot_nmo} fill(s) not matching the "
+               f"day's open exactly.")
+    if bad_u:
+        out.append(f"  RESULT: FAIL -- {tot_close} fill(s) executed at a close and "
+                   f"{tot_offcal} fell off the trading calendar, on: "
+                   + ", ".join(sorted(bad_u)) + ".")
+        rc = 1
+    else:
+        out.append(f"  RESULT: PASS -- 0 fills executed at a close and 0 fell off "
+                   f"the trading calendar, across {len(res)} universe(s).")
+        rc = 0
     (ROOT / "diagnostics" / "checkB_execution_timing.txt").write_text("\n".join(out) + "\n")
     print("\n".join(out))
+    return rc
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

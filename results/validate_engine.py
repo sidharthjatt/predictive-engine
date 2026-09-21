@@ -344,7 +344,21 @@ def run_universe(tag, cfg, W, fast=False):
 
 def main():
     fast = "--fast" in sys.argv
-    unis = [u for u in UNIVERSES if f"--universe={u}" in sys.argv] or list(UNIVERSES)
+    # THE DEFAULT ITERATES THE LIVE UNIVERSES ONLY, and that is a crash fix, not a
+    # scope change. The retired 58 is first in UNIVERSES and its score panel was
+    # deleted with the universe on 2026-09-11, so `list(UNIVERSES)` made the
+    # default invocation die in require_cache before it reached either live
+    # universe -- measured 2026-09-21, "FileNotFoundError: 58 score panel not
+    # found". This file's own verdict block already calls nifty100 and midcap150
+    # "THE LIVE UNIVERSES ... THE ONES THAT DESCRIBE WHAT SHIPS", so running them
+    # is what the default was for.
+    #
+    # THE 58 ENTRY IS KEPT AND IS STILL REACHABLE by name, `--universe=58`, which
+    # is how a comparability run asks for it. It is skipped by default, not
+    # removed: deleting it would discard the record of what the retired universe
+    # was configured as, and the entry costs nothing while it is not iterated.
+    unis = [u for u in UNIVERSES if f"--universe={u}" in sys.argv] \
+        or [u for u, c in UNIVERSES.items() if c["live"]]
     diag = ROOT / "diagnostics"
     diag.mkdir(exist_ok=True)
 
@@ -394,10 +408,41 @@ def main():
         for u in live:
             c = {k: v for k, v in results[u].items() if v is not None}
             L.append(f"    {u:<6s} {sum(1 for v in c.values() if v)} of {len(c)} passed")
+    # THE VERDICT LINE AND THE EXIT STATUS, ADDED 2026-09-21. Nothing above this
+    # point changed: the same tests run on the same panels and every number in
+    # the report is the one this file already produced. What was missing was a
+    # way for a runner to see the result -- this exited 0 while printing
+    # "midcap150 1 of 4 passed", so check_all.py could not have caught it even if
+    # it had called this script.
+    #
+    # THE PASS CONDITION IS THE ONE THIS FILE ALREADY STATES: every test that ran
+    # must pass, on every LIVE universe. A skipped test is not counted as passed;
+    # it is counted as skipped, and a run with nothing to assert fails rather than
+    # passing vacuously.
+    failed = {u: sorted(k for k, v in results[u].items() if v is False)
+              for u in live}
+    n_bad = sum(len(v) for v in failed.values())
+    asserted = sum(1 for u in live for v in results[u].values() if v is not None)
+    L.append("")
+    if not live or asserted == 0:
+        L.append("  RESULT: FAIL -- no live universe asserted anything.")
+        rc = 1
+    elif n_bad:
+        for u, ks in failed.items():
+            if ks:
+                L.append(f"  FAILED on {u}: {', '.join(ks)}")
+        L.append(f"  RESULT: FAIL -- {n_bad} test-universe pair(s) failed "
+                 f"of {asserted} asserted.")
+        rc = 1
+    else:
+        L.append(f"  RESULT: PASS -- all {asserted} asserted test-universe "
+                 f"pair(s) passed.")
+        rc = 0
     L.append("=" * 104)
     (diag / "validate_engine_verdict.txt").write_text("\n".join(L) + "\n")
     print("\n" + "\n".join(L))
+    return rc
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

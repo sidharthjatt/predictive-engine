@@ -3,6 +3,29 @@ leakage_check2_purge.py -- CHECK 2 of experiments/LEAKAGE_SPEC.txt.
 
 Does the 32-day purge actually purge?
 
+THIS FILE AUDITS A CODE PATH PRODUCTION DOES NOT TAKE. READ THIS FIRST.
+
+    It builds the cut the CALENDAR way, `first - Timedelta(days=PURGE)`, at the
+    line marked below. engine_core.score_monthly has defaulted to
+    purge_mode="trading" since the leakage fix, and computes the cut in trading
+    rows instead:  j_max = i_first - HORIZON - PURGE_EMBARGO ;  cut = cal[j_max].
+    Under that rule the gap cannot underflow by construction.
+
+    So the 7 failing months this check reports on both live universes are the
+    LEGACY DEFECT THE TRADING MODE ALREADY FIXED, not a live leak.
+    score_monthly's own docstring records the same finding -- the label reached
+    into the scored month in 7 of 126 months, the same 7 on both universes,
+    because the cause is the shared NSE holiday calendar.
+
+    IT IS THEREFORE RED BY CONSTRUCTION AND MUST NOT BE MADE TO PASS. Pointing it
+    at purge_mode="trading" would make it green and would also stop it measuring
+    the thing it exists to measure, which is what the calendar rule does. Whether
+    this file should test the live rule, test both, or be retired is a decision
+    with its own consequences and it has not been taken. Until it is, a runner
+    that calls this script will go red, and that is the honest state.
+
+    Measured 2026-09-21: 7 of 105 months on nifty100 and 7 of 105 on midcap150.
+
 WHAT THE CODE DOES
     engine_core.score_monthly:413-415
         cut = p.loc[p.ym == ym, "date"].min() - pd.Timedelta(days=purge)
@@ -145,12 +168,39 @@ def run(uni, perm, tmp, label, W):
 
 def main():
     out = []
+    bad = {}
     for uni, (perm, tmp, label) in UNIVERSES.items():
-        run(uni, perm, tmp, label, out.append)
+        D = run(uni, perm, tmp, label, out.append)
+        bad[uni] = int((D["gap_trading_days"] < 0).sum())
         out.append("")
+    # THE VERDICT LINE AND THE EXIT STATUS, ADDED 2026-09-21. The measurement is
+    # untouched: same mask, same gap arithmetic, same months, same printed table.
+    # `D` was already returned by run() and was already being discarded.
+    #
+    # THE VERDICT NAMES THE RULE IT TESTED, because the number alone reads as a
+    # live leak and is not one. See the header: this is the CALENDAR rule, and
+    # engine_core.score_monthly ships the TRADING rule.
+    total = sum(bad.values())
+    out.append("  RULE TESTED: the CALENDAR purge, cut = first - "
+               "Timedelta(days=PURGE). engine_core.score_monthly defaults to")
+    out.append("  purge_mode=\"trading\", which this check does NOT exercise.")
+    if total:
+        out.append(f"  RESULT: FAIL -- the calendar purge does not hold in "
+                   f"{total} month(s) across {len(bad)} universe(s): "
+                   + ", ".join(f"{u} {n}" for u, n in sorted(bad.items())) + ".")
+        out.append("  THIS FAILURE IS EXPECTED AND IS NOT A LIVE LEAK. It is the "
+                   "legacy defect the trading mode fixed;")
+        out.append("  CHECK 1 covers the feature stage and the live purge rule is "
+                   "not tested by any script in this tree.")
+        rc = 1
+    else:
+        out.append("  RESULT: PASS -- the calendar purge holds in every scored "
+                   "month on every universe checked.")
+        rc = 0
     (ROOT / "diagnostics" / "leakage_check2_purge.txt").write_text("\n".join(out) + "\n")
     print("\n".join(out))
+    return rc
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

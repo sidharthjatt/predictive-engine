@@ -299,8 +299,17 @@ def main():
     if n_ok < len(passed):
         print("    SOME FAILED -- read the failures before trusting the result.")
     print(f"\n  runtime: {(time.perf_counter()-t_start)/60:.1f} min")
+    # THE VERDICT LINE AND THE EXIT STATUS, ADDED 2026-09-21. No test, threshold
+    # or printed number above this point changed. The pass condition is the one
+    # the summary already applies -- every one of the four tests must pass -- and
+    # it is restated here only so a runner can read it from the exit code. This
+    # printed "SOME FAILED" and exited 0, so nothing calling it could tell.
+    rc = 0 if n_ok == len(passed) else 1
+    print(f"\n  RESULT: {'PASS' if rc == 0 else 'FAIL'} -- "
+          f"{n_ok} of {len(passed)} tests passed on {U['label']}.")
     print("=" * 110)
+    return rc
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

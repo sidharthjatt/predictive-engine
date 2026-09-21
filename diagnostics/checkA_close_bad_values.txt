@@ -76,3 +76,5 @@
   every disagreement row written to metrics/checkA_disagreements.csv
 
 
+  ungated, reported only: adj_close outside its own [low, high] on 211 row(s); canonical_price falls back to close there.
+  RESULT: PASS -- no close value on any disagreement row falls outside its own session range, across 2 universe(s).

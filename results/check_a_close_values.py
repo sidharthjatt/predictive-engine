@@ -142,16 +142,50 @@ def run(uni, ddir, mdir, label, W):
     D.to_csv(Path(mdir) / "checkA_disagreements.csv", index=False)
     W(f"  every disagreement row written to {Path(mdir).name}/checkA_disagreements.csv")
     W("")
+    # nc and na are the PRIMARY TEST counts computed above; returning them adds no
+    # measurement, it only stops them being discarded.
+    return {"close_out": nc, "adj_close_out": na, "rows": len(D)}
 
 
 def main():
     out = []
+    res = {}
     for uni, (ddir, mdir, label) in UNIVERSES.items():
-        run(uni, ddir, mdir, label, out.append)
+        res[uni] = run(uni, ddir, mdir, label, out.append)
         out.append("")
+    # THE VERDICT LINE AND THE EXIT STATUS, ADDED 2026-09-21. No count, bound,
+    # extreme-return constant or printed row changed.
+    #
+    # WHAT IS GATED IS THIS FILE'S OWN PRIMARY TEST, and only the traded column.
+    # The report already states the condition categorically -- "NO close VALUE ON
+    # ANY DISAGREEMENT ROW FALLS OUTSIDE ITS OWN SESSION'S RANGE ... the traded
+    # column is internally consistent" -- so a close outside its own [low, high]
+    # is a failure by the file's own words, not by a threshold chosen here.
+    #
+    # adj_close IS REPORTED AND NOT GATED. It is out of bounds on 170 nifty100 and
+    # 41 midcap150 rows, measured 2026-09-21, and that is the exact population
+    # engine_core.canonical_price already falls back to the raw close on. Gating
+    # it would fail the run for a condition the engine is documented to handle,
+    # and this file states no tolerance for it.
+    bad = {u: r for u, r in res.items() if r["close_out"]}
+    tot_close = sum(r["close_out"] for r in res.values())
+    tot_adj = sum(r["adj_close_out"] for r in res.values())
+    out.append(f"  ungated, reported only: adj_close outside its own [low, high] "
+               f"on {tot_adj:,} row(s); canonical_price falls back to close there.")
+    if bad:
+        out.append(f"  RESULT: FAIL -- the traded column is outside its own "
+                   f"session range on {tot_close:,} row(s), on: "
+                   + ", ".join(sorted(bad)) + ".")
+        rc = 1
+    else:
+        out.append(f"  RESULT: PASS -- no close value on any disagreement row "
+                   f"falls outside its own session range, across "
+                   f"{len(res)} universe(s).")
+        rc = 0
     (ROOT / "diagnostics" / "checkA_close_bad_values.txt").write_text("\n".join(out) + "\n")
     print("\n".join(out))
+    return rc
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

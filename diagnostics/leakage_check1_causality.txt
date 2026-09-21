@@ -80,3 +80,4 @@
   the training mask and the label are CHECK 2.
 
 
+  RESULT: PASS -- no feature moved on any sampled date, on 2 universe(s): midcap150, nifty100.
