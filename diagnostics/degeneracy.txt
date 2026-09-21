@@ -1,0 +1,75 @@
+==============================================================================
+DEGENERACY ON THE UNPERTURBED INPUT
+==============================================================================
+TOP_N=8  BUFFER=16  REBAL=20  window 2019-01-01 to 2026-05-29
+
+PART A -- ties at the selection boundary
+
+  nifty100: 92 rebalances, 8345 ranked (name, rebalance) cells
+    ties at the TOP_N=8 cut            : 0
+    ties at the BUFFER=16 cut           : 0
+    duplicate scores anywhere in the rank : 0
+    score gap at the TOP_N cut, min       : 3.694e-05
+    score gap at the TOP_N cut, median    : 2.761e-03
+    rebalances with that gap below 1e-4   : 3
+  midcap150: 92 rebalances, 11394 ranked (name, rebalance) cells
+    ties at the TOP_N=8 cut            : 0
+    ties at the BUFFER=16 cut           : 0
+    duplicate scores anywhere in the rank : 0
+    score gap at the TOP_N cut, min       : 4.087e-05
+    score gap at the TOP_N cut, median    : 2.566e-03
+    rebalances with that gap below 1e-4   : 2
+
+PART B -- exact-equality and threshold branches on the live path
+
+  nifty100: 92 rebalances
+    breadth `m > 0` (test_exposure.py:426)
+      (name, rebalance) cells tested        : 8528
+      mom20 EXACTLY 0.0, counted as not-up  : 6
+      mean exposure lift if half flip up    : 0.000364
+    invvol guard `vs > 0.01` (test_exposure.py:485)
+      top-8 slots tested                   : 736
+      slots failing the guard, weight 0     : 0
+      vol60 EXACTLY 0.0                     : 0
+  midcap150: 92 rebalances
+    breadth `m > 0` (test_exposure.py:426)
+      (name, rebalance) cells tested        : 11857
+      mom20 EXACTLY 0.0, counted as not-up  : 9
+      mean exposure lift if half flip up    : 0.000406
+    invvol guard `vs > 0.01` (test_exposure.py:485)
+      top-8 slots tested                   : 736
+      slots failing the guard, weight 0     : 0
+      vol60 EXACTLY 0.0                     : 0
+
+PART C -- degenerate rows in the price panel
+
+  nifty100, unperturbed: 473,311 rows across 99 symbols
+    consecutive closes EXACTLY equal      : 9,313  (1.968%)
+    rows the vendor flags _gap_filled     : 758  (0.160%)
+    cells sharing a close with another
+      symbol on the same date             : 9,366
+      on this many dates                  : 222 of 13,075
+    canonical_price fallback rows         : 170
+  nifty100, sigma=0.0001 seed=101: 473,311 rows across 99 symbols
+    consecutive closes EXACTLY equal      : 1,267  (0.268%)
+    rows the vendor flags _gap_filled     : 758  (0.160%)
+    cells sharing a close with another
+      symbol on the same date             : 0
+      on this many dates                  : 0 of 13,075
+    canonical_price fallback rows         : 6,200
+  midcap150, unperturbed: 572,399 rows across 148 symbols
+    consecutive closes EXACTLY equal      : 17,224  (3.009%)
+    rows the vendor flags _gap_filled     : 647  (0.113%)
+    cells sharing a close with another
+      symbol on the same date             : 25,820
+      on this many dates                  : 506 of 13,528
+    canonical_price fallback rows         : 41
+  midcap150, sigma=0.0001 seed=101: 572,399 rows across 148 symbols
+    consecutive closes EXACTLY equal      : 1,183  (0.207%)
+    rows the vendor flags _gap_filled     : 647  (0.113%)
+    cells sharing a close with another
+      symbol on the same date             : 53
+      on this many dates                  : 2 of 13,528
+    canonical_price fallback rows         : 13,216
+
+==============================================================================
