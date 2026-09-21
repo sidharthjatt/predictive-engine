@@ -26,12 +26,24 @@ IMPORTING engine_core IS SAFE, AND THAT WAS VERIFIED RATHER THAN ASSUMED
     /tmp cleared. Note that importing binds engine_core.M to results/metrics, the
     58 path; nothing here writes through it.
 
-CACHE NAMES CARRY A NEW PREFIX, NOT JUST THE UNIVERSE
-    engine_core.py:507 caches seed scores at /tmp/FINAL_seed{i}.csv, with no
+THE T2 CACHE IS CONTENT-ADDRESSED, AND WAS NOT UNTIL 2026-09-22
+    engine_core.py:764 caches seed scores at /tmp/FINAL_seed{i}.csv, with no
     universe in the name. An n100 run reusing that path would silently load 58
     scores and report a pass or a fail on the wrong data, with no error anywhere.
-    The caches here are /tmp/VALSIZE_{universe}_seed{i}.csv -- a different prefix,
-    so a collision is impossible even if this were ever pointed at the 58.
+    The caches here carry a different prefix, so that collision is impossible.
+
+    THE PREFIX WAS NOT ENOUGH. Until 2026-09-22 the name was
+    /tmp/VALSIZE_{universe}_seed{i}.csv -- universe and seed-set index and
+    nothing else -- so the key could not miss on a code change or a panel
+    change. The same universe fit by a different engine against a different
+    panel landed on the same path and was read back as if current. A --slow run
+    on 2026-09-22 finished both universes in 0.0 and 0.1 min against caches
+    written the day before, which is how it was found.
+
+    The name is now /tmp/VALSIZE_{universe}_seed{i}_{key}.csv, where key is a
+    sha256 over engine_core.py, this file, config.py, the raw panel's CONTENT
+    and the seed list. See _t2_cache_key. A stale cache no longer collides with
+    a live one; it is simply a file nothing asks for.
 
 T1'S TRADE RANGE IS UNCHANGED AND DELIBERATELY NOT RECALIBRATED
     400-1400 was calibrated on the 58, which produces 706. Re-fitting it per
@@ -57,6 +69,7 @@ Reads the panels. Writes only the /tmp seed caches -- nothing in the repository.
     python3 validate_sizing.py --universe=n100          # cost estimate, then stop
     python3 validate_sizing.py --universe=n100 --run     # run the suite
 """
+import hashlib
 import sys, time, warnings
 sys.dont_write_bytecode = True
 warnings.filterwarnings("ignore")
@@ -93,6 +106,40 @@ SEED_SETS = [[5, 55, 555], [13, 26, 39], [101, 202, 303]]
 HALVES = [("2019-2022", 2019, 2022), ("2023-2026", 2023, 2026)]
 VOL_WINDOWS = [40, 60, 90, 120]
 TRADE_LO, TRADE_HI = 400, 1400      # engine_core.py:495, unchanged
+
+
+# THE T2 CACHE KEY. It was /tmp/VALSIZE_{universe}_seed{i}.csv -- universe and
+# seed-set index and NOTHING ELSE. That key cannot miss on a code change or a
+# panel change, so a --run could reuse fits made by a different engine against a
+# different panel and print a verdict over them. On 2026-09-22 a --slow run
+# finished both universes in 0.0 and 0.1 min against caches written 2026-09-21,
+# which is what exposed it.
+#
+# WHAT GOES INTO THE KEY, AND WHY EACH ONE.
+#   engine_core.py   implements score_monthly, which IS the cached computation.
+#   validate_sizing.py  chooses the seed sets and the columns written to the
+#                    cache. A comment-only edit here busts a ~23 min cache per
+#                    universe; that is the intended trade. A key that is cheap
+#                    to satisfy is the thing being fixed.
+#   config.py        supplies BT_START_DATE and BT_END_DATE.
+#   the raw panel    the data fit against, hashed by CONTENT, not by mtime or
+#                    path. Two panels at one path is exactly how this repository
+#                    lost track of which source produced midcap150's artefacts.
+#   the seed list    the seeds of THIS set, not the index into SEED_SETS.
+#
+# A MISS IS A REFIT, NOT A WARNING. There is no override flag: an escape hatch
+# on a correctness key is the silent reuse this replaces.
+def _t2_cache_key(u, seeds, raw_path):
+    h = hashlib.sha256()
+    for f in (ROOT / "results" / "engine_core.py",
+              ROOT / "validate_sizing.py",
+              ROOT / "config.py"):
+        h.update(f.read_bytes())
+    with open(raw_path, "rb") as fh:
+        for chunk in iter(lambda: fh.read(1 << 20), b""):
+            h.update(chunk)
+    h.update(repr((u, sorted(seeds))).encode())
+    return h.hexdigest()[:16]
 
 
 def universe_from_argv():
@@ -185,10 +232,13 @@ def main():
     raw = pd.read_csv(raw_path, parse_dates=["date"])
     t2_rows = []
     for si, seeds in enumerate(SEED_SETS):
-        cache = Path(f"/tmp/VALSIZE_{u}_seed{si}.csv")
+        key = _t2_cache_key(u, seeds, raw_path)
+        cache = Path(f"/tmp/VALSIZE_{u}_seed{si}_{key}.csv")
         if cache.exists():
             ps = pd.read_csv(cache, parse_dates=["date"])
-            print(f"      seed set {si+1}/3 from cache {cache.name}", flush=True)
+            print(f"      seed set {si+1}/3 from cache {cache.name} "
+                  f"(key {key}: engine_core + validate_sizing + config + raw "
+                  f"panel content + seeds)", flush=True)
         else:
             print(f"      scoring seed set {si+1}/3 (refits the model) ...", flush=True)
             ps = score_monthly(raw, seeds)

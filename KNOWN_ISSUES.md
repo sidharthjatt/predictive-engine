@@ -22,6 +22,84 @@ currently wrong.
 
 ---
 
+## validate_sizing's T2 cache was keyed on universe and seed index alone — FIXED 2026-09-22
+
+Found 2026-09-22, immediately after `validate_sizing.py` was wired into
+`check_all.py` behind `--slow`. The defect is fixed; the entry stays because the
+figures it produced are still quoted in this session's records.
+
+**THIS IS NOT THE ENTRY BELOW ABOUT SCORE CACHES.** "The score caches can be
+neither safely deleted nor safely regenerated" is about DISPOSAL: 610 MB of
+panels that no step can rebuild in isolation. This is a different mechanism --
+MISSING KEY DIMENSIONS -- and the two do not overlap. The score-cache entry
+describes files you cannot get rid of; this describes a file you could not tell
+was stale. Keep them separate.
+
+**WHAT THE KEY WAS.** `/tmp/VALSIZE_{universe}_seed{i}.csv`. Universe, and the
+INDEX into `SEED_SETS`. Nothing else. No code hash, no panel hash, not even the
+seed values themselves.
+
+**WHAT THAT MAKES POSSIBLE.** T2 is the expensive test: it refits the model over
+three seed sets, 1,134 LightGBM fits per universe, which the script's own cost
+block puts at ~22.7 min. The cached artefact is `score_monthly`'s output. Under
+the old key, a cache written by ANY earlier engine against ANY earlier panel
+landed on the path a later run reads, and the later run printed a verdict over
+it without a warning. A change to `score_monthly` could not miss. A repointed or
+rebuilt raw panel could not miss. There was no code path that noticed.
+
+**HOW IT SURFACED.** `check_all.py --slow` on 2026-09-22 reported
+`runtime: 0.0 min` for nifty100 and `0.1 min` for midcap150 against a ~22.7
+min/universe expectation. Six caches from 2026-09-21 20:20-21:14 were still on
+disk and were read back whole. The run asserted "2 of 4" and "1 of 4" over fits
+it did not perform.
+
+**WHY IT MATTERS MORE THAN IT LOOKS.** `--slow` exists so an expensive gate is
+never a silent pass. A cache that cannot miss moves that same failure one layer
+down: the gate runs, prints a verdict, exits non-zero honestly, and the numbers
+describe a code version nobody chose.
+
+**THE FIX.** `_t2_cache_key` in `validate_sizing.py`. The name is now
+`/tmp/VALSIZE_{universe}_seed{i}_{key}.csv`, where key is a sha256 over
+`results/engine_core.py` (which implements `score_monthly`), `validate_sizing.py`
+(which chooses the seed sets and the cached columns), `config.py` (the backtest
+window), the raw panel's CONTENT rather than its path or mtime, and the seed
+list of that set. A miss is a refit. There is deliberately no override flag: an
+escape hatch on a correctness key is the reuse being removed.
+
+**COST OF THE FIX, ACCEPTED.** A comment-only edit to `validate_sizing.py` or
+`engine_core.py` now busts a ~23 min cache per universe. A key that is cheap to
+satisfy is the thing that was wrong.
+
+**THE SIX STALE CACHES WERE DELETED**, recorded first. sha256 prefix, mtime:
+
+    7a801e10b459a159  2026-09-21 20:53:31  VALSIZE_midcap150_seed0.csv
+    6488d7f861544e28  2026-09-21 21:05:59  VALSIZE_midcap150_seed1.csv
+    a5bd16656d762a2b  2026-09-21 21:14:43  VALSIZE_midcap150_seed2.csv
+    5fef16c6d6f396c9  2026-09-21 20:20:05  VALSIZE_nifty100_seed0.csv
+    30d07b3ac27704da  2026-09-21 20:30:43  VALSIZE_nifty100_seed1.csv
+    62de855f17724a94  2026-09-21 20:41:26  VALSIZE_nifty100_seed2.csv
+
+**THE CACHED FIGURES WERE CONFIRMED COLD, 2026-09-22.** The six caches were
+deleted and both universes were re-run from nothing under the new key. Runtimes
+were 22.2 min (nifty100) and 24.2 min (midcap150) against the script's own
+~22.7 min/universe estimate, so the refits are real and the earlier 0.0/0.1 min
+runs were reuse.
+
+    nifty100    T1 PASS, T2 PASS (3/3 seed sets), T3 FAIL, T4 FAIL -- 2 of 4
+    midcap150   T1 PASS, T2 FAIL (2/3, seed-dependent), T3 FAIL, T4 FAIL -- 1 of 4
+
+Identical to what the cached run reported. THE VERDICTS WERE NOT WRONG; they were
+unverifiable, which is a different defect and the one that was fixed. Nothing
+about T3 or T4 changed, and the sub-period and vol-window failures stand as
+recorded.
+
+**ENGINE_CORE'S OWN SEED CACHE HAS THE SAME SHAPE AND IS NOT FIXED.**
+`engine_core.py:764` writes `/tmp/FINAL_seed{i}.csv`, keyed on the seed index and
+nothing else -- not even the universe, which this file's header has warned about
+since it was written. It is outside what was changed here and is untouched.
+
+---
+
 ## LEAKAGE_SPEC CHECK 3 is specified, is cited as evidence, and has never existed
 
 Found 2026-09-22, while wiring the dormant gates into `check_all.py`. Open.
