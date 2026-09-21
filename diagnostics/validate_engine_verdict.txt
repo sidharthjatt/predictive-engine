@@ -10,8 +10,8 @@
   T3 sub-period                                     FAIL        FAIL
   T4 param sensitivity                              FAIL        FAIL
 
-  mean book / trades                          8.03 / 861  8.02 / 784
-  Sharpe equal -> invvol                       1.51->1.5   1.2->1.25
+  mean book / trades                          8.03 / 850  8.02 / 773
+  Sharpe equal -> invvol                      1.54->1.54  1.21->1.26
 
   THE LIVE UNIVERSES ARE THE ONES THAT DESCRIBE WHAT SHIPS:
     midcap150 1 of 4 passed
