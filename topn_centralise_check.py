@@ -179,13 +179,25 @@ def report(before_csv, after_csv):
     out.write_text("\n".join(L) + "\n")
     print("\n".join(L[-14:]))
     print(f"\nwrote {out}")
+    # THE EXIT STATUS, ADDED 2026-09-21. `verdict` and `n_ok` are the ones this
+    # function already computed and printed; nothing is recomputed. Only the
+    # report mode gets a status, and that is deliberate -- see main().
+    print(f"\n  RESULT: {'PASS' if n_ok == n else 'FAIL'} -- {n_ok} of {n} "
+          f"equity-curve hashes {verdict.lower()}.")
+    return 0 if n_ok == n else 1
 
 
 def main():
     label = sys.argv[1] if len(sys.argv) > 1 else "before"
     if label == "report":
-        report(sys.argv[2], sys.argv[3])
-        return
+        return report(sys.argv[2], sys.argv[3])
+    # THE HASH-WRITING MODE HAS NO VERDICT, AND ONE IS NOT INVENTED HERE. It emits
+    # one sha256 per (universe, sizing, mode) and nothing else; whether those
+    # hashes are right is only answerable against a BASELINE taken before the
+    # change under test, which is what `report before.csv after.csv` compares. A
+    # single run has nothing to be right or wrong about, so it exits 0 and says so
+    # rather than asserting a pass. No baseline is stored in the tree -- both runs
+    # write to /tmp -- so this script cannot be wired into a runner as it stands.
     print(f"TOP_N / BUFFER centralisation -- equity-curve hashes [{label}]")
     print(f"  test_exposure.TOP_N={test_exposure.TOP_N} "
           f"BUFFER={test_exposure.BUFFER}")
@@ -196,7 +208,10 @@ def main():
     dest = Path(sys.argv[2]) if len(sys.argv) > 2 else Path(f"/tmp/topn_hash_{label}.csv")
     df.to_csv(dest, index=False)
     print(f"\nwrote {dest}")
+    print("\n  NO VERDICT: this mode records hashes only. Compare two runs with "
+          "`topn_centralise_check.py report <before.csv> <after.csv>`.")
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

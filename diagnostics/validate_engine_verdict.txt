@@ -16,4 +16,8 @@
   THE LIVE UNIVERSES ARE THE ONES THAT DESCRIBE WHAT SHIPS:
     midcap150 1 of 4 passed
     nifty100 2 of 4 passed
+
+  FAILED on midcap150: T2 seed robustness, T3 sub-period, T4 param sensitivity
+  FAILED on nifty100: T3 sub-period, T4 param sensitivity
+  RESULT: FAIL -- 5 test-universe pair(s) failed of 8 asserted.
 ========================================================================================================

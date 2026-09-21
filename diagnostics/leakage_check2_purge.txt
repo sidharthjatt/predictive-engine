@@ -82,3 +82,8 @@
   2016-10   2016-10-03    2016-09-01    2016-10-03            0        0
 
 
+  RULE TESTED: the CALENDAR purge, cut = first - Timedelta(days=PURGE). engine_core.score_monthly defaults to
+  purge_mode="trading", which this check does NOT exercise.
+  RESULT: FAIL -- the calendar purge does not hold in 14 month(s) across 2 universe(s): midcap150 7, nifty100 7.
+  THIS FAILURE IS EXPECTED AND IS NOT A LIVE LEAK. It is the legacy defect the trading mode fixed;
+  CHECK 1 covers the feature stage and the live purge rule is not tested by any script in this tree.

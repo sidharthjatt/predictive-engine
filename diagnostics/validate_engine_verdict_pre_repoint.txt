@@ -1,0 +1,45 @@
+==============================================================================
+PRE-REPOINT RECORD -- SUPERSEDED. DO NOT QUOTE AS CURRENT.
+
+This is diagnostics/validate_engine_verdict.txt as it stood before the
+universes were repointed at Final_Without_Survivorship_Data on 2026-09-18.
+It is kept because the current file contradicts it and a contradicted
+recording should be readable, not overwritten silently.
+
+It was produced against panels that no longer exist: nifty100 482,116 rows
+against 473,311 now, midcap150 596,822 against 572,399. It also predates the
+n100/mid -> nifty100/midcap150 rename, and it carries a "58" column for a
+universe deleted on 2026-09-11.
+
+WHAT CHANGED, measured 2026-09-21 by results/validate_engine.py:
+
+    recorded below      58 4 of 4    mid 0 of 4    n100 4 of 4
+    measured 2026-09-21              midcap150 1 of 4   nifty100 2 of 4
+
+nifty100 went from 4 of 4 to 2 of 4: T3 sub-period and T4 parameter
+sensitivity now fail there. midcap150 went from 0 of 4 to 1 of 4: T1 now
+passes. NO CAUSE IS ATTRIBUTED. The repoint is the obvious candidate and it
+has not been measured to be the cause.
+
+The current measured verdict is in diagnostics/validate_engine_verdict.txt.
+==============================================================================
+
+========================================================================================================
+ COMBINED VERDICT -- the shipping engine against the four tests
+========================================================================================================
+  Every verdict below is on test_exposure.backtest_exposure. engine_core's
+  own FINAL_val_*.csv are untouched and still describe engine_core.backtest.
+
+  test                                                58         mid        n100
+  T1 baseline structure (REDEFINED)                 PASS        FAIL        PASS
+  T2 seed robustness                                PASS        FAIL        PASS
+  T3 sub-period                                     PASS        FAIL        PASS
+  T4 param sensitivity                              PASS        FAIL        PASS
+
+  mean book / trades                          8.15 / 734  7.98 / 845  8.01 / 831
+  Sharpe equal -> invvol                      1.24->1.24  1.87->1.81  1.45->1.62
+
+  THE LIVE UNIVERSES ARE THE ONES THAT DESCRIBE WHAT SHIPS:
+    mid    0 of 4 passed
+    n100   4 of 4 passed
+========================================================================================================

@@ -228,6 +228,15 @@ def main():
           f"{t_n - t_stats[0]} of {t_n} identical")
 
     d_sym = d_stats[1]
+    # THE EXIT STATUS, ADDED 2026-09-21. The five branches below are unchanged --
+    # same conditions, same order, same text. Each now also sets `rc`, so a runner
+    # can read the verdict this file has always printed. It exited 0 while
+    # printing INCONCLUSIVE on midcap150, measured 2026-09-21.
+    #
+    # ONLY "VERIFIED" IS A PASS. INCONCLUSIVE is not a pass: the branch says ARM D
+    # is not a trustworthy baseline, so the run established nothing and must not
+    # be read as agreement.
+    rc = 1
     print("\n" + "=" * 72)
     if not idx_ok:
         print("  NOT VERIFIED. The port and the reference do not cover the same set of")
@@ -251,12 +260,16 @@ def main():
         print("    - quantity is a floor division by a tick-snapped price, and one")
         print("      0.05 tick is 0.19% of a Rs 27 share.")
         print("  Neither is a bug, and nothing else remains unexplained.")
+        rc = 0
     else:
         print("  NOT VERIFIED. Position SIZE still differs on a 0.01 grid, where tick")
         print("  quantization cannot be the cause, so something else is still wrong.")
         print("  Do not trade this.")
+    print(f"\n  RESULT: {'PASS' if rc == 0 else 'FAIL'} -- universe {TAG}, "
+          f"0.01-grid reconciliation {t_n - t_stats[0]} of {t_n} identical.")
     print("=" * 72)
+    return rc
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

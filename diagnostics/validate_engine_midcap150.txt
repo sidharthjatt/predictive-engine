@@ -18,11 +18,11 @@
       -> PASS
 
   T2. SEED ROBUSTNESS -- does inverse-vol still win on OTHER score seeds?
-      seed set 1/3 -- scoring (refits the model, slow) ...
+      seed set 1/3 from cache V2VAL_mid_seed0.csv
         equal 1.51 -> invvol 1.42 (delta -0.0921 exact) | MaxDD -43.3% -> -41.2%
-      seed set 2/3 -- scoring (refits the model, slow) ...
+      seed set 2/3 from cache V2VAL_mid_seed1.csv
         equal 1.51 -> invvol 1.42 (delta -0.0864 exact) | MaxDD -42.7% -> -42.4%
-      seed set 3/3 -- scoring (refits the model, slow) ...
+      seed set 3/3 from cache V2VAL_mid_seed2.csv
         equal 1.49 -> invvol 1.43 (delta -0.0621 exact) | MaxDD -43.7% -> -43.9%
       -> improved on 0/3 seed sets (smallest margin -0.0921 Sharpe). FAIL -- seed-dependent
 

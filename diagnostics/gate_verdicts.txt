@@ -1,0 +1,135 @@
+==============================================================================
+VERDICTS AND EXIT CODES FOR THE DORMANT GATES -- 2026-09-21
+==============================================================================
+
+Stage 2C found sixteen gate-like scripts that check_all.py never calls. This
+records what each can now report. NOTHING MEASURED CHANGED: no engine code, no
+feature, no model, no parameter, no threshold and no gate's measurement logic
+was touched. Every edit is a verdict line plus an exit status, and each script's
+output was diffed against its 2026-09-21 pre-edit run to confirm the addition is
+the only difference.
+
+A CORRECTION TO STAGE 2C. It said "only five of the sixteen emit a binary
+verdict". That counted PRINTED verdicts and was imprecise. The number that
+matters for a runner is the exit code, and by that measure only THREE of the
+sixteen could fail before this turn -- tax_acceptance_check.py,
+transitional_asserts_check.py and gate_compare.py, all using sys.exit(main()).
+validate_engine.py printed "midcap150 1 of 4 passed" and exited 0; nt_verify.py
+printed INCONCLUSIVE and exited 0. The only other non-zero exits in these
+scripts were usage errors.
+
+  script                              before  now   verdict today        exit
+  ----------------------------------  ------  ----  -------------------  ----
+  results/leakage_check1_causality.py  none   PASS  no feature moved       0
+  results/leakage_check2_purge.py      none   FAIL  calendar purge, 14 mo  1
+  results/leakage_check4_corpactions.py none  none  LEFT ALONE             0
+  results/validate_engine.py           none   FAIL  mid 1/4, n100 2/4      1
+  validate_sizing.py                   none   FAIL  n100 2/4               1
+  results/validate_topn.py             none   PASS  identity gate held     0
+  results/validate_breadth_live.py     none   PASS  3 of 3 gated hold      0
+  topn_centralise_check.py             none   n/a   report mode only       0
+  tax_acceptance_check.py              PASS   PASS  unchanged              0
+  gate_compare.py                      yes    yes   unchanged, needs args  -
+  transitional_asserts_check.py        PASS   PASS  unchanged              0
+  nautilus/nt_verify.py                none   FAIL  INCONCLUSIVE           1
+  nautilus/verify_next_open_execution.py none PASS  fill at the day-4 open 0
+  results/check_a_close_values.py      none   PASS  traded column in range 0
+  results/check_b_exec_timing.py       none   PASS  no fill at a close     0
+
+  Twelve of the sixteen can now fail a runner. Four cannot, and each is named
+  below with the reason.
+
+LEFT ALONE, AND WHY
+
+  results/leakage_check4_corpactions.py
+      DESCRIPTIVE, NO PASS CONDITION DEFINABLE WITHOUT A DECISION. It lists
+      price moves in the uncaught -20% to -35% band where close and adj_close
+      disagree -- 2 rows on nifty100, 1 on midcap150, measured 2026-09-21 -- and
+      states plainly that their provenance is UNVERIFIED because there is no
+      corporate-action dataset in this repository to confirm them against, and
+      that no manual NSE lookup was performed. A pass condition needs either
+      that dataset or a decision about how many unexplained candidates are
+      acceptable. Neither exists, so no verdict was invented.
+
+  topn_centralise_check.py, hash-writing mode
+      A BEFORE/AFTER DIFFER, NOT A GATE. One run emits a sha256 per (universe,
+      sizing, mode) and nothing else; whether those hashes are right is only
+      answerable against a baseline taken before the change under test. Its
+      `report <before> <after>` mode DOES have a condition and now carries an
+      exit status. No baseline is stored in the tree -- both modes write to /tmp
+      -- so this script still cannot be wired into a runner as it stands.
+
+  gate_compare.py
+      ALREADY EXITS NON-ZERO and was not touched. It cannot run standalone: it
+      needs two positional artefact paths plus --universe, --arm and --since.
+
+  tax_acceptance_check.py, transitional_asserts_check.py
+      ALREADY EXIT NON-ZERO on failure. Not touched.
+
+TWO THAT NEEDED CARE
+
+  results/leakage_check2_purge.py IS RED BY CONSTRUCTION AND MUST STAY RED.
+      It builds the cut the CALENDAR way while engine_core.score_monthly
+      defaults to purge_mode="trading". Its 14 failing months -- 7 on nifty100
+      and 7 on midcap150 of 105 each, measured 2026-09-21 -- are the legacy
+      defect the trading mode fixed, not a live leak. It was NOT switched to
+      trading mode and NOT made to pass. Its header now records that it audits a
+      path production does not take, and its verdict names the rule it tested
+      before giving the count. A runner that calls it will go red until someone
+      decides whether it should test the live rule, both rules, or be retired.
+      THE LIVE PURGE RULE IS TESTED BY NO SCRIPT IN THIS TREE.
+
+  results/check_b_exec_timing.py NAMES ITS INPUT AND THAT INPUT'S mtime.
+      It reads nautilus/reports/<universe>/v2/fills.csv, which is gitignored and
+      holds whatever last wrote it. Its verdict now prints both paths and their
+      modification times, because a run of nt_verify or verify_v34_arms at a
+      non-production tick regenerates them. Measured 2026-09-21: this session's
+      own gate runs had rewritten both at tick 0.01 fixed rather than the
+      production 0.05/nse grid, so the verdict describes those runs and says so.
+      The known latent profile defect is untouched and its output still names no
+      profile.
+
+WHAT IS GATED AND WHAT IS ONLY REPORTED
+
+  validate_topn.py gates the IDENTITY GATE only. Whether TOP_N=12 beat TOP_N=8
+  on the pre-registered Sharpe criterion is a TRIAL OUTCOME -- the file says so
+  itself -- and a trial that does not come out is a result, not a broken
+  repository. Gating it would create pressure to re-run at a changed criterion,
+  which the spec forbids.
+
+  validate_breadth_live.py leaves T3, the constant-exposure control, ungated, as
+  it already did.
+
+  check_a_close_values.py gates the traded column only. adj_close is outside its
+  own [low, high] on 211 rows across both universes, which is the exact
+  population canonical_price falls back to the raw close on. Gating it would
+  fail the run for a condition the engine is documented to handle.
+
+  check_b_exec_timing.py gates "no fill at a close" and "every fill on the
+  trading calendar". It does not gate the 4 fills that differ from the day's
+  open by 0.01: the file states no tolerance for that and adjudicates none.
+
+STALE-TAG DIAGNOSTICS -- LISTED ONLY, NOT DELETED
+
+  The n100/mid -> nifty100/midcap150 rename left these in place. The renamed
+  scripts write the new names ALONGSIDE them, so the tree carries both and the
+  pre-repoint copies are never overwritten. Deleting them is a separate
+  approval and was not taken.
+
+    breadth_live_mid.txt          superseded by breadth_live_midcap150.txt
+    breadth_live_n100.txt         superseded by breadth_live_nifty100.txt
+    topn_mid.txt                  superseded by topn_midcap150.txt
+    topn_n100.txt                 superseded by topn_nifty100.txt
+    validate_engine_mid.txt       superseded by validate_engine_midcap150.txt
+    validate_engine_n100.txt      superseded by validate_engine_nifty100.txt
+    edge_alive_n100.txt           no post-rename sibling
+    nt_verify_n100.txt            no post-rename sibling
+    shuffle_mid.txt               no post-rename sibling
+    shuffle_n100.txt              no post-rename sibling
+    validate_sizing_mid.txt       no post-rename sibling
+    validate_sizing_n100.txt      no post-rename sibling
+
+  The six with no sibling are not stale duplicates of anything: those scripts
+  either have not been re-run under the new tags or write nowhere in
+  diagnostics/. That is a separate question and is not answered here.
+==============================================================================

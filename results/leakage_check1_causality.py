@@ -178,9 +178,30 @@ def main():
     for uni, (d, label) in UNIVERSES.items():
         bad[uni] = run(uni, d, label, out.append)
         out.append("")
+    # THE VERDICT LINE AND THE EXIT STATUS, ADDED 2026-09-21. `bad` was already
+    # collected here and then dropped on the floor; nothing about the corruption
+    # test, the sampled dates or the comparison changed. The pass condition is
+    # the one the report already states -- no feature's day-t value may move when
+    # only future rows change, on either universe.
+    #
+    # WHAT A PASS STILL DOES NOT SAY, and the report says this too: dates are
+    # SAMPLED, so a leak confined to dates outside the sample survives this. A
+    # green here is evidence, not proof.
+    leaking = {u: v for u, v in bad.items() if v}
+    if leaking:
+        for u, v in leaking.items():
+            out.append(f"  LEAKING on {u}: {', '.join(sorted(v))}")
+        out.append(f"  RESULT: FAIL -- {sum(len(v) for v in leaking.values())} "
+                   f"feature-universe pair(s) moved under a future-only corruption.")
+        rc = 1
+    else:
+        out.append(f"  RESULT: PASS -- no feature moved on any sampled date, "
+                   f"on {len(bad)} universe(s): {', '.join(sorted(bad))}.")
+        rc = 0
     (ROOT / "diagnostics" / "leakage_check1_causality.txt").write_text("\n".join(out) + "\n")
     print("\n".join(out))
+    return rc
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

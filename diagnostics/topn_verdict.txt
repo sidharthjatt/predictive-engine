@@ -155,3 +155,5 @@
   no promotion, no second value, no re-run at a changed criterion -- and
   that is the whole of the difference.
 ====================================================================================================
+
+  RESULT: PASS -- identity gate held on all 2 universe(s): midcap150, nifty100. The TOP_N trial outcome above is reported, not gated.
