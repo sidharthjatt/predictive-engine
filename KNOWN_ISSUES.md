@@ -344,6 +344,94 @@ with capital, universe and data.
 
 ---
 
+## The participation cap was measured on two universes of eight, and it fires on six cells nobody had looked at
+
+MEASURED 2026-09-22 by `liquidity_participation.py`, over all 32 universe x arm
+cells. No backtest was run to produce it: participation is order quantity over
+`tradability.median_volume`, the median the cap itself consumes, joined to the
+`daily_trades_*` fills already on disk.
+
+### WHY IT WAS ASKED AS A PREDICATE
+
+`profiles.tradeable` is one thing -- `participation_cap = 1.00` against research's
+`None`. A cell where no fill reaches that cap has a tradeable run identical to its
+research run, byte for byte, so running it computes nothing. Deciding which cells
+CAN move is a measurement over artefacts; running 30 of them to find out is 30
+backtests.
+
+### THE DEFECT THAT HID IT
+
+`liquidity_participation.py` carried a hand-written working set:
+
+    UNIV = [
+        ("nifty100", REGISTRY["nifty100"].metrics_dir,
+         REGISTRY["nifty100"].prepare_data_dir()),
+        ("midcap150", REGISTRY["midcap150"].metrics_dir,
+         REGISTRY["midcap150"].prepare_data_dir()),
+    ]
+
+That is the shape `measured_universes.py` exists to close, quoted in its own
+docstring as `UNIVERSES = {u.tag: ... for u in (REGISTRY["nifty100"],
+REGISTRY["midcap150"])}`, with the consequence it names: **"A THIRD UNIVERSE IS
+NOT A KeyError THERE. It is simply absent: the probe runs, reports on two
+universes, writes a diagnostic that looks complete, and says nothing about the
+third."** Six registered universes were missing from every participation figure
+this file ever produced, and its output did not say so. The working set is now
+declared through `measured_universes.declare` and the coverage line is printed
+from the declaration. It also only ever read the shipping arm; the arm is now an
+axis, which is where five of the six findings are.
+
+### THE RESULT: 6 OF 32 CELLS CAN FIRE THE CAP, 26 CANNOT
+
+Full grid, all 32 cells, in `diagnostics/participation_predicate.csv` and
+`diagnostics/liquidity_participation.txt`. The cells that clear, at the
+backtest's Rs 10,00,000:
+
+| universe | arm | fills over cap | of fills | max participation |
+|---|---|--:|--:|--:|
+| nifty500 | v1 | 2 | 932 | 169.1% |
+| nifty500 | v3 | 3 | 940 | 216.6% |
+| midcap100 | v1 | 1 | 704 | 115.2% |
+| midcap100 | v3 | 1 | 682 | 140.0% |
+| smallcap250 | v1 | 4 | 902 | 180.6% |
+| smallcap250 | v3 | 2 | 910 | 231.3% |
+
+**ALL SIX ARE v1 OR v3 -- THE 100%-INVESTED ARMS.** v2 and v4 are
+breadth-scaled, hold about 56% deployed, and take smaller slices per name; no v2
+or v4 cell on any universe reaches the cap. The highest either gets is
+smallcap250 v4 at 77.7%.
+
+**ALL SIX ARE ON UNIVERSES THAT HAD NEVER BEEN MEASURED.** nifty500, midcap100
+and smallcap250. The two universes the file did cover stay under the cap on all
+four arms -- nifty100's worst is 35.4%, midcap150's is 70.9% -- so the earlier
+finding was not wrong, it was narrow.
+
+**26 CELLS ARE PROVEN NO-OPS AND SHOULD NOT BE RUN.** Their evidence is their
+participation figure in the grid, not a run. The spread across them is wide and
+the grid carries it rather than a pass mark: nifty50 v2 tops out at 0.883% of
+the cap, smallcap250 v4 at 77.650%. The second is a no-op on this data and
+would not be one on data that moved it 23 points.
+
+### WHAT THIS DOES NOT SAY
+
+**It does not say the six will move little.** One to four binds per cell looks
+small, and the entry above measures nifty500's neighbours: at cap 0.10, nifty100
+bound on 3 of 941 fills and cost -0.13 CAGR, midcap150 on 10 of 1009 and cost
+-0.19. That entry states the rule plainly and it applies here: **"A reader must
+not convert 'the cap almost never binds' into 'the cap costs almost nothing'."**
+Binds land on large orders. What the six cost is unmeasured until they are run.
+
+**THIS IS A DATED MEASUREMENT, NOT A PROPERTY.** Carried forward verbatim from
+the 2026-09-20 correction it extends: "This is a dated measurement, not a
+property. Capital, universe and data all move it. Count the `participation cap`
+rows in the run's own `daily_skipped` artefact before repeating either claim."
+The predicate answers at today's capital on today's data and says nothing about a
+larger book. The grid's x20 column makes that concrete: at Rs 2,00,00,000 all
+four arms clear the cap on seven of the eight universes. The exception is
+nifty50, whose HIGHEST cell reaches only 50.0% at twenty times the capital.
+
+---
+
 ## The impact model cannot price the first day's fills, because no prior volume exists
 
 Found 2026-09-22 implementing step 2 of the execution-realism work. OPEN and
