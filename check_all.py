@@ -195,6 +195,33 @@ RETIRED_DELEGATES = {
         "uses; superseded by results/leakage_check2_trading_purge.py",
 }
 
+# THE VERDICT LINE NAMES EVERY DELEGATE THAT DID NOT ASSERT, AND THIS IS WHERE THE
+# WORDS COME FROM. Added 2026-09-22.
+#
+# WHY A SECOND, SHORTER REASON RATHER THAN THE ONE ALREADY WRITTEN. The reasons in
+# DELEGATES and RETIRED_DELEGATES are two and three lines each, correctly: they
+# have to justify the skip to somebody deciding whether to accept it. A verdict
+# line carrying eight of those is a verdict line nobody finishes, which is how
+# "GATE 5  8 of 22 delegates did not assert" came to be the whole of it -- true,
+# and naming nobody.
+#
+# THIS IS THE SAME DEFECT THE Result DOCSTRING DESCRIBES, ONE LEVEL DOWN. That one
+# was a verdict line concealing which GATES did not assert. This was a verdict
+# line concealing which DELEGATES did not, inside a gate that reported the count
+# honestly and the names only in a table forty lines away.
+#
+# DECLARED, NOT DERIVED. Truncating the long reason at its first clause would put
+# an arbitrary prefix in the verdict; a blocked or retired delegate with no entry
+# here is a FAILURE below, not a blank, so the next one cannot slip in unnamed.
+SKIP_SHORT = {
+    "gate_compare.py": "needs an artefact pair this runner does not have",
+    "topn_centralise_check.py": "no before/after baseline stored in the tree",
+    "results/leakage_check4_corpactions.py": "no pass condition definable",
+    "results/leakage_check2_purge.py": "RETIRED, superseded by "
+                                       "leakage_check2_trading_purge.py",
+}
+SLOW_SHORT = "refits the model; needs --slow"
+
 # naming_declare_check reports a KNOWN, PRE-EXISTING count of undeclared write
 # calls and exits 1 for it. That number was 111 before this checker existed and
 # is not this checker's business to fix; what IS its business is that the number
@@ -264,6 +291,11 @@ class Result:
         # The gate-level skip above says how many did not assert; this says
         # which, and why, by name.
         self.delegates = []
+        # THE SAME NAMES AGAIN, SHORT, FOR THE VERDICT BLOCK. The table above is
+        # printed before the notes and is the full account; this is what travels
+        # with the headline, because a headline read on its own must not be able
+        # to omit them.
+        self.not_asserted = []
 
     def fail(self, gate, what, detail=""):
         self.failures.append((gate, what, detail))
@@ -280,9 +312,16 @@ class Result:
         self.skipped[gate_no] = why
         self.notes.append(text)
 
-    def delegate(self, label, status, detail=""):
-        """Record one delegate's outcome: PASS, FAIL, SKIP or RETIRED."""
+    def delegate(self, label, status, detail="", short=None):
+        """Record one delegate's outcome: PASS, FAIL, SKIP or RETIRED.
+
+        `short` is the reason the VERDICT block carries. It is required for any
+        status other than PASS and FAIL: a delegate that did not assert and
+        cannot say why in one clause is not something to print blank.
+        """
         self.delegates.append((label, status, detail))
+        if status in ("SKIP", "RETIRED"):
+            self.not_asserted.append((label, status, short or "NO REASON GIVEN"))
 
     def asserted(self):
         return [g for g in ALL_GATES if g not in self.skipped]
@@ -526,11 +565,16 @@ def gate_delegates(res, slow):
         label = " ".join([name] + args)
         p = ROOT / name
         if blocked is not None:
-            res.delegate(label, "SKIP", blocked)
+            short = SKIP_SHORT.get(name)
+            if short is None:
+                res.fail("GATE 5 delegates", label,
+                         "is blocked and has no SKIP_SHORT entry, so the verdict "
+                         "line would name it without a reason")
+            res.delegate(label, "SKIP", blocked, short)
             skipped += 1
             continue
         if is_slow and not slow:
-            res.delegate(label, "SKIP", "refits the model; needs --slow")
+            res.delegate(label, "SKIP", SLOW_SHORT, SLOW_SHORT)
             skipped += 1
             continue
         if not p.exists():
@@ -570,14 +614,24 @@ def gate_delegates(res, slow):
             res.delegate(label, "PASS", "exit 0")
 
     for name, why in sorted(RETIRED_DELEGATES.items()):
-        res.delegate(name, "RETIRED", why)
+        short = SKIP_SHORT.get(name)
+        if short is None:
+            res.fail("GATE 5 delegates", name,
+                     "is retired and has no SKIP_SHORT entry, so the verdict "
+                     "line would name it without a reason")
+        res.delegate(name, "RETIRED", why, short)
 
     res.note(f"GATE 5  {ran} delegates ran, {skipped} skipped, "
              f"{len(RETIRED_DELEGATES)} retired")
     if skipped:
+        # THE TWO COUNTS MUST AGREE. The verdict block below names skipped AND
+        # retired delegates, so the one-line reason says both rather than the
+        # smaller number -- a reason that reads "8" above a list of 9 is the same
+        # concealment one digit smaller.
         res.skip(5, f"GATE 5  {skipped} of {len(DELEGATES)} delegates did not "
                     f"assert. Not counted as passed.",
-                 f"{skipped} delegates not asserted")
+                 f"{skipped} skipped + {len(RETIRED_DELEGATES)} retired, "
+                 f"named below")
 
 
 # ---------------------------------------------------------------------------
@@ -1082,6 +1136,23 @@ def gate_data_source(res, sel):
              f"field (2026-09-20) and still cannot say what produced them")
 
 
+def _print_not_asserted(res):
+    """Name every delegate that did not assert, immediately under the verdict.
+
+    GATE 5's reason was "8 of 22 delegates did not assert" -- a count, and a
+    count is what the Result docstring above calls a verdict line concealing
+    what the body recorded. The full table still prints further up with the long
+    reasons; this is the short form, and it travels with the headline so the
+    headline cannot be quoted without it.
+    """
+    if not res.not_asserted:
+        return
+    w = max(len(l) for l, _s, _r in res.not_asserted)
+    print(f"        GATE 5 DID NOT ASSERT ({len(res.not_asserted)}), BY NAME:")
+    for label, status, short in sorted(res.not_asserted):
+        print(f"          {label:<{w}}  {short}")
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--since", type=float, default=None,
@@ -1159,12 +1230,14 @@ def main(argv=None):
         print(f"RESULT: PASS ({len(ok)} of {n} asserted, "
               f"{len(res.skipped)} skipped: {'; '.join(parts)})")
         print(f"        ASSERTED: {', '.join('GATE %d' % g for g in ok)}")
+        _print_not_asserted(res)
         print("        A SKIPPED GATE IS NOT A PASSED GATE. Exit code is 0 "
               "because a skip is legitimate,")
         print("        not because the work was done. Re-run with --since "
               "<epoch> after a run to assert all eight.")
     else:
         print(f"RESULT: PASS -- all {n} gates asserted, none skipped")
+        _print_not_asserted(res)
     return 0
 
 
