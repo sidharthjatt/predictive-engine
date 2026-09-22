@@ -4156,16 +4156,97 @@ Restated 2026-09-19 with the benchmark named, extended to eight 2026-09-20. The
 `b&h` column is **`bh published`** -- which matters, because there are two of
 them. See the note that follows this table. Rows in REPORT_ORDER.
 
-| universe | v2 CAGR% | bh published CAGR% | **v2 - bh published** |
-|---|--:|--:|--:|
-| nifty500 | 29.13 | 26.09 | **+3.04** |
-| nifty200 | 27.26 | 25.54 | **+1.73** |
-| nifty100 | 19.01 | 24.16 | **-5.15** |
-| nifty50 | 13.90 | 20.67 | **-6.77** |
-| midcap150 | 27.80 | 25.46 | **+2.34** |
-| midcap100 | 25.52 | 26.82 | **-1.31** |
-| midcap50 | 21.41 | 24.34 | **-2.93** |
-| smallcap250 | 28.63 | 27.15 | **+1.48** |
+| universe | v2 CAGR% | bh published CAGR% | **v2 - bh published** | v2 CAGR n | run date |
+|---|--:|--:|--:|--:|:--|
+| nifty500 | 29.13 | 26.09 | **+3.04** | 1 | 2026-09-20 |
+| nifty200 | 27.26 | 25.54 | **+1.73** | 1 | 2026-09-19 |
+| nifty100 | 19.01 | 24.16 | **-5.15** | 10 | 2026-09-18 |
+| nifty50 | 13.90 | 20.67 | **-6.77** | 1 | 2026-09-18 |
+| midcap150 | 27.80 | 25.46 | **+2.34** | 10 | 2026-09-18 |
+| midcap100 | 25.52 | 26.82 | **-1.31** | 1 | 2026-09-19 |
+| midcap50 | 21.41 | 24.34 | **-2.93** | 1 | 2026-09-18 |
+| smallcap250 | 28.63 | 27.15 | **+1.48** | 1 | 2026-09-19 |
+
+**EVERY CELL ABOVE IS ONE RUN EXCEPT TWO, AND THE TWO ARE NOW LABELLED. ADDED
+2026-09-22.** `v2 CAGR n` is the number of PRICE-PERTURBATION draws behind that
+cell. It is not a seed count: all ten production seeds are held fixed inside every
+draw. **n = 1 is a single run on the date given, and its spread was never
+measured** -- the figure is one draw of a distribution of unknown width, not a
+stable number.
+
+**The `bh published` and `v2 - bh published` cells are n = 1 on all eight rows,
+including the two measured ones.** `results/price_noise_measure.py` perturbs the
+v2 arm and nothing else, so no benchmark figure in this table has ever been
+re-run under noise. Where a gap below is quoted against perturbed v2 draws, the
+benchmark inside it is held at its single unperturbed value and the gap's spread
+is therefore the v2 leg's alone.
+
+The two measured cells, ten draws each at sigma = 0.01%, taken 2026-09-20
+(nifty100) and 2026-09-21 (midcap150) by `results/price_noise_measure.py`. **This
+is price-perturbation spread, not seed spread.** The two are different quantities
+and the repo carries both, so both are named rather than one being chosen:
+
+| cell | published | n | mean | min | max | sd, price | sd, seed at K=10 |
+|---|--:|--:|--:|--:|--:|--:|--:|
+| nifty100 v2 CAGR% | 19.01 | 10 | 20.76 | 19.32 | 22.55 | 1.03 | 0.968 |
+| midcap150 v2 CAGR% | 27.80 | 10 | 29.88 | 27.69 | 32.35 | 1.74 | 1.393 |
+
+The seed column is entry 29's fitted sigma at K = 10, not a re-measurement. The
+perturbation caveat these figures come from is the block in README.md headed
+READ THIS BEFORE QUOTING ANY v2 FIGURE BELOW (lines 91-132 on 2026-09-22); it is
+not restated here. Per-column labels for all eight universes, including the
+columns that carry no spread at all, are in `diagnostics/v34_provenance.txt`.
+
+**Sortino, Calmar and Deployed% are point estimates and inherit no error bar from
+this.** `price_noise_measure` recomputes six columns -- CAGR%, Sharpe, MaxDD%,
+Trades, FinalEquity, AnnVol% -- and those three are not among them. Nothing
+measured here bounds them.
+
+The six universes without a distribution are a deliberate deferral, not an
+oversight; the cost and the reason are in KNOWN_ISSUES.md under "Measuring the six
+unmeasured universes is costed and deferred".
+
+**THE GAP'S SIGN SURVIVES ALL TWENTY STORED DRAWS. MEASURED 2026-09-22 FROM THE
+EXISTING FILE -- NO NEW RUNS.** Read off the ten stored sigma = 0.01% draws per
+universe in `diagnostics/price_noise_runs.csv`, against the same fixed
+`bh published` used in the table above:
+
+| draw seed | nifty100 v2 | gap vs 24.16 | midcap150 v2 | gap vs 25.46 |
+|---|--:|--:|--:|--:|
+| 101 | 21.30 | -2.86 | 31.88 | +6.42 |
+| 202 | 19.32 | -4.84 | 31.24 | +5.78 |
+| 303 | 21.15 | -3.01 | 28.03 | +2.57 |
+| 404 | 19.38 | -4.78 | 31.02 | +5.56 |
+| 505 | 22.55 | -1.61 | 29.94 | +4.48 |
+| 606 | 21.45 | -2.71 | 32.35 | +6.89 |
+| 707 | 19.84 | -4.32 | 28.07 | +2.61 |
+| 808 | 21.47 | -2.69 | 30.20 | +4.74 |
+| 909 | 20.50 | -3.66 | 27.69 | +2.23 |
+| 1010 | 20.60 | -3.56 | 28.35 | +2.89 |
+
+**nifty100: 10 of 10 keep the published sign (negative), range -4.84 to -1.61
+against a published -5.15. midcap150: 10 of 10 keep the published sign
+(positive), range +2.23 to +6.89 against a published +2.34.** 20 of 20 across
+both.
+
+Three limits on that count, all of which narrow it:
+
+1. **The benchmark leg is frozen.** Only v2 was perturbed. A count over a gap
+   whose other half never moved is not a count over the gap.
+2. **It holds at this sigma only.** At the wider sigmas already on disk the
+   sign does cross: that same README block records v2 beating its basket in 2
+   of nifty100's 25 perturbed cells, and losing to it in 1 of midcap150's 20.
+   Ten of ten at 0.01% is not twenty-five of twenty-five.
+3. **A stable sign is not a reproduced figure, and on nifty100 it is not even a
+   containing interval.** All ten nifty100 draws come in above the published
+   19.01, so the gap interval they describe -- -4.84 to -1.61 -- does not
+   contain the published -5.15. midcap150 differs: nine of its ten are above
+   27.80 and the tenth, seed 909 at 27.69, is below, so its interval +2.23 to
+   +6.89 does contain the published +2.34. The sign agrees on both universes
+   and the figure is reproduced on neither.
+
+No mechanism is offered for any of this, and none should be read into it. It is a
+count of sign agreement over ten stored draws.
 
 **"ONE OF FOUR" IS NOW FOUR OF EIGHT. AMENDED 2026-09-20.** This line read "One
 universe's v2 beats its own equal-weight buy & hold. FOUR do not". On eight,
@@ -4232,16 +4313,30 @@ case, never an untaxed log, never back-derived from the pre-tax CAGR table
 above. n = 8, one run each, cadence 20, `--profile research`. Benchmark
 throughout is **bh_lots**, never bh published. Rows in REPORT_ORDER.
 
-| universe | v2 before tax | v2 after tax | bh_lots before tax | bh_lots after tax |
-|---|--:|--:|--:|--:|
-| nifty500 | 29.13 | 24.62 | 24.43 | 22.69 |
-| nifty200 | 27.26 | 23.17 | 23.69 | 21.97 |
-| nifty100 | 19.01 | 16.17 | 23.38 | 21.68 |
-| nifty50 | 13.90 | 11.96 | 19.62 | 18.12 |
-| midcap150 | 27.80 | 23.51 | 23.55 | 21.85 |
-| midcap100 | 25.52 | 21.50 | 24.48 | 22.73 |
-| midcap50 | 21.41 | 18.19 | 25.97 | 24.16 |
-| smallcap250 | 28.63 | 24.13 | 26.60 | 24.78 |
+| universe | v2 before tax | v2 after tax | bh_lots before tax | bh_lots after tax | n | run date |
+|---|--:|--:|--:|--:|--:|:--|
+| nifty500 | 29.13 | 24.62 | 24.43 | 22.69 | 1 | 2026-09-20 |
+| nifty200 | 27.26 | 23.17 | 23.69 | 21.97 | 1 | 2026-09-19 |
+| nifty100 | 19.01 | 16.17 | 23.38 | 21.68 | 1 | 2026-09-18 |
+| nifty50 | 13.90 | 11.96 | 19.62 | 18.12 | 1 | 2026-09-18 |
+| midcap150 | 27.80 | 23.51 | 23.55 | 21.85 | 1 | 2026-09-18 |
+| midcap100 | 25.52 | 21.50 | 24.48 | 22.73 | 1 | 2026-09-19 |
+| midcap50 | 21.41 | 18.19 | 25.97 | 24.16 | 1 | 2026-09-18 |
+| smallcap250 | 28.63 | 24.13 | 26.60 | 24.78 | 1 | 2026-09-19 |
+
+**EVERY CELL IN THIS TABLE IS n = 1, INCLUDING nifty100's AND midcap150's. ADDED
+2026-09-22.** The `n` column is price-perturbation draws, and there are none
+behind any cell here. `results/price_noise_measure.py` runs untaxed
+(`tax_enabled=False`) and perturbs the v2 arm only, so **no after-tax figure and
+no bh_lots figure in this project has ever been re-run under noise.**
+
+The `v2 before tax` column repeats the published v2 CAGR, and for nifty100 and
+midcap150 that figure does have a measured spread -- 19.01 against ten draws
+spanning 19.32 to 22.55, and 27.80 against 27.69 to 32.35, both at sigma = 0.01%.
+**That spread does not propagate to the three columns beside it.** The after-tax
+and bh_lots figures come from separate runs that were never perturbed, so the
+tax deltas in this table are differences of single draws and their width is
+unknown. See the labelled table above and `diagnostics/v34_provenance.txt`.
 
 Tax paid by v2: nifty500 Rs 848,041.14; smallcap250 Rs 828,764.83; midcap150
 Rs 771,494.59; nifty200 Rs 769,131.89; midcap100 Rs 656,939.61; midcap50

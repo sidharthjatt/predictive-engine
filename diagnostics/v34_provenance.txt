@@ -1,0 +1,171 @@
+v34_comparison.csv -- PROVENANCE AND SPREAD LABELS
+======================================================================
+
+Written by results/v34_provenance.py. Nothing here is measured by that
+script: every figure is read from v34_params.json, v34_comparison.csv
+and diagnostics/price_noise_runs.csv, which already existed.
+
+  UNIVERSE COVERAGE OF THIS STUDY -- declared, not inferred from the sections below.
+    measured  : nifty100, midcap150   (PRICE_NOISE_N, PRICE_NOISE_SIGMA)
+    NOT MEASURED: nifty50, midcap50, midcap100, nifty200, smallcap250, nifty500
+    Those universes are registered and this study has no measurement for them.
+    NOTHING BELOW APPLIES TO THEM, and their absence from the tables is not a result.
+
+UNIVERSE: nifty500
+  run date : 2026-09-20
+  git      : e6ac7bfe7c71  WORKING TREE DIRTY
+  window   : 2019-01-01 to 2026-05-29, 1836 trading days
+
+  EVERY FIGURE IN v34_comparison.csv FOR THIS UNIVERSE IS n = 1.
+  One run, on 2026-09-20. No price-perturbation distribution
+  has been measured for this universe and none is implied by the
+  two that have. A figure here is a single draw of a distribution
+  whose width is not known.
+  The perturbation caveat is in README.md, the block headed READ THIS BEFORE QUOTING ANY v2 FIGURE BELOW.
+  Why this universe was not measured: KNOWN_ISSUES.md, the entry
+  headed 'Measuring the six unmeasured universes is costed and
+  deferred'.
+
+UNIVERSE: nifty200
+  run date : 2026-09-19
+  git      : 28642f17e6a4  WORKING TREE DIRTY
+  window   : 2019-01-01 to 2026-05-29, 1836 trading days
+
+  EVERY FIGURE IN v34_comparison.csv FOR THIS UNIVERSE IS n = 1.
+  One run, on 2026-09-19. No price-perturbation distribution
+  has been measured for this universe and none is implied by the
+  two that have. A figure here is a single draw of a distribution
+  whose width is not known.
+  The perturbation caveat is in README.md, the block headed READ THIS BEFORE QUOTING ANY v2 FIGURE BELOW.
+  Why this universe was not measured: KNOWN_ISSUES.md, the entry
+  headed 'Measuring the six unmeasured universes is costed and
+  deferred'.
+
+UNIVERSE: nifty100
+  run date : 2026-09-18
+  git      : 556f91061c33  WORKING TREE DIRTY
+  window   : 2019-01-01 to 2026-05-29, 1836 trading days
+
+  PRICE-PERTURBATION SPREAD, NOT SEED SPREAD. n = 10 at
+  sigma = 0.01%, measured 2026-09-20 to 2026-09-20 by
+  results/price_noise_measure.py. The ten production seeds are held
+  fixed across all of them, so this is on top of the seed noise, not
+  the same quantity. The seed spread is in KNOWN_ISSUES.md, the entry
+  headed 'The 10-seed ensemble does not average away what it was built
+  to average away'.
+
+  THE v2 ROW, PUBLISHED FIGURE AGAINST ITS OWN DRAWS:
+    column               published   n            mean             min             max            sd
+    CAGR%                    19.01  10           20.76           19.32           22.55          1.03
+    Sharpe                    1.50  10            1.57            1.48            1.69          0.06
+    MaxDD%                  -21.87  10          -20.88          -25.90          -17.70          2.58
+    Trades                  940.00  10          942.30          925.00          966.00         12.55
+    FinalEquity       3,628,639.83  10    4,048,682.71    3,698,610.45    4,509,879.44    256,201.07
+    AnnVol%                  12.33  10           12.70           12.14           13.08          0.30
+
+  NO SPREAD EXISTS FOR THESE, AND THEY DO NOT INHERIT ONE:
+    Sortino, Calmar, Deployed%, TC_Rs, MeanNamesHeld, CashShortSkips
+  They are point estimates from the single published run of
+  2026-09-18, n = 1. price_noise_measure does not recompute them,
+  so nothing above bounds them.
+
+  EVERY ROW OTHER THAN v2 IS n = 1. v1, v3, v4 and buy & hold were run
+  once, on 2026-09-18. price_noise_measure hardcodes the v2 arm,
+  so no other arm has been perturbed -- see KNOWN_ISSUES.md, the entry
+  headed 'price_noise_measure is arm-general in name only'.
+  The perturbation caveat is in README.md, the block headed READ THIS BEFORE QUOTING ANY v2 FIGURE BELOW.
+
+UNIVERSE: nifty50
+  run date : 2026-09-18
+  git      : 5696c63c3922  WORKING TREE DIRTY
+  window   : 2019-01-01 to 2026-05-29, 1836 trading days
+
+  EVERY FIGURE IN v34_comparison.csv FOR THIS UNIVERSE IS n = 1.
+  One run, on 2026-09-18. No price-perturbation distribution
+  has been measured for this universe and none is implied by the
+  two that have. A figure here is a single draw of a distribution
+  whose width is not known.
+  The perturbation caveat is in README.md, the block headed READ THIS BEFORE QUOTING ANY v2 FIGURE BELOW.
+  Why this universe was not measured: KNOWN_ISSUES.md, the entry
+  headed 'Measuring the six unmeasured universes is costed and
+  deferred'.
+
+UNIVERSE: midcap150
+  run date : 2026-09-18
+  git      : 8e32551ab80d  WORKING TREE DIRTY
+  window   : 2019-01-01 to 2026-05-29, 1836 trading days
+
+  PRICE-PERTURBATION SPREAD, NOT SEED SPREAD. n = 10 at
+  sigma = 0.01%, measured 2026-09-21 to 2026-09-21 by
+  results/price_noise_measure.py. The ten production seeds are held
+  fixed across all of them, so this is on top of the seed noise, not
+  the same quantity. The seed spread is in KNOWN_ISSUES.md, the entry
+  headed 'The 10-seed ensemble does not average away what it was built
+  to average away'.
+
+  THE v2 ROW, PUBLISHED FIGURE AGAINST ITS OWN DRAWS:
+    column               published   n            mean             min             max            sd
+    CAGR%                    27.80  10           29.88           27.69           32.35          1.74
+    Sharpe                    1.90  10            1.96            1.85            2.10          0.09
+    MaxDD%                  -20.01  10          -21.41          -24.18          -18.35          1.99
+    Trades                1,006.00  10        1,028.00        1,009.00        1,043.00         11.43
+    FinalEquity       6,150,398.56  10    6,957,197.29    6,111,358.04    7,969,529.16    689,122.81
+    AnnVol%                  13.65  10           14.04           13.30           14.60          0.46
+
+  NO SPREAD EXISTS FOR THESE, AND THEY DO NOT INHERIT ONE:
+    Sortino, Calmar, Deployed%, TC_Rs, MeanNamesHeld, CashShortSkips
+  They are point estimates from the single published run of
+  2026-09-18, n = 1. price_noise_measure does not recompute them,
+  so nothing above bounds them.
+
+  EVERY ROW OTHER THAN v2 IS n = 1. v1, v3, v4 and buy & hold were run
+  once, on 2026-09-18. price_noise_measure hardcodes the v2 arm,
+  so no other arm has been perturbed -- see KNOWN_ISSUES.md, the entry
+  headed 'price_noise_measure is arm-general in name only'.
+  The perturbation caveat is in README.md, the block headed READ THIS BEFORE QUOTING ANY v2 FIGURE BELOW.
+
+UNIVERSE: midcap100
+  run date : 2026-09-19
+  git      : 5d1aedf0052e  WORKING TREE DIRTY
+  window   : 2019-01-01 to 2026-05-29, 1836 trading days
+
+  EVERY FIGURE IN v34_comparison.csv FOR THIS UNIVERSE IS n = 1.
+  One run, on 2026-09-19. No price-perturbation distribution
+  has been measured for this universe and none is implied by the
+  two that have. A figure here is a single draw of a distribution
+  whose width is not known.
+  The perturbation caveat is in README.md, the block headed READ THIS BEFORE QUOTING ANY v2 FIGURE BELOW.
+  Why this universe was not measured: KNOWN_ISSUES.md, the entry
+  headed 'Measuring the six unmeasured universes is costed and
+  deferred'.
+
+UNIVERSE: midcap50
+  run date : 2026-09-18
+  git      : b261abc04e8a  WORKING TREE DIRTY
+  window   : 2019-01-01 to 2026-05-29, 1836 trading days
+
+  EVERY FIGURE IN v34_comparison.csv FOR THIS UNIVERSE IS n = 1.
+  One run, on 2026-09-18. No price-perturbation distribution
+  has been measured for this universe and none is implied by the
+  two that have. A figure here is a single draw of a distribution
+  whose width is not known.
+  The perturbation caveat is in README.md, the block headed READ THIS BEFORE QUOTING ANY v2 FIGURE BELOW.
+  Why this universe was not measured: KNOWN_ISSUES.md, the entry
+  headed 'Measuring the six unmeasured universes is costed and
+  deferred'.
+
+UNIVERSE: smallcap250
+  run date : 2026-09-19
+  git      : 883c1f240a7a
+  window   : 2019-01-01 to 2026-05-29, 1836 trading days
+
+  EVERY FIGURE IN v34_comparison.csv FOR THIS UNIVERSE IS n = 1.
+  One run, on 2026-09-19. No price-perturbation distribution
+  has been measured for this universe and none is implied by the
+  two that have. A figure here is a single draw of a distribution
+  whose width is not known.
+  The perturbation caveat is in README.md, the block headed READ THIS BEFORE QUOTING ANY v2 FIGURE BELOW.
+  Why this universe was not measured: KNOWN_ISSUES.md, the entry
+  headed 'Measuring the six unmeasured universes is costed and
+  deferred'.
+
