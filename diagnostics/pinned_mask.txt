@@ -1,0 +1,26 @@
+================================================================================================
+ PINNED-MASK COUNTERFACTUAL -- is the displacement carried by row admission?
+================================================================================================
+ rule fixed before the run: mechanism found if mean reduction >= 50%
+ sigma 0.0001, seeds (101, 202, 303), arm v2
+
+  nifty100: baseline CAGR 19.0100, 441,155 scorable pairs at sigma=0
+    seed 101: perturbed 21.3000 (disp +2.2900)  pinned 21.3000 (resid +2.2900)  reduction +0.0%  | admitted 2,222 lost 24
+    seed 202: perturbed 19.3200 (disp +0.3100)  pinned 19.3200 (resid +0.3100)  reduction +0.0%  | admitted 2,149 lost 69
+    seed 303: perturbed 21.1500 (disp +2.1400)  pinned 21.1500 (resid +2.1400)  reduction +0.0%  | admitted 2,160 lost 85
+
+  midcap150: baseline CAGR 27.8000, 523,059 scorable pairs at sigma=0
+    seed 101: perturbed 31.8800 (disp +4.0800)  pinned 31.8800 (resid +4.0800)  reduction +0.0%  | admitted 2,540 lost 36
+    seed 202: perturbed 31.2400 (disp +3.4400)  pinned 31.2400 (resid +3.4400)  reduction +0.0%  | admitted 2,667 lost 10
+    seed 303: perturbed 28.0300 (disp +0.2300)  pinned 28.0300 (resid +0.2300)  reduction +0.0%  | admitted 2,601 lost 58
+
+================================================================================================
+  midcap150: mean reduction +0.0% over 3 seeds
+  nifty100: mean reduction +0.0% over 3 seeds
+  OVERALL MEAN REDUCTION: +0.0%   rule: >= 50%
+
+  RESULT: the admission channel DOES NOT carry the displacement.
+  Under the stopping point fixed before this run, no further candidate
+  is proposed and the mechanism is not findable by channel
+  decomposition.
+================================================================================================

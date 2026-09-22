@@ -128,14 +128,40 @@ def main():
             with contextlib.redirect_stdout(io.StringIO()):
                 pnm.perturb_farm(base_dir, farm, SIGMA, ns)
                 pert_set = scorable_pairs(farm)
+                expect = len(pert_set & pinned_set)
                 # THE PIN IS THE INTERSECTION. See the module docstring.
-                _orig = _ec.build_panel
-                _ec.build_panel = (lambda h, data_dir, _p=pinned_set:
-                                   _orig(h, data_dir=data_dir, pin_scorable=_p))
+                #
+                # PATCHED ON price_noise_measure, NOT ON engine_core. That module
+                # does `from engine_core import build_panel` at import, so the
+                # name run_arm calls lives in ITS namespace; patching
+                # engine_core.build_panel leaves that binding untouched and the
+                # pinned arm silently reruns the unpinned one. The first run of
+                # this test did exactly that and returned reduction +0.0% on all
+                # six cells -- an intervention that never happened, reported to
+                # four decimal places.
+                seen = {}
+                _orig = pnm.build_panel
+
+                def _pinned(h, data_dir, _p=pinned_set, _o=_orig, _seen=seen):
+                    panel = _o(h, data_dir=data_dir, pin_scorable=_p)
+                    _seen["scorable"] = int(panel["scorable"].sum())
+                    return panel
+
+                pnm.build_panel = _pinned
                 try:
                     m, _held = pnm.run_arm(u, farm)
                 finally:
-                    _ec.build_panel = _orig
+                    pnm.build_panel = _orig
+            # THE INTERVENTION MUST BE PROVED TO HAVE BITTEN, EVERY CELL. A
+            # no-op pin produces reduction 0% and looks like a clean negative.
+            if "scorable" not in seen:
+                raise RuntimeError(
+                    f"{tag} seed {ns}: the pinned build_panel was never called")
+            if seen["scorable"] != expect:
+                raise RuntimeError(
+                    f"{tag} seed {ns}: pinned panel has {seen['scorable']:,} "
+                    f"scorable rows, expected {expect:,} (the intersection). "
+                    f"The pin did not apply.")
             pin = float(m["CAGR%"])
             disp = pert - base
             resid = pin - base
