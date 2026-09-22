@@ -35,3 +35,60 @@ the execution model, not a property of the market.
 
 # 0.0015 = 15 basis points each way. Unchanged from every site it replaces.
 SLIPPAGE = 0.0015
+
+
+class MissingVolume(Exception):
+    """A size-sensitive fill had no prior-20-session median volume to size against.
+
+    RAISED, NOT SWALLOWED, AND THAT IS THE WHOLE POINT. The alternative is to fall
+    back to the flat rate for that fill, which produces a run whose output says
+    "tradeable" and whose fills are partly research arithmetic, with nothing in
+    the artefact saying which. This repository already has that defect recorded
+    twice -- the cap that was passed without vol20 and silently applied to
+    nothing, and the tradeable artefacts that were byte-identical to their
+    research twins under a tradeable filename. A third instance is not wanted.
+    """
+
+
+def impact(qty, median_vol, k):
+    """Square-root market impact as a fraction of price, on top of SLIPPAGE.
+
+        impact = k * sqrt(qty / median_vol)
+
+    `qty` is the order size in shares, `median_vol` the symbol's prior-20-session
+    MEDIAN volume -- prior so it never uses the day's own volume, median so a
+    single block trade does not licence a large fill. Both are the same inputs
+    the participation cap already uses, deliberately: two different notions of
+    "how big is this order relative to what trades" would be two things to keep
+    in step.
+
+    k IS NOT DEFAULTED HERE. It is swept, and a number nobody measured has no
+    business being a default in an execution model.
+
+    RAISES MissingVolume when `median_vol` is absent or non-positive. See above.
+
+    THE TOTAL RATE IS SLIPPAGE + impact: a fixed spread cost plus a size term
+    that vanishes for a small order. At k=0.002 an order at 10% of median volume
+    pays 0.002*sqrt(0.1) = 6.3 bp on top of the 15 bp base; one at 100% of median
+    pays 20 bp on top. That convexity is the point -- the flat rate charges the
+    same 15 bp either way.
+    """
+    if median_vol is None or median_vol != median_vol or median_vol <= 0:
+        raise MissingVolume(
+            f"size-sensitive fill of {qty:,} share(s) has no usable prior-20d "
+            f"median volume (got {median_vol!r}); refusing to fall back to the "
+            f"flat rate, which would put research arithmetic in a tradeable "
+            f"artefact")
+    if qty <= 0:
+        return 0.0
+    return float(k) * (float(qty) / float(median_vol)) ** 0.5
+
+
+def buy_price(raw, qty, median_vol, k):
+    """Fill price paid for a BUY. k=None is the flat model, unchanged."""
+    return raw * (1 + SLIPPAGE + (0.0 if k is None else impact(qty, median_vol, k)))
+
+
+def sell_price(raw, qty, median_vol, k):
+    """Fill price received for a SELL. k=None is the flat model, unchanged."""
+    return raw * (1 - SLIPPAGE - (0.0 if k is None else impact(qty, median_vol, k)))
