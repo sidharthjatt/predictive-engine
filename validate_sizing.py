@@ -122,6 +122,42 @@ def _t2_cache_key(u, seeds, raw_path):
         parts=(u, sorted(seeds)))
 
 
+def sharpe_exact(eq):
+    """Annualised Sharpe at full precision.
+
+    T2, T3 AND T4 ARE DECIDED ON THIS, NOT ON metrics()["Sharpe"]. metrics()
+    rounds to 2dp for display, and until 2026-09-22 every verdict in this file
+    compared those rounded values -- T2 and T3 on `round(iv - eq, 2)`, T4 on
+    `t4["Sharpe"] > eq_sh` with both sides already rounded. A difference smaller
+    than half a hundredth therefore read as 0.00 and failed a strict `> 0`
+    whatever its true sign.
+
+    results/validate_engine.py's sharpe_exact has recorded this trap since it was
+    written, including the sentence "engine_core's suite compares rounded values
+    too; it never bit there only because its margins happened to be wider". It
+    bit. Measured 2026-09-22 on nifty100, three results that are genuinely
+    positive and were being counted as failures:
+
+        T3 2023-2026   exact +0.002156   printed +0.00   1.38 vs 1.38
+        T4 vol_win= 60 exact +0.000122   1.27 vs 1.27
+        T4 vol_win=120 exact +0.007148   1.27 vs 1.27
+
+    THE THRESHOLD IS UNCHANGED AND STILL STRICT `> 0`. This is a precision
+    correction, not a wider bar, and it moves no verdict: all four T3/T4 verdicts
+    still FAIL. What it stops is T4 claiming three of four vol windows fail on
+    nifty100 when one does. The rounded figures stay in the printed tables for
+    readability, next to the exact margins.
+
+    NO NOISE BAND IS APPLIED. A margin of +0.0001 is arithmetically a pass and is
+    not evidence of anything; the margin is printed beside every verdict and the
+    reader judges it. EXPERIMENTS.md entry 29 measured this project's seed floor
+    in CAGR points, not Sharpe, so there is no measured Sharpe floor to use and
+    none is invented.
+    """
+    r = eq.pct_change().dropna()
+    return float(r.mean() / r.std() * np.sqrt(252)) if r.std() > 0 else 0.0
+
+
 def universe_from_argv():
     for u in UNIVERSES:
         if f"--universe={u}" in sys.argv:
@@ -233,13 +269,15 @@ def main():
         me, mi = metrics(e_e, "eq"), metrics(e_i, "iv")
         t2_rows.append({"seedset": si, "eq_Sharpe": me["Sharpe"], "iv_Sharpe": mi["Sharpe"],
                         "delta": round(mi["Sharpe"] - me["Sharpe"], 2),
+                        "delta_exact": round(sharpe_exact(e_i) - sharpe_exact(e_e), 6),
                         "eq_MaxDD": me["MaxDD%"], "iv_MaxDD": mi["MaxDD%"]})
         print(f"      seed set {si+1}: equal {me['Sharpe']:.2f} -> invvol {mi['Sharpe']:.2f} "
               f"(delta {mi['Sharpe']-me['Sharpe']:+.2f}) | MaxDD {me['MaxDD%']:.1f}% -> "
               f"{mi['MaxDD%']:.1f}%", flush=True)
     t2 = pd.DataFrame(t2_rows)
-    ok2 = (t2["delta"] > 0).all()
-    print(f"      -> improved on {(t2['delta']>0).sum()}/3 seed sets. "
+    ok2 = bool((t2["delta_exact"] > 0).all())
+    print(f"      -> improved on {(t2['delta_exact']>0).sum()}/3 seed sets "
+          f"(smallest margin {t2['delta_exact'].min():+.6f} Sharpe). "
           f"{'PASS' if ok2 else 'FAIL -- seed-dependent'}")
     passed["T2 seed robustness"] = ok2
 
@@ -260,12 +298,15 @@ def main():
         bhh = START_CAPITAL * (1 + px.pct_change().loc[hd].mean(axis=1).fillna(0)).cumprod()
         me, mi, mb = metrics(e_e, "eq"), metrics(e_i, "iv"), metrics(bhh, "bh")
         t3_rows.append({"period": hname, "eq_Sharpe": me["Sharpe"], "iv_Sharpe": mi["Sharpe"],
-                        "bh_Sharpe": mb["Sharpe"], "delta": round(mi["Sharpe"]-me["Sharpe"], 2)})
+                        "bh_Sharpe": mb["Sharpe"], "delta": round(mi["Sharpe"]-me["Sharpe"], 2),
+                        "delta_exact": round(sharpe_exact(e_i) - sharpe_exact(e_e), 6)})
         print(f"      {hname}: equal {me['Sharpe']:.2f} -> invvol {mi['Sharpe']:.2f} "
-              f"(delta {mi['Sharpe']-me['Sharpe']:+.2f}) | buy&hold {mb['Sharpe']:.2f}")
+              f"(delta {sharpe_exact(e_i)-sharpe_exact(e_e):+.6f} exact) "
+              f"| buy&hold {mb['Sharpe']:.2f}")
     t3 = pd.DataFrame(t3_rows)
-    ok3 = (t3["delta"] > 0).all()
-    print(f"      -> {'PASS' if ok3 else 'FAIL -- only works in one sub-period'}")
+    ok3 = bool((t3["delta_exact"] > 0).all())
+    print(f"      -> {'PASS' if ok3 else 'FAIL -- only works in one sub-period'}"
+          f"   (smallest margin {t3['delta_exact'].min():+.6f} Sharpe)")
     passed["T3 sub-period"] = ok3
 
     # ------------------------------------------------------------------- T4
@@ -275,14 +316,21 @@ def main():
         pcv = precompute(px, vol_win=vw)
         e_i, tcv, nv, _, _ = backtest(px, op, sc, bd, pcv, sizing="invvol")
         mi = metrics(e_i, f"vol_win={vw}", tcv, nv)
+        mi["Sharpe_exact"] = round(sharpe_exact(e_i), 6)
         t4_rows.append(mi)
         print(f"      vol_win={vw:>3}: CAGR {mi['CAGR%']:>6.2f}%  Sharpe {mi['Sharpe']:>5.2f}  "
-              f"MaxDD {mi['MaxDD%']:>7.2f}%")
+              f"MaxDD {mi['MaxDD%']:>7.2f}%  margin vs equal-rupee "
+              f"{sharpe_exact(e_i)-sharpe_exact(eq_eq):+.6f}")
     t4 = pd.DataFrame(t4_rows)
-    eq_sh = comp.iloc[0]["Sharpe"]          # computed per run, not hardcoded
-    ok4 = (t4["Sharpe"] > eq_sh).all()
-    print(f"      -> all four beat equal-rupee ({eq_sh})? "
-          f"{'PASS' if ok4 else 'FAIL -- depends on exact window'}")
+    # THE REFERENCE IS THE EXACT SHARPE OF THE SAME equal-rupee CURVE T1 REPORTS,
+    # not comp's rounded column. Comparing a rounded arm against a rounded
+    # reference is what made vol_win=60 and 120 read as failures on nifty100 at
+    # +0.000122 and +0.007148.
+    eq_sh_exact = sharpe_exact(eq_eq)
+    ok4 = bool((t4["Sharpe_exact"] > eq_sh_exact).all())
+    print(f"      -> all four beat equal-rupee ({eq_sh_exact:.6f} exact)? "
+          f"{'PASS' if ok4 else 'FAIL -- depends on exact window'}"
+          f"   (smallest margin {(t4['Sharpe_exact']-eq_sh_exact).min():+.6f} Sharpe)")
     passed["T4 param sensitivity"] = ok4
 
     # ------------------------------------------------- SUB-PERIOD TABLE (added)

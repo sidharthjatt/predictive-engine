@@ -22,6 +22,118 @@ currently wrong.
 
 ---
 
+## Two engines answer the same sub-period question with opposite signs
+
+Found 2026-09-22 while checking whether validate_engine's conclusions carried over
+to validate_sizing. OPEN. Nothing is gated on it and no test was changed; this
+records that the disagreement exists and is not small.
+
+`results/validate_engine.py` decides T3 on `test_exposure.backtest_exposure`.
+`validate_sizing.py` decides its own T3 on `engine_core.backtest`. Same universes,
+same sub-period split, same contrast (inverse-vol against equal-rupee), same score
+panel. Exact Sharpe deltas, measured the same day:
+
+    nifty100 T3          2019-2022      2023-2026
+      backtest_exposure    +0.0432        -0.0161
+      engine_core.backtest -0.069722      +0.002156
+
+    midcap150 T3         2019-2022      2023-2026
+      backtest_exposure    -0.1007        +0.3029
+      engine_core.backtest -0.086723      +0.069748
+
+**On nifty100 BOTH HALVES FLIP SIGN.** The two engines do not merely differ in
+magnitude; they disagree about which sub-period inverse-vol works in. On midcap150
+the signs agree and the magnitude does not -- +0.3029 against +0.0697 in the late
+half, a factor of four.
+
+The T4 shipping window shows the same pattern, agreeing in sign and not in size:
+
+    vol_win=60 margin    backtest_exposure   engine_core.backtest
+      nifty100              +0.0469             +0.000122
+      midcap150             -0.0043             -0.009866
+
+**THE TWO ENGINES ARE NOT SUPPOSED TO BE IDENTICAL** and that is not the point.
+`backtest_exposure` models the breadth exposure and a book floating in
+[TOP_N, BUFFER]; `engine_core.backtest` has a slot cap and no exposure mode.
+Different numbers are expected. What is not expected is that the QUALITATIVE
+answer inverts: a reader taking "inverse-vol works in the early half and not the
+late half" from one file gets the opposite from the other, for the same universe,
+and nothing in either file says so.
+
+**WHAT THIS DOES NOT MEAN.** Neither engine is shown to be wrong here. No third
+measurement adjudicates them, and none was made.
+
+**WHAT IT DOES MEAN.** The sub-period result is not robust to which
+reimplementation computes it, so neither file's T3 should be quoted as a property
+of the strategy without naming its engine. This belongs with the entry on there
+being FIVE reimplementations of the backtest: that entry counts them, this one
+shows two of them returning contradictory answers to a published question.
+
+A gate asserting the two engines agree in sign would be a NEW test needing its own
+pre-registration, and would start red on nifty100. It was not added.
+
+---
+
+## validate_sizing decided T2, T3 and T4 on 2dp-rounded Sharpes -- FIXED 2026-09-22
+
+Found 2026-09-22. The defect is fixed. It moved no verdict and it materially
+changed what three nifty100 results were reported as.
+
+`engine_core.metrics()` returns `"Sharpe": round(sh, 2)`. Every verdict in
+`validate_sizing.py` compared those rounded values: T2 and T3 on
+`round(iv - eq, 2) > 0`, T4 on `t4["Sharpe"] > eq_sh` with both sides already
+rounded. A true difference below half a hundredth read as `0.00` and failed a
+strict `> 0` whatever its actual sign.
+
+**THIS WAS A KNOWN TRAP, WRITTEN DOWN, IN A SIBLING FILE.**
+`results/validate_engine.py`'s `sharpe_exact` docstring has said since it was
+written: "engine_core's suite compares rounded values too; it never bit there only
+because its margins happened to be wider." It bit.
+
+**THE THREE nifty100 RESULTS THAT WERE POSITIVE AND COUNTED AS FAILURES:**
+
+    T3 2023-2026    exact +0.002156    printed +0.00    1.38 vs 1.38
+    T4 vol_win= 60  exact +0.000122    1.27 vs 1.27
+    T4 vol_win=120  exact +0.007148    1.27 vs 1.27
+
+**THE FIX** is `sharpe_exact` in `validate_sizing.py`, deciding T2, T3 and T4 at
+full precision with the margin printed beside every verdict. **The threshold is
+unchanged and still strict `> 0`.** This is a precision correction, not a wider
+bar, and no noise band was applied -- a margin of +0.0001 is arithmetically a pass
+and is not evidence of anything, so it is printed and the reader judges it.
+
+**NO VERDICT MOVED. ALL FOUR T3/T4 VERDICTS STILL FAIL**, on exact values:
+
+    nifty100  T3   2019-2022 -0.069722, 2023-2026 +0.002156   FAIL (early half)
+    nifty100  T4   only vol_win=40 negative, -0.014079        FAIL (one window)
+    midcap150 T3   2019-2022 -0.086723, 2023-2026 +0.069748   FAIL (sign flip)
+    midcap150 T4   +0.006043, -0.009866, +0.000313, -0.016173 FAIL (two windows)
+
+What changed is the description. T4 on nifty100 had been reporting three of four
+vol windows as failures when one genuinely fails.
+
+**T2 NOW REPORTS A MARGIN AND ONE OF THEM IS THIN.** T2's verdicts did not move
+either -- nifty100 3/3 PASS, midcap150 2/3 FAIL -- but the exact margins were not
+visible before:
+
+    nifty100   smallest margin +0.002444   PASS
+    midcap150  smallest margin -0.017129   FAIL
+
+nifty100's T2 passes on its tightest seed set by +0.0024 Sharpe. That is
+arithmetically a pass and is not evidence of much. It is printed rather than
+converted into a threshold, for the same reason no band was added anywhere else.
+
+Confirmed by a cold refit of both universes on 2026-09-22, 21.6 and 24.1 minutes,
+every exact figure above reproduced.
+
+**THESE FAILURES ARE PROPERTIES OF THE STRATEGY, NOT SIZING DEFECTS,** and are
+reported rather than repaired. Note `vol_win=60` is the shipping `VOL_WIN`, and on
+midcap150 it is genuinely negative in this engine too, -0.009866, which agrees
+with `validate_engine`'s -0.0043 in sign. The sub-period results do NOT agree
+between the two engines; see the entry above.
+
+---
+
 ## validate_engine's five failures are not engine bugs: inverse-vol's edge is not robust
 
 Investigated 2026-09-22, each of the five test-universe pairs separately. One test
