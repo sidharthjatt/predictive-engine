@@ -344,6 +344,132 @@ with capital, universe and data.
 
 ---
 
+## The participation cap has a third channel: it makes an unaffordable order affordable
+
+FOUND 2026-09-22 by running all 32 universe x arm cells under `--profile
+tradeable`. OPEN as a property of the profile; nothing is broken and nothing is
+being fixed. What is recorded is a transmission path the code did not document and
+the tree's language did not allow for.
+
+### THE TWO CHANNELS ALREADY DOCUMENTED
+
+`profiles.py` describes both, and both are about what happens to the cash a cap
+releases:
+
+    1. THE REMAINDER STAYS IN CASH. A shrunk order's unspent money is not
+       reallocated to the next name and is not carried to the next session.
+
+    2. FREED CASH REACHES THE TAIL OF THE BUY LOOP. The loop runs in
+       score-descending order, so shrinking an early oversized name leaves money
+       for names it used to drop -- measured as mean names held 7.60 -> 7.72 and
+       cash-short skips 131 -> 123 on midcap150 v3.
+
+### THE THIRD, WHICH IS NOT ABOUT THE REMAINDER AT ALL
+
+**A capped order can cost less than the cash on hand when the uncapped order cost
+more.** The shrink does not free money for a later name; it brings THIS name
+inside the budget. An order the research run refused for cash executes under the
+cap.
+
+Measured, nifty100 v1, 2019-01-30:
+
+    Both runs intend 3,373 VBL shares against a 2,312-share prior-20-session
+    median -- 145.9%, over the cap.
+
+    RESEARCH   needs Rs 158,161, has Rs 109,926
+               -> `cash short (before TC)`, no fill.
+
+    TRADEABLE  capped to 2,312 shares, Rs 108,410, has Rs 109,926
+               -> BUYS.
+
+The research run never holds VBL on that date. The capped run does. This is not
+channel 1 -- no remainder is involved, the order simply became payable. It is not
+channel 2 -- no later name is reached, the beneficiary is the capped order itself.
+
+### WHAT IT OVERTURNS
+
+**THE TRADEABLE PROFILE IS NOT A COST-ONLY TRANSFORM OF THE RESEARCH RUN.** It
+changes which trades happen, in both directions. A capped run can hold a position
+its research twin never opened, and can therefore finish ahead of it.
+
+**nifty100 v1 IS THE MEASURED CASE:** CAGR 25.77 -> 25.88, **+0.11**, with trades
+773 -> 771 and one bind. Direction, as a count: **of the 7 cells that diverge, 1
+has a positive CAGR delta and 6 negative. n = 32 cells over 8 universes, one
+arm-and-universe grid, measured 2026-09-22 at the backtest's Rs 10,00,000.** That
+is a count on one date and not a property of the cap, of the arms, or of the
+universes.
+
+### DIVERGENCE ACROSS THE WHOLE GRID, MEASURED RATHER THAN PREDICTED
+
+All 32 cells were run. `data diff` counts how many of the six data artefacts --
+`daily_decisions`, `daily_holdings`, `daily_ranking`, `daily_skipped`,
+`daily_summary`, `daily_trades` -- differ from the research twin. `DAILY_LOG` is
+excluded: it differs on every cell, on one line, where the artefact prints its own
+name over 59,061 identical ones.
+
+| universe | arm | data diff | cap rows | research | tradeable | dCAGR |
+|---|---|--:|--:|--:|--:|--:|
+| nifty500 | v1 | 6 | 2 | 37.04 | 36.84 | -0.20 |
+| nifty500 | v3 | 6 | 3 | 40.51 | 40.39 | -0.12 |
+| nifty100 | v1 | 6 | 1 | 25.77 | 25.88 | **+0.11** |
+| midcap100 | v1 | 6 | 1 | 33.30 | 33.27 | -0.03 |
+| midcap100 | v3 | 5 | 1 | 34.68 | 34.65 | -0.03 |
+| smallcap250 | v1 | 6 | 5 | 44.87 | 44.67 | -0.20 |
+| smallcap250 | v3 | 6 | 3 | 44.96 | 44.82 | -0.14 |
+
+**The other 25 cells are byte-identical on all six data artefacts, with zero
+`participation cap` rows.** midcap100 v3 shows 5 rather than 6 because its
+`daily_ranking` is unchanged: that cell's single bind did not alter which names
+were held at any logged decision date.
+
+nifty100 v1 is the cell the executed-fill predicate scored 0 and called a proven
+no-op. The reason it could not see it is this channel: the order that binds was
+never an executed research fill, because research could not afford it.
+
+### THIS IS A DATED MEASUREMENT, NOT A PROPERTY
+
+Carried forward: "This is a dated measurement, not a property. Capital, universe
+and data all move it. Count the `participation cap` rows in the run's own
+`daily_skipped` artefact before repeating either claim." The affordability channel
+fires where an intended order is both over the cap and over the cash. Both
+conditions move with capital, so a larger book relocates this entirely.
+
+---
+
+## A figure was nearly published that had not been read from anything
+
+NEAR MISS, 2026-09-22. Recorded because it was caught, not because it landed.
+
+Drafting the delta table for the entry above, nifty100 v1's CAGR was written as
+**"30.56 -> 30.46"**. Both numbers were invented. The cell had been run and its
+figures were on disk in `v34_comparison.csv` and
+`v34_comparison_v1_tradeable.csv`, and they are **25.77 -> 25.88**. The draft was
+checked against the artefacts before the commit and replaced.
+
+**THE RULE IT NEARLY BROKE: a figure in this repository is READ FROM THE ARTEFACT
+THAT PRODUCED IT, never recalled.** Not from memory of a similar run, not from a
+number seen earlier in the same session, not reconstructed from a pattern in the
+neighbouring rows.
+
+**THE INVENTED NUMBERS WERE PLAUSIBLE, AND WRONG IN THE DIRECTION THAT MATTERED.**
+Both sat in the range the other cells occupy. The invented delta was NEGATIVE,
+-0.10; the real one is POSITIVE, +0.11. It would have erased the only positive
+delta in the set -- the single observation that the affordability channel exists
+and that the tradeable profile is not cost-only. A fabrication that agreed with
+the surrounding rows would have removed the finding those rows exist to qualify.
+
+**SAME SHAPE AS THE FORCE-WITH-LEASE INSTANCE**, where an abbreviated git hash was
+expanded from memory rather than read from `git ls-remote` and the lease fired for
+the wrong reason. A value recalled instead of read is the class; the artefact
+being close at hand is what makes it tempting rather than what makes it safe.
+
+**NOTHING FABRICATED REACHED THE TREE.** This entry is the only record that it was
+written down at all, which is the reason for the entry: a near miss that leaves no
+trace is indistinguishable from never having happened, and the next one is written
+by someone who thinks it never has.
+
+---
+
 ## The participation cap was measured on two universes of eight, and it fires on six cells nobody had looked at
 
 MEASURED 2026-09-22 by `liquidity_participation.py`, over all 32 universe x arm
