@@ -107,8 +107,25 @@ headline figures belong in the record as DISTRIBUTIONS -- mean, spread, n and
 measurement date -- rather than as single numbers with the instability described
 in a separate entry that a reader may not reach.
 
-    nifty100    19.01 published    n=10 at sigma 0.01%, mean 20.72, sd 1.03
+    nifty100    19.01 published    n=10 at sigma 0.01%, mean 20.72, sd 1.03   SUPERSEDED
     midcap150   27.80 published    n=10 at sigma 0.01%, mean 29.88, sd 1.74
+
+**THE nifty100 MEAN ON THAT LINE IS WRONG, AND THE LINE IS LEFT IN PLACE.
+CORRECTED 2026-09-22.** The ten sigma = 0.01% draws in
+`diagnostics/price_noise_runs.csv` are 21.30, 19.32, 21.15, 19.38, 22.55, 21.45,
+19.84, 21.47, 20.50 and 20.60. They sum to 207.56 and average **20.76**, not
+20.72. Corrected line:
+
+    nifty100    19.01 published    n=10 at sigma 0.01%, mean 20.76, sd 1.03
+
+README.md's table has carried 20.76 since that block was written, so the two
+documents disagreed and the README was the correct one. That line is the only
+place this project states nifty100's perturbed mean as 20.72, and nothing was
+derived from it; the sd, the min, the max and midcap150's whole row all
+reproduce from the draws file. (`20.720` in `diagnostics/palette_ceiling.txt`
+and `-20.72` in `diagnostics/seed_noise.txt` are unrelated quantities.) The
+wrong line is kept rather than overwritten so a reader who quoted 20.72 can
+find it and see what replaced it.
 
 **This change is NOT made here.** It would rewrite every published figure in
 README.md, EXPERIMENTS.md and the v34 artefacts, and that is a decision about how
@@ -123,6 +140,110 @@ That is recorded because the failure mode -- a pre-registered test returning a
 clean negative from an intervention that never happened -- would have ended this
 investigation on nothing. The harness now captures the pinned panel's scorable row
 count and raises unless it equals the intersection.
+
+---
+
+## Measuring the six unmeasured universes is costed and deferred
+
+DECIDED 2026-09-22. Two of the eight universes carry a price-perturbation
+distribution; six carry a single run each. Extending the measurement to the six is
+**not being done now**, and this records the cost and the reason so the decision
+is on paper rather than forgotten.
+
+### WHY IT IS DEFERRED RATHER THAN SCHEDULED
+
+The pinned-mask counterfactual is unresolved. If the scorable-row channel turns
+out to carry the displacement, every spread measured before that answer lands
+would have to be re-measured against a different control. Spending twenty machine
+hours on distributions that a later finding could invalidate is the wrong order,
+and the order is the whole reason to write this down.
+
+### THE COST, AND WHAT THE ESTIMATE RESTS ON
+
+One draw is a full re-run: perturbed panel rebuilt, 10-seed ensemble refitted,
+backtest re-executed. The only direct measurements of that cost are the 52 runs
+already in `diagnostics/price_noise_runs.csv`:
+
+    nifty100    470,711 panel rows    15.33 min/draw   (mean of 26 runs)
+    midcap150   564,850 panel rows    17.17 min/draw   (mean of 26 runs)
+
+Fitted through those two points: **19.55 min per million panel rows, intercept
+6.13 min.**
+
+| universe | panel rows | min/draw | 10 draws |
+|---|--:|--:|--:|
+| nifty500 | 1,834,542 | 42.0 | 7.00 h |
+| nifty200 | 854,197 | 22.8 | 3.80 h |
+| nifty50 | 251,380 | 11.0 | 1.84 h |
+| midcap100 | 383,486 | 13.6 | 2.27 h |
+| midcap50 | 198,185 | 10.0 | 1.67 h |
+| smallcap250 | 798,981 | 21.7 | 3.62 h |
+
+**Six universes, ten draws each: 20.2 machine hours.**
+
+**TWO POINTS FIT A TWO-PARAMETER LINE WITH NOTHING LEFT OVER.** There is no
+residual, no held-out point and no error estimate, and nifty500 is 3.2x the
+largest panel the fit was taken on. Treat 20.2 h as an order of magnitude. The
+separate scoring-cost model in the eight-universe read -- 30.592 min per million
+rows, fitted on two and tested on two more, holding to 1.8% at 1.83M rows -- is
+the better-supported model, but it prices SCORING, not a whole draw, so it cannot
+be substituted here.
+
+**THE FIGURE THE DECISION WAS TAKEN ON WAS 16 HOURS, AND IT IS SUPERSEDED, NOT
+DELETED.** 16 h prices the four universes whose panel row counts the eight-universe
+cost table already carried -- nifty500, nifty200, midcap100, smallcap250 -- and
+omits nifty50 and midcap50, whose counts were read off their panel caches on
+2026-09-22. The four-universe total recomputes to 16.3 h, so the figure was right
+about what it covered. 20.2 h is the same measurement over all six.
+
+### WHAT IS NOT DEFERRED
+
+The LABELS are not. Every figure in the six universes' `v34_comparison.csv` now
+states n = 1 and its run date and points at the perturbation caveat, and the two
+cross-universe tables in `experiments/EXPERIMENTS.md` carry the same treatment.
+`results/v34_provenance.py` writes them and `diagnostics/v34_provenance.txt` is
+the kept copy. An unlabelled n = 1 figure reading like a stable number is the
+thing that was fixed; measuring the six is a separate spend.
+
+---
+
+## price_noise_measure is arm-general in name only
+
+FOUND 2026-09-22, NOT FIXED. `results/price_noise_measure.py` reads
+`arm_reg.ARMS["v2"]` as a literal in two places:
+
+    line 290   published_v2()   the identity-gate reference row
+    line 349   run_arm()        the arm actually backtested on the perturbed panel
+
+`run_arm` takes a universe and a data directory and no arm. **Its name says it
+runs an arm; it runs v2.** Every one of the 52 draws on disk is v2, and nothing in
+the module, its output or `diagnostics/price_noise_runs.csv` records which arm a
+row belongs to -- there is no arm column, because there is only ever one value.
+
+### WHAT A READER WOULD WRONGLY CONCLUDE
+
+That the perturbation spread is a property of the engine. It is a property of v2
+under perturbation. v1, v3, v4 and both buy & hold benchmarks have never been
+re-run under noise at any sigma, so **every gap figure quoted against a perturbed
+v2 has a frozen benchmark on its other side**, and no statement of the form "the
+arms move together" or "the benchmark absorbs it" has any measurement behind it.
+The 10-of-10 gap-sign count added to `experiments/EXPERIMENTS.md` on 2026-09-22
+carries this limit explicitly for the same reason.
+
+### WHY IT IS LOGGED RATHER THAN FIXED
+
+It is the blocker on the deferred six-universe spend recorded above, not on
+anything running now. Wiring the arm through is cheap -- thread a parameter from
+the CLI to both call sites and add an arm column to the draws file -- but the
+draws file would then hold rows whose arm is implicit for the first 52 and
+explicit after, and deciding how to handle that belongs with the spend, not ahead
+of it. Recording it now means the blocker is known when the spend is authorised
+rather than rediscovered inside it.
+
+**IT IS A CAPABILITY THAT WAS NEVER WIRED, NOT A REGRESSION.** The module has been
+v2-only since it was written; the defect is that its interface claims otherwise.
+That is the shape already recorded under "A CLASS: written, declared to be the
+fix, never wired".
 
 ---
 
