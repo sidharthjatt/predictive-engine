@@ -64,6 +64,7 @@ TOP_N, BUFFER = config.TOP_N, config.BUFFER
 # rest surfaces as a reconciliation failure elsewhere, not as a wrong
 # number here. Value unchanged at 0.0015.
 from slippage import SLIPPAGE  # noqa: E402
+import slippage as _sl  # noqa: E402
 START_CAPITAL = 1_000_000
 CASH_YIELD = 0.0        # no yield assumed on idle cash
 # BACKTEST WINDOW -- imported from config.py, the single definition.
@@ -96,11 +97,42 @@ _CAP_REQUIRED = object()
 _VOL20_REQUIRED = object()
 
 
+def _participation_limit(sym, dt, participation_cap, vol20):
+    """The cap in shares for one (symbol, date), or None when it does not apply.
+
+    ONE DEFINITION, THREE CALL SITES -- the BUY, the forced exit and the
+    rebalance exit. The cap was on the BUY path only until 2026-09-22, and the
+    obvious way to add the sell side is to write the same four lines twice more.
+    This repository has spent enough of its history on definitions that were
+    copied and then drifted; the cap's semantics live here.
+
+    `participation_cap` x the symbol's prior-20-session MEDIAN volume. Prior, so
+    it never uses the day's own volume. Median, so one block trade does not
+    licence a large fill. Returns None when no cap is selected, when no vol20 was
+    supplied, or when this symbol has no usable median on this date -- the caller
+    then transacts uncapped, which is the behaviour that shipped.
+    """
+    if participation_cap is None or vol20 is None:
+        return None
+    med = vol20.get(sym, {}).get(dt, float("nan"))
+    if med != med or med <= 0:
+        return None
+    return int(participation_cap * med), med
+
+
+def _median_volume(sym, dt, vol20):
+    """The prior-20-session median for the impact model, or None."""
+    if vol20 is None:
+        return None
+    med = vol20.get(sym, {}).get(dt, float("nan"))
+    return None if (med != med or med <= 0) else med
+
+
 def backtest_exposure(px, op, sc, dates, pc, mom20, port_vol=None,
                       mode="none", target_vol=None, audit=None, sizing="invvol",
                       const_expo=None, value_at_open=True, rebal=None,
                       funding="cash", participation_cap=_CAP_REQUIRED, vol20=_VOL20_REQUIRED,
-                      tax_enabled=False):
+                      tax_enabled=False, impact_k=None):
     """audit=None reproduces the original code path exactly: no overhead, and the
     official numbers are unchanged.
     Passing a dict with holdings/summary/trades/ranking/decisions/skipped keys logs
@@ -169,6 +201,22 @@ def backtest_exposure(px, op, sc, dates, pc, mom20, port_vol=None,
             "fraction of prior-20-session median volume under 'tradeable'. It had "
             "a None default, which meant a caller that omitted it silently "
             "measured the research profile whatever the run had selected.")
+    # THE SAME CONTRACT FOR THE IMPACT MODEL, CHECKED AT THE CALL. impact()
+    # raises MissingVolume per fill if the median is absent, which is correct but
+    # arrives 1,800 sessions in. A caller that passed a k and no volume series is
+    # wrong before the first bar, so it is told here.
+    if impact_k is not None and (vol20 is _VOL20_REQUIRED or vol20 is None):
+        import inspect as _insp
+        _f = _insp.stack()[1]
+        raise TypeError(
+            f"backtest_exposure(): impact_k={impact_k!r} was passed without "
+            f"vol20, from {_f.filename}:{_f.lineno}.\n"
+            f"  The size-sensitive rate is k * sqrt(qty / prior-20d median "
+            f"volume). Without vol20 there is no denominator, and the model "
+            f"CANNOT fall back to the flat rate -- that would put research "
+            f"arithmetic in an artefact labelled tradeable, which is the defect "
+            f"class this model exists inside.\n"
+            f"  Pass vol20=tradability.median_volume(...), or impact_k=None.")
     # THE OTHER HALF OF THE SAME CONTRACT. A cap with no volume series is not a
     # cap; it is research arithmetic with a tradeable label on the output. The
     # caller is named because the failure is silent at every other level -- the
@@ -266,8 +314,31 @@ def backtest_exposure(px, op, sc, dates, pc, mom20, port_vol=None,
                 pr = opens.get(s, np.nan)
                 if np.isnan(pr) or pr <= 0:
                     continue
-                pr *= (1 - SLIPPAGE)
-                q = int(shares[s]); tc = calc_tc(pr, q, "SELL")
+                # SYMMETRIC CAP -- same helper, same semantics as the BUY.
+                # Until 2026-09-22 SELLs were uncapped: an exit sold the whole
+                # holding whatever the symbol's median volume was, so a position
+                # the cap would not have let you BUILD could always be unwound in
+                # one session. What the cap cannot do is carry the remainder --
+                # the engine has no order state -- so an uncapped remainder STAYS
+                # HELD and is logged, rather than vanishing.
+                q = int(shares[s])
+                _capped = _participation_limit(s, dt, participation_cap, vol20)
+                _left = 0
+                if _capped is not None:
+                    _lim, _med = _capped
+                    if q > _lim:
+                        if audit is not None:
+                            audit["skipped"].append({"date": dt, "side": "SELL", "symbol": s,
+                                "reason": "participation cap",
+                                "detail": f"wanted {q:,} sh, capped to {_lim:,} "
+                                          f"({participation_cap:.0%} of prior-20d "
+                                          f"median {_med:,.0f}); remainder stays held"})
+                        _left = q - _lim
+                        q = _lim
+                if q < 1:
+                    continue
+                pr = _sl.sell_price(pr, q, _median_volume(s, dt, vol20), impact_k)
+                tc = calc_tc(pr, q, "SELL")
                 cash += q * pr - tc; cum_tc += tc; n_trades += 1
                 if ledger is not None:
                     ledger.sell(s, q, round(pr, 2), dt)
@@ -281,7 +352,10 @@ def backtest_exposure(px, op, sc, dates, pc, mom20, port_vol=None,
                     audit["skipped"].append({"date": dt, "side": "SELL", "symbol": s,
                         "reason": "forced exit: untradeable from next session",
                         "detail": f"no raw price row from {_nxt.date()}"})
-                del shares[s]
+                if _left:
+                    shares[s] = _left
+                else:
+                    del shares[s]
 
         if pending is not None:
             targets, keep = pending
@@ -293,8 +367,30 @@ def backtest_exposure(px, op, sc, dates, pc, mom20, port_vol=None,
                             audit["skipped"].append({"date": dt, "side": "SELL", "symbol": s,
                                 "reason": "no open price (NaN/<=0)", "detail": ""})
                         continue
-                    pr *= (1 - SLIPPAGE)
-                    q = int(shares[s]); tc = calc_tc(pr, q, "SELL")
+                    # SYMMETRIC CAP -- the same helper the BUY and the forced
+                    # exit use. A name the cap would not let you build can no
+                    # longer be unwound in one session either. The uncapped
+                    # remainder STAYS HELD and is logged; the engine has no order
+                    # state to carry it with.
+                    q = int(shares[s])
+                    _capped = _participation_limit(s, dt, participation_cap, vol20)
+                    _left = 0
+                    if _capped is not None:
+                        _lim, _med = _capped
+                        if q > _lim:
+                            if audit is not None:
+                                audit["skipped"].append({"date": dt, "side": "SELL",
+                                    "symbol": s,
+                                    "reason": "participation cap",
+                                    "detail": f"wanted {q:,} sh, capped to {_lim:,} "
+                                              f"({participation_cap:.0%} of prior-20d "
+                                              f"median {_med:,.0f}); remainder stays held"})
+                            _left = q - _lim
+                            q = _lim
+                    if q < 1:
+                        continue
+                    pr = _sl.sell_price(pr, q, _median_volume(s, dt, vol20), impact_k)
+                    tc = calc_tc(pr, q, "SELL")
                     cash += q * pr - tc; cum_tc += tc; n_trades += 1
                     if ledger is not None:
                         ledger.sell(s, q, round(pr, 2), dt)
@@ -302,7 +398,10 @@ def backtest_exposure(px, op, sc, dates, pc, mom20, port_vol=None,
                         audit["trades"].append({"date": dt, "action": "SELL", "symbol": s,
                             "qty": q, "price": round(pr, 2), "value": round(q*pr, 2),
                             "tc": round(tc, 2)})
-                    del shares[s]
+                    if _left:
+                        shares[s] = _left
+                    else:
+                        del shares[s]
             if targets:
                 # THE BOOK IS VALUED AT THE PRICE THE ORDERS FILL AT.
                 # `opens` is this morning's open -- the same price used two lines
@@ -366,7 +465,16 @@ def backtest_exposure(px, op, sc, dates, pc, mom20, port_vol=None,
                                 "reason": "untradeable: no raw price row",
                                 "detail": "inside a gap in the symbol's own history"})
                         continue
-                    pr *= (1 + SLIPPAGE)
+                    # SIZE AT THE BASE RATE, THEN CHARGE IMPACT ON THE SIZE.
+                    # The size-sensitive rate depends on q and q depends on the
+                    # rate, so the two cannot both be exact in one pass. The
+                    # order is stated rather than left to be inferred: quantity
+                    # is decided at the flat rate exactly as it always was, the
+                    # cap then shrinks it, and the fill price charges impact on
+                    # the quantity actually transacted. Under impact_k=None the
+                    # second step is identity and the arithmetic is unchanged.
+                    _raw_buy = pr
+                    pr = _sl.buy_price(_raw_buy, 0, None, None)
                     q = int((invest_val * w * f) // pr)
                     # PARTICIPATION CAP -- profiles.py. None at the default profile,
                     # so `q` is untouched and the published history is exact.
@@ -381,25 +489,32 @@ def backtest_exposure(px, op, sc, dates, pc, mom20, port_vol=None,
                     # THE REMAINDER STAYS IN CASH. Reallocating it to the next name
                     # would change selection; carrying it to the next session needs
                     # order state the engine does not have.
-                    if participation_cap is not None and vol20 is not None:
-                        _med = vol20.get(s, {}).get(dt, np.nan)
-                        if _med == _med and _med > 0:
-                            _lim = int(participation_cap * _med)
-                            if q > _lim:
-                                if audit is not None:
-                                    audit["skipped"].append({"date": dt, "side": "BUY",
-                                        "symbol": s,
-                                        "reason": "participation cap",
-                                        "detail": f"wanted {q:,} sh, capped to {_lim:,} "
-                                                  f"({participation_cap:.0%} of prior-20d "
-                                                  f"median {_med:,.0f})"})
-                                q = _lim
+                    _capped = _participation_limit(s, dt, participation_cap, vol20)
+                    if _capped is not None:
+                        _lim, _med = _capped
+                        if q > _lim:
+                            if audit is not None:
+                                audit["skipped"].append({"date": dt, "side": "BUY",
+                                    "symbol": s,
+                                    "reason": "participation cap",
+                                    "detail": f"wanted {q:,} sh, capped to {_lim:,} "
+                                              f"({participation_cap:.0%} of prior-20d "
+                                              f"median {_med:,.0f})"})
+                            q = _lim
                     if q < 1:
                         if audit is not None:
                             audit["skipped"].append({"date": dt, "side": "BUY", "symbol": s,
                                 "reason": "qty < 1 after sizing",
                                 "detail": f"target Rs {invest_val*w*f:,.0f} / price {pr:,.2f}"})
                         continue
+                    # IMPACT ON THE QUANTITY ACTUALLY TRANSACTED, before the cash
+                    # tests, so a buy that impact makes unaffordable is skipped as
+                    # cash-short rather than overdrawn. Identity when impact_k is
+                    # None. Raises MissingVolume rather than reverting to the flat
+                    # rate when the model is on and the median is absent.
+                    if impact_k is not None:
+                        pr = _sl.buy_price(_raw_buy, q, _median_volume(s, dt, vol20),
+                                           impact_k)
                     if cash < q * pr:
                         if audit is not None:
                             audit["skipped"].append({"date": dt, "side": "BUY", "symbol": s,

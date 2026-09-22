@@ -22,6 +22,49 @@ currently wrong.
 
 ---
 
+## The impact model cannot price the first day's fills, because no prior volume exists
+
+Found 2026-09-22 implementing step 2 of the execution-realism work. OPEN and
+BLOCKING: the size-sensitive model is implemented and correct, and it cannot
+complete a run until this is decided.
+
+`slippage.impact()` is `k * sqrt(qty / prior-20-session median volume)`. The
+denominator comes from `tradability.median_volume`, which is
+`rolling(20).median().shift(1)` -- so the first 20 sessions of each symbol have
+no value, and `median_volume` is called with `lo=BT_START_DATE`, which is the
+production call at `results/v34_common.py:521`, not an artefact of how it was
+probed here.
+
+**THE RAW DATA DOES NOT EXTEND BEFORE THE WINDOW.** Zero rows before
+`BT_START_DATE` in the prepared directory, so the lookback cannot simply be
+widened. There is nothing earlier to read.
+
+**THE GAP IS SMALL, BOUNDED AND ENTIRELY ON DAY ONE:**
+
+    nifty100    940 fills,  8 with no prior-20d median (0.9%), all BUY, all 2019-01-02
+    midcap150  1006 fills,  8 with no prior-20d median (0.8%), all BUY, all 2019-01-02
+
+Only the opening purchase is affected. The second rebalance is 20 sessions later,
+by which point the window is full, and no SELL is affected at all.
+
+**THE MODEL REFUSES RATHER THAN FALLING BACK**, which is deliberate and is why
+this is blocking rather than invisible. `slippage.MissingVolume` is raised per
+fill, and `backtest_exposure` raises at the call when `impact_k` is passed with no
+`vol20` at all. A flat-rate fallback for the unpriceable fills would put research
+arithmetic inside an artefact labelled tradeable -- the exact defect already
+recorded twice in this file, under the cap that was passed without vol20 and
+under the tradeable artefacts that were byte-identical to their research twins.
+
+**WHAT IS NOT AVAILABLE:** widening the lookback (no earlier data), and using the
+day's own volume (look-ahead on precisely the quantity being constrained, which
+is the rationale `median_volume` is built on).
+
+**NOT DECIDED HERE.** Whether day-one fills should carry a declared and counted
+exemption, or the impact window should start later, or something else, changes
+what is being measured and is not a call this file makes.
+
+---
+
 ## SLIPPAGE was defined in seven files that are cross-checked against each other -- CENTRALISED 2026-09-22
 
 Step 1 of the execution-realism work. **No behaviour changed**; this records the
