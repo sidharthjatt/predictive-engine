@@ -22,6 +22,110 @@ currently wrong.
 
 ---
 
+## The price-perturbation displacement is real, systematic, and not findable by channel decomposition
+
+CLOSED AS AN INVESTIGATION ON 2026-09-22, OPEN AS A PROPERTY OF THE PUBLISHED
+FIGURES. Five candidate channels have been measured, each against a rule fixed
+before its numbers existed. None carries the displacement. No sixth candidate is
+proposed, and that stopping point was fixed in advance rather than reached by
+exhaustion.
+
+### THE PHENOMENON, WHICH IS NOT IN DOUBT
+
+At sigma 0.01% -- rounding-level price noise -- the perturbed CAGR sits ABOVE the
+published figure far more often than chance allows: 43 of 50 perturbed cells
+across both live universes, one-sided p = 1.0e-07. nifty100's published 19.01 is
+0.31 points below the MINIMUM of its own ten draws. midcap150's 27.80 is not
+below its minimum (seed 909 returned 27.69) but its displacement stands, and its
+dispersion is wider -- sd 1.74 against 1.03.
+
+**The published figures are not the centres of their own distributions.** Nothing
+measured since has weakened that.
+
+### THE FIVE CHANNELS, AND THE RULE EACH FAILED
+
+**1. Ties at the selection boundary.** ZERO. Not one tie at the TOP_N=8 cut, none
+at BUFFER=16, no duplicate score anywhere in either ranking on any of 92
+rebalances. Nor is the boundary near-degenerate: median score gap at the cut
+2.8e-03 and 2.6e-03, minimum 3.7e-05 and 4.1e-05. The channel requires a tie to
+operate on and there are none.
+
+**2. Exact-equality branches on the live path.** Too small by three orders of
+magnitude. The breadth test `m > 0` fires on 6 of 8,528 cells (nifty100) and 9 of
+11,857 (midcap150), worth 0.00036 and 0.00041 of mean exposure. The inverse-vol
+guard `vs > 0.01` fires on 0 of 736 top-8 slots on both universes.
+
+**3. Sort stability.** Inert, proven three ways: quicksort and mergesort return an
+IDENTICAL full ranking on all 92 rebalances of both universes, check_all exits 0,
+and both published v34_comparison.csv files are byte-identical across the change.
+
+**4. Feature atoms under LightGBM split thresholds.** Rule fixed in advance:
+mechanism found only if row-weighted adjacency reaches 10%. Measured over
+21,604,949 and 21,872,385 realised splits: **2.9238% and 2.1312%**. Exact equality
+is 0.043% and 0.042%. Failed its rule with ample power.
+
+**5. Scorable-row admission.** Rule fixed in advance and committed before the run:
+mechanism found only if the pinned-mask counterfactual reduces the displacement by
+>= 50% on average. Perturbation admits 2,149-2,667 rows per cell. Pinning the
+scorable mask to the unperturbed set, inside build_panel so the z-score peer group
+is pinned too, gives **mean reduction -59.0%**. Per cell it scatters from -508.7%
+to +129.1%. A denominator-robust reading -- summed residual against summed
+displacement, which is immune to the near-zero denominator on midcap150 seed 303
+-- gives **+38.8%**, still under the rule. **5 of 6 pinned cells remain above
+baseline.** Failed its rule under both readings.
+
+### WHAT CHANNEL 5 DID SHOW, AND IT IS NOT A MECHANISM
+
+Pinning moves CAGR by 1 to 4 points, in BOTH directions -- nifty100 seed 303 went
+21.15 perturbed to 21.75 pinned, further from baseline, not nearer. So which rows
+are admitted to the scorable set has a large influence on the OUTCOME and no
+directional relationship with the DISPLACEMENT. The channel matters enormously for
+the value and carries none of the systematic shift.
+
+### THE PRECONDITION IS PRESENT AND THE TRANSMISSION IS NOT FOUND
+
+Panel degeneracy is real and large: consecutive closes are exactly equal on 9,313
+of 473,311 nifty100 rows (1.97%) and 17,224 of 572,399 midcap150 rows (3.01%),
+falling to 1,267 and 1,183 under sigma 0.01%. Cross-symbol equal closes on a date
+go from 9,366 cells to 0 and from 25,820 to 53. Noise demonstrably destroys
+something degenerate in the input. **What no measurement has found is the path
+from that to the return.**
+
+### THE CONCLUSION, STATED AS A LIMIT ON THE METHOD
+
+Decomposing the engine channel by channel has not located the mechanism and is not
+going to. Each channel was chosen as the strongest remaining candidate at the
+time, each was measured against a rule fixed beforehand, and each failed. The
+displacement is not thereby explained; it is unexplained, and this records that
+plainly rather than leaving an open hunt that would be resumed indefinitely.
+
+### WHAT IT IMPLIES FOR REPORTING -- STATED, NOT IMPLEMENTED
+
+A point estimate that is not the centre of its own distribution should not be
+carried as a point estimate. The consequence of everything above is that the
+headline figures belong in the record as DISTRIBUTIONS -- mean, spread, n and
+measurement date -- rather than as single numbers with the instability described
+in a separate entry that a reader may not reach.
+
+    nifty100    19.01 published    n=10 at sigma 0.01%, mean 20.72, sd 1.03
+    midcap150   27.80 published    n=10 at sigma 0.01%, mean 29.88, sd 1.74
+
+**This change is NOT made here.** It would rewrite every published figure in
+README.md, EXPERIMENTS.md and the v34 artefacts, and that is a decision about how
+the project reports itself, not a defect fix.
+
+### A NOTE ON THE FIRST RUN OF CHANNEL 5, WHICH WAS VOID
+
+Its harness patched `engine_core.build_panel` while `price_noise_measure` had
+bound the name into its own namespace at import, so every "pinned" arm re-ran the
+unpinned one and returned reduction +0.0% on all six cells to four decimal places.
+That is recorded because the failure mode -- a pre-registered test returning a
+clean negative from an intervention that never happened -- would have ended this
+investigation on nothing. The harness now captures the pinned panel's scorable row
+count and raises unless it equals the intersection.
+
+---
+
 ## Execution realism costs less than the model's own seed noise -- SWEPT 2026-09-22
 
 The cap-and-impact sweep, `results/impact_sweep.py`, full grid in
