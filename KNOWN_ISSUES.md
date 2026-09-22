@@ -22,6 +22,78 @@ currently wrong.
 
 ---
 
+## Execution realism costs less than the model's own seed noise -- SWEPT 2026-09-22
+
+The cap-and-impact sweep, `results/impact_sweep.py`, full grid in
+`diagnostics/impact_sweep_{universe}.csv`. Arm `breadth`/`invvol`, the shipping
+one. **No k is selected here and none should be read out of this entry.**
+
+**THE SENSITIVITY IS THE FINDING, AND IT IS THAT THERE IS ALMOST NONE.** Across
+the whole grid -- cap 1.00 to 0.10, k from 0.001 to 0.005, both universes -- the
+largest move in CAGR is **-0.42 points**, on midcap150 at the most aggressive
+setting. `EXPERIMENTS.md` entry 29 measures this project's run-to-run seed noise
+at **sd 0.97 to 2.14 CAGR points**. The entire execution-realism grid fits inside
+0.43 of the SMALLEST documented seed standard deviation.
+
+    nifty100    baseline CAGR 19.01     worst cell 18.78   (-0.23)
+    midcap150   baseline CAGR 27.80     worst cell 27.38   (-0.42)
+
+Sharpe moves 1.50 -> 1.48 and 1.90 -> 1.88. MaxDD is flat to within 0.08 points
+everywhere.
+
+**cap=1.00 IS AN EXACT NO-OP, ON THE RECORD RATHER THAN ASSUMED.** Final equity is
+identical to the research run to the paisa on both universes, zero binds on either
+side. That row is carried in the grid precisely so the no-op is evidence.
+
+**THE CAP AND THE SLIPPAGE, SEPARATELY, AS CAGR POINTS OFF THE RESEARCH BASELINE:**
+
+    nifty100        k=0.001  k=0.002  k=0.003  k=0.005
+      slippage only   -0.02    -0.03    -0.07    -0.13
+      cap 0.10 only   -0.13    -0.13    -0.13    -0.13
+      combined        -0.15    -0.16    -0.19    -0.23
+      interaction     +0.00    +0.00    +0.01    +0.03
+
+    midcap150       k=0.001  k=0.002  k=0.003  k=0.005
+      slippage only   -0.08    -0.14    -0.19    -0.30
+      cap 0.10 only   -0.19    -0.19    -0.19    -0.19
+      combined        -0.23    -0.28    -0.33    -0.42
+      interaction     +0.04    +0.05    +0.05    +0.07
+
+**THE SPLIT DEPENDS ON k AND ON THE UNIVERSE.** On nifty100 the cap dominates
+until k reaches 0.005, where the two are equal. On midcap150 slippage overtakes
+the cap at k=0.003. There is no single answer to "how much is cap and how much is
+slippage" -- it is the table, not a number.
+
+**THE INTERACTION IS POSITIVE, AND THAT IS MECHANISM, NOT NOISE.** Combined is
+always LESS costly than cap-plus-slippage summed, by up to +0.07. The cap shrinks
+orders, and a shrunk order pays less impact, so the two partly pay for each other.
+
+**THE CAP BINDS ALMOST NEVER, AND STILL COSTS MORE THAN LOW-k SLIPPAGE:**
+
+    nifty100    2 BUY + 1 SELL binds of  941 fills  (0.3%)  for -0.13 CAGR
+    midcap150   7 BUY + 3 SELL binds of 1009 fills  (1.0%)  for -0.19 CAGR
+
+Ten binds carrying 0.19 points means the binds are on large orders, not typical
+ones. A reader must not convert "the cap almost never binds" into "the cap costs
+almost nothing".
+
+**IMPACT EXEMPTIONS, EVERY CELL:** 8 per universe, all the opening session, per
+the entry below. `k applied to 932 of 940` and `998 of 1006` at cap 1.00; one
+more fill is priced at cap 0.10 because the cap adds a trade.
+
+**TRADE COUNT RISES UNDER THE CAP**, 940 -> 941 and 1006 -> 1009, which is the
+behaviour `profiles.py` already documents: shrinking an early oversized name frees
+cash for the tail the buy loop used to drop.
+
+**WHAT THIS DOES NOT SAY.** It does not say execution realism is unimportant, and
+it does not license dropping the cap or the impact model. It says that at THIS
+capital, on THESE two universes, over THIS window, the adjustment is smaller than
+the noise the published figure already carries -- and that the published figure's
+own instability is the larger problem. It is a dated measurement and it will rot
+with capital, universe and data.
+
+---
+
 ## The impact model cannot price the first day's fills, because no prior volume exists
 
 Found 2026-09-22 implementing step 2 of the execution-realism work. OPEN and

@@ -166,6 +166,20 @@ STANDING_GATE = (
     # This is a dated measurement of these runs, not a property of the cap. Capital,
     # universe and data all move it. Re-count the "participation cap" rows in the
     # run's own daily_skipped artefact rather than trusting this comment.
+    #
+    # THE BYTE-IDENTITY ABOVE IS A PROPERTY OF cap=1.00, NOT OF THE CAP. Re-measured
+    # 2026-09-22, and the sell side is now capped too, which it was not when the
+    # sentences above were written: at cap=1.00 the cap still binds on NO fill on
+    # either universe on either side (nifty100 940 fills, midcap150 1006), so the
+    # identity holds. AT cap=0.10 IT DOES NOT, BY DESIGN:
+    #
+    #     nifty100    2 BUY + 1 SELL binds of 941 fills   CAGR 19.01 -> 18.88
+    #     midcap150   7 BUY + 3 SELL binds of 1009 fills  CAGR 27.80 -> 27.61
+    #
+    # So a future run of these cells at a lower cap SHOULD differ from its research
+    # twin, and a diff there is the cap working rather than a regression. These two
+    # cells still run at the profile default; if that default moves, the expectation
+    # above moves with it and this comment must be re-measured, not edited.
     ("midcap150",  "v1",  "tradeable", "25 s", 20, "tradeable branch; cap inert 2026-09-20  [PARTIAL]"),
     ("midcap150",  "v2",  "tradeable", "25 s", 20, "the arm 12b reads; cap inert  [PARTIAL]"),
 )

@@ -158,6 +158,25 @@ UNGATED_NOTICE = (
 # universe and the data, all of which move. Re-measure by counting "participation
 # cap" rows in the run's own daily_skipped artefact; do not carry this sentence
 # forward on trust.
+# RE-MEASURED 2026-09-22, WITH THE SELL SIDE NOW CAPPED TOO. The notice below was
+# written when only BUYs were capped. Both sides are capped as of 2026-09-22, and
+# at cap=1.00 the cap still binds on NO fill of either universe on either side --
+# nifty100 940 fills, midcap150 1006, zero rows with reason "participation cap".
+# So the inertness above survived the sell side being added, and the
+# research/tradeable byte-identity it describes is a property of THE CAP VALUE,
+# not of the cap.
+#
+# AT cap=0.10 THE IDENTITY ENDS, BY DESIGN AND MEASURED:
+#
+#     nifty100    2 BUY + 1 SELL binds of 941 fills    CAGR 19.01 -> 18.88  (-0.13)
+#     midcap150   7 BUY + 3 SELL binds of 1009 fills   CAGR 27.80 -> 27.61  (-0.19)
+#
+# A tradeable artefact that differs from its research twin is then the cap doing
+# its job, not a regression. Anything reading the notice below as "tradeable always
+# equals research" is reading a statement about 1.00.
+#
+# The full grid, with per-cell bind counts and the cap/slippage split, is
+# diagnostics/impact_sweep_{universe}.csv from results/impact_sweep.py.
 CAP_INERT_NOTICE = (
     "CAP DID NOT BIND: measured 2026-09-20 at commit 7dd37d6, the participation "
     "cap fired on no fill of midcap150 v1 (n=850) or v2 (n=1006) -- zero rows with "
