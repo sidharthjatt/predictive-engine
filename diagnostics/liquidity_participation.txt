@@ -2,7 +2,7 @@
  LIQUIDITY PARTICIPATION -- order quantity as a share of median daily volume
  Measurement only. Nothing is changed.
 ============================================================================================================
- Generated 2026-09-22 at commit 23a4020.
+ Generated 2026-09-22 at commit 772fcbf.
  MEDIAN VOLUME IS tradability.median_volume, the one the participation cap
  consumes: rolling(20).median().shift(1) over the trading calendar, inside
  the backtest window, no volume>0 filter, no value until 20 sessions exist.
@@ -82,8 +82,14 @@
     midcap100    v3     1 of   682 fills (0.15%), max 140.0%
     smallcap250  v1     4 of   902 fills (0.44%), max 180.6%
     smallcap250  v3     2 of   910 fills (0.22%), max 231.3%
-  A cell is worth re-running because the cap CHANGES something in
-  it. How much it changes is the fill count, not the maximum.
+  THIS COLUMN IS A ONE-WAY TRIGGER, NOT A FORECAST AND NOT A
+  NO-OP PROOF. A non-zero count proves the cell diverges. It cannot
+  predict how many binds occur -- after the first bind the book
+  differs and later orders are different orders -- and A ZERO DOES
+  NOT PROVE A NO-OP: it counts EXECUTED fills, and the cap acts on
+  INTENDED orders. nifty100 v1 reads 0 here and binds once, on an
+  order research skipped for cash that the cap shrank into
+  affordability. Renamed from `fills_over_cap` 2026-09-22.
 
   THIS IS A DATED MEASUREMENT, NOT A PROPERTY. Capital, universe and
   data all move it. Count the `participation cap` rows in the run's own

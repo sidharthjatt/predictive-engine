@@ -396,18 +396,36 @@ backtest's Rs 10,00,000:
 | smallcap250 | v1 | 4 | 902 | 180.6% |
 | smallcap250 | v3 | 2 | 910 | 231.3% |
 
-**ALL SIX ARE v1 OR v3 -- THE 100%-INVESTED ARMS.** v2 and v4 are
-breadth-scaled, hold about 56% deployed, and take smaller slices per name; no v2
-or v4 cell on any universe reaches the cap. The highest either gets is
+**6 OF 6 CLEARING CELLS ARE v1 OR v3. n = 32 cells over 8 universes, measured
+2026-09-22.** That is the count and it is not a property of those arms. No v2 or
+v4 cell in this measurement reaches the cap; the highest either gets is
 smallcap250 v4 at 77.7%.
+
+**THE WORDING THIS REPLACES CLAIMED A MECHANISM AND IS KEPT. SUPERSEDED
+2026-09-22.** It read:
+
+> **ALL SIX ARE v1 OR v3 -- THE 100%-INVESTED ARMS.** v2 and v4 are
+> breadth-scaled, hold about 56% deployed, and take smaller slices per name; no v2
+> or v4 cell on any universe reaches the cap. The highest either gets is
+> smallcap250 v4 at 77.7%.
+
+"take smaller slices per name" is an explanation, offered from one date's count
+over eight universes and asserted as a property of how the arms are built. Nothing
+here measured slice size against arm construction. The count stands; the reason
+for it was not measured and is withdrawn. This is the shape recorded in this file
+as "A CLASS: a correct measurement over the set in hand, phrased as a property of
+the thing measured", and it is an instance of it committed in `772fcbf`.
 
 **ALL SIX ARE ON UNIVERSES THAT HAD NEVER BEEN MEASURED.** nifty500, midcap100
 and smallcap250. The two universes the file did cover stay under the cap on all
 four arms -- nifty100's worst is 35.4%, midcap150's is 70.9% -- so the earlier
 finding was not wrong, it was narrow.
 
-**26 CELLS ARE PROVEN NO-OPS AND SHOULD NOT BE RUN.** Their evidence is their
-participation figure in the grid, not a run. The spread across them is wide and
+**26 CELLS WERE CALLED PROVEN NO-OPS ON THIS EVIDENCE. THE CLAIM WAS WRONG AND
+25 OF THEM HELD ANYWAY. MEASURED 2026-09-22 BY RUNNING ALL 26.** The wording this
+replaces read: "26 CELLS ARE PROVEN NO-OPS AND SHOULD NOT BE RUN. Their evidence
+is their participation figure in the grid, not a run." It is superseded, and what
+replaced it is below under "The no-op argument was falsified by running it". The spread across them is wide and
 the grid carries it rather than a pass mark: nifty50 v2 tops out at 0.883% of
 the cap, smallcap250 v4 at 77.650%. The second is a no-op on this data and
 would not be one on data that moved it 23 points.
@@ -429,6 +447,114 @@ The predicate answers at today's capital on today's data and says nothing about 
 larger book. The grid's x20 column makes that concrete: at Rs 2,00,00,000 all
 four arms clear the cap on seven of the eight universes. The exception is
 nifty50, whose HIGHEST cell reaches only 50.0% at twenty times the capital.
+
+
+### THE NO-OP ARGUMENT WAS FALSIFIED BY RUNNING IT. 26 of 26 run 2026-09-22.
+
+The 26 cells the predicate called no-ops were all run under `--profile tradeable`.
+**25 reproduced their research twin. One did not, and the one that did not shows
+the argument was unsound rather than unlucky.**
+
+**THE 25.** Six data artefacts each -- `daily_decisions`, `daily_holdings`,
+`daily_ranking`, `daily_skipped`, `daily_summary`, `daily_trades` -- byte-identical
+to their research twins. The only file that differs is `DAILY_LOG_*.txt`, on one
+line, where the artefact prints its own name (`nifty50_v1` against
+`nifty50_v1_tradeable`) over 59,061 identical lines. Zero `participation cap` rows
+across all 25. That is the no-op, and it is now measured rather than argued.
+
+**THE ONE: nifty100 v1.** All seven artefacts differ. One `participation cap` row.
+The predicate read 0 for this cell, with a highest participation of 31.772% over
+765 fills -- nowhere near the cap.
+
+    2019-01-30, both runs intend 3,373 VBL shares against a 2,312-share
+    prior-20-session median. That is 145.9%, over the cap.
+
+    RESEARCH skips it: `cash short (before TC)`, "need Rs 158,161, have
+    Rs 109,926". The fill never reaches daily_trades.
+
+    TRADEABLE caps it to 2,312 shares, Rs 108,410, WHICH IT CAN AFFORD, and
+    buys.
+
+**THE CAP TURNED AN UNAFFORDABLE ORDER INTO AN AFFORDABLE ONE.** That is not a
+documented direction. `profiles.py` says the capped remainder stays in cash and is
+not reallocated, and the execution-realism entry explains rising trade counts by
+freed cash reaching the tail of the buy loop. This is neither: the shrink made the
+order itself fit the cash already there.
+
+**WHY THE PREDICATE COULD NOT SEE IT, AND IT IS NOT A BUG IN THE ARITHMETIC.** The
+column reads EXECUTED fills, from `daily_trades`. The cap acts on INTENDED orders.
+An order skipped for cash never becomes a fill, so a cell can have every executed
+fill under the cap and still carry an intended order over it. The first-divergence
+argument holds only if its premise is "no intended order exceeds the cap"; the
+predicate tested "no executed fill exceeds the cap", which is a strictly smaller
+set.
+
+**A CORRECT PREDICATE NEEDS INTENDED QUANTITIES AND NO ARTEFACT CARRIES THEM.**
+`daily_skipped` records the rupee need and the reason, not the share count. So this
+is not fixable by rereading what is on disk, and it is not fixed here. Until it is,
+**a zero in `research_fills_at_or_over_cap` means "no executed research fill
+clears the cap" and must not be reported as "this cell is a no-op"** -- which is
+exactly what it was reported as, in the wording superseded above.
+
+**WHAT THE COLUMN STILL SUPPORTS.** The one-way direction. A non-zero count proves
+the cell diverges, and all six such cells did. It was the converse that was
+claimed and is withdrawn.
+
+### THE CLEARING CELLS' BIND COUNTS DO NOT MATCH THE PREDICTION, AND SHOULD NOT
+
+Four of the six agree. smallcap250 v1 has 4 research fills at or over the cap and
+bound 5 times; v3 has 2 and bound 3. The extra binds are on purchases the research
+run never made -- ABREL 2021-06-07 in both, KIMS 2024-02-01 in v1 -- and one
+predicted bind did not occur, JBMA 2021-04-07, a research fill at 100.35% that
+shrank below the cap once the book had diverged. **Bind count is a property of the
+capped book, not the research book**, so a disagreement here is expected behaviour
+on any cell that diverges and is evidence about neither number.
+
+### THE SEVEN DELTAS, EXACT AND PAIRED
+
+Same seeds, same prices, same panel; the cap is applied inside the run. These are
+exact differences and carry no seed spread.
+
+| cell | CAGR% | Sharpe | MaxDD% | Trades | binds |
+|---|--:|--:|--:|--:|--:|
+| nifty500 v1 | 37.04 -> 36.84 (-0.20) | 1.48 -> 1.47 (-0.01) | -47.91 -> -48.47 (-0.56) | 940 -> 942 | 2 |
+| nifty500 v3 | 40.51 -> 40.39 (-0.12) | 1.40 -> 1.40 (0.00) | -62.29 -> -62.29 (0.00) | 948 -> 948 | 3 |
+| midcap100 v1 | 33.30 -> 33.27 (-0.03) | 1.42 -> 1.42 (0.00) | -38.69 -> -38.70 (-0.01) | 712 -> 714 | 1 |
+| midcap100 v3 | 34.68 -> 34.65 (-0.03) | 1.28 -> 1.28 (0.00) | -45.61 -> -45.62 (-0.01) | 690 -> 690 | 1 |
+| smallcap250 v1 | 44.87 -> 44.67 (-0.20) | 1.78 -> 1.78 (0.00) | -40.95 -> -41.09 (-0.14) | 910 -> 908 | 5 |
+| smallcap250 v3 | 44.96 -> 44.82 (-0.14) | 1.63 -> 1.63 (0.00) | -41.07 -> -41.08 (-0.01) | 918 -> 922 | 3 |
+| nifty100 v1 *(missed by the predicate)* | 25.77 -> 25.88 (**+0.11**) | 1.26 -> 1.26 (0.00) | -36.03 -> -36.05 (-0.01) | 773 -> 771 | 1 |
+
+**nifty100 v1 IS THE ONLY CELL WHERE THE CAP RAISED CAGR**, and it is the cell the
+predicate missed. The other six are all negative, largest -0.20 points. A cap that
+can make an order affordable can buy something the research run did not, and the
+sign of that is not fixed by the cap's direction.
+
+The -0.20 is against the smallest documented seed sd of 0.968 -- but that
+comparison is about the LEVEL these deltas sit on, not about the deltas, which are
+exact.
+
+### smallcap250 v1's TRADE COUNT FELL, AND THE FALL IS EXPLAINED
+
+910 -> 908, against every other cell rising or holding, and against the rising
+direction the execution-realism entry documents. Exactly one round trip is missing
+and nothing else changed: AAVAS, bought 2020-01-23 and sold 2020-02-19 in
+research, absent from both sides of the capped run. The trade sets
+are otherwise identical as (date, action, symbol).
+
+    2020-01-23  AAVAS needs Rs 101,271.
+      RESEARCH  has Rs 101,408 -> buys.
+      TRADEABLE has Rs 100,573 -> `cash short (before TC)`, skipped.
+
+Rs 835 short. AAVAS appears in the capped run's `daily_skipped` with that reason
+and appears in the research run's not at all, so the fall is the cap's, through the
+book it changed.
+
+**WHAT IS NOT TRACED: why the capped book held LESS cash on that date.** Capping a
+buy leaves more cash at the moment it fires, which is the documented direction. The
+path from the 2019-01-30 ELGIEQUIP bind to Rs 835 less cash on 2020-01-23 runs
+through a year of different positions and was not followed. No reason is offered
+for it here.
 
 ---
 
