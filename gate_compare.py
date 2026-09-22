@@ -206,11 +206,16 @@ STANDING_GATE = (
 # written into v34_params{SFX}.json. Research artefacts are untouched by it, which
 # the standing gate proves.
 #
-# THAT SAME NOTICE NOW ALSO CARRIES profiles.CAP_INERT_NOTICE, so a reader who
-# meets a tradeable artefact is told in the artefact that its cap did not bind on
-# 2026-09-20 and that it is not, on that date, a capped result. A green tradeable
-# cell means "the cap is applied and replayed correctly" -- and on these runs
-# applying it changed nothing.
+# THAT SAME NOTICE USED TO CARRY profiles.CAP_INERT_NOTICE. SUPERSEDED 2026-09-22.
+# This comment read: "so a reader who meets a tradeable artefact is told in the
+# artefact that its cap did not bind on 2026-09-20 and that it is not, on that
+# date, a capped result ... on these runs applying it changed nothing." That was
+# true of the two universes it was written from and false of six cells run on
+# 2026-09-22, over which the banner printed CAP DID NOT BIND while the cap bound.
+# The stored claim is deleted and profiles.cap_report() now counts the
+# `participation cap` rows out of the run's own daily_skipped instead. A green
+# tradeable cell still means "the cap is applied and replayed correctly" and
+# whether applying it changed anything is a per-run measurement, not a property.
 #
 # Parked until after the collapse by explicit decision: it is the third instance of
 # one missing naming authority, and fixing it at the call site would add a fourth

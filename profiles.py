@@ -177,16 +177,77 @@ UNGATED_NOTICE = (
 #
 # The full grid, with per-cell bind counts and the cap/slippage split, is
 # diagnostics/impact_sweep_{universe}.csv from results/impact_sweep.py.
-CAP_INERT_NOTICE = (
-    "CAP DID NOT BIND: measured 2026-09-20 at commit 7dd37d6, the participation "
-    "cap fired on no fill of midcap150 v1 (n=850) or v2 (n=1006) -- zero rows with "
-    "reason 'participation cap' in the run's daily_skipped artefact, highest "
-    "participation 0.709 and 0.345 against a cap of 1.00 -- and every midcap150 "
-    "tradeable artefact is byte-identical to its research twin. nifty100 is "
-    "recorded inert too. These are not capped results; they are research results "
-    "under a tradeable filename. Count the 'participation cap' rows in THIS run's "
-    "daily_skipped artefact before repeating that."
-)
+# CAP_INERT_NOTICE WAS A STORED CLAIM AND IS GONE. SUPERSEDED 2026-09-22.
+#
+# IT READ, VERBATIM:
+#
+#     "CAP DID NOT BIND: measured 2026-09-20 at commit 7dd37d6, the participation
+#     cap fired on no fill of midcap150 v1 (n=850) or v2 (n=1006) -- zero rows with
+#     reason 'participation cap' in the run's daily_skipped artefact, highest
+#     participation 0.709 and 0.345 against a cap of 1.00 -- and every midcap150
+#     tradeable artefact is byte-identical to its research twin. nifty100 is
+#     recorded inert too. These are not capped results; they are research results
+#     under a tradeable filename. Count the 'participation cap' rows in THIS run's
+#     daily_skipped artefact before repeating that."
+#
+# WHY IT WAS REMOVED RATHER THAN EDITED. On 2026-09-22 six tradeable cells were
+# run in which the cap DID bind -- nifty500 v1 and v3, midcap100 v1 and v3,
+# smallcap250 v1 and v3 -- and this banner printed "CAP DID NOT BIND" over every
+# one of them. Its last sentence told the reader to count the rows themselves,
+# which is honest and is not what a reader takes from a headline in exclamation
+# marks.
+#
+# THIS IS THE STALE-ASSERTION CLASS, THIRD INSTANCE. gate_compare's register
+# described its cells as cap-binding after they stopped being so, and this notice
+# was itself written to correct that. A measurement about two universes, stored as
+# a sentence, printed over runs of universes it never measured, is the same defect
+# one turn later. The cure is not a better sentence: a banner that can be wrong
+# about the run it heads must not be a stored claim at all.
+#
+# WHAT REPLACED IT: cap_report() below, which reads THIS run's own daily_skipped
+# artefacts and reports what they contain. The one thing still stored is
+# UNGATED_NOTICE, which is a property of the tree -- no gate cell covers this
+# profile -- and not a measurement of any run.
+
+# WHICH ARM OWNS WHICH FILENAME. v2 is the shipping arm and its artefacts carry no
+# arm token; this is the project-wide convention, not an omission.
+_ARM_TOKEN = {"v1": "_v1", "v2": "", "v3": "_v3", "v4": "_v4"}
+
+
+def cap_report(cells):
+    """What the participation cap actually did, read from this run's artefacts.
+
+    `cells` is an iterable of (universe_tag, arm_name). Returns a list of lines.
+
+    NOTHING HERE IS STORED. Every number is counted out of the
+    daily_skipped_<tag>[_<arm>]_tradeable.csv this run just wrote. A cell whose
+    artefact is absent is reported absent rather than assumed inert -- that is the
+    distinction the notice this replaces could not make.
+    """
+    import csv
+    from pathlib import Path
+    from universes.registry import REGISTRY
+
+    if is_default():
+        return []
+    out, total, unread = [], 0, 0
+    for tag, arm in cells:
+        f = (Path(REGISTRY[tag].metrics_dir)
+             / f"daily_skipped_{tag}{_ARM_TOKEN[arm]}_{selected()}.csv")
+        if not f.exists():
+            out.append(f"    {tag} {arm}: daily_skipped artefact not written "
+                       f"({f.name}) -- NOT MEASURED, not inert")
+            unread += 1
+            continue
+        n = sum(1 for r in csv.DictReader(f.open(newline=""))
+                if r["reason"].strip().lower() == "participation cap")
+        total += n
+        out.append(f"    {tag} {arm}: {n} fill(s) capped"
+                   f"{'' if n else '  -- cap inert on this cell, this run'}")
+    head = (f" PARTICIPATION CAP, COUNTED FROM THIS RUN'S OWN daily_skipped: "
+            f"{total} capped fill(s) across {len(out) - unread} cell(s)"
+            + (f", {unread} NOT MEASURED" if unread else ""))
+    return [head] + out
 
 
 def gate_status():
@@ -196,7 +257,12 @@ def gate_status():
     against, so it returns None and nothing is added to a research artefact -- the
     byte-identical gate depends on that.
     """
-    return None if is_default() else f"{UNGATED_NOTICE} {CAP_INERT_NOTICE}"
+    return None if is_default() else (
+        f"{UNGATED_NOTICE} THE CAP'S EFFECT ON THIS RUN IS NOT ASSERTED HERE: it "
+        f"is counted from this run's own daily_skipped artefacts and printed in "
+        f"the closing banner. No stored sentence in this file says whether the cap "
+        f"bound, because one used to and it was wrong about six runs on "
+        f"2026-09-22.")
 
 
 def suffix():

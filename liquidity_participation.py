@@ -212,6 +212,54 @@ def predicate_grid():
     columns are headroom, not a second verdict: participation scales linearly with
     capital only while the strategy's decisions are unchanged, and at a size where
     participation is prohibitive a real implementation would trade differently.
+
+    WHAT `research_fills_at_or_over_cap` SUPPORTS, AND WHAT IT DOES NOT.
+    RENAMED FROM `fills_over_cap` ON 2026-09-22. The old name is SUPERSEDED and is
+    recorded here rather than removed, because a grid carrying it was published and
+    read.
+
+        IT SUPPORTS: "this cell diverges from its research twin". One research
+        fill at or over the cap guarantees a bind, because the two runs are
+        identical up to their first divergence, so that order is placed identically
+        and binds.
+
+        IT DOES NOT SUPPORT THE CONVERSE, AND THAT WAS CLAIMED HERE AND IS WRONG.
+        SUPERSEDED 2026-09-22, THE SAME DAY IT WAS WRITTEN. This block read:
+        "...none guarantees the runs never diverge at all." It does not.
+
+        MEASURED COUNTEREXAMPLE: nifty100 v1. Highest participation over its 765
+        research fills is 31.772%, nowhere near the cap, so this column reads 0 and
+        the cell was recorded as a proven no-op. Running it bound once and changed
+        all seven artefacts. On 2019-01-30 both runs INTEND 3,373 VBL shares
+        against a 2,312-share median -- 145.9%, over the cap. Research skips it,
+        `cash short (before TC)`: it needs Rs 158,161 and has Rs 109,926, so the
+        fill never reaches daily_trades and this column never sees it. The capped
+        run shrinks the same order to 2,312 shares, Rs 108,410, WHICH IT CAN
+        AFFORD, and buys. The cap turned an unaffordable order into an affordable
+        one.
+
+        SO THE SET THIS COLUMN READS IS THE WRONG SET. It reads EXECUTED fills,
+        from daily_trades. The cap acts on INTENDED orders, and an intended order
+        skipped for cash can exceed the cap while every executed fill sits under
+        it. A correct predicate needs intended quantities, which no artefact
+        currently carries -- daily_skipped records the rupee need and the reason,
+        not the share count. Until it does, a 0 in this column means "no executed
+        research fill clears the cap", which is NOT the same as "this cell is a
+        no-op", and must not be reported as one.
+
+        IT DOES NOT SUPPORT: "the capped run will bind N times". Bind count is a
+        property of the CAPPED book, not the research book. After the first bind
+        the two books differ -- a shrunk order frees cash the research buy loop had
+        spent, so later orders are DIFFERENT ORDERS. Measured 2026-09-22 on
+        smallcap250: v1 has 4 research fills at or over the cap and the capped run
+        bound 5 times, v3 has 2 and bound 3. The extra binds were on purchases the
+        research run never made (ABREL 2021-06-07 in both, KIMS 2024-02-01 in v1),
+        and one predicted bind did not occur (JBMA 2021-04-07, a research fill at
+        100.35%, shrank below the cap once the book had diverged).
+
+        SO THE COLUMN IS A TRIGGER, NOT A FORECAST. A disagreement between it and a
+        run's own `participation cap` row count is expected behaviour on any cell
+        that diverges, and is NOT evidence that either is wrong.
     """
     rows = []
     for tag, mdir, data_dir in universes():
@@ -220,8 +268,10 @@ def predicate_grid():
             if f is None or not len(f):
                 rows.append({"universe": tag, "arm": arm, "fills": 0,
                              "fills_with_median": 0, "max_part_pct": np.nan,
-                             "p99_part_pct": np.nan, "fills_over_cap": 0,
-                             "pct_fills_over_cap": np.nan, "max_x5": np.nan,
+                             "p99_part_pct": np.nan,
+                             "research_fills_at_or_over_cap": 0,
+                             "pct_research_fills_at_or_over_cap": np.nan,
+                             "max_x5": np.nan,
                              "max_x20": np.nan, "cap_can_fire": "NO FILLS"})
                 continue
             part = (f["qty"] / f["med20"] * 100).replace([np.inf, -np.inf], np.nan)
@@ -233,11 +283,12 @@ def predicate_grid():
                 "fills_with_median": len(part),
                 "max_part_pct": round(mx, 3),
                 "p99_part_pct": round(float(part.quantile(.99)), 3),
-                # HOW MANY FILLS THE CAP WOULD TOUCH, not just whether any. A cell
-                # where it fires on 1 of 932 and one where it fires on 90 are both
-                # "YES" and are not the same run to re-execute.
-                "fills_over_cap": over,
-                "pct_fills_over_cap": round(over / len(part) * 100, 3),
+                # RESEARCH FILLS AT OR OVER THE CAP. Renamed from `fills_over_cap`
+                # on 2026-09-22; the old name is SUPERSEDED, not deleted, and the
+                # reason is in the block above `predicate_grid`.
+                "research_fills_at_or_over_cap": over,
+                "pct_research_fills_at_or_over_cap":
+                    round(over / len(part) * 100, 3),
                 "max_x5": round(mx * 5, 3), "max_x20": round(mx * 20, 3),
                 "cap_can_fire": "YES" if mx >= CAP_PCT else "no"})
     return pd.DataFrame(rows)
@@ -265,7 +316,7 @@ def print_grid(g):
             continue
         print(f"  {r['universe']:<13}{r['arm']:<5}{int(r['fills']):>7}"
               f"{int(r['fills_with_median']):>10}{r['max_part_pct']:>11.3f}%"
-              f"{r['p99_part_pct']:>11.3f}%{int(r['fills_over_cap']):>10}"
+              f"{r['p99_part_pct']:>11.3f}%{int(r['research_fills_at_or_over_cap']):>10}"
               f"{r['max_x20']:>10.3f}%  {r['cap_can_fire']}")
     live = g[g["fills"] > 0]
     fire = live[live["cap_can_fire"] == "YES"]
@@ -276,11 +327,17 @@ def print_grid(g):
         print("  THE CELLS THAT CLEAR, AND HOW MANY FILLS THE CAP TOUCHES IN EACH:")
         for _, r in fire.iterrows():
             print(f"    {r['universe']:<13}{r['arm']:<4}"
-                  f"{int(r['fills_over_cap']):>4} of "
+                  f"{int(r['research_fills_at_or_over_cap']):>4} of "
                   f"{int(r['fills_with_median']):>5} fills "
-                  f"({r['pct_fills_over_cap']:.2f}%), max {r['max_part_pct']:.1f}%")
-        print("  A cell is worth re-running because the cap CHANGES something in")
-        print("  it. How much it changes is the fill count, not the maximum.")
+                  f"({r['pct_research_fills_at_or_over_cap']:.2f}%), max {r['max_part_pct']:.1f}%")
+        print("  THIS COLUMN IS A ONE-WAY TRIGGER, NOT A FORECAST AND NOT A")
+        print("  NO-OP PROOF. A non-zero count proves the cell diverges. It cannot")
+        print("  predict how many binds occur -- after the first bind the book")
+        print("  differs and later orders are different orders -- and A ZERO DOES")
+        print("  NOT PROVE A NO-OP: it counts EXECUTED fills, and the cap acts on")
+        print("  INTENDED orders. nifty100 v1 reads 0 here and binds once, on an")
+        print("  order research skipped for cash that the cap shrank into")
+        print("  affordability. Renamed from `fills_over_cap` 2026-09-22.")
     if not len(fire):
         print("  NO CELL REACHES THE CAP. Every tradeable run of these cells would")
         print("  reproduce its research run, so none is worth executing, and that is")

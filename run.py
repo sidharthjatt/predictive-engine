@@ -813,6 +813,13 @@ def execute(plan, args):
     if _gs2:
         print("!" * 90)
         print(f" PROFILE '{_prof.selected()}' -- {_gs2}")
+        # AND WHAT THE CAP ACTUALLY DID, COUNTED FROM THE ARTEFACTS THIS RUN JUST
+        # WROTE. Only at the end: at the start banner the files do not exist yet,
+        # and a start-of-run claim about them would be either stale or invented,
+        # which is the defect profiles.py records where CAP_INERT_NOTICE used to be.
+        for _line in _prof.cap_report(
+                [(u.tag, a.name) for u, a in plan["arm_runs"]]):
+            print(_line)
         print("!" * 90, flush=True)
     collect_run_folder(plan, args, t_start)
     return 0
