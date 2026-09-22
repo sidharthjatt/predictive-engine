@@ -272,7 +272,7 @@ fix, never wired".
 
 ---
 
-## Execution realism costs less than the model's own seed noise -- SWEPT 2026-09-22
+## Execution realism costs less than the model's own seed noise -- swept at cap 0.10 to 1.00, k 0.001 to 0.005, n = 2 universes on the shipping arm, 2026-09-22
 
 The cap-and-impact sweep, `results/impact_sweep.py`, full grid in
 `diagnostics/impact_sweep_{universe}.csv`. Arm `breadth`/`invvol`, the shipping
@@ -318,7 +318,7 @@ slippage" -- it is the table, not a number.
 always LESS costly than cap-plus-slippage summed, by up to +0.07. The cap shrinks
 orders, and a shrunk order pays less impact, so the two partly pay for each other.
 
-**THE CAP BINDS ALMOST NEVER, AND STILL COSTS MORE THAN LOW-k SLIPPAGE:**
+**AT cap 0.10 ON THESE TWO UNIVERSES, THE CAP BINDS ALMOST NEVER AND STILL COSTS MORE THAN LOW-k SLIPPAGE. n = 2 universes, shipping arm, 2026-09-22:**
 
     nifty100    2 BUY + 1 SELL binds of  941 fills  (0.3%)  for -0.13 CAGR
     midcap150   7 BUY + 3 SELL binds of 1009 fills  (1.0%)  for -0.19 CAGR
@@ -326,6 +326,16 @@ orders, and a shrunk order pays less impact, so the two partly pay for each othe
 Ten binds carrying 0.19 points means the binds are on large orders, not typical
 ones. A reader must not convert "the cap almost never binds" into "the cap costs
 almost nothing".
+
+**AND MUST NOT CONVERT IT INTO "THE CAP ONLY COSTS" EITHER. ADDED 2026-09-23.**
+The sentence above warns in one direction because at cap 0.10 on these two
+universes every bind was a cost. Both directions are now measured. A rare bind can
+cost more than its count suggests, and **a rare bind can also GAIN**: nifty100 v1
+at cap 1.00 binds once, on VBL on 2019-01-30, and finishes AHEAD of its research
+twin -- CAGR 25.77 -> 25.88, +0.11. The order was one research skipped for cash at
+Rs 158,161 against Rs 109,926 on hand; capped to Rs 108,410 it became payable and
+executed. See "The participation cap has a third channel". Holding one warning
+without its mirror is how the sign came to be presumed here in the first place.
 
 **IMPACT EXEMPTIONS, EVERY CELL:** 8 per universe, all the opening session, per
 the entry below. `k applied to 932 of 940` and `998 of 1006` at cap 1.00; one
@@ -399,6 +409,10 @@ arm-and-universe grid, measured 2026-09-22 at the backtest's Rs 10,00,000.** Tha
 is a count on one date and not a property of the cap, of the arms, or of the
 universes.
 
+It is the only cell of the seven that finishes ahead, and it is not the only cell
+carrying this channel -- see the classification below, where 3 of the 7 carry it
+and two of those three finish behind.
+
 ### DIVERGENCE ACROSS THE WHOLE GRID, MEASURED RATHER THAN PREDICTED
 
 All 32 cells were run. `data diff` counts how many of the six data artefacts --
@@ -425,6 +439,44 @@ were held at any logged decision date.
 nifty100 v1 is the cell the executed-fill predicate scored 0 and called a proven
 no-op. The reason it could not see it is this channel: the order that binds was
 never an executed research fill, because research could not afford it.
+
+### HOW MANY OF THE SEVEN ARE CHANNEL 3, COUNTED 2026-09-23
+
+Every `participation cap` row in the seven diverging cells was classified by what
+the RESEARCH run did with the same (date, symbol): executed it (channels 1-2, a
+plain bind on an order both runs could afford), or skipped it `cash short`
+(channel 3, an order only the capped run could afford).
+
+| cell | binds | channel 1-2 | channel 3 | dCAGR |
+|---|--:|--:|--:|--:|
+| nifty500 v1 | 2 | 2 | 0 | -0.20 |
+| nifty500 v3 | 3 | 3 | 0 | -0.12 |
+| nifty100 v1 | 1 | 0 | **1** | **+0.11** |
+| midcap100 v1 | 1 | 1 | 0 | -0.03 |
+| midcap100 v3 | 1 | 1 | 0 | -0.03 |
+| smallcap250 v1 | 5 | 3 | **2** | -0.20 |
+| smallcap250 v3 | 3 | 2 | **1** | -0.14 |
+
+**3 of the 7 diverging cells contain at least one channel-3 bind, and 4 of the 16
+binds across them are channel 3. n = 32 cells over 8 universes at the backtest's
+Rs 10,00,000, classified 2026-09-23 from runs of 2026-09-22.** Counts on one date.
+Nothing here says whether channel 3 is rare, and three instances across two
+universes is not a base rate.
+
+**CHANNEL 3 DOES NOT IMPLY A GAIN.** It appears in three cells and two of them
+finish BEHIND their research twins -- smallcap250 v1 at -0.20 and v3 at -0.14.
+Only nifty100 v1 finishes ahead. The channel explains how a capped run can buy
+something its twin could not; it does not decide what that purchase is worth.
+
+**THE FOUR CHANNEL-3 BINDS, NAMED.** nifty100 v1 VBL 2019-01-30; smallcap250 v1
+ABREL 2021-06-07 and KIMS 2024-02-01; smallcap250 v3 ABREL 2021-06-07.
+
+**THIS ALSO SETTLES THE BIND-COUNT DISAGREEMENT RECORDED BELOW**, and corrects how
+it was described. smallcap250 v1 and v3 bound more often than the predicate's
+count of research fills at or over the cap, and the extra binds were called
+"purchases the research run never made". They are more specific than that: the
+research run INTENDED them and skipped them for cash. They are channel-3 binds, and
+an executed-fill predicate cannot see them by construction.
 
 ### THIS IS A DATED MEASUREMENT, NOT A PROPERTY
 
