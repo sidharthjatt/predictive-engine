@@ -92,7 +92,7 @@
 
 
   INPUT READ (gitignored; holds whatever last wrote it):
-    midcap150  /Users/sidharthchoudhary/Downloads/algo_trading_project/nautilus/reports/midcap150/v2/fills.csv written 2026-09-22 11:44  (1,006 fills)
-    nifty100   /Users/sidharthchoudhary/Downloads/algo_trading_project/nautilus/reports/nifty100/v2/fills.csv written 2026-09-22 11:44  (940 fills)
+    midcap150  /Users/sidharthchoudhary/Downloads/algo_trading_project/nautilus/reports/midcap150/v2/fills.csv written 2026-09-22 11:48  (1,006 fills)
+    nifty100   /Users/sidharthchoudhary/Downloads/algo_trading_project/nautilus/reports/nifty100/v2/fills.csv written 2026-09-22 11:48  (940 fills)
   ungated, reported only: 4 fill(s) not matching the day's open exactly.
   RESULT: PASS -- 0 fills executed at a close and 0 fell off the trading calendar, across 2 universe(s).

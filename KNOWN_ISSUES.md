@@ -22,6 +22,49 @@ currently wrong.
 
 ---
 
+## SLIPPAGE was defined in seven files that are cross-checked against each other -- CENTRALISED 2026-09-22
+
+Step 1 of the execution-realism work. **No behaviour changed**; this records the
+duplication and what it would have cost.
+
+`SLIPPAGE = 0.0015` was written out seven times:
+
+    results/test_exposure.py:61        results/engine_core.py:140
+    results/make_daily_log.py:37       results/check_b_exec_timing.py:44
+    nautilus/nt_run.py:73              nautilus/nt_attribution.py:64
+    depth_compare.py:40                (derived from nt_run, not a definition)
+
+nt_run's carried the comment "matches SLIPPAGE in results/test_exposure.py" --
+a duplicate admitting it is one. `bh_lots_after_tax.py` imports it from
+test_exposure and inherits whatever that file says.
+
+**WHY THIS ONE IS WORSE THAN AN ORDINARY DUPLICATE.** These files are engines that
+are CROSS-CHECKED AGAINST EACH OTHER. `nt_verify` reconciles the Nautilus port
+against `nt_attribution` and against `test_exposure`'s holdings; `make_daily_log`
+reconciles a cash identity against the same fills; `check_b_exec_timing` asserts
+fill prices. A value changed in one and not the rest does not produce a wrong
+number in that file. It produces a reconciliation failure in a different file,
+which is the shape this session spent three items chasing.
+
+**Now one definition, `slippage.py`.** Verified every site resolves to the same
+object, `bh_lots_after_tax` and `depth_compare` included. `check_all.py` output
+before and after is byte-identical except gate 1's module count, 95 -> 96, which
+is the new file.
+
+**THE FLATNESS IS A LIMITATION, NOT A PROPERTY OF THE MARKET.** The rate does not
+vary with order size, with the symbol's liquidity, or with the participation cap.
+A BUY pays `price * (1 + SLIPPAGE)`, a SELL receives `price * (1 - SLIPPAGE)`, and
+a 30,000-share order in a Rs 2.54 stock pays the same 15 bp as a 200-share order
+in a Rs 800 one. Replacing it with a size-sensitive model is a separate change,
+scoped to the `tradeable` profile so `research` stays byte-exact.
+
+**SELLs ARE NOT CAPPED AT ALL.** `participation_cap` is consulted on the BUY path
+only -- `results/test_exposure.py:379`. Both SELL paths, the forced exit at :264
+and the rebalance exit at :291, size at the full held quantity and apply the flat
+rate. An exit that could not be transacted is not modelled anywhere.
+
+---
+
 ## Two engines answer the same sub-period question with opposite signs
 
 Found 2026-09-22 while checking whether validate_engine's conclusions carried over
