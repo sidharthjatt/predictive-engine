@@ -34,7 +34,12 @@ W = 118
 TOP_N, BUFFER = config.TOP_N, config.BUFFER
 
 # Mirrors the constants in test_exposure.py -- needed for reconciliation only.
-SLIPPAGE = 0.0015
+# SLIPPAGE comes from slippage.py, which is the only definition. It was
+# written out in seven files until 2026-09-22; these engines are
+# cross-checked against each other, so a value changed in one and not the
+# rest surfaces as a reconciliation failure elsewhere, not as a wrong
+# number here. Value unchanged at 0.0015.
+from slippage import SLIPPAGE  # noqa: E402
 CASH_YIELD = 0.0        # must match test_exposure.py
 START_CAPITAL = 1_000_000
 CASH_DAILY = (1 + CASH_YIELD) ** (1 / 252) - 1

@@ -41,7 +41,12 @@ import config
 from universes.registry import REGISTRY
 import paths
 
-SLIPPAGE = 0.0015
+# SLIPPAGE comes from slippage.py, which is the only definition. It was
+# written out in seven files until 2026-09-22; these engines are
+# cross-checked against each other, so a value changed in one and not the
+# rest surfaces as a reconciliation failure elsewhere, not as a wrong
+# number here. Value unchanged at 0.0015.
+from slippage import SLIPPAGE  # noqa: E402
 TICK = 0.05
 TOL = 0.005    # 2-decimal storage; see tick() -- STRICTER than the spec's half-tick
 
