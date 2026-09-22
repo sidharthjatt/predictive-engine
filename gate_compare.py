@@ -163,6 +163,16 @@ STANDING_GATE = (
     # these cells prove is that the tradeable naming branch and the cap's plumbing
     # reconcile -- not that a cap-shrunk order has ever been replayed.
     #
+    # SCOPED 2026-09-23. "no cell in this gate" is exactly two cells -- midcap150 v1
+    # and midcap150 v2, the two listed at the bottom of this table -- and it is
+    # still true of them: both were re-run under --profile tradeable on 2026-09-22
+    # with zero `participation cap` rows. It is NOT a statement about the cap. The
+    # full universe x arm grid was run the same day and 7 of its 32 cells diverge
+    # from their research twins, on nifty500 v1/v3, nifty100 v1, midcap100 v1/v3
+    # and smallcap250 v1/v3. None of those is a cell in this gate, which is why
+    # this gate still cannot replay a cap-shrunk order and why that is a gap in the
+    # gate rather than a property of the cap.
+    #
     # This is a dated measurement of these runs, not a property of the cap. Capital,
     # universe and data all move it. Re-count the "participation cap" rows in the
     # run's own daily_skipped artefact rather than trusting this comment.

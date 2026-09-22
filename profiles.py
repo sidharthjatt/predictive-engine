@@ -41,10 +41,45 @@ WHAT THE CAP MEANS
 
     Measured consequence, and it is the opposite of the obvious guess: capping
     INCREASES the mean number of names held (mid v3 7.60 -> 7.72) and REDUCES
-    cash-short skips (131 -> 123), because the buy loop runs in score-descending
-    order and shrinking an early oversized name frees cash for the tail it used to
-    drop. The cap partially relieves the funding defect rather than compounding it.
-"""
+    cash-short skips (131 -> 123). The cap partially relieves the funding defect
+    rather than compounding it.
+
+    THAT DIRECTION HAS TWO SOURCES, NOT ONE. CORRECTED 2026-09-23. This paragraph
+    used to end "...because the buy loop runs in score-descending order and
+    shrinking an early oversized name frees cash for the tail it used to drop",
+    naming one channel as the whole explanation. It predicted the right direction
+    from an incomplete mechanism, which is worse than saying nothing: a correct
+    prediction reads as confirmation and nobody looks again.
+
+    CHANNEL 2 -- THE TAIL. The buy loop runs in score-descending order, so
+    shrinking an early oversized name frees cash for names further down that the
+    loop used to drop. This is the one this paragraph named.
+
+    CHANNEL 3 -- AFFORDABILITY. The shrink does not free money for a LATER name; it
+    brings THIS name inside the budget. A capped order can cost less than the cash
+    on hand when the uncapped order cost more, so an order the research run refused
+    for cash executes under the cap.
+
+        nifty100 v1, 2019-01-30. Both runs intend 3,373 VBL shares against a
+        2,312-share prior-20-session median, 145.9% of it.
+          research:  needs Rs 158,161, has Rs 109,926 -> cash short, no fill.
+          tradeable: capped to 2,312 sh = Rs 108,410  -> BUYS.
+        The research run never holds VBL that day. The capped run does, and that
+        cell finishes AHEAD of its twin: CAGR 25.77 -> 25.88.
+
+    SO THE TRADEABLE PROFILE IS NOT A COST-ONLY TRANSFORM OF THE RESEARCH RUN. It
+    changes which trades happen, in both directions. Measured over the full
+    universe x arm grid on 2026-09-23 from runs of 2026-09-22: of 32 cells, 7
+    diverge from their research twin; 3 of those 7 contain at least one channel-3
+    bind, and 4 of the 16 binds across them are channel 3. One of the 7 finishes
+    ahead. Channel 3 does NOT imply a gain -- two of the three cells carrying it
+    finish behind. Those are counts on one date at the backtest's Rs 10,00,000, not
+    properties of the cap.
+
+    THE REMAINDER RULE (channel 1) IS UNCHANGED BY ANY OF THIS. Nothing is
+    reallocated and nothing is carried forward; channels 2 and 3 are both about
+    cash that was already there.
+    """
 
 PROFILES = {
     "research":  {"participation_cap": None},
