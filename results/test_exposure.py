@@ -132,7 +132,7 @@ def backtest_exposure(px, op, sc, dates, pc, mom20, port_vol=None,
                       mode="none", target_vol=None, audit=None, sizing="invvol",
                       const_expo=None, value_at_open=True, rebal=None,
                       funding="cash", participation_cap=_CAP_REQUIRED, vol20=_VOL20_REQUIRED,
-                      tax_enabled=False, impact_k=None):
+                      tax_enabled=False, impact_k=None, impact_out=None):
     """audit=None reproduces the original code path exactly: no overhead, and the
     official numbers are unchanged.
     Passing a dict with holdings/summary/trades/ranking/decisions/skipped keys logs
@@ -235,6 +235,48 @@ def backtest_exposure(px, op, sc, dates, pc, mom20, port_vol=None,
             f"_load_calendar(), BT_START_DATE, BT_END_DATE) as both engines and "
             f"v34_common do, or declare the intent with "
             f"profiles.research_only(__name__) if this caller is research-only.")
+    # THE EXEMPTION MAP IS BUILT ONCE, FROM THE VOLUME SERIES, BEFORE ANY FILL.
+    # Defining it by construction is requirement one: a fill that has no median
+    # for any reason OTHER than "its symbol's window has not started" must still
+    # raise, and a map built up front is what makes that distinguishable.
+    _imp_first = _sl.first_priced_date(vol20) if impact_k is not None else {}
+    _imp = {"priced": 0, "exempt": 0}
+
+    def _fill_price(side, sym, dt_, raw, qty):
+        """(fill price, pending record) for one leg.
+
+        COUNTED ON COMMIT, NOT ON PRICING. A BUY is priced BEFORE the cash tests,
+        so counting here would report fills that were then skipped cash-short --
+        it read 1,008 priced against 1,006 trades on midcap150. The caller calls
+        _commit_impact() once the trade is actually taken.
+        """
+        flat = (_sl.buy_price if side == "BUY" else _sl.sell_price)
+        if impact_k is None:
+            return flat(raw, qty, None, None), None
+        med, exempt = _sl.resolve(sym, dt_, vol20, _imp_first)
+        if exempt:
+            return flat(raw, qty, None, None), {
+                "date": dt_, "side": side, "symbol": sym, "qty": qty,
+                "exempt": True}
+        return flat(raw, qty, med, impact_k), {"exempt": False}
+
+    def _commit_impact(pending):
+        """Count a leg that was actually transacted, and log an exemption."""
+        if pending is None:
+            return
+        if not pending["exempt"]:
+            _imp["priced"] += 1
+            return
+        _imp["exempt"] += 1
+        if audit is not None:
+            sym = pending["symbol"]
+            audit["skipped"].append({"date": pending["date"], "side": pending["side"],
+                "symbol": sym,
+                "reason": "impact: no prior-20d median",
+                "detail": f"{pending['qty']:,} sh charged the flat rate; {sym}'s "
+                          f"first priced date is {_imp_first.get(sym)}, so the "
+                          f"prior-20-session window had not started"})
+
     if vol20 is _VOL20_REQUIRED:
         # research: the cap is None, so the volume series is genuinely unused.
         vol20 = None
@@ -337,9 +379,10 @@ def backtest_exposure(px, op, sc, dates, pc, mom20, port_vol=None,
                         q = _lim
                 if q < 1:
                     continue
-                pr = _sl.sell_price(pr, q, _median_volume(s, dt, vol20), impact_k)
+                pr, _pend = _fill_price("SELL", s, dt, pr, q)
                 tc = calc_tc(pr, q, "SELL")
                 cash += q * pr - tc; cum_tc += tc; n_trades += 1
+                _commit_impact(_pend)
                 if ledger is not None:
                     ledger.sell(s, q, round(pr, 2), dt)
                 if audit is not None:
@@ -389,9 +432,10 @@ def backtest_exposure(px, op, sc, dates, pc, mom20, port_vol=None,
                             q = _lim
                     if q < 1:
                         continue
-                    pr = _sl.sell_price(pr, q, _median_volume(s, dt, vol20), impact_k)
+                    pr, _pend = _fill_price("SELL", s, dt, pr, q)
                     tc = calc_tc(pr, q, "SELL")
                     cash += q * pr - tc; cum_tc += tc; n_trades += 1
+                    _commit_impact(_pend)
                     if ledger is not None:
                         ledger.sell(s, q, round(pr, 2), dt)
                     if audit is not None:
@@ -512,9 +556,9 @@ def backtest_exposure(px, op, sc, dates, pc, mom20, port_vol=None,
                     # cash-short rather than overdrawn. Identity when impact_k is
                     # None. Raises MissingVolume rather than reverting to the flat
                     # rate when the model is on and the median is absent.
+                    _pend = None
                     if impact_k is not None:
-                        pr = _sl.buy_price(_raw_buy, q, _median_volume(s, dt, vol20),
-                                           impact_k)
+                        pr, _pend = _fill_price("BUY", s, dt, _raw_buy, q)
                     if cash < q * pr:
                         if audit is not None:
                             audit["skipped"].append({"date": dt, "side": "BUY", "symbol": s,
@@ -529,6 +573,7 @@ def backtest_exposure(px, op, sc, dates, pc, mom20, port_vol=None,
                                 "detail": f"need Rs {q*pr+tc:,.0f}, have Rs {cash:,.0f}"})
                         continue
                     cash -= q * pr + tc; cum_tc += tc; n_trades += 1
+                    _commit_impact(_pend)
                     if ledger is not None:
                         ledger.buy(s, q, round(pr, 2), dt)
                     if audit is not None:
@@ -679,6 +724,16 @@ def backtest_exposure(px, op, sc, dates, pc, mom20, port_vol=None,
     if audit is not None and ledger is not None:
         audit["tax"] = {"ledger": ledger, "cum_tax": cum_tax,
                         "lots": pd.DataFrame(ledger.rows), "leaked": ledger.leaked()}
+    # THE COUNT GOES OUT WITH THE RUN. Requirement two: a headline figure from a
+    # size-sensitive run must not be readable without the number of fills that
+    # were priced at the flat rate instead. `impact_out` is an out-parameter for
+    # the same reason `applied_out` is -- the return signature has 25 callers and
+    # a module global is the leak cadence.py records.
+    if impact_out is not None:
+        impact_out.update({"k": impact_k, "priced": _imp["priced"],
+                           "exempt": _imp["exempt"],
+                           "fills": _imp["priced"] + _imp["exempt"],
+                           "trades": n_trades})
     return (pd.Series(eq, index=dates), cum_tc, n_trades,
             np.mean(expo_log) if expo_log else 1.0)
 

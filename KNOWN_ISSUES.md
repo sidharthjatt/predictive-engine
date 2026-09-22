@@ -59,9 +59,30 @@ under the tradeable artefacts that were byte-identical to their research twins.
 day's own volume (look-ahead on precisely the quantity being constrained, which
 is the rationale `median_volume` is built on).
 
-**NOT DECIDED HERE.** Whether day-one fills should carry a declared and counted
-exemption, or the impact window should start later, or something else, changes
-what is being measured and is not a call this file makes.
+**RESOLVED 2026-09-22 -- A DECLARED, COUNTED, NARROW EXEMPTION.** A fill whose
+date precedes its symbol's first priced date is charged the flat rate, writes a
+row into the run's `daily_skipped` artefact with reason
+`impact: no prior-20d median`, and is counted in the run's verdict line.
+
+**NARROW BY CONSTRUCTION, NOT BY OBSERVATION.** `slippage.first_priced_date`
+builds, from the volume series and before any fill, the earliest date each symbol
+has a usable median. `slippage.resolve` exempts ONLY dates before that. It RAISES
+for a symbol that has no median on any date, and it RAISES for a hole on or after
+the window has started -- both carry their own message naming which case they
+are. A catch-all on "median missing" would have priced a real data defect at the
+flat rate and reported it as an opening-session boundary.
+
+**THE COUNT IS IN THE VERDICT LINE, NOT ONLY IN THE ARTEFACT**, through the
+`impact_out` out-parameter, so a headline figure from a size-sensitive run cannot
+be read without it:
+
+    nifty100   k applied to 932 of 940 fills, 8 exempt
+    midcap150  k applied to 998 of 1006 fills, 8 exempt
+
+**COUNTED ON COMMIT, NOT ON PRICING.** A BUY is priced before the cash tests, so
+counting at the pricing call reported fills that were then skipped cash-short --
+1,008 against 1,006 actual trades on midcap150. The counts now reconcile exactly
+with `n_trades` and with the number of logged rows on both universes.
 
 ---
 

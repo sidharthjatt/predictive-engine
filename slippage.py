@@ -92,3 +92,53 @@ def buy_price(raw, qty, median_vol, k):
 def sell_price(raw, qty, median_vol, k):
     """Fill price received for a SELL. k=None is the flat model, unchanged."""
     return raw * (1 - SLIPPAGE - (0.0 if k is None else impact(qty, median_vol, k)))
+
+
+def first_priced_date(vol20):
+    """{symbol: earliest date at which it has a usable prior-20d median}.
+
+    THE EXEMPTION IS DEFINED BY THIS, NOT BY OBSERVING WHICH FILLS FAILED. A fill
+    before its symbol's first priced date has no denominator because the window
+    does not exist yet -- `median_volume` is rolling(win).median().shift(1), so
+    the first `win` sessions of any symbol's series are empty by construction and
+    the raw data holds nothing earlier to widen into.
+
+    A SYMBOL WITH NO USABLE MEDIAN ANYWHERE IS ABSENT FROM THIS MAP, and a fill on
+    it therefore raises. That is the point of building the map rather than
+    catching a missing median wherever it appears: "the window has not started"
+    is a boundary, "this symbol has no volume data" is a defect, and a catch-all
+    would price both at the flat rate and report neither.
+    """
+    out = {}
+    for sym, series in (vol20 or {}).items():
+        dates = [d for d, m in series.items() if m == m and m > 0]
+        if dates:
+            out[sym] = min(dates)
+    return out
+
+
+def resolve(sym, dt, vol20, first_priced):
+    """(median, exempt) for one fill, or raise.
+
+    Returns (median, False) when the symbol has a usable median on `dt`.
+    Returns (None, True) ONLY when `dt` precedes the symbol's first priced date --
+    the start-of-window boundary, which the caller charges at the flat rate and
+    MUST count.
+    Raises MissingVolume in every other case, including a symbol that never has a
+    median and a hole after the window has started.
+    """
+    med = (vol20 or {}).get(sym, {}).get(dt, float("nan"))
+    if med == med and med > 0:
+        return med, False
+    first = first_priced.get(sym)
+    if first is not None and dt < first:
+        return None, True
+    if first is None:
+        raise MissingVolume(
+            f"{sym} has no usable prior-20d median on ANY date, so {dt} is not a "
+            f"start-of-window boundary; this is missing volume data, not the "
+            f"opening-session gap, and is not exempt")
+    raise MissingVolume(
+        f"{sym} has no prior-20d median on {dt}, which is ON OR AFTER its first "
+        f"priced date {first}; the window had already started, so this is a hole "
+        f"in the volume series and is not the opening-session exemption")
