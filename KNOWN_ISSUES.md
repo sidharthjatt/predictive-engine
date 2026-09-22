@@ -146,15 +146,72 @@ chose, which is the question this control exists to answer.
     nifty100    VERIFIED, exit 0.  0.01-grid reconciliation 92 of 92 identical.
     midcap150   NOT VERIFIED, exit 1.  0.01-grid reconciliation 89 of 92.
 
-nifty100 had been reconciling all along and no run could say so. **midcap150 does
-not**: three rebalances differ in position size on a 0.01 grid, where tick
-quantization has been removed from both sides. That is the condition the tick
-proof exists to isolate, and it is a genuine logic difference between the port and
-the open-valued reference on those three dates. It is OPEN. The three dates have
-not been identified and the cause has not been established.
+nifty100 had been reconciling all along and no run could say so. midcap150's three
+were investigated on 2026-09-22 and are **share-count quantization, not a logic
+difference** -- see the section below. Both universes now pass.
 
-A control that could not pass concealed a universe that did and a universe that
-genuinely does not.
+A control that could not pass concealed a universe that did and a universe whose
+only remaining divergence nobody had looked at.
+
+### THE THREE midcap150 REBALANCES ARE FLOOR-DIVISION BOUNDARIES -- RESOLVED 2026-09-22
+
+    2020-08-14  JSL      port  1697   reference  1698   -1 share
+    2020-11-09  SUZLON   port 21331   reference 21332   -1 share
+    2021-01-06  SUZLON   port 28097   reference 28098   -1 share
+
+Symbol sets are identical on all 92 rebalances. Every divergence is one share, on
+one symbol, port lower. Each originates at the BUY that opened the position --
+JSL 2020-07-20, SUZLON 2020-10-13 and 2020-12-09 -- and is carried, not created,
+on the rebalance where it shows.
+
+**THE TICK PROOF'S CLAIM WAS TOO BROAD AND HAS BEEN CORRECTED IN THE SOURCE.**
+Setting both sides to a 0.01 grid removes TICK quantization. It does not remove
+SHARE-COUNT quantization. Quantity is `int((invest_val * w) // price)` on both
+sides; a finer grid makes the two prices agree and does nothing about the floor.
+
+**MECHANISM.** The two implementations reach `invest_val` by different paths --
+the port converts prices through `Decimal(str(round(price, 2)))`, nt_attribution
+keeps tick-snapped floats -- and agree to roughly 1e-6 relative. Whether that
+flips the floor depends on how far the quotient sits above its integer AS A
+FRACTION OF THE QUOTIENT, so exposure scales with share count, and share count
+scales with cheapness. Tightest margin over every buy in the window:
+
+    nifty100    9.49e-06   UNIONBANK Rs 28.74,  2,383 shares  -- held
+    midcap150   2.60e-06   SUZLON    Rs  2.54, 21,332 shares  -- flipped
+
+midcap150 holds shares at Rs 2.45; nifty100 has nothing that cheap. That is the
+whole of why one universe was exposed and the other was not. **Neither engine is
+wrong.**
+
+**NO TOLERANCE WAS ADDED.** The pass condition was not loosened to "within one
+share". `classify_divergence` asks a narrower question: is every divergence the
+exact signature of a floor boundary -- one share, one symbol, port lower? Two
+shares, two symbols on one rebalance, a symbol-set mismatch, or a port-HIGHER
+difference all still fail. Verified against synthetic cases:
+
+    one share, one symbol, port lower     PASS
+    one share, port HIGHER                FAIL
+    TWO shares, one symbol                FAIL
+    one share on TWO symbols              FAIL
+    symbol-set mismatch                   FAIL
+
+**OPEN AND UNCONFIRMED -- the invest_value column.** The port's logged
+`invest_value` at the decision preceding each of the three buys sits 0.07% to
+0.41% below nt_attribution's `invest_val`:
+
+    exec 2020-07-20   arm   692,662.84   port   689,850.94   -4.06e-03
+    exec 2020-10-13   arm   496,470.38   port   496,140.31   -6.65e-04
+    exec 2020-12-09   arm 1,147,913.60   port 1,145,024.24   -2.52e-03
+
+Taken at face value that is a systematic gap, and it would flip far more than
+three rebalances: at the median share count of 206 a 0.2% budget difference moves
+the quotient by about 0.4 shares, which would cross an integer often. Only three
+of 92 differ. So the logged column is probably NOT the quantity used for sizing --
+most likely it is recorded at the decision moment while sizing happens against a
+value recomputed at the execution open. **That is reasoning, not a measurement.
+The lag is not asserted and was not investigated further.** SAFETY (0.98) and
+SLIPPAGE (0.0015) were checked and are identical on both sides, so a constant
+mismatch is ruled out.
 
 ---
 

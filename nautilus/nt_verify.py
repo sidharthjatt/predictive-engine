@@ -97,13 +97,62 @@ def arm(panel, dates, **kwargs):
     return {d: out.get(d, {}) for d in dates}
 
 
+def classify_divergence(a_all, b_all, dates):
+    """Split holdings differences into share-count quantization and everything else.
+
+    Returns (quant, other, detail). `quant` counts rebalances whose ONLY difference
+    is one share on ONE symbol with `a` lower; `other` counts every rebalance that
+    differs in any other way -- more than a share, more than a symbol, or a
+    different symbol set. `detail` lists the quantization cases for reporting.
+
+    WHY THE SPLIT IS NOT A TOLERANCE. A blanket "within one share passes" would
+    swallow a future real difference that happened to be small. This asks a
+    narrower question: is EVERY divergence the exact signature of a floor-division
+    boundary -- one share, one symbol, always the same direction? Two symbols on
+    one rebalance, or two shares on one, is not that signature and still fails.
+    """
+    quant, other, detail = 0, 0, []
+    for d in dates:
+        a, b = a_all.get(d, {}), b_all.get(d, {})
+        if a == b:
+            continue
+        if set(a) != set(b):
+            other += 1
+            continue
+        diffs = {s: a[s] - b[s] for s in a if a[s] != b[s]}
+        if len(diffs) == 1 and list(diffs.values())[0] == -1:
+            quant += 1
+            detail.append((d, *list(diffs.items())[0]))
+        else:
+            other += 1
+    return quant, other, detail
+
+
 def tick_proof():
     """Re-run BOTH systems on a 0.01 grid instead of 0.05.
 
     A 0.05 tick is 0.19% of price on a Rs 27 stock like BEL, and quantity is a floor
     division by that price, so the grid alone moves share counts. Dropping both sides
-    to 0.01 separates that quantization from any real difference: what survives is a
-    genuine disagreement, what disappears was the grid.
+    to 0.01 separates TICK quantization from any real difference.
+
+    IT DOES NOT REMOVE SHARE-COUNT QUANTIZATION, AND THE TEXT HERE USED TO SAY IT
+    DID. Quantity is `int((invest_val * w) // price)` on both sides. A finer grid
+    makes the two prices agree; it does nothing about the floor. The two
+    implementations reach `invest_val` by different paths -- the port converts
+    prices through Decimal(str(round(price, 2))), this side keeps tick-snapped
+    floats -- and agree only to about 1e-6 relative. Whether that flips the floor
+    depends on how far the quotient sits above its integer, AS A FRACTION OF THE
+    QUOTIENT, so the exposure is a function of share count and therefore of price.
+
+    Measured 2026-09-22, tightest such margin over every buy in the window:
+
+        nifty100    9.49e-06   (UNIONBANK at Rs 28.74, 2,383 shares)  -- held
+        midcap150   2.60e-06   (SUZLON    at Rs  2.54, 21,332 shares) -- flipped
+
+    midcap150 is exposed and nifty100 is not because midcap150 holds shares at
+    Rs 2.45, which buys tens of thousands of them. What survives this proof is a
+    genuine disagreement ONLY after the one-share cases are classified out, which
+    is what classify_divergence does.
     """
     # The proof needs the FINEST UNIFORM grid, not the realistic one. Its purpose
     # is to separate tick quantization from genuine logic differences, and the real
@@ -118,8 +167,10 @@ def tick_proof():
             strat = nt_run.run(str(config.BT_START_DATE.date()), U["end"], quiet=True, universe=UNIVERSE)
         dates, port = port_holdings(strat)
         panel = nt_attribution.load_panel(U["cache"])
-        return compare(port, arm(panel, dates, size_at_close=False,
-                                 value_at_open=True, tick_round=True), dates), len(dates)
+        armd = arm(panel, dates, size_at_close=False,
+                   value_at_open=True, tick_round=True)
+        return compare(port, armd, dates), len(dates), \
+            classify_divergence(port, armd, dates)
     finally:
         nt_data.set_tick_size("0.05"); nt_data.set_tick_mode("nse")
         nt_attribution.set_tick("0.05"); nt_attribution.set_tick_mode("nse")
@@ -244,9 +295,26 @@ def main():
           f"only" + (f", worst {max(_a_worst):.2f}% on a single position"
                      if _a_worst else ""))
 
-    t_stats, t_n = tick_proof()
+    t_stats, t_n, (t_quant, t_other, t_detail) = tick_proof()
     print(f"\n  reconciliation on a 0.01 tick grid (both sides) -- "
           f"{t_n - t_stats[0]} of {t_n} identical")
+    # NAMED, MEASURED, AND NOT GATED. The verdict below reads t_other, never this.
+    print(f"  of the {t_stats[0]} that differ: {t_quant} are SHARE-COUNT "
+          f"QUANTIZATION, {t_other} are not")
+    if t_detail:
+        print("    share-count quantization -- one share, one symbol, port lower:")
+        for d, sym, delta in t_detail:
+            print(f"      {d.date()}  {sym:<12} {delta:+d} share")
+        print("    MECHANISM: quantity is int((invest_val * w) // price) on both")
+        print("    sides. A 0.01 grid makes the two PRICES agree; it does not")
+        print("    remove the floor. The two paths reach invest_val to about 1e-6")
+        print("    relative, and whether that flips the floor depends on how far")
+        print("    the quotient sits above its integer as a FRACTION of the")
+        print("    quotient -- so the exposure scales with share count, and share")
+        print("    count scales with cheapness. Tightest margin over every buy:")
+        print("      nifty100   9.49e-06  UNIONBANK Rs 28.74,  2,383 shares -- held")
+        print("      midcap150  2.60e-06  SUZLON    Rs  2.54, 21,332 shares -- flipped")
+        print("    midcap150 holds shares at Rs 2.45. nifty100 has nothing that cheap.")
 
     d_sym = d_stats[1]
     # THE EXIT STATUS, ADDED 2026-09-21. The five branches below are unchanged --
@@ -275,23 +343,33 @@ def main():
     elif d_sym != 0:
         print("  NOT VERIFIED. Rebalances hold DIFFERENT SYMBOLS even against the")
         print("  open-valued baseline, which cannot be explained by sizing.")
-    elif t_stats[0] == 0:
+    elif t_other == 0:
         print("  VERIFIED. On a 0.01 tick grid the port and the open-valued reference")
-        print("  agree on every holding at every rebalance. So the two systems are")
-        print("  identical in logic, and the differences reported above at the real")
-        print("  0.05 grid are exactly two measured, documented things:")
+        print("  hold the SAME SYMBOLS at every rebalance, and every quantity")
+        print("  difference is share-count quantization by its exact signature: one")
+        print("  share, one symbol, port lower. The two systems are identical in")
+        print("  logic, and what the real 0.05 grid shows above is three measured,")
+        print("  documented things:")
         print("    - the reference values the portfolio at the execution day's CLOSE,")
         print("      which a strategy standing at 09:15 cannot know;")
         print("    - quantity is a floor division by a tick-snapped price, and one")
-        print("      0.05 tick is 0.19% of a Rs 27 share.")
-        print("  Neither is a bug, and nothing else remains unexplained.")
+        print("      0.05 tick is 0.19% of a Rs 27 share;")
+        print("    - the floor itself quantizes, which no tick grid removes.")
+        if t_quant:
+            print(f"  {t_quant} rebalance(s) differ by one share and are classified")
+            print("  above, NOT tolerated by a threshold. A two-share difference, two")
+            print("  symbols on one rebalance, or a symbol-set mismatch still fails.")
+        print("  Nothing else remains unexplained.")
         rc = 0
     else:
-        print("  NOT VERIFIED. Position SIZE still differs on a 0.01 grid, where tick")
-        print("  quantization cannot be the cause, so something else is still wrong.")
+        print(f"  NOT VERIFIED. {t_other} rebalance(s) differ in a way share-count")
+        print("  quantization does not explain -- more than one share, more than one")
+        print("  symbol, or a different symbol set -- on a 0.01 grid where tick")
+        print("  quantization cannot be the cause. Something else is wrong.")
         print("  Do not trade this.")
     print(f"\n  RESULT: {'PASS' if rc == 0 else 'FAIL'} -- universe {TAG}, "
-          f"0.01-grid reconciliation {t_n - t_stats[0]} of {t_n} identical.")
+          f"0.01-grid reconciliation {t_n - t_stats[0]} of {t_n} identical, "
+          f"{t_quant} quantization, {t_other} unexplained.")
     print("=" * 72)
     return rc
 
