@@ -99,6 +99,15 @@ def scorable_pairs(data_dir):
     return set(zip(m["date"], m["symbol"]))
 
 
+# naming: axis-free -- both writes below, pinned_mask_runs.csv and pinned_mask.txt.
+# The universe is a COLUMN here, not part of either name: this is one test over
+# both live universes and its verdict is the mean across them, so a per-universe
+# file would split the thing being decided. The arm is not selectable at all --
+# line 152 calls price_noise_measure.run_arm, which reads ARMS["v2"] as a literal
+# (that defect is recorded in KNOWN_ISSUES.md under 'price_noise_measure is
+# arm-general in name only'). Cadence, profile and tax are never varied: this is
+# a one-shot pre-registered counterfactual, run once on 2026-09-22, and its rule
+# was fixed before the numbers existed. There is no axis for either name to carry.
 def main():
     runs = pd.read_csv(DIAG / "price_noise_runs.csv")
     out = []

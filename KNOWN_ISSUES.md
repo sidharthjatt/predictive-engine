@@ -152,11 +152,36 @@ is on paper rather than forgotten.
 
 ### WHY IT IS DEFERRED RATHER THAN SCHEDULED
 
-The pinned-mask counterfactual is unresolved. If the scorable-row channel turns
-out to carry the displacement, every spread measured before that answer lands
-would have to be re-measured against a different control. Spending twenty machine
-hours on distributions that a later finding could invalidate is the wrong order,
-and the order is the whole reason to write this down.
+**The channel hunt is closed and the displacement is unattributed.** All five
+candidates have been measured against rules fixed before their numbers existed
+and none carries it; the entry at the top of this file records that, and the
+pinned-mask counterfactual that ended it returned a mean reduction of -59.0%
+against a rule of >= 50%. So a spread measured on a seventh or eighth universe
+would be a spread measured against a cause nobody can name. It would be six more
+distributions and no more understanding, which is not what twenty machine hours
+is for.
+
+**WHAT WOULD CHANGE THIS.** An attribution. Not another universe -- a mechanism
+for the one-sidedness, or a measurement that rules out the one-sidedness itself.
+Until one exists, the six universes are better served by the n = 1 label they now
+carry than by ten unexplained draws each.
+
+**THE RATIONALE THIS REPLACES IS WRONG, AND IS KEPT. SUPERSEDED 2026-09-22.**
+This section first read:
+
+> The pinned-mask counterfactual is unresolved. If the scorable-row channel turns
+> out to carry the displacement, every spread measured before that answer lands
+> would have to be re-measured against a different control. Spending twenty
+> machine hours on distributions that a later finding could invalidate is the
+> wrong order, and the order is the whole reason to write this down.
+
+The counterfactual was not unresolved. It was pre-registered in `99a3aa8`, its
+first run was void and recorded as such in `d71a6c9`, and it ran and failed its
+rule in `7b1965c` -- all three before this entry was written, and the entry
+contradicted the opening section of its own file. The deferral is unchanged and
+the cost below is unchanged; only the reason was wrong. It is left here rather
+than deleted because a reader who accepted "blocked on an open test" should be
+able to see that it was not blocked on anything.
 
 ### THE COST, AND WHAT THE ESTIMATE RESTS ON
 
