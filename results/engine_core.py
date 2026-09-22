@@ -324,7 +324,7 @@ def _check_calendar(cal, panel, tag=""):
     return removed
 
 
-def build_panel(horizon, data_dir):
+def build_panel(horizon, data_dir, pin_scorable=None):
     """Build the full feature panel from one universe's raw stock CSVs.
 
     `data_dir` IS REQUIRED, AND THAT IS THE POINT. It used to default to None and
@@ -430,6 +430,26 @@ def build_panel(horizon, data_dir):
     #                price stays real for valuation, execution, momentum and
     #                buy&hold.
     scorable = p[FEATS_V2].notna().all(axis=1)
+
+    # MEASUREMENT HOOK, INERT BY DEFAULT. `pin_scorable` is a set of
+    # (date, symbol) pairs; when given, a row is scorable only if it is ALSO in
+    # that set. It exists for the pinned-mask counterfactual in
+    # results/pinned_mask_test.py, which asks whether the price-perturbation
+    # displacement is carried by rows that perturbation ADMITS to the scorable
+    # set.
+    #
+    # IT IS APPLIED HERE, BEFORE THE Z-SCORE, AND THAT IS THE WHOLE REASON IT IS
+    # A PARAMETER RATHER THAN A POST-HOC EDIT. The cross-sectional normalisation
+    # two lines below takes its peer group from `scorable`, so a mask pinned
+    # AFTER build_panel would leave every incumbent name already z-scored against
+    # the wider perturbed peer group -- it would test the selection channel while
+    # silently leaving the larger one in.
+    #
+    # None is identity: no caller that omits it can behave differently.
+    if pin_scorable is not None:
+        _pin = pd.Series(
+            list(zip(p["date"], p["symbol"])), index=p.index).isin(pin_scorable)
+        scorable = scorable & _pin
 
     # The cross-sectional z-score is computed over the SCORABLE rows only, so the
     # peer group for a given day is unchanged from before. Normalising over the
