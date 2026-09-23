@@ -114,6 +114,31 @@ def participation_cap():
     return PROFILES[selected()]["participation_cap"]
 
 
+def cap_kwargs(u):
+    """The participation-cap keywords for backtest_exposure on universe `u`.
+
+    {"participation_cap": None} under research; the cap plus vol20 -- the
+    prior-20-session median volume from the universe's own farm -- otherwise.
+    ALWAYS CARRIES THE CAP, EVEN WHEN None: backtest_exposure refuses to guess
+    which profile a caller meant.
+
+    ONE DEFINITION, 2026-09-23. v34_common (twice), engine_v2_final and
+    audit_step each built this dict by hand, and bh_lots_after_tax built it
+    without vol20, so `--tax on --profile tradeable` died at STEP 17h on every
+    universe. The engines and the audit must read the volume from the same place
+    by the same call, which is now true by construction.
+    """
+    cap = participation_cap()
+    if cap is None:
+        return {"participation_cap": None}
+    import config as _cfg
+    import tradability as _tr
+    from engine_core import _load_calendar
+    return {"participation_cap": cap,
+            "vol20": _tr.median_volume(u.prepare_data_dir(), _load_calendar(),
+                                       _cfg.BT_START_DATE, _cfg.BT_END_DATE)}
+
+
 def research_only(caller):
     """Declare that `caller` measures the research profile, and REFUSE if the run
     selected another one. Returns the research cap, which is None.

@@ -136,7 +136,7 @@ def main():
         # before this step is what makes the permanent copy the fresh one. The
         # fallback only matters if that ordering is ever broken again, and then it
         # produces correct output from /tmp instead of stopping the pipeline.
-        src = config.require_cache(u.score_cache, str(u.score_tmp),
+        src = config.require_cache(u.score_cache,
                                    what=f"{u.label} score panel")
         rows[tag] = len(export(Path(src), paths.nautilus_scores(u), u.label))
     print(f"\n{'=' * 66}")

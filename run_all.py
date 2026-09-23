@@ -38,7 +38,6 @@ ORDER:
   === ACROSS UNIVERSES ===
   12b. make_combined_universes -> the published comparison figure
   15.  make_daily_log          -> forensic daily text log
-  15b. save_caches_step        -> persist the panels
   16.  nt_export_scores        -> Nautilus score parquets
   17.  nt_execute              -> the execution engine, per (universe, arm)
 
@@ -144,28 +143,15 @@ def script_path(script):
     return R / q.name
 
 
-TMP = Path("/tmp")
 FRESH = "--fresh" in sys.argv
 
-# caches: both /tmp and the permanent copies
-def _cache_perm():
-    from universes.registry import REGISTRY
-    return [u.score_cache for u in REGISTRY.values()] + \
-           [u.raw_cache for u in REGISTRY.values()]
-
-
-CACHE_TMP = [TMP / "v5_expanding.csv", TMP / "raw_panel_20.csv",
-             TMP / "v74_expanding.csv", TMP / "raw_panel74_20.csv",
-             TMP / "v_mid_expanding.csv", TMP / "raw_panel_mid_20.csv",
-             TMP / "v_n100_expanding.csv", TMP / "raw_panel_n100_20.csv"] + \
-            [TMP / f"FINAL_seed{i}.csv" for i in range(3)] + \
-            [TMP / f"breadth_seed{i}.csv" for i in range(3)] + \
-            [TMP / f"prune_{t}.csv" for t in ("all", "pruned", "random")]
-# THE PERMANENT PANELS, FROM THE REGISTRY. This was eight literal paths, four of
-# them the 58's and the 74's; --fresh would have gone on trying to clear caches for
-# universes that no longer exist, and a new universe's panels would have been
-# missed silently.
-CACHE_PERM = _cache_perm()
+# THE PANEL CACHES ARE REGISTRY ATTRIBUTES, u.score_cache and u.raw_cache under
+# cache/<tag>/. This file used to carry CACHE_TMP -- fourteen /tmp names, eight of
+# them the retired 58's and 74's and none of them a live universe's -- and
+# CACHE_PERM over every registered universe. `--fresh` cleared both lists, so it
+# deleted seven unselected universes' panels and missed the selected one's /tmp
+# copy, which the next step then reused. run.py now clears the selected
+# universes' panels from the registry and nothing else.
 
 # Execution order, declared once so the static checker can read it. run() asserts
 # every script it is handed appears here, so this list cannot silently drift out of
@@ -301,7 +287,7 @@ def _registry_tags():
 #
 # UPDATE IT BY HAND when a row is added or removed. That is the point: a number
 # derived from the table it is checking would agree with any table.
-PIPELINE_ROW_COUNT = 53
+PIPELINE_ROW_COUNT = 52
 
 PIPELINE_ORDER = [
     ("STEP 10a", "build_scores.py",            "midcap150"),
@@ -392,12 +378,9 @@ PIPELINE_ORDER = [
     # tags rather than naming any. Field 3 stays None: main() takes no universe.
     ("STEP 12b", "make_combined_universes.py", None, SPANS_REGISTRY),
     ("STEP 15", "make_daily_log.py",           None),
-    # ORDERING, AND WHY IT IS A STEP. STEP 16 reads the PERMANENT panels, so the
-    # copy from /tmp must happen before it -- the constraint run_all.py used to
-    # enforce with a bare call between two run() lines, and which S8 lost when it
-    # folded the pipeline into one loop. It is a position in this list now, so
-    # rewriting the loop cannot drop it. See results/save_caches_step.py.
-    ("STEP 15b", "save_caches_step.py",        None),
+    # STEP 15b (save_caches_step.py) IS GONE, 2026-09-23, NOT RENUMBERED. It
+    # copied the /tmp panels to results*/metrics/; there is one panel per
+    # universe now, written by build_scores where STEP 16 reads it.
     ("STEP 16", "nt_export_scores.py",         None),
     # STEP 17 IS THE EXECUTION HALF OF THE NAUTILUS STORY. STEP 16 exports the
     # score parquet the port READS; nothing in the pipeline ever ran the port
@@ -414,10 +397,9 @@ PIPELINE_ORDER = [
     # move ambiguous -- the same identity-over-compaction rule the 2026-09-11
     # retirement followed when it left STEPS 0-9 and 11-14 as gaps.
     #
-    # AT THE END, BECAUSE THE ONLY INPUT IS THE SCORE PANEL. Running after
-    # STEP 15b means the PERMANENT panel exists rather than relying on
-    # config.require_cache's /tmp fallback. Nothing consumes what this writes,
-    # so nothing downstream constrains it either.
+    # AT THE END, BECAUSE THE ONLY INPUT IS THE SCORE PANEL, which build_scores
+    # writes. Nothing consumes what this writes, so nothing downstream
+    # constrains it either.
     #
     # THE ROWS ARE UNCONDITIONAL AND THE STEP RETURNS EARLY AT tax=off. The
     # plan is therefore IDENTICAL under --tax on and --tax off, which is what
@@ -529,7 +511,7 @@ def _step_label(script, tag):
 # onto EVERY required input, as though all five were alike. Two of them are not.
 #
 #   `--rebal 200` on mid v3 completed eight of nine steps and died at STEP 16
-#   demanding v_mid_expanding_cache_r200.csv. STEP 15b had written
+#   demanding v_mid_expanding_cache_r200.csv. The panel step had written
 #   v_mid_expanding_cache.csv and that was correct: the score panel does not vary
 #   with cadence, so there is no r200 copy of it to write. The refusal machinery
 #   was right and its SCOPE was wrong, and the two are indistinguishable at the
@@ -606,15 +588,12 @@ def _required_inputs():
         out["nt_execute.py"].append(
             (paths.nautilus_scores(u),
              _step_label("nt_export_scores.py", None), f"u:{u.tag}", AXIS_FREE))
-        # STEP 16 reads the PERMANENT panels, which STEP 15b copies from /tmp.
-        # Named so that if the two are ever re-ordered again the run stops with the
-        # missing filename and the step that owes it, instead of dying inside
-        # pandas with no indication of who writes it. nt_export_scores also falls
-        # back to /tmp via config.require_cache, so this fires only when BOTH
-        # copies are absent -- a genuine missing panel.
+        # STEP 16 reads the score panel build_scores wrote. Named so that if the
+        # two are ever re-ordered the run stops with the missing filename and the
+        # step that owes it, instead of dying inside pandas.
         out["nt_export_scores.py"].append(
             (paths.score_cache(u),
-             _step_label("save_caches_step.py", None), f"u:{u.tag}", AXIS_FREE))
+             _step_label("build_scores.py", u.tag), f"u:{u.tag}", AXIS_FREE))
         # STEP 18 RE-RUNS THE BACKTEST, so its only input is the score panel --
         # the same one nt_export_scores reads, from the same writer.
         #
@@ -631,7 +610,7 @@ def _required_inputs():
         # demand v_mid_expanding_cache_tax.csv, which nothing writes.
         out["tax_report.py"].append(
             (paths.score_cache(u),
-             _step_label("save_caches_step.py", None), f"u:{u.tag}", AXIS_FREE))
+             _step_label("build_scores.py", u.tag), f"u:{u.tag}", AXIS_FREE))
     return out
 
 
@@ -784,7 +763,7 @@ def entry_applies(e, tag, usel, asel, label="", script=""):
         elif q.startswith("u:"):
             # THE tag-IS-None BRANCH IS THE WHOLE-RUN CONTRACT, NOT A FALLBACK.
             # PIPELINE_ORDER's third field is None for a step whose main() takes no
-            # universe (make_daily_log.py; likewise STEP 12b, 15b, 16, 17). Such a
+            # universe (make_daily_log.py; likewise STEP 12b, 16, 17). Such a
             # step is invoked ONCE and legitimately reads every SELECTED universe,
             # so the run's selection is the correct scope for it -- the only scope
             # it has. A per-universe invocation has a narrower one and must use it.
@@ -856,7 +835,7 @@ def check_inputs(label, script, tag):
         # both suffixes onto every input, which is how a correct refusal came to
         # be raised against a file that does not and should not exist: the score
         # panel is invariant to both axes, so there is no _r200 or _tradeable copy
-        # of it for STEP 15b to have written. Measured; see the block above
+        # of it for build_scores to have written. Measured; see the block above
         # _required_inputs(). An input that DOES carry an axis is unchanged, and
         # the substitution refusal below is unchanged with it.
         _sfx = ""
@@ -922,73 +901,6 @@ def check_inputs(label, script, tag):
 # than kept as unreachable code that reads like it is still protecting something.
 
 
-def restore_cache_to_tmp():
-    """Restore permanent copies into /tmp so scripts run without rebuilding."""
-    # FROM THE REGISTRY. This was eight literal triples, four of them the deleted
-    # 58's and 74's -- missed by 85f68a4's sweep, which claimed to have removed
-    # every hardcoded universe list. Harmless only because the permanent files it
-    # named no longer exist.
-    # IMPORTED HERE, not at module level: run_all is imported by run.py before
-    # the determinism pin's env vars would otherwise be set, and config pulls in
-    # pandas. Every other registry/config use in this function is local for the
-    # same reason.
-    import config
-    from universes.registry import REGISTRY
-    pairs = [(u.score_cache.name, u.score_tmp.name, u.score_cache.parent)
-             for u in REGISTRY.values()] + \
-            [(u.raw_cache.name, u.raw_tmp.name, u.raw_cache.parent)
-             for u in REGISTRY.values()]
-    # THE SIDECAR TRAVELS WITH THE PANEL, OR THE PANEL DOES NOT TRAVEL.
-    #
-    # This copied the cache alone until 2026-09-18, which put a hole straight
-    # through the provenance check added the same week: build_scores_step
-    # verifies a warm /tmp panel and save_caches_step refuses to persist one
-    # without a sidecar, and this function -- which runs at the START of every
-    # run.py invocation -- was manufacturing exactly that file. MEASURED: on the
-    # migrated tree, `run.py --universe n100` died at STEP 10e, its FIRST step,
-    # on /tmp/v_n100_expanding.csv having no sidecar. n50 was not involved. Any
-    # second run of a tree with permanent caches hit it.
-    #
-    # REFUSAL, NOT SILENT COPYING, when the permanent cache has no sidecar of its
-    # own. Restoring it would put a panel of unknown origin where every
-    # downstream step expects one it can check, which is the thing 8e32551 exists
-    # to prevent; and inventing a sidecar here from the current raw_data_dir
-    # would be forging the claim rather than carrying it. The remedy is in the
-    # message: delete the cache and rebuild.
-    for perm_name, tmp_name, folder in pairs:
-        perm = folder / perm_name
-        if perm.exists() and not (TMP / tmp_name).exists():
-            side = config.cache_source_file(perm)
-            if not side.exists():
-                raise config.CacheSourceError(
-                    f"refusing to restore {perm} into {TMP / tmp_name}: it has "
-                    f"no source sidecar ({side.name}).\n"
-                    f"  A restored panel whose origin cannot be established is "
-                    f"exactly what the provenance check exists to refuse, and\n"
-                    f"  copying it here would place it where every later step "
-                    f"trusts it.\n"
-                    f"  Delete {perm} and rebuild with "
-                    f"`./venv/bin/python run_all.py`.")
-            shutil.copy(perm, TMP / tmp_name)
-            shutil.copy(side, config.cache_source_file(TMP / tmp_name))
-            print(f"    restored {tmp_name} from permanent cache (with source)")
-
-def save_permanent_caches():
-    """Copy the /tmp panels back to their permanent homes.
-
-    THE BODY MOVED TO results/save_caches_step.py, WHICH IS NOW STEP 15b. This
-    stays as the one name callers already use, delegating rather than holding a
-    second copy of the pair list -- two lists to keep in agreement is how the
-    constraint got lost the first time.
-
-    The eight hand-written pairs this used to carry are reproduced exactly by the
-    step's registry-derived ones; verified pair for pair before the move.
-    """
-    sys.path.insert(0, str(R))
-    import save_caches_step
-    save_caches_step.main()
-
-
 def naming_gate():
     """Run naming_declare_check in gated-declared-only mode. Non-zero stops the run.
 
@@ -1031,8 +943,7 @@ def main():
 
     WHAT STILL LIVES HERE, AND WHY IT WAS NOT MOVED
         PIPELINE_ORDER, REQUIRED_INPUTS, STEP_HELPERS,
-        STEP_DIRS, script_path(), check_inputs(), the cache lists and the two
-        cache functions are all READ BY run.py, which loads this file with
+        STEP_DIRS, script_path() and check_inputs() are all READ BY run.py, which loads this file with
         runpy.run_path to get them. They are the ordered description of the pipeline;
         run.py is the thing that chooses a subset of it and runs it. Copying them
         into run.py would leave two orderings to keep in agreement, which is the

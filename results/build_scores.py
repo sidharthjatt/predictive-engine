@@ -15,10 +15,10 @@ The index is excluded by pointing build_panel at a constituents-only directory,
 which u.prepare_data_dir() rebuilds; the panel's symbol set is then asserted
 against the registry's list.
 
-Output caches: u.raw_tmp and u.score_tmp in /tmp -- raw_panel_<tag>_20.csv and
-v_<tag>_expanding.csv -- copied to the permanent results_<tag>/metrics by STEP 15b
-at the end of the run. NO FILENAME IS WRITTEN HERE; they are registry attributes,
-which is why adding a universe costs no edit to this file.
+Output caches: u.raw_cache and u.score_cache -- cache/<tag>/raw_panel_<tag>_20.csv
+and cache/<tag>/v_<tag>_expanding.csv, each with a .source sidecar holding the
+source key. NO FILENAME IS WRITTEN HERE; they are registry attributes, which is
+why adding a universe costs no edit to this file.
 
 INVOKED TWICE PER FULL RUN, once per universe, from two PIPELINE_ORDER rows that
 keep their own labels -- STEP 10a for mid, STEP 10e for n100. The labels are not

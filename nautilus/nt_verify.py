@@ -5,7 +5,12 @@ Runs the port, compares it against the reference engine on three levels, and
 prints what matches, what does not, and by how much. Nothing here is hardcoded:
 every number is produced by the run it describes.
 
-Run: python3 nautilus/nt_verify.py
+Run: ./venv/bin/python nautilus/nt_verify.py --universe=nifty100 [--rebal=3]
+
+--rebal=N at a non-default cadence REPORTS the port-vs-vectorised gap at that
+cadence and exits 0. It does not gate: the share-level verdict below is the
+default-cadence certification and is unchanged. See KNOWN_ISSUES.md for the gap
+measured at cadences 20, 3 and 1 on 2026-09-23.
 """
 import contextlib
 import io
@@ -36,6 +41,7 @@ for _u in nt_run.UNIVERSES:
 U = nt_run.UNIVERSES[UNIVERSE]
 M = U["metrics"]
 TAG = U["tag"]
+REBAL = next((int(a.split("=", 1)[1]) for a in sys.argv if a.startswith("--rebal=")), None)
 
 
 def compare(a_all, b_all, dates):
@@ -176,7 +182,43 @@ def tick_proof():
         nt_attribution.set_tick("0.05"); nt_attribution.set_tick_mode("nse")
 
 
+def cadence_gap(rebal):
+    """Port vs vectorised final equity at a non-default cadence. Reported, not gated.
+
+    Both sides are v2 at `rebal`: the port run here, the vectorised reference from
+    that cadence's daily_summary, named by the writer's own rule. The reference
+    must already exist -- run `run.py --universe <u> --arm v2 --rebal <n>` first.
+    """
+    import cadence as _cd
+    sys.path.insert(0, str(ROOT / "results"))
+    import audit_step
+    from arms.registry import ARMS
+    from universes.registry import REGISTRY
+    _cd.set_selection(rebal)
+    ref_f = M / f"daily_summary_{audit_step.artefact_tag(REGISTRY[UNIVERSE], ARMS['v2'])}.csv"
+    if not ref_f.exists():
+        print(f"  no vectorised reference at {ref_f.name}; run "
+              f"./venv/bin/python run.py --universe {UNIVERSE} --arm v2 --rebal {rebal}")
+        return 1
+    with contextlib.redirect_stdout(io.StringIO()):
+        strat = nt_run.run(str(config.BT_START_DATE.date()), U["end"], quiet=True,
+                           universe=UNIVERSE, rebal=rebal)
+    port = pd.DataFrame(strat.daily_equity).set_index("date")["equity"]
+    ref = pd.read_csv(ref_f, parse_dates=["date"]).set_index("date")["total"]
+    p_fin, r_fin = float(port.iloc[-1]), float(ref.iloc[-1])
+    print(f"  cadence {rebal}  {UNIVERSE} v2")
+    print(f"    Nautilus final equity   Rs {p_fin:,.2f}   ({strat.rebalances} rebalances, "
+          f"{strat.orders_submitted} orders)")
+    print(f"    vectorised final equity Rs {r_fin:,.2f}   ({ref_f.name})")
+    print(f"    gap                     Rs {p_fin - r_fin:+,.2f}  "
+          f"({(p_fin / r_fin - 1) * 100:+.3f}%)   REPORTED, NOT GATED")
+    return 0
+
+
 def main():
+    import cadence as _cd
+    if REBAL is not None and REBAL != _cd.DEFAULT:
+        return cadence_gap(REBAL)
     strat = nt_run.run(str(config.BT_START_DATE.date()), U["end"], universe=UNIVERSE)
 
     eq = pd.DataFrame(strat.daily_equity)

@@ -26,7 +26,7 @@
                   from nt_run.reports_segment, the writer's own rule)
   fills recorded  940
   on 0.05 grid    210 of 940 fill prices (22.3%)
-  price panel     v_nifty100_expanding_cache.csv
+  price panel     v_nifty100_expanding.csv
   reconstruction  round(price * (1 +/- 0.0015), 2)  -- 2-decimal storage
   tolerance       0.005 -- TIGHTENED from the spec's half-tick 0.025;
                   see tick() for why the spec's assumption was wrong
@@ -62,7 +62,7 @@
                   from nt_run.reports_segment, the writer's own rule)
   fills recorded  1,006
   on 0.05 grid    214 of 1,006 fill prices (21.3%)
-  price panel     v_midcap150_expanding_cache.csv
+  price panel     v_midcap150_expanding.csv
   reconstruction  round(price * (1 +/- 0.0015), 2)  -- 2-decimal storage
   tolerance       0.005 -- TIGHTENED from the spec's half-tick 0.025;
                   see tick() for why the spec's assumption was wrong
@@ -92,7 +92,7 @@
 
 
   INPUT READ (gitignored; holds whatever last wrote it):
-    midcap150  /Users/sidharthchoudhary/Downloads/algo_trading_project/nautilus/reports/midcap150/v2/fills.csv written 2026-09-22 13:00  (1,006 fills)
-    nifty100   /Users/sidharthchoudhary/Downloads/algo_trading_project/nautilus/reports/nifty100/v2/fills.csv written 2026-09-22 13:00  (940 fills)
+    midcap150  /Users/sidharthchoudhary/Downloads/algo_trading_project/nautilus/reports/midcap150/v2/fills.csv written 2026-09-23 12:01  (1,006 fills)
+    nifty100   /Users/sidharthchoudhary/Downloads/algo_trading_project/nautilus/reports/nifty100/v2/fills.csv written 2026-09-23 12:00  (940 fills)
   ungated, reported only: 4 fill(s) not matching the day's open exactly.
   RESULT: PASS -- 0 fills executed at a close and 0 fell off the trading calendar, across 2 universe(s).

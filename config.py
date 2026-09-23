@@ -218,36 +218,28 @@ def read_price_csv(path, date_col="date", **kw):
 
 
 # ---------------------------------------------------------------------------
-# CACHE RESOLUTION -- one place, so a missing cache fails loudly and early
+# CACHE RESOLUTION -- one place, so a stale or missing cache fails loudly
 # ---------------------------------------------------------------------------
-# A CACHE'S IDENTITY IS ITS PATH *AND* THE SOURCE DIRECTORY IT WAS BUILT FROM.
+# A PANEL'S IDENTITY IS THE CONTENT OF THE CSVs IT WAS BUILT FROM.
 #
-# Until 2026-09-18 it was the path alone: require_cache() asked `perm.exists()`
-# and returned it. That is the right question only while a universe's raw data
-# never moves. The moment mid and n100 were repointed at the supplier's panel,
-# the caches keyed by tag -- v_midcap150_expanding_cache.csv, raw_panel_midcap150_cache.csv
-# and their n100 pair -- kept their names and their homes, so every consumer
-# went on reading 217 MB of the OLD vendor's prices and reporting the result as
-# a number computed on the new one.
+# Until 2026-09-18 it was the path alone, and a repointed universe went on
+# reading the old vendor's 217 MB panel. From 2026-09-18 to 2026-09-23 it was
+# the path plus the source DIRECTORY, which caught a repoint and nothing else:
+# removing SUZLON.csv from midcap50's source left the directory unchanged, the
+# cached panel passed, and the run exited 0 still trading SUZLON 38 times.
 #
-# MEASURED BEFORE THE FIX, not argued: raw_panel_midcap150_cache.csv carried 256 rows
-# for 360ONE dated before 2019-09-19, and the new source's 360ONE.csv begins ON
-# 2019-09-19 -- 256 rows that the directory the universe now names cannot
-# produce. On a date both vendors carry, the cache read M&MFIN 2019-01-01
-# close=287.8653, the old source 287.8653 and the new source 287.6314.
+# SO THE SIDECAR RECORDS seed_cache_key.source_key() OVER THE CONSTITUENT FARM:
+# every CSV name and the sha256 of its bytes. The farm is what build_panel
+# globs, so it is exactly the set of files scored. A panel is current only if
+# that key matches the farm as it is now. The directory is recorded beside it
+# for a reader and is not compared: the same bytes in another checkout are the
+# same panel, which is what lets a copied tree reuse its cache.
 #
-# SO THE SOURCE TRAVELS WITH THE CACHE, in a sidecar written by whoever writes
-# the cache, and it is CHECKED on every resolution. The expected value is not
-# supplied by the caller: it is read from the registry row that owns the cache
-# path, so a caller cannot satisfy the check by asserting the wrong source.
-#
-# THERE IS NO WAY TO TURN THIS OFF. No parameter, no default, no environment
-# variable -- a flag that restores the old return would be the old bug with a
-# name. A cache whose provenance cannot be established is REFUSED, and the
-# refusal is a raise that leaves the interpreter non-zero. Refusing is the whole
-# point: a rebuild fallback here would silently discard the operator's evidence
-# that something is wrong, which is how the stale panel survived in the first
-# place.
+# WHAT A MISS DOES DEPENDS ON WHO ASKED. The builder (build_scores_step) prints
+# the reason and rebuilds. A reader raises CacheSourceError naming the reason and
+# the command that rebuilds: a reader that rebuilt a 70-minute panel in passing
+# would hide the fact that its input changed. There is no flag to accept a stale
+# panel.
 SOURCE_SIDECAR_SUFFIX = ".source"
 
 
@@ -256,86 +248,91 @@ class CacheSourceError(RuntimeError):
 
 
 def cache_source_file(cache_path):
-    """The sidecar recording which raw directory `cache_path` was built from."""
+    """The sidecar recording the source key `cache_path` was built from."""
     p = Path(cache_path)
     return p.with_name(p.name + SOURCE_SIDECAR_SUFFIX)
 
 
-def write_cache_source(cache_path, raw_data_dir):
-    """Record the source directory beside a cache. Called by whoever writes it.
-
-    RESOLVED, NOT AS GIVEN, because the two sides of the later comparison are
-    reached by different routes -- one from a registry row, one from a string on
-    disk -- and a symlinked or relative spelling of the same directory must not
-    read as a different directory.
-    """
-    if raw_data_dir is None:
+def source_key_for(u):
+    """seed_cache_key.source_key over u's constituent farm, built if needed."""
+    from seed_cache_key import source_key
+    if u.raw_data_dir is None:
         raise CacheSourceError(
-            f"refusing to record a null source for {cache_path}: a universe "
-            f"with no raw_data_dir has no panel to cache.")
+            f"{u.tag}: a universe with no raw_data_dir has no panel to key.")
+    return source_key(sorted(Path(u.prepare_data_dir()).glob("*.csv")))
+
+
+def write_cache_source(cache_path, u, key):
+    """Record `key` beside a cache. Called by whoever writes the cache.
+
+    The key is taken BEFORE the build by the caller and passed in, so the
+    sidecar describes the files that were read, not whatever is on disk after.
+    """
+    import json
+    rel = root_relative(u.raw_data_dir)
     # naming: axis-free -- the sidecar's name is its cache's name plus a fixed
     # suffix, so it carries whatever axes that cache carries and adds none of
     # its own; there is no arm, cadence, profile or tax choice expressed here.
-    cache_source_file(cache_path).write_text(
-        str(Path(raw_data_dir).resolve()) + "\n")
+    cache_source_file(cache_path).write_text(json.dumps(
+        {"universe": u.tag, "raw_data_dir": rel, "digest": key["digest"],
+         "n_files": key["n_files"], "files": key["files"]}, indent=1) + "\n")
 
 
 def _cache_owner(path):
     """The registered universe whose cache `path` is, or None.
 
     IMPORTED LAZILY. universes/registry.py imports this module at its own import
-    time, so a module-level import here is a cycle. The lazy import is not a
-    style choice and removing it will not fail at edit time -- it fails at the
-    first import of config.py.
+    time, so a module-level import here is a cycle.
     """
     from universes.registry import REGISTRY
     p = Path(path).resolve()
     for u in REGISTRY.values():
-        for cand in (u.score_cache, u.raw_cache, u.score_tmp, u.raw_tmp):
+        for cand in (u.score_cache, u.raw_cache):
             if Path(cand).resolve() == p:
                 return u
     return None
 
 
+def cache_staleness(cache_path, u):
+    """None if `cache_path` was built from u's current source, else the reason."""
+    import json
+    from seed_cache_key import key_difference
+    cache_path = Path(cache_path)
+    if not cache_path.exists():
+        return f"no panel at {cache_path}"
+    side = cache_source_file(cache_path)
+    if not side.exists():
+        return f"no source sidecar ({side.name}), so what it was built from is unknown"
+    try:
+        rec = json.loads(side.read_text())
+    except ValueError:
+        return (f"{side.name} is in the pre-2026-09-23 format (a directory path "
+                f"only), which cannot show whether a CSV was added or removed")
+    cur = source_key_for(u)
+    if rec.get("digest") == cur["digest"]:
+        return None
+    diff = key_difference(rec.get("files", {}), cur["files"])
+    return (f"source changed since the panel was built ({rec.get('n_files')} -> "
+            f"{cur['n_files']} files): {diff or 'digest differs'}")
+
+
 def _verified(cache_path, what):
-    """Return `cache_path` only if its recorded source is the current one."""
+    """Return `cache_path` only if it was built from its universe's current source."""
     u = _cache_owner(cache_path)
     if u is None:
         raise CacheSourceError(
             f"{what}: {cache_path}\n"
             f"  This path is not the score or raw cache of any registered\n"
-            f"  universe, so which raw directory it was built from cannot be\n"
+            f"  universe, so which source it was built from cannot be\n"
             f"  established. A panel of unknown provenance is not usable as\n"
             f"  evidence. Add the row that owns it, or delete the file.")
-
-    expected = Path(u.raw_data_dir).resolve()
-    side = cache_source_file(cache_path)
-    if not side.exists():
+    why = cache_staleness(cache_path, u)
+    if why is not None:
         raise CacheSourceError(
             f"{what}: {cache_path}\n"
-            f"  No source sidecar ({side.name}), so this cache predates source\n"
-            f"  recording and cannot be shown to match the universe's current\n"
-            f"  raw directory:\n"
-            f"      universe     {u.tag}\n"
-            f"      raw_data_dir {expected}\n"
-            f"  DELETE the cache and rebuild it with\n"
-            f"      ./venv/bin/python run_all.py\n"
-            f"  This is not rebuilt for you: a cache that disappears and\n"
-            f"  reappears during someone else's run is how a wrong panel gets\n"
-            f"  read as a right one.")
-
-    actual = Path(side.read_text().strip()).resolve()
-    if actual != expected:
-        raise CacheSourceError(
-            f"{what}: {cache_path}\n"
-            f"  CACHE SOURCE MISMATCH -- refusing to return it.\n"
-            f"      universe          {u.tag}\n"
-            f"      built from        {actual}\n"
-            f"      universe now uses {expected}\n"
-            f"  Every number computed from this file would be a number about\n"
-            f"  the first directory, reported under a universe that names the\n"
-            f"  second. DELETE the cache and its sidecar and rebuild with\n"
-            f"      ./venv/bin/python run_all.py")
+            f"  STALE PANEL -- refusing to return it: {why}.\n"
+            f"  Every number computed from it would describe other data. Rebuild:\n"
+            f"      ./venv/bin/python run.py --universe {u.tag} --steps pipeline")
     return cache_path
 
 
@@ -364,77 +361,66 @@ def _verified(cache_path, what):
 # THE LINK FARM IS WHAT IS HASHED, not raw_data_dir, because the farm is what
 # build_panel globs. raw_data_dir is recorded beside it: if the two ever disagree
 # the artefact carries both halves and the difference is readable.
+def root_relative(p):
+    """`p` resolved, as a path relative to the project root when it is inside it.
+    A relative `p` is taken as already relative to the root, not to the cwd."""
+    q = Path(p)
+    q = (q if q.is_absolute() else PROJECT_ROOT / q).resolve()
+    try:
+        return str(q.relative_to(PROJECT_ROOT))
+    except ValueError:
+        return str(q)
+
+
 def data_fingerprint(data_dir, raw_data_dir):
     """What a published artefact records about the price data it was built from.
 
     Returns a dict with the resolved link directory, the resolved raw_data_dir,
-    where the symlinks actually point, the file count, and a sha256 over every
-    byte of every CSV in the farm.
+    where the symlinks actually point, the file count, and
+    seed_cache_key.source_key's digest over every CSV in the farm -- the same
+    digest a panel's sidecar records.
     """
-    import hashlib
+    from seed_cache_key import source_key
     d = Path(data_dir)
     files = sorted(d.glob("*.csv"))
-    h = hashlib.sha256()
-    targets = set()
-    for f in files:
-        targets.add(str((f.resolve()).parent))
-        h.update(f.stem.encode())
-        h.update(hashlib.sha256(f.resolve().read_bytes()).digest())
+    targets = {str(f.resolve().parent) for f in files}
     if len(targets) == 1:
         target = targets.pop()
     elif not targets:
         target = None
     else:
         target = f"MIXED: {len(targets)} directories"
+    key = source_key(files)
+    # PATHS ARE RECORDED RELATIVE TO THE PROJECT ROOT, 2026-09-23. They were
+    # absolute, so the same data in a second checkout wrote a different
+    # v34_params*.json. GATE 8 compares through root_relative() on both sides,
+    # so artefacts written with absolute paths before this still compare.
     return {
-        "link_dir": str(d.resolve()),
-        "link_target_dir": target,
-        "raw_data_dir": str(Path(raw_data_dir).resolve()) if raw_data_dir else None,
-        "n_files": len(files),
-        "digest": "sha256:" + h.hexdigest(),
+        "link_dir": root_relative(d),
+        "link_target_dir": root_relative(target) if target and not target.startswith("MIXED") else target,
+        "raw_data_dir": root_relative(raw_data_dir) if raw_data_dir else None,
+        "n_files": key["n_files"],
+        "digest": key["digest"],
         "digest_covers": ("every byte of every CSV in link_dir, the volume column "
                           "included; recompute with config.data_fingerprint()"),
     }
 
 
-def require_cache(perm, tmp=None, what="score panel"):
-    """Return whichever cache exists, or raise with an actionable message.
+def require_cache(path, what="score panel"):
+    """Return `path` if it exists and is current, or raise with the remedy.
 
-    WHY THIS EXISTS
-        run_all.py copies /tmp to the permanent caches only at the END of a run,
-        so any script reading a permanent path executes BEFORE that copy on a
-        fresh run. Three separate failures came from this in two days:
-          - make_mid_chart.py read results_midcap150/metrics/v_midcap150_expanding_cache.csv
-            unconditionally and crashed the pipeline at step 10d;
-          - nt_export_scores.py was scheduled before the cache-save block and
-            crashed at step 16;
-          - and earlier, a stale permanent cache was read silently, which made
-            nt_verify report NOT VERIFIED with 91 symbol-set differences that had
-            nothing to do with the port.
-
-        Crashing mid-pipeline and silently falling back are both wrong. Silent
-        fallback is worse: it produces a number from the wrong input. This
-        resolves the two locations explicitly and, if neither is present, says
-        which file is missing and what to run.
+    ONE LOCATION PER PANEL SINCE 2026-09-23. There used to be a working copy in
+    /tmp and a permanent copy under results*/metrics/, and this took both. /tmp
+    is shared by every checkout on a machine, so a second checkout read the
+    first one's panel. Both copies are now one file under cache/<tag>/.
     """
-    from pathlib import Path as _P
-    perm = _P(perm)
-    if perm.exists():
-        return _verified(perm, what)
-    if tmp is not None and _P(tmp).exists():
-        return _verified(_P(tmp), what)
+    p = Path(path)
+    if p.exists():
+        return _verified(p, what)
+    u = _cache_owner(p)
+    tag = u.tag if u is not None else "<universe>"
     raise FileNotFoundError(
-        f"{what} not found.\n"
-        f"  looked for permanent : {perm}\n"
-        f"  looked for working   : {tmp}\n"
-        f"  Neither exists. Run `./venv/bin/python run_all.py` to build them; the\n"
-        f"  permanent copy is written at the END of that run, so a script reading\n"
-        f"  the permanent path cannot run standalone before the first full\n"
-        f"  pipeline.\n"
-        f"  THE INTERPRETER MATTERS. run_all.py spawns every step with\n"
-        f"  sys.executable, so whatever launches it is used for all 32 steps.\n"
-        f"  `python3` is not interchangeable here: on the machine this project\n"
-        f"  was built on it is Python 3.11 with no lightgbm, and below\n"
-        f"  nautilus_trader's 3.12 floor. Corrected 2026-09-02; this message\n"
-        f"  previously named `python3`."
-    )
+        f"{what} not found at {p}.\n"
+        f"  Build it with\n"
+        f"      ./venv/bin/python run.py --universe {tag} --steps pipeline\n"
+        f"  using the venv interpreter; see requirements.txt.")

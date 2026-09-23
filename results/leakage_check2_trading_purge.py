@@ -102,7 +102,7 @@ from engine_core import HORIZON, PURGE_EMBARGO       # noqa: E402
 from universes.registry import REGISTRY              # noqa: E402
 
 LABELS = {"nifty100": "NIFTY 100", "midcap150": "MIDCAP150"}
-UNIVERSES = {u.tag: (u.raw_cache, str(u.raw_tmp), u.purge_mode, LABELS[u.tag])
+UNIVERSES = {u.tag: (u.raw_cache, u.purge_mode, LABELS[u.tag])
              for u in (REGISTRY["nifty100"], REGISTRY["midcap150"])}
 
 # One seed. The training mask does not depend on the seed list and the fit is
@@ -110,8 +110,8 @@ UNIVERSES = {u.tag: (u.raw_cache, str(u.raw_tmp), u.purge_mode, LABELS[u.tag])
 PROBE_SEEDS = [7]
 
 
-def run(uni, perm, tmp, purge_mode, label, W):
-    src = config.require_cache(perm, tmp, what=f"{uni} raw panel")
+def run(uni, perm, purge_mode, label, W):
+    src = config.require_cache(perm, what=f"{uni} raw panel")
     raw = pd.read_csv(src, parse_dates=["date"])
 
     W("=" * 100)
@@ -228,7 +228,7 @@ def run(uni, perm, tmp, purge_mode, label, W):
           f"{r['label_observes']:<16}{r['gap_trading_days']:>7}"
           f"{r['gap_calendar_days']:>9}")
     W("")
-    md = Path(perm).parent
+    md = REGISTRY[uni].metrics_dir   # not the panel's directory: panels live under cache/ since 2026-09-23
     # naming: axis-free -- the per-month gap table for one universe under the
     # live purge rule. It describes the TRAINING MASK, not a strategy result, so
     # it varies over no arm, cadence, profile or tax selection; the universe is
@@ -244,8 +244,8 @@ def run(uni, perm, tmp, purge_mode, label, W):
 def main():
     out = []
     res = {}
-    for uni, (perm, tmp, pm, label) in UNIVERSES.items():
-        res[uni] = run(uni, perm, tmp, pm, label, out.append)
+    for uni, (perm, pm, label) in UNIVERSES.items():
+        res[uni] = run(uni, perm, pm, label, out.append)
         out.append("")
 
     tot_neg = sum(r["neg"] for r in res.values())

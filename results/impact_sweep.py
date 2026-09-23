@@ -50,7 +50,7 @@ MODE, SIZING = "breadth", "invvol"
 
 def panel(tag):
     u = REGISTRY[tag]
-    src = config.require_cache(u.score_cache, str(u.score_tmp), what=f"{tag} score panel")
+    src = config.require_cache(u.score_cache, what=f"{tag} score panel")
     p = pd.read_csv(src, parse_dates=["date"])
     px = p.pivot_table(index="date", columns="symbol", values="close").ffill()
     op = p.pivot_table(index="date", columns="symbol", values="open").ffill()

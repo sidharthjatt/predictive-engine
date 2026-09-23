@@ -58,6 +58,7 @@ except Exception:
 REBAL, VOL_WIN = 20, 60
 # SELECTION -- imported from config.py, the single definition.
 TOP_N, BUFFER = config.TOP_N, config.BUFFER
+_THIN_WARNED = set()      # see the len(s_) < TOP_N branch in backtest_exposure
 # SLIPPAGE comes from slippage.py, which is the only definition. It was
 # written out in seven files until 2026-09-22; these engines are
 # cross-checked against each other, so a value changed in one and not the
@@ -617,6 +618,20 @@ def backtest_exposure(px, op, sc, dates, pc, mom20, port_vol=None,
             if sv.is_pit() and engine_core.MEMBERSHIP is not None:
                 _members = engine_core.MEMBERSHIP.members_on(dt)
                 s_ = s_[[k for k in s_.index if k in _members]]
+            if len(s_) < TOP_N:
+                # THIS REBALANCE IS SKIPPED, AND IT USED TO BE SKIPPED SILENTLY.
+                # With fewer rankable names than TOP_N the branch below does not
+                # run, so no order is planned and the previous holdings carry
+                # on. That is the existing behaviour and it is kept -- changing it
+                # would move published numbers -- but it is now said, with the
+                # date and the count. Once per (date, count, universe width) per
+                # process, so four arms over one panel print it once.
+                _k = (dt, len(s_), sc.shape[1])
+                if _k not in _THIN_WARNED:
+                    _THIN_WARNED.add(_k)
+                    print(f"    WARNING {pd.Timestamp(dt).date()}: {len(s_)} rankable "
+                          f"names < TOP_N={TOP_N}; rebalance skipped, previous "
+                          f"holdings kept", flush=True)
             if len(s_) >= TOP_N:
                 # kind="mergesort" IS STABLE; pandas' default "quicksort" is not.
                 # Two names with the same score were ordered by whatever introsort

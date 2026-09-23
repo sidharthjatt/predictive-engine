@@ -159,6 +159,9 @@ def main():
 
     verdicts = {}
     for tag, (label, src) in UNIVERSES.items():
+        # THE FARM IS BUILT ON DEMAND under cache/<tag>/ since 2026-09-23;
+        # u.data_dir is only its path and is empty on a fresh tree.
+        src = REGISTRY[tag].prepare_data_dir()
         w(f"\n{'=' * 100}\n {label} ({tag})\n{'=' * 100}")
         m = load_universe(src)
         frac, peryear, cnt = coverage(m)

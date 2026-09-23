@@ -29,6 +29,12 @@ __pycache__/
 .idea/
 *.iml
 
+# ------------------------------------------------------------------- caches
+# Derived data, rebuilt on demand: per-universe score and raw panels with their
+# source-key sidecars, and the constituent symlink farms. See universes/registry.py
+# (CACHE_DIR). Moved here from /tmp and data/raw/ on 2026-09-23.
+cache/
+
 # ------------------------------------------------------------ generated output
 # Rebuilt in full by run_all.py. Includes the four >50 MB panel caches, every
 # chart, every v2FINAL_* artefact, and the DAILY_LOG_*.txt forensic logs

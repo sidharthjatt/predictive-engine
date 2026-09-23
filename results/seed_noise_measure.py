@@ -91,7 +91,7 @@ if _unlabelled:
         f"diagnostics/seed_noise.txt, so it is written down rather than derived.")
 
 UNIVERSES = {
-    u.tag: {"raw": u.raw_cache, "raw_tmp": str(u.raw_tmp),
+    u.tag: {"raw": u.raw_cache,
             "md": u.metrics_dir, "syms": u.symbols, "label": LABELS[u.tag]}
     for u in REGISTRY.values()
 }
@@ -182,7 +182,7 @@ def run_universe(uni, cfg, W):
     import engine_core as _ec
     from universes.registry import REGISTRY as _REG
     _ec.set_tradeability(_REG[uni])
-    raw = pd.read_csv(config.require_cache(cfg["raw"], cfg["raw_tmp"],
+    raw = pd.read_csv(config.require_cache(cfg["raw"],
                                            what=f"{uni} raw panel"),
                       parse_dates=["date"])
     assert_columns(raw, REQUIRED_RAW, f"{uni} raw panel")

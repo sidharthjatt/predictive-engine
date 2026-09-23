@@ -131,7 +131,7 @@ COVERAGE = measured_universes.declare(
     {"SEED_FLOOR": SEED_FLOOR, "TRADABILITY_EXPECT": TRADABILITY_EXPECT})
 
 UNIVERSES = {
-    u.tag: (LABELS[u.tag], u.metrics_dir, u.score_cache.name, str(u.score_tmp))
+    u.tag: (LABELS[u.tag], u.metrics_dir, u.score_cache)
     for u in (REGISTRY[t] for t in MEASURED_FOR)
 }
 
@@ -233,8 +233,8 @@ def load(tag):
     # not move. That makes six configuration-stale gates, not five.
     import engine_core as _ec
     _ec.set_tradeability(REGISTRY[tag])
-    label, M, cache, tmp = UNIVERSES[tag]
-    src = config.require_cache(M / cache, tmp, what=f"{label} score panel")
+    label, M, cache = UNIVERSES[tag]
+    src = config.require_cache(cache, what=f"{label} score panel")
     p = pd.read_csv(src, parse_dates=["date"])
     px = p.pivot_table(index="date", columns="symbol", values="close").ffill()
     op = p.pivot_table(index="date", columns="symbol", values="open").ffill()

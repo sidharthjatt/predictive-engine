@@ -2,7 +2,7 @@
  TOP_N VALIDATION -- NIFTY 100 (nifty100)
 ====================================================================================================
 
-  score panel   /Users/sidharthchoudhary/Downloads/algo_trading_project/results_nifty100/metrics/v_nifty100_expanding_cache.csv
+  score panel   /Users/sidharthchoudhary/Downloads/algo_trading_project/cache/nifty100/v_nifty100_expanding.csv
   symbol set    99 names, asserted equal to the configured universe
   window        2019-01-01 .. 2026-05-29   1836 trading days
   engine        test_exposure.backtest_exposure (SHIPPING)
@@ -57,7 +57,7 @@
  TOP_N VALIDATION -- MIDCAP150 (midcap150)
 ====================================================================================================
 
-  score panel   /Users/sidharthchoudhary/Downloads/algo_trading_project/results_midcap150/metrics/v_midcap150_expanding_cache.csv
+  score panel   /Users/sidharthchoudhary/Downloads/algo_trading_project/cache/midcap150/v_midcap150_expanding.csv
   symbol set    148 names, asserted equal to the configured universe
   window        2019-01-01 .. 2026-05-29   1836 trading days
   engine        test_exposure.backtest_exposure (SHIPPING)
