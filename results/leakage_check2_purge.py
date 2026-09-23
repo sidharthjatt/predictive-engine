@@ -74,12 +74,12 @@ from universes.registry import REGISTRY
 # The LABEL stays local: it is printed into diagnostics/leakage_check2_purge.txt.
 # Order is load-bearing -- the report is written universe by universe.
 LABELS = {"nifty100": "NIFTY 100", "midcap150": "MIDCAP150"}
-UNIVERSES = {u.tag: (u.raw_cache, str(u.raw_tmp), LABELS[u.tag])
+UNIVERSES = {u.tag: (u.raw_cache, LABELS[u.tag])
              for u in (REGISTRY["nifty100"], REGISTRY["midcap150"])}
 
 
-def run(uni, perm, tmp, label, W):
-    src = config.require_cache(perm, tmp, what=f"{uni} raw panel")
+def run(uni, perm, label, W):
+    src = config.require_cache(perm, what=f"{uni} raw panel")
     p = pd.read_csv(src, parse_dates=["date"])
     p = p.sort_values(["date", "symbol"]).reset_index(drop=True)
     p["ym"] = p["date"].dt.to_period("M")
@@ -161,7 +161,7 @@ def run(uni, perm, tmp, label, W):
           f"{r['label_observes']:<16}{r['gap_trading_days']:>7}"
           f"{r['gap_calendar_days']:>9}")
     W("")
-    md = Path(perm).parent
+    md = REGISTRY[uni].metrics_dir   # not the panel's directory: panels live under cache/ since 2026-09-23
     D.to_csv(md / "leakage_purge_gaps.csv", index=False)
     return D
 
@@ -169,8 +169,8 @@ def run(uni, perm, tmp, label, W):
 def main():
     out = []
     bad = {}
-    for uni, (perm, tmp, label) in UNIVERSES.items():
-        D = run(uni, perm, tmp, label, out.append)
+    for uni, (perm, label) in UNIVERSES.items():
+        D = run(uni, perm, label, out.append)
         bad[uni] = int((D["gap_trading_days"] < 0).sum())
         out.append("")
     # THE VERDICT LINE AND THE EXIT STATUS, ADDED 2026-09-21. The measurement is

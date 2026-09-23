@@ -91,7 +91,6 @@ LABELS = {"nifty100": "NIFTY 100", "midcap150": "MIDCAP150"}
 UNIVERSES = {
     u.tag: (ROOT / "nautilus" / "reports" / u.tag / _SEG / "fills.csv",
             u.score_cache,
-            str(u.score_tmp),
             paths.tagged_artefact(u, "daily_decisions"),
             LABELS[u.tag])
     for u in (REGISTRY["nifty100"], REGISTRY["midcap150"])
@@ -152,13 +151,13 @@ def tick(x):
     return np.round(np.asarray(x, dtype=float), 2)
 
 
-def run(uni, fills_p, sc_p, sc_tmp, dec_p, label, W):
+def run(uni, fills_p, sc_p, dec_p, label, W):
     F = pd.read_csv(fills_p)
     F["date"] = pd.to_datetime(F["ts_event"], utc=True).dt.tz_localize(None).dt.normalize()
     F["symbol"] = F["instrument_id"].str.split(".").str[0]
     F["px"] = F["last_px"].astype(float)
 
-    P = pd.read_csv(config.require_cache(sc_p, sc_tmp, what=f"{uni} panel"),
+    P = pd.read_csv(config.require_cache(sc_p, what=f"{uni} panel"),
                     parse_dates=["date"])
     op = P.pivot_table(index="date", columns="symbol", values="open")
     cl = P.pivot_table(index="date", columns="symbol", values="close")
@@ -268,8 +267,8 @@ def run(uni, fills_p, sc_p, sc_tmp, dec_p, label, W):
 def main():
     out = [HISTORY, ""]
     res = {}
-    for uni, (f, s, st, d, lab) in UNIVERSES.items():
-        res[uni] = (run(uni, f, s, st, d, lab, out.append), f)
+    for uni, (f, s, d, lab) in UNIVERSES.items():
+        res[uni] = (run(uni, f, s, d, lab, out.append), f)
         out.append("")
     # THE VERDICT LINE AND THE EXIT STATUS, ADDED 2026-09-21. No measurement,
     # candidate rule or printed number above changed.

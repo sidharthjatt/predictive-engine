@@ -16,7 +16,7 @@ WHAT THIS REPLACES
                                                    live pair cut by DATE. Verified to
                                                    reproduce all four exactly:
                                                    1842 / 1732 / 1836 / 1836 days.
-        score panel     u.score_tmp, u.score_cache
+        score panel     u.score_cache
         output dir      u.metrics_dir
         filename tag    u.tag
 
@@ -60,18 +60,13 @@ import profiles as _prof            # the run's execution-realism profile
 
 
 def panel_path(u):
-    """The score panel: permanent copy first, working copy second.
+    """The score panel, through config.require_cache.
 
-    Same precedence the three siblings used, restated once. It is NOT
-    config.require_cache: that raises a different message, and this audit's message
-    names run_all.py as the fix.
+    Until 2026-09-23 this returned whichever copy existed WITHOUT checking what it
+    was built from, so the audit was the one reader a stale panel passed
+    silently. It now goes through the same content-key check as every other.
     """
-    if Path(u.score_cache).exists():
-        return u.score_cache
-    if Path(u.score_tmp).exists():
-        return u.score_tmp
-    raise FileNotFoundError(
-        f"{u.score_cache} / {u.score_tmp} missing -- run run_all.py first")
+    return config.require_cache(u.score_cache, what=f"{u.tag} score panel")
 
 
 def artefact_tag(u, arm):
@@ -247,13 +242,7 @@ def run(u, arm=None):
     # v34_common.py build vol20 exactly this way; the audit must replay what the
     # engine ran, so it reads the volume from the same place by the same call
     # rather than by an equivalent-looking one.
-    _capkw = {"participation_cap": _prof.participation_cap()}
-    if _capkw["participation_cap"] is not None:
-        import tradability as _tr
-        import config as _cfg
-        from engine_core import _load_calendar as _lc
-        _capkw["vol20"] = _tr.median_volume(
-            u.prepare_data_dir(), _lc(), _cfg.BT_START_DATE, _cfg.BT_END_DATE)
+    _capkw = _prof.cap_kwargs(u)
     # THE RUN'S TAX SELECTION. The audit must replay what the engine ran, and
     # after 21c6624 the engine charges tax; an untaxed re-run would now differ
     # from the taxed curve by the whole tax effect and refuse to write the trail.

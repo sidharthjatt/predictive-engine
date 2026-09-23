@@ -151,6 +151,9 @@ def main():
     out = []
     res = {}
     for uni, (ddir, mdir, label) in UNIVERSES.items():
+        # THE FARM IS BUILT ON DEMAND under cache/<tag>/ since 2026-09-23;
+        # u.data_dir is only its path and is empty on a fresh tree.
+        ddir = REGISTRY[uni].prepare_data_dir()
         res[uni] = run(uni, ddir, mdir, label, out.append)
         out.append("")
     # THE VERDICT LINE AND THE EXIT STATUS, ADDED 2026-09-21. No count, bound,

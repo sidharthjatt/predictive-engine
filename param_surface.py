@@ -55,13 +55,15 @@ RATIOS = [1.0, 1.5, 2.0, 3.0]
 BASE = (8, 16)          # the incumbent, TOP_N=8 at the 2.0x ratio
 
 UNIV = [
-    ("mid 2019", ROOT/"results_midcap150"/"metrics"/"v_midcap150_expanding_cache.csv", "/tmp/v_midcap150_expanding.csv", 2019, 2026),
-    ("mid 2016", ROOT/"results_midcap150"/"metrics"/"v_midcap150_expanding_cache.csv", "/tmp/v_midcap150_expanding.csv", 2016, 2026),
+    ("mid 2019", "midcap150", 2019, 2026),
+    ("mid 2016", "midcap150", 2016, 2026),
 ]
 
 
-def load(perm, tmp):
-    p = pd.read_csv(config.require_cache(perm, tmp, what="score panel"), parse_dates=["date"])
+def load(uni):
+    from universes.registry import REGISTRY
+    p = pd.read_csv(config.require_cache(REGISTRY[uni].score_cache, what="score panel"),
+                    parse_dates=["date"])
     px = p.pivot_table(index="date", columns="symbol", values="close").ffill()
     op = p.pivot_table(index="date", columns="symbol", values="open").ffill()
     sc = p.pivot_table(index="date", columns="symbol", values="score")
@@ -99,8 +101,8 @@ def main():
     print(" TOP_N x BUFFER SURFACE -- diagnostic. No default is changed by this script.")
     print("=" * 104)
 
-    for tag, perm, tmp, y0, y1 in UNIV:
-        px, op, sc = load(perm, tmp)
+    for tag, uni, y0, y1 in UNIV:
+        px, op, sc = load(uni)
         nsym = px.shape[1]
         rows = []
         for t in TOPNS:

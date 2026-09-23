@@ -52,6 +52,9 @@ def main():
 
     tot = 0
     for tag, (data_dir, cache) in UNIV.items():
+        # THE FARM IS BUILT ON DEMAND under cache/<tag>/ since 2026-09-23;
+        # u.data_dir is only its path and is empty on a fresh tree.
+        data_dir = REGISTRY[tag].prepare_data_dir()
         b = flagged(data_dir)
         print("\n" + "-" * 96)
         if b.empty:

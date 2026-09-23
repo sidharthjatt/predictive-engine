@@ -149,13 +149,13 @@ COVERAGE = measured_universes.declare(
     {f"SEED_FLOOR[{a}]": SEED_FLOOR[a] for a in SEED_FLOOR})
 
 UNIVERSES = {
-    u.tag: (LABELS[u.tag], u.metrics_dir, u.score_cache.name, str(u.score_tmp))
+    u.tag: (LABELS[u.tag], u.metrics_dir, u.score_cache)
     for u in (REGISTRY[t] for t in MEASURED_FOR)
 }
 
 
 def load(tag):
-    label, M, cache, tmp = UNIVERSES[tag]
+    label, M, cache = UNIVERSES[tag]
     # A SCRIPT THAT RECOMPUTES AND COMPARES AGAINST A PUBLISHED ARTEFACT MUST RUN
     # UNDER THE SAME GUARDS THAT PRODUCED IT. Without this the REBAL=20 control
     # recomputes UNGUARDED and is compared against a GUARDED v34_comparison.csv:
@@ -164,7 +164,7 @@ def load(tag):
     # single cadence number. The control was right and the harness was stale.
     import engine_core as _ec
     _ec.set_tradeability(REGISTRY[tag])
-    src = config.require_cache(M / cache, tmp, what=f"{label} score panel")
+    src = config.require_cache(cache, what=f"{label} score panel")
     p = pd.read_csv(src, parse_dates=["date"])
     px = p.pivot_table(index="date", columns="symbol", values="close").ffill()
     op = p.pivot_table(index="date", columns="symbol", values="open").ffill()

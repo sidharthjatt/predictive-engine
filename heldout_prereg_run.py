@@ -208,7 +208,7 @@ def universe_series(u, W):
     others; a third would make this a different backtest wearing the same name.
     """
     engine_core.set_tradeability(u)          # the interior-gap guard, per section 1
-    src = config.require_cache(u.score_cache, str(u.score_tmp),
+    src = config.require_cache(u.score_cache,
                                what=f"{u.tag} score panel")
     p = pd.read_csv(src, parse_dates=["date"])
     px = p.pivot_table(index="date", columns="symbol", values="close").ffill()

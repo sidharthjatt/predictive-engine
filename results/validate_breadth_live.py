@@ -86,8 +86,8 @@ BT_START_DATE, BT_END_DATE = config.BT_START_DATE, config.BT_END_DATE
 # breadth_live_params.json as well as printed, so it must not move.
 LABELS = {"nifty100": "Nifty 100", "midcap150": "MidCap150"}
 UNIVERSES = {
-    u.tag: {"score_perm": u.score_cache, "score_tmp": str(u.score_tmp),
-            "raw_perm": u.raw_cache, "raw_tmp": str(u.raw_tmp),
+    u.tag: {"score_perm": u.score_cache,
+            "raw_perm": u.raw_cache,
             "metrics": u.metrics_dir, "label": LABELS[u.tag]}
     for u in (REGISTRY["nifty100"], REGISTRY["midcap150"])
 }
@@ -196,7 +196,7 @@ def main():
     W("  T1 and T2 are copied verbatim from results/validate_breadth.py, which")
     W("  stays frozen. T3 is new and is REPORTED, NOT GATED.")
 
-    score_path = config.require_cache(U["score_perm"], U["score_tmp"],
+    score_path = config.require_cache(U["score_perm"],
                                       what=f"{U['label']} score panel")
     prod = pd.read_csv(score_path, parse_dates=["date"])
     parts = panel_parts(prod)
@@ -204,7 +204,7 @@ def main():
     W(f"\n  score panel  {score_path}")
     W(f"               {parts[0].shape[1]} symbols, {len(bd)} days in the window")
 
-    raw_path = config.require_cache(U["raw_perm"], U["raw_tmp"],
+    raw_path = config.require_cache(U["raw_perm"],
                                     what=f"{U['label']} raw feature panel")
 
     if "--run" not in sys.argv:

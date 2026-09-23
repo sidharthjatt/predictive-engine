@@ -83,6 +83,43 @@ def name(stem, ext, axes=AXES):
     return f"{stem}{tail(axes)}{ext}"
 
 
+def run_label(universe, arms):
+    """The line every chart title starts with: universe, arm(s), cadence, tax, profile.
+
+    Added 2026-09-23. A cadence-3 engine chart stated no cadence anywhere, and a
+    chart that does not say which run drew it cannot be checked against the run.
+    `universe` is a label or a list of labels; `arms` is an iterable of arm names.
+    """
+    uni = universe if isinstance(universe, str) else ", ".join(universe)
+    arms = list(arms)
+    return (f"{uni}  |  arm{'s' if len(arms) != 1 else ''} {', '.join(arms)}  |  "
+            f"cadence {_cadence.selected()}  |  tax {'on' if _tax.selected() else 'off'}"
+            f"  |  profile {_profiles.selected()}")
+
+
+def path_tail(rebal=None):
+    """The directory-segment tail for the current cadence, profile and tax:
+    "" at every default, else "@r40", "@tradeable", "@tax" in AXES order.
+
+    ONE RULE FOR BOTH PER-COMBINATION DIRECTORY TREES. nautilus/reports/<u>/<seg>
+    (nt_run.reports_segment) carried all three axes; runs/<u>/<seg>
+    (paths.run_dir) carried the cadence only, so a `--tax on` or `--profile
+    tradeable` arm run wrote into the same runs/<u>/<arm>/ as a research run and
+    replaced its chart. Both now take the tail from here.
+
+    THE CADENCE IS THE ARGUMENT, NOT THE SELECTION: both callers are handed
+    `rebal` explicitly, and None means the default, as reports_segment always
+    treated it. Profile and tax are read from the selection.
+    """
+    r = _cadence.DEFAULT if rebal is None else int(rebal)
+    seg = "" if r == _cadence.DEFAULT else f"@r{r}"
+    if not _profiles.is_default():
+        seg += f"@{_profiles.selected()}"
+    if not _tax.is_default():
+        seg += "@tax"
+    return seg
+
+
 # ---------------------------------------------------------------------------
 # THE LEGACY COMPOSERS, AND EXACTLY WHICH AXES EACH ONE CARRIES
 # ---------------------------------------------------------------------------

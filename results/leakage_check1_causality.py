@@ -176,6 +176,9 @@ def main():
     out = []
     bad = {}
     for uni, (d, label) in UNIVERSES.items():
+        # THE FARM IS BUILT ON DEMAND under cache/<tag>/ since 2026-09-23;
+        # u.data_dir is only its path and is empty on a fresh tree.
+        d = REGISTRY[uni].prepare_data_dir()
         bad[uni] = run(uni, d, label, out.append)
         out.append("")
     # THE VERDICT LINE AND THE EXIT STATUS, ADDED 2026-09-21. `bad` was already

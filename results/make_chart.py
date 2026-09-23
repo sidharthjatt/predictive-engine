@@ -48,6 +48,7 @@ import cadence
 import profiles
 import arm_sources
 import survivorship as sv
+import naming
 def _window_label(eq=None):
     """One line naming the window every figure on the chart belongs to.
 
@@ -113,7 +114,7 @@ def before_tc(eq, log):
 
 
 def _ci(path):
-    """The cadence-named sibling of `path` if it exists, else `path` itself.
+    """This run's cadence-, profile- and tax-named sibling of `path`.
 
     THE LITERAL STAYS IN THE CALL -- `_ci(M / "<name>")` -- so
     check_pipeline_order still reads this step's edges out of the source. At the
@@ -140,7 +141,12 @@ def _ci(path):
         return path
     c = path.with_name(path.stem + _cd.suffix() + _pf.suffix() + _tax.suffix()
                        + path.suffix)
-    return c if c.exists() else path
+    # NO FALLBACK TO THE CANONICAL FILE, 2026-09-23. This returned `path` when
+    # the sibling was absent, so a missing non-default artefact was silently
+    # replaced by the published cadence-20 research one and plotted under this
+    # run's title. The sibling's name is returned whether or not it exists, and a
+    # missing one fails at the read, naming the file this run should have made.
+    return c
 
 
 def chart_path(M, stem, arms_on):
@@ -182,8 +188,7 @@ def main(u):
     def score_panel_path():
         """This universe's score panel, resolved through the shared guard so a
         missing cache reports which file is absent instead of crashing mid-run."""
-        return config.require_cache(M / f"v_{tag}_expanding_cache.csv",
-                                    str(u.score_tmp),
+        return config.require_cache(u.score_cache,
                                     what=u.engine_text["panel_what"])
     M = Path(u.metrics_dir)
     CAP = 1_000_000
@@ -440,7 +445,7 @@ def main(u):
         ax[0].axhline(0, color="k", lw=.6, alpha=.5)
         ax[0].set_ylabel("Cumulative return (%)")
         ax[0].yaxis.set_major_formatter(PercentFormatter(decimals=0))
-        ax[0].set_title(sub, fontsize=9.5)
+        ax[0].set_title(naming.run_label(u.label, _arms) + "\n" + sub, fontsize=9.5)
         ax[0].legend(loc="upper left", fontsize=8.5); ax[0].grid(alpha=.3)
         for lab, s_, c, ls, _ in series:
             ax[1].plot(s_.index, dd(s_), lw=1.4, color=c, ls=ls,
@@ -466,12 +471,17 @@ def main(u):
     # overwrote it. Only a run from an empty tree showed it absent.
     #
     # CANONICAL: always exactly v2 and v1, drawn whenever both are selected.
+    # THE TAX AXIS IS IN BOTH CONDITIONS, 2026-09-23. It was missing from both,
+    # so a `--tax on` run with default cadence and profile drew TAXED curves into
+    # the canonical chart_<stem>.png and wrote no taxed chart of its own.
+    import tax as _tax
+    _axes_default = cadence.is_default() and profiles.is_default() and _tax.is_default()
     _canon = {n: d for n, d in ARMS_ON.items() if n in ("v2", "v1")}
-    if len(_canon) == 2 and cadence.is_default() and profiles.is_default():
+    if len(_canon) == 2 and _axes_default:
         _render(_canon, M / f"{_CT['stem']}.png")
 
     # SELECTION: exactly what this run selected, into its own name.
-    if set(ARMS_ON) != {"v2", "v1"} or not cadence.is_default() or not profiles.is_default():
+    if set(ARMS_ON) != {"v2", "v1"} or not _axes_default:
         _asf = arm_reg.suffix(ARMS_ON) if set(ARMS_ON) != {"v2", "v1"} else ""
         _render(ARMS_ON, chart_path(M, _CT["stem"], ARMS_ON))
     # WHAT WAS WRITTEN, WHICH IS NOT THE CANONICAL NAME AND SOMETIMES IS NO NAME.

@@ -38,7 +38,7 @@ from seed_noise_measure import (SEEDS, K_GRID, M_SUBSETS, ARMS, UNIVERSES,
 def run(uni, cfg, W):
     store = ROOT / "results" / f"SEEDNOISE_{uni}_scores.npy"
     S = np.load(store)
-    raw = pd.read_csv(config.require_cache(cfg["raw"], cfg["raw_tmp"],
+    raw = pd.read_csv(config.require_cache(cfg["raw"],
                                            what=f"{uni} raw panel"),
                       parse_dates=["date"])
     assert_columns(raw, REQUIRED_RAW, f"{uni} raw panel")

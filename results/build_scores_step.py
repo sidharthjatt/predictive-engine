@@ -13,8 +13,8 @@ WHAT THIS REPLACES
     records:
 
         data directory   u.prepare_data_dir()
-        raw panel out    u.raw_tmp
-        score panel out  u.score_tmp
+        raw panel out    u.raw_cache
+        score panel out  u.score_cache
         purge mode       u.purge_mode        <- see below, this one is load-bearing
         index exclusion  u.index_name
         symbol check     u.symbols()
@@ -63,33 +63,35 @@ SEEDS = [7, 42, 99, 1, 2, 3, 11, 22, 33, 101]
 def run(u):
     """Build the raw panel and the monthly score panel for one universe.
 
-    THE CACHED-PANEL SKIP LIVES HERE NOW, not in run.py. It was a hardcoded set of
-    filenames (run.SCORE_BUILD_STEPS) plus a lookup in a second hardcoded table
-    (run.STEP_UNIVERSES); both retired with the invocation contract, and neither is
-    replaced. The step that owns the panel owns the decision not to rebuild it,
-    which is one fewer place that knows about panels -- and the place that knew
-    about them second is the one that went stale.
+    THE CACHED-PANEL SKIP LIVES HERE. The step that owns the panel owns the
+    decision not to rebuild it.
 
-    --fresh STILL WORKS, for a better reason. run.py unlinks CACHE_TMP and
-    CACHE_PERM before the loop, so a --fresh run finds no cache here rather than
-    being told to disregard one. There is no flag to thread and no second opinion
-    about whether a panel counts as present.
+    REUSE IS DECIDED BY CONTENT. Both panels are reused only when their sidecars
+    carry the source key of the constituent farm as it is now -- every CSV name
+    and the sha256 of its bytes (config.cache_staleness). Adding, removing or
+    editing a CSV is a miss; the line printed says which names moved and the
+    panels are rebuilt. Until 2026-09-23 the check was the source directory's
+    name, and removing SUZLON.csv left the midcap50 panel in use with SUZLON in it.
+
+    --fresh deletes the selected universes' panels before the loop, so this
+    finds none and builds.
     """
-    cached = Path(u.score_tmp)
-    if cached.exists():
-        # A WARM /tmp PANEL IS ONLY WARM IF IT CAME FROM THIS SOURCE. The skip
-        # below is what makes a re-run cheap, and it was also a second way for
-        # an old-vendor panel to be adopted by a repointed universe: the file is
-        # present, so the build never runs and require_cache is never reached.
-        # _verified() raises rather than rebuilding, for the reason given in
-        # config.py -- a cache that quietly regenerates destroys the operator's
-        # evidence that the tree is in a state they did not intend.
-        config._verified(cached, f"{u.tag} score panel (warm /tmp copy)")
-        print(f"    score panel cached, skipping build ({cached})", flush=True)
+    stale = [(what, config.cache_staleness(path, u))
+             for what, path in (("score panel", u.score_cache),
+                                ("raw panel", u.raw_cache))]
+    stale = [(w, why) for w, why in stale if why is not None]
+    if not stale:
+        print(f"    score panel current, skipping build ({u.score_cache})", flush=True)
         return
+    for what, why in stale:
+        print(f"    REBUILDING {u.tag}: {what} {why}", flush=True)
 
     data_dir = u.prepare_data_dir()
     want = u.symbols()
+    # THE KEY IS TAKEN BEFORE THE BUILD, from the files build_panel is about to
+    # read, and written beside both panels after it.
+    key = config.source_key_for(u)
+    u.score_cache.parent.mkdir(parents=True, exist_ok=True)
 
     if want is None:
         print("[1/2] Building raw panel...", flush=True)
@@ -116,8 +118,8 @@ def run(u):
     keep = ["date", "symbol", "open", "close", "year", "y_rank", "scorable"] + FEATS_V2
     raw = raw[keep]
     # naming: axis-free -- raw panel is keyed by universe only; it is built before any arm, cadence or profile is applied
-    raw.to_csv(u.raw_tmp, index=False)
-    config.write_cache_source(u.raw_tmp, u.raw_data_dir)
+    raw.to_csv(u.raw_cache, index=False)
+    config.write_cache_source(u.raw_cache, u, key)
     print(f"    done {(time.time()-t0)/60:.1f} min, {len(raw):,} rows", flush=True)
 
     print("[2/2] Monthly scoring, 10-seed ensemble (slow)...", flush=True)
@@ -125,10 +127,10 @@ def run(u):
     scored = score_monthly(raw, SEEDS, purge_mode=u.purge_mode)
     # naming: axis-free -- score panel is the model's output, upstream of every arm; all arms read this one file
     scored[["date", "symbol", "open", "close", "score", "year"]].to_csv(
-        u.score_tmp, index=False)
-    config.write_cache_source(u.score_tmp, u.raw_data_dir)
+        u.score_cache, index=False)
+    config.write_cache_source(u.score_cache, u, key)
     print(f"    done {(time.time()-t0)/60:.1f} min", flush=True)
     if want is None:
-        print(f"DONE -- {u.score_tmp} ready")
+        print(f"DONE -- {u.score_cache} ready")
     else:
-        print(f"DONE -- {u.score_tmp} ready ({len(got)} stocks)")
+        print(f"DONE -- {u.score_cache} ready ({len(got)} stocks)")

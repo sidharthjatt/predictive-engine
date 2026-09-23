@@ -52,6 +52,7 @@ import profiles as _prof            # the run's execution-realism profile
 # any output it wrote. n100's engine has reported it all along. The bias was never
 # universe-specific; only the disclosure was.
 import survivorship as sv
+import naming
 
 REBAL, VOL_WIN = 20, 60
 # REBAL ABOVE IS THE DEFAULT AND STAYS 20. The cadence this RUN selected is read
@@ -150,9 +151,7 @@ def main(u):
     # Guard loaded per universe -- see engine_core.set_tradeability.
     import engine_core as _ec
     _ec.set_tradeability(u)
-    src = config.require_cache(M / f"v_{tag}_expanding_cache.csv",
-                               str(u.score_tmp),
-                               what=_T["panel_what"])
+    src = config.require_cache(u.score_cache, what=_T["panel_what"])
     p = pd.read_csv(src, parse_dates=["date"])
     # THE INDEX MUST NOT BE IN THE PANEL AS A TRADABLE NAME, where the universe
     # declares that check. n100's engine has always asserted it; mid's never did.
@@ -205,19 +204,7 @@ def main(u):
     # None under profile="research", so `q` is untouched and the published history
     # is exact.
     import profiles as _prof
-    import config as _cfg
-    _cap = _prof.participation_cap()
-    # ALWAYS CARRIES THE CAP, EVEN WHEN None. backtest_exposure refuses to
-    # guess which profile a caller meant, and None is what `research` resolves
-    # to. Passing it here AND as a separate keyword raised TypeError on every
-    # tradeable run between 85f68a4 and this commit.
-    _capkw = {"participation_cap": _cap}
-    if _cap is not None:
-        import tradability as _tr
-        from engine_core import _load_calendar as _lc
-        _capkw = {"participation_cap": _cap,
-                  "vol20": _tr.median_volume(u.prepare_data_dir(), _lc(),
-                                             _cfg.BT_START_DATE, _cfg.BT_END_DATE)}
+    _capkw = _prof.cap_kwargs(u)
     base_eq, tcb, nb, _ = backtest_exposure(px, op, sc, bd, pc, mom20, port_vol,
                                             mode="none", target_vol=tv,
                                             audit=base_audit, rebal=_reb,
@@ -367,7 +354,8 @@ def main(u):
     # a literal here: mid's two lines and n100's one are different published
     # artefacts, and unifying them would move a byte for a reason unrelated to
     # this merge.
-    ax[0].set_title(_T["chart_title"] + sv.describe_state(), fontsize=10)
+    ax[0].set_title(naming.run_label(u.label, ["v1", "v2"]) + "\n"
+                    + _T["chart_title"] + sv.describe_state(), fontsize=10)
     ax[0].legend(loc="upper left", fontsize=9)
     ax[0].grid(alpha=.3)
     for s, c, ls, lab in [(fin_eq, "#d62728", "-", "v2 FINAL"),

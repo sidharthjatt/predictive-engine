@@ -222,6 +222,38 @@ SKIP_SHORT = {
 }
 SLOW_SHORT = "refits the model; needs --slow"
 
+# WHAT A DELEGATE READS THAT A RUN PRODUCES. Added 2026-09-23.
+#
+# A FRESH TREE IS NOT A FAILED CHECK. On a clean-room copy these five exited 1
+# for one reason: an input that only a pipeline run writes was absent -- a panel
+# under cache/, or a universe's daily audit files or Nautilus reports. That made
+# the runner red on every fresh checkout for a reason that says nothing about the
+# code. A delegate whose declared inputs are missing is now a named SKIP that
+# says which file and which command produces it; a delegate whose inputs exist
+# and that then fails is still a failure.
+#
+# DECLARED, NOT INFERRED FROM THE ERROR TEXT. Classifying a traceback as "missing
+# input" would also classify a genuinely missing file the code should have
+# written. Each entry lists what the script reads, from the registry.
+def _needs(label):
+    import paths as _p
+    from universes.registry import REGISTRY as _R
+    two = (_R["nifty100"], _R["midcap150"])
+    if label == "results/leakage_check2_trading_purge.py":
+        return [u.raw_cache for u in two]
+    if label == "results/validate_topn.py":
+        return [u.score_cache for u in two] + [u.metrics_dir / "v34_comparison.csv" for u in two]
+    if label == "results/check_b_exec_timing.py":
+        return [x for u in two for x in (
+            ROOT / "nautilus" / "reports" / u.tag / "v2" / "fills.csv",
+            u.score_cache, _p.tagged_artefact(u, "daily_decisions"))]
+    if label.startswith("nautilus/nt_verify.py --universe="):
+        u = _R[label.split("=", 1)[1]]
+        return [u.score_cache] + [_p.tagged_artefact(u, s) for s in
+                                  ("daily_summary", "daily_holdings",
+                                   "daily_trades", "daily_decisions")]
+    return []
+
 # naming_declare_check reports a KNOWN, PRE-EXISTING count of undeclared write
 # calls and exits 1 for it. That number was 111 before this checker existed and
 # is not this checker's business to fix; what IS its business is that the number
@@ -236,10 +268,12 @@ NAMING_UNDECLARED_BASELINE = 111
 # red means nothing at all -- but the cure for that is a declaration with a
 # reason, not a lowered bar.
 #
-# NONE OF THESE FOUR IS THE DEFECT CLASS. Two are dead scripts importing a module
-# this repository does not contain, one wants an optional dependency, and one
-# refuses at import BY DESIGN. They are declared so that the fifth failure --
-# which will be the defect class -- is visible the moment it appears.
+# NONE OF THESE THREE IS THE DEFECT CLASS. Two are dead scripts importing a module
+# this repository does not contain, and one wants an optional dependency. They are
+# declared so that the next failure -- which will be the defect class -- is
+# visible the moment it appears. results/save_ewma_comparison.py left the list on
+# 2026-09-23: it "refused at import" because it did its work at import, which is
+# the defect class, not an exception to it; its work is in main() now.
 KNOWN_UNIMPORTABLE = {
     "diagnostics/membership/analyse.py":
         "needs pdfplumber, an optional dependency not in requirements.txt",
@@ -248,9 +282,6 @@ KNOWN_UNIMPORTABLE = {
         "-- a dead script left from before the engine was renamed",
     "results/stability_test.py":
         "imports `engine_v2`, same as audit_leakage.py -- dead script",
-    "results/save_ewma_comparison.py":
-        "refuses at import BY DESIGN: importing it is running it, and it will "
-        "not overwrite a hand-maintained file. Correct behaviour, not a defect.",
 }
 
 
@@ -581,6 +612,19 @@ def gate_delegates(res, slow):
             res.fail("GATE 5 delegates", label, "not found")
             res.delegate(label, "FAIL", "not found")
             continue
+        missing = [x for x in _needs(label) if not Path(x).exists()]
+        if missing:
+            first = Path(missing[0])
+            try:
+                first = first.relative_to(ROOT)
+            except ValueError:
+                pass
+            why = (f"needs {len(missing)} run artefact(s) not on disk, first "
+                   f"{first}; produce with ./venv/bin/python run.py --universe "
+                   f"nifty100,midcap150")
+            res.delegate(label, "SKIP", why, f"needs run artefacts: {first}")
+            skipped += 1
+            continue
         r = subprocess.run([sys.executable, str(p)] + args,
                            capture_output=True, text=True)
         ran += 1
@@ -637,6 +681,26 @@ def gate_delegates(res, slow):
 # ---------------------------------------------------------------------------
 # GATE 6 -- the tax axis CHARGES tax, it does not merely rename files
 # ---------------------------------------------------------------------------
+
+def _tax_ledger(u, M):
+    """(FY_EQUITY, FY_TAX_STATEMENT) paths for u's v2 at default cadence and
+    profile under tax=on, named by the writers' own composers."""
+    import cadence as _cd
+    import profiles as _pf
+    import tax as _tx
+    sys.path.insert(0, str(ROOT / "results"))
+    import audit_step
+    import tax_report
+    from arms.registry import ARMS
+    saved = (_cd._SELECTED, _pf.selected(), _tx.selected())
+    try:
+        _cd.set_selection(None); _pf.set_selection(None); _tx.set_selection(True)
+        tag = audit_step.artefact_tag(u, ARMS["v2"])
+        return (M / tax_report.artefact_name("FY_EQUITY", tag),
+                M / tax_report.artefact_name("FY_TAX_STATEMENT", tag))
+    finally:
+        _cd.set_selection(saved[0]); _pf.set_selection(saved[1]); _tx.set_selection(saved[2])
+
 
 def gate_tax(res, since, sel):
     """CONDITION 3: under tax=on the numbers must move, by what the ledger says.
@@ -730,11 +794,15 @@ def gate_tax(res, since, sel):
         M = Path(u.metrics_dir)
         taxed = M / "v34_equity_tax.csv"
         plain = M / "v34_equity.csv"
-        fy = M / f"FY_EQUITY_{t}_v2_tax.csv"
-        if not fy.exists():
-            fy = next(iter(sorted(M.glob("FY_EQUITY_*_tax.csv"))), None)
-        stmt = next(iter(sorted(M.glob("FY_TAX_STATEMENT_*_tax.csv"))), None)
-        if not taxed.exists() or fy is None or stmt is None:
+        # THE LEDGER IS NAMED EXACTLY, FOR THE CADENCE THIS GATE CHECKS. taxed is
+        # the default-cadence, research, four-arm curve, so its ledger is v2's at
+        # the same axes, named by the writer's own rule (audit_step.artefact_tag +
+        # tax_report.artefact_name). This was `sorted(glob("FY_EQUITY_*_tax.csv"))[0]`
+        # until 2026-09-23, and FY_EQUITY_<tag>_r10_tax.csv sorts before
+        # FY_EQUITY_<tag>_tax.csv: one cadence-10 tax run made the gate compare
+        # the cadence-10 ledger with the cadence-20 curve and fail by Rs 329,753.
+        fy, stmt = _tax_ledger(u, M)
+        if not taxed.exists() or not fy.exists() or not stmt.exists():
             continue
         checked += 1
 
@@ -1001,7 +1069,7 @@ def gate_data_source(res, sel):
     THE MECHANISM IS BORROWED, NOT INVENTED. config.write_cache_source and
     config._verified have recorded and enforced a cache's source since
     2026-09-19; the rule was correct and lived one layer too low, because
-    _cache_owner() matches only score_cache, raw_cache, score_tmp and raw_tmp. A
+    _cache_owner() matches only score_cache and raw_cache. A
     daily_trades and a v34_params -- the files people read and quote -- were
     covered by nothing. This raises the same rule to the published artefact.
 
@@ -1019,9 +1087,9 @@ def gate_data_source(res, sel):
     every artefact that predates the field. A file without data_source that is not
     on the list fails. A file on the list that has GAINED the field fails too, and
     says to delete the line -- so re-running an artefact shrinks the list and the
-    gate insists on it. On a full run the number of exemptions actually used is
-    checked against GATE8_EXEMPT_N and every listed path must still exist, so the
-    list cannot grow, rot, or quietly cover something it was never meant to.
+    gate insists on it. The list's length is pinned to GATE8_EXEMPT_N. A listed
+    path that is ABSENT is not checked and not failed: a clean checkout never
+    contains these files.
     """
     import json
     try:
@@ -1046,8 +1114,6 @@ def gate_data_source(res, sel):
     live = {}                      # tag -> fingerprint, computed at most once
     checked = 0
     exempt_used = set()            # listed paths that were seen, and had no field
-    seen_paths = set()             # every params path this run actually looked at
-    full_scan = sel in (None, "all")
     for t in tags:
         u = REGISTRY.get(t)
         if u is None:
@@ -1058,7 +1124,6 @@ def gate_data_source(res, sel):
         for f in sorted(M.glob("v34_params*.json")):
             checked += 1
             nm = name(f)
-            seen_paths.add(nm)
             try:
                 doc = json.loads(f.read_text())
             except Exception as e:
@@ -1087,10 +1152,13 @@ def gate_data_source(res, sel):
                          "hides the next one that genuinely lacks the field.")
                 continue
             if t not in live:
-                live[t] = config.data_fingerprint(u.data_dir, u.raw_data_dir)
+                live[t] = config.data_fingerprint(u.prepare_data_dir(), u.raw_data_dir)
             cur = live[t]
             for key in ("raw_data_dir", "link_target_dir", "digest"):
-                if rec.get(key) != cur.get(key):
+                a, b = rec.get(key), cur.get(key)
+                if key != "digest" and a and b and not str(a).startswith("MIXED"):
+                    a, b = config.root_relative(a), config.root_relative(b)
+                if a != b:
                     res.fail("GATE 8 data source", name(f),
                              f"{key} MISMATCH -- this artefact describes data the "
                              f"universe no longer uses.\n"
@@ -1105,35 +1173,26 @@ def gate_data_source(res, sel):
                  "no params artefacts on disk")
         return
 
-    # THE LIST IS PINNED BY COUNT AND BY EXISTENCE, on a full scan only -- a run
-    # scoped to one universe legitimately never visits most of these paths.
-    if full_scan:
-        gone = [x for x in GATE8_EXEMPT if x not in seen_paths]
-        if gone:
-            res.fail("GATE 8 exemptions", "check_all.py",
-                     "GATE8_EXEMPT names {} artefact(s) that are not on disk:\n"
-                     "          {}\n"
-                     "      A listed path that no longer exists is a stale "
-                     "exemption. Delete the line(s) and reduce GATE8_EXEMPT_N "
-                     "to match.".format(len(gone), "\n          ".join(gone)))
-        if len(GATE8_EXEMPT) != GATE8_EXEMPT_N:
-            res.fail("GATE 8 exemptions", "check_all.py",
-                     f"GATE8_EXEMPT holds {len(GATE8_EXEMPT)} names but "
-                     f"GATE8_EXEMPT_N says {GATE8_EXEMPT_N}. The count exists so a "
-                     f"name cannot be added without the number moving in the same "
-                     f"diff. Set them equal deliberately.")
-        elif len(exempt_used) != GATE8_EXEMPT_N:
-            res.fail("GATE 8 exemptions", "check_all.py",
-                     f"{len(exempt_used)} of {GATE8_EXEMPT_N} listed artefacts "
-                     f"were actually missing a data_source this run. The others "
-                     f"either gained the field (each is failed by name above) or "
-                     f"were not visited. Bring GATE8_EXEMPT and GATE8_EXEMPT_N "
-                     f"back in line with the tree.")
+    # AN EXEMPTION MEANS "NOT CHECKED", AND AN ABSENT EXEMPT FILE IS NOT A FAILURE.
+    # Until 2026-09-23 a full scan failed if any listed path was missing. The
+    # sixteen listed files predate the data_source field and cannot be
+    # regenerated -- a re-run writes the field, and that fails the list below --
+    # so a clean checkout could never contain them and GATE 8 could never pass on
+    # one. Measured in the 2026-09-23 clean-room audit. The list still cannot
+    # grow unnoticed: its length is pinned to GATE8_EXEMPT_N, and a listed file
+    # that is present AND has gained the field still fails by name above.
+    if len(GATE8_EXEMPT) != GATE8_EXEMPT_N:
+        res.fail("GATE 8 exemptions", "check_all.py",
+                 f"GATE8_EXEMPT holds {len(GATE8_EXEMPT)} names but "
+                 f"GATE8_EXEMPT_N says {GATE8_EXEMPT_N}. The count exists so a "
+                 f"name cannot be added without the number moving in the same "
+                 f"diff. Set them equal deliberately.")
+    absent = [x for x in GATE8_EXEMPT if not (ROOT / x).exists()]
 
     res.note(f"GATE 8  {checked} published artefact(s) checked against the "
              f"registry's current raw_data_dir and a sha256 over the whole input; "
-             f"{len(exempt_used)} of {GATE8_EXEMPT_N} listed exemptions predate the "
-             f"field (2026-09-20) and still cannot say what produced them")
+             f"{len(exempt_used)} of {GATE8_EXEMPT_N} listed exemptions are on disk "
+             f"without the field and were not checked, {len(absent)} are absent")
 
 
 def _print_not_asserted(res):

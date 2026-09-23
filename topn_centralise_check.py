@@ -66,15 +66,15 @@ VOL_WIN = 60
 # -- the single definition. This file carries no label of its own, so nothing is
 # kept local here. Order is load-bearing: the hash table is emitted universe by
 # universe and compared row for row against the previous run.
-UNIVERSES = {u.tag: (u.score_cache, str(u.score_tmp))
+UNIVERSES = {u.tag: u.score_cache
              for u in (REGISTRY["nifty100"], REGISTRY["midcap150"])}
 
 ARMS = [("invvol", "none"), ("invvol", "breadth"),
         ("provol", "none"), ("provol", "breadth")]
 
 
-def load(perm, tmp, what):
-    src = config.require_cache(perm, tmp, what=what)
+def load(perm, what):
+    src = config.require_cache(perm, what=what)
     p = pd.read_csv(src, parse_dates=["date"])
     px = p.pivot_table(index="date", columns="symbol", values="close").ffill()
     op = p.pivot_table(index="date", columns="symbol", values="open").ffill()
@@ -82,8 +82,8 @@ def load(perm, tmp, what):
     return px, op, sc
 
 
-def run(uni, perm, tmp):
-    px, op, sc = load(perm, tmp, f"{uni} score panel")
+def run(uni, perm):
+    px, op, sc = load(perm, f"{uni} score panel")
     bd = px.index[(px.index >= config.BT_START_DATE)
                   & (px.index <= config.BT_END_DATE)]
     pc = precompute(px)
@@ -230,8 +230,8 @@ def main():
     print(f"  test_exposure.TOP_N={test_exposure.TOP_N} "
           f"BUFFER={test_exposure.BUFFER}")
     out = []
-    for uni, (perm, tmp) in UNIVERSES.items():
-        out += run(uni, perm, tmp)
+    for uni, perm in UNIVERSES.items():
+        out += run(uni, perm)
     df = pd.DataFrame(out)
     dest = Path(sys.argv[2]) if len(sys.argv) > 2 else HASHES(label)
     df.to_csv(dest, index=False)

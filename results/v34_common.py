@@ -39,6 +39,7 @@ from matplotlib.ticker import PercentFormatter
 from engine_core import metrics
 import config as _config
 import universes.registry as _uni_registry
+import naming
 
 
 def _window_label(eq=None):
@@ -220,19 +221,8 @@ def run_v34(M, universe_label, universe_tag, px, op, sc, bd, pc, mom20, port_vol
     # None under profile="research", so `q` is untouched and the published history
     # is exact.
     import profiles as _prof
-    import config as _cfg
-    _cap = _prof.participation_cap()
-    # ALWAYS PASSED, EVEN WHEN None. backtest_exposure refuses to guess which
-    # profile a caller meant, and None is what `research` resolves to.
-    _capkw = {"participation_cap": _cap}
-    if _cap is not None:
-        import tradability as _tr
-        from engine_core import _load_calendar as _lc
-        _capkw["vol20"] = (
-            _tr.median_volume(
-                __import__("universes.registry", fromlist=["REGISTRY"])
-                .REGISTRY[universe_tag].prepare_data_dir(), _lc(),
-                _cfg.BT_START_DATE, _cfg.BT_END_DATE))
+    from universes.registry import REGISTRY as _REG
+    _capkw = _prof.cap_kwargs(_REG[universe_tag])
     a2 = _blank()
     if "v2" in sel:
         backtest_exposure(px, op, sc, bd, pc, mom20, port_vol, mode="breadth",
@@ -357,7 +347,10 @@ def run_v34(M, universe_label, universe_tag, px, op, sc, bd, pc, mom20, port_vol
         "arms": {n: f"{arm_reg.ARMS[n].sizing} + mode={arm_reg.ARMS[n].mode}"
                  for n, _, _, _, _, _, _, _ in ARM_ON},
         "reference": "equal-weight buy & hold of the same universe, same panel",
-        "constants": consts,
+        # REBAL IS THE CADENCE THIS RUN USED. `consts` comes from the engine,
+        # which passes its module constant; a cadence-3 run recorded "REBAL": 20
+        # until 2026-09-23. At the default the value, and so the file, is unchanged.
+        "constants": {**consts, "REBAL": _reb},
         "git_state": _git_state(),
         # WHICH PRICE DATA THIS RUN READ. git_state pins the CODE and already
         # says when it cannot ("working_tree_dirty"); nothing pinned the DATA
@@ -368,7 +361,7 @@ def run_v34(M, universe_label, universe_tag, px, op, sc, bd, pc, mom20, port_vol
         # mismatch. See config.data_fingerprint for what the digest covers and
         # why it is the whole file rather than a row count.
         "data_source": _config.data_fingerprint(
-            _uni_registry.REGISTRY[universe_tag].data_dir,
+            _uni_registry.REGISTRY[universe_tag].prepare_data_dir(),
             _uni_registry.REGISTRY[universe_tag].raw_data_dir),
         "run_date": str(pd.Timestamp.today().date()),
         "spec": "experiments/V34_SPEC.txt",
@@ -414,6 +407,7 @@ def run_v34(M, universe_label, universe_tag, px, op, sc, bd, pc, mom20, port_vol
                   if len(_sizings) > 1 else
                   f" All arms here size {'1/vol' if 'invvol' in _sizings else 'by vol'}.")
     ax[0].set_title(
+        naming.run_label(universe_label, [n for n, *_ in ARM_ON]) + "\n" +
         f"{universe_label} -- {_CNT.get(len(ARM_ON), len(ARM_ON))} sizing/exposure "
         f"arm{'s' if len(ARM_ON) != 1 else ''} plus equal-weight buy & hold\n"
         f"WINDOW {bd[0].date()} to {bd[-1].date()}, {len(bd)} trading days -- every "
@@ -490,7 +484,7 @@ def run_arm(u, arm, rebal=None, out_dir=None):
     # universe is known. engine_core holds it (beside MEMBERSHIP) and
     # backtest_exposure reads it directly, so every call site inherits it.
     engine_core.set_tradeability(u)
-    src = config.require_cache(u.score_cache, str(u.score_tmp),
+    src = config.require_cache(u.score_cache,
                                what=f"{u.label} score panel")
     p = pd.read_csv(src, parse_dates=["date"])
     px = p.pivot_table(index="date", columns="symbol", values="close").ffill()
@@ -510,16 +504,7 @@ def run_arm(u, arm, rebal=None, out_dir=None):
     # None under profile="research", so `q` is untouched and the published history
     # is exact.
     import profiles as _prof
-    import config as _cfg
-    _cap = _prof.participation_cap()
-    # ALWAYS PASSED, EVEN WHEN None. backtest_exposure refuses to guess which
-    # profile a caller meant, and None is what `research` resolves to.
-    _capkw = {"participation_cap": _cap}
-    if _cap is not None:
-        import tradability as _tr
-        from engine_core import _load_calendar as _lc
-        _capkw["vol20"] = _tr.median_volume(u.prepare_data_dir(), _lc(),
-                                            _cfg.BT_START_DATE, _cfg.BT_END_DATE)
+    _capkw = _prof.cap_kwargs(u)
     audit = {k: [] for k in ("holdings", "summary", "trades",
                              "ranking", "decisions", "skipped")}
     # THE RUN'S TAX SELECTION, as run_v34 above. run_arm writes
@@ -555,6 +540,8 @@ def run_arm(u, arm, rebal=None, out_dir=None):
         "universe": u.label, "universe_tag": u.tag,
         "arm": arm.name, "mode": arm.mode, "sizing": arm.sizing,
         "rebal": rebal if rebal is not None else 20,
+        "profile": _prof.selected(),
+        "tax": "on" if _tax_axis.selected() else "off",
         "value_at_open": True,
         "purge_mode": u.purge_mode,
         "window_start": str(bd[0].date()), "window_end": str(bd[-1].date()),
@@ -573,7 +560,8 @@ def run_arm(u, arm, rebal=None, out_dir=None):
     ax[0].axhline(0, color="k", lw=.6, alpha=.5)
     ax[0].set_ylabel("Cumulative return (%)")
     ax[0].yaxis.set_major_formatter(PercentFormatter(decimals=0))
-    ax[0].set_title(f"{u.label} -- {arm.label}\n{_window_label(eq)}\n"
+    ax[0].set_title(naming.run_label(u.label, [arm.name]) + "\n" +
+                    f"{u.label} -- {arm.label}\n{_window_label(eq)}\n"
                     f"mode={arm.mode}  sizing={arm.sizing}  "
                     f"rebal={rebal if rebal is not None else 20}", fontsize=9)
     ax[0].legend(loc="upper left", fontsize=8); ax[0].grid(alpha=.3)

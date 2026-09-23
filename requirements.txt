@@ -19,8 +19,18 @@
 # third-party names collected. Two requirements do NOT appear as an import
 # statement and are explained in place below: scikit-learn and pyarrow.
 #
-# PYTHON VERSION: 3.12 or newer. nautilus_trader requires 3.12+, and this is a
-# hard floor, not a preference. The headline was produced on 3.12.13.
+# PYTHON VERSION: 3.12.13. nautilus_trader 1.229 requires 3.12 or newer. The
+# repo venv ran 3.11.15 with nautilus_trader 1.221 from 2026-09-16 until
+# 2026-09-23, which the range pins below allowed; see KNOWN_ISSUES.md.
+#
+# EVERY DIRECT DEPENDENCY IS PINNED EXACTLY (==). A range lets two machines
+# install different versions from the same file, and the 2026-09-23 audit
+# measured what that costs: identical score panels but different Nautilus fill
+# timestamps. installed_versions.txt is `pip freeze` of a venv built from this
+# file alone, and records the transitive versions this file does not pin. To
+# reproduce the venv exactly, transitive dependencies included:
+#     python3.12 -m venv venv
+#     ./venv/bin/python -m pip install -r requirements.txt -c installed_versions.txt
 #
 # RUN IT WITH THE VENV INTERPRETER, NOT `python3`:
 #     ./venv/bin/python run_all.py
@@ -30,7 +40,7 @@
 
 # --- The model. Every score in this project comes from lgb.LGBMRegressor. ---
 #
-# PINNED EXACTLY, AND NOT AS A STYLE CHOICE. The published headline is the
+# WHY THE PIN MATTERS MOST HERE. The published headline is the
 # output of one specific version's arithmetic. A one-bit float difference is
 # enough to flip a LightGBM split, reorder near-tied names at the TOP_N=8
 # boundary and move CAGR by two thirds of a point -- measured, see
@@ -43,32 +53,33 @@ lightgbm==4.6.0
 # lgb.LGBMRegressor is defined in lightgbm.sklearn, and lightgbm declares
 # scikit-learn only as an EXTRA ("scikit-learn>=0.24.2; extra == 'scikit-learn'"),
 # so installing lightgbm alone does not bring it in.
-scikit-learn>=1.5,<2.0
+scikit-learn==1.9.1
 
 # --- Core data handling ---
-pandas>=2.2,<3.0
-numpy>=1.26,<2.3
+pandas==2.3.3
+numpy==2.2.6
 
 # pyarrow is NOT optional here even though nothing imports it directly.
 # STEP 16 nautilus/nt_export_scores.py calls df.to_parquet / pd.read_parquet,
 # and pandas needs a parquet engine for both.
-pyarrow>=14.0
+pyarrow==25.0.1
 
-# scipy is imported directly by STEP 4 diagnose_decay.py and STEP 6
-# reality_check.py. It is also a hard dependency of lightgbm, but it is listed
-# on its own account so that dropping lightgbm would not silently break STEP 6.
-scipy>=1.10
+# scipy is imported directly by results/diagnose_alpha.py and
+# results/test_feature_pruning.py, neither on the pipeline path, and is a hard
+# dependency of lightgbm. The two files this comment used to cite,
+# diagnose_decay.py and reality_check.py, do not exist.
+scipy==1.18.1
 
 # --- Backtesting / execution engine ---
 # Imported by qbeast_in_charges.py, which the pipeline reaches for cost
 # modelling. Sets the 3.12 Python floor noted in the header.
-nautilus_trader>=1.220,<1.230
+nautilus_trader==1.229.0
 
 # --- Plotting / equity curve charts ---
-matplotlib>=3.8,<3.12
+matplotlib==3.11.2
 
 # --- Parallel seed fitting (engine_core.score_monthly, one process per seed) ---
-joblib>=1.3
+joblib==1.6.0
 
 # ===========================================================================
 # NOT ON THE run_all.py PATH, BUT NEEDED BY TOOLING IN THIS REPOSITORY
@@ -78,29 +89,4 @@ joblib>=1.3
 # Those scripts are survivorship tooling and are NOT in PIPELINE_ORDER, so
 # run_all.py completes without this. It is listed because omitting it made the
 # membership work fail on a fresh checkout.
-openpyxl>=3.1
-
-# ===========================================================================
-# VERSIONS THE CURRENT PUBLISHED NUMBERS WERE PRODUCED UNDER -- PROVENANCE,
-# NOT PINS. Only lightgbm above is pinned. This block records what was actually
-# installed when the 2026-09-02 headline was produced, so that a later
-# discrepancy can be attributed rather than guessed at.
-#
-#     Python        3.12.13
-#     lightgbm      4.6.0
-#     scikit-learn  1.9.0
-#     numpy         2.2.6
-#     pandas        2.3.3
-#     scipy         1.18.0
-#     matplotlib    3.11.0
-#     joblib        1.5.3
-#     pyarrow       24.0.0
-#     nautilus_trader 1.228.0
-#     openpyxl      3.1.5
-#
-# CROSS-MACHINE REPRODUCIBILITY IS NOT ESTABLISHED AND SHOULD NOT BE EXPECTED,
-# and this block does not establish it. Same-machine determinism was verified on
-# 2026-09-02 (byte-identical score panels across two full runs); nothing
-# equivalent has been run on a second machine. Installing these exact versions
-# is necessary for reproducing the headline, not demonstrably sufficient.
-# ===========================================================================
+openpyxl==3.1.5

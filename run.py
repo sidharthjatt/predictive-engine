@@ -238,8 +238,7 @@ def pipeline_steps(unis):
     A WHOLE-RUN STEP IS ALWAYS IN THE PLAN when anything is selected. It takes no
     universe and works out from the selection what to do, which is why
     make_combined_universes can draw one comparison across whichever universes the
-    run chose, and why `--universe mid` still reaches STEP 15b rather than
-    reproducing the bug 15b exists to fix.
+    run chose.
     """
     import runpy
     mod = runpy.run_path(str(ROOT / "run_all.py"), run_name="__not_main__")
@@ -465,7 +464,11 @@ def print_plan(plan, args, show_paths=False):
         for u, a in plan["arm_runs"]:
             d = show(paths.run_dir(u, a, args.rebal))
             print(f"    {u.tag}/{a.name:<4} {d}/comparison.csv  subperiods.csv  equity.csv  "
-                  f"params.json  chart.png  run.log")
+                  f"params.json  chart.png")
+        # THE LOG IS PER INVOCATION, NOT PER ARM, and this line used to promise a
+        # run.log inside every arm directory that nothing ever wrote.
+        print(f"    log        {show(run_folder(plan, args))}/run.log  "
+              f"(written on success; runs/<same name>_FAILED.log on failure)")
         seen = set()
         for u in unis:
             m = show(paths.metrics(u))
@@ -546,36 +549,39 @@ def main(argv=None):
     return execute(plan, args)
 
 
-def collect_run_folder(plan, args, t_start):
-    """Gather everything THIS invocation produced into one named folder.
+def run_folder(plan, args):
+    """runs/<timestamp>_<selection>_r<cadence>/ for this invocation. Not created here."""
+    uni = [u.tag for u in plan["universes"]]
+    arm = [a.name for a in plan["arms"]]
+    reb = args.rebal if args.rebal is not None else paths.DEFAULT_REBAL
+    return ROOT / "runs" / paths.run_folder_name(uni, arm, reb)
 
-    HARD LINKS, NOT COPIES AND NOT SYMLINKS. The canonical artefacts are written
-    first, to the paths they have always used, by the steps themselves -- nothing
-    about where a step writes has changed, which is why G1 stays trivially true.
-    This runs afterwards and links what appeared.
 
-        copies   would double roughly half a gigabyte per invocation, and could
-                 drift from the canonical file without anything noticing.
-        symlinks would dangle the moment a cleanup removed the canonical file,
-                 leaving a run folder full of broken pointers.
-        hard links cost one inode, cannot drift because there is only one set of
-                 bytes, and survive the canonical file being deleted.
+def collect_run_folder(plan, args, t_start, dest):
+    """Copy everything THIS invocation produced into its own run folder.
+
+    COPIES, NOT HARD LINKS, SINCE 2026-09-23. A run folder was a set of hard
+    links to the canonical artefacts, and the steps rewrite those files IN
+    PLACE, so every later run of the same selection rewrote every earlier run
+    folder's copy. Measured: runs/midcap50/v2/comparison.csv shared one inode
+    with 21 other paths, 18 of them run folders dated from 2026-09-18 onward,
+    all showing the latest run's bytes. A record that a later run can edit is not
+    a record. A copy costs 12-43 MB per run (measured on three existing folders);
+    the panels, which made hard links attractive, live under cache/ and are not
+    copied.
 
     WHAT COUNTS AS "PRODUCED": modified at or after this run started. That is why
     t_start is taken before the first step rather than derived afterwards. A step
     that rewrote a file identically still counts -- it ran, and the folder is a
     record of what the run touched, not of what changed.
 
-    A run folder is never required by anything. If linking fails -- a filesystem
-    without hard links, a cross-device path -- the run has already succeeded and
-    this says so rather than failing after the fact.
+    CALLED ONLY ON SUCCESS. A run that failed leaves no run folder; see execute().
     """
-    import os
+    import shutil
     uni = [u.tag for u in plan["universes"]]
     arm = [a.name for a in plan["arms"]]
     reb = args.rebal if args.rebal is not None else paths.DEFAULT_REBAL
-    dest = ROOT / "runs" / paths.run_folder_name(uni, arm, reb)
-    linked, failed = 0, []
+    copied, failed = 0, []
     for d in paths.ARTEFACT_DIRS:
         base = ROOT / d
         if not base.is_dir():
@@ -584,46 +590,113 @@ def collect_run_folder(plan, args, t_start):
             if not f.is_file() or f.stat().st_mtime < t_start:
                 continue
             # DO NOT RECURSE INTO RUN FOLDERS. runs/ is an artefact dir, and a
-            # previous invocation's folder sits inside it; without this a run
-            # would link the last run's links into its own.
+            # previous invocation's folder sits inside it.
             if dest in f.parents or any(pp.name.startswith("20") and pp.parent.name == "runs"
                                         for pp in f.parents):
-                continue
-            # THE SCORE PANEL CACHES ARE INPUT, NOT THIS RUN'S RESULT.
-            # STEP 15b re-persists all eight panels on every invocation whatever
-            # was selected, so their mtime always moves -- which put
-            # results74/metrics/v74_expanding_cache.csv inside a folder named
-            # `mid_v1-v3_r40`. They are the model's persisted panels, the same
-            # bytes every run, and a reader looking for what a run PRODUCED does
-            # not want a 250 MB panel that predates it.
-            if f.name.endswith("_cache.csv"):
                 continue
             tgt = dest / d / f.relative_to(base)
             tgt.parent.mkdir(parents=True, exist_ok=True)
             try:
-                if tgt.exists():
-                    tgt.unlink()
-                os.link(f, tgt)
-                linked += 1
+                shutil.copy2(f, tgt)
+                copied += 1
             except OSError as e:
                 failed.append(f"{f.relative_to(ROOT)}: {e}")
-    if linked:
-        (dest / "RUN.txt").write_text(
-            f"universes : {', '.join(uni)}\n"
-            f"arms      : {', '.join(arm)}\n"
-            f"cadence   : {reb}\n"
-            f"steps     : {len(plan['pipeline'])} pipeline, {len(plan['arm_runs'])} arm runs\n"
-            f"artefacts : {linked} hard-linked from their canonical locations\n"
-            f"\nEvery file here is a HARD LINK to the canonical artefact, not a copy.\n"
-            f"Editing one edits the other; deleting one leaves the other intact.\n")
-        print(f"\n  run folder -> {show(dest)}/   ({linked} artefacts hard-linked)")
+    import profiles as _pf
+    import tax as _tax
+    dest.mkdir(parents=True, exist_ok=True)
+    (dest / "RUN.txt").write_text(
+        f"universes : {', '.join(uni)}\n"
+        f"arms      : {', '.join(arm)}\n"
+        f"cadence   : {reb}\n"
+        f"profile   : {_pf.selected()}\n"
+        f"tax       : {'on' if _tax.selected() else 'off'}\n"
+        f"steps     : {len(plan['pipeline'])} pipeline, {len(plan['arm_runs'])} arm runs\n"
+        f"artefacts : {copied} copied from their canonical locations\n"
+        f"log       : run.log\n"
+        f"\nEvery file here is an independent COPY. Later runs do not change it.\n")
+    print(f"\n  run folder -> {show(dest)}/   ({copied} artefacts copied, run.log)")
     if failed:
-        print(f"  {len(failed)} could not be linked (the run itself succeeded):")
+        print(f"  {len(failed)} could not be copied (the run itself succeeded):")
         for m in failed[:5]:
             print(f"    {m}")
 
 
+class _Tee:
+    """Write to the terminal and to the run's log file at once."""
+
+    def __init__(self, stream, fh):
+        self._s, self._f = stream, fh
+
+    def write(self, x):
+        self._s.write(x)
+        self._f.write(x)
+        return len(x)
+
+    def flush(self):
+        self._s.flush()
+        self._f.flush()
+
+    def __getattr__(self, name):
+        return getattr(self._s, name)
+
+
 def execute(plan, args):
+    """Run the plan, and make a failure impossible to mistake for a result.
+
+    THREE GUARANTEES, added 2026-09-23 after `--tax on --profile tradeable` died
+    at STEP 17h and the chart then opened was a Sep 22 cadence-20 chart from an
+    earlier run, sitting where the new one would have been.
+
+      1. EVERY ARM-RUN DIRECTORY THIS RUN WILL WRITE IS EMPTIED AT THE START and
+         holds RUN_IN_PROGRESS.txt until its own outputs are written. A run that
+         fails leaves FAILED.txt there, naming the step, and no chart.
+      2. THE RUN FOLDER AND ITS run.log ARE WRITTEN ONLY ON SUCCESS. A failed run's
+         log is kept as runs/<name>_FAILED.log.
+      3. A FAILURE EXITS 1 WITH ONE LINE NAMING THE STEP, its script and its
+         universe, above the traceback.
+    """
+    import sys as _sys
+    import traceback
+    state = {"step": "before the first step", "pending": [], "t_start": None}
+    dest = run_folder(plan, args)
+    (ROOT / "runs").mkdir(exist_ok=True)
+    log_tmp = ROOT / "runs" / f".{dest.name}.log.inprogress"
+    fh = open(log_tmp, "w")
+    out, err = _sys.stdout, _sys.stderr
+    _sys.stdout, _sys.stderr = _Tee(out, fh), _Tee(err, fh)
+    try:
+        try:
+            _execute(plan, args, state)
+        except (Exception, SystemExit) as e:
+            if isinstance(e, SystemExit) and e.code in (0, None):
+                raise
+            traceback.print_exc()
+            msg = f"{type(e).__name__}: {str(e).splitlines()[0] if str(e) else ''}"
+            for d in state["pending"]:
+                (d / "RUN_IN_PROGRESS.txt").unlink(missing_ok=True)
+                # naming: axis-free -- d is paths.run_dir(u, arm, rebal), which carries every axis
+                (d / "FAILED.txt").write_text(
+                    f"This run FAILED at {state['step']}.\n{msg}\n"
+                    f"No output of this run is in this directory.\n"
+                    f"Log: runs/{dest.name}_FAILED.log\n")
+            print("\n" + "X" * 90)
+            print(f" RUN FAILED at {state['step']}")
+            print(f"   {msg}")
+            print(f"   No run folder was written. Log: runs/{dest.name}_FAILED.log")
+            print("X" * 90, flush=True)
+            fh.close()
+            log_tmp.rename(ROOT / "runs" / f"{dest.name}_FAILED.log")
+            return 1
+        collect_run_folder(plan, args, state["t_start"], dest)
+    finally:
+        _sys.stdout, _sys.stderr = out, err
+        if not fh.closed:
+            fh.close()
+    log_tmp.rename(dest / "run.log")
+    return 0
+
+
+def _execute(plan, args, state):
     """Run the plan in ONE process, carrying run_all.py's four safety mechanisms."""
     import importlib
     import time
@@ -714,14 +787,36 @@ def execute(plan, args):
                 # which universes a step touches any more than about where it lives.
                 span_of=mod["row_span"])
 
-    # SAFETY 3 -- cache restore, so a step reads the panel it expects.
+    # SAFETY 3 -- --fresh deletes the SELECTED universes' panels and nothing else.
+    # It used to walk two fixed lists: every registered universe's permanent panel
+    # and fourteen /tmp names, none of them a live universe's. So it deleted seven
+    # unselected universes' panels and missed the selected one's /tmp copy, and
+    # the build step then reused that copy -- "full rebuild" printed, nothing
+    # rebuilt. Without --fresh nothing is restored or copied: there is one panel
+    # per universe, and build_scores decides from its content key whether it is
+    # current.
     if args.fresh:
-        print("--fresh: clearing caches (full rebuild)")
-        for c in mod["CACHE_TMP"] + mod["CACHE_PERM"]:
-            if c.exists():
-                c.unlink()
-    else:
-        mod["restore_cache_to_tmp"]()
+        import config as _cfg
+        for u in plan["universes"]:
+            gone = [f for c in (u.score_cache, u.raw_cache)
+                    for f in (c, _cfg.cache_source_file(c)) if f.exists()]
+            for f in gone:
+                f.unlink()
+            print(f"--fresh: {u.tag}: deleted {len(gone)} panel file(s) under "
+                  f"{show(u.score_cache.parent)}/; they are rebuilt below")
+
+    # MARK EVERY ARM-RUN DIRECTORY THIS RUN WILL WRITE, before any step runs.
+    # See execute(): emptied now, RUN_IN_PROGRESS.txt until run_arm writes it.
+    for u, a in plan["arm_runs"]:
+        d = paths.run_dir(u, a, args.rebal)
+        d.mkdir(parents=True, exist_ok=True)
+        for f in d.iterdir():
+            if f.is_file():
+                f.unlink()
+        # naming: axis-free -- d is paths.run_dir(u, arm, rebal), which carries every axis
+        (d / "RUN_IN_PROGRESS.txt").write_text(
+            "A run writing this directory started and has not finished.\n")
+        state["pending"].append(d)
 
     # Stated once per run, as run_all.main() did, so the log itself records which
     # universe construction produced the numbers under it.
@@ -729,7 +824,9 @@ def execute(plan, args):
     print(f"SURVIVORSHIP: {sv.describe_state()}\n")
 
     t_start = time.time()
+    state["t_start"] = t_start
     for label, scr, tag in plan["pipeline"]:
+        state["step"] = f"{label} {scr}" + (f" [{tag}]" if tag else "")
         # THE SKIP IS NOT DECIDED HERE ANY MORE. cached_panel() and
         # SCORE_BUILD_STEPS retired with the contract: the step that owns the panel
         # owns the decision not to rebuild it, so build_scores_step.run() returns
@@ -790,16 +887,14 @@ def execute(plan, args):
         print("=" * 90, flush=True)
         t0 = time.time()
         import v34_common
+        state["step"] = f"ARM {u.tag}/{a.name}"
         with module_state.pinned():
             comp, out = v34_common.run_arm(u, a, rebal=args.rebal)
+        (out / "RUN_IN_PROGRESS.txt").unlink(missing_ok=True)
+        state["pending"] = [d for d in state["pending"] if d != out]
         print(comp.to_string(index=False))
         print(f"    -> {show(out)}/   [{(time.time()-t0)/60:.1f} min]")
 
-    # SAFETY 3, second half -- persisting the panels IS STEP 15b now, inside the
-    # loop above and ahead of STEP 16, which reads them. It ran here, after the
-    # whole loop AND after the arm runs, which put it after its own consumer: on a
-    # cold run STEP 16 died with "v5_expanding_cache.csv missing". Nothing is
-    # called here any more; the ordering is expressed in PIPELINE_ORDER.
 
     print("\n" + "=" * 90)
     print(f"DONE in {(time.time()-t_start)/60:.1f} min   "
@@ -821,7 +916,6 @@ def execute(plan, args):
                 [(u.tag, a.name) for u, a in plan["arm_runs"]]):
             print(_line)
         print("!" * 90, flush=True)
-    collect_run_folder(plan, args, t_start)
     return 0
 
 

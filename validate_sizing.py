@@ -95,8 +95,8 @@ BT_START_DATE, BT_END_DATE = config.BT_START_DATE, config.BT_END_DATE
 # registry: unifying them would rewrite committed artefacts.
 LABELS = {"nifty100": "Nifty 100", "midcap150": "MidCap150"}
 UNIVERSES = {
-    u.tag: {"score_perm": u.score_cache, "score_tmp": str(u.score_tmp),
-            "raw_perm": u.raw_cache, "raw_tmp": str(u.raw_tmp),
+    u.tag: {"score_perm": u.score_cache,
+            "raw_perm": u.raw_cache,
             "label": LABELS[u.tag]}
     for u in (REGISTRY["nifty100"], REGISTRY["midcap150"])
 }
@@ -179,7 +179,7 @@ def main():
     print("  The four tests below are engine_core.py's, unchanged. Only the panel")
     print("  paths differ. engine_core.py itself is not modified by this script.")
 
-    score_path = config.require_cache(U["score_perm"], U["score_tmp"],
+    score_path = config.require_cache(U["score_perm"],
                                       what=f"{U['label']} score panel")
     p = pd.read_csv(score_path, parse_dates=["date"])
     px = p.pivot_table(index="date", columns="symbol", values="close").ffill()
@@ -243,7 +243,7 @@ def main():
 
     # ------------------------------------------------------------------- T2
     print("\n  T2. SEED ROBUSTNESS -- does inv-vol win on OTHER score seeds?")
-    raw_path = config.require_cache(U["raw_perm"], U["raw_tmp"],
+    raw_path = config.require_cache(U["raw_perm"],
                                     what=f"{U['label']} raw feature panel")
     raw = pd.read_csv(raw_path, parse_dates=["date"])
     t2_rows = []

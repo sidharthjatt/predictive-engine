@@ -46,46 +46,55 @@ def guard(paths):
         print("intend to regenerate, then re-run.")
         sys.exit(1)
 
-rows = [
-    # variant, line, CAGR, Sharpe, MaxDD, Calmar, deployed_CAGR
-    ("A_rolling_std",          "58 v2", 18.80, 1.54, -16.63, 1.13, 29.12),
-    ("A_rolling_std",          "58 v1", 24.14, 1.27, -32.88, 0.73, 24.14),
-    ("A_rolling_std",          "74 v2", 16.94, 1.45, -17.02, 1.00, 26.24),
-    ("A_rolling_std",          "74 v1", 19.42, 1.08, -29.90, 0.65, 19.42),
-    ("B_ewma_0.94_0.97",       "58 v2", 15.54, 1.36, -18.20, 0.85, 25.43),
-    ("B_ewma_0.94_0.97",       "58 v1", 18.63, 1.00, -36.82, 0.51, 18.63),
-    ("B_ewma_0.94_0.97",       "74 v2", 13.83, 1.20, -19.24, 0.72, 20.51),
-    ("B_ewma_0.94_0.97",       "74 v1", 16.41, 0.89, -39.95, 0.41, 16.41),
-    ("C_ewma_matched_.952_.984","58 v2", 16.76, 1.45, -18.24, 0.92, 26.63),
-    ("C_ewma_matched_.952_.984","58 v1", 20.06, 1.07, -39.00, 0.51, 20.06),
-    ("C_ewma_matched_.952_.984","74 v2", 15.03, 1.28, -16.69, 0.90, 22.25),
-    ("C_ewma_matched_.952_.984","74 v1", 18.44, 1.01, -36.76, 0.50, 18.44),
-    ("REFERENCE",              "58 buy&hold",      18.65, 1.06, -39.80, 0.47, 18.65),
-    ("REFERENCE",              "74 buy&hold",      23.97, 1.29, -38.29, 0.63, 23.97),
-    ("REFERENCE",              "Nifty100 58win",   23.05, 1.29, -36.51, 0.63, 23.05),
-    ("REFERENCE",              "Nifty100 74win",   25.04, 1.39, -36.51, 0.69, 25.04),
-]
-df = pd.DataFrame(rows, columns=["variant","line","CAGR%","Sharpe","MaxDD%","Calmar",
-                                 "CAGR_per_InvestedCapital%"])
 
-val = pd.DataFrame([
-    ("A_rolling_std",           "PASS","PASS","PASS","PASS","4/4"),
-    ("B_ewma_0.94_0.97",        "PASS","FAIL","FAIL","FAIL","1/4"),
-    ("C_ewma_matched_.952_.984","PASS","FAIL","FAIL","FAIL","1/4"),
-], columns=["variant","T1_baseline","T2_seed_robustness","T3_sub_period",
-            "T4_param_sensitivity","score"])
+def main():
+    """Write the three records. IMPORT MUST NOT DO THE WORK.
 
-out = OUT_DIR
-out.mkdir(parents=True, exist_ok=True)
-f_csv = out / "ewma_vs_rolling_metrics.csv"
-f_val = out / "ewma_vs_rolling_validation.csv"
-f_txt = out / "ewma_vs_rolling_REPORT.txt"
-guard([f_csv, f_val, f_txt])
+    Everything below ran at module level until 2026-09-23, so importing this
+    file -- check_all GATE 1 imports every module -- wrote three files into
+    experiments/ on a tree that lacked them, and refused (sys.exit) on a tree
+    that had them. The second is why it sat on KNOWN_UNIMPORTABLE.
+    """
+    rows = [
+        # variant, line, CAGR, Sharpe, MaxDD, Calmar, deployed_CAGR
+        ("A_rolling_std",          "58 v2", 18.80, 1.54, -16.63, 1.13, 29.12),
+        ("A_rolling_std",          "58 v1", 24.14, 1.27, -32.88, 0.73, 24.14),
+        ("A_rolling_std",          "74 v2", 16.94, 1.45, -17.02, 1.00, 26.24),
+        ("A_rolling_std",          "74 v1", 19.42, 1.08, -29.90, 0.65, 19.42),
+        ("B_ewma_0.94_0.97",       "58 v2", 15.54, 1.36, -18.20, 0.85, 25.43),
+        ("B_ewma_0.94_0.97",       "58 v1", 18.63, 1.00, -36.82, 0.51, 18.63),
+        ("B_ewma_0.94_0.97",       "74 v2", 13.83, 1.20, -19.24, 0.72, 20.51),
+        ("B_ewma_0.94_0.97",       "74 v1", 16.41, 0.89, -39.95, 0.41, 16.41),
+        ("C_ewma_matched_.952_.984","58 v2", 16.76, 1.45, -18.24, 0.92, 26.63),
+        ("C_ewma_matched_.952_.984","58 v1", 20.06, 1.07, -39.00, 0.51, 20.06),
+        ("C_ewma_matched_.952_.984","74 v2", 15.03, 1.28, -16.69, 0.90, 22.25),
+        ("C_ewma_matched_.952_.984","74 v1", 18.44, 1.01, -36.76, 0.50, 18.44),
+        ("REFERENCE",              "58 buy&hold",      18.65, 1.06, -39.80, 0.47, 18.65),
+        ("REFERENCE",              "74 buy&hold",      23.97, 1.29, -38.29, 0.63, 23.97),
+        ("REFERENCE",              "Nifty100 58win",   23.05, 1.29, -36.51, 0.63, 23.05),
+        ("REFERENCE",              "Nifty100 74win",   25.04, 1.39, -36.51, 0.69, 25.04),
+    ]
+    df = pd.DataFrame(rows, columns=["variant","line","CAGR%","Sharpe","MaxDD%","Calmar",
+                                     "CAGR_per_InvestedCapital%"])
 
-df.to_csv(f_csv, index=False)
-val.to_csv(f_val, index=False)
+    val = pd.DataFrame([
+        ("A_rolling_std",           "PASS","PASS","PASS","PASS","4/4"),
+        ("B_ewma_0.94_0.97",        "PASS","FAIL","FAIL","FAIL","1/4"),
+        ("C_ewma_matched_.952_.984","PASS","FAIL","FAIL","FAIL","1/4"),
+    ], columns=["variant","T1_baseline","T2_seed_robustness","T3_sub_period",
+                "T4_param_sensitivity","score"])
 
-txt = f"""EWMA vs ROLLING VOLATILITY -- TEST RECORD
+    out = OUT_DIR
+    out.mkdir(parents=True, exist_ok=True)
+    f_csv = out / "ewma_vs_rolling_metrics.csv"
+    f_val = out / "ewma_vs_rolling_validation.csv"
+    f_txt = out / "ewma_vs_rolling_REPORT.txt"
+    guard([f_csv, f_val, f_txt])
+
+    df.to_csv(f_csv, index=False)
+    val.to_csv(f_val, index=False)
+
+    txt = f"""EWMA vs ROLLING VOLATILITY -- TEST RECORD
 =========================================
 Request: use EWMA instead of rolling for vol_20 / vol_60, lambda 0.94.
 
@@ -135,8 +144,12 @@ DECISION
   Logs: run_all_fresh_log.txt (A), run_all_ewma_log.txt (B),
         run_all_ewma2_log.txt (C)
 """
-f_txt.write_text(txt)
-print(txt)
-print(f"\nSaved -> {f_csv}")
-print(f"Saved -> {f_val}")
-print(f"Saved -> {f_txt}")
+    f_txt.write_text(txt)
+    print(txt)
+    print(f"\nSaved -> {f_csv}")
+    print(f"Saved -> {f_val}")
+    print(f"Saved -> {f_txt}")
+
+
+if __name__ == "__main__":
+    main()

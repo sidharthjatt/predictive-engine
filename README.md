@@ -395,7 +395,10 @@ If you are about to propose an idea, it is probably in there.
                       reads a file a later step writes
 
 Not tracked, and why: `venv/`, everything under `results*/metrics/`,
-`nautilus/reports/`, and the score parquets are all rebuilt by `run_all.py`.
+`nautilus/reports/`, the score parquets and `cache/` are all rebuilt by
+`run_all.py`. `cache/<universe>/` holds the score and raw panels and the
+constituent symlink farm; a panel is reused only while its sidecar's content key
+matches the source CSVs, so adding, removing or editing a CSV forces a rebuild.
 `data/raw/` is about 396 MB of vendor OHLCV and is excluded for size — the code
 cannot run without it, so it has to come from a backup rather than from here. Six
 small files under `data/raw/` are tracked as exceptions: the three index membership
@@ -405,10 +408,12 @@ were deleted.
 
 ## Running it
 
-Python 3.12 or later — `nautilus_trader` requires it, and it is a hard floor.
+Python 3.12.13. Every direct dependency is pinned exactly in `requirements.txt`;
+`installed_versions.txt` pins the rest.
 
 ```
-pip install -r requirements.txt
+python3.12 -m venv venv
+./venv/bin/python -m pip install -r requirements.txt -c installed_versions.txt
 ./venv/bin/python run_all.py
 ```
 

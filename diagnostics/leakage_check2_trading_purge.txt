@@ -2,7 +2,7 @@
  CHECK 2 (TRADING RULE) -- TRAINING MASK AND PURGE -- NIFTY 100 (nifty100)
 ====================================================================================================
 
-  panel raw_panel_nifty100_cache.csv   rows 470,711   symbols 99
+  panel raw_panel_nifty100_20.csv   rows 470,711   symbols 99
   purge_mode from the registry: 'trading'      HORIZON = 20 TRADING rows   PURGE_EMBARGO = 2
   scoring months considered: 126   trained: 126   skipped by the engine: 0
 
@@ -34,7 +34,7 @@
  CHECK 2 (TRADING RULE) -- TRAINING MASK AND PURGE -- MIDCAP150 (midcap150)
 ====================================================================================================
 
-  panel raw_panel_midcap150_cache.csv   rows 564,850   symbols 148
+  panel raw_panel_midcap150_20.csv   rows 564,850   symbols 148
   purge_mode from the registry: 'trading'      HORIZON = 20 TRADING rows   PURGE_EMBARGO = 2
   scoring months considered: 126   trained: 126   skipped by the engine: 0
 

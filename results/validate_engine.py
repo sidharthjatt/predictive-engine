@@ -94,8 +94,6 @@ UNIVERSES = {
         "label": "58 (retired -- comparability only)",
         "metrics": config.METRICS_DIR,
         "perm": config.METRICS_DIR / "v5_expanding_cache.csv",
-        "tmp": "/tmp/v5_expanding.csv",
-        "raw_tmp": f"/tmp/raw_panel_{HORIZON}.csv",
         "raw_perm": config.METRICS_DIR / "raw_panel_cache.csv",
         # engine_core's own T2 wrote these. Reusing them keeps T2 identical to the
         # old T2 on everything except the engine under test, which is the point.
@@ -112,10 +110,8 @@ UNIVERSES = {
     "midcap150": {
         "label": "MidCap150 (live)",
         "metrics": REGISTRY["midcap150"].metrics_dir,
-        "perm": REGISTRY["midcap150"].metrics_dir / "v_midcap150_expanding_cache.csv",
-        "tmp": "/tmp/v_midcap150_expanding.csv",
-        "raw_tmp": "/tmp/raw_panel_midcap150_20.csv",
-        "raw_perm": REGISTRY["midcap150"].metrics_dir / "raw_panel_midcap150_cache.csv",
+        "perm": REGISTRY["midcap150"].score_cache,
+        "raw_perm": REGISTRY["midcap150"].raw_cache,
         "seed_cache": lambda si, k: Path(f"/tmp/V2VAL_mid_seed{si}_{k}.csv"),
         "purge_mode": "trading",
         "y_end": 2026,
@@ -124,10 +120,8 @@ UNIVERSES = {
     "nifty100": {
         "label": "Nifty 100 (live)",
         "metrics": REGISTRY["nifty100"].metrics_dir,
-        "perm": REGISTRY["nifty100"].metrics_dir / "v_nifty100_expanding_cache.csv",
-        "tmp": "/tmp/v_nifty100_expanding.csv",
-        "raw_tmp": "/tmp/raw_panel_nifty100_20.csv",
-        "raw_perm": REGISTRY["nifty100"].metrics_dir / "raw_panel_nifty100_cache.csv",
+        "perm": REGISTRY["nifty100"].score_cache,
+        "raw_perm": REGISTRY["nifty100"].raw_cache,
         "seed_cache": lambda si, k: Path(f"/tmp/V2VAL_n100_seed{si}_{k}.csv"),
         "purge_mode": "trading",
         "y_end": 2026,
@@ -192,7 +186,7 @@ def run_universe(tag, cfg, W, fast=False):
     W(f"  contrast    inverse-vol vs equal-rupee, mode=\"none\" (100% invested)")
     W(f"  TOP_N={TOP_N}  BUFFER={BUFFER}  purge_mode=\"{cfg['purge_mode']}\"")
 
-    src = config.require_cache(cfg["perm"], cfg["tmp"], what=f"{tag} score panel")
+    src = config.require_cache(cfg["perm"], what=f"{tag} score panel")
     p = pd.read_csv(src, parse_dates=["date"])
     px, op, sc = pivot(p)
     # THE WINDOW IS config's, NOT A YEAR SLICE. Until 2026-09-22 this was
@@ -251,7 +245,7 @@ def run_universe(tag, cfg, W, fast=False):
         passed["T2 seed robustness"] = None
     else:
         W("\n  T2. SEED ROBUSTNESS -- does inverse-vol still win on OTHER score seeds?")
-        raw_src = config.require_cache(cfg["raw_perm"], cfg["raw_tmp"],
+        raw_src = config.require_cache(cfg["raw_perm"],
                                        what=f"{tag} raw panel")
         raw = pd.read_csv(raw_src, parse_dates=["date"])
         t2_rows = []

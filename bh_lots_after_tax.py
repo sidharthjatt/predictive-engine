@@ -188,7 +188,7 @@ def main(u):
     print("="*96)
     if True:
         engine_core.set_tradeability(u)
-        p=pd.read_csv(config.require_cache(u.score_cache,str(u.score_tmp),what=tag),parse_dates=["date"])
+        p=pd.read_csv(config.require_cache(u.score_cache,what=tag),parse_dates=["date"])
         px=p.pivot_table(index="date",columns="symbol",values="close").ffill()
         op=p.pivot_table(index="date",columns="symbol",values="open").ffill()
         sc=p.pivot_table(index="date",columns="symbol",values="score")
@@ -197,7 +197,7 @@ def main(u):
         pv=idx.pct_change().rolling(VOL_WIN).std()*np.sqrt(252)
         bd=px.index[(px.index>=config.BT_START_DATE)&(px.index<=config.BT_END_DATE)]
         kw=dict(mode="breadth",target_vol=pv.loc[bd].median(),rebal=cadence.selected(),
-                participation_cap=profiles.participation_cap())
+                **profiles.cap_kwargs(u))
         v2_off,_,_,_=backtest_exposure(px,op,sc,bd,pc,mom20,pv,audit=None,tax_enabled=False,**kw)
         a={k:[] for k in ("holdings","summary","trades","ranking","decisions","skipped")}
         v2_on ,_,_,_=backtest_exposure(px,op,sc,bd,pc,mom20,pv,audit=a,tax_enabled=True,**kw)

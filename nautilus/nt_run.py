@@ -122,35 +122,13 @@ def reports_segment(mode, sizing, rebal=None):
     # and stays unsuffixed, so nautilus/reports/mid/v2/ keeps meaning exactly what
     # it has always meant and no existing path moves.
     from arms.registry import path_segment
-    import cadence as _cad
-    import profiles as _pf
-    import tax as _tax
-    seg = path_segment(mode, sizing)
-    r = _cad.DEFAULT if rebal is None else int(rebal)
-    if r != _cad.DEFAULT:
-        seg = f"{seg}@r{r}"
-    # THE PROFILE GOES INTO THE PATH AND NOWHERE ELSE. This segment keeps a
-    # tradeable run from overwriting a research run's reports, which is what it
-    # was added for and all it does. NOTHING DOWNSTREAM OF THIS LINE READS THE
-    # PROFILE: nt_strategy.py sizes at :391 with no participation cap, and
-    # `participation_cap`, `vol20` and `median_volume` appear nowhere under
-    # nautilus/. So `@tradeable` in a report path records which profile the run
-    # SELECTED, not which one it APPLIED -- the fills beneath it are uncapped.
-    # Recorded 2026-09-20 as the current limitation; see the note at the sizing
-    # line in nt_strategy.py and the note files in the two @tradeable directories
-    # on disk.
-    if not _pf.is_default():
-        seg = f"{seg}@{_pf.selected()}"
-    # THE TAX AXIS, 2026-09-17, CARRIED HERE EVEN THOUGH NAUTILUS DOES NOT MODEL
-    # TAX -- and that is the point. Site 12 is on record precisely because an
-    # axis that had ALREADY fired was absent from this path, so a run wrote over
-    # another run's reports in place under a directory name that did not
-    # distinguish them. Carrying an axis Nautilus ignores costs one empty string
-    # at the default and cannot destroy anything; omitting one it later honours
-    # is the defect this comment block exists to describe.
-    if not _tax.is_default():
-        seg = f"{seg}@tax"
-    return seg
+    import naming
+    # THE CADENCE, PROFILE AND TAX TAIL COMES FROM naming.path_tail, the one rule
+    # paths.run_dir uses too. The history of each axis joining this path is in
+    # the git log of this function; NOTHING DOWNSTREAM OF IT READS THE PROFILE
+    # (nt_strategy sizes with no participation cap), so `@tradeable` records
+    # which profile the run SELECTED, not which one it APPLIED.
+    return path_segment(mode, sizing) + naming.path_tail(rebal)
 
 
 # naming: arm,cadence,profile via reports_segment -- every report this step

@@ -60,6 +60,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import config
 from universes.registry import REGISTRY, selected_tags, report_order
 import arms.registry as arm_reg
+import naming
 import cadence
 import profiles
 import arm_sources
@@ -491,7 +492,7 @@ def main():
 
 
 def _ci(path):
-    """The cadence- AND profile-named sibling of `path`, if the engine wrote one.
+    """This run's cadence-, profile- and tax-named sibling of `path`.
 
     THE PROFILE WAS MISSING HERE AND PRESENT IN THE OTHER TWO. make_mid_chart and
     make_n100_chart each carry a `_ci` of the same name that composes
@@ -513,7 +514,12 @@ def _ci(path):
         return path
     c = path.with_name(path.stem + cadence.suffix() + _pf.suffix()
                        + _tax.suffix() + path.suffix)
-    return c if c.exists() else path
+    # NO FALLBACK TO THE CANONICAL FILE, 2026-09-23. This returned `path` when
+    # the sibling was absent, so a missing non-default artefact was silently
+    # replaced by the published cadence-20 research one and plotted under this
+    # run's title. The sibling's name is returned whether or not it exists, and a
+    # missing one fails at the read, naming the file this run should have made.
+    return c
 
 
 def _load_arms(M, tag, sel):
@@ -609,7 +615,9 @@ def _draw(rows, out_path):
     ax[0].axhline(0, color="k", lw=.6, alpha=.5)
     ax[0].set_ylabel("Cumulative return (%)")
     ax[0].yaxis.set_major_formatter(PercentFormatter(decimals=0))
-    ax[0].set_title(sub, fontsize=9)
+    ax[0].set_title(naming.run_label([r["u"].label for r in rows],
+                                     sorted({n for r in rows for n in r["arms"]}))
+                    + "\n" + sub, fontsize=9)
     ax[0].legend(loc="upper left", fontsize=8); ax[0].grid(alpha=.3)
     for lab, s2, c, ls, _ in series:
         ax[1].plot(s2.index, dd(s2), lw=1.3, color=c, ls=ls,

@@ -36,24 +36,12 @@ DIAGNOSTICS_DIR = ROOT / "diagnostics"
 
 # --------------------------------------------------------------- score panels
 def score_cache(u):
-    """Permanent score panel. Written at the END of run_all.py, so a script that
-    reads it cannot run standalone before the first full pipeline."""
+    """The score panel, cache/<tag>/v_<tag>_expanding.csv. Written by build_scores."""
     return u.score_cache
-
-
-def score_tmp(u):
-    """Working score panel in /tmp. NOTE this path carries no universe-and-run
-    identity beyond the universe tag: two processes on the same universe share it
-    and will overwrite each other."""
-    return u.score_tmp
 
 
 def raw_cache(u):
     return u.raw_cache
-
-
-def raw_tmp(u):
-    return u.raw_tmp
 
 
 # ------------------------------------------------------------------- outputs
@@ -173,10 +161,12 @@ def run_dir(u, arm=None, rebal=None):
     arm name: arm names are v1..v4 and never contain "@", so runs/mid/v1@r40 can
     only ever parse one way.
     """
+    # THE PROFILE AND TAX AXES JOIN THE PATH, 2026-09-23, from naming.path_tail,
+    # the rule nautilus/reports already used. Until then a `--tax on` or
+    # `--profile tradeable` arm run wrote into runs/<u>/<arm>/ over the research
+    # run's chart.
+    import naming
     d = ROOT / "runs" / u.tag
     if arm is None:
         return d
-    seg = arm.name
-    if rebal is not None and int(rebal) != DEFAULT_REBAL:
-        seg = f"{seg}@r{int(rebal)}"
-    return d / seg
+    return d / (arm.name + naming.path_tail(rebal))

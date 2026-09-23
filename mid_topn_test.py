@@ -50,14 +50,29 @@ TOPNS = [8, 12, 16, 20]
 MAX_DD_WORSE = 2.0
 CONCENTRATION_FACTOR = 0.5
 
-PANEL = config.require_cache(ROOT/"results_midcap150"/"metrics"/"v_midcap150_expanding_cache.csv",
-                             "/tmp/v_midcap150_expanding.csv", what="MidCap150 score panel")
-P = pd.read_csv(PANEL, parse_dates=["date"])
+_P = None
+
+
+def panel():
+    """The midcap150 score panel, read on first use.
+
+    NOT AT IMPORT. This was a module-level read until 2026-09-23, so importing
+    the file (check_all GATE 1 imports every module) read a cache, and on a tree
+    without the panel the import itself failed.
+    """
+    global _P
+    if _P is None:
+        from universes.registry import REGISTRY
+        _P = pd.read_csv(config.require_cache(REGISTRY["midcap150"].score_cache,
+                                              what="MidCap150 score panel"),
+                         parse_dates=["date"])
+    return _P
 
 
 def run(drop=(), top_n=8):
     test_exposure.TOP_N = top_n
     test_exposure.BUFFER = 2 * top_n
+    P = panel()
     q = P[~P["symbol"].isin(set(drop))] if len(drop) else P
     px = q.pivot_table(index="date", columns="symbol", values="close").ffill()
     op = q.pivot_table(index="date", columns="symbol", values="open").ffill()
@@ -78,7 +93,7 @@ def run(drop=(), top_n=8):
 
 
 def main():
-    syms = sorted(P["symbol"].unique())
+    syms = sorted(panel()["symbol"].unique())
     print("=" * 96)
     print(" MIDCAP150 -- TOP_N test, gates fixed before running")
     print("=" * 96)

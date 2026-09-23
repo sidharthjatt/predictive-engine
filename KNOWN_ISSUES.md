@@ -22,6 +22,86 @@ currently wrong.
 
 ---
 
+## The Nautilus port drifts from the vectorised engine as the rebalance count grows -- REPORTED, NOT GATED, 2026-09-23
+
+nt_verify's share-level verdict certifies the port at cadence 20 only. At any
+other cadence nothing compared the two, and the 2026-09-23 audit measured the
+gap growing with the number of rebalances. nifty100, v2, research, tax off,
+final equity (repo venv of the day: Python 3.11.15, nautilus_trader 1.221.0):
+
+| cadence | rebalances | Nautilus final equity | vectorised final equity | gap |
+|--:|--:|--:|--:|--:|
+| 20 | 92 | Rs 3,628,855.99 | Rs 3,628,639.83 | Rs +216 (+0.006%) |
+| 3 | 612 | Rs 3,400,100.64 | Rs 3,403,150.95 | Rs -3,050 (-0.090%) |
+| 1 | 1,835 | Rs 2,277,328.29 | Rs 2,282,265.93 | Rs -4,938 (-0.216%) |
+
+Order counts differ too: 3,186 Nautilus fills against 3,188 vectorised trades at
+cadence 3, and 5,455 against 5,453 at cadence 1. `nautilus/nt_verify.py
+--universe=<u> --rebal=<n>` now prints this gap for any cadence and exits 0; the
+cadence-20 verdict is unchanged. Not gated because no tolerance has been argued
+for, and a threshold chosen after seeing three numbers would be fitted to them.
+The cause is not investigated. A reader must not take the port as certified at
+any cadence other than 20.
+
+## Nautilus fill timestamps changed at nautilus_trader 1.223.0; every report before 2026-09-23 carries the old ones
+
+Found by the 2026-09-23 clean-room audit: identical prices, quantities and
+equity, but in the repo venv 768 of midcap50's 860 fills were stamped 15:30 and
+in the clean room all 860 were 09:16.
+
+**The cause, bisected on the same code and data** (midcap50 v2, 2019, 13
+rebalances): nautilus_trader 1.221.0 and 1.222.0 stamp 114 of 127 fills at
+15:30 and 13 at 09:16, on Python 3.11 and on 3.12 alike; 1.223.0, 1.225.0 and
+1.229.0 stamp all 127 at 09:16. The strategy releases a rebalance at 09:16 and
+submits its orders one at a time from `on_order_filled` (`_pump`). Under 1.222
+and earlier an order submitted inside that handler was matched at the NEXT data
+event, the 15:30 bar -- the 13 at 09:16 are the first order of each rebalance.
+From 1.223 it is matched at 09:16. The fill price is the 09:15 quote either way,
+which is why no number moved. The 1.223.0 release notes list several
+matching-engine changes; which one this is was not established.
+
+**09:16 is correct** for this strategy: nt_data.py's execution model is "plan at
+the 15:30 close, release at 09:16, fill against the 09:15 quote", and a fill
+stamped at the close of the day it was released reads as a close fill.
+
+**Why it mattered here.** requirements.txt pinned `nautilus_trader>=1.220,<1.230`
+and the repo venv was rebuilt on 2026-09-16 with Python 3.11.15 and 1.221.0,
+below the 3.12 floor that file stated. So every `nautilus/reports/*/fills.csv`,
+`order_fills.csv`, `orders_all.csv` and `positions.csv` written from 2026-09-16
+to 2026-09-23 carries 15:30 stamps. requirements.txt now pins every direct
+dependency with `==`, nautilus_trader 1.229.0, and the venv was rebuilt on 3.12.13
+from it alone.
+
+**What a reproduction compares.** Nautilus reports are not byte-reproducible
+even on one machine: `event_id` and `position_id` carry random UUIDs, and a
+second run in the same venv changes them. Reproduction comparisons drop those two
+columns and sort rows; every other column must be identical.
+
+## Small defects found by the 2026-09-23 audit and fix pass, logged rather than fixed
+
+- **Run folders before 2026-09-23 are not records of their run.** They were hard
+  links to the canonical artefacts, and the steps rewrite those in place, so each
+  folder held whatever the last run of its selection wrote. On 2026-09-23 the
+  links were broken (4,248 files in 73 folders), which freezes each folder at that
+  content. The original contents cannot be recovered. Folders written after that
+  date are copies.
+- **`runs/<universe>/<arm>/` written before 2026-09-23 may hold a taxed or
+  tradeable run.** paths.run_dir carried the cadence only, so a `--tax on` or
+  `--profile tradeable` arm run wrote into the research directory. Their
+  params.json predates the `profile` and `tax` keys, so which is which cannot be
+  read from the file.
+- **`heldout_prereg_run.py` does not support `--profile tradeable`.** It runs past
+  BT_END_DATE, where `profiles.cap_kwargs()` computes no median volume, so it was
+  not moved onto that helper. It raises TypeError under tradeable, which is loud.
+- **The per-universe chart subtitle says "v2 holds X% invested" whatever arm is
+  drawn.** The figure is v2's; on a v4 chart the sentence is true and misleading.
+- **Dead /tmp paths from the retired 58 remain** in engine_core.main(),
+  test_exposure's `__main__`, nt_data.py, nt_attribution.py,
+  test_feature_pruning.py and stability_test.py. None has a caller that can run.
+- **Transitive dependencies are not pinned by requirements.txt.**
+  installed_versions.txt records them; install with
+  `-c installed_versions.txt` to reproduce the venv exactly.
+
 ## The price-perturbation displacement is real, systematic, and not findable by channel decomposition
 
 CLOSED AS AN INVESTIGATION ON 2026-09-22, OPEN AS A PROPERTY OF THE PUBLISHED

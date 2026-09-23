@@ -61,8 +61,8 @@ ARMS = [("v1", "invvol", "none"), ("v2", "invvol", "breadth"),
 # Order is load-bearing -- the measurement is reported universe by universe.
 LABELS = {"nifty100": "NIFTY 100", "midcap150": "MIDCAP150"}
 UNIVERSES = {
-    u.tag: {"raw": u.raw_cache, "raw_tmp": str(u.raw_tmp),
-            "sc": u.score_cache, "sc_tmp": str(u.score_tmp),
+    u.tag: {"raw": u.raw_cache,
+            "sc": u.score_cache,
             "md": u.metrics_dir, "syms": u.symbols, "label": LABELS[u.tag]}
     for u in (REGISTRY["nifty100"], REGISTRY["midcap150"])
 }
@@ -227,13 +227,13 @@ def run(uni, cfg, W):
     import engine_core as _ec
     from universes.registry import REGISTRY as _REG
     _ec.set_tradeability(_REG[uni])
-    raw = pd.read_csv(config.require_cache(cfg["raw"], cfg["raw_tmp"],
+    raw = pd.read_csv(config.require_cache(cfg["raw"],
                                            what=f"{uni} raw panel"),
                       parse_dates=["date"])
     got, want = set(raw["symbol"].unique()), cfg["syms"]()
     if got != want:
         raise SystemExit(f"{uni}: raw panel universe mismatch")
-    cur_sp = pd.read_csv(config.require_cache(cfg["sc"], cfg["sc_tmp"],
+    cur_sp = pd.read_csv(config.require_cache(cfg["sc"],
                                               what=f"{uni} score panel"),
                          parse_dates=["date"])
     assert_columns(cur_sp, SCORE_PANEL_COLS, f"{uni} production score panel")

@@ -262,7 +262,7 @@ def main(u):
     import audit_step
 
     engine_core.set_tradeability(u)
-    src = config.require_cache(u.score_cache, str(u.score_tmp),
+    src = config.require_cache(u.score_cache,
                                what=f"{u.tag} score panel")
     p = pd.read_csv(src, parse_dates=["date"])
     px = p.pivot_table(index="date", columns="symbol", values="close").ffill()
@@ -280,8 +280,7 @@ def main(u):
     eq, _tc, _ntr, _expo = backtest_exposure(
         px, op, sc, bd, pc, mom20, port_vol, mode="breadth",
         target_vol=port_vol.loc[bd].median(), rebal=cadence.selected(),
-        participation_cap=profiles.participation_cap(), audit=audit,
-        tax_enabled=True)
+        audit=audit, tax_enabled=True, **profiles.cap_kwargs(u))
 
     # THE TAG COMES FROM audit_step.artefact_tag, NOT FROM u.tag ALONE, so these
     # four sit beside the trail they describe under every axis combination.

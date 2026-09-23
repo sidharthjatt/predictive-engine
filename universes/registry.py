@@ -60,10 +60,11 @@ THERE IS NO `frozen` FLAG ANY MORE, DELIBERATELY
     again, the field comes back then, with a universe actually setting it.
     See RETIRED_UNIVERSES.md.
 """
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional, Tuple
 
+import os
 import sys
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -151,6 +152,25 @@ def _constituents(raw_dir, index_name):
     return tuple(f.stem for f in files if normalise_stem(f.stem) != key)
 
 
+CACHE_DIR = ROOT / "cache"
+
+
+def _fill_count(v, n):
+    """Replace the "{n}" count token in a row's text, recursing into dicts.
+
+    A callable (chart_text's subtitle and dd_label) is wrapped so the token is
+    filled in what it returns. Plain str.replace, not str.format: several of
+    these strings contain literal braces.
+    """
+    if isinstance(v, str):
+        return v.replace("{n}", n)
+    if isinstance(v, dict):
+        return {k: _fill_count(x, n) for k, x in v.items()}
+    if callable(v):
+        return lambda *a, _f=v, **k: _fill_count(_f(*a, **k), n)
+    return v
+
+
 @dataclass(frozen=True)
 class Universe:
     """One universe, as the repository already defines it.
@@ -159,13 +179,8 @@ class Universe:
     nineteen existing vocabularies -- matching one would misdescribe the others.
     """
     tag: str                      # "58" | "74" | "mid" | "n100"
-    label: str                    # for chart titles and report headers
-    data_dir: Path                # what build_panel is pointed at
+    label: str                    # for chart titles and report headers; "{n}" is the count
     metrics_dir: Path             # where this universe's artefacts live
-    score_tmp: Path               # working score panel
-    score_cache: Path             # permanent score panel
-    raw_tmp: Path                 # working raw feature panel
-    raw_cache: Path               # permanent raw feature panel
     nautilus_scores: str          # parquet filename under nautilus/data/
     nautilus_end: str             # backtest end date the port uses
     purge_mode: str               # "trading" -- purge measured in trading rows
@@ -397,6 +412,38 @@ class Universe:
     # absence matters, which is exactly what the four fields above did not.
     engine_params_static: dict = None     # values for keys that are not computed
 
+    # DERIVED FROM THE TAG, NOT WRITTEN PER ROW. Until 2026-09-23 each row spelled
+    # five paths: a symlink farm under data/raw/, a working panel pair under /tmp
+    # and a permanent pair under results*/metrics/. /tmp is shared by every
+    # checkout on a machine, so a second checkout read the first one's panels,
+    # and the farm's absolute links shipped inside data/ pointing at the first
+    # checkout. All three are derived data and now live under cache/<tag>/,
+    # which is gitignored:
+    #     cache/<tag>/constituents/                 relative symlinks, index excluded
+    #     cache/<tag>/v_<tag>_expanding.csv         score panel  (+ .source)
+    #     cache/<tag>/raw_panel_<tag>_<HORIZON>.csv raw panel    (+ .source)
+    # ONE COPY OF EACH PANEL. The /tmp working copy and the metrics/ permanent
+    # copy existed because /tmp does not survive a reboot; a panel in the
+    # project does, so the pair collapsed to one file and the copy steps
+    # between them (run_all.restore_cache_to_tmp, STEP 15b) were deleted.
+    data_dir: Path = field(init=False)        # what build_panel is pointed at
+    score_cache: Path = field(init=False)     # the score panel
+    raw_cache: Path = field(init=False)       # the raw feature panel
+
+    def __post_init__(self):
+        d = CACHE_DIR / self.tag
+        object.__setattr__(self, "data_dir", d / "constituents")
+        object.__setattr__(self, "score_cache", d / f"v_{self.tag}_expanding.csv")
+        object.__setattr__(self, "raw_cache", d / f"raw_panel_{self.tag}_{HORIZON}.csv")
+        # THE CONSTITUENT COUNT IS COMPUTED, NEVER TYPED. Rows write "{n}" where
+        # a count of names belongs; it is filled here from symbol_list, which is
+        # the set of CSVs the farm links and build_panel scores. A typed count
+        # said "49 constituents" on a run that scored 48.
+        n = str(len(self.symbol_list))
+        for f in ("label", "survivorship", "churn_note", "validation_status",
+                  "engine_text", "chart_text", "engine_params_static"):
+            object.__setattr__(self, f, _fill_count(getattr(self, f), n))
+
     def symbols(self):
         """The tradable names as a SET, or None when the directory is the definition.
 
@@ -514,12 +561,15 @@ class Universe:
             link = self.data_dir / f"{sym}.csv"
             if link.is_symlink() or link.exists():
                 link.unlink()
-            link.symlink_to(target)
+            # RELATIVE, so the farm is correct wherever the checkout is copied.
+            # Absolute links shipped inside data/ until 2026-09-23 and pointed a
+            # copied tree back at the original checkout.
+            link.symlink_to(os.path.relpath(target, link.parent))
 
         present = tuple(sorted(f.stem for f in self.data_dir.glob("*.csv")))
         assert present == self.symbol_list, \
             f"{self.tag}: constituents directory does not match symbol_list"
-        assert all(f.readlink().parent.resolve() == src
+        assert all((f.parent / f.readlink()).parent.resolve() == src
                    for f in self.data_dir.glob("*.csv")), \
             f"{self.tag}: a link in the farm does not resolve into raw_data_dir"
         # NORMALISED, so the index cannot re-enter under a different spelling of
@@ -583,30 +633,23 @@ _RAW = ROOT / "data" / "raw"
 _WITHOUT_SURV = _RAW / "Final_Without_Survivorship_Data"
 
 _MID_SOURCE = _WITHOUT_SURV / "Final_NIFTYMidCap150_EoD_Data"
-_MID_LINKS = _RAW / "MidCap150" / "constituents"
 _MID_METRICS = ROOT / "results_midcap150" / "metrics"
 _MID_INDEX = "NIFTY MIDCAP 150"
 
 _N100_SOURCE = _WITHOUT_SURV / "Final_NIFTY100_EoD_Data"
-_N100_LINKS = _RAW / "N100_constituents"
 _N100_METRICS = ROOT / "results_nifty100" / "metrics"
 _N100_INDEX = "NIFTY 100"
 
 _MID = Universe(
-        tag="midcap150", label="MidCap150 (148 constituents)",
-        data_dir=_MID_LINKS,
+        tag="midcap150", label="MidCap150 ({n} constituents)",
         raw_data_dir=_MID_SOURCE,
         survivorship=(
-            "STATIC. 148 names are TODAY'S MidCap150 members backfilled to "
+            "STATIC. {n} names are TODAY'S MidCap150 members backfilled to "
             "2019-01-01. Midcaps that left the index or delisted during the window "
             "are absent entirely, so both the strategy and its equal-weight "
             "buy&hold are inflated. Source: data/raw/MidCap150/clean."),
         symbol_list=_constituents(_MID_SOURCE, _MID_INDEX),
         metrics_dir=_MID_METRICS,
-        score_tmp=Path("/tmp/v_midcap150_expanding.csv"),
-        score_cache=_MID_METRICS / "v_midcap150_expanding_cache.csv",
-        raw_tmp=Path(f"/tmp/raw_panel_midcap150_{HORIZON}.csv"),
-        raw_cache=_MID_METRICS / "raw_panel_midcap150_cache.csv",
         nautilus_scores="scores_midcap150.parquet",
         nautilus_end=str(config.BT_END_DATE.date()),
         purge_mode="trading",
@@ -741,21 +784,16 @@ _MID = Universe(
     )
 
 _N100 = Universe(
-        tag="nifty100", label="Nifty 100 (99 constituents)",
-        data_dir=_N100_LINKS,
+        tag="nifty100", label="Nifty 100 ({n} constituents)",
         raw_data_dir=_N100_SOURCE,
         survivorship=(
-            "STATIC. 99 names are TODAY'S Nifty 100 members backfilled to "
+            "STATIC. {n} names are TODAY'S Nifty 100 members backfilled to "
             "2019-01-01. Names dropped or delisted during the window are absent "
             "entirely, so both the strategy and its equal-weight buy&hold are "
             "inflated. The published NIFTY100 index line is cap-weighted and is "
             "NOT survivorship-biased. Source: data/raw/nifty100_benchmark."),
         symbol_list=_constituents(_N100_SOURCE, _N100_INDEX),
         metrics_dir=_N100_METRICS,
-        score_tmp=Path("/tmp/v_nifty100_expanding.csv"),
-        score_cache=_N100_METRICS / "v_nifty100_expanding_cache.csv",
-        raw_tmp=Path(f"/tmp/raw_panel_nifty100_{HORIZON}.csv"),
-        raw_cache=_N100_METRICS / "raw_panel_nifty100_cache.csv",
         nautilus_scores="scores_nifty100.parquet",
         nautilus_end=str(config.BT_END_DATE.date()),
         purge_mode="trading",
@@ -807,13 +845,13 @@ _N100 = Universe(
             "maxdd_pct", "cagr_pct", "cash_yield", "survivorship", "vs_buyhold",
             "validation_status"),
         engine_params_static={
-            "universe": "Nifty 100 (99 constituents, NIFTY100.csv excluded by name)",
+            "universe": "Nifty 100 ({n} constituents, NIFTY100.csv excluded by name)",
         },
         engine_text={
-            "banner": "ENGINE v2 FINAL -- Nifty 100 universe (99 names, index "
+            "banner": "ENGINE v2 FINAL -- Nifty 100 universe ({n} names, index "
                       "excluded by name)",
             "panel_what": "Nifty 100 score panel",
-            "bh_label": "Equal-weight buy & hold (Nifty 100, 99 names)",
+            "bh_label": "Equal-weight buy & hold (Nifty 100, {n} names)",
             "chart_title": ("Nifty 100 universe -- ranking + inverse-vol + "
                             "breadth-scaled exposure\n"),
             "assert_index_absent": True,
@@ -889,7 +927,6 @@ _N100 = Universe(
 # chart. liquidity_note is None and validation_status says so in words, because
 # a placeholder number here would be a claim nobody has earned.
 _N50_SOURCE = _WITHOUT_SURV / "Final_NIFTY50_EoD_Data"
-_N50_LINKS = _RAW / "N50_constituents"
 _N50_METRICS = ROOT / "results_nifty50" / "metrics"
 # THE SUPPLIER SPELLS THIS ONE IN TITLE CASE. Seven of the eight index files
 # shout -- "NIFTY 100", "NIFTY MIDCAP 150", "NIFTY SMLCAP 250" -- and this one
@@ -898,23 +935,18 @@ _N50_METRICS = ROOT / "results_nifty50" / "metrics"
 _N50_INDEX = "Nifty 50"
 
 _N50 = Universe(
-        tag="nifty50", label="Nifty 50 (50 constituents)",
-        data_dir=_N50_LINKS,
+        tag="nifty50", label="Nifty 50 ({n} constituents)",
         raw_data_dir=_N50_SOURCE,
         survivorship=(
-            "STATIC. 50 names are TODAY'S Nifty 50 members backfilled to "
+            "STATIC. {n} names are TODAY'S Nifty 50 members backfilled to "
             "2019-01-01. Names dropped or delisted during the window are absent "
             "entirely, so both the strategy and its equal-weight buy&hold are "
-            "inflated. 4 of the 50 did not exist at BT_START_DATE. The published "
+            "inflated. 4 of the {n} did not exist at BT_START_DATE. The published "
             "Nifty 50 index line is cap-weighted and is NOT survivorship-biased. "
             "Source: data/raw/Final_Without_Survivorship_Data/"
             "Final_NIFTY50_EoD_Data."),
         symbol_list=_constituents(_N50_SOURCE, _N50_INDEX),
         metrics_dir=_N50_METRICS,
-        score_tmp=Path("/tmp/v_nifty50_expanding.csv"),
-        score_cache=_N50_METRICS / "v_nifty50_expanding_cache.csv",
-        raw_tmp=Path(f"/tmp/raw_panel_nifty50_{HORIZON}.csv"),
-        raw_cache=_N50_METRICS / "raw_panel_nifty50_cache.csv",
         nautilus_scores="scores_nifty50.parquet",
         nautilus_end=str(config.BT_END_DATE.date()),
         purge_mode="trading",
@@ -983,7 +1015,7 @@ _N50 = Universe(
         validation_status=("not measured on this universe. No seed-robustness, "
                            "sub-period, shuffle or top-N work has been run here, "
                            "and none of the validations on record was run on "
-                           "these 50 names."),
+                           "these {n} names."),
         engine_params_keys=(
             "universe", "model", "sizing", "exposure", "top_n", "buffer",
             "rebalance_days", "avg_exposure_pct", "n_symbols", "sharpe",
@@ -993,14 +1025,14 @@ _N50 = Universe(
         # of n100 and is read against it, so a params file whose keys are in a
         # different order would make the two awkward to diff for no gain.
         engine_params_static={
-            "universe": "Nifty 50 (50 constituents, 'Nifty 50.csv' excluded "
+            "universe": "Nifty 50 ({n} constituents, 'Nifty 50.csv' excluded "
                         "by name)",
         },
         engine_text={
-            "banner": "ENGINE v2 FINAL -- Nifty 50 universe (50 names, index "
+            "banner": "ENGINE v2 FINAL -- Nifty 50 universe ({n} names, index "
                       "excluded by name)",
             "panel_what": "Nifty 50 score panel",
-            "bh_label": "Equal-weight buy & hold (Nifty 50, 50 names)",
+            "bh_label": "Equal-weight buy & hold (Nifty 50, {n} names)",
             "chart_title": ("Nifty 50 universe -- ranking + inverse-vol + "
                             "breadth-scaled exposure\n"),
             "assert_index_absent": True,
@@ -1033,7 +1065,7 @@ _N50 = Universe(
                 f"strategy and its equal-weight buy&hold are inflated. Do not "
                 f"read that buy&hold as achievable.\n"
                 "NOTHING ON THIS UNIVERSE HAS BEEN VALIDATED. No seed, "
-                "sub-period, shuffle or top-N test has been run on these 50 "
+                "sub-period, shuffle or top-N test has been run on these {n} "
                 "names, and no liquidity or\nmarket-impact study exists for "
                 "this panel. Every number here is a research backtest with a "
                 "flat 0.15% slippage and no market-impact model.\n"),
@@ -1049,15 +1081,13 @@ _N50 = Universe(
 # constraint as naming.AXES, same reason: position is load-bearing somewhere the
 # row itself does not mention.
 _MC50_SOURCE = _WITHOUT_SURV / "Final_NIFTYMidCap50_EoD_Data"
-_MC50_LINKS = _RAW / "MidCap50_constituents"
 _MC50_METRICS = ROOT / "results_midcap50" / "metrics"
 # THE SUPPLIER SHOUTS THIS ONE, like six of the eight: "NIFTY MIDCAP 50.csv".
 # Written out rather than derived, for the reason n50's row gives.
 _MC50_INDEX = "NIFTY MIDCAP 50"
 
 _MC50 = Universe(
-        tag="midcap50", label="MidCap50 (49 constituents)",
-        data_dir=_MC50_LINKS,
+        tag="midcap50", label="MidCap50 ({n} constituents)",
         raw_data_dir=_MC50_SOURCE,
         # midcap50's OWN NUMBERS, MEASURED 2026-09-18. NOT nifty50's paragraph
         # with the nouns changed: the late-lister rate here is 8 of 49, which is
@@ -1065,10 +1095,10 @@ _MC50 = Universe(
         # who is handed nifty50's "4 of 50" for this panel is being told the bias
         # is smaller than it is.
         survivorship=(
-            "STATIC. 49 names are TODAY'S Nifty MidCap 50 members backfilled to "
+            "STATIC. {n} names are TODAY'S Nifty MidCap 50 members backfilled to "
             "2019-01-01. Names dropped or delisted during the window are absent "
             "entirely, so both the strategy and its equal-weight buy&hold are "
-            "inflated. 8 OF THE 49 did not exist at BT_START_DATE -- POLYCAB "
+            "inflated. 8 OF THE {n} did not exist at BT_START_DATE -- POLYCAB "
             "(2019-04-16), SBICARD (2020-03-16), NYKAA (2021-11-10), POLICYBZR "
             "(2021-11-15), PAYTM (2021-11-18), MANKIND (2023-05-09), WAAREEENER "
             "(2024-10-28) and SWIGGY (2024-11-13) -- which is 16.3% of the "
@@ -1078,10 +1108,6 @@ _MC50 = Universe(
             "Final_NIFTYMidCap50_EoD_Data."),
         symbol_list=_constituents(_MC50_SOURCE, _MC50_INDEX),
         metrics_dir=_MC50_METRICS,
-        score_tmp=Path("/tmp/v_midcap50_expanding.csv"),
-        score_cache=_MC50_METRICS / "v_midcap50_expanding_cache.csv",
-        raw_tmp=Path(f"/tmp/raw_panel_midcap50_{HORIZON}.csv"),
-        raw_cache=_MC50_METRICS / "raw_panel_midcap50_cache.csv",
         nautilus_scores="scores_midcap50.parquet",
         nautilus_end=str(config.BT_END_DATE.date()),
         purge_mode="trading",
@@ -1159,7 +1185,7 @@ _MC50 = Universe(
         validation_status=("not measured on this universe. No seed-robustness, "
                            "sub-period, shuffle or top-N work has been run here, "
                            "and none of the validations on record was run on "
-                           "these 49 names."),
+                           "these {n} names."),
         engine_params_keys=(
             "universe", "model", "sizing", "exposure", "top_n", "buffer",
             "rebalance_days", "avg_exposure_pct", "n_symbols", "sharpe",
@@ -1169,14 +1195,14 @@ _MC50 = Universe(
         # against midcap150 and against nifty50, and a third key order would make
         # every such diff awkward for no gain.
         engine_params_static={
-            "universe": "Nifty MidCap 50 (49 constituents, "
+            "universe": "Nifty MidCap 50 ({n} constituents, "
                         "'NIFTY MIDCAP 50.csv' excluded by name)",
         },
         engine_text={
-            "banner": "ENGINE v2 FINAL -- Nifty MidCap 50 universe (49 names, "
+            "banner": "ENGINE v2 FINAL -- Nifty MidCap 50 universe ({n} names, "
                       "index excluded by name)",
             "panel_what": "Nifty MidCap 50 score panel",
-            "bh_label": "Equal-weight buy & hold (Nifty MidCap 50, 49 names)",
+            "bh_label": "Equal-weight buy & hold (Nifty MidCap 50, {n} names)",
             "chart_title": ("Nifty MidCap 50 universe -- ranking + inverse-vol + "
                             "breadth-scaled exposure\n"),
             "assert_index_absent": True,
@@ -1213,7 +1239,7 @@ _MC50 = Universe(
                 # midcap50's first render. midcap150's and nifty50's rows both end
                 # in "\n"; this one did not.
                 "NOTHING ON THIS UNIVERSE HAS BEEN VALIDATED. No seed, "
-                "sub-period, shuffle or top-N work has been run on these 49 "
+                "sub-period, shuffle or top-N work has been run on these {n} "
                 "names.\n"),
         },
 )
@@ -1221,14 +1247,12 @@ _MC50 = Universe(
 
 # midcap100 IS APPENDED, NEVER INSERTED, same constraint as every row above it.
 _MC100_SOURCE = _WITHOUT_SURV / "Final_NIFTYMidCap100_EoD_Data"
-_MC100_LINKS = _RAW / "MidCap100_constituents"
 _MC100_METRICS = ROOT / "results_midcap100" / "metrics"
 # THE SUPPLIER SHOUTS THIS ONE TOO: "NIFTY MIDCAP 100.csv".
 _MC100_INDEX = "NIFTY MIDCAP 100"
 
 _MC100 = Universe(
-        tag="midcap100", label="MidCap100 (98 constituents)",
-        data_dir=_MC100_LINKS,
+        tag="midcap100", label="MidCap100 ({n} constituents)",
         raw_data_dir=_MC100_SOURCE,
         # midcap100's OWN NUMBERS, MEASURED 2026-09-19 by reading the first
         # dated row of all 98 constituent files. NOT midcap50's paragraph with
@@ -1237,10 +1261,10 @@ _MC100 = Universe(
         # handed either of those for this panel is being told the bias is
         # roughly half what it is.
         survivorship=(
-            "STATIC. 98 names are TODAY'S Nifty MidCap 100 members backfilled "
+            "STATIC. {n} names are TODAY'S Nifty MidCap 100 members backfilled "
             "to 2019-01-01. Names dropped or delisted during the window are "
             "absent entirely, so both the strategy and its equal-weight "
-            "buy&hold are inflated. 21 OF THE 98 did not exist at "
+            "buy&hold are inflated. 21 OF THE {n} did not exist at "
             "BT_START_DATE -- RVNL (2019-04-11), POLYCAB (2019-04-16), "
             "KPITTECH (2019-04-22), 360ONE (2019-09-19), IRCTC (2019-10-14), "
             "PATANJALI (2020-01-27), SBICARD (2020-03-16), POWERINDIA "
@@ -1256,10 +1280,6 @@ _MC100 = Universe(
             "Final_NIFTYMidCap100_EoD_Data."),
         symbol_list=_constituents(_MC100_SOURCE, _MC100_INDEX),
         metrics_dir=_MC100_METRICS,
-        score_tmp=Path("/tmp/v_midcap100_expanding.csv"),
-        score_cache=_MC100_METRICS / "v_midcap100_expanding_cache.csv",
-        raw_tmp=Path(f"/tmp/raw_panel_midcap100_{HORIZON}.csv"),
-        raw_cache=_MC100_METRICS / "raw_panel_midcap100_cache.csv",
         nautilus_scores="scores_midcap100.parquet",
         nautilus_end=str(config.BT_END_DATE.date()),
         purge_mode="trading",
@@ -1329,7 +1349,7 @@ _MC100 = Universe(
         validation_status=("not measured on this universe. No seed-robustness, "
                            "sub-period, shuffle or top-N work has been run here, "
                            "and none of the validations on record was run on "
-                           "these 98 names."),
+                           "these {n} names."),
         engine_params_keys=(
             "universe", "model", "sizing", "exposure", "top_n", "buffer",
             "rebalance_days", "avg_exposure_pct", "n_symbols", "sharpe",
@@ -1337,14 +1357,14 @@ _MC100 = Universe(
             "validation_status"),
         # KEY SET AND ORDER FOLLOW n100's, as every row above does.
         engine_params_static={
-            "universe": "Nifty MidCap 100 (98 constituents, "
+            "universe": "Nifty MidCap 100 ({n} constituents, "
                         "'NIFTY MIDCAP 100.csv' excluded by name)",
         },
         engine_text={
-            "banner": "ENGINE v2 FINAL -- Nifty MidCap 100 universe (98 names, "
+            "banner": "ENGINE v2 FINAL -- Nifty MidCap 100 universe ({n} names, "
                       "index excluded by name)",
             "panel_what": "Nifty MidCap 100 score panel",
-            "bh_label": "Equal-weight buy & hold (Nifty MidCap 100, 98 names)",
+            "bh_label": "Equal-weight buy & hold (Nifty MidCap 100, {n} names)",
             "chart_title": ("Nifty MidCap 100 universe -- ranking + inverse-vol + "
                             "breadth-scaled exposure\n"),
             "assert_index_absent": True,
@@ -1376,7 +1396,7 @@ _MC100 = Universe(
                 # THE TRAILING NEWLINE IS LOAD-BEARING -- see midcap50's row for
                 # what it looked like when it was missing.
                 "NOTHING ON THIS UNIVERSE HAS BEEN VALIDATED. No seed, "
-                "sub-period, shuffle or top-N work has been run on these 98 "
+                "sub-period, shuffle or top-N work has been run on these {n} "
                 "names.\n"),
         },
 )
@@ -1387,13 +1407,11 @@ _MC100 = Universe(
 # order sees what it saw before.
 # nifty200 IS APPENDED, NEVER INSERTED, same constraint as every row above it.
 _N200_SOURCE = _WITHOUT_SURV / "Final_NIFTY200_EoD_Data"
-_N200_LINKS = _RAW / "N200_constituents"
 _N200_METRICS = ROOT / "results_nifty200" / "metrics"
 _N200_INDEX = "NIFTY 200"
 
 _N200 = Universe(
-        tag="nifty200", label="Nifty200 (197 constituents)",
-        data_dir=_N200_LINKS,
+        tag="nifty200", label="Nifty200 ({n} constituents)",
         raw_data_dir=_N200_SOURCE,
         # nifty200's OWN NUMBERS, MEASURED 2026-09-19 by reading the first dated
         # row of all 197 constituent files. 32 OF 197 IS 16.2% -- essentially
@@ -1402,10 +1420,10 @@ _N200 = Universe(
         # is why every row here carries its own count rather than inheriting a
         # neighbour's paragraph.
         survivorship=(
-            "STATIC. 197 names are TODAY'S Nifty 200 members backfilled to "
+            "STATIC. {n} names are TODAY'S Nifty 200 members backfilled to "
             "2019-01-01. Names dropped or delisted during the window are absent "
             "entirely, so both the strategy and its equal-weight buy&hold are "
-            "inflated. 32 OF THE 197 did not exist at BT_START_DATE -- RVNL "
+            "inflated. 32 OF THE {n} did not exist at BT_START_DATE -- RVNL "
             "(2019-04-11), POLYCAB (2019-04-16), KPITTECH (2019-04-22), 360ONE "
             "(2019-09-19), IRCTC (2019-10-14), PATANJALI (2020-01-27), SBICARD "
             "(2020-03-16), POWERINDIA (2020-03-30), MAXHEALTH (2020-08-21), "
@@ -1423,10 +1441,6 @@ _N200 = Universe(
             "data/raw/Final_Without_Survivorship_Data/Final_NIFTY200_EoD_Data."),
         symbol_list=_constituents(_N200_SOURCE, _N200_INDEX),
         metrics_dir=_N200_METRICS,
-        score_tmp=Path("/tmp/v_nifty200_expanding.csv"),
-        score_cache=_N200_METRICS / "v_nifty200_expanding_cache.csv",
-        raw_tmp=Path(f"/tmp/raw_panel_nifty200_{HORIZON}.csv"),
-        raw_cache=_N200_METRICS / "raw_panel_nifty200_cache.csv",
         nautilus_scores="scores_nifty200.parquet",
         nautilus_end=str(config.BT_END_DATE.date()),
         purge_mode="trading",
@@ -1476,21 +1490,21 @@ _N200 = Universe(
         validation_status=("not measured on this universe. No seed-robustness, "
                            "sub-period, shuffle or top-N work has been run here, "
                            "and none of the validations on record was run on "
-                           "these 197 names."),
+                           "these {n} names."),
         engine_params_keys=(
             "universe", "model", "sizing", "exposure", "top_n", "buffer",
             "rebalance_days", "avg_exposure_pct", "n_symbols", "sharpe",
             "maxdd_pct", "cagr_pct", "cash_yield", "survivorship", "vs_buyhold",
             "validation_status"),
         engine_params_static={
-            "universe": "Nifty 200 (197 constituents, "
+            "universe": "Nifty 200 ({n} constituents, "
                         "'NIFTY 200.csv' excluded by name)",
         },
         engine_text={
-            "banner": "ENGINE v2 FINAL -- Nifty 200 universe (197 names, "
+            "banner": "ENGINE v2 FINAL -- Nifty 200 universe ({n} names, "
                       "index excluded by name)",
             "panel_what": "Nifty 200 score panel",
-            "bh_label": "Equal-weight buy & hold (Nifty 200, 197 names)",
+            "bh_label": "Equal-weight buy & hold (Nifty 200, {n} names)",
             "chart_title": ("Nifty 200 universe -- ranking + inverse-vol + "
                             "breadth-scaled exposure\n"),
             "assert_index_absent": True,
@@ -1518,7 +1532,7 @@ _N200 = Universe(
                 f"bias is not known. Do not read that buy&hold as achievable.\n"
                 # THE TRAILING NEWLINE IS LOAD-BEARING -- see midcap50's row.
                 "NOTHING ON THIS UNIVERSE HAS BEEN VALIDATED. No seed, "
-                "sub-period, shuffle or top-N work has been run on these 197 "
+                "sub-period, shuffle or top-N work has been run on these {n} "
                 "names.\n"),
         },
 )
@@ -1526,7 +1540,6 @@ _N200 = Universe(
 
 # smallcap250 IS APPENDED, NEVER INSERTED, same constraint as every row above.
 _SC250_SOURCE = _WITHOUT_SURV / "Final_NIFTYSmallCap250_EoD_Data"
-_SC250_LINKS = _RAW / "SmallCap250_constituents"
 _SC250_METRICS = ROOT / "results_smallcap250" / "metrics"
 # THE SUPPLIER ABBREVIATES THIS ONE, and it is the only one of the eight that
 # does: "NIFTY SMLCAP 250.csv", not "NIFTY SMALLCAP 250.csv". Written out rather
@@ -1535,8 +1548,7 @@ _SC250_METRICS = ROOT / "results_smallcap250" / "metrics"
 _SC250_INDEX = "NIFTY SMLCAP 250"
 
 _SC250 = Universe(
-        tag="smallcap250", label="SmallCap250 (248 constituents)",
-        data_dir=_SC250_LINKS,
+        tag="smallcap250", label="SmallCap250 ({n} constituents)",
         raw_data_dir=_SC250_SOURCE,
         # smallcap250's OWN NUMBERS, MEASURED 2026-09-19. 90 OF 248 IS 36.3%,
         # THE HIGHEST RATE OF THE SEVEN AND NEARLY DOUBLE midcap100's 21.4%.
@@ -1557,10 +1569,10 @@ _SC250 = Universe(
         # are "a third of the symbols have a fraction of a history". See
         # KNOWN_ISSUES.md, the build_scores entry.
         survivorship=(
-            "STATIC. 248 names are TODAY'S Nifty SmallCap 250 members "
+            "STATIC. {n} names are TODAY'S Nifty SmallCap 250 members "
             "backfilled to 2019-01-01. Names dropped or delisted during the "
             "window are absent entirely, so both the strategy and its "
-            "equal-weight buy&hold are inflated. 90 OF THE 248 did not exist at "
+            "equal-weight buy&hold are inflated. 90 OF THE {n} did not exist at "
             "BT_START_DATE -- 36.3%, THE HIGHEST RATE OF ANY UNIVERSE WIRED "
             "HERE, against midcap100's 21.4%, nifty200's 16.2% and nifty50's "
             "8.0%. MORE THAN A THIRD OF THIS PANEL IS NAMES THAT LISTED DURING "
@@ -1571,10 +1583,6 @@ _SC250 = Universe(
             "Final_Without_Survivorship_Data/Final_NIFTYSmallCap250_EoD_Data."),
         symbol_list=_constituents(_SC250_SOURCE, _SC250_INDEX),
         metrics_dir=_SC250_METRICS,
-        score_tmp=Path("/tmp/v_smallcap250_expanding.csv"),
-        score_cache=_SC250_METRICS / "v_smallcap250_expanding_cache.csv",
-        raw_tmp=Path(f"/tmp/raw_panel_smallcap250_{HORIZON}.csv"),
-        raw_cache=_SC250_METRICS / "raw_panel_smallcap250_cache.csv",
         nautilus_scores="scores_smallcap250.parquet",
         nautilus_end=str(config.BT_END_DATE.date()),
         purge_mode="trading",
@@ -1620,21 +1628,21 @@ _SC250 = Universe(
         validation_status=("not measured on this universe. No seed-robustness, "
                            "sub-period, shuffle or top-N work has been run here, "
                            "and none of the validations on record was run on "
-                           "these 248 names."),
+                           "these {n} names."),
         engine_params_keys=(
             "universe", "model", "sizing", "exposure", "top_n", "buffer",
             "rebalance_days", "avg_exposure_pct", "n_symbols", "sharpe",
             "maxdd_pct", "cagr_pct", "cash_yield", "survivorship", "vs_buyhold",
             "validation_status"),
         engine_params_static={
-            "universe": "Nifty SmallCap 250 (248 constituents, "
+            "universe": "Nifty SmallCap 250 ({n} constituents, "
                         "'NIFTY SMLCAP 250.csv' excluded by name)",
         },
         engine_text={
-            "banner": "ENGINE v2 FINAL -- Nifty SmallCap 250 universe (248 "
+            "banner": "ENGINE v2 FINAL -- Nifty SmallCap 250 universe ({n} "
                       "names, index excluded by name)",
             "panel_what": "Nifty SmallCap 250 score panel",
-            "bh_label": "Equal-weight buy & hold (Nifty SmallCap 250, 248 names)",
+            "bh_label": "Equal-weight buy & hold (Nifty SmallCap 250, {n} names)",
             "chart_title": ("Nifty SmallCap 250 universe -- ranking + "
                             "inverse-vol + breadth-scaled exposure\n"),
             "assert_index_absent": True,
@@ -1664,7 +1672,7 @@ _SC250 = Universe(
                 f"achievable.\n"
                 # THE TRAILING NEWLINE IS LOAD-BEARING -- see midcap50's row.
                 "NOTHING ON THIS UNIVERSE HAS BEEN VALIDATED. No seed, "
-                "sub-period, shuffle or top-N work has been run on these 248 "
+                "sub-period, shuffle or top-N work has been run on these {n} "
                 "names.\n"),
         },
 )
@@ -1673,7 +1681,6 @@ _SC250 = Universe(
 # nifty500 IS APPENDED, NEVER INSERTED. It is the EIGHTH and last supplier
 # folder: with this row wired, every universe on disk is in the registry.
 _N500_SOURCE = _WITHOUT_SURV / "Final_NIFTY500_EoD_Data"
-_N500_LINKS = _RAW / "N500_constituents"
 _N500_METRICS = ROOT / "results_nifty500" / "metrics"
 # THE SUPPLIER SPELLS THIS ONE WITH NO SPACE: "NIFTY500.csv". A THIRD
 # CONVENTION, against "NIFTY 200.csv" (spaced) and "NIFTY MIDCAP 100.csv"
@@ -1691,8 +1698,7 @@ _N500_METRICS = ROOT / "results_nifty500" / "metrics"
 _N500_INDEX = "NIFTY500"
 
 _N500 = Universe(
-        tag="nifty500", label="Nifty500 (495 constituents)",
-        data_dir=_N500_LINKS,
+        tag="nifty500", label="Nifty500 ({n} constituents)",
         raw_data_dir=_N500_SOURCE,
         # nifty500's OWN NUMBERS, MEASURED 2026-09-19. 137 of 495 is 27.7% --
         # BELOW smallcap250's 36.3% despite being twice the size, because the
@@ -1700,20 +1706,16 @@ _N500 = Universe(
         # tracks how far down the capitalisation ladder an index reaches, not
         # how many names it holds.
         survivorship=(
-            "STATIC. 495 names are TODAY'S Nifty 500 members backfilled to "
+            "STATIC. {n} names are TODAY'S Nifty 500 members backfilled to "
             "2019-01-01. Names dropped or delisted during the window are absent "
             "entirely, so both the strategy and its equal-weight buy&hold are "
-            "inflated. 137 OF THE 495 did not exist at BT_START_DATE -- 27.7%, "
+            "inflated. 137 OF THE {n} did not exist at BT_START_DATE -- 27.7%, "
             "between smallcap250's 36.3% and midcap100's 21.4%. The published "
             "Nifty 500 index line is cap-weighted and is NOT "
             "survivorship-biased. Source: data/raw/"
             "Final_Without_Survivorship_Data/Final_NIFTY500_EoD_Data."),
         symbol_list=_constituents(_N500_SOURCE, _N500_INDEX),
         metrics_dir=_N500_METRICS,
-        score_tmp=Path("/tmp/v_nifty500_expanding.csv"),
-        score_cache=_N500_METRICS / "v_nifty500_expanding_cache.csv",
-        raw_tmp=Path(f"/tmp/raw_panel_nifty500_{HORIZON}.csv"),
-        raw_cache=_N500_METRICS / "raw_panel_nifty500_cache.csv",
         nautilus_scores="scores_nifty500.parquet",
         nautilus_end=str(config.BT_END_DATE.date()),
         purge_mode="trading",
@@ -1759,22 +1761,22 @@ _N500 = Universe(
         validation_status=("not measured on this universe. No seed-robustness, "
                            "sub-period, shuffle or top-N work has been run here, "
                            "and none of the validations on record was run on "
-                           "these 495 names."),
+                           "these {n} names."),
         engine_params_keys=(
             "universe", "model", "sizing", "exposure", "top_n", "buffer",
             "rebalance_days", "avg_exposure_pct", "n_symbols", "sharpe",
             "maxdd_pct", "cagr_pct", "cash_yield", "survivorship", "vs_buyhold",
             "validation_status"),
         engine_params_static={
-            "universe": "Nifty 500 (495 constituents, "
+            "universe": "Nifty 500 ({n} constituents, "
                         "'NIFTY500.csv' excluded by name -- no space, the "
                         "supplier's spelling)",
         },
         engine_text={
-            "banner": "ENGINE v2 FINAL -- Nifty 500 universe (495 names, "
+            "banner": "ENGINE v2 FINAL -- Nifty 500 universe ({n} names, "
                       "index excluded by name)",
             "panel_what": "Nifty 500 score panel",
-            "bh_label": "Equal-weight buy & hold (Nifty 500, 495 names)",
+            "bh_label": "Equal-weight buy & hold (Nifty 500, {n} names)",
             "chart_title": ("Nifty 500 universe -- ranking + inverse-vol + "
                             "breadth-scaled exposure\n"),
             "assert_index_absent": True,
@@ -1803,7 +1805,7 @@ _N500 = Universe(
                 f"achievable.\n"
                 # THE TRAILING NEWLINE IS LOAD-BEARING -- see midcap50's row.
                 "NOTHING ON THIS UNIVERSE HAS BEEN VALIDATED. No seed, "
-                "sub-period, shuffle or top-N work has been run on these 495 "
+                "sub-period, shuffle or top-N work has been run on these {n} "
                 "names.\n"),
         },
 )

@@ -105,7 +105,7 @@ HALVES = [("2019-2022", 2019, 2022), ("2023-2026", 2023, 2026)]
 # the combined verdict accumulates in that sequence.
 LABELS = {"nifty100": "NIFTY 100", "midcap150": "MIDCAP150"}
 UNIVERSES = {
-    u.tag: {"perm": u.score_cache, "tmp": str(u.score_tmp),
+    u.tag: {"perm": u.score_cache,
             "metrics_dir": u.metrics_dir, "symbols": u.symbols,
             "label": LABELS[u.tag]}
     for u in (REGISTRY["nifty100"], REGISTRY["midcap150"])
@@ -127,7 +127,7 @@ def load_panel(cfg, uni):
     import engine_core as _ec
     from universes.registry import REGISTRY as _REG
     _ec.set_tradeability(_REG[uni])
-    src = config.require_cache(cfg["perm"], cfg["tmp"], what=f"{uni} score panel")
+    src = config.require_cache(cfg["perm"], what=f"{uni} score panel")
     p = pd.read_csv(src, parse_dates=["date"])
     got, want = set(p["symbol"].unique()), cfg["symbols"]()
     if got != want:

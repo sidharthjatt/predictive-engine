@@ -35,9 +35,9 @@ large; all are real.
    and `reality_check.py`. Checked 2026-09-15 by resolving every `.py` named in
    that file: the other five resolve. A reader following either citation finds
    nothing and cannot tell whether the dependency is spurious or the file is lost.
-3. **`/tmp` is hardcoded in 37 places** and needs about 1.5 GB free. It is a POSIX
-   assumption, not a configurable path.
-4. **Python 3.12 or newer is a hard floor**, set by `nautilus_trader`.
+3. **`/tmp` no longer holds the panels** (2026-09-23): they live under `cache/`.
+   Some measurement scripts still write scratch files to `/tmp`, keyed by content.
+4. **Python 3.12.13, with every direct dependency pinned** in `requirements.txt`.
 5. **The symlink farms must ship EMPTY.** A copy that preserves absolute symlinks
    pointing at the source machine fails in a way that looks like missing data
    rather than a bad copy. `rsync` without `-L` and `zip` both do this.
@@ -111,7 +111,7 @@ imports them. Changing one changes a run.
              engine_v2_final_mid   engine_v2_final_n100
              make_mid_audit        make_n100_audit        audit_step
              make_mid_chart        make_n100_chart        make_combined_universes
-             make_daily_log        save_caches_step
+             make_daily_log
     libs     engine_core  test_exposure  v34_common  features_v2
              arm_sources  survivorship   tradability  qbeast_in_charges
 
@@ -583,22 +583,15 @@ Column contract: `date, open, high, low, close, adj_close, volume, open_interest
 at minimum. `adj_close` is the canonical price and is resolved into `close` at the
 single load boundary in `engine_core.build_panel`.
 
-## 4. The symlink farms — ship them empty, never broken
+## 4. The symlink farms and the panels -- derived, under cache/, never shipped
 
-```
-data/raw/MidCap150/constituents/
-data/raw/N100_constituents/
-```
-
-These contain **symlinks**, not files. They are rebuilt on import by
-`config_mid.ensure_constituents_dir()` and `config_n100.ensure_constituents_dir()`,
-so shipping them empty is correct and costs nothing.
-
-**Shipping them containing stale absolute symlinks is not.** A copy that
-preserves broken links pointing at the source machine's paths will fail in ways
-that look like missing data rather than like a bad copy. `rsync` without `-L`,
-and `zip` without care, both do this. Delete the contents and let the code
-rebuild them.
+Since 2026-09-23 each universe's constituent farm is `cache/<tag>/constituents/`,
+built on demand by `Universe.prepare_data_dir()` with RELATIVE links, and its
+score and raw panels are `cache/<tag>/v_<tag>_expanding.csv` and
+`cache/<tag>/raw_panel_<tag>_20.csv`. `cache/` is gitignored. Copying `data/`
+alone is enough for a second machine: nothing under `data/` is a link any more.
+Before that date the farms were absolute symlinks under `data/raw/` and a copied
+tree pointed back at the source checkout.
 
 ## 5. Tooling data — ships, but the pipeline does not read it
 
@@ -638,9 +631,8 @@ the recorded versions (`scipy`, `scikit-learn`, `joblib`, `matplotlib`,
 `nautilus_trader`) while `lightgbm`, `numpy` and `pandas` matched — and the
 numbers reproduced byte-identically. One observation, same machine.
 
-**`/tmp` must exist and be writable, with about 1.5 GB free.** It is hardcoded in
-37 places as the working directory for the score and raw panels. This is a POSIX
-assumption, not a configurable path.
+**The panels are under `cache/`, not `/tmp`, since 2026-09-23.** Two checkouts on
+one machine shared `/tmp`, and the second read the first one's panels.
 
 **Nothing else outside the repository is read.** No absolute paths, no home
 directory, no environment variable is ever read — `PYTHONHASHSEED` and the
@@ -666,8 +658,9 @@ Use `./venv/bin/python`, not `python3`. Every step is spawned with
 
 **Expect about 35 minutes for a cold two-universe run**, of which 34 is the two
 LightGBM scoring steps (measured 2026-09-12: 18.5 min for mid, 15.7 for n100).
-Every other step is seconds. Once the panels exist in `/tmp`, or have been
-persisted by STEP 15b, scoring is skipped and a full run is a couple of minutes.
+Every other step is seconds. Once the panels exist under `cache/` and their
+content keys match the source CSVs, scoring is skipped and a full run is a couple
+of minutes.
 
 ## 8. What is not settled, and what you should not assume
 

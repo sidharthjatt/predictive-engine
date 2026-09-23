@@ -69,13 +69,28 @@ DROP_SIZE = 8
 OFFICIAL = ROOT / "results_nifty100" / "metrics" / "v2FINAL_equity.csv"
 TOLERANCE = 0.05          # percentage points, on strategy and on buy&hold
 
-PANEL = config.require_cache(ROOT/"results_nifty100"/"metrics"/"v_nifty100_expanding_cache.csv",
-                             "/tmp/v_nifty100_expanding.csv", what="Nifty 100 score panel")
-P = pd.read_csv(PANEL, parse_dates=["date"])
+_P = None
+
+
+def panel():
+    """The nifty100 score panel, read on first use.
+
+    NOT AT IMPORT. This was a module-level read until 2026-09-23, so importing
+    the file (check_all GATE 1 imports every module) read a cache, and on a tree
+    without the panel the import itself failed.
+    """
+    global _P
+    if _P is None:
+        from universes.registry import REGISTRY
+        _P = pd.read_csv(config.require_cache(REGISTRY["nifty100"].score_cache,
+                                              what="Nifty 100 score panel"),
+                         parse_dates=["date"])
+    return _P
 
 
 def edge(drop=()):
     """(strategy CAGR, buy&hold CAGR, edge) with `drop` removed from the universe."""
+    P = panel()
     q = P[~P["symbol"].isin(set(drop))] if len(drop) else P
     px = q.pivot_table(index="date", columns="symbol", values="close").ffill()
     op = q.pivot_table(index="date", columns="symbol", values="open").ffill()
@@ -146,7 +161,7 @@ def baseline_gate():
 
 
 def main():
-    syms = sorted(P["symbol"].unique())
+    syms = sorted(panel()["symbol"].unique())
     print("=" * 96)
     print(f" NIFTY 100 JACKKNIFE -- is the edge concentrated? ({len(syms)} names)")
     print("=" * 96)
