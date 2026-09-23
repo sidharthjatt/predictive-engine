@@ -594,6 +594,12 @@ def collect_run_folder(plan, args, t_start, dest):
             if dest in f.parents or any(pp.name.startswith("20") and pp.parent.name == "runs"
                                         for pp in f.parents):
                 continue
+            # NOR THE LOGS THAT SIT DIRECTLY IN runs/: this run's own
+            # .<name>.log.inprogress, which becomes run.log below, and any other
+            # run's _FAILED.log. Copying the first put a partial copy of the log
+            # inside every run folder until 2026-09-23.
+            if d == "runs" and f.parent == base:
+                continue
             tgt = dest / d / f.relative_to(base)
             tgt.parent.mkdir(parents=True, exist_ok=True)
             try:

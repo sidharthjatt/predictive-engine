@@ -76,9 +76,29 @@ dependency with `==`, nautilus_trader 1.229.0, and the venv was rebuilt on 3.12.
 from it alone.
 
 **What a reproduction compares.** Nautilus reports are not byte-reproducible
-even on one machine: `event_id` and `position_id` carry random UUIDs, and a
-second run in the same venv changes them. Reproduction comparisons drop those two
-columns and sort rows; every other column must be identical.
+even on one machine: `event_id`, `position_id` and `init_id` carry random UUIDs,
+and a second run in the same venv changes them. Reproduction comparisons drop
+those three columns and sort rows; every other column must be identical.
+`init_id` was found by the 2026-09-23 clean-room re-audit, in order_fills.csv
+and orders_all.csv.
+
+## Gains sold on a same-year assessment day went untaxed -- FIXED 2026-09-23
+
+Section 3(9) assesses a financial year on the first trading day at or after
+31 March. When 31 March is a trading day (2020, 2021, 2022 and 2023 in this
+window) that day is still inside the year being assessed, and the engine
+deducted the bill BEFORE the day's fills, so a sale later that day was never
+taxed. tax_util.Ledger.leaked() recorded the possibility; tax_report's
+reconciliation refused the result. The combination sweep hit it on all eight
+tax-on cells at cadence 1 on midcap50 (6 such sales; statement Rs 350,692.98
+against engine Rs 348,836.10 on v2).
+
+Now such a year is assessed AFTER that day's fills (Ledger.due_on,
+after_fills=True, called at the end of the engine's day and mirrored in
+make_daily_log). Every other year is still assessed before the fills. No
+published cadence-20 daily_trades file on any of the eight universes has a fill
+on those four days, and the taxed equity curve was measured bit-identical before
+and after the change at cadences 20 and 7 on midcap50, nifty100 and midcap150.
 
 ## Small defects found by the 2026-09-23 audit and fix pass, logged rather than fixed
 
@@ -96,8 +116,6 @@ columns and sort rows; every other column must be identical.
 - **`heldout_prereg_run.py` does not support `--profile tradeable`.** It runs past
   BT_END_DATE, where `profiles.cap_kwargs()` computes no median volume, so it was
   not moved onto that helper. It raises TypeError under tradeable, which is loud.
-- **The per-universe chart subtitle says "v2 holds X% invested" whatever arm is
-  drawn.** The figure is v2's; on a v4 chart the sentence is true and misleading.
 - **Dead /tmp paths from the retired 58 remain** in engine_core.main(),
   test_exposure's `__main__`, nt_data.py, nt_attribution.py,
   test_feature_pruning.py and stability_test.py. None has a caller that can run.

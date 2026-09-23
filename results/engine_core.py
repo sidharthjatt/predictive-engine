@@ -675,7 +675,15 @@ def score_monthly(raw, seeds, purge=PURGE, purge_mode="trading"):
     p["ym"] = p["date"].dt.to_period("M")
     _cal = np.array(sorted(p["date"].unique()))
     _pos = {d: i for i, d in enumerate(_cal)}
-    for ym in sorted(p.loc[p["date"].dt.year >= 2016, "ym"].unique()):
+    # PROGRESS, ONE LINE PER MONTH, 2026-09-23. This loop printed nothing for up
+    # to 70 minutes on nifty500, so a live run could not be told from a hung one.
+    # The month is the sequential unit: the seeds inside it are fitted in
+    # parallel (below), so a line per seed would be ten interleaved lines from
+    # worker processes per month rather than a measure of progress.
+    import time as _time
+    _months = sorted(p.loc[p["date"].dt.year >= 2016, "ym"].unique())
+    _t0 = _time.time()
+    for _k, ym in enumerate(_months, start=1):
         _first = p.loc[p.ym == ym, "date"].min()
         if purge_mode == "calendar":
             cut = _first - pd.Timedelta(days=purge)
@@ -725,6 +733,10 @@ def score_monthly(raw, seeds, purge=PURGE, purge_mode="trading"):
         else:
             pr = [_fit_seed(sd, Xtr, ytr, Xte, n_jobs=-1) for sd in seeds]
         p.loc[te, "score"] = np.mean(pr, axis=0)
+        _el = (_time.time() - _t0) / 60
+        print(f"      month {_k}/{len(_months)} {ym}: {len(seeds)} seeds fitted, "
+              f"{_el:.1f} min elapsed, ~{_el / _k * (len(_months) - _k):.1f} min left",
+              flush=True)
     return p.drop(columns=["ym"])
 
 

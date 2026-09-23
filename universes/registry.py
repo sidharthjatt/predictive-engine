@@ -763,7 +763,7 @@ _MID = Universe(
                 f"MidCap150 panel density: {v['n_panel']} of {v['n_all']} names "
                 f"scored, median {v['per_day_median']} priced per day.\n"
                 f"MidCap150 universe ({v['n_all']} constituents, index excluded)  |  "
-                f"v2 holds {v['inv']}% invested on average  |  ALL NUMBERS AFTER TC "
+                f"{v['held']} on average  |  ALL NUMBERS AFTER TC "
                 f"(Zerodha + 0.15% slippage)\n"
                 f"Benchmarks: {v['index_name']} is the published CAP-WEIGHTED index "
                 f"(investable). Equal-weight buy&hold is the universe, and is NOT "
@@ -873,7 +873,7 @@ _N100 = Universe(
             "dd_label": lambda lab, mn: f"{lab.split('  [')[0]} (max {mn:.1f}%)",
             "subtitle": lambda v: (
                 f"Nifty 100 universe ({v['n_all']} constituents, index excluded "
-                f"by name)  |  v2 holds {v['inv']}% invested on average  |  ALL "
+                f"by name)  |  {v['held']} on average  |  ALL "
                 f"NUMBERS AFTER TC (Zerodha + 0.15% slippage)\n"
                 # DERIVED, NOT SPELLED OUT. This read "NIFTY100" until
                 # 2026-09-18, which was the file's name before the repoint;
@@ -1051,7 +1051,7 @@ _N50 = Universe(
             "dd_label": lambda lab, mn: f"{lab.split('  [')[0]} (max {mn:.1f}%)",
             "subtitle": lambda v: (
                 f"Nifty 50 universe ({v['n_all']} constituents, index excluded "
-                f"by name)  |  v2 holds {v['inv']}% invested on average  |  ALL "
+                f"by name)  |  {v['held']} on average  |  ALL "
                 f"NUMBERS AFTER TC (Zerodha + 0.15% slippage)\n"
                 # DERIVED, for the reason given on n100's row. This was
                 # correct when written and that is exactly the problem: so was
@@ -1220,7 +1220,7 @@ _MC50 = Universe(
             "dd_label": lambda lab, mn: f"{lab.split('  [')[0]} (max {mn:.1f}%)",
             "subtitle": lambda v: (
                 f"Nifty MidCap 50 universe ({v['n_all']} constituents, index "
-                f"excluded by name)  |  v2 holds {v['inv']}% invested on average"
+                f"excluded by name)  |  {v['held']} on average"
                 f"  |  ALL NUMBERS AFTER TC (Zerodha + 0.15% slippage)\n"
                 f"Benchmarks: {v['index_name']} is the published CAP-WEIGHTED "
                 f"index (investable, and NOT survivorship-biased). Equal-weight "
@@ -1382,7 +1382,7 @@ _MC100 = Universe(
             "dd_label": lambda lab, mn: f"{lab.split('  [')[0]} (max {mn:.1f}%)",
             "subtitle": lambda v: (
                 f"Nifty MidCap 100 universe ({v['n_all']} constituents, index "
-                f"excluded by name)  |  v2 holds {v['inv']}% invested on average"
+                f"excluded by name)  |  {v['held']} on average"
                 f"  |  ALL NUMBERS AFTER TC (Zerodha + 0.15% slippage)\n"
                 f"Benchmarks: {v['index_name']} is the published CAP-WEIGHTED "
                 f"index (investable, and NOT survivorship-biased). Equal-weight "
@@ -1520,7 +1520,7 @@ _N200 = Universe(
             "dd_label": lambda lab, mn: f"{lab.split('  [')[0]} (max {mn:.1f}%)",
             "subtitle": lambda v: (
                 f"Nifty 200 universe ({v['n_all']} constituents, index excluded "
-                f"by name)  |  v2 holds {v['inv']}% invested on average"
+                f"by name)  |  {v['held']} on average"
                 f"  |  ALL NUMBERS AFTER TC (Zerodha + 0.15% slippage)\n"
                 f"Benchmarks: {v['index_name']} is the published CAP-WEIGHTED "
                 f"index (investable, and NOT survivorship-biased). Equal-weight "
@@ -1658,7 +1658,7 @@ _SC250 = Universe(
             "dd_label": lambda lab, mn: f"{lab.split('  [')[0]} (max {mn:.1f}%)",
             "subtitle": lambda v: (
                 f"Nifty SmallCap 250 universe ({v['n_all']} constituents, index "
-                f"excluded by name)  |  v2 holds {v['inv']}% invested on average"
+                f"excluded by name)  |  {v['held']} on average"
                 f"  |  ALL NUMBERS AFTER TC (Zerodha + 0.15% slippage)\n"
                 f"Benchmarks: {v['index_name']} is the published CAP-WEIGHTED "
                 f"index (investable, and NOT survivorship-biased). Equal-weight "
@@ -1792,7 +1792,7 @@ _N500 = Universe(
             "dd_label": lambda lab, mn: f"{lab.split('  [')[0]} (max {mn:.1f}%)",
             "subtitle": lambda v: (
                 f"Nifty 500 universe ({v['n_all']} constituents, index excluded "
-                f"by name)  |  v2 holds {v['inv']}% invested on average"
+                f"by name)  |  {v['held']} on average"
                 f"  |  ALL NUMBERS AFTER TC (Zerodha + 0.15% slippage)\n"
                 f"Benchmarks: {v['index_name']} is the published CAP-WEIGHTED "
                 f"index (investable, and NOT survivorship-biased). Equal-weight "

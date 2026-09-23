@@ -418,7 +418,13 @@ def main(u):
              "inv": inv, "index_name": u.index_name}
     if _CT["diagnostics"]:
         _vals.update(n_panel=n_panel, per_day_median=int(per_day.median()))
-    sub = _window_label(eq) + "\n" + _CT["subtitle"](_vals) + sv.describe_state()
+    # WHICH ARMS ARE INVESTED HOW MUCH IS SAID PER CHART, from the arms on it.
+    # The subtitle said "v2 holds X% invested" on every chart, including a
+    # v4-only chart where X was v2's exposure. 2026-09-23.
+    def _sub(arms):
+        held = ", ".join(f"{n} holds {d[3]:.0f}% invested" for n, d in arms.items())
+        return (_window_label(eq) + "\n" + _CT["subtitle"](dict(_vals, held=held))
+                + sv.describe_state())
     # ONE LINE PER SELECTED ARM, in published order, each with its own colour.
     # v2 and v1 keep the exact colours and label shapes they have always had, so
     # the default chart is unchanged.
@@ -445,7 +451,7 @@ def main(u):
         ax[0].axhline(0, color="k", lw=.6, alpha=.5)
         ax[0].set_ylabel("Cumulative return (%)")
         ax[0].yaxis.set_major_formatter(PercentFormatter(decimals=0))
-        ax[0].set_title(naming.run_label(u.label, _arms) + "\n" + sub, fontsize=9.5)
+        ax[0].set_title(naming.run_label(u.label, _arms) + "\n" + _sub(_arms), fontsize=9.5)
         ax[0].legend(loc="upper left", fontsize=8.5); ax[0].grid(alpha=.3)
         for lab, s_, c, ls, _ in series:
             ax[1].plot(s_.index, dd(s_), lw=1.4, color=c, ls=ls,
@@ -457,7 +463,7 @@ def main(u):
         # naming: arm,cadence,profile via chart_path -- _render receives a path
         # compose from arm_reg.suffix(), cadence.suffix() and profiles.suffix();
         # the canonical two-arm figure is written only at an all-default selection.
-        plt.savefig(_path, dpi=_CT["dpi"], bbox_inches="tight"); plt.close()
+        plt.savefig(_path, dpi=_CT["dpi"], bbox_inches="tight", metadata={"Title": ax[0].get_title().split("\n")[0]}); plt.close()
         _rendered.append(_path)
 
     # ------------------------------------------------------------------

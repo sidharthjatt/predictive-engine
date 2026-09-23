@@ -631,7 +631,7 @@ def _draw(rows, out_path):
     # arm suffix, cadence.suffix() and profiles.suffix(). The OUTPUT side of this
     # step was already axis-complete; it was the INPUT side, the FILES dict, that
     # named canonical files and could not say what it had read.
-    plt.savefig(out_path, dpi=150, bbox_inches="tight")
+    plt.savefig(out_path, dpi=150, bbox_inches="tight", metadata={"Title": ax[0].get_title().split("\n")[0]})
     plt.close(fig)
     print(f"\n  saved -> {out_path}")
 
