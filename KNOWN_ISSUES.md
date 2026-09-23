@@ -100,6 +100,23 @@ published cadence-20 daily_trades file on any of the eight universes has a fill
 on those four days, and the taxed equity curve was measured bit-identical before
 and after the change at cadences 20 and 7 on midcap50, nifty100 and midcap150.
 
+**Why the fix was kept, decided 2026-09-23.** The reference document,
+`data/reference/TAX_AND_CHARGES.docx` (sha256
+`a5be987a1a75238796dd059c777b370b14be43f8a418206c93ee4201ddec8972`), does not
+state the order of a year's settlement and a sale made on the same 31 March. Its
+stated rules are that a gain belongs to the financial year of its sale date
+(section 3.1), realised gains accumulate per financial year (section 3.3), and
+each year is assessed exactly once (section 3.5). A 31 March sale is a gain of
+the year being settled that day. Under the old order it was counted in that year
+but never assessed in any year, which contradicts those rules. The fix follows
+them.
+
+RegimeSwitch's own code may settle before the day's fills. That is inferred only
+from the line numbers the document cites for the tax and fill code, and cannot be
+checked here. If it does, RegimeSwitch's cadence-1 results would differ from ours
+on those days. No cadence-20 result differs: the four affected days (31 March
+2020 to 2023) carry no trades in any published cadence-20 file.
+
 ## Small defects found by the 2026-09-23 audit and fix pass, logged rather than fixed
 
 - **Run folders before 2026-09-23 are not records of their run.** They were hard
