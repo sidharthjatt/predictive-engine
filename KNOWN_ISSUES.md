@@ -35,8 +35,11 @@ final equity (repo venv of the day: Python 3.11.15, nautilus_trader 1.221.0):
 | 3 | 612 | Rs 3,400,100.64 | Rs 3,403,150.95 | Rs -3,050 (-0.090%) |
 | 1 | 1,835 | Rs 2,277,328.29 | Rs 2,282,265.93 | Rs -4,938 (-0.216%) |
 
-Order counts differ too: 3,186 Nautilus fills against 3,188 vectorised trades at
-cadence 3, and 5,455 against 5,453 at cadence 1. `nautilus/nt_verify.py
+Re-measured the same day under the pinned venv (Python 3.12.13,
+nautilus_trader 1.229.0) with `nt_verify --rebal`: identical to the paisa at all
+three cadences, as the fill-timestamp entry below predicts. Order counts differ
+too: 3,186 Nautilus fills against 3,188 vectorised trades at cadence 3, and
+5,455 against 5,453 at cadence 1. `nautilus/nt_verify.py
 --universe=<u> --rebal=<n>` now prints this gap for any cadence and exits 0; the
 cadence-20 verdict is unchanged. Not gated because no tolerance has been argued
 for, and a threshold chosen after seeing three numbers would be fitted to them.
