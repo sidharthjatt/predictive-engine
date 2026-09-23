@@ -535,7 +535,11 @@ def _step_label(script, tag):
 # build_scores_step already declared `# naming: axis-free` on both writes. That was
 # a CLAIM; it is now a measured one.
 AXIS_FREE = ""                      # the name carries no run axis at all
-CADENCE_PROFILE = "cadence,profile"  # the two axes _present() may compose
+RUN_AXES = "cadence,profile,tax"     # the axes _present() composes, in writer order
+# TAX JOINED 2026-09-23. It was missing, so `--tax on --rebal 10` refused at
+# STEP 10t asking for daily_trades_<tag>_r10.csv while make_audit had written
+# daily_trades_<tag>_r10_tax.csv -- and at the default cadence the guard was
+# satisfied by the UNTAXED file, which is the substitution it exists to refuse.
 
 
 def _required_inputs():
@@ -559,10 +563,10 @@ def _required_inputs():
         # because an earlier default run had left the file on disk.
         out["make_chart.py"].append(
             (paths.tagged_artefact(u, "daily_trades"),
-             _step_label("make_audit.py", u.tag), f"u:{u.tag},v2", CADENCE_PROFILE))
+             _step_label("make_audit.py", u.tag), f"u:{u.tag},v2", RUN_AXES))
         out["make_chart.py"].append(
             (paths.tagged_artefact(u, "daily_trades_v1"),
-             _step_label("engine_v2_final.py", u.tag), f"u:{u.tag},v1", CADENCE_PROFILE))
+             _step_label("engine_v2_final.py", u.tag), f"u:{u.tag},v1", RUN_AXES))
         # THE COMBINED STEP READS EVERY SELECTED UNIVERSE'S TRADE LOG. It is
         # qualified by ARM only: the universe is carried by the path, and this
         # step runs once for whatever the selection holds. That is why it moved
@@ -582,7 +586,7 @@ def _required_inputs():
         # selected instead of being demanded regardless.
         out["make_combined_universes.py"].append(
             (paths.tagged_artefact(u, "daily_trades"),
-             _step_label("make_audit.py", u.tag), f"u:{u.tag},v2", CADENCE_PROFILE))
+             _step_label("make_audit.py", u.tag), f"u:{u.tag},v2", RUN_AXES))
         # UNIVERSE-TAGGED. The port loads the parquet for each SELECTED universe,
         # and a run that selected one universe has one of these.
         out["nt_execute.py"].append(
@@ -626,7 +630,7 @@ if _undeclared:
         "run_all.REQUIRED_INPUTS: these entries do not declare which axes their "
         "name carries:\n"
         + "\n".join(f"    {c}  {n}" for c, n in _undeclared)
-        + "\n  Add AXIS_FREE or CADENCE_PROFILE as the fourth field. There is no "
+        + "\n  Add AXIS_FREE or RUN_AXES as the fourth field. There is no "
           "default, because the defect this closes was a rule applied uniformly to "
           "inputs that do not all carry the same axes.")
 # Kept as the canonical set of pipeline script names. run()'s membership guard used
@@ -843,6 +847,9 @@ def check_inputs(label, script, tag):
             _sfx += _cd.suffix()
         if "profile" in axes and not _pf.is_default():
             _sfx += _pf.suffix()
+        import tax as _tx
+        if "tax" in axes and not _tx.is_default():
+            _sfx += _tx.suffix()
         want = f if not _sfx else f.with_name(f.stem + _sfx + f.suffix)
         if want.exists():
             return True
