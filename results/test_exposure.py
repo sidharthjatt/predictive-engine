@@ -712,6 +712,20 @@ def backtest_exposure(px, op, sc, dates, pc, mom20, port_vol=None,
                             "target_wt_pct": round(w.get(sym, 0.0)*100, 2) if sym in top else 0.0,
                             "held_before": sym in held, "action": act})
 
+        # TOUCH POINT 6, SECOND HALF -- a year assessed on a day still inside
+        # that year (31 March) is charged AFTER the day's fills, so a sell that
+        # day is taxed with its own year. See tax_util.Ledger.due_on.
+        if ledger is not None:
+            _due = ledger.due_on(dt, after_fills=True)
+            if _due:
+                cash -= _due
+                cum_tax += _due
+                if audit is not None:
+                    audit["skipped"].append({"date": dt, "side": "TAX", "symbol": "",
+                        "reason": f"capital-gains tax assessed, Rs {_due:,.2f}",
+                        "detail": "section 3(9): one lump sum, after this day's fills "
+                                  "(assessment day inside the assessed year)"})
+
         mtm = sum(q * prices[s] for s, q in shares.items()
                   if not np.isnan(prices.get(s, np.nan)))
         pv = mtm + cash

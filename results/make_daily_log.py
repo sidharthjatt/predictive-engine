@@ -293,16 +293,27 @@ def tax_due_by_date(summary_dates, trades):
             due[d] = owed
             label[d] = ", ".join(fy_label(f) for f in led.assess_on.get(pd.Timestamp(d), []))
         g = tg.get(d)
-        if g is None:
-            continue
-        # SELLs BEFORE BUYs, because the engine fills them in that order and a
-        # same-day buy-then-sell of one symbol would otherwise match the wrong
-        # lot and bucket the gain into the wrong holding period.
-        for _, o in g[g.action == "SELL"].iterrows():
-            led.sell(o["symbol"], int(o["qty"]), float(o["price"]), d)
-        for _, o in g[g.action == "BUY"].iterrows():
-            led.buy(o["symbol"], int(o["qty"]), float(o["price"]), d)
+        if g is not None:
+            _replay_fills(led, g, d)
+        # THE SECOND PHASE, as the engine orders it: a year assessed on a day
+        # inside that year is charged after the day's fills. See
+        # tax_util.Ledger.due_on.
+        late = led.due_on(d, after_fills=True)
+        if late:
+            due[d] = due.get(d, 0.0) + late
+            label[d] = ", ".join(fy_label(f) for f in led.assess_on.get(pd.Timestamp(d), []))
     return {"due": due, "label": label}
+
+
+def _replay_fills(led, g, d):
+    """Feed one day's filled trades to the ledger, in the engine's order."""
+    # SELLs BEFORE BUYs, because the engine fills them in that order and a
+    # same-day buy-then-sell of one symbol would otherwise match the wrong
+    # lot and bucket the gain into the wrong holding period.
+    for _, o in g[g.action == "SELL"].iterrows():
+        led.sell(o["symbol"], int(o["qty"]), float(o["price"]), d)
+    for _, o in g[g.action == "BUY"].iterrows():
+        led.buy(o["symbol"], int(o["qty"]), float(o["price"]), d)
 
 
 def build(mdir, tag, arm, raw_idx=None, cal_sorted=None):

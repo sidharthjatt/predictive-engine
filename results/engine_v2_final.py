@@ -368,7 +368,7 @@ def main(u):
     ax[1].legend(loc="lower left", fontsize=9)
     ax[1].grid(alpha=.3)
     plt.tight_layout()
-    plt.savefig(_c(M / "chart_v2FINAL.png"), dpi=150, bbox_inches="tight")
+    plt.savefig(_c(M / "chart_v2FINAL.png"), dpi=150, bbox_inches="tight", metadata={"Title": ax[0].get_title().split("\n")[0]})
     print(f"\n  saved -> {_WROTE[-1].name}")
 
     # ------------------------------------------------------------------ V3/V4

@@ -427,7 +427,7 @@ def run_v34(M, universe_label, universe_tag, px, op, sc, bd, pc, mom20, port_vol
     ax[1].grid(alpha=.3)
     plt.tight_layout()
     # naming: arm,cadence,profile via SFX -- v34_common.py:300
-    plt.savefig(M / f"chart_v34{SFX}.png", dpi=150, bbox_inches="tight")
+    plt.savefig(M / f"chart_v34{SFX}.png", dpi=150, bbox_inches="tight", metadata={"Title": ax[0].get_title().split("\n")[0]})
     _wrote.append(M / f"chart_v34{SFX}.png")
 
     # THIS STEP REPORTS ITS OWN WRITES, AND IT IS THE ONLY THING THAT CAN. SFX is
@@ -571,6 +571,8 @@ def run_arm(u, arm, rebal=None, out_dir=None):
     ax[1].set_ylabel("Drawdown (%)")
     ax[1].yaxis.set_major_formatter(PercentFormatter(decimals=0))
     ax[1].legend(loc="lower left", fontsize=8); ax[1].grid(alpha=.3)
-    plt.tight_layout(); plt.savefig(out / "chart.png", dpi=140, bbox_inches="tight")
+    # THE RUN LABEL TRAVELS IN THE PNG'S Title METADATA, so a script can check
+    # which run drew a chart without reading pixels. 2026-09-23.
+    plt.tight_layout(); plt.savefig(out / "chart.png", dpi=140, bbox_inches="tight", metadata={"Title": ax[0].get_title().split("\n")[0]})
     plt.close()
     return comp, out

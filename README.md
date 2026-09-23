@@ -430,8 +430,8 @@ Two full `--fresh` rebuilds are recorded at 141.9 and 143.9 minutes
 (`run_all_ewma2_log.txt`, `run_all_ewma_log.txt`), but both are from a
 two-universe pipeline — those runs built the 58 and the 74, both since deleted.
 The current pipeline builds mid and n100 and has no recorded full-rebuild time. With the
-panel caches present the score-building steps report `cached (skip)` and the
-model is not refitted at all.
+panels under `cache/` current, the score-building steps report `score panel
+current, skipping build` and the model is not refitted at all.
 
 `python3 nautilus/nt_verify.py --universe=n100` runs the reconciliation. It
 executes two complete backtests. One run on 2026-08-27 took roughly 30 minutes,

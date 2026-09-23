@@ -451,7 +451,8 @@ class Ledger:
 
     buy(sym, qty, price, date)     record an opened lot
     sell(sym, qty, price, date)    -> realised gain, and bucket it
-    due_on(date)                   -> rupees to deduct BEFORE that day's fills
+    due_on(date, after_fills)      -> rupees to deduct before (or, for a year
+                                      assessed inside itself, after) the fills
     """
 
     def __init__(self, dates):
@@ -497,8 +498,19 @@ class Ledger:
                 self.lots[sym].pop(0)
         return gain
 
-    def due_on(self, date):
+    def due_on(self, date, after_fills=False):
         """Rupees due on `date`, or 0.0. Each financial year assessed ONCE.
+
+        TWO PHASES, 2026-09-23. The engine calls this before the day's fills
+        (after_fills=False) and again after them (after_fills=True). A year whose
+        assessment day is still INSIDE that year -- 31 March falling on a trading
+        day -- is assessed in the second call, so a sell that day is taxed with
+        its own year. Every other year is assessed in the first call, as before.
+        The leak described below is therefore closed rather than detected: the
+        combination sweep hit it on all eight tax-on cells at cadence 1, where a
+        rebalance runs every day, and tax_report's reconciliation refused them.
+        No published cadence-20 run has a fill on those days, measured across
+        all eight universes, so no published number moves.
 
         THE SAME-DAY LEAK IS DETECTED, NOT ASSUMED AWAY. Section 3(9) can put a
         year's assessment on the last day of that same year -- FY2019-20 falls
@@ -516,6 +528,8 @@ class Ledger:
         fys = self.assess_on.get(pd.Timestamp(date), [])
         total = 0.0
         for fy in fys:
+            if (financial_year(date) == fy) != after_fills:
+                continue
             if fy in self.assessed:
                 continue
             self.assessed.add(fy)
@@ -527,14 +541,15 @@ class Ledger:
     def leaked(self):
         """Gains realised into a financial year that was already assessed.
 
-        Empty is the expected answer. A non-empty list means section 3(9)'s
-        "assessed exactly once" and the before-fills ordering have collided on
-        this calendar, and some realised gain escaped tax entirely.
+        Empty is the expected answer. A non-empty list means a gain was realised
+        AFTER its own year's assessment and escaped tax entirely. A sale ON a
+        same-year assessment day is not one: that year is assessed after the
+        day's fills (due_on, 2026-09-23), so the sale is in its bill.
         """
         out = []
         for r in self.rows:
             for d, fys in self.assess_on.items():
-                if r["fy"] in fys and r["sell_date"] >= d:
+                if r["fy"] in fys and r["sell_date"] > d:
                     out.append(r)
                     break
         return out
