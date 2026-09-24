@@ -136,7 +136,9 @@ def main():
             import inspect
             from arms.registry import path_segment
             _d = {k: v.default for k, v in inspect.signature(nt_run.run).parameters.items()}
-            rep = (Path("nautilus") / "reports" / u
+            # nt_run.run() writes a tool's reports under TOOL_REPORTS, not the
+            # pipeline's nautilus/reports/ (2026-09-24).
+            rep = (nt_run.TOOL_REPORTS / u
                    / path_segment(_d["mode"], _d["sizing"]) / "fills.csv")
             fr = read_table(rep)
             per_order = fr.groupby("client_order_id").size()

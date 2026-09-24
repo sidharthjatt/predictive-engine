@@ -131,6 +131,16 @@ def reports_segment(mode, sizing, rebal=None):
     return path_segment(mode, sizing) + naming.path_tail(rebal)
 
 
+# WHERE A RUN'S REPORTS GO. ONLY THE PIPELINE WRITES nautilus/reports/.
+# Until 2026-09-24 every caller of run() wrote there, so nt_verify, verify_v34_arms,
+# depth_compare and the attribution tools overwrote the pipeline's own fills --
+# at a 0.01 tick grid where the pipeline uses the NSE grid -- and
+# check_b_exec_timing certified whichever program had run last. nt_execute (STEP
+# 17) passes PIPELINE_REPORTS; every other caller gets TOOL_REPORTS by default.
+PIPELINE_REPORTS = Path(__file__).resolve().parent / "reports"
+TOOL_REPORTS = Path(__file__).resolve().parent / "tool_reports"
+
+
 # naming: arm,cadence,profile via reports_segment -- every report this step
 # writes lands in `out`, which carries the universe as a directory and the
 # arm, cadence and profile as its leaf segment (reports_segment above). The
@@ -138,7 +148,7 @@ def reports_segment(mode, sizing, rebal=None):
 # filenames beneath it are bare literals.
 def run(trading_start, trading_end, symbols=None, quiet=True,
         universe=None,
-        sizing="invvol", mode="breadth", rebal=None):
+        sizing="invvol", mode="breadth", rebal=None, reports_root=None):
     warm_start = (pd.Timestamp(trading_start) - pd.Timedelta(days=WARMUP_DAYS)).strftime("%Y-%m-%d")
     print(f"data from {warm_start} (warm-up) | trading {trading_start} to {trading_end}")
 
@@ -206,7 +216,7 @@ def run(trading_start, trading_end, symbols=None, quiet=True,
     # combination that is not one of the four named arms gets "{mode}-{sizing}"
     # rather than being folded into one that is.
     _seg = reports_segment(mode, sizing, rebal)
-    out = Path(__file__).resolve().parent / "reports" / universe / _seg
+    out = (TOOL_REPORTS if reports_root is None else Path(reports_root)) / universe / _seg
     out.mkdir(parents=True, exist_ok=True)
     # THREE REPORTS, AND TWO OF THEM ARE ABOUT ORDERS. The distinction is the
     # whole reason both exist:
@@ -243,7 +253,7 @@ def run(trading_start, trading_end, symbols=None, quiet=True,
         pd.DataFrame(strat.daily_equity).to_csv(out / "daily_equity.csv", index=False)
     if getattr(strat, "daily_holdings", None):
         pd.DataFrame(strat.daily_holdings).to_csv(out / "daily_holdings.csv", index=False)
-    print(f"\n  reports -> nautilus/reports/{universe}/{out.name}/  "
+    print(f"\n  reports -> nautilus/{out.parent.parent.name}/{universe}/{out.name}/  "
           f"[{U['tag']} universe, arm {out.name}: mode={mode} sizing={sizing}]  "
           f"(orders_all {len(orders_all_rep)}, order_fills {len(order_fills_rep)}, "
           f"fills {len(fills_rep)}, positions {len(pos_rep)})")

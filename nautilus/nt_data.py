@@ -294,8 +294,19 @@ def _depth_for(symbol, date) -> int:
     return max(int(med * DEPTH_FRACTION), 1)
 
 
-def load_symbol_from_panel(symbol, px, op, start, end, slippage=0.0):
-    """Return (instrument, [data events]) for one stock, taken from the panel."""
+def quote_frame(symbol, px, op, start, end):
+    """The rows the port quotes for one symbol, and the tick each row is rounded to.
+
+    ONE DEFINITION FOR THE PORT AND FOR ITS CHECK. load_symbol_from_panel builds
+    its opening quotes from these rows; results/check_b_exec_timing.py
+    reconstructs the expected fill price from the same rows and the same tick.
+    Until 2026-09-24 the check assumed 2-decimal prices at a 0.01 grid, which is
+    what nt_verify's run produces and not what the pipeline's is.
+
+    `tick` is the NSE tick in force on the date for the symbol's reference price
+    (the close on the last trading day of the previous month, as the circular
+    specifies) under TICK_MODE "nse", and TICK_SIZE under "fixed".
+    """
     idx = px.index[(px.index >= start) & (px.index <= end)]
     df = pd.DataFrame({"date": idx,
                        "open": op.loc[idx, symbol].values,
@@ -304,24 +315,29 @@ def load_symbol_from_panel(symbol, px, op, start, end, slippage=0.0):
     df["high"] = df[["open", "close"]].max(axis=1)
     df["low"] = df[["open", "close"]].min(axis=1)
     df["volume"] = 1
-
-    inst = make_instrument(symbol)
-    bt = bar_type_for(inst.id)
-
-    # Reference price for the tick rule: the close on the last trading day of the
-    # PREVIOUS month, which is what the circular specifies -- not the live price.
     df = df.reset_index(drop=True)
     _m = pd.to_datetime(df["date"]).dt.to_period("M")
     _last = df.groupby(_m)["close"].last()
     _ref = _m.map(_last.shift(1)).ffill().bfill().to_numpy()
+    if TICK_MODE == "nse":
+        df["tick"] = [nse_tick(float(_ref[k]), pd.Timestamp(d))
+                      for k, d in enumerate(df["date"])]
+    else:
+        df["tick"] = float(TICK_SIZE)
+    return df
+
+
+def load_symbol_from_panel(symbol, px, op, start, end, slippage=0.0):
+    """Return (instrument, [data events]) for one stock, taken from the panel."""
+    df = quote_frame(symbol, px, op, start, end)
+    inst = make_instrument(symbol)
+    bt = bar_type_for(inst.id)
 
     events = []
     for i, r in enumerate(df.itertuples(index=False)):
-        if TICK_MODE == "nse":
-            _t = nse_tick(float(_ref[i]), pd.Timestamp(r.date))
-            rt = lambda x, _t=_t: _round_to(x, _t)
-        else:
-            rt = _round_tick
+        # quote_frame's tick: the NSE tick for the date, or TICK_SIZE under
+        # "fixed". _round_to(x, TICK_SIZE) is exactly what _round_tick did.
+        rt = lambda x, _t=float(r.tick): _round_to(x, _t)
         day = pd.Timestamp(r.date).tz_localize("UTC")
         t_open = int((day + OPEN_TIME).value)
         t_close = int((day + CLOSE_TIME).value)

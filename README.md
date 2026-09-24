@@ -81,46 +81,51 @@ bits (see "Running it" and `KNOWN_ISSUES.md`). Window 2019-01-01 to 2026-05-29,
 `research` profile. The `tax on` column charges Indian capital-gains tax in the
 loop; the buy & hold column is untaxed.
 
-**The figures moved, some by several CAGR points, and two gaps against buy &
-hold changed sign:** midcap100 v2 went from 1.30 points behind its basket to 2.04
-ahead, and smallcap250 v2 from 1.48 ahead to 1.98 behind. Nothing about the
-strategy changed; the move is the same last-bit sensitivity of the ranking model
-that the price-noise box below measures (a v2 CAGR standard deviation of 1.0 to
-2.8 points under price perturbations too small to see). Quote these figures with
-that spread in mind.
+**Read this before any figure below.** A change to the last bits of the
+arithmetic, with no change to any strategy rule, moved published figures by up
+to 5.9 CAGR points and reversed the sign of two v2 gaps against buy & hold:
+midcap100 v2 went from 1.30 points behind its basket to 2.04 ahead, and
+smallcap250 v2 from 1.48 ahead to 1.98 behind. Every figure in these tables is
+one draw from a distribution. Where that distribution has been measured, the
+`n` column gives the number of draws and their spread; every other cell is
+marked `n=1` and has no error bar.
 
 #### Nifty 100 (99 constituents) -- tax off
 
-| arm | CAGR% | Sharpe | Sortino | MaxDD% | Calmar | Trades | AnnVol% | Deployed% | FinalEquity |
-|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| v1 invvol, 100% invested | 25.71 | 1.25 | 1.63 | -37.52 | 0.69 | 751 | 20.36 | 100.0 | 5442885.74 |
-| v2 invvol, breadth-scaled | 19.4 | 1.5 | 2.01 | -21.81 | 0.89 | 938 | 12.59 | 56.8 | 3716705.42 |
-| v3 provol, 100% invested | 27.58 | 1.15 | 1.56 | -40.72 | 0.68 | 726 | 24.06 | 100.0 | 6072338.23 |
-| v4 provol, breadth-scaled | 20.38 | 1.28 | 1.73 | -26.66 | 0.76 | 930 | 15.69 | 56.8 | 3948930.66 |
-| buy & hold equal-weight | 24.16 | 1.27 | 1.45 | -38.65 | 0.63 | 0 | 18.67 | 100.0 | 4969254.64 |
+| arm | CAGR% | Sharpe | Sortino | MaxDD% | Calmar | Trades | AnnVol% | Deployed% | FinalEquity | n |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|
+| v1 invvol, 100% invested | 25.71 | 1.25 | 1.63 | -37.52 | 0.69 | 751 | 20.36 | 100.0 | 5442885.74 | n=1 |
+| v2 invvol, breadth-scaled | 19.4 | 1.5 | 2.01 | -21.81 | 0.89 | 938 | 12.59 | 56.8 | 3716705.42 | n=10, sd 1.29, 18.74 to 22.79 |
+| v3 provol, 100% invested | 27.58 | 1.15 | 1.56 | -40.72 | 0.68 | 726 | 24.06 | 100.0 | 6072338.23 | n=1 |
+| v4 provol, breadth-scaled | 20.38 | 1.28 | 1.73 | -26.66 | 0.76 | 930 | 15.69 | 56.8 | 3948930.66 | n=1 |
+| buy & hold equal-weight | 24.16 | 1.27 | 1.45 | -38.65 | 0.63 | 0 | 18.67 | 100.0 | 4969254.64 | n=1 |
 
 #### MidCap150 (148 constituents) -- tax off
 
-| arm | CAGR% | Sharpe | Sortino | MaxDD% | Calmar | Trades | AnnVol% | Deployed% | FinalEquity |
-|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| v1 invvol, 100% invested | 36.84 | 1.53 | 1.95 | -42.21 | 0.87 | 874 | 22.53 | 100.0 | 10205162.44 |
-| v2 invvol, breadth-scaled | 28.78 | 1.94 | 2.63 | -21.39 | 1.35 | 1016 | 13.76 | 54.6 | 6510101.81 |
-| v3 provol, 100% invested | 36.34 | 1.36 | 1.82 | -47.8 | 0.76 | 840 | 25.59 | 100.0 | 9931484.57 |
-| v4 provol, breadth-scaled | 33.99 | 1.9 | 2.75 | -25.61 | 1.33 | 1012 | 16.37 | 54.6 | 8730268.78 |
-| buy & hold equal-weight | 25.46 | 1.35 | 1.52 | -37.73 | 0.67 | 0 | 18.42 | 100.0 | 5375524.94 |
+| arm | CAGR% | Sharpe | Sortino | MaxDD% | Calmar | Trades | AnnVol% | Deployed% | FinalEquity | n |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|
+| v1 invvol, 100% invested | 36.84 | 1.53 | 1.95 | -42.21 | 0.87 | 874 | 22.53 | 100.0 | 10205162.44 | n=1 |
+| v2 invvol, breadth-scaled | 28.78 | 1.94 | 2.63 | -21.39 | 1.35 | 1016 | 13.76 | 54.6 | 6510101.81 | n=10, sd 2.23, 26.72 to 33.42 |
+| v3 provol, 100% invested | 36.34 | 1.36 | 1.82 | -47.8 | 0.76 | 840 | 25.59 | 100.0 | 9931484.57 | n=1 |
+| v4 provol, breadth-scaled | 33.99 | 1.9 | 2.75 | -25.61 | 1.33 | 1012 | 16.37 | 54.6 | 8730268.78 | n=1 |
+| buy & hold equal-weight | 25.46 | 1.35 | 1.52 | -37.73 | 0.67 | 0 | 18.42 | 100.0 | 5375524.94 | n=1 |
 
 #### v2 against its own equal-weight buy & hold, all eight universes
 
-| universe | v2 CAGR% tax off | buy & hold | gap | v2 CAGR% tax on | v2 Sharpe | v2 MaxDD% | v2 trades |
-|---|---:|---:|---:|---:|---:|---:|---:|
-| midcap150 | 28.78 | 25.46 | +3.32 | 24.29 | 1.94 | -21.39 | 1016 |
-| nifty100 | 19.40 | 24.16 | -4.76 | 16.46 | 1.50 | -21.81 | 938 |
-| nifty50 | 13.40 | 20.67 | -7.27 | 11.41 | 1.11 | -23.11 | 864 |
-| midcap50 | 20.97 | 24.34 | -3.37 | 17.81 | 1.54 | -22.21 | 865 |
-| midcap100 | 28.86 | 26.82 | +2.04 | 24.65 | 1.81 | -20.29 | 898 |
-| nifty200 | 28.21 | 25.54 | +2.67 | 24.06 | 1.82 | -20.41 | 969 |
-| smallcap250 | 25.17 | 27.15 | -1.98 | 21.23 | 1.82 | -24.47 | 1086 |
-| nifty500 | 31.14 | 26.09 | +5.05 | 26.32 | 2.07 | -30.83 | 1119 |
+The distributions are v2 CAGR% under a 0.01% price perturbation, measured
+2026-09-24 on these numerics (`diagnostics/price_noise.txt`). Every tax-on
+figure and every buy & hold figure is n=1.
+
+| universe | v2 CAGR% tax off | buy & hold | gap | v2 CAGR% tax on | v2 Sharpe | v2 MaxDD% | v2 trades | n, v2 tax off |
+|---|---:|---:|---:|---:|---:|---:|---:|---|
+| midcap150 | 28.78 | 25.46 | +3.32 | 24.29 | 1.94 | -21.39 | 1016 | n=10, sd 2.23, 26.72 to 33.42 |
+| nifty100 | 19.40 | 24.16 | -4.76 | 16.46 | 1.50 | -21.81 | 938 | n=10, sd 1.29, 18.74 to 22.79 |
+| nifty50 | 13.40 | 20.67 | -7.27 | 11.41 | 1.11 | -23.11 | 864 | n=1 |
+| midcap50 | 20.97 | 24.34 | -3.37 | 17.81 | 1.54 | -22.21 | 865 | n=1 |
+| midcap100 | 28.86 | 26.82 | +2.04 | 24.65 | 1.81 | -20.29 | 898 | n=1 |
+| nifty200 | 28.21 | 25.54 | +2.67 | 24.06 | 1.82 | -20.41 | 969 | n=1 |
+| smallcap250 | 25.17 | 27.15 | -1.98 | 21.23 | 1.82 | -24.47 | 1086 | n=1 |
+| nifty500 | 31.14 | 26.09 | +5.05 | 26.32 | 2.07 | -30.83 | 1119 | n=1 |
 
 ### SUPERSEDED 2026-09-24 -- produced by the pre-fix numerics
 
@@ -144,6 +149,26 @@ figure here differs from the ones this README carried before 2026-09-11**, which
 were measured on the close-price basis before those two corrections; mid's MaxDD
 moved most, −18.98% to −15.68%.
 
+### Price noise re-measured 2026-09-24 on the new numerics
+
+The same measurement as the superseded box below, sigma 0.01% only, seeds 101 to
+1010, n=10 per universe. Report: `diagnostics/price_noise.txt`; per-run record:
+`diagnostics/price_noise_runs.csv`. The sigma 0.50% blocks were not re-run.
+
+| v2, sigma 0.01% | published | mean | sd | min | max | draws above published |
+|---|---:|---:|---:|---:|---:|---:|
+| nifty100 | 19.40 | 21.21 | 1.29 | 18.74 | 22.79 | 9 of 10 |
+| midcap150 | 28.78 | 29.64 | 2.23 | 26.72 | 33.42 | 7 of 10 |
+
+nifty100's published figure is now inside its own range; the old 19.01 was below
+the old minimum. 16 of the 20 draws are above the published figure, against 19 of
+20 before.
+
+> **SUPERSEDED 2026-09-24.** Everything in this box was measured on the pre-fix
+> numerics. The old per-run record is
+> `diagnostics/price_noise_runs_superseded_20260924.csv` and the old report is
+> `diagnostics/price_noise_superseded_20260924.txt`.
+>
 > ### READ THIS BEFORE QUOTING ANY v2 FIGURE BELOW
 >
 > **The shipping arm's published CAGR is not reproducible under changes to the

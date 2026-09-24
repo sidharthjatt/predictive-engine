@@ -16,9 +16,12 @@ because the tolerance is loose":
     (c) the PREVIOUS session's CLOSE -- signal-day close execution
     (d) the PREVIOUS session's OPEN
 
-Slippage is applied against the trade and the port rounds to a 0.05 tick grid, so
-each candidate is reconstructed as tick(price * (1 +/- SLIPPAGE)). Tolerance is
-half a tick, 0.025, fixed in the spec before running.
+Slippage is applied against the trade and the port rounds to the NSE tick in
+force on the date, so each candidate is reconstructed as price * (1 +/- SLIPPAGE)
+rounded to that tick, with the port's own functions (nt_data.quote_frame and
+_round_to). Tolerance is half that tick, as the spec fixed before running. It
+certifies the PIPELINE's fills, nautilus/reports/, which since 2026-09-24 no other
+program writes.
 
 Nothing is corrected.
 """
@@ -47,8 +50,13 @@ import paths
 # rest surfaces as a reconciliation failure elsewhere, not as a wrong
 # number here. Value unchanged at 0.0015.
 from slippage import SLIPPAGE  # noqa: E402
-TICK = 0.05
-TOL = 0.005    # 2-decimal storage; see tick() -- STRICTER than the spec's half-tick
+# THE TOLERANCE IS HALF OF THAT DATE'S NSE TICK, 2026-09-24. It was 0.005, set
+# after measuring 2-decimal prices -- on fills nt_verify had written at a 0.01
+# grid over the pipeline's files. This check certifies the PIPELINE's fills,
+# which are on the NSE grid (0.05 for most of the window), and reconstructs each
+# expected price with the port's own rule (nt_data.quote_frame, _round_to). Both
+# prices are then on one grid, so half a tick admits exact equality only. This
+# corrects a calibration made on the wrong grid; it is not a loosening.
 
 # ---------------------------------------------------------------------------
 # WHICH FILL RECORD THIS READS, AND WHY IT HAS TO SAY SO
@@ -127,43 +135,26 @@ HISTORY = """\
 """
 
 
-def tick(x):
-    """Reconstruct the fill price as the port stores it.
-
-    THE MEASUREMENT BELOW WAS TAKEN ON AN ORPHANED FILE, and what that is worth
-    is recorded next to the spec it departs from -- experiments/DATA_EXEC_SPEC.txt,
-    "ADDENDUM 2026-09-16". Read that before changing anything here: the 977 fills
-    came from a path the port had already stopped writing, holding whichever arm
-    ran last. Today's fills are 95.9% on the 0.05 grid, which is what the spec
-    says and what this function does not assume.
-
-    CORRECTED AFTER THE FIRST RUN, and the original is named rather than
-    silently replaced. The spec assumed the port rounds the fill price to the
-    0.05 tick grid, because nt_verify.py passes tick_round=True. Measured: only
-    210 of 977 fill prices lie on a 0.05 grid, and the un-rounded
-    open*(1+/-slip) matches every fill to within EXACTLY 0.005 -- the signature
-    of 2-decimal storage, not tick rounding. tick_round governs the reference
-    arm's SIZING, not the recorded fill price.
-
-    So the reconstruction is open*(1+/-slip) rounded to 2 decimals, and the
-    tolerance drops from half a tick to 0.005 accordingly. THE TOLERANCE WAS
-    TIGHTENED, NOT WIDENED: the corrected test is stricter than the spec's.
-    """
-    return np.round(np.asarray(x, dtype=float), 2)
-
-
 def run(uni, fills_p, sc_p, dec_p, label, W):
     F = read_table(fills_p)
     F["date"] = pd.to_datetime(F["ts_event"], utc=True).dt.tz_localize(None).dt.normalize()
     F["symbol"] = F["instrument_id"].str.split(".").str[0]
     F["px"] = F["last_px"].astype(float)
 
-    P = read_table(config.require_cache(sc_p, what=f"{uni} panel"),
-                    parse_dates=["date"])
-    op = P.pivot_table(index="date", columns="symbol", values="open")
-    cl = P.pivot_table(index="date", columns="symbol", values="close")
-    cal = list(op.index)
+    # THE PORT'S OWN INPUTS: its panel (forward filled, as nt_data.load_panel
+    # builds it), its quoted rows and each row's tick (nt_data.quote_frame), over
+    # the dates the pipeline's run quoted, warm-up included.
+    import nt_data
+    import nt_run
+    assert nt_data.TICK_MODE == "nse", "the pipeline quotes on the NSE tick grid"
+    pxf, opf = nt_data.load_panel(config.require_cache(sc_p, what=f"{uni} panel"))
+    q_start = pd.Timestamp(config.BT_START_DATE) - pd.Timedelta(days=nt_run.WARMUP_DAYS)
+    q_end = pd.Timestamp(nt_run.UNIVERSES[uni]["end"])
+    Q = {s: nt_data.quote_frame(s, pxf, opf, q_start, q_end).set_index("date")
+         for s in F["symbol"].unique()}
+    cal = list(opf.index)
     prev = {d: cal[i - 1] for i, d in enumerate(cal) if i > 0}
+    op = opf  # the calendar check below reads op.index
 
     W("=" * 100)
     W(f" CHECK B -- EXECUTION TIMING FROM THE FILL RECORD -- {label} ({uni})")
@@ -177,8 +168,9 @@ def run(uni, fills_p, sc_p, dec_p, label, W):
     W(f"                  from nt_run.reports_segment, the writer's own rule)")
     W(f"  fills recorded  {len(F):,}")
     # HOW MANY FILL PRICES LIE ON THE 0.05 TICK GRID -- MEASURED, ALWAYS PRINTED.
-    # tick() below reconstructs as round(price*(1+/-slip), 2), on the strength of a
-    # 2026-09-09 measurement that only 210 of 977 fill prices sat on a 0.05 grid.
+    # Until 2026-09-24 the reconstruction was round(price*(1+/-slip), 2), on the
+    # strength of a 2026-09-09 measurement that only 210 of 977 fill prices sat on
+    # a 0.05 grid -- taken on fills a 0.01-grid tool run had left in place.
     # THAT MEASUREMENT WAS TAKEN ON THE SUPERSEDED FILE, whose arm is unknown. If
     # this line reads near 100% while the match counts below read low, the
     # reconstruction assumption is stale and the match counts are a verdict on the
@@ -188,9 +180,9 @@ def run(uni, fills_p, sc_p, dec_p, label, W):
     W(f"  on 0.05 grid    {_ongrid:,} of {len(F):,} fill prices "
       f"({100*_ongrid/max(len(F),1):.1f}%)")
     W(f"  price panel     {Path(sc_p).name}")
-    W(f"  reconstruction  round(price * (1 +/- {SLIPPAGE}), 2)  -- 2-decimal storage")
-    W(f"  tolerance       {TOL} -- TIGHTENED from the spec's half-tick 0.025;")
-    W("                  see tick() for why the spec's assumption was wrong")
+    W(f"  reconstruction  price * (1 +/- {SLIPPAGE}) rounded to that date's NSE tick")
+    W("                  (nt_data.quote_frame and _round_to, the port's own rule)")
+    W("  tolerance       half of that date's tick: exact equality on the grid")
     W("")
 
     recs = []
@@ -198,15 +190,17 @@ def run(uni, fills_p, sc_p, dec_p, label, W):
         d, s, side, px = r["date"], r["symbol"], r["order_side"], r["px"]
         sgn = 1.0 if side == "BUY" else -1.0
         pd_ = prev.get(d)
-        def cand(frame, dd):
-            if dd is None or dd not in frame.index or s not in frame.columns:
+        qs = Q.get(s)
+        tk = float(qs.at[d, "tick"]) if qs is not None and d in qs.index else np.nan
+        def cand(col, dd):
+            if qs is None or dd is None or dd not in qs.index or tk != tk:
                 return np.nan
-            v = frame.at[dd, s]
-            return np.nan if pd.isna(v) else float(tick(v * (1 + sgn * SLIPPAGE)))
-        c = {"a_open_today": cand(op, d), "b_close_today": cand(cl, d),
-             "c_close_prev": cand(cl, pd_), "d_open_prev": cand(op, pd_)}
-        m = {k: (abs(px - v) <= TOL) if v == v else False for k, v in c.items()}
-        recs.append({"date": d, "symbol": s, "side": side, "px": px,
+            v = qs.at[dd, col]
+            return np.nan if pd.isna(v) else float(nt_data._round_to(v * (1 + sgn * SLIPPAGE), tk))
+        c = {"a_open_today": cand("open", d), "b_close_today": cand("close", d),
+             "c_close_prev": cand("close", pd_), "d_open_prev": cand("open", pd_)}
+        m = {k: (abs(px - v) <= tk / 2 - 1e-9) if v == v else False for k, v in c.items()}
+        recs.append({"date": d, "symbol": s, "side": side, "px": px, "tick": tk,
                      "on_calendar": d in op.index, **c,
                      **{f"m_{k}": v for k, v in m.items()},
                      "n_match": sum(m.values())})
