@@ -66,6 +66,9 @@ COST
     diagnostics/price_noise_runs.csv, which already holds sigma=0 and ten seeds at
     sigma=0.01% per universe. Only the pinned arm is run: 3 seeds x 2 universes,
     about 16-18 minutes each.
+
+    2026-09-24: that file was renamed diagnostics/price_noise_runs_superseded_20260924.csv
+    when price noise was re-measured on new numerics; main() reads it by that name.
 """
 import io
 import sys
@@ -110,7 +113,7 @@ def scorable_pairs(data_dir):
 # a one-shot pre-registered counterfactual, run once on 2026-09-22, and its rule
 # was fixed before the numbers existed. There is no axis for either name to carry.
 def main():
-    runs = read_table(DIAG / "price_noise_runs.csv")
+    runs = read_table(DIAG / "price_noise_runs_superseded_20260924.csv")
     out = []
     W = out.append
     W("=" * 96)
