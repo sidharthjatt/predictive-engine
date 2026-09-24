@@ -22,6 +22,70 @@ currently wrong.
 
 ---
 
+## macOS and Linux gave different numbers from the same code and data -- FIXED 2026-09-24
+
+**Every figure dated before 2026-09-24 was produced by the old numerics** and is
+not what the code now produces from the same prices. The published tables were
+rebuilt on 2026-09-24 (README, "Results"); the old ones stay there, marked
+superseded. Measurements that were not re-run -- the price-noise and seed-noise
+distributions, the tradeable 32-cell grid, the impact sweep, the heldout
+pre-registration -- are pre-fix figures.
+
+**What differed.** On 2026-09-24 a Linux arm64 container reproducing midcap50 v2
+gave CAGR 21.58% / 864 trades where macOS gave 21.41% / 860. Same commit, same
+data, same pinned packages. Isolated operation by operation on identical input,
+with numpy 2.2.6 and pandas 2.3.3 on macOS arm64, Linux arm64 and Linux amd64:
+
+- pandas `groupby(...).transform("var"/"std")` differs on macOS. It fed every
+  feature through the cross-sectional z-score.
+- pandas `.rolling(w).std()/.var()` differs on amd64. It fed six features, the
+  inverse-volatility sizing and the portfolio volatility target.
+- pandas' default `read_csv` float parser returns different floats for the same
+  bytes on macOS and Linux, and is not exact on either. Every backtest read the
+  score panel through it.
+- LightGBM is NOT a source: given identical input it produced byte-identical
+  scores on macOS and Linux.
+- numpy vector `log`/`exp`/`power` also differ on macOS; nothing on the pipeline
+  path uses them.
+
+The likely cause of the pandas differences is compiled loops whose multiply-adds
+are fused on one build and not another. Not proven.
+
+**The fix.** results/numerics.py (rolling_std, rolling_var, group_mean_std) from
+numpy operations measured identical on all three platforms; config.read_table,
+the one reader, parsing CSV with `float_precision="round_trip"`; panels stored as
+parquet. platform_identity_check.py, in GATE 5, fails on any direct pandas
+`read_csv` or pandas rolling or grouped variance. The raw-panel build costs 4.2 s
+more on nifty500 (18.6 s to 22.8 s); scoring is unchanged.
+
+**The proof, 2026-09-24.** midcap50 v2 built from scratch on the Mac and in
+`python:3.12.13` containers for linux/arm64 and linux/amd64 (the latter under
+Rosetta, not a physical x86 CPU): both panels and every CSV byte-identical,
+Nautilus reports identical once `event_id`, `position_id` and `init_id` are
+dropped and rows sorted, charts pixel-identical (their PNG compression bytes
+differ). One universe was proven; the other seven were not rebuilt off the Mac.
+
+## Small defects found by the 2026-09-24 pass, logged rather than fixed
+
+- **Fifteen data files are committed with the executable bit** (mode 100755):
+  diagnostics/drawdown_exit*.{txt,csv}, purge_fix_measure.txt,
+  rebal_cadence_*.{csv,txt}, seed_noise.txt, shuffle_*.txt and topn_*.txt. None is
+  meant to be executable. Left as committed.
+- **check_b_exec_timing's verdict depends on which program last wrote its input.**
+  It reads nautilus/reports/{nifty100,midcap150}/v2/fills.csv. nt_verify writes
+  those at a 0.01 tick grid and the check was calibrated on that (an exact
+  2-decimal open, 0.005 tolerance). The pipeline's STEP 17 writes the same files on
+  the NSE grid (0.05 for most of the window), where 712 of nifty100's 938 fills
+  miss the exact open by a tick and one coincides with a close. Measured
+  2026-09-24 after the full republish: FAIL on the pipeline's fills, PASS on
+  nt_verify's. Not an execution defect. Which fills the check should certify is a
+  question for the owner, not changed here.
+- **The copy fallback in the constituent farm trusts size and modification
+  time.** Where a hard link cannot be made the source file is copied with its
+  mtime and recopied only when size or mtime differ, so an in-place edit that
+  keeps both would leave a stale copy. Hard links, the normal case, cannot go
+  stale.
+
 ## The Nautilus port drifts from the vectorised engine as the rebalance count grows -- REPORTED, NOT GATED, 2026-09-23
 
 nt_verify's share-level verdict certifies the port at cadence 20 only. At any

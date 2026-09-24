@@ -75,6 +75,7 @@ import pandas as pd
 
 import config
 from universes.registry import REGISTRY
+from config import read_table  # the one CSV/parquet reader: config.read_table
 
 TRACKED = ROOT / "data" / "nse_trading_calendar.csv"
 OUT = ROOT / "diagnostics" / "calendar_coverage_probe.txt"
@@ -143,7 +144,7 @@ def main():
         lines.append(s)
 
     before = sha256(TRACKED)
-    cal = set(pd.to_datetime(pd.read_csv(TRACKED, comment="#")["date"]))
+    cal = set(pd.to_datetime(read_table(TRACKED, comment="#")["date"]))
 
     w("=" * 100)
     w(" CAN A COVERAGE THRESHOLD REPLACE THE 58-DERIVED TRADING CALENDAR?")

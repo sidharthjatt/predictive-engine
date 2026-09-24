@@ -46,6 +46,8 @@ from test_exposure import backtest_exposure
 from universes.registry import REGISTRY
 from v34_common import ann_vol_pct
 import profiles as _prof            # the run's execution-realism profile
+from config import read_table  # the one CSV/parquet reader: config.read_table
+from numerics import rolling_std  # platform-identical variance: results/numerics.py
 
 PROD_SEEDS = [7, 42, 99, 1, 2, 3, 11, 22, 33, 101]
 EXTRA_SEEDS = [1000 + i for i in range(30)]
@@ -145,7 +147,7 @@ def make_backtester(p):
     pc = precompute(px)
     mom20 = px / px.shift(20) - 1
     idx = (1 + px.pct_change().mean(axis=1).fillna(0)).cumprod()
-    pv = idx.pct_change().rolling(VOL_WIN).std() * np.sqrt(252)
+    pv = rolling_std(idx.pct_change(), VOL_WIN) * np.sqrt(252)
     tv = pv.loc[bd].median()
     di = {d: i for i, d in enumerate(px.index)}
     si = {s: i for i, s in enumerate(px.columns)}
@@ -182,7 +184,7 @@ def run_universe(uni, cfg, W):
     import engine_core as _ec
     from universes.registry import REGISTRY as _REG
     _ec.set_tradeability(_REG[uni])
-    raw = pd.read_csv(config.require_cache(cfg["raw"],
+    raw = read_table(config.require_cache(cfg["raw"],
                                            what=f"{uni} raw panel"),
                       parse_dates=["date"])
     assert_columns(raw, REQUIRED_RAW, f"{uni} raw panel")
@@ -207,7 +209,7 @@ def run_universe(uni, cfg, W):
 
     # ---- identity gate: production seeds must reproduce the recorded figures --
     prod = bt(np.nanmean(S[:, :10], axis=1), "invvol", "breadth")
-    v34 = pd.read_csv(Path(cfg["md"]) / "v34_comparison.csv")
+    v34 = read_table(Path(cfg["md"]) / "v34_comparison.csv")
     r = v34[v34["Config"].astype(str).str.startswith("v2")].iloc[0]
     gate = all(abs(prod[k] - float(r[k])) < 0.005 for k in ("CAGR%", "Sharpe", "MaxDD%"))
     W(f"  IDENTITY GATE -- production 10 seeds vs v34_comparison.csv: "
@@ -264,7 +266,7 @@ def run_universe(uni, cfg, W):
     W("-" * 100)
     pf = Path(cfg["md"]) / "purge_fix_headline.csv"
     if pf.exists():
-        H = pd.read_csv(pf)
+        H = read_table(pf)
         for tag, _, _ in ARMS:
             a = k10[k10["arm"] == tag]["CAGR%"].to_numpy()
             base = float(H[H["arm"] == tag]["CAGR_current"].iloc[0])

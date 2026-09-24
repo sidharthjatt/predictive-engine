@@ -79,6 +79,8 @@ import test_exposure
 from universes.registry import REGISTRY
 import measured_universes
 from engine_core import precompute, metrics
+from config import read_table  # the one CSV/parquet reader: config.read_table
+from numerics import rolling_std  # platform-identical variance: results/numerics.py
 
 # ---------------------------------------------------------------- constants
 THRESHOLDS = [0.10, 0.125, 0.15, 0.20, 0.25]   # spec section 6, fixed in advance
@@ -235,7 +237,7 @@ def load(tag):
     _ec.set_tradeability(REGISTRY[tag])
     label, M, cache = UNIVERSES[tag]
     src = config.require_cache(cache, what=f"{label} score panel")
-    p = pd.read_csv(src, parse_dates=["date"])
+    p = read_table(src, parse_dates=["date"])
     px = p.pivot_table(index="date", columns="symbol", values="close").ffill()
     op = p.pivot_table(index="date", columns="symbol", values="open").ffill()
     sc = p.pivot_table(index="date", columns="symbol", values="score")
@@ -243,7 +245,7 @@ def load(tag):
     pc = precompute(px)
     mom20 = px / px.shift(20) - 1
     idx = (1 + px.pct_change().mean(axis=1).fillna(0)).cumprod()
-    port_vol = idx.pct_change().rolling(VOL_WIN).std() * np.sqrt(252)
+    port_vol = rolling_std(idx.pct_change(), VOL_WIN) * np.sqrt(252)
     return label, M, px, op, sc, bd, pc, mom20, port_vol, port_vol.loc[bd].median()
 
 
@@ -424,7 +426,7 @@ def main():
         for th, wt in CELLS:
             res[tag][(th, wt)] = run(fn, ns, ctx, th, wt)
 
-        pub = pd.read_csv(M / "v34_comparison.csv")
+        pub = read_table(M / "v34_comparison.csv")
         pr = pub[pub["Config"].str.startswith("v2 invvol")].iloc[0]
         c = res[tag]["control"]
         pairs = [("CAGR%", c["cagr"], float(pr["CAGR%"])),

@@ -40,6 +40,7 @@ import pandas as pd
 import arms.registry as arm_reg
 import config
 from universes.registry import REGISTRY
+from config import read_table  # the one CSV/parquet reader: config.read_table
 
 START = 1_000_000
 # The METRICS DIRECTORY and TAG come from universes/registry.py -- the single
@@ -82,8 +83,8 @@ def round_trips(df):
 
 def run(uni, md, tag, label, W):
     f = Path(md) / f"daily_trades_{tag}.csv"
-    T = pd.read_csv(f, parse_dates=["date"])
-    eq = pd.read_csv(Path(md) / "v2FINAL_equity.csv", parse_dates=["date"]).set_index("date")
+    T = read_table(f, parse_dates=["date"])
+    eq = read_table(Path(md) / "v2FINAL_equity.csv", parse_dates=["date"]).set_index("date")
     R = round_trips(T)
 
     per = R.groupby("symbol").agg(

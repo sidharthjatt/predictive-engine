@@ -65,6 +65,7 @@ from pathlib import Path
 from typing import Optional, Tuple
 
 import os
+import shutil
 import sys
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -419,9 +420,10 @@ class Universe:
     # and the farm's absolute links shipped inside data/ pointing at the first
     # checkout. All three are derived data and now live under cache/<tag>/,
     # which is gitignored:
-    #     cache/<tag>/constituents/                 relative symlinks, index excluded
-    #     cache/<tag>/v_<tag>_expanding.csv         score panel  (+ .source)
-    #     cache/<tag>/raw_panel_<tag>_<HORIZON>.csv raw panel    (+ .source)
+    #     cache/<tag>/constituents/                 hard links (or copies), index excluded
+    #     cache/<tag>/v_<tag>_expanding.parquet         score panel  (+ .source)
+    #     cache/<tag>/raw_panel_<tag>_<HORIZON>.parquet raw panel    (+ .source)
+    # PARQUET SINCE 2026-09-24, CSV BEFORE: see config.read_table.
     # ONE COPY OF EACH PANEL. The /tmp working copy and the metrics/ permanent
     # copy existed because /tmp does not survive a reboot; a panel in the
     # project does, so the pair collapsed to one file and the copy steps
@@ -433,8 +435,8 @@ class Universe:
     def __post_init__(self):
         d = CACHE_DIR / self.tag
         object.__setattr__(self, "data_dir", d / "constituents")
-        object.__setattr__(self, "score_cache", d / f"v_{self.tag}_expanding.csv")
-        object.__setattr__(self, "raw_cache", d / f"raw_panel_{self.tag}_{HORIZON}.csv")
+        object.__setattr__(self, "score_cache", d / f"v_{self.tag}_expanding.parquet")
+        object.__setattr__(self, "raw_cache", d / f"raw_panel_{self.tag}_{HORIZON}.parquet")
         # THE CONSTITUENT COUNT IS COMPUTED, NEVER TYPED. Rows write "{n}" where
         # a count of names belongs; it is filled here from symbol_list, which is
         # the set of CSVs the farm links and build_panel scores. A typed count
@@ -503,75 +505,50 @@ class Universe:
         self.data_dir.mkdir(parents=True, exist_ok=True)
         wanted = set(self.symbol_list)
 
-        for link in self.data_dir.glob("*.csv"):        # drop anything stale
-            if link.stem not in wanted:
-                link.unlink()
+        for entry in self.data_dir.glob("*.csv"):       # drop anything stale
+            if entry.stem not in wanted:
+                entry.unlink()
 
-        # EVERY SURVIVING ENTRY MUST ALREADY POINT INTO THE CURRENT SOURCE, and
-        # one that does not is an ERROR rather than something to quietly repair.
+        # HARD LINKS, NOT SYMLINKS, SINCE 2026-09-24. A symlink needs Developer
+        # Mode or administrator rights on Windows; a hard link on NTFS needs
+        # neither, and on every platform it costs no space and holds exactly the
+        # source file's bytes. Where a hard link cannot be made -- the data on
+        # another volume, or a file system without them -- the file is COPIED,
+        # with its modification time, and recopied when size or mtime differ.
         #
-        # The creation loop below used to read `if not link.exists()`. A link
-        # that exists is not evidence that it points anywhere this universe
-        # still uses: measured on 2026-09-18, repointing mid's raw_data_dir at
-        # the supplier's folder and calling this method left all 148 links
-        # aimed at data/raw/MidCap150/clean, returned normally, and passed both
-        # asserts -- a sha256 over (name -> resolved target) was byte-identical
-        # before and after, so the call was a proven no-op. The prune loop above
-        # did not catch it either: it drops by STEM, and no stem was stale.
-        #
-        # SILENTLY RELINKING WOULD ALSO BE WRONG. A farm full of foreign links
-        # means someone changed raw_data_dir without migrating, or is running
-        # against a tree they did not build; repairing it in passing throws away
-        # the only moment that fact is visible. The caller deletes the farm --
-        # `rm -rf` is the documented migration -- and this rebuilds it.
-        foreign = []
-        for link in sorted(self.data_dir.glob("*.csv")):
-            if not link.is_symlink():
-                foreign.append(f"{link.name}: a regular file, not a symlink")
-                continue
-            target = link.readlink()
-            if not target.is_absolute():
-                target = link.parent / target
-            if target.parent.resolve() != src:
-                foreign.append(f"{link.name} -> {target}")
-        if foreign:
-            shown = "\n".join(f"      {f}" for f in foreign[:5])
-            more = (f"\n      ... and {len(foreign) - 5} more"
-                    if len(foreign) > 5 else "")
-            raise StaleConstituentFarm(
-                f"{self.tag}: {len(foreign)} of "
-                f"{len(list(self.data_dir.glob('*.csv')))} entries in\n"
-                f"    {self.data_dir}\n"
-                f"  do not come from this universe's current raw_data_dir\n"
-                f"    {src}\n{shown}{more}\n"
-                f"  The farm was built against a different source. Delete it and\n"
-                f"  let it be rebuilt:\n"
-                f"      rm -rf {self.data_dir}")
-
-        # DERIVED FROM raw_data_dir EVERY TIME, not only when absent. Each link
-        # is written from the source path on every call, so the farm is a
-        # function of raw_data_dir rather than a cache of one.
+        # DERIVED FROM raw_data_dir ON EVERY CALL. Each entry is checked against
+        # the source and replaced if it is not the same file, so a repointed
+        # universe gets the new source's files here, and the panel's content key
+        # (config.cache_staleness) then names the change and forces a rebuild.
+        # The check this replaced refused a farm of links into another
+        # directory; with the farm rebuilt from the current source every time,
+        # that state cannot persist.
         for sym in self.symbol_list:
             target = self.raw_data_dir / f"{sym}.csv"
             if not target.exists():
                 raise StaleConstituentFarm(
                     f"{self.tag}: {target} does not exist, so the farm cannot be\n"
                     f"  derived from raw_data_dir. symbol_list and the source\n"
-                    f"  directory disagree; a link written here would dangle.")
-            link = self.data_dir / f"{sym}.csv"
-            if link.is_symlink() or link.exists():
-                link.unlink()
-            # RELATIVE, so the farm is correct wherever the checkout is copied.
-            # Absolute links shipped inside data/ until 2026-09-23 and pointed a
-            # copied tree back at the original checkout.
-            link.symlink_to(os.path.relpath(target, link.parent))
+                    f"  directory disagree.")
+            entry = self.data_dir / f"{sym}.csv"
+            if entry.exists() and not entry.is_symlink():
+                if os.path.samefile(entry, target):
+                    continue
+                ts, es = target.stat(), entry.stat()
+                if (ts.st_size, ts.st_mtime_ns) == (es.st_size, es.st_mtime_ns):
+                    continue
+            if entry.exists() or entry.is_symlink():
+                entry.unlink()
+            try:
+                os.link(target, entry)
+            except OSError:
+                shutil.copy2(target, entry)
 
         present = tuple(sorted(f.stem for f in self.data_dir.glob("*.csv")))
         assert present == self.symbol_list, \
             f"{self.tag}: constituents directory does not match symbol_list"
-        assert all((f.parent / f.readlink()).parent.resolve() == src
-                   for f in self.data_dir.glob("*.csv")), \
-            f"{self.tag}: a link in the farm does not resolve into raw_data_dir"
+        assert not any(f.is_symlink() for f in self.data_dir.glob("*.csv")), \
+            f"{self.tag}: a symlink survived in the constituent farm"
         # NORMALISED, so the index cannot re-enter under a different spelling of
         # its own name. See normalise_stem().
         assert (self.index_name is None

@@ -36,6 +36,7 @@ sys.path.insert(0, str(ROOT / "results"))
 import nt_data, nt_run
 from engine_core import metrics
 from universes.registry import REGISTRY
+from config import read_table  # the one CSV/parquet reader: config.read_table
 
 SLIPPAGE = nt_run.SLIPPAGE
 
@@ -137,7 +138,7 @@ def main():
             _d = {k: v.default for k, v in inspect.signature(nt_run.run).parameters.items()}
             rep = (Path("nautilus") / "reports" / u
                    / path_segment(_d["mode"], _d["sizing"]) / "fills.csv")
-            fr = pd.read_csv(rep)
+            fr = read_table(rep)
             per_order = fr.groupby("client_order_id").size()
             filled_orders = int(len(per_order))
             walked = int((per_order > 1).sum())

@@ -57,6 +57,8 @@ from engine_core import metrics, precompute, BT_START, BT_END
 from test_exposure import backtest_exposure
 import arms.registry as arm_reg
 import profiles as _prof            # the run's execution-realism profile
+from config import read_table  # the one CSV/parquet reader: config.read_table
+from numerics import rolling_std  # platform-identical variance: results/numerics.py
 
 VOL_WIN = 60
 N_RANDOM = 200
@@ -82,7 +84,7 @@ def panel():
     global _P
     if _P is None:
         from universes.registry import REGISTRY
-        _P = pd.read_csv(config.require_cache(REGISTRY["nifty100"].score_cache,
+        _P = read_table(config.require_cache(REGISTRY["nifty100"].score_cache,
                                               what="Nifty 100 score panel"),
                          parse_dates=["date"])
     return _P
@@ -98,7 +100,7 @@ def edge(drop=()):
     bd = px.index[(px.index.year >= BT_START) & (px.index.year <= BT_END)]
     pc = precompute(px); mom20 = px / px.shift(20) - 1
     idx = (1 + px.pct_change().mean(axis=1).fillna(0)).cumprod()
-    pv = idx.pct_change().rolling(VOL_WIN).std() * np.sqrt(252)
+    pv = rolling_std(idx.pct_change(), VOL_WIN) * np.sqrt(252)
     # RESEARCH-ONLY, DECLARED. This caller passes no vol20, so it could not
     # apply a participation cap even if one were selected; research_only()
     # makes that a statement rather than an accident, and STOPS the run if
@@ -113,7 +115,7 @@ def edge(drop=()):
 
 def official():
     """(strategy CAGR, buy&hold CAGR, edge) as the pipeline recorded them."""
-    eq = pd.read_csv(OFFICIAL, parse_dates=["date"]).set_index("date")
+    eq = read_table(OFFICIAL, parse_dates=["date"]).set_index("date")
     s = metrics(arm_reg.equity_series(eq, "v2"), "s")["CAGR%"]
     b = metrics(eq["buyhold"], "b")["CAGR%"]
     return s, b, s - b

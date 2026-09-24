@@ -49,6 +49,7 @@ import profiles
 import arm_sources
 import survivorship as sv
 import naming
+from config import read_table  # the one CSV/parquet reader: config.read_table
 def _window_label(eq=None):
     """One line naming the window every figure on the chart belongs to.
 
@@ -107,7 +108,7 @@ def before_tc(eq, log):
             f"this function used to return.\n"
             f"  If the arm was not selected, do not ask for its curve -- build the "
             f"series from ARMS_ON.")
-    tr = pd.read_csv(log, parse_dates=["date"])
+    tr = read_table(log, parse_dates=["date"])
     tc = tr.groupby("date")["tc"].sum().reindex(eq.index).fillna(0.0)
     g = (1 + eq.pct_change().fillna(0.0) + (tc/eq.shift(1)).fillna(0.0)).cumprod()*eq.iloc[0]
     return cagr(g), tc.sum(), len(tr)
@@ -193,7 +194,7 @@ def main(u):
     M = Path(u.metrics_dir)
     CAP = 1_000_000
     CUT = pd.Timestamp("2019-01-01")
-    eq = pd.read_csv(_ci(M/"v2FINAL_equity.csv"), parse_dates=["date"]).set_index("date")
+    eq = read_table(_ci(M/"v2FINAL_equity.csv"), parse_dates=["date"]).set_index("date")
     # THE TWO ARMS THIS CHART SHOWS, ASKED FOR BY NAME rather than by the column
     # each happened to be stored under. arms/registry.equity_series falls back to
     # the legacy `strategy`/`baseline_invvol` names, so this reads a frozen
@@ -324,7 +325,7 @@ def main(u):
     # formatting. Preserved as per-universe data; switching it on for n100 is a
     # change to what that run does and belongs in its own commit.
     if _CT["diagnostics"]:
-        ic = pd.read_csv(score_panel_path(), usecols=["date","symbol"], parse_dates=["date"])
+        ic = read_table(score_panel_path(), usecols=["date","symbol"], parse_dates=["date"])
         ic = ic[ic["date"].dt.year >= 2019]
         per_day = ic.groupby("date")["symbol"].nunique()
         n_panel = ic["symbol"].nunique()
@@ -340,7 +341,7 @@ def main(u):
         print( "    to about 20%. Both features are now computed on each symbol's own trading")
         print( "    index; coverage is 97.0% and 98.5%. The first MidCap150 result (CAGR 9.06%)")
         print( "    was an artefact of that bug and must not be quoted.")
-        _px = pd.read_csv(score_panel_path(), parse_dates=["date"]) \
+        _px = read_table(score_panel_path(), parse_dates=["date"]) \
                 .pivot_table(index="date", columns="symbol", values="close").ffill()
         _bd = _px.index[(_px.index >= config.BT_START_DATE)
                         & (_px.index <= config.BT_END_DATE)]

@@ -109,11 +109,12 @@ def equity_path_and_series(M, tag, arm_name):
     and plots nothing, which is the correct outcome: a chart with a curve missing
     is a visible defect, and a chart with the wrong curve is not.
     """
+    from config import read_table  # lazy: this module is imported without the repo root on sys.path
     M = Path(M)
     # ONE NAME PER CHAIN. Not a candidate list -- a candidate list IS the fallback.
     f = M / f"v2FINAL_equity{_axes()}.csv"
     if f.exists():
-        df = pd.read_csv(f, parse_dates=["date"]).set_index("date")
+        df = read_table(f, parse_dates=["date"]).set_index("date")
         s = arm_reg.equity_series(df, arm_name)
         if s is not None:
             return f, s
@@ -124,7 +125,7 @@ def equity_path_and_series(M, tag, arm_name):
     # selection_suffix() is "" and this IS the canonical name.
     g = M / f"v34_equity{_axes(for_arm_subset=True)}.csv"
     if g.exists():
-        df = pd.read_csv(g, parse_dates=["date"]).set_index("date")
+        df = read_table(g, parse_dates=["date"]).set_index("date")
         col = arm_reg.ARMS[arm_name].equity_column
         if col in df.columns:
             return g, df[col]

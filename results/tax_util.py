@@ -236,9 +236,10 @@ def closed_lots(path):
     account moved by; our slippage is a price move, not a cost, so there is no
     sense in which a clean price was ever paid.
     """
+    from config import read_table  # lazy: this module is imported without the repo root on sys.path
     if not Path(path).exists():
         return None
-    tr = pd.read_csv(path, parse_dates=["date"]).sort_values("date")
+    tr = read_table(path, parse_dates=["date"]).sort_values("date")
     lots, rows = {}, []
     for _, t in tr.iterrows():
         sym, q, px = t["symbol"], int(t["qty"]), float(t["price"])

@@ -29,6 +29,7 @@ warnings.filterwarnings("ignore")
 
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 import config
+from numerics import rolling_std  # platform-identical variance: results/numerics.py
 
 UNIVERSE_DIR = config.RAW_DATA_DIR / "nifty50"
 FWD_H = 20
@@ -48,8 +49,8 @@ def build_stock_frame(path):
     for w in [5, 10, 20, 60, 120]:
         df[f"mom_{w}"] = c / c.shift(w) - 1
     df["mom_20_lag20"] = df["mom_20"].shift(20)
-    df["vol_20"] = df["ret_1d"].rolling(20).std()
-    df["vol_60"] = df["ret_1d"].rolling(60).std()
+    df["vol_20"] = rolling_std(df["ret_1d"], 20)
+    df["vol_60"] = rolling_std(df["ret_1d"], 60)
     delta = c.diff()
     up = delta.clip(lower=0).rolling(14).mean()
     dn = (-delta.clip(upper=0)).rolling(14).mean()
@@ -59,7 +60,7 @@ def build_stock_frame(path):
     df["dist_high_60"] = c / c.rolling(60).max() - 1
     df["dist_low_60"] = c / c.rolling(60).min() - 1
     vm = df["volume"].rolling(20).mean()
-    vs = df["volume"].rolling(20).std()
+    vs = rolling_std(df["volume"], 20)
     df["vol_z_20"] = (df["volume"] - vm) / (vs + 1e-9)
     df["range_20"] = (c.rolling(20).max() - c.rolling(20).min()) / c
     df["fwd_ret"] = c.shift(-FWD_H) / c - 1

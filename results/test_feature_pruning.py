@@ -30,6 +30,7 @@ import config
 from features_v2 import FEATS_V2
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from engine_core import backtest, metrics, precompute
+from config import read_table  # the one CSV/parquet reader: config.read_table
 
 HORIZON, PURGE = 20, 32
 SEEDS = [7, 42, 99, 1, 2, 3, 11, 22, 33, 101]
@@ -94,7 +95,7 @@ def main():
     print(f"  Dropping: {MOMENTUM + TRENDQ}")
     print(f"  Keeping {len(KEEP)}: {KEEP}\n")
 
-    raw = pd.read_csv(f"/tmp/raw_panel_{HORIZON}.csv", parse_dates=["date"])
+    raw = read_table(f"/tmp/raw_panel_{HORIZON}.csv", parse_dates=["date"])
     raw = raw.sort_values(["symbol", "date"])
     if "fwd_ret" not in raw.columns:
         raw["fwd_ret"] = raw.groupby("symbol")["close"].shift(-HORIZON) / raw["close"] - 1
@@ -113,7 +114,7 @@ def main():
         cache = Path(f"/tmp/prune_{tag}.csv")
         if cache.exists():
             print(f"  loading cached: {name}")
-            scored[name] = pd.read_csv(cache, parse_dates=["date"])
+            scored[name] = read_table(cache, parse_dates=["date"])
         else:
             print(f"  scoring: {name} ({len(feats)} features) ...", flush=True)
             ps = score_monthly(raw, feats, SEEDS)

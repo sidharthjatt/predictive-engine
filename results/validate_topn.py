@@ -89,6 +89,8 @@ from test_exposure import backtest_exposure
 from universes.registry import REGISTRY
 from v34_common import arm_row, held_and_skips, _git_state
 import profiles as _prof            # the run's execution-realism profile
+from config import read_table  # the one CSV/parquet reader: config.read_table
+from numerics import rolling_std  # platform-identical variance: results/numerics.py
 
 VOL_WIN = 60
 BUFFER_PINNED = 16
@@ -128,7 +130,7 @@ def load_panel(cfg, uni):
     from universes.registry import REGISTRY as _REG
     _ec.set_tradeability(_REG[uni])
     src = config.require_cache(cfg["perm"], what=f"{uni} score panel")
-    p = pd.read_csv(src, parse_dates=["date"])
+    p = read_table(src, parse_dates=["date"])
     got, want = set(p["symbol"].unique()), cfg["symbols"]()
     if got != want:
         raise SystemExit(
@@ -190,7 +192,7 @@ def shipped_v2(metrics_dir):
     f = Path(metrics_dir) / "v34_comparison.csv"
     if not f.exists():
         return None
-    d = pd.read_csv(f)
+    d = read_table(f)
     r = d[d["Config"].astype(str).str.startswith("v2")]
     if not len(r):
         return None
@@ -209,7 +211,7 @@ def run_universe(uni, cfg, out):
     pc = precompute(px)
     mom20 = px / px.shift(20) - 1
     idx = (1 + px.pct_change().mean(axis=1).fillna(0)).cumprod()
-    port_vol = idx.pct_change().rolling(VOL_WIN).std() * np.sqrt(252)
+    port_vol = rolling_std(idx.pct_change(), VOL_WIN) * np.sqrt(252)
     tv = port_vol.loc[bd].median()
 
     W("=" * 100)

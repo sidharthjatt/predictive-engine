@@ -51,6 +51,8 @@ import cadence, config, profiles, engine_core, tax_util as T
 from engine_core import precompute
 from test_exposure import backtest_exposure, calc_tc, SLIPPAGE, START_CAPITAL
 from universes.registry import REGISTRY
+from config import read_table  # the one CSV/parquet reader: config.read_table
+from numerics import rolling_std  # platform-identical variance: results/numerics.py
 VOL_WIN=60
 HALVES=[("2019-2022",2019,2022),("2023-2026",2023,2026)]
 
@@ -188,13 +190,13 @@ def main(u):
     print("="*96)
     if True:
         engine_core.set_tradeability(u)
-        p=pd.read_csv(config.require_cache(u.score_cache,what=tag),parse_dates=["date"])
+        p=read_table(config.require_cache(u.score_cache,what=tag),parse_dates=["date"])
         px=p.pivot_table(index="date",columns="symbol",values="close").ffill()
         op=p.pivot_table(index="date",columns="symbol",values="open").ffill()
         sc=p.pivot_table(index="date",columns="symbol",values="score")
         pc=precompute(px); mom20=px/px.shift(20)-1
         idx=(1+px.pct_change().mean(axis=1).fillna(0)).cumprod()
-        pv=idx.pct_change().rolling(VOL_WIN).std()*np.sqrt(252)
+        pv=rolling_std(idx.pct_change(), VOL_WIN)*np.sqrt(252)
         bd=px.index[(px.index>=config.BT_START_DATE)&(px.index<=config.BT_END_DATE)]
         kw=dict(mode="breadth",target_vol=pv.loc[bd].median(),rebal=cadence.selected(),
                 **profiles.cap_kwargs(u))

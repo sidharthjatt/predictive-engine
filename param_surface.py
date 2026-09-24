@@ -48,6 +48,8 @@ from engine_core import metrics, precompute
 import test_exposure
 from test_exposure import backtest_exposure
 import profiles as _prof            # the run's execution-realism profile
+from config import read_table  # the one CSV/parquet reader: config.read_table
+from numerics import rolling_std  # platform-identical variance: results/numerics.py
 
 VOL_WIN = 60
 TOPNS = [5, 8, 12, 16, 20]
@@ -62,7 +64,7 @@ UNIV = [
 
 def load(uni):
     from universes.registry import REGISTRY
-    p = pd.read_csv(config.require_cache(REGISTRY[uni].score_cache, what="score panel"),
+    p = read_table(config.require_cache(REGISTRY[uni].score_cache, what="score panel"),
                     parse_dates=["date"])
     px = p.pivot_table(index="date", columns="symbol", values="close").ffill()
     op = p.pivot_table(index="date", columns="symbol", values="open").ffill()
@@ -76,7 +78,7 @@ def cell(px, op, sc, y0, y1, top_n, buf):
     bd = px.index[(px.index.year >= y0) & (px.index.year <= y1)]
     pc = precompute(px); m20 = px / px.shift(20) - 1
     ix = (1 + px.pct_change().mean(axis=1).fillna(0)).cumprod()
-    pv = ix.pct_change().rolling(VOL_WIN).std() * np.sqrt(252)
+    pv = rolling_std(ix.pct_change(), VOL_WIN) * np.sqrt(252)
     # RESEARCH-ONLY, DECLARED. This caller passes no vol20, so it could not
     # apply a participation cap even if one were selected; research_only()
     # makes that a statement rather than an accident, and STOPS the run if

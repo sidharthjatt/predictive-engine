@@ -36,6 +36,7 @@ import re
 import sys
 import time
 from pathlib import Path
+from config import read_table  # the one CSV/parquet reader: config.read_table
 
 ULP = 2.3e-16          # one unit in the last place, relative
 
@@ -355,7 +356,7 @@ def compare(bp, lp):
     if bp.suffix != ".csv":
         return "DIFFERS", "content"
     import pandas as pd
-    da, db = pd.read_csv(bp), pd.read_csv(lp)
+    da, db = read_table(bp), read_table(lp)
     if list(da.columns) != list(db.columns) or len(da) != len(db):
         return "DIFFERS", f"shape {da.shape} -> {db.shape}"
     worst, col = 0.0, None

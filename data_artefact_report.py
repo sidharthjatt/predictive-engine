@@ -25,6 +25,7 @@ BT_START = pd.Timestamp("2019-01-01")
 # rows naming config74 and a `nifty50` directory; two of the three universes have
 # since been deleted, and the module could not even be imported afterwards.
 from universes.registry import REGISTRY          # noqa: E402
+from config import read_table  # the one CSV/parquet reader: config.read_table
 
 UNIV = {u.tag: (u.data_dir, u.score_cache) for u in REGISTRY.values()}
 
@@ -77,7 +78,7 @@ def main():
 
         # did the mask reach the built panel?
         if Path(cache).exists():
-            p = pd.read_csv(cache, parse_dates=["date"])
+            p = read_table(cache, parse_dates=["date"])
             px = p.pivot_table(index="date", columns="symbol", values="close")
             surv = 0
             for _, r in b.iterrows():

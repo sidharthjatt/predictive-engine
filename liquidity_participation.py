@@ -79,6 +79,7 @@ import measured_universes
 import tradability
 from engine_core import _load_calendar
 from universes.registry import REGISTRY, report_order
+from config import read_table  # the one CSV/parquet reader: config.read_table
 
 CAPITALS = [(1_000_000, "Rs 10,00,000  (the backtest)"),
             (5_000_000, "Rs 50,00,000"),
@@ -166,7 +167,7 @@ def measure(tag, mdir, data_dir, arm="v2"):
     src = Path(mdir) / f"daily_trades_{tag}{ARM_FILE[arm]}.csv"
     if not src.exists():
         return None
-    tr = pd.read_csv(src, parse_dates=["date"])
+    tr = read_table(src, parse_dates=["date"])
     med = medians(data_dir)
 
     rows = []

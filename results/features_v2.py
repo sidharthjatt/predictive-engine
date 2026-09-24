@@ -22,6 +22,7 @@ This file is only the feature builder. The engine imports it.
 """
 import numpy as np
 import pandas as pd
+from numerics import group_mean_std, rolling_std, rolling_var  # platform-identical variance: results/numerics.py
 
 
 FEATS_V2 = [
@@ -88,18 +89,18 @@ def add_stock_features(df):
     # EWMA tested: RiskMetrics 0.94/0.97 and horizon-matched 0.9524/0.9836.
     # Both were worse on BOTH universes and broke inverse-vol validation
     # (T2 seed / T3 sub-period / T4 window all failed vs 4/4 PASS on rolling).
-    df["vol_20"] = r.rolling(20).std()
-    vol_60 = r.rolling(60).std()
+    df["vol_20"] = rolling_std(r, 20)
+    vol_60 = rolling_std(r, 60)
     df["vol_ratio"] = df["vol_20"] / (vol_60 + 1e-9)      # is volatility expanding or contracting
     # downside vol: std of negative days only (asymmetric risk)
-    df["downside_vol_60"] = r.where(r < 0).rolling(60, min_periods=20).std()
+    df["downside_vol_60"] = rolling_std(r.where(r < 0), 60, min_periods=20)
 
     # ---------------- D. LIQUIDITY / VOLUME ----------------
     # Amihud illiquidity: |return| / rupee volume. High = illiquid = risk premium
     rupee_vol = c * v
     df["amihud_20"] = (r.abs() / (rupee_vol + 1)).rolling(20).mean() * 1e9
     vm = v.rolling(60).mean()
-    vs = v.rolling(60).std()
+    vs = rolling_std(v, 60)
     df["turnover_z"] = (v.rolling(5).mean() - vm) / (vs + 1e-9)
     # volume-price divergence: price up but volume down = weak move
     px_dir = np.sign(c / c.shift(5) - 1)
@@ -170,14 +171,14 @@ def add_market_relative_features(panel):
         xs = x.reindex(ys.index)             # the market on those same dates
 
         xm = xs.rolling(W).mean()
-        xv = xs.rolling(W).var()
+        xv = rolling_var(xs, W)
         ym = ys.rolling(W).mean()
         xy = (ys * xs).rolling(W).mean()
         cov = xy - ym * xm                                   # E[xy] - E[x]E[y]
         b = cov / (xv * (W - 1) / W + 1e-12)                 # match pandas ddof
 
         betas[sym] = b
-        idios[sym] = (ys - b * xs).rolling(W).std()
+        idios[sym] = rolling_std(ys - b * xs, W)
 
     beta = pd.DataFrame(betas).reindex(y.index)
     idio = pd.DataFrame(idios).reindex(y.index)
@@ -197,10 +198,11 @@ def cross_sectional_normalize(panel, feats):
     values across time is wrong. What matters is where a stock stands relative to
     its peers ON THAT DAY. This is the main fix for regime drift.
     """
+    # THE MEAN AND STANDARD DEVIATION COME FROM numerics.group_mean_std, not
+    # groupby().transform("mean"/"std"): pandas' grouped variance gave different
+    # last bits on macOS and Linux, and every feature passes through here.
     out = panel.copy()
     for f in feats:
-        g = out.groupby("date")[f]
-        mu = g.transform("mean")
-        sd = g.transform("std")
+        mu, sd = group_mean_std(out[f].to_numpy(), out["date"].to_numpy())
         out[f] = ((out[f] - mu) / (sd + 1e-9)).clip(-3, 3)   # winsorize at 3 sigma
     return out

@@ -85,6 +85,7 @@ from engine_core import (backtest, precompute, metrics, score_monthly,
                          TOP_N, START_CAPITAL, HORIZON)
 from universes.registry import REGISTRY
 from seed_cache_key import seed_cache_key
+from config import read_table  # the one CSV/parquet reader: config.read_table
 # Date window from config.py, NOT engine_core's year ints -- see config.py.
 BT_START_DATE, BT_END_DATE = config.BT_START_DATE, config.BT_END_DATE
 
@@ -181,7 +182,7 @@ def main():
 
     score_path = config.require_cache(U["score_perm"],
                                       what=f"{U['label']} score panel")
-    p = pd.read_csv(score_path, parse_dates=["date"])
+    p = read_table(score_path, parse_dates=["date"])
     px = p.pivot_table(index="date", columns="symbol", values="close").ffill()
     op = p.pivot_table(index="date", columns="symbol", values="open").ffill()
     sc = p.pivot_table(index="date", columns="symbol", values="score")
@@ -204,7 +205,7 @@ def main():
     print(comp.to_string(index=False))
 
     if "--run" not in sys.argv:
-        n_months = len(sorted(pd.read_csv(U["raw_perm"], usecols=["date"],
+        n_months = len(sorted(read_table(U["raw_perm"], usecols=["date"],
                                           parse_dates=["date"])
                               .query("date.dt.year >= 2016")["date"]
                               .dt.to_period("M").unique()))
@@ -245,13 +246,13 @@ def main():
     print("\n  T2. SEED ROBUSTNESS -- does inv-vol win on OTHER score seeds?")
     raw_path = config.require_cache(U["raw_perm"],
                                     what=f"{U['label']} raw feature panel")
-    raw = pd.read_csv(raw_path, parse_dates=["date"])
+    raw = read_table(raw_path, parse_dates=["date"])
     t2_rows = []
     for si, seeds in enumerate(SEED_SETS):
         key = _t2_cache_key(u, seeds, raw_path)
         cache = Path(f"/tmp/VALSIZE_{u}_seed{si}_{key}.csv")
         if cache.exists():
-            ps = pd.read_csv(cache, parse_dates=["date"])
+            ps = read_table(cache, parse_dates=["date"])
             print(f"      seed set {si+1}/3 from cache {cache.name} "
                   f"(key {key}: engine_core + validate_sizing + config + raw "
                   f"panel content + seeds)", flush=True)

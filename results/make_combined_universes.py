@@ -66,6 +66,7 @@ import profiles
 import arm_sources
 
 import survivorship as sv
+from config import read_table  # the one CSV/parquet reader: config.read_table
 def cum(s): return (s / s.iloc[0] - 1) * 100
 def dd(s):  return (s / s.cummax() - 1) * 100
 def cagr(s):
@@ -78,7 +79,7 @@ def before_tc(eq, log):
     """CAGR with the cost drag removed from the realised path. Not a zero-cost re-run."""
     if not Path(log).exists():
         return None, 0.0, 0
-    tr = pd.read_csv(log, parse_dates=["date"])
+    tr = read_table(log, parse_dates=["date"])
     tc = tr.groupby("date")["tc"].sum().reindex(eq.index).fillna(0.0)
     g = (1 + eq.pct_change().fillna(0.0) + (tc / eq.shift(1)).fillna(0.0)).cumprod() * eq.iloc[0]
     return cagr(g), tc.sum(), len(tr)
@@ -353,14 +354,14 @@ def main():
     UNIV = []
     for t in tags:
         u = REGISTRY[t]
+        # THE FILES ENTRIES ARE ALREADY THIS RUN'S NAMES: each is _ci() of a
+        # literal, the shape check_pipeline_order resolves. They were passed
+        # through _ci() a second time here until 2026-09-24, which asked for
+        # v2FINAL_equity_tax_tax.csv; the old _ci() fell back to the canonical
+        # name when that was missing, so the double suffix went unseen until the
+        # fallback was removed and the first multi-universe taxed run failed.
         eqf, pjf, tr2, tr1 = FILES[t]
-        # THE CADENCE-NAMED FILE WHEN THE ENGINE WROTE ONE. The FILES literals
-        # above stay canonical so check_pipeline_order keeps resolving them; the
-        # cadence sibling is chosen here, at read time, and is the same path at
-        # the default cadence.
-        eqf = _ci(eqf)
-        pjf = _ci(pjf)
-        eq = pd.read_csv(eqf, parse_dates=["date"]).set_index("date")
+        eq = read_table(eqf, parse_dates=["date"]).set_index("date")
         # ARMS BY NAME, NOT BY THE COLUMN THEY HAPPEN TO SIT IN.
         # equity_series falls back to the legacy `strategy`/`baseline_invvol`
         # spelling, which is what the deleted 58 and 74 wrote.

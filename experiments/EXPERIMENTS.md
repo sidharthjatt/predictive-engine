@@ -4129,6 +4129,13 @@ makes every subsequent multiple-testing correction too generous.
 
 ## v2 against its own buy & hold, on eight universes. 2026-09-18, extended 2026-09-20.
 
+> **SUPERSEDED 2026-09-24.** Every figure in this section was produced by the
+> pre-fix numerics and is kept as it was. The eight universes were rebuilt on
+> 2026-09-24 with numerics that give identical bits on macOS and Linux; the
+> rebuilt v2-against-buy-&-hold table is in README.md, "Results". Two signs
+> changed there: midcap100 v2 now leads its basket (+2.04) and smallcap250 v2 now
+> trails it (-1.98). The other figures in this file are likewise pre-fix.
+
 **Recorded, not concluded.** Written on four universes 2026-09-18 from each
 universe's `results_<tag>/metrics/v34_comparison.csv`; midcap100 added
 2026-09-19; **nifty200, smallcap250 and nifty500 added 2026-09-20, taking every

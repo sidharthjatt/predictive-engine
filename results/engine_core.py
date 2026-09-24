@@ -52,6 +52,8 @@ import config
 import survivorship as sv
 from features_v2 import (FEATS_V2, add_stock_features,
                          add_market_relative_features, cross_sectional_normalize)
+from config import read_table  # the one CSV/parquet reader: config.read_table
+from numerics import rolling_std  # platform-identical variance: results/numerics.py
 
 # The point-in-time membership history, or None. This is the ONE place it is held,
 # so `engine_core.MEMBERSHIP` is what every consumer reads -- test_exposure included.
@@ -257,7 +259,7 @@ def _load_calendar():
             "  silently keeps market-holiday rows is what this filter exists to\n"
             "  prevent. See RETIRED_UNIVERSES.md section 6 and the file's own\n"
             "  header.")
-    d = pd.read_csv(TRADING_CALENDAR, comment="#", parse_dates=["date"])
+    d = read_table(TRADING_CALENDAR, comment="#", parse_dates=["date"])
     return set(d["date"])
 
 
@@ -501,7 +503,7 @@ def build_panel(horizon, data_dir, pin_scorable=None):
 
 
 def precompute(px, vol_win=VOL_WIN):
-    return {"vol": px.pct_change().rolling(vol_win).std() * np.sqrt(252)}
+    return {"vol": rolling_std(px.pct_change(), vol_win) * np.sqrt(252)}
 
 
 def backtest(px, op, sc, dates, pc, top_n=TOP_N, buffer_rank=BUFFER,
@@ -745,7 +747,7 @@ def main():
     print("FINAL ENGINE -- full comparison + validation")
     print("=" * 110)
 
-    p = pd.read_csv("/tmp/v5_expanding.csv", parse_dates=["date"])
+    p = read_table("/tmp/v5_expanding.csv", parse_dates=["date"])
     px = p.pivot_table(index="date", columns="symbol", values="close").ffill()
     op = p.pivot_table(index="date", columns="symbol", values="open").ffill()
     sc = p.pivot_table(index="date", columns="symbol", values="score")
@@ -795,12 +797,12 @@ def main():
     passed["T1 baseline control"] = ok1
 
     print("\n  T2. SEED ROBUSTNESS -- does inv-vol win on OTHER score seeds?")
-    raw = pd.read_csv(f"/tmp/raw_panel_{HORIZON}.csv", parse_dates=["date"])
+    raw = read_table(f"/tmp/raw_panel_{HORIZON}.csv", parse_dates=["date"])
     t2_rows = []
     for si, seeds in enumerate([[5, 55, 555], [13, 26, 39], [101, 202, 303]]):
         cache = Path(f"/tmp/FINAL_seed{si}.csv")
         if cache.exists():
-            ps = pd.read_csv(cache, parse_dates=["date"])
+            ps = read_table(cache, parse_dates=["date"])
         else:
             print(f"      scoring seed set {si+1}/3 ...", flush=True)
             # FROZEN: engine_core.main() is the retired 58.
