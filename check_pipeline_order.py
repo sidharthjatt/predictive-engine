@@ -2,8 +2,8 @@
 check_pipeline_order.py -- static consumer/producer ordering check for run_all.py.
 
 WHY THIS EXISTS
-    make_final_chart_fair.py read daily_trades_58.csv, which make_daily_audit.py
-    produced two steps LATER. The pipeline appeared to work for the life of the
+    make_final_chart_fair.py read a retired universe's daily_trades file, which
+    make_daily_audit.py produced two steps LATER. The pipeline appeared to work for the life of the
     project because the file survived in metrics/ from the previous run. The first
     run against a genuinely empty metrics/ died with a FileNotFoundError raised
     inside pandas.
@@ -18,8 +18,8 @@ WHY A NAIVE SCAN DOES NOT WORK, AND WHAT THIS DOES INSTEAD
     Two properties of this codebase defeat the obvious grep, and both were present
     in the original bug:
 
-    1. THE READ IS INDIRECT. make_final_chart_fair.py calls
-       tc_from_log(M58/"daily_trades_58.csv"); the pd.read_csv is inside that
+    1. THE READ IS INDIRECT. make_final_chart_fair.py called
+       tc_from_log(M/"daily_trades_<tag>.csv"); the pd.read_csv is inside that
        helper, a dozen lines away. So a scan keyed on read_csv() never sees the
        filename.
        -> This scans PATH EXPRESSIONS (`VAR / "name.csv"`) wherever they appear,
@@ -28,10 +28,10 @@ WHY A NAIVE SCAN DOES NOT WORK, AND WHAT THIS DOES INSTEAD
           rather than under-reports, which is the safe direction.
 
     2. THE PRODUCER'S NAME IS TEMPLATED. make_daily_audit.py writes
-       daily_trades_{tag}.csv, with tag bound to "58" and "74" at the call site,
-       so the literal "daily_trades_58.csv" appears nowhere in the producer.
-       Matching on the glob daily_trades_*.csv instead hides the bug, because the
-       mid and n100 audits legitimately produce that glob at earlier steps.
+       daily_trades_{tag}.csv, with tag bound at the call site, so the concrete
+       filename appears nowhere in the producer. Matching on the glob
+       daily_trades_*.csv instead hides the bug, because the midcap150 and
+       nifty100 audits legitimately produce that glob at earlier steps.
        -> Tags are resolved per script from the bottom-level run(...) calls, and
           {tag} is expanded to the concrete filenames in the concrete metrics
           directory before matching.
@@ -59,36 +59,47 @@ ROOT = Path(__file__).resolve().parent
 
 WRITE_CALL = re.compile(r'\b(to_csv|savefig|write_text|to_parquet|to_json)\s*\(')
 # Either `M / "x.csv"` (a variable bound above) or the dotted form used inline,
-# `config74.METRICS_DIR_74 / "x.csv"`. The dotted form is what make_cash_series.py
-# and the since-deleted make_stats_both.py used, and missing it left real edges
-# unresolved.
+# `<config module>.METRICS_DIR_<suffix> / "x.csv"`. The dotted form is what
+# make_cash_series.py and the since-deleted make_stats_both.py used with the
+# retired per-universe config modules, and missing it left real edges unresolved.
+# The module-name alternation names those retired modules; no source file spells
+# them today.
 PATH_EXPR = re.compile(
-    r'(?:(config(?:74|_mid|_n100)?)\.)?(\w+)\s*/\s*f?["\']'
+    r'(?:(config)\.)?(\w+)\s*/\s*f?["\']'
     r'([A-Za-z0-9_.\-]*(?:\{\w+\}[A-Za-z0-9_.\-]*)*'
     r'\.(?:csv|png|json|parquet))["\']')
 DIR_ASSIGN = re.compile(r'\b(\w+)\s*=\s*(config(?:_\w+)?)\.(METRICS_DIR\w*)')
 # A UNIVERSE'S METRICS DIRECTORY BOUND FROM THE REGISTRY, which is the only way to
-# spell it after step 7 folded config_mid.py and config_n100.py into the registry.
+# spell it after step 7 folded the per-universe config modules into the registry.
 # DIR_ASSIGN and the dotted branch of PATH_EXPR both key on a `config*` module, and
 # no source names one for a universe any more, so without this make_combined_universes
 # loses all eight of its STEP 12b producer edges -- silently, with the check still
 # reporting success. That is the identical failure the audit merge produced when
 # TAG_CALL stopped matching, and it is why this is a pattern rather than a fixup.
 REG_ASSIGN = re.compile(r'\b(\w+)\s*=\s*REGISTRY\[["\'](\w+)["\']\]\.metrics_dir\b')
-# make_final_summary.py binds both dirs in one tuple assignment, optionally wrapped
-# in Path():  M58, M74 = Path(config.METRICS_DIR), Path(config74.METRICS_DIR_74)
-# Missing this left fair_comparison_table.csv -- a real STEP 13 -> 14 edge --
-# unresolved, so the checker could not see one of the dependencies it exists for.
+# THE SAME BINDING INSIDE A LOOP OVER UNIVERSES, keyed by a VARIABLE rather than a
+# literal: `M = REGISTRY[tag].metrics_dir`. Added 2026-09-24 when
+# make_combined_universes.py's eight hand-written per-universe blocks became one
+# loop. A path through such a variable is expanded over every tag the step is
+# scanned for (the row's declared span), with {tag} in the filename substituted
+# per tag, so the loop resolves to exactly the edges the eight blocks did.
+REG_LOOP_ASSIGN = re.compile(r'\b(\w+)\s*=\s*REGISTRY\[([A-Za-z_]\w*)\]\.metrics_dir\b')
+# make_final_summary.py bound two retired universes' dirs in one tuple
+# assignment, optionally wrapped in Path():  A, B = Path(config.METRICS_DIR),
+# Path(<config module>.METRICS_DIR_<suffix>). Missing this left
+# fair_comparison_table.csv -- a real STEP 13 -> 14 edge, both steps since
+# retired -- unresolved, so the checker could not see one of the dependencies it exists for.
 ASSIGN_LINE = re.compile(r'^\s*([\w\s,]+?)\s*=\s*(.+)$')
 DIR_REF = re.compile(r'(config(?:_\w+)?)\.(METRICS_DIR\w*)')
-# the audit scripts bind their tag at the bottom:
-#   run(tmp, perm, config74.METRICS_DIR_74, 2025, "74")
+# the retired audit scripts bound their tag at the bottom:
+#   run(tmp, perm, <config module>.METRICS_DIR_<suffix>, 2025, "<tag>")
 TAG_CALL = re.compile(
-    r'(config(?:74|_mid|_n100)?)\.(METRICS_DIR\w*)\s*,\s*\d+\s*,\s*["\'](\w+)["\']')
+    r'(config)\.(METRICS_DIR\w*)\s*,\s*\d+\s*,\s*["\'](\w+)["\']')
 
 # A STEP MAY NAME ITS UNIVERSE THROUGH THE REGISTRY INSTEAD OF A CONFIG MODULE.
-# TAG_CALL above recognises the original shape -- run(..., config74.METRICS_DIR_74,
-# 2025, "74") -- which is how the audit scripts used to bind their tag. Once they
+# TAG_CALL above recognises the original shape -- run(..., <config
+# module>.METRICS_DIR_<suffix>, 2025, "<tag>") -- which is how the audit scripts
+# used to bind their tag. Once they
 # collapsed into one implementation they call audit_step.run(REGISTRY["midcap150"])
 # instead, TAG_CALL matched nothing, and every daily_*_{tag}.csv became unresolved:
 # the checker lost four producer edges and still reported success. This recognises
@@ -162,18 +173,18 @@ def _mod2dir():
     """(config module, METRICS_DIR name) -> results directory, FROM THE REGISTRY.
 
     The scanner sees source text, so it matches on the spelling a step actually
-    writes -- `config_mid.METRICS_DIR_MID / "x.csv"` -- and has to turn that pair
-    back into a directory. That map used to be four hand-written literals, two of
-    which named universes (`config74`, and `config` as the 58's output home) that
-    no longer exist; a stale entry here does not fail, it silently mis-attributes
+    writes -- `config_<tag>.METRICS_DIR_<TAG> / "x.csv"` -- and has to turn that
+    pair back into a directory. That map used to be four hand-written literals,
+    two of which named retired universes' config modules and output homes that no
+    longer exist; a stale entry here does not fail, it silently mis-attributes
     a write and the ordering check passes with the edge missing.
 
     Each universe names its own config module and METRICS_DIR constant by
-    convention -- config_mid.METRICS_DIR_MID for tag "midcap150" -- so both halves are
-    derived from the tag rather than restated.
+    convention -- config_midcap150.METRICS_DIR_MIDCAP150 for tag "midcap150" -- so
+    both halves are derived from the tag rather than restated.
 
-    NOTHING IN THE TREE SPELLS THAT FORM ANY MORE. Step 7 folded config_mid.py and
-    config_n100.py into universes/registry.py, so the per-universe entries below
+    NOTHING IN THE TREE SPELLS THAT FORM ANY MORE. Step 7 folded the per-universe
+    config modules into universes/registry.py, so the per-universe entries below
     match no source line today; REG_ASSIGN is what resolves a universe's metrics
     directory now. They are kept because they are DERIVED from the registry rather
     than written down -- they cannot go stale, they cost one dict entry each, and
@@ -181,7 +192,8 @@ def _mod2dir():
     silently unresolved. A hand-written entry would not have earned that.
 
     config.METRICS_DIR stays in the map, but NOT as a universe: results/metrics is
-    the shared, non-universe artefact directory now. See RETIRED_UNIVERSES.md.
+    the shared, non-universe artefact directory now. See git history
+    (git show 50562ed:RETIRED_UNIVERSES.md).
     """
     out = {("config", "METRICS_DIR"): "results"}
     try:
@@ -205,8 +217,8 @@ def _tag2dir():
 
     THERE IS NO LITERAL FALLBACK ANY MORE. It used to return the historical four
     tags when the registry could not be imported, so that this checker "kept
-    working" -- but what it actually did was resurrect the 58 and the 74 after they
-    were deleted, and check a pipeline that does not exist. A checker that cannot
+    working" -- but what it actually did was resurrect two retired universes after
+    they were deleted, and check a pipeline that does not exist. A checker that cannot
     read the registry has nothing to check against and must say so.
     """
     import sys as _s
@@ -259,7 +271,7 @@ def _scan(script_path):
 # file that no longer had one. Then make_audit.py's docstring explained the step-4
 # merge by spelling the old REGISTRY subscript out -- REGISTRY_CALL matched it,
 # bound a phantom "midcap150" tag to BOTH pipeline rows, and STEP 10g silently dropped
-# n100's four producer edges because it could no longer choose a directory.
+# nifty100's four producer edges because it could no longer choose a directory.
 #
 # WHY NOT A FULL AST REWRITE, which is what fixed the marker check. Three reasons,
 # and they are specific to this scanner rather than general:
@@ -427,6 +439,8 @@ def _scan_text(txt, tag=None, span=()):
         d = _TAG2DIR.get(t)
         if d:
             tags.append((d, t))
+    # VARIABLES BOUND PER UNIVERSE INSIDE A LOOP -- see REG_LOOP_ASSIGN.
+    per_tag = {m.group(1) for m in REG_LOOP_ASSIGN.finditer(txt)}
     # VARIABLES THAT ARE NOT METRICS DIRECTORIES AT ALL -- see RAW_DIR_ASSIGN.
     nonmetrics = {m.group(1) for m in RAW_DIR_ASSIGN.finditer(txt)}
     # AXIS SUFFIX VARIABLES, PINNED TO THEIR DEFAULT "" -- see AXIS_SUFFIX_ASSIGN.
@@ -451,7 +465,20 @@ def _scan_text(txt, tag=None, span=()):
             # placeholder test, so the name becomes the canonical artefact.
             for _v in axis_suffix:
                 fname = fname.replace("{" + _v + "}", "")
-            if mod:                       # config74.METRICS_DIR_74 / "x.csv"
+            if not mod and var in per_tag:
+                if not tags:
+                    unresolved.add((None, fname))
+                    continue
+                for dd, t in tags:
+                    tf = fname.replace("{tag}", t)
+                    if re.search(r'\{\w+\}', tf):
+                        unresolved.add((dd, tf))
+                    elif is_write:
+                        writes.add((dd, tf))
+                    else:
+                        reads.add((dd, tf))
+                continue
+            if mod:                       # a dotted config-module directory
                 d = DIRKEY.get((mod, var), default)
             else:
                 d = var2dir.get(var, default)
@@ -491,8 +518,8 @@ def analyse(pipeline, results_root=None, resolver=None, helpers=None,
     -> (inversions, unresolved, edges) where an inversion is
        (step, script, dirkey, filename, [producing steps, all later]).
 
-    `resolver` maps a script name to its path. It exists because the retired 58/74
-    steps moved to frozen/ while the live ones stayed in results/, so a single root
+    `resolver` maps a script name to its path. It exists because the retired
+    universes' steps moved to frozen/ while the live ones stayed in results/, so a single root
     no longer locates every step. run_all.py passes its own script_path() so the
     checker and the runner cannot disagree about where a step lives.
 
@@ -503,10 +530,10 @@ def analyse(pipeline, results_root=None, resolver=None, helpers=None,
     """
     R = (results_root or ROOT / "results")
     # EARLIEST POSITION WINS, because after the collapse ONE SCRIPT APPEARS AT
-    # SEVERAL POSITIONS. build_scores.py is STEP 10a for mid and STEP 10e for
-    # n100; the dict comprehension this replaced kept whichever row came last, so
+    # SEVERAL POSITIONS. build_scores.py is STEP 10a for midcap150 and STEP 10e
+    # for nifty100; the dict comprehension this replaced kept whichever row came last, so
     # the merged step would have been treated as running only at 10e and every
-    # mid consumer between 10a and 10e would have read as an inversion.
+    # midcap150 consumer between 10a and 10e would have read as an inversion.
     #
     # min() is the correct reading and not merely the safe one: the question this
     # map answers is "had this producer run by the time that consumer ran", and a
@@ -518,8 +545,8 @@ def analyse(pipeline, results_root=None, resolver=None, helpers=None,
     # KEEPING THE EARLIEST POSITION PER SCRIPT, plus unioning each script's reads
     # and writes across its rows below, means a merged step COLLAPSES TO ONE
     # POSITION. make_chart.py becomes 10d and make_audit.py becomes 10c; 10c
-    # precedes 10d, so no inversion exists here to report -- even when the n100
-    # invocation at 10h depends on a writer at 10g that mid's invocation at 10d was
+    # precedes 10d, so no inversion exists here to report -- even when the nifty100
+    # invocation at 10h depends on a writer at 10g that midcap150's invocation at 10d was
     # made to demand. That happened: on 2026-09-17 a cold `--universe all` died at
     # STEP 10d asking for results_nifty100/metrics/daily_trades_n100.csv, and this
     # checker reported 0 inversions on the same tree, correctly.
@@ -548,7 +575,7 @@ def analyse(pipeline, results_root=None, resolver=None, helpers=None,
     missing = []
     # ONE ROW AT A TIME, AND THE RESULTS UNIONED PER SCRIPT. A merged step appears
     # at several positions with a DIFFERENT universe each time -- make_audit.py is
-    # STEP 10c for mid and STEP 10g for n100 -- and it genuinely writes both
+    # STEP 10c for midcap150 and STEP 10g for nifty100 -- and it genuinely writes both
     # universes' files across the run. Scanning once would resolve only one of
     # them; scanning per row and unioning gives the script the full write set it
     # actually has.
@@ -563,7 +590,7 @@ def analyse(pipeline, results_root=None, resolver=None, helpers=None,
         # makes run.py refuse to start. See run_all.SPANS_REGISTRY.
         #
         # INERT WHILE THE SOURCE STILL NAMES ITS UNIVERSES IN LITERALS. REG_ASSIGN
-        # and REGISTRY_CALL already resolve `M_n100 = REGISTRY["nifty100"].metrics_dir`,
+        # and REGISTRY_CALL already resolve `M_nifty100 = REGISTRY["nifty100"].metrics_dir`,
         # so for STEP 12b as written today this contributes the same two directories
         # those literals already contribute and nothing moves. It exists so that a
         # registry-driven loop -- where `REGISTRY[t]` matches neither pattern,

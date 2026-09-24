@@ -46,11 +46,11 @@ import paths
 # lived nowhere else in the repository. That end date is now u.nautilus_end, so
 # the port and the research scripts read one definition.
 #
-# WHY THE END DATES DIFFER, PRESERVED EXACTLY:
-#   58  2026-06-08  frozen -- retired universe, its published numbers must not move
-#   74  2025-12-23  frozen -- likewise
-#   mid/n100        config.BT_END_DATE; the constituents stop before the index does,
-#                   so the panel and therefore the backtest stop there too.
+# EVERY REGISTERED UNIVERSE ENDS AT config.BT_END_DATE. The constituents stop
+# before the index does, so the panel and therefore the backtest stop there too.
+# The end date is still a per-universe field because two retired universes
+# (deleted 2026-09-11) carried frozen end dates of their own; a universe that
+# needs a different end sets it in its registry entry, not here.
 UNIVERSES = {
     u.tag: {"cache": u.score_cache,
             "scores": u.nautilus_scores,
@@ -60,7 +60,8 @@ UNIVERSES = {
     for u in REGISTRY.values()
 }
 # THE DEFAULT UNIVERSE IS THE FIRST REGISTERED ONE, not a literal tag. It was
-# UNIVERSES["58"], which raised KeyError at IMPORT the moment the 58 was deleted --
+# a retired universe's tag, which raised KeyError at IMPORT the moment that
+# universe was deleted --
 # taking nt_verify, nt_daily_compare, nt_holdings_compare and depth_compare with
 # it, none of which mention a universe themselves.
 _DEFAULT_UNIVERSE = next(iter(UNIVERSES))
@@ -105,7 +106,7 @@ def reports_segment(mode, sizing, rebal=None):
     Registered in naming.CARRIES as carrying all three axes, measured, not assumed.
     """
     # THE CADENCE JOINS THE PATH, on the same rule the research side uses: the
-    # default is unsuffixed so nautilus/reports/mid/v1/ keeps meaning what it has
+    # default is unsuffixed so nautilus/reports/midcap150/v1/ keeps meaning what it has
     # always meant, and a non-default cadence gets v1@r40 of its own rather than
     # overwriting it.
     # AND THE PROFILE JOINS IT TOO -- SITE 12, fixed 2026-09-12. This path carried
@@ -119,7 +120,7 @@ def reports_segment(mode, sizing, rebal=None):
     # risking it.
     #
     # SAME DEFAULT-IS-UNSUFFIXED RULE as every other axis: research is the default
-    # and stays unsuffixed, so nautilus/reports/mid/v2/ keeps meaning exactly what
+    # and stays unsuffixed, so nautilus/reports/midcap150/v2/ keeps meaning exactly what
     # it has always meant and no existing path moves.
     from arms.registry import path_segment
     import naming
@@ -201,7 +202,7 @@ def run(trading_start, trading_end, symbols=None, quiet=True,
     # Nautilus's own reports -- these carry the real order status (FILLED, DENIED,
     # CANCELED) rather than anything reconstructed by hand.
     # ONE DIRECTORY PER UNIVERSE. This used to be a single shared `reports/`, so a
-    # verification loop over 58, 74 and mid left only the LAST universe on disk and
+    # verification loop over three universes left only the LAST one on disk and
     # silently overwrote the other two -- the files looked current while describing
     # a run nobody asked about. The universe is part of the path now, so all three
     # persist side by side and a directory cannot be mistaken for another's output.
@@ -210,7 +211,7 @@ def run(trading_start, trading_end, symbols=None, quiet=True,
     # run() gained sizing/mode as arguments on 2026-09-04, which made the collision
     # the universe split had just fixed reappear on the other axis:
     # verify_v34_arms.py runs four arms per universe in a loop, and all four wrote
-    # here, so nautilus/reports/mid/ described whichever arm happened to run last
+    # here, so nautilus/reports/<universe>/ described whichever arm happened to run last
     # while looking like the universe's report. The arm name comes from
     # arms.registry, so the directory and the arm cannot drift apart, and a
     # combination that is not one of the four named arms gets "{mode}-{sizing}"
@@ -285,10 +286,9 @@ def run(trading_start, trading_end, symbols=None, quiet=True,
 
 
 if __name__ == "__main__":
-    uni = _DEFAULT_UNIVERSE
-    for u in UNIVERSES:
-        if f"--universe={u}" in sys.argv:
-            uni = u
+    from universes.registry import argv_universes, check_tags
+    _picked = check_tags(argv_universes(sys.argv), UNIVERSES)
+    uni = _picked[-1] if _picked else _DEFAULT_UNIVERSE
     if "--full" in sys.argv:
         run("2019-01-01", UNIVERSES[uni]["end"], universe=uni)
     else:

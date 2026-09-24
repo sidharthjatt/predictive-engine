@@ -14,8 +14,8 @@ THE CONTRAST
     defect, and turnover is reported for both arms so its size is visible.
 
 THE VERDICT RULE, FIXED IN THE SPEC BEFORE ANY NUMBER EXISTED
-    A: Sharpe(8) >= Sharpe(12) on n100, full period
-    B: Sharpe(8) >= Sharpe(12) on mid,  full period
+    A: Sharpe(8) >= Sharpe(12) on nifty100,  full period
+    B: Sharpe(8) >= Sharpe(12) on midcap150, full period
     C: Sharpe(8) >= Sharpe(12) in BOTH halves of BOTH universes
     All three must hold. Ties hold for the incumbent, deliberately: the burden is
     on the challenger, which is the direction entry 10 imposed on 8 when 8 was
@@ -39,7 +39,7 @@ THE OUTCOME HAS TWO HALVES AND THEY ARE REPORTED TOGETHER, ALWAYS
     than fixing it was meant to avoid.
 
 THE OUTCOME WORD IS "NOT CONTRADICTED" OR "CONTRADICTED". NEVER "RE-EARNED".
-    Entry 10 accepted 8 against 12 on the retired 58 and 74. The record does not
+    Entry 10 accepted 8 against 12 on the two retired universes. The record does not
     state what BUFFER the 12-arm ran at -- searched across EXPERIMENTS.md, the
     pre-registrations, rejected_experiments_REPORT.txt, git history and every
     surviving script, all negative. So this cannot be shown to be entry 10's
@@ -48,7 +48,7 @@ THE OUTCOME WORD IS "NOT CONTRADICTED" OR "CONTRADICTED". NEVER "RE-EARNED".
 WHICH ENGINE, AND WHY IT MATTERS
     test_exposure.backtest_exposure -- the SHIPPING engine, the same side of the
     split as validate_breadth_live.py. Per KNOWN_ISSUES.md the two engines sit
-    1.80 CAGR points apart on the 58, so a TOP_N result measured on
+    1.80 CAGR points apart on a retired universe, so a TOP_N result measured on
     engine_core.backtest would not cover production.
 
 CACHES
@@ -86,7 +86,7 @@ import config
 from engine_core import precompute
 import test_exposure
 from test_exposure import backtest_exposure
-from universes.registry import REGISTRY
+from universes.registry import REGISTRY, certified
 from v34_common import arm_row, held_and_skips, _git_state
 import profiles as _prof            # the run's execution-realism profile
 from config import read_table  # the one CSV/parquet reader: config.read_table
@@ -105,12 +105,12 @@ HALVES = [("2019-2022", 2019, 2022), ("2023-2026", 2023, 2026)]
 #
 # Order is load-bearing: run_universe() is called per universe in this order and
 # the combined verdict accumulates in that sequence.
-LABELS = {"nifty100": "NIFTY 100", "midcap150": "MIDCAP150"}
+LABELS = {u.tag: u.display_name for u in certified()}
 UNIVERSES = {
     u.tag: {"perm": u.score_cache,
             "metrics_dir": u.metrics_dir, "symbols": u.symbols,
             "label": LABELS[u.tag]}
-    for u in (REGISTRY["nifty100"], REGISTRY["midcap150"])
+    for u in certified()
 }
 
 
@@ -125,7 +125,7 @@ def load_panel(cfg, uni):
     # AGAINST. A script that recomputes and then checks itself against a
     # published row must run under the production guards, or it measures a
     # different engine. rebal_cadence_sweep.py failed exactly this way:
-    # mid v3 AnnVol% recomputed 24.89 against 24.88 published.
+    # midcap150 v3 AnnVol% recomputed 24.89 against 24.88 published.
     import engine_core as _ec
     from universes.registry import REGISTRY as _REG
     _ec.set_tradeability(_REG[uni])

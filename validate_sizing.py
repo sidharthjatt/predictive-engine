@@ -1,35 +1,36 @@
 """
 validate_sizing.py -- run engine_core.py's inverse-vol validation suite on a
-universe other than the 58.
+live universe rather than the retired one it was written for.
 
 WHY THIS EXISTS
-    The four-test suite in engine_core.py ([2] VALIDATION, lines 489-567) is the
-    only evidence that inverse-vol sizing is real rather than cherry-picked. It has
-    only ever run on the 58, which is retired. Inverse-vol is the default sizing in
+    The four-test suite that lived in engine_core.main() ([2] VALIDATION; main()
+    was deleted 2026-09-24) is the only evidence that inverse-vol sizing is real
+    rather than cherry-picked. It only ever ran on a retired universe. Inverse-vol is the default sizing in
     production on both live universes and has never been validated on either:
     engine_v2_final_n100.py says so in its own params file --
     "not measured on this universe".
 
-    This script runs the same four tests on n100 or mid. It changes none of them.
+    This script runs the same four tests on nifty100 or midcap150. It changes none
+    of them.
 
-engine_core.py IS NOT MODIFIED. It is the 58's provenance, the same way
-mid_jackknife.py is mid's. The four tests are re-implemented here because every
-path in engine_core.main() is a hardcoded 58 literal -- /tmp/v5_expanding.csv,
-/tmp/raw_panel_20.csv, M = config.METRICS_DIR -- with no universe parameter. The
-CRITERIA are copied verbatim; only the paths move.
+THE FOUR TESTS ARE RE-IMPLEMENTED HERE, not called, because every path in
+engine_core.main() was a hardcoded literal for a retired universe --
+/tmp/v5_expanding.csv, /tmp/raw_panel_20.csv, M = config.METRICS_DIR -- with no
+universe parameter. The CRITERIA are copied verbatim; only the paths move.
 
 IMPORTING engine_core IS SAFE, AND THAT WAS VERIFIED RATHER THAN ASSUMED
     An AST walk over every module-level statement found no I/O: lines 49-50 edit
     sys.path, 88 and 95 construct Path objects without reading them, 68 is a try
-    that only selects a cost function, and 697 is the __main__ guard so main() --
-    which holds every 58 path -- never runs on import. Confirmed empirically with
-    /tmp cleared. Note that importing binds engine_core.M to results/metrics, the
-    58 path; nothing here writes through it.
+    that only selects a cost function, and a __main__ guard kept main() -- which
+    held every retired-universe path -- from running on import (both deleted
+    2026-09-24). Confirmed empirically with /tmp cleared. Note that importing
+    binds engine_core.M to results/metrics, the shared non-universe directory;
+    nothing here writes through it.
 
 THE T2 CACHE IS CONTENT-ADDRESSED, AND WAS NOT UNTIL 2026-09-22
-    engine_core.py:764 caches seed scores at /tmp/FINAL_seed{i}.csv, with no
-    universe in the name. An n100 run reusing that path would silently load 58
-    scores and report a pass or a fail on the wrong data, with no error anywhere.
+    engine_core.main() cached seed scores at /tmp/FINAL_seed{i}.csv, with no
+    universe in the name. A nifty100 run reusing that path would silently load the
+    retired universe's scores and report a pass or a fail on the wrong data, with no error anywhere.
     The caches here carry a different prefix, so that collision is impossible.
 
     THE PREFIX WAS NOT ENOUGH. Until 2026-09-22 the name was
@@ -46,7 +47,7 @@ THE T2 CACHE IS CONTENT-ADDRESSED, AND WAS NOT UNTIL 2026-09-22
     a live one; it is simply a file nothing asks for.
 
 T1'S TRADE RANGE IS UNCHANGED AND DELIBERATELY NOT RECALIBRATED
-    400-1400 was calibrated on the 58, which produces 706. Re-fitting it per
+    400-1400 was calibrated on the retired universe, which produced 706. Re-fitting it per
     universe would be changing the test. It stays, and the measured count is
     printed beside it so a universe falling outside becomes visible rather than
     failing a structural check for a reason nobody looks at.
@@ -54,20 +55,21 @@ T1'S TRADE RANGE IS UNCHANGED AND DELIBERATELY NOT RECALIBRATED
 THE SEED LOOP IS SEQUENTIAL, MATCHING engine_core.py
     T2 runs three seed sets one after another, three processes of ten cores, as
     engine_core does. Running the sets concurrently would be roughly three times
-    faster and is deliberately not done: if a result differs from the 58's, that
+    faster and is deliberately not done: if a result differs from the original suite's, that
     must be the universe and not the harness.
 
 WHAT CANNOT BE CHECKED HERE
     There is no artefact to gate the baseline against. engine_core.backtest is a
     separate implementation from the production test_exposure.backtest_exposure --
-    on the 58 they disagree by design, 26.42% against 24.62% for the same sizing.
+    on the retired universe they disagreed by design, 26.42% against 24.62% for
+    the same sizing.
     So this script cannot prove it reproduces anything published. The strongest
     available check is T1's own structural test, and its numbers are printed.
 
 Reads the panels. Writes only the /tmp seed caches -- nothing in the repository.
 
-    python3 validate_sizing.py --universe=n100          # cost estimate, then stop
-    python3 validate_sizing.py --universe=n100 --run     # run the suite
+    python3 validate_sizing.py --universe=nifty100      # cost estimate, then stop
+    python3 validate_sizing.py --universe=nifty100 --run # run the suite
 """
 import sys, time, warnings
 sys.dont_write_bytecode = True
@@ -90,16 +92,14 @@ from config import read_table  # the one CSV/parquet reader: config.read_table
 BT_START_DATE, BT_END_DATE = config.BT_START_DATE, config.BT_END_DATE
 
 # ALL FOUR PANEL PATHS come from universes/registry.py -- the single definition.
-# The LABEL stays local, and note this file spells it "Nifty 100"/"MidCap150"
-# where most of the others use "NIFTY 100"/"MIDCAP150" -- a third spelling of the
-# same two universes. That is exactly why labels are not sourced from the
-# registry: unifying them would rewrite committed artefacts.
-LABELS = {"nifty100": "Nifty 100", "midcap150": "MidCap150"}
+# The label is u.name, the "Nifty 100"/"MidCap150" spelling this file has always
+# written into its committed artefacts.
+from universes.registry import certified
 UNIVERSES = {
     u.tag: {"score_perm": u.score_cache,
             "raw_perm": u.raw_cache,
-            "label": LABELS[u.tag]}
-    for u in (REGISTRY["nifty100"], REGISTRY["midcap150"])
+            "label": u.name}
+    for u in certified()
 }
 
 # Verbatim from engine_core.py:506 and :536 and :555. Not tuned, not reordered.
@@ -160,10 +160,11 @@ def sharpe_exact(eq):
 
 
 def universe_from_argv():
-    for u in UNIVERSES:
-        if f"--universe={u}" in sys.argv:
-            return u
-    print("usage: validate_sizing.py --universe=n100|mid [--run]")
+    from universes.registry import argv_universes, check_tags
+    picked = check_tags(argv_universes(sys.argv), UNIVERSES)
+    if picked:
+        return picked[-1]
+    print(f"usage: validate_sizing.py --universe=<{'|'.join(UNIVERSES)}> [--run]")
     print("  no default -- the universe must be named explicitly.")
     sys.exit(2)
 
@@ -215,7 +216,7 @@ def main():
         print(f"   T1, T3, T4 are backtests only          : seconds")
         print(f"   T2 REFITS the model: {n_months} months x 3 seeds x "
               f"{len(SEED_SETS)} sets = {n_months*3*len(SEED_SETS):,} LightGBM fits")
-        print(f"   measured on n100 at 3.57 s/month       : ~22.7 min")
+        print(f"   measured on nifty100 at 3.57 s/month   : ~22.7 min")
         print(f"   seed sets run SEQUENTIALLY (3 procs of 10 cores), matching")
         print(f"   engine_core.py -- comparability over speed")
         print("\n   Stopping here. Re-run with --run to execute the suite.")
@@ -237,7 +238,7 @@ def main():
     inside = TRADE_LO <= m1["Trades"] <= TRADE_HI
     print(f"      trade count {int(m1['Trades'])} is "
           f"{'INSIDE' if inside else 'OUTSIDE'} the {TRADE_LO}-{TRADE_HI} range "
-          f"(range unchanged from the 58, which produces 706)")
+          f"(range unchanged from the retired universe, which produced 706)")
     print(f"      (CAGR varies +/-0.5% per retrain -- not checked; structure is)")
     print(f"      -> {'PASS' if ok1 else 'FAIL -- slot-cap or buffer logic broken'}")
     passed["T1 baseline control"] = ok1
@@ -289,9 +290,9 @@ def main():
         # INTERSECTED WITH THE BACKTEST WINDOW, not sliced from the full panel.
         # Slicing px.index by year alone let the late half run to the end of the
         # price data (2026-06-08) while the full period stopped at BT_END_DATE,
-        # so the two ended on different days in the same report. engine_core.py:543
-        # still has that bug; it is retired-58 only and is recorded in
-        # KNOWN_ISSUES.md rather than fixed here.
+        # so the two ended on different days in the same report. engine_core.main()
+        # had that bug; it affected only a retired universe, is recorded in
+        # KNOWN_ISSUES.md, and went with main() on 2026-09-24.
         hd = px.index[(px.index.year >= y0) & (px.index.year <= y1)
                       & (px.index >= BT_START_DATE) & (px.index <= BT_END_DATE)]
         e_e, _, _, _, _ = backtest(px, op, sc, hd, pc, sizing="equal")

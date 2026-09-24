@@ -79,7 +79,7 @@ USAGE
 
     # 1. Check a file before trusting it. Run this first, always.
     print(sv.validation_report("data/raw/index_membership_nifty100.csv",
-                               price_dir="data/raw/N100/clean"))
+                               price_dir="data/raw/Final_Without_Survivorship_Data/Final_NIFTY100_EoD_Data"))
 
     # 2. Load it. Raises if it does not validate.
     m = sv.load("data/raw/index_membership_nifty100.csv")

@@ -1,5 +1,11 @@
 """
-verify_next_open_execution.py -- PROOF that Nautilus reproduces the project's execution rule.
+verify_next_open_execution.py -- a synthetic probe of Nautilus's next-open execution.
+
+WHAT A PASS SAYS: on five invented bars, with a LatencyModel and an explicit open
+tick, one market order submitted at a close fills at the next day's open. It does
+not exercise the production port, which runs with LATENCY_NS = 0 and sends orders
+at the next open instead (nautilus/nt_run.py), and it covers no universe. The
+production fills are checked by results/check_b_exec_timing.py.
 
 THE RULE (from the existing engine, and from the leakage checklist):
     signal at the CLOSE of day t  ->  order fills at the OPEN of day t+1
@@ -105,5 +111,6 @@ if abs(FILLS[0] - TARGET_PX) > 1e-9:
           f"(the OPEN of day 4). A fill at 104.00 means the order filled inside "
           f"the bar that created it; 152.00 means it filled at the next CLOSE.")
     raise SystemExit(1)
-print(f"  RESULT: PASS -- single fill at {FILLS[0]:.2f}, the OPEN of day 4, "
-      f"as the next-open execution rule requires.")
+print(f"  RESULT: PASS -- synthetic 5-bar test with a latency model: one fill, at "
+      f"{FILLS[0]:.2f}, the OPEN of day 4. Covers no universe and not the "
+      f"production port's zero-latency configuration.")

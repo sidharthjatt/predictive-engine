@@ -99,7 +99,7 @@ from engine_core import canonical_price, precompute  # noqa: E402
 from engine_core import TOP_N, BUFFER, REBAL     # noqa: E402
 from config import read_table  # the one CSV/parquet reader: config.read_table
 
-UNIVERSES = ("nifty100", "midcap150")
+from universes.registry import CERTIFIED as UNIVERSES   # noqa: E402
 
 # The fallback counts price_noise_measure.py recorded on 2026-09-20. They are the
 # check that this script is reading the same farm, not a target to reproduce.

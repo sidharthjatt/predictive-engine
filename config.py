@@ -66,8 +66,8 @@ METRICS_DIR = RESULTS_DIR / "metrics"
 # CREATE THE OUTPUT DIRECTORIES AT IMPORT, so a FRESH CHECKOUT works from ANY
 # entry point -- run_all.py or a script run standalone -- rather than only when
 # these directories happen to survive from a previous run on this machine.
-# config74.py, config_mid.py and config_n100.py already do this for their own
-# metrics dirs; config.py did NOT, so STEP 2 (engine_core) crashed on the first
+# The per-universe config modules (since folded into universes/registry.py) did
+# this for their own metrics dirs; config.py did NOT, so STEP 2 (engine_core) crashed on the first
 # to_csv into a non-existent results/metrics on the first fresh run ever
 # attempted (2026-09-03). See KNOWN_ISSUES.md.
 METRICS_DIR.mkdir(parents=True, exist_ok=True)
@@ -81,12 +81,12 @@ EQUITY_CURVES_DIR.mkdir(parents=True, exist_ok=True)
 #
 # THE NAMES ARE DELIBERATELY NOT BT_START / BT_END.
 #   engine_core.py:93 defines BT_START, BT_END as YEAR INTEGERS (2019, 2026) and
-#   is deliberately not changed -- it is the retired 58 universe's provenance.
+#   is deliberately not changed -- it is a retired universe's provenance.
 #   Two constants with the same name and different types in one repository is
 #   how a previous mismatch happened, so these carry _DATE and are Timestamps.
 #
-# Scripts that import the int form from engine_core (mid_jackknife.py,
-# n100_jackknife.py, mid_topn_test.py, experiments/sizing_test.py) therefore keep
+# Scripts that import the int form from engine_core (jackknife.py, topn_test.py,
+# experiments/sizing_test.py) therefore keep
 # the OLD year window and keep running. Their outputs stay internally consistent
 # but describe a different window from anything using the constants below.
 BT_START_DATE = _pd.Timestamp("2019-01-01")
@@ -107,7 +107,7 @@ BT_END_DATE = _pd.Timestamp("2026-05-29")
 #
 # THE RETIRED ENGINES DO NOT IMPORT THESE. engine_core.py, engine_v2_final.py,
 # engine_v2_final74.py and make_cash_series.py (now in frozen/) keep their own
-# literals so the 58's and 74's published numbers cannot move -- the same freeze
+# literals so the retired universes' published numbers cannot move -- the same freeze
 # the old year window carries. engine_core.py:90 therefore still defines TOP_N
 # and BUFFER, and validate_sizing.py imports TOP_N from THERE, not from here.
 # The two agree at 8 today and nothing enforces that. See KNOWN_ISSUES.md.

@@ -13,15 +13,17 @@ WHY THESE ARE FOUR FILES AND NOT FOUR COLUMNS ON AN EXISTING ONE
     non-benchmark rows without erroring. The companion-file decision is the same
     one v34_common.py made for the profile axis, for the same reason.
 
-    AND IT PROTECTS THE MANIFEST. daily_trades_74.csv and fifteen of its
-    siblings are pinned by SHA-256 in RETIRED_UNIVERSES-manifest.txt. A new
-    column on that file is a hash break for artefacts that cannot be regenerated.
+    AND IT KEEPS HASHED FILES STABLE. Sixteen retired-universe artefacts, trade
+    logs among them, were pinned by SHA-256 in the retired-universe manifest
+    (deleted 2026-09-24; git show 50562ed:RETIRED_UNIVERSES-manifest.txt). A new
+    column on one of those file shapes is a hash break for artefacts that cannot
+    be regenerated.
 
 THE NUMBERS HERE ARE THE TAXED RUN'S OWN, NEVER THE UNTAXED LOG'S
     FY_TAX_STATEMENT reports what the taxed portfolio ACTUALLY PAID, read from
     the in-loop ledger that charged it. It is not recomputed from a trade log,
     and in particular it is not the figure an untaxed run's log implies -- those
-    differ by about 4% (mid: Rs 833,105 implied against Rs 798,365 charged, see
+    differ by about 4% (midcap150: Rs 833,105 implied against Rs 798,365 charged, see
     tax_util's TAX PARTIALLY DAMPS ITSELF), and the implied one describes a run
     that did not happen.
 
@@ -62,7 +64,7 @@ STEMS = ("FY_TAX_STATEMENT", "FY_EQUITY", "HOLDING_PERIOD", "HOLDING_PERIOD_LOTS
 
 
 def artefact_name(stem, tag, ext=".csv"):
-    """<stem>_<tag><ext>, e.g. FY_TAX_STATEMENT_mid_v1_tradeable_tax.csv
+    """<stem>_<tag><ext>, e.g. FY_TAX_STATEMENT_midcap150_v1_tradeable_tax.csv
 
     `tag` IS ALREADY THE FULL COMPOSITION. audit_step.artefact_tag() returns the
     universe, the arm, and then cadence.suffix() + profiles.suffix() +
@@ -208,7 +210,7 @@ def write_all(M, tag, eq, tax_audit, dates):
 
 
 # ---------------------------------------------------------------------------
-# THE STEP -- STEP 18a (mid) / STEP 18b (n100), arity 1
+# THE STEP -- STEP 18a (midcap150) / STEP 18b (nifty100), arity 1
 # ---------------------------------------------------------------------------
 def main(u):
     """The step, as a function, so run.py can call it in process.
@@ -303,7 +305,7 @@ def main(u):
     #
     # IT IS A SEPARATE FILE, not columns on v34_comparison.csv or
     # daily_trades_*, for the reason this module already gives: gates read those
-    # and sixteen of them are pinned by SHA-256 in RETIRED_UNIVERSES-manifest.txt.
+    # and sixteen of them were pinned by SHA-256 in the retired-universe manifest.
     M = Path(u.metrics_dir)
     bh = M / f"BH_LOTS_{tag}.csv"
     if not bh.exists():

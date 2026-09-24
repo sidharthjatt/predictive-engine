@@ -41,7 +41,7 @@ sys.path.insert(0, str(ROOT / "nautilus"))
 import numpy as np
 import pandas as pd
 import config
-from universes.registry import REGISTRY
+from universes.registry import REGISTRY, certified
 import paths
 
 # SLIPPAGE comes from slippage.py, which is the only definition. It was
@@ -96,13 +96,13 @@ _SEG = _reports_segment(ARM.mode, ARM.sizing)
 # The LABEL stays local: it is printed into
 # diagnostics/checkB_execution_timing.txt. Labels are presentation; paths are
 # facts. Order is load-bearing -- the report is written universe by universe.
-LABELS = {"nifty100": "NIFTY 100", "midcap150": "MIDCAP150"}
+LABELS = {u.tag: u.display_name for u in certified()}
 UNIVERSES = {
     u.tag: (ROOT / "nautilus" / "reports" / u.tag / _SEG / "fills.csv",
             u.score_cache,
             paths.tagged_artefact(u, "daily_decisions"),
             LABELS[u.tag])
-    for u in (REGISTRY["nifty100"], REGISTRY["midcap150"])
+    for u in certified()
 }
 
 
@@ -120,7 +120,7 @@ HISTORY = """\
 --------------------------------------------------------------------------------
   The version of this diagnostic committed at 40b938e read
       nautilus/reports/<universe>/fills.csv
-  and found, on n100, 977 of 978 fills reconstructing as that day's OPEN to
+  and found, on nifty100, 977 of 978 fills reconstructing as that day's OPEN to
   within 0.005, with one exception (CHOLAFIN, 2020-05-22) and zero fills
   executing at a close.
 
@@ -305,8 +305,10 @@ def main():
                    + ", ".join(sorted(bad_u)) + ".")
         rc = 1
     else:
-        out.append(f"  RESULT: PASS -- 0 fills executed at a close and 0 fell off "
-                   f"the trading calendar, across {len(res)} universe(s).")
+        out.append(f"  RESULT: PASS -- gated: 0 fills match a close without matching "
+                   f"the open, and 0 fills fall off the trading calendar, on "
+                   f"{len(res)} universe(s) ({', '.join(res)}), v2 arm. Not gated: "
+                   f"that every fill matches the day's open (reported above).")
         rc = 0
     (ROOT / "diagnostics" / "checkB_execution_timing.txt").write_text("\n".join(out) + "\n")
     print("\n".join(out))

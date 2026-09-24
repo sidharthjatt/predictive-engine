@@ -83,7 +83,7 @@ from joblib import Parallel, delayed
 
 from engine_core import _fit_seed, HORIZON, PURGE, PURGE_EMBARGO
 from features_v2 import FEATS_V2
-from universes.registry import REGISTRY
+from universes.registry import REGISTRY, certified
 import measured_universes
 from config import read_table  # the one CSV/parquet reader: config.read_table
 
@@ -109,7 +109,7 @@ OUT = ROOT / "diagnostics" / "purge_mode_probe.txt"
 # MONTHS ARE THIS STUDY'S OWN DATA. Chosen for cut divergence, in BOTH
 # directions, plus months whose cuts coincide, which the run classifies as
 # controls. They describe the probe, not the universe.
-LABELS = {"nifty100": "NIFTY 100", "midcap150": "MIDCAP150"}
+LABELS = {u.tag: u.display_name for u in certified()}
 MONTHS = {
     "nifty100": ["2016-03", "2016-05", "2016-07", "2017-02", "2017-08",
              "2017-12", "2018-04", "2019-02", "2019-05", "2019-09",

@@ -48,9 +48,8 @@ SCOPE: ONE SELECTION PER RUN, AND THAT IS ASSERTED RATHER THAN ASSUMED
     quietly unsatisfiable the way the `u:` defect did for five days.
 
 WHAT THE FROZEN UNIVERSES DO WITH THIS
-    Nothing. 58 and 74 are retired, their artefacts are pinned by SHA-256 in
-    RETIRED_UNIVERSES-manifest.txt, and results/engine_core.py has no cash
-    accrual line to hang a deduction on. run.py refuses --tax on for them, in
+    Nothing. The retired universes were deleted on 2026-09-11, and
+    results/engine_core.py has no cash accrual line to hang a deduction on. run.py refused --tax on for them, in
     the same place and the same shape as the cadence refusal, for the same
     reason cadence.py already writes down. engine_core.py is not edited at all.
 """

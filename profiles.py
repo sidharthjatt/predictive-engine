@@ -40,7 +40,7 @@ WHAT THE CAP MEANS
     need an order-state concept the engine does not have.
 
     Measured consequence, and it is the opposite of the obvious guess: capping
-    INCREASES the mean number of names held (mid v3 7.60 -> 7.72) and REDUCES
+    INCREASES the mean number of names held (midcap150 v3 7.60 -> 7.72) and REDUCES
     cash-short skips (131 -> 123). The cap partially relieves the funding defect
     rather than compounding it.
 

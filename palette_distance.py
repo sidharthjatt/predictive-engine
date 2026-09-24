@@ -19,17 +19,17 @@ WHY THIS IS A TOOL AND NOT A GATE, WHICH WAS A DECISION AND NOT AN OVERSIGHT
     pairs, no new dependency, and that checker already imports the registry
     directly. Two things stopped it.
 
-    THE THRESHOLD IS REVERSE-ENGINEERED, NOT A STANDARD. dE 10 is what n50's
+    THE THRESHOLD IS REVERSE-ENGINEERED, NOT A STANDARD. dE 10 is what nifty50's
     replacement palette was searched against, and it was chosen because it was
-    the highest round number achievable against mid's and n100's tuples WITHOUT
-    MOVING THEM. A gate would write that number down and defend it as though it
+    the highest round number achievable against midcap150's and nifty100's
+    tuples WITHOUT MOVING THEM. A gate would write that number down and defend it as though it
     came from somewhere. It came from the palettes it would be judging.
 
     AND IT WOULD SHIP PRE-FAILED. Three pairs in the current palettes are below
-    it -- mid/v2 vs mid/v1 at 4.24 and n100/v1 vs n100/v3 at 3.26 under
-    deuteranopia, mid/v4 vs n100/bh at 10.75 under protanopia -- so the gate
-    could only be green on the day it landed with an exception list naming all
-    three. A gate whose first commit is its own exception list is a report with
+    it -- midcap150/v2 vs midcap150/v1 at 4.24 and nifty100/v1 vs nifty100/v3 at 3.26
+    under deuteranopia, midcap150/v4 vs nifty100/bh at 10.75 under protanopia --
+    so the gate could only be green on the day it landed with an exception list
+    naming all three. A gate whose first commit is its own exception list is a report with
     a non-zero exit code, and this repository already knows what an exception
     list becomes: somewhere to put the thing you did not want to fix.
 

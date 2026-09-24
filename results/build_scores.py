@@ -21,7 +21,7 @@ source key and the code key. NO FILENAME IS WRITTEN HERE; they are registry attr
 why adding a universe costs no edit to this file.
 
 INVOKED TWICE PER FULL RUN, once per universe, from two PIPELINE_ORDER rows that
-keep their own labels -- STEP 10a for mid, STEP 10e for n100. The labels are not
+keep their own labels -- STEP 10a for midcap150, STEP 10e for nifty100. The labels are not
 renumbered by the merge: a step's name means what it meant in every log written
 before it, the same rule the 2026-09-11 retirement set when it left STEPS 0-9 and
 11-14 as gaps.
@@ -48,7 +48,7 @@ def main(u):
 
 
 if __name__ == "__main__":
-    # STANDALONE, BY TAG. `python3 results/build_scores.py mid` -- the universe is
+    # STANDALONE, BY TAG. `python3 results/build_scores.py midcap150` -- the universe is
     # an argument here too, because there is no longer a file per universe to
     # imply it.
     from universes.registry import REGISTRY

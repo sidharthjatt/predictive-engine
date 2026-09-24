@@ -99,12 +99,12 @@ import pandas as pd                                  # noqa: E402
 import config                                        # noqa: E402
 import engine_core as _ec                            # noqa: E402
 from engine_core import HORIZON, PURGE_EMBARGO       # noqa: E402
-from universes.registry import REGISTRY              # noqa: E402
+from universes.registry import REGISTRY, certified              # noqa: E402
 from config import read_table  # the one CSV/parquet reader: config.read_table
 
-LABELS = {"nifty100": "NIFTY 100", "midcap150": "MIDCAP150"}
+LABELS = {u.tag: u.display_name for u in certified()}
 UNIVERSES = {u.tag: (u.raw_cache, u.purge_mode, LABELS[u.tag])
-             for u in (REGISTRY["nifty100"], REGISTRY["midcap150"])}
+             for u in certified()}
 
 # One seed. The training mask does not depend on the seed list and the fit is
 # stubbed, so more seeds would repeat the same month loop for nothing.
@@ -265,9 +265,11 @@ def main():
         rc = 1
     else:
         per = ", ".join(f"{u} {r['trained']}" for u, r in sorted(res.items()))
-        out.append(f"  RESULT: PASS -- the purge holds in every trained month: "
-                   f"{tot_tr} month-universe pair(s) across "
-                   f"{len(res)} universe(s) ({per}).")
+        out.append(f"  RESULT: PASS -- gated: the gap from the last training row's "
+                   f"label to the first scored date is > 0 trading days in every "
+                   f"trained month, {tot_tr} month-universe pair(s) across "
+                   f"{len(res)} universe(s) ({per}). Gap >= PURGE_EMBARGO is "
+                   f"reported above, not gated.")
         rc = 0
     # naming: axis-free -- one report on the training mask under the live purge
     # rule, covering both universes, which are named inside the file. It varies

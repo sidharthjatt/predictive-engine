@@ -82,8 +82,8 @@ MEMBERSHIP = None
 # rebal_cadence_sweep.py did exactly that with test_exposure.REBAL, which is why
 # cadence is a parameter and not a global. Tradeability is different in kind -- it
 # is a property of a UNIVERSE's raw data, stable for the whole run, like MEMBERSHIP
-# -- but the leak is still real: mid's map left in place while n100 runs would
-# block symbols that do not exist in n100 and silently do nothing, or worse, share
+# -- but the leak is still real: midcap150's map left in place while nifty100 runs
+# would block symbols that do not exist in nifty100 and silently do nothing, or worse, share
 # a ticker. So the tag is stored beside the map and set_tradeability() refuses a
 # mismatch rather than trusting the caller to clear it.
 TRADEABLE = None
@@ -128,9 +128,8 @@ except Exception:
     def calc_tc(price, qty, side):
         return price * qty * 0.0011
 
-# FROZEN: retired universe. TOP_N and BUFFER are defined LIVE in config.py
-# as of 2026-08-29; this line keeps its own literals deliberately so the 58's
-# published numbers cannot move, exactly as the year window does. NOTE that
+# TOP_N and BUFFER are defined LIVE in config.py as of 2026-08-29; this line
+# keeps its own literals, exactly as the year window does. NOTE that
 # validate_sizing.py imports TOP_N from HERE while running on the live
 # universes -- the two definitions agree at 8 and nothing enforces it.
 # See KNOWN_ISSUES.md and experiments/TOPN_SPEC.txt Part A.
@@ -174,7 +173,7 @@ M = config.METRICS_DIR
 #     the book is VALUED at. Leaving open on the raw basis while close moves to the
 #     adjusted one puts the fill and the valuation on two different bases, and the
 #     same-day open->close return is then wrong by exactly (ratio - 1) on every
-#     affected row -- measured across mid and n100: 5,974 rows in full history,
+#     affected row -- measured across midcap150 and nifty100: 5,974 rows in full history,
 #     1,907 inside the backtest window, median |ratio-1| 2.18%, p95 10.5%,
 #     max 150.3%. That is a manufactured P&L on any name filled that morning.
 #
@@ -190,11 +189,8 @@ M = config.METRICS_DIR
 #
 # WHERE THE RATIO IS 1, THE ROW IS UNTOUCHED, BIT FOR BIT
 #     ratio = price / close, and price == close on every fallback row and on every
-#     row where the two columns already agree. In data/raw/nifty50 and
-#     data/raw/Development_data_files adj_close is byte-identical to close on all
-#     284,356 and 183,100 rows, so the ratio is exactly 1.0 everywhere and the 58
-#     and the 74 multiply by a literal 1.0 -- exact in IEEE-754. Their published
-#     numbers cannot move through this function.
+#     row where the two columns already agree. Multiplying by a literal 1.0 is
+#     exact in IEEE-754.
 #
 # THE COUNT IS LOGGED AT RUN TIME
 #     A data refresh that quietly increased the number of unusable adj_close rows
@@ -740,275 +736,3 @@ def score_monthly(raw, seeds, purge=PURGE, purge_mode="trading"):
               f"{_el:.1f} min elapsed, ~{_el / _k * (len(_months) - _k):.1f} min left",
               flush=True)
     return p.drop(columns=["ym"])
-
-
-def main():
-    print("=" * 110)
-    print("FINAL ENGINE -- full comparison + validation")
-    print("=" * 110)
-
-    p = read_table("/tmp/v5_expanding.csv", parse_dates=["date"])
-    px = p.pivot_table(index="date", columns="symbol", values="close").ffill()
-    op = p.pivot_table(index="date", columns="symbol", values="open").ffill()
-    sc = p.pivot_table(index="date", columns="symbol", values="score")
-    bd = px.index[(px.index.year >= BT_START) & (px.index.year <= BT_END)]
-    pc = precompute(px)
-    bh = START_CAPITAL * (1 + px.pct_change().loc[bd].mean(axis=1).fillna(0)).cumprod()
-    mbh = metrics(bh, "Equal-weight buy & hold (58)")
-
-    print("\n" + "=" * 110)
-    print("[1] WHAT EACH COMPONENT ACTUALLY DID")
-    print("=" * 110)
-    eq_eq, tc1, n1, tl1, ap1 = backtest(px, op, sc, bd, pc, sizing="equal")
-    eq_iv, tc2, n2, tl2, ap2 = backtest(px, op, sc, bd, pc, sizing="invvol")
-    comp = pd.DataFrame([metrics(eq_eq, "Equal-rupee (validation engine)", tc1, n1),
-                         metrics(eq_iv, "Inverse-vol (validation engine, cash-based sizing)", tc2, n2), mbh])
-    print(comp.to_string(index=False))
-    print(f"\n    Avg positions: equal {ap1:.1f} | invvol {ap2:.1f}   (must be {TOP_N}.0)")
-    print(f"    Avg holding  : equal {avg_hold(tl1)}d | invvol {avg_hold(tl2)}d")
-    comp.to_csv(M / "FINAL_comparison.csv", index=False)
-
-    print("\n    Tried and REJECTED (with reason):")
-    print("      x N=8              : worst on every seed set (1.04-1.10 vs 1.45-1.66)")
-    print("      x dev selection    : 3 winners across 5 seeds; gap 0.05 < noise 0.08")
-    print("      x slope regime     : 14 fires, 4 correct. COVID: caught crash, missed recovery")
-    print("      x absolute gate    : Sharpe 1.03 -> 0.76. Blocks the mean-reversion edge")
-    print("      x gate ensemble    : Sharpe 0.62. Worse")
-    print("      x dynamic N        : Sharpe 0.51. Too few positions")
-    print("      x monthly vs yearly: 0.03 apart, inside noise. Kept monthly (harmless)")
-
-    print("\n" + "=" * 110)
-    print("[2] VALIDATION -- is inverse-vol real, or cherry-picked?")
-    print("=" * 110)
-    passed = {}
-
-    print("\n  T1. BASELINE CONTROL -- does equal-rupee reproduce engine_v5 exactly?")
-    m1 = comp.iloc[0]
-    # Structural check only: positions == TOP_N means the slot-cap and
-    # buffer logic are intact (this is what caught the old v6 bug). Exact CAGR is
-    # NOT checked -- LightGBM retraining shifts it by +/-0.5% run to run, which is
-    # normal and not a bug.
-    ok1 = (abs(ap1 - float(TOP_N)) < 0.2 and 400 <= m1["Trades"] <= 1400)
-    print(f"      structural target: ~8.0 positions, 680-800 trades")
-    print(f"      got             : CAGR {m1['CAGR%']}%, Sharpe {m1['Sharpe']}, "
-          f"{int(m1['Trades'])} trades, {ap1:.1f} positions")
-    print(f"      (CAGR varies +/-0.5% per retrain -- not checked; structure is)")
-    print(f"      -> {'PASS' if ok1 else 'FAIL -- slot-cap or buffer logic broken'}")
-    passed["T1 baseline control"] = ok1
-
-    print("\n  T2. SEED ROBUSTNESS -- does inv-vol win on OTHER score seeds?")
-    raw = read_table(f"/tmp/raw_panel_{HORIZON}.csv", parse_dates=["date"])
-    t2_rows = []
-    for si, seeds in enumerate([[5, 55, 555], [13, 26, 39], [101, 202, 303]]):
-        cache = Path(f"/tmp/FINAL_seed{si}.csv")
-        if cache.exists():
-            ps = read_table(cache, parse_dates=["date"])
-        else:
-            print(f"      scoring seed set {si+1}/3 ...", flush=True)
-            # FROZEN: engine_core.main() is the retired 58.
-            ps = score_monthly(raw, seeds, purge_mode="calendar")
-            ps[["date", "symbol", "open", "close", "score"]].to_csv(cache, index=False)
-        pxs = ps.pivot_table(index="date", columns="symbol", values="close").ffill()
-        ops = ps.pivot_table(index="date", columns="symbol", values="open").ffill()
-        scs = ps.pivot_table(index="date", columns="symbol", values="score")
-        bds = pxs.index[(pxs.index.year >= BT_START) & (pxs.index.year <= BT_END)]
-        pcs = precompute(pxs)
-        e_e, _, _, _, _ = backtest(pxs, ops, scs, bds, pcs, sizing="equal")
-        e_i, _, _, _, _ = backtest(pxs, ops, scs, bds, pcs, sizing="invvol")
-        me, mi = metrics(e_e, "eq"), metrics(e_i, "iv")
-        t2_rows.append({"seedset": si, "eq_Sharpe": me["Sharpe"], "iv_Sharpe": mi["Sharpe"],
-                        "delta": round(mi["Sharpe"] - me["Sharpe"], 2),
-                        "eq_MaxDD": me["MaxDD%"], "iv_MaxDD": mi["MaxDD%"]})
-        print(f"      seed set {si+1}: equal {me['Sharpe']:.2f} -> invvol {mi['Sharpe']:.2f} "
-              f"(delta {mi['Sharpe']-me['Sharpe']:+.2f}) | MaxDD {me['MaxDD%']:.1f}% -> "
-              f"{mi['MaxDD%']:.1f}%")
-    t2 = pd.DataFrame(t2_rows); t2.to_csv(M / "FINAL_val_seeds.csv", index=False)
-    ok2 = (t2["delta"] > 0).all()
-    print(f"      -> improved on {(t2['delta']>0).sum()}/3 seed sets. "
-          f"{'PASS' if ok2 else 'FAIL -- seed-dependent'}")
-    passed["T2 seed robustness"] = ok2
-
-    print("\n  T3. SUB-PERIOD SPLIT -- works in BOTH halves independently?")
-    t3_rows = []
-    for hname, y0, y1 in [("2019-2022", 2019, 2022), ("2023-2026", 2023, 2026)]:
-        hd = px.index[(px.index.year >= y0) & (px.index.year <= y1)]
-        e_e, _, _, _, _ = backtest(px, op, sc, hd, pc, sizing="equal")
-        e_i, _, _, _, _ = backtest(px, op, sc, hd, pc, sizing="invvol")
-        bhh = START_CAPITAL * (1 + px.pct_change().loc[hd].mean(axis=1).fillna(0)).cumprod()
-        me, mi, mb = metrics(e_e, "eq"), metrics(e_i, "iv"), metrics(bhh, "bh")
-        t3_rows.append({"period": hname, "eq_Sharpe": me["Sharpe"], "iv_Sharpe": mi["Sharpe"],
-                        "bh_Sharpe": mb["Sharpe"], "delta": round(mi["Sharpe"]-me["Sharpe"], 2),
-                        "iv_CAGR": mi["CAGR%"], "bh_CAGR": mb["CAGR%"],
-                        "iv_MaxDD": mi["MaxDD%"], "bh_MaxDD": mb["MaxDD%"]})
-        print(f"      {hname}: equal {me['Sharpe']:.2f} -> invvol {mi['Sharpe']:.2f} "
-              f"(delta {mi['Sharpe']-me['Sharpe']:+.2f}) | buy&hold {mb['Sharpe']:.2f}")
-    t3 = pd.DataFrame(t3_rows); t3.to_csv(M / "FINAL_val_periods.csv", index=False)
-    ok3 = (t3["delta"] > 0).all()
-    print(f"      -> {'PASS' if ok3 else 'FAIL -- only works in one sub-period'}")
-    passed["T3 sub-period"] = ok3
-
-    print("\n  T4. PARAMETER SENSITIVITY -- does the vol window matter?")
-    t4_rows = []
-    for vw in [40, 60, 90, 120]:
-        pcv = precompute(px, vol_win=vw)
-        e_i, tcv, nv, _, _ = backtest(px, op, sc, bd, pcv, sizing="invvol")
-        mi = metrics(e_i, f"vol_win={vw}", tcv, nv)
-        t4_rows.append(mi)
-        print(f"      vol_win={vw:>3}: CAGR {mi['CAGR%']:>6.2f}%  Sharpe {mi['Sharpe']:>5.2f}  "
-              f"MaxDD {mi['MaxDD%']:>7.2f}%")
-    t4 = pd.DataFrame(t4_rows); t4.to_csv(M / "FINAL_val_volwin.csv", index=False)
-    eq_sh = comp.iloc[0]["Sharpe"]
-    ok4 = (t4["Sharpe"] > eq_sh).all()
-    print(f"      -> all four beat equal-rupee ({eq_sh})? "
-          f"{'PASS' if ok4 else 'FAIL -- depends on exact window'}")
-    passed["T4 param sensitivity"] = ok4
-
-    print("\n" + "-" * 110)
-    print("  VALIDATION SUMMARY")
-    print("-" * 110)
-    for k, v in passed.items():
-        print(f"    {'PASS' if v else 'FAIL'}  {k}")
-    all_ok = all(passed.values())
-    print(f"\n    {'ALL PASSED -- inverse-vol is a real effect, not cherry-picking.' if all_ok else 'SOME FAILED -- read the failures before trusting the result.'}")
-
-    print("\n" + "=" * 110)
-    print("[3] LEAKAGE / OVERFIT CHECKLIST")
-    print("=" * 110)
-    # HOW TO READ THIS BLOCK -- added 2026-08-29.
-    # Six rows below used to print a literal "PASS". They were claims recorded
-    # when each property was established, with no dependency on whether it still
-    # holds: if one broke, the row printed the same text. That is a printout
-    # asserting verification it does not perform, and it violated this project's
-    # own rule that every printed verdict is computed from the run that prints
-    # it. The labels now say what they are. The CHECKS ARE STILL NOT
-    # IMPLEMENTED -- see KNOWN_ISSUES.md, which specifies each one.
-    print("\n  HOW TO READ THE LABELS -- exactly ONE row below is computed by this run.")
-    print("    PASS / FAIL              computed by THIS run, from THIS run's result.")
-    print(f"    {NOT_CHECKED:<24} a property established when it was written and")
-    print(f"    {'':<24} recorded here. NOTHING IN THIS RUN RE-TESTS IT, so this")
-    print(f"    {'':<24} row prints the same text whether or not it still holds.")
-    print("    NOT FIXED / NOT MODELLED / PARTIAL")
-    print("                             known limitations, stated as such.")
-    print("\n  results/audit_leakage.py does real leakage work and IS NOT RUN BY THIS")
-    print("  PIPELINE: it is not in run_all.py's PIPELINE_ORDER and no step invokes it.")
-    print(f"\n  The {NOT_CHECKED} rows are specified as real checks in")
-    print("  KNOWN_ISSUES.md, one line each. Implementing them is not done.")
-    checks = [
-        ("Label purging", NOT_CHECKED, "32 days dropped from every train window. Without it dev "
-         "CAGR was 29.77%; with it 24.36%. The 5.4% gap was pure leak."),
-        ("Walk-forward", NOT_CHECKED, "Each month scored by a model trained only on prior data. "
-         "Expanding window. No future data in any fit."),
-        ("Execution timing", NOT_CHECKED, "Signal at close of t, fill at OPEN of t+1. Slippage "
-         "always against the trade. No same-day close execution."),
-        ("Feature causality", NOT_CHECKED, "All 17 features use past prices/volumes only. "
-         "Cross-sectional z-score uses same-day peers -- not time-series leakage."),
-        ("Shuffle test", NOT_CHECKED, "Random scores gave 9.7% CAGR vs 18.5% buy&hold. A mechanical "
-         "backtest bug would have made random look good. It didn't."),
-        ("Baseline control", "PASS" if ok1 else "FAIL", "Structure intact: positions == TOP_N, "
-         "~880 trades (slot-cap + buffer working). This is how the v6 slot-cap bug was caught."),
-        ("Parameter selection", NOT_CHECKED, "Config fixed a priori. Dev selection abandoned after "
-         "stability_test showed 3 winners across 5 seeds (gap 0.05 < noise 0.08)."),
-        ("SURVIVORSHIP BIAS", "NOT FIXED", "Universe = the 58 names in the index TODAY. Names "
-         "dropped 2016-2026 are absent. Strategy and benchmark share it, so the COMPARISON is "
-         "fair -- but BOTH absolute CAGRs are inflated vs what was tradable in real time. "
-         "Needs point-in-time index membership data, which we do not have."),
-        ("Market impact", "NOT MODELLED", "Real Zerodha charges + 0.15% slippage. Adequate at "
-         "Rs 10L in large-caps. Not at institutional size."),
-        ("Variant selection", "PARTIAL", "~20 variants tested across all engines, best reported. "
-         "That is a selection step. Mitigated by the four tests above -- inv-vol holds across "
-         "seeds, sub-periods and parameter values, which cherry-picked results usually do not."),
-    ]
-    for name, status, note in checks:
-        print(f"\n  [{status}] {name}")
-        print(f"          {note}")
-
-    print("\n" + "=" * 110)
-    print("[4] FINAL, FROZEN")
-    print("=" * 110)
-    frozen = {"features": "17, five families, cross-sectionally z-scored",
-              "label": f"{HORIZON}d forward cross-sectional rank",
-              "model": "LightGBM, 10-seed ensemble",
-              "retrain": "monthly, expanding window", "purge_days": PURGE,
-              "rebalance_days": REBAL, "top_n": TOP_N, "buffer_rank": BUFFER,
-              "sizing": "inverse-volatility (weight = 1/vol60)", "vol_window": VOL_WIN,
-              "absolute_gate": "OFF -- cut Sharpe from 1.03 to 0.76",
-              "regime_exit": "OFF -- slope rule right 4 of 14 times",
-              "costs": "real Zerodha + 0.15% slippage, signal at close, fill next open",
-              "how_params_chosen": "a priori by reasoning; dev selection abandoned after "
-                                   "stability_test proved it selects noise"}
-    (M / "FINAL_params.json").write_text(json.dumps(frozen, indent=2))
-    for k, v in frozen.items():
-        print(f"    {k:<20}: {v}")
-
-    fin = metrics(eq_iv, "Validation engine (inverse-vol)", tc2, n2)
-    print("\n" + pd.DataFrame([fin, mbh]).to_string(index=False))
-
-    yr = pd.DataFrame({
-        "Strategy%": (eq_iv.resample("YE").last().pct_change().dropna() * 100).round(1),
-        "BuyHold%": (bh.resample("YE").last().pct_change().dropna() * 100).round(1)})
-    yr.index = yr.index.year
-    yr["Diff"] = (yr["Strategy%"] - yr["BuyHold%"]).round(1)
-    print("\n--- YEAR BY YEAR ---")
-    print(yr.to_string())
-    yr.to_csv(M / "FINAL_yearly.csv")
-    pd.DataFrame({"date": eq_iv.index, "strategy": eq_iv.values,
-                  "equal_rupee": eq_eq.values, "buyhold": bh.values}).to_csv(
-        M / "FINAL_equity.csv", index=False)
-    tl2.to_csv(M / "FINAL_trades.csv", index=False)
-
-    fig, ax = plt.subplots(2, 1, figsize=(13, 9), height_ratios=[2, 1])
-    for s, c, ls, lab in [
-            (eq_iv, "#1f77b4", "-", f"FINAL: inverse-vol sizing  (CAGR {fin['CAGR%']}%, "
-                                    f"Sharpe {fin['Sharpe']}, MaxDD {fin['MaxDD%']}%)"),
-            (eq_eq, "#ff7f0e", "-", f"Equal-rupee sizing  (CAGR {comp.iloc[0]['CAGR%']}%, "
-                                    f"Sharpe {comp.iloc[0]['Sharpe']}, MaxDD {comp.iloc[0]['MaxDD%']}%)"),
-            (bh, "#2ca02c", "--", f"Equal-weight buy & hold  (CAGR {mbh['CAGR%']}%, "
-                                  f"Sharpe {mbh['Sharpe']}, MaxDD {mbh['MaxDD%']}%)")]:
-        ax[0].plot(s.index, (s / s.iloc[0] - 1) * 100, lw=2.2, color=c, ls=ls, label=lab, alpha=.9)
-    ax[0].axhline(0, color="k", lw=.8, alpha=.5)
-    ax[0].set_ylabel("Cumulative return (%)")
-    ax[0].yaxis.set_major_formatter(PercentFormatter(decimals=0))
-    ax[0].set_title("Final: cross-sectional ranking + inverse-volatility sizing\n"
-                    "Monthly retraining, expanding window, purged | real Zerodha costs "
-                    "+ 0.15% slippage", fontsize=11)
-    ax[0].legend(loc="upper left", fontsize=9)
-    ax[0].grid(alpha=.3)
-    for s, c, ls in [(eq_iv, "#1f77b4", "-"), (bh, "#2ca02c", "--")]:
-        ax[1].fill_between(s.index, (s / s.cummax() - 1) * 100, 0, alpha=.3, color=c)
-        ax[1].plot(s.index, (s / s.cummax() - 1) * 100, lw=1.2, color=c, ls=ls)
-    ax[1].set_ylabel("Drawdown (%)")
-    ax[1].yaxis.set_major_formatter(PercentFormatter(decimals=0))
-    ax[1].grid(alpha=.3)
-    plt.tight_layout()
-    plt.savefig(M / "chart_FINAL.png", dpi=150, bbox_inches="tight")
-    print("\n  saved -> chart_FINAL.png")
-
-    print("\n" + "=" * 110)
-    print("NOTE: OFFICIAL NUMBERS come from engine_v2_final.py (portfolio-value sizing).")
-    print("      This file sizes new buys from leftover cash -- fine for seed/sub-period")
-    print("      validation, but its absolute CAGR is NOT the reported figure.")
-    print("VERDICT")
-    print("=" * 110)
-    print(f"  Final     : CAGR {fin['CAGR%']:>6.2f}%  Sharpe {fin['Sharpe']:>5.2f}  "
-          f"MaxDD {fin['MaxDD%']:>7.2f}%  Calmar {fin['Calmar']}")
-    print(f"  Buy & hold: CAGR {mbh['CAGR%']:>6.2f}%  Sharpe {mbh['Sharpe']:>5.2f}  "
-          f"MaxDD {mbh['MaxDD%']:>7.2f}%  Calmar {mbh['Calmar']}")
-    print(f"\n  CAGR   {fin['CAGR%'] - mbh['CAGR%']:+.2f} pts")
-    print(f"  Sharpe {fin['Sharpe'] - mbh['Sharpe']:+.2f}")
-    print(f"  MaxDD  {mbh['MaxDD%'] - fin['MaxDD%']:+.2f} pts better")
-    print(f"  Calmar {fin['Calmar'] - mbh['Calmar']:+.2f}")
-    if (fin["Sharpe"] > mbh["Sharpe"] and fin["CAGR%"] > mbh["CAGR%"]
-            and fin["MaxDD%"] > mbh["MaxDD%"]):
-        print("\n  -> Beats buy & hold on return, Sharpe AND drawdown. All three.")
-        print("     Margins are modest but consistent, and survive all four validation tests.")
-    else:
-        print("\n  -> Does not dominate buy & hold. State that plainly.")
-    print("\n  Always state alongside these numbers:")
-    print("    1. Survivorship bias -- universe is today's 58 names. Both sides inflated.")
-    print("    2. Signal is small (IC 0.036). Real, but small.")
-    print("    3. No market-impact model. Fine at Rs 10L; not at size.")
-    print("\nSaved -> FINAL_*.csv, FINAL_params.json, chart_FINAL.png")
-
-
-if __name__ == "__main__":
-    main()

@@ -168,7 +168,7 @@ def legend_for(arm):
 # THIS CANNOT BE FOUND FROM daily_skipped. The engine skips an order only when the
 # open is NaN or <= 0, and ffill guarantees it is neither -- so the guard never
 # trips and the skip never happens. Measured: "no open price (NaN/<=0)" fires ZERO
-# times across every mid and n100 trail, while PATANJALI's 2019-11-27 SELL of
+# times across every midcap150 and nifty100 trail, while PATANJALI's 2019-11-27 SELL of
 # 33,575 shares filled at 1.1483 on a date with no raw row at all. ffill is
 # precisely what prevents the skip, so surfacing skips can never surface this.
 #
@@ -177,8 +177,8 @@ def raw_row_index(u):
     """{symbol: set of dates that have a RAW price row}, restricted to the calendar.
 
     Dates come from config.read_price_csv, which routes through
-    config.smart_parse_dates -- the 58/74 files and the mid/n100 files use
-    different date formats and a hardcoded strptime silently drops whole universes.
+    config.smart_parse_dates -- the supplier folders do not all use one date
+    format, and a hardcoded strptime silently drops whole universes.
 
     The calendar restriction matters in both directions: 70 of the 148 MidCap150
     files carry market-holiday rows that are not sessions, and counting one of
@@ -795,14 +795,13 @@ def main():
     #
     # THE METRICS DIRECTORY COMES FROM THE UNIVERSE, not from a per-tag
     # `import config_x` under a per-tag `if`. That shape was four hand-written
-    # branches, two of which named the 58 and the 74; when those universes were
-    # deleted the branches would have gone on importing a config module that no
-    # longer exists. u.metrics_dir is the same path the config module defines,
+    # branches, two of them for universes since deleted, which would have gone on
+    # importing a config module that no longer exists. u.metrics_dir is the same path the config module defines,
     # read from the registry entry that already holds it.
     #
-    # SELECTION, NOT REGISTRATION. `--universe 58` leaves 74 registered but
-    # unselected, and this step used to do 74's work anyway -- writing artefacts
-    # for a universe the caller did not ask for. selected_tags() defaults to every
+    # SELECTION, NOT REGISTRATION. `--universe nifty50` leaves seven universes
+    # registered but unselected, and this step used to do their work anyway --
+    # writing artefacts for universes the caller did not ask for. selected_tags() defaults to every
     # registered universe, so a standalone run of this file is unchanged.
     # THE SCANNER LOSES ITS LITERALS HERE, KNOWINGLY. check_pipeline_order used
     # the literal REGISTRY["<tag>"] subscripts to resolve this step's outputs; a

@@ -102,7 +102,7 @@ def equity_path_and_series(M, tag, arm_name):
     both axes and returned None rather than substituting since the profile existed.
     Its docstring records the measured cost of the cadence half: reconciling a
     cadence-40 trail against a cadence-20 curve reported v1 MISMATCH Rs 2,923,934
-    and v2 MISMATCH Rs 1,825,210 on mid. Returning None there made it safe BY
+    and v2 MISMATCH Rs 1,825,210 on midcap150. Returning None there made it safe BY
     DESIGN rather than by accident. This does the same.
 
     None means THIS RUN did not write a curve for this arm. The caller reports that

@@ -27,8 +27,8 @@ THE TRAP THIS SCRIPT EXISTS TO AVOID
     That would also move the monthly walk-forward, refitting the model on the data
     it is being tested against, and section 1 forbids it: "training data
     UNCHANGED". THE SCORE PANEL IS NOT REBUILT, NOT REFITTED, AND NOT TOUCHED. It
-    already covers the held-out sessions -- 575 rows over 6 sessions on n100, 887
-    over 6 on mid -- scored by a walk-forward that stopped where it stopped.
+    already covers the held-out sessions -- 575 rows over 6 sessions on nifty100,
+    887 over 6 on midcap150 -- scored by a walk-forward that stopped where it stopped.
 
     ONLY THE BACKTEST'S DATE INDEX IS EXTENDED. `bd` runs to the last panel date
     instead of to BT_END_DATE. Everything else is the shipping engine's own call.
@@ -331,7 +331,7 @@ def main():
 
     W("  STEP 1 -- COMPUTED FROM SESSIONS ON OR BEFORE 2026-05-29 ONLY")
     W(f"    in-sample sessions pooled : {len(pooled_in):,} "
-      f"(n100 {len(ins['nifty100']):,} + mid {len(ins['midcap150']):,})")
+      f"(nifty100 {len(ins['nifty100']):,} + midcap150 {len(ins['midcap150']):,})")
     W(f"    mu_in                     : {mu_in*bps:+.4f} bps/session "
       f"({mu_in*252*100:+.2f}% annualised)")
     W(f"    sd_in                     : {sd_in*bps:.4f} bps/session")

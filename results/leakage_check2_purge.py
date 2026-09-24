@@ -62,21 +62,21 @@ import numpy as np
 import pandas as pd
 import config
 from engine_core import HORIZON, PURGE
-from universes.registry import REGISTRY
+from universes.registry import REGISTRY, certified
 from config import read_table  # the one CSV/parquet reader: config.read_table
 
 # The RAW PANEL paths -- permanent and working -- come from
 # universes/registry.py, the single definition. Note the working path is the one
-# that nearly follows a filename rule and does not: raw_panel_20.csv on the 58
+# that nearly follows a filename rule and does not: raw_panel_20.csv on a retired universe
 # against raw_panel_midcap150_20.csv here, with permanent copies named
 # raw_panel_cache.csv and raw_panel_midcap150_cache.csv. The registry writes all four
 # out rather than deriving them, for exactly that reason.
 #
 # The LABEL stays local: it is printed into diagnostics/leakage_check2_purge.txt.
 # Order is load-bearing -- the report is written universe by universe.
-LABELS = {"nifty100": "NIFTY 100", "midcap150": "MIDCAP150"}
+LABELS = {u.tag: u.display_name for u in certified()}
 UNIVERSES = {u.tag: (u.raw_cache, LABELS[u.tag])
-             for u in (REGISTRY["nifty100"], REGISTRY["midcap150"])}
+             for u in certified()}
 
 
 def run(uni, perm, label, W):

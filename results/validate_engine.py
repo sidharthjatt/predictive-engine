@@ -1,16 +1,17 @@
 """
 validate_engine.py -- the four-test validation suite, run against the SHIPPING engine.
 =====================================================================================
-    ./venv/bin/python results/validate_engine.py                  # 58 + mid + n100
-    ./venv/bin/python results/validate_engine.py --universe=58    # one universe
+    ./venv/bin/python results/validate_engine.py                     # the certified universes
+    ./venv/bin/python results/validate_engine.py --universe=nifty50  # any registered universe
     ./venv/bin/python results/validate_engine.py --fast           # skip T2 (no scoring)
 
 WHY THIS FILE EXISTS
     The four-test suite (T1 baseline, T2 seed robustness, T3 sub-period, T4 vol-window)
-    lives inside engine_core.main() and tests engine_core.backtest. That is NOT the
-    engine that produces the published numbers -- those come from
-    test_exposure.backtest_exposure. The two disagree by 1.80 CAGR points on the 58
-    (26.42 vs 24.62), for three independent reasons measured on 2026-09-04:
+    lived inside engine_core.main() (deleted 2026-09-24 with the retired universe it
+    served) and tested engine_core.backtest. That is NOT the engine that produces the
+    published numbers -- those come from test_exposure.backtest_exposure. The two
+    disagreed by 1.80 CAGR points on a retired universe (26.42 vs 24.62), for three
+    independent reasons measured on 2026-09-04:
       - sizing base   : cash * 0.98        vs  port_val * exposure * 0.98
       - weight base   : renormalised over new buys  vs  share of the whole book
       - slot cap      : buy at most TOP_N - len(held)  vs  no cap
@@ -25,8 +26,8 @@ WHAT T1 MEANS HERE, AND WHY IT IS NOT THE OLD T1
     engine_core's T1 asserted `abs(mean_positions - TOP_N) < 0.2`, and its comment
     says positions == TOP_N proves "the slot-cap and buffer logic are intact". That
     test is defined in terms of a mechanism the shipping engine deliberately does not
-    have. engine_core caps new buys at TOP_N - len(shares), which on the 58 refused
-    149 of the model's own top-8 picks across 93 rebalances, holding rank-9..16
+    have. engine_core caps new buys at TOP_N - len(shares), which on a retired
+    universe refused 149 of the model's own top-8 picks across 93 rebalances, holding rank-9..16
     incumbents in preference to rank-1..8 entrants.
 
     The shipping engine has no such cap, so its book floats between TOP_N and BUFFER:
@@ -47,11 +48,10 @@ WHAT IS COMPARED, IN EVERY TEST
     separate question with its own validation (validate_breadth_live.py); mixing it
     in here would change what the four tests mean.
 
-THE 58 IS INCLUDED FOR COMPARABILITY, NOT AS A LIVE RESULT
-    It is a retired universe whose score panel was built with the defective calendar
-    purge. It is run so the engine change can be read as the only moving part against
-    engine_core's own published verdicts. mid and n100 are the live universes and are
-    the ones whose verdicts describe what ships.
+WHICH UNIVERSES
+    Every registered universe is a row in universes/registry.py and can be named with
+    --universe. The default is registry.CERTIFIED (nifty100 and midcap150), the
+    universes whose verdicts are published in diagnostics/, run in registry order.
 
 NOTHING PUBLISHED IS OVERWRITTEN
     Outputs use the v2val_ prefix. engine_core's FINAL_val_*.csv are left untouched,
@@ -86,48 +86,24 @@ VOL_WINDOWS = [40, 60, 90, 120]
 HALVES = [("2019-2022", 2019, 2022), ("2023-2026", 2023, 2026)]
 TRADE_BAND = (400, 1400)          # the band engine_core's T1 used; carried over as-is
 
-# One entry per universe. `purge_mode` is per-universe on purpose: the retired 58's
-# panel was built with the defective calendar purge, so its alternate-seed panels must
-# be too or T2 would compare against a differently-purged panel. The live universes
-# take the corrected default.
+# One entry per registered universe, built from universes/registry.py. Nothing
+# here names a universe. The T2 seed caches are keyed by tag under /tmp.
+def _seed_cache(tag):
+    return lambda si, k: Path(f"/tmp/V2VAL_{tag}_seed{si}_{k}.csv")
+
+
 UNIVERSES = {
-    "58": {
-        "label": "58 (retired -- comparability only)",
-        "metrics": config.METRICS_DIR,
-        "perm": config.METRICS_DIR / "v5_expanding_cache.csv",
-        "raw_perm": config.METRICS_DIR / "raw_panel_cache.csv",
-        # engine_core's own T2 wrote these. Reusing them keeps T2 identical to the
-        # old T2 on everything except the engine under test, which is the point.
-        # THE 58 IS UNRUNNABLE AND THIS PATH IS DEAD. The comment above
-        # described reusing engine_core.main()'s own T2 caches; those are
-        # /tmp/FINAL_seed{i}.csv, main() has no caller, and both of its inputs
-        # (/tmp/v5_expanding.csv, /tmp/raw_panel_20.csv) went with the universe
-        # on 2026-09-11. It takes the key for one signature across the table.
-        "seed_cache": lambda si, k: Path(f"/tmp/FINAL_seed{si}_{k}.csv"),
-        "purge_mode": "calendar",
-        "y_end": 2026,
-        "live": False,
-    },
-    "midcap150": {
-        "label": "MidCap150 (live)",
-        "metrics": REGISTRY["midcap150"].metrics_dir,
-        "perm": REGISTRY["midcap150"].score_cache,
-        "raw_perm": REGISTRY["midcap150"].raw_cache,
-        "seed_cache": lambda si, k: Path(f"/tmp/V2VAL_mid_seed{si}_{k}.csv"),
-        "purge_mode": "trading",
+    u.tag: {
+        "label": f"{u.name} (live)",
+        "metrics": u.metrics_dir,
+        "perm": u.score_cache,
+        "raw_perm": u.raw_cache,
+        "seed_cache": _seed_cache(u.tag),
+        "purge_mode": u.purge_mode,
         "y_end": 2026,
         "live": True,
-    },
-    "nifty100": {
-        "label": "Nifty 100 (live)",
-        "metrics": REGISTRY["nifty100"].metrics_dir,
-        "perm": REGISTRY["nifty100"].score_cache,
-        "raw_perm": REGISTRY["nifty100"].raw_cache,
-        "seed_cache": lambda si, k: Path(f"/tmp/V2VAL_n100_seed{si}_{k}.csv"),
-        "purge_mode": "trading",
-        "y_end": 2026,
-        "live": True,
-    },
+    }
+    for u in REGISTRY.values()
 }
 
 
@@ -161,7 +137,7 @@ def sharpe_exact(eq):
 
     EVERY VERDICT IN THIS FILE IS DECIDED ON THIS, NOT ON metrics()["Sharpe"].
     metrics() rounds to 2dp for display. Comparing rounded values makes a verdict
-    depend on which side of a decimal a number falls: on the 58, T4's vol_win=60 arm
+    depend on which side of a decimal a number falls: on a retired universe, T4's vol_win=60 arm
     scores 1.242330 against an equal-rupee reference of 1.240205 -- it BEATS the
     reference by +0.002125, but both round to 1.24 and a rounded ">" therefore
     reports FAIL. engine_core's suite compares rounded values too; it never bit there
@@ -370,21 +346,12 @@ def run_universe(tag, cfg, W, fast=False):
 
 def main():
     fast = "--fast" in sys.argv
-    # THE DEFAULT ITERATES THE LIVE UNIVERSES ONLY, and that is a crash fix, not a
-    # scope change. The retired 58 is first in UNIVERSES and its score panel was
-    # deleted with the universe on 2026-09-11, so `list(UNIVERSES)` made the
-    # default invocation die in require_cache before it reached either live
-    # universe -- measured 2026-09-21, "FileNotFoundError: 58 score panel not
-    # found". This file's own verdict block already calls nifty100 and midcap150
-    # "THE LIVE UNIVERSES ... THE ONES THAT DESCRIBE WHAT SHIPS", so running them
-    # is what the default was for.
-    #
-    # THE 58 ENTRY IS KEPT AND IS STILL REACHABLE by name, `--universe=58`, which
-    # is how a comparability run asks for it. It is skipped by default, not
-    # removed: deleting it would discard the record of what the retired universe
-    # was configured as, and the entry costs nothing while it is not iterated.
-    unis = [u for u in UNIVERSES if f"--universe={u}" in sys.argv] \
-        or [u for u, c in UNIVERSES.items() if c["live"]]
+    # THE DEFAULT IS registry.CERTIFIED, in registry order (midcap150, nifty100),
+    # which is the order this report has always been written in. An unknown tag,
+    # including a retired short tag, exits 2 with the list of valid universes.
+    from universes.registry import CERTIFIED, argv_universes, check_tags
+    unis = check_tags(argv_universes(sys.argv), UNIVERSES) \
+        or [t for t in UNIVERSES if t in CERTIFIED]
     diag = ROOT / "diagnostics"
     diag.mkdir(exist_ok=True)
 

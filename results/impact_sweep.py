@@ -44,7 +44,7 @@ from config import read_table  # the one CSV/parquet reader: config.read_table
 
 K_VALUES = (0.001, 0.002, 0.003, 0.005)
 CAPS = (1.00, 0.10)
-UNIVERSES = ("nifty100", "midcap150")
+from universes.registry import CERTIFIED as UNIVERSES          # noqa: E402
 # The shipping arm: v2 is mode="breadth", sizing="invvol".
 MODE, SIZING = "breadth", "invvol"
 

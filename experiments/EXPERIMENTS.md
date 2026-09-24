@@ -3123,7 +3123,7 @@ was found, and none is alleged.**
 - **NOTHING ABOUT CAPACITY, AND THIS RULE IS THE WORST CASE FOR THE FILL MODEL.**
   An exit sells the entire book in one session, into a falling market, against a
   synthetic `QUOTE_DEPTH` of 10,000,000 shares at flat 15 bps regardless of order
-  size. `diagnostics/liquidity_participation.txt` recorded a mid SELL at
+  size. `diagnostics/liquidity_participation.txt` recorded a midcap150 SELL at
   **1,614.52%** of its symbol's prior-20-day median volume. *Superseded 2026-09-20:
   that fill was AIIL 2021-06-07, and AIIL's price file now begins 2024-04-23, so no
   current `daily_trades` holds it. The largest participation now measured on
@@ -3315,7 +3315,7 @@ is the direct cause of both failures.**
 - **NOTHING ABOUT CAPACITY, AND WHIPSAW MAKES IT WORSE.** 77 full liquidations and
   76 full re-entries, against a synthetic `QUOTE_DEPTH` of 10,000,000 shares at
   flat 15 bps regardless of size, when
-  `diagnostics/liquidity_participation.txt` recorded a mid SELL at **1,614.52%** of
+  `diagnostics/liquidity_participation.txt` recorded a midcap150 SELL at **1,614.52%** of
   its symbol's prior-20-day median volume. *Superseded 2026-09-20: that fill is not
   in any current `daily_trades` (AIIL's data now starts 2024-04-23); the largest on
   midcap150 today is 34.46%, n=1,006 fills.*
@@ -3509,7 +3509,7 @@ reader must not draw one.
 - **Nothing about capacity.** Fills are synthetic against a `QUOTE_DEPTH` of
   10,000,000 shares at flat 15 bps regardless of size, and an exit still sells the
   entire book in one session; `diagnostics/liquidity_participation.txt` recorded a
-  mid SELL at **1,614.52%** of its symbol's prior-20-day median volume. *Superseded
+  midcap150 SELL at **1,614.52%** of its symbol's prior-20-day median volume. *Superseded
   2026-09-20: not in any current `daily_trades` (AIIL's data now starts
   2024-04-23); largest on midcap150 today is 34.46%, n=1,006 fills.*
 - **Nothing about seed stability.** One ten-seed panel. Entry 29 established that
@@ -3728,7 +3728,7 @@ production path changed.**
 **THE DESIGN TESTED.** `make_trading_calendar.py` derived the NSE calendar from
 the **retired 58 universe's** raw files, and `engine_core._load_calendar()` raises
 without that artefact for every universe. **The script was deleted on 2026-09-11,
-commit `2fe48ff`, with the 58 itself** -- after this entry was written, and eight
+commit `2fe48ff`, with the retired universe itself** -- after this entry was written, and eight
 days after the measurement below. The calendar is now frozen tracked source data;
 see `RETIRED_UNIVERSES.md` section 6. Nothing in the measurement changes. The candidate: build the calendar from
 the **selected universe's own files**, and drop any date carried by fewer than a

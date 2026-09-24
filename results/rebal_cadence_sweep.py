@@ -19,7 +19,7 @@ WHY NO REFACTOR WAS NEEDED
 WHY NOT engine_core.backtest, WHICH TAKES rebal AS A PARAMETER
     Because it HAS NO BREADTH MODE -- only sizing="equal"/"invvol", every book
     always-invested -- so it cannot express v2 at all. It is also a different
-    implementation, 1.80 CAGR points from the shipping engine on the 58. See
+    implementation, 1.80 CAGR points from the shipping engine on a retired universe. See
     KNOWN_ISSUES.md, "There are FIVE reimplementations of the backtest, not two".
 
 HOW THE CADENCE IS VARIED WITHOUT EDITING ANY ENGINE
@@ -65,7 +65,7 @@ import pandas as pd
 import config
 import test_exposure
 from test_exposure import backtest_exposure
-from universes.registry import REGISTRY
+from universes.registry import REGISTRY, certified
 import measured_universes
 from engine_core import precompute, metrics
 import profiles as _prof            # the run's execution-realism profile
@@ -137,7 +137,7 @@ AUDIT_KEYS = ("holdings", "summary", "ranking", "decisions", "trades", "skipped"
 #
 # The LABEL stays local: it is printed into diagnostics/rebal_cadence_sweep.txt.
 # Order is load-bearing -- the sweep is reported universe by universe.
-LABELS = {"nifty100": "NIFTY 100", "midcap150": "MIDCAP150"}
+LABELS = {u.tag: u.display_name for u in certified()}
 
 # WHICH UNIVERSES THIS STUDY HAS MEASUREMENTS FOR, DECLARED. It was the pair
 # (REGISTRY["nifty100"], REGISTRY["midcap150"]), written out here, so a third registered
@@ -161,7 +161,7 @@ def load(tag):
     # A SCRIPT THAT RECOMPUTES AND COMPARES AGAINST A PUBLISHED ARTEFACT MUST RUN
     # UNDER THE SAME GUARDS THAT PRODUCED IT. Without this the REBAL=20 control
     # recomputes UNGUARDED and is compared against a GUARDED v34_comparison.csv:
-    # measured, mid v3 AnnVol% 24.89 recomputed against 24.88 published, which
+    # measured, midcap150 v3 AnnVol% 24.89 recomputed against 24.88 published, which
     # tripped "ALL 4 CONTROLS DID NOT REPRODUCE" and correctly refused to quote a
     # single cadence number. The control was right and the harness was stale.
     import engine_core as _ec
@@ -254,8 +254,8 @@ def main():
     w("      CELLS IN THIS GRID MAY BE READ AS AN EFFECT.")
     w()
     w("  (c) NO FLOOR EXISTS FOR MaxDD EITHER. Entry 28's shuffle test could not")
-    w("      distinguish MaxDD from a random-selection null (p 0.37/0.36 on n100,")
-    w("      0.20/0.44 on mid). NO DRAWDOWN DIFFERENCE ACROSS ANY CELLS IN THIS")
+    w("      distinguish MaxDD from a random-selection null (p 0.37/0.36 on nifty100,")
+    w("      0.20/0.44 on midcap150). NO DRAWDOWN DIFFERENCE ACROSS ANY CELLS IN THIS")
     w("      GRID MAY BE READ AS AN EFFECT. Same treatment as Sharpe.")
     w()
     w("  (d) CAGR FLOORS ARE PER ARM AND TWO ARMS HAVE NONE:")
@@ -263,7 +263,7 @@ def main():
         f = SEED_FLOOR[a]
         src = ("measured, entry 29" if f["nifty100"] is not None
                else "NEVER MEASURED -- verdict UNKNOWN, not borrowed")
-        val = (f"n100 {f['nifty100']}  mid {f['midcap150']}" if f["nifty100"] is not None
+        val = (f"nifty100 {f['nifty100']}  midcap150 {f['midcap150']}" if f["nifty100"] is not None
                else "no measurement exists")
         w(f"        {a}   {val:34}  {src}")
     w("      UNKNOWN IS NOT A NEAR-MISS. It means no floor was ever measured for")
@@ -350,8 +350,8 @@ def main():
     w("  A cell is a MEASURED DIFFERENCE only if it is outside a MEASURED floor on")
     w("  BOTH universes with the SAME SIGN. A cell on an arm with no measured floor")
     w("  CANNOT QUALIFY, because there is nothing to compare it against.\n")
-    w(f"  {'arm':4} {'REBAL':>5} | {'n100 dCAGR':>11} {'verdict':>8} | "
-      f"{'mid dCAGR':>10} {'verdict':>8} | status")
+    w(f"  {'arm':4} {'REBAL':>5} | {'nifty100 dCAGR':>14} {'verdict':>8} | "
+      f"{'midcap150 dCAGR':>15} {'verdict':>8} | status")
     qualify, unknown = [], []
     for arm, _, _ in ARMS:
         for c in CADENCES:
@@ -369,11 +369,11 @@ def main():
                 qualify.append((arm, c, da, db))
             else:
                 status = "no"
-            w(f"  {arm:4} {c:5} | {da:+11.2f} {va:>8} | {db:+10.2f} {vb:>8} | {status}")
+            w(f"  {arm:4} {c:5} | {da:+14.2f} {va:>8} | {db:+15.2f} {vb:>8} | {status}")
 
     w(f"\n  CELLS WITH A MEASURED VERDICT ON BOTH UNIVERSES: {len(qualify)}")
     for arm, c, da, db in qualify:
-        w(f"    {arm} REBAL={c}   n100 {da:+.2f}   mid {db:+.2f}   "
+        w(f"    {arm} REBAL={c}   nifty100 {da:+.2f}   midcap150 {db:+.2f}   "
           f"{'BETTER' if da > 0 else 'WORSE'} than its own control on both")
     better = [q for q in qualify if q[2] > 0]
     w(f"    of which BETTER than their own control on both universes: {len(better)}")
@@ -384,7 +384,7 @@ def main():
     w("    All are v3 or v4, which have NO MEASURED FLOOR. Whether any of these is")
     w("    an effect or noise IS NOT ESTABLISHED BY THIS GRID, in either direction.")
     for arm, c, da, db in unknown:
-        w(f"    {arm} REBAL={c}   n100 {da:+.2f}   mid {db:+.2f}   UNKNOWN")
+        w(f"    {arm} REBAL={c}   nifty100 {da:+.2f}   midcap150 {db:+.2f}   UNKNOWN")
 
     # ------------------------------------------- what changed under the correction
     w(f"\n  WHAT THE PER-ARM FLOOR CORRECTION CHANGED, against the earlier run that")
@@ -410,13 +410,13 @@ def main():
             continue
         da = res["nifty100"]["v2"][c]["cagr"] - res["nifty100"]["v2"][CONTROL]["cagr"]
         db = res["midcap150"]["v2"][c]["cagr"] - res["midcap150"]["v2"][CONTROL]["cagr"]
-        w(f"    v2 REBAL={c:<3} n100 {da:+.2f} ({floor_verdict('v2','nifty100',da,False)})"
-          f"   mid {db:+.2f} ({floor_verdict('v2','midcap150',db,False)})")
+        w(f"    v2 REBAL={c:<3} nifty100 {da:+.2f} ({floor_verdict('v2','nifty100',da,False)})"
+          f"   midcap150 {db:+.2f} ({floor_verdict('v2','midcap150',db,False)})")
 
     w(f"\n  CAPACITY IS NOT MEASURED HERE AND BEARS ON EVERY FAVOURABLE CELL.")
     w("  Fills are synthetic against a QUOTE_DEPTH of 10,000,000 shares at flat")
     w("  15 bps slippage regardless of order size. No L2 data exists anywhere in")
-    w("  this project, no market impact, no queue position. mid already has a")
+    w("  this project, no market impact, no queue position. midcap150 already has a")
     w("  measured liquidity problem -- one order reached 1,614% of that symbol's")
     w("  prior 20-day median volume. A CADENCE THAT TRADES DIFFERENTLY IS NOT SHOWN")
     w("  TO BE EXECUTABLE DIFFERENTLY, IN EITHER DIRECTION.")

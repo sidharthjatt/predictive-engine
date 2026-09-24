@@ -122,12 +122,11 @@ def _tick(x, date=None, ref=None):
     return round(round(float(x) / TICK) * TICK, 4)
 
 
-def load_panel(cache_path=None):
+def load_panel(cache_path):
     """The price/score panel every arm runs on. Shared with nt_verify.py so both
-    scripts are provably reading the same input. cache_path selects the universe;
-    the 58 panel stays the default so existing callers are unchanged."""
-    if cache_path is None:
-        cache_path = ROOT / "results" / "metrics" / "v5_expanding_cache.csv"
+    scripts are provably reading the same input. cache_path selects the universe
+    and is required: until 2026-09-24 it defaulted to the retired 58's panel,
+    which no longer exists."""
     p = read_table(cache_path, parse_dates=["date"])
     px = p.pivot_table(index="date", columns="symbol", values="close").ffill()
     op = p.pivot_table(index="date", columns="symbol", values="open").ffill()
@@ -164,8 +163,9 @@ def run(px, op, sc, dates, pc, mom20, size_at_close: bool, tick_round: bool = Fa
     """`holdings_out`, when a dict is passed, is filled with
     {rebalance_date: {symbol: qty}} -- the holdings standing at each decision, which
     is the same quantity the port records in strat.holdings_log and the same one
-    daily_holdings_58.csv reports. It is an out-parameter rather than an extra
-    return value so existing three-value callers keep working."""
+    the reference engine's daily_holdings file reports. It is an out-parameter
+    rather than an extra return value so existing three-value callers keep
+    working."""
     # THE CADENCE, AS AN ARGUMENT. REBAL stays the module DEFAULT and is never
     # reassigned: module_state.py records that rebal_cadence_sweep.py:172 writes
     # test_exposure.REBAL and never restores it, and that every later step then
@@ -304,10 +304,14 @@ if __name__ == "__main__":
     # changes, and a stale number in a verdict is how this project has been misled
     # before. Run it and read the result.
     import nt_run
-    _strat = nt_run.run(str(config.BT_START_DATE.date()), str(config.BT_END_DATE.date()))
+    from universes.registry import CERTIFIED, argv_universes, check_tags
+    _picked = check_tags(argv_universes(sys.argv), nt_run.UNIVERSES)
+    _tag = _picked[-1] if _picked else CERTIFIED[0]
+    _strat = nt_run.run(str(config.BT_START_DATE.date()), str(config.BT_END_DATE.date()),
+                        universe=_tag)
     NAUTILUS_EQUITY = _strat.daily_equity[-1]["equity"]
 
-    px, op, sc, bd, pc, mom20 = load_panel()
+    px, op, sc, bd, pc, mom20 = load_panel(nt_run.UNIVERSES[_tag]["cache"])
 
     print("=" * 74)
     print("ATTRIBUTION TEST -- is the Nautilus gap the known sizing difference?")

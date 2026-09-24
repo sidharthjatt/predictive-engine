@@ -37,10 +37,10 @@ PRICE SOURCE -- this must match the reference engine exactly
     the union of every symbol's dates and is forward filled, so a different set of
     dates shifts what "20 rows back" means for every symbol at once.
 
-    That path is the 58 universe's. There are now four universes and the cache is
-    a PARAMETER -- load_panel(cache_path) -- with the per-universe paths held in
-    nt_run.UNIVERSES. The rule is unchanged whichever universe is loaded: the port
-    reads the same cache its reference engine reads.
+    That path belongs to a retired universe (deleted 2026-09-11). There are now
+    four universes and the cache is a PARAMETER -- load_panel(cache_path) -- with
+    the per-universe paths held in nt_run.UNIVERSES. The rule is unchanged
+    whichever universe is loaded: the port reads the same cache its reference engine reads.
 
     Reading raw CSVs here produced a 6,574-row panel against the engine's 6,322,
     and on 2019-01-01 that gave breadth 27/53 where the engine had 17/53 -- exposure

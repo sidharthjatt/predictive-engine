@@ -12,7 +12,7 @@ THE THREE STATEMENTS ARE KEPT SEPARATE, ON INSTRUCTION
     v3 vs v1   CONFOUNDED, and therefore UNTESTABLE rather than failed. The
                numbers are reported in full with the confound measurements
                beside them, and no verdict is drawn either way.
-    universes  whether n100 and mid agree. Where they disagree, the disagreement
+    universes  whether nifty100 and midcap150 agree. Where they disagree, the disagreement
                is the finding and is reported as such.
 
 Reads only. Writes diagnostics/v34_report.txt.
@@ -28,8 +28,8 @@ sys.path.insert(0, str(ROOT / "results"))
 import config
 from config import read_table  # the one CSV/parquet reader: config.read_table
 
-UNIS = [("nifty100", "Nifty 100", ROOT / "results_nifty100" / "metrics"),
-        ("midcap150", "MidCap150", ROOT / "results_midcap150" / "metrics")]
+from universes.registry import certified  # noqa: E402
+UNIS = [(u.tag, u.name, u.metrics_dir) for u in certified()]
 
 V1 = "v1 invvol, 100% invested"
 V2 = "v2 invvol, breadth-scaled"
@@ -112,8 +112,8 @@ def main():
     W(" [1] v4 vs v2 -- THE ONE CLEAN CONTRAST. THIS GETS A VERDICT.")
     W("=" * 100)
     W(" Both arms are breadth-scaled. They hold the SAME portfolio: 0 of 91")
-    W(" rebalances differ on mid, 4 name-days of about 800 on n100. So the only")
-    W(" material difference between them is the sizing rule, which is what the spec")
+    W(" rebalances differ on midcap150, 4 name-days of about 800 on nifty100. So the")
+    W(" only material difference between them is the sizing rule, which is what the spec")
     W(" set out to measure.")
     W("")
     W(" PREDICTION, quoted from V34_SPEC.txt:")
@@ -202,8 +202,8 @@ def main():
             for tag, (label, c, s) in data.items():
                 signs[tag] = c.loc[b, key] - c.loc[a, key]
             agree = (signs["nifty100"] > 0) == (signs["midcap150"] > 0)
-            W(f"    {lab:<10} {metric:<11} n100 {word(signs['nifty100']):<10} "
-              f"mid {word(signs['midcap150']):<10} -> "
+            W(f"    {lab:<10} {metric:<11} nifty100 {word(signs['nifty100']):<10} "
+              f"midcap150 {word(signs['midcap150']):<10} -> "
               f"{'agree' if agree else 'DISAGREE'}")
 
     out = ROOT / "diagnostics" / "v34_report.txt"

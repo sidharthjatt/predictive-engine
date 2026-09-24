@@ -48,7 +48,8 @@ import tax as _tax
 # non-default name -- every _r40, every _tradeable, every arm suffix -- exactly
 # where it was, because the tax suffix is empty at the default and lands after
 # the other three when it is not. Inserting it anywhere else in this tuple
-# renames artefacts that are pinned by SHA-256 in RETIRED_UNIVERSES-manifest.txt.
+# renames artefacts whose names are recorded by SHA-256 in the retired-universe
+# manifest (deleted 2026-09-24; git show 50562ed:RETIRED_UNIVERSES-manifest.txt).
 AXES = ("arm", "cadence", "profile", "tax")
 
 _SUFFIX = {
@@ -137,7 +138,7 @@ def path_tail(rebal=None):
 #   naming.name / naming.tail             arm, cadence, profile   SOUND
 #   SFX            v34_common.py:300      arm, cadence, profile   SOUND
 #   artefact_tag   audit_step.py:108      arm, cadence, profile   SOUND
-#                                          (arm rides in the tag body: v3 -> mid_v3)
+#                                          (arm rides in the tag body: v3 -> midcap150_v3)
 #   _c             engine_v2_final_mid    cadence, profile        NO ARM
 #   _c             engine_v2_final_n100   cadence, profile        NO ARM
 #   _ci            make_mid_chart         cadence, profile        NO ARM

@@ -1,11 +1,13 @@
 # Nautilus port — current state and what to do next
 
-> **THE 58 AND THE 74 WERE DELETED ON 2026-09-11.** Both universes, their raw
+> **TWO RETIRED UNIVERSES, CALLED RETIRED A AND RETIRED B BELOW, WERE DELETED ON
+> 2026-09-11.** Both universes, their raw
 > data, their registry entries and the 26 scripts that served them are gone from
 > this repository. Every reference to them below is **historical**: it records what
 > was measured and when, and none of it can be re-run. The figures are preserved at
 > full precision, with a SHA-256 manifest of every surviving artefact, in
-> [RETIRED_UNIVERSES.md](../RETIRED_UNIVERSES.md). Where a passage names a deleted file, it is
+> RETIRED_UNIVERSES.md, deleted from the tree on 2026-09-24 and kept in git history
+> (`git show 50562ed:RETIRED_UNIVERSES.md`). Where a passage names a deleted file, it is
 > describing what that file did, not something you can run.
 
 Read this before touching anything under `nautilus/`.
@@ -14,8 +16,9 @@ Read this before touching anything under `nautilus/`.
 
 `results/` holds the **reference engine**: a cross-sectional LightGBM ranking
 system for Indian equities. It is finished, validated and reproducible. Its
-official numbers are CAGR 13.16%, Sharpe 1.11, MaxDD −18.22%, final equity
-Rs 25,09,835 from Rs 10,00,000 over 2019–2026, on a 58-stock universe.
+official numbers are in README.md, "Results"; the figures this paragraph used to
+quote (CAGR 13.16%, Sharpe 1.11, MaxDD −18.22%) were for a retired 58-stock
+universe, deleted 2026-09-11, and are superseded.
 
 > **These numbers changed on 2026-08-13.** Everything previously reported
 > (CAGR 16.45%, Sharpe 1.36, MaxDD −17.09%, final equity Rs 31,01,677) was
@@ -28,9 +31,9 @@ Rs 25,09,835 from Rs 10,00,000 over 2019–2026, on a 58-stock universe.
 >
 > | universe | CAGR | Sharpe |
 > |---|---|---|
-> | 58  | 16.45% → **13.16%** (−3.29) | 1.36 → **1.11** (−0.25) |
-> | 74  | 14.65% → **15.22%** (+0.57) | 1.27 → **1.35** (+0.08) |
-> | mid | 9.06% → **27.34%** (+18.28) | 1.63 → **1.70** (+0.07) |
+> | retired A | 16.45% → **13.16%** (−3.29) | 1.36 → **1.11** (−0.25) |
+> | retired B | 14.65% → **15.22%** (+0.57) | 1.27 → **1.35** (+0.08) |
+> | midcap150 | 9.06% → **27.34%** (+18.28) | 1.63 → **1.70** (+0.07) |
 >
 > The fix was verified not to alter any value it should not: where both old and
 > new are defined the max absolute difference is 5.2e-13 (`beta_60`) and 3.3e-15
@@ -38,14 +41,14 @@ Rs 25,09,835 from Rs 10,00,000 over 2019–2026, on a 58-stock universe.
 > exactly 0.000e+00. The movement comes entirely from 68,260 rows that now clear
 > `dropna` and enter training — a larger training set, not changed values.
 >
-> Read plainly: at 13.16% the 58 strategy is 2.2 points ahead of NIFTY100
+> Read plainly: at 13.16% the retired A strategy is 2.2 points ahead of NIFTY100
 > (10.93%) and **5.5 points behind an equal-weight buy&hold of its own universe**
 > (18.65%).
 
 `nautilus/` holds a **port of the execution layer only** into NautilusTrader
 1.228. No model is trained inside Nautilus. The research pipeline runs offline
 exactly as before and exports `date | symbol | score` to
-`nautilus/data/scores_58.parquet`. That parquet is the only channel between
+`nautilus/data/scores_<tag>.parquet`. That parquet is the only channel between
 research and execution.
 
 The goal of the port is **not** better performance. It is to run the same
@@ -94,34 +97,33 @@ things, neither of which is a bug:
 **Universe verification history:**
 
 > **CORRECTION, 2026-08-27 — this table said "All three universes are verified
-> the same way" and listed 58, 74 and mid as though all three were current. Two
-> things were wrong with that.**
+> the same way" and listed retired A, retired B and midcap150 as though all three
+> were current. Two things were wrong with that.**
 >
-> **1. 58 and 74 are retired, not current.** Both were dropped from the project
-> during EXP18 — recorded in `experiments/EXPERIMENTS.md` ("58 and 74 were
-> dropped from the project during EXP18") and in
+> **1. Retired A and retired B are retired, not current.** Both were dropped from
+> the project during EXP18 — recorded in `experiments/EXPERIMENTS.md` and in
 > `results/make_combined_n100_mid.py` ("Project scope narrowed to Nifty 100 and
-> MidCap150"). Neither has a `nautilus/reports/` directory any more; only `mid/`
-> and `n100/` exist. **Their rows are kept below, because the verification
+> MidCap150"). Neither has a `nautilus/reports/` directory any more; the
+> directories there are named by full universe tag (`midcap150/`, `nifty100/`, ...). **Their rows are kept below, because the verification
 > history is evidence and deleting it would destroy the record of what was proven
 > and when.** They are marked RETIRED so nobody reads them as current.
 >
-> **2. n100 was missing entirely**, despite being one of the two live universes.
+> **2. nifty100 was missing entirely**, despite being one of the two live universes.
 > It is added below — but **with no numbers**, because none are recorded. The
 > three `diagnostics/nt_verify_*.txt` artefacts and
-> `diagnostics/task3_ntverify.txt` all cover 58, 74 and mid only; no artefact
-> anywhere in the project contains an n100 verification result. A verification
+> `diagnostics/task3_ntverify.txt` all cover retired A, retired B and midcap150 only;
+> no artefact anywhere in the project contains a nifty100 verification result. A verification
 > run WAS performed on 2026-08-23 and reported VERIFIED, but its output was never
 > written to a project artefact, so there is nothing on disk to cite and the
 > numbers are deliberately NOT reproduced from memory. **Re-run
-> `nt_verify.py --universe=n100` and capture the output to `diagnostics/` before
+> `nt_verify.py --universe=nifty100` and capture the output to `diagnostics/` before
 > filling that row in.**
 >
 > How both were found: a read-only audit of the Nautilus layer on 2026-08-23
 > traced the reports directories and the universe scope, and this table was the
 > only place still presenting the retired pair as live.
 
-> **RESOLVED, 2026-08-27 — n100 is now recorded, and it is VERIFIED.**
+> **RESOLVED, 2026-08-27 — nifty100 is now recorded, and it is VERIFIED.**
 >
 > `nt_verify.py --universe=n100` was run on **2026-08-27 at 17:02** and the
 > complete output captured to **`diagnostics/nt_verify_n100.txt`** (58 lines).
@@ -132,7 +134,7 @@ things, neither of which is a bug:
 > Verdict as printed: **VERIFIED. On a 0.01 tick grid the port and the
 > open-valued reference agree on every holding at every rebalance.**
 >
-> Worth reading alongside the row: at the traded 0.05 grid, n100 matches the
+> Worth reading alongside the row: at the traded 0.05 grid, nifty100 matches the
 > close-valued reference on only **2 of 93** rebalances, with a max quantity
 > error of **14.29%**. That is the expected consequence of the two documented
 > differences — close-valued sizing and tick-snapped floor division — and it is
@@ -167,26 +169,26 @@ things, neither of which is a bug:
 
 | universe | disposition | certified | rebalances | fills (informational, not a gate) | symbol-set diffs | ARM A control | ARM D @0.05 | 0.01-tick reconciliation |
 |---|---|---|---|---|---|---|---|---|
-| mid  | **STALE, RE-RUNNABLE** | 2026-08-27 | 93/93 | 985/985 | 0 | 93 of 93 | 92 of 93 | 93 of 93 as certified |
-| n100 | **STALE, RE-RUNNABLE** | 2026-08-27 17:02 | 93/93 | 997/997 | 0 | 93 of 93 | 89 of 93 | 93 of 93 as certified |
-| 58   | **TERMINAL — NOT RE-DERIVABLE** | 2026-08-27 | 93/93 | 929/929 | 0 | 93 of 93 | 93 of 93 | 93 of 93 as certified |
-| 74   | **TERMINAL — NOT RE-DERIVABLE** | 2026-08-27 | 87/87 | 883/883 | 0 | 87 of 87 | 86 of 87 | 87 of 87 as certified |
+| midcap150 | **STALE, RE-RUNNABLE** | 2026-08-27 | 93/93 | 985/985 | 0 | 93 of 93 | 92 of 93 | 93 of 93 as certified |
+| nifty100 | **STALE, RE-RUNNABLE** | 2026-08-27 17:02 | 93/93 | 997/997 | 0 | 93 of 93 | 89 of 93 | 93 of 93 as certified |
+| retired A | **TERMINAL — NOT RE-DERIVABLE** | 2026-08-27 | 93/93 | 929/929 | 0 | 93 of 93 | 93 of 93 | 93 of 93 as certified |
+| retired B | **TERMINAL — NOT RE-DERIVABLE** | 2026-08-27 | 87/87 | 883/883 | 0 | 87 of 87 | 86 of 87 | 87 of 87 as certified |
 
 **THE FOUR ROWS ARE NOT ONE KIND OF CLAIM, AND THE WORD "VERIFIED" MADE THEM LOOK
 LIKE ONE.** It has been removed from all four. What each row now says:
 
-**58 and 74 — TERMINAL.** Certified 2026-08-27 against the window
+**Retired A and retired B — TERMINAL.** Certified 2026-08-27 against the window
 2019-01-01 → 2026-06-08 (1,842 trading days), on the panels of the time.
 **Their inputs were deleted on 2026-09-11** — both universes, their raw price
 data and their frozen axis. **These figures cannot be re-derived by anything in
 this repository, now or later.** They are a historical record of what was proven
 and when; they are not a property of the current pipeline and no current claim
-may rest on them. The full disposition is in `RETIRED_UNIVERSES.md`, which is
-where terminal records for these two live.
+may rest on them. The full disposition is in `RETIRED_UNIVERSES.md`, deleted from
+the tree on 2026-09-24 and kept in git history (`git show 50562ed:RETIRED_UNIVERSES.md`).
 
-**mid and n100 — STALE, RE-RUNNABLE.** The figures above are what these universes
+**midcap150 and nifty100 — STALE, RE-RUNNABLE.** The figures above are what these universes
 were certified against on 2026-08-27, transcribed from `diagnostics/` artefacts
-(n100 from `nt_verify_n100.txt`, captured 17:02). They are **not** a statement
+(nifty100 from `nt_verify_n100.txt`, captured 17:02). They are **not** a statement
 about the engine as it stands today: the price basis became `adj_close` after
 they were taken, and the published figures moved when it did. The inputs still
 exist, so unlike the pair above these can be re-established by re-running
@@ -200,9 +202,9 @@ the new figure would be stale by construction the moment it landed. The naming
 authority closes that first. See `naming_declare_check.py`, where this site is
 declared DEFECT and fails the check until it is fixed.
 
-### The bar tick was a bug, and removing it is what verified mid
+### The bar tick was a bug, and removing it is what verified midcap150
 
-mid previously reconciled at only 49 of 93 on the 0.01 grid, and that was blamed
+midcap150 previously reconciled at only 49 of 93 on the 0.01 grid, and that was blamed
 on tick granularity being coarser in relative terms on cheap names. It was not.
 The cause was that `nt_data.py` snapped the daily bar's OHLC to the tick grid
 before handing it to the strategy. A tick governs the price an order may be
@@ -214,7 +216,7 @@ therefore perturbed, on exactly the sub-Rs-10 names where the mismatches sat.
 
 The bar now carries the raw price and the quote keeps its tick. Measured effect:
 
-| | 58 | 74 | mid |
+| | retired A | retired B | midcap150 |
 |---|---|---|---|
 | 0.01 reconciliation, before | 93/93 | 87/87 | **49/93** |
 | 0.01 reconciliation, after  | 93/93 | 87/87 | **93/93** |
@@ -223,13 +225,13 @@ The bar now carries the raw price and the quote keeps its tick. Measured effect:
 | final equity, before | 3,236,149.21 | 2,858,906.90 | 6,805,825.55 |
 | final equity, after  | 3,236,727.28 | 2,859,300.28 | 6,807,127.33 |
 
-58 and 74 moved by +0.018% and +0.014%. They were expected not to, on the premise
-that they hold nothing cheap enough for the effect to bite; that premise was
-wrong. 58 holds 13 names under Rs 10 over 7,672 held-days, where one 0.05 tick is
+Retired A and retired B moved by +0.018% and +0.014%. They were expected not to,
+on the premise that they hold nothing cheap enough for the effect to bite; that
+premise was wrong. Retired A held 13 names under Rs 10 over 7,672 held-days, where one 0.05 tick is
 1.09% of price. The movement is the bug being removed from those names, and the
 0.01 reconciliation for both is unchanged at 93/93 and 87/87.
 
-`PRICE_PRECISION` went from 2 to 6 at the same time, because 10.7% of the mid
+`PRICE_PRECISION` went from 2 to 6 at the same time, because 10.7% of the midcap150
 panel's prices carry more than two decimals and would otherwise be re-rounded by
 the formatter. That change was measured separately and moves nothing: at legacy
 bar-tick the equity is identical to the paisa at precision 2 and precision 6.
@@ -264,15 +266,15 @@ for its universe, and prints the path it wrote to. Current row counts:
 
 | universe | orders.csv | fills.csv | positions.csv |
 |---|---|---|---|
-| 58  | 929 | 929 | 469 |
-| 74  | 883 | 883 | 446 |
-| mid | 985 | 985 | 497 |
+| retired A | 929 | 929 | 469 |
+| retired B | 883 | 883 | 446 |
+| midcap150 | 985 | 985 | 497 |
 
 This used to be a single shared `reports/` directory. A verification loop over the
 three universes therefore left only the LAST one on disk, having silently overwritten
 the other two — the files looked current while describing a run nobody had asked
-about. For a period, `reports/` held mid's 985 fills and 124 midcap symbols while
-appearing to be the 58's output.
+about. For a period, `reports/` held midcap150's 985 fills and 124 midcap symbols while
+appearing to be retired A's output.
 
 ### `orders.csv` CANNOT show a DENIED, CANCELED or REJECTED order
 
@@ -430,4 +432,4 @@ make a result pass.
 - Ask before deleting or changing anything.
 - Write the accept/reject rule **before** running a test, then look at the result.
 - Never introduce look-ahead, leakage or an assumption that flatters the result.
-- `results/` and `results74/` are the reference. Read them; never write to them.
+- `results/` is the reference. Read them; never write to them.

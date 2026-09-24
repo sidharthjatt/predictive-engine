@@ -57,8 +57,8 @@ RATIOS = [1.0, 1.5, 2.0, 3.0]
 BASE = (8, 16)          # the incumbent, TOP_N=8 at the 2.0x ratio
 
 UNIV = [
-    ("mid 2019", "midcap150", 2019, 2026),
-    ("mid 2016", "midcap150", 2016, 2026),
+    ("midcap150 2019", "midcap150", 2019, 2026),
+    ("midcap150 2016", "midcap150", 2016, 2026),
 ]
 
 

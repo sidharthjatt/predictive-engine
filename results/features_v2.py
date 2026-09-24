@@ -42,7 +42,7 @@ FEATS_V2 = [
 
 
 # Daily-return bounds beyond which a move is treated as a DATA ARTEFACT, not a
-# price move. Measured on the 58: 32 returns across 10 symbols exceed these, and
+# price move. Measured on a retired universe: 32 returns across 10 symbols exceed these, and
 # 29 of the 32 fall on the 1st to 3rd of a month -- the signature of a series
 # stitched across sources or frequencies, not of clean corporate actions.
 #

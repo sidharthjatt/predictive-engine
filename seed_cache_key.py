@@ -12,7 +12,10 @@ change. A cache written by any earlier engine against any earlier panel landed o
 the path a later run reads and was read back as current, with no warning.
 
     validate_sizing  /tmp/VALSIZE_{universe}_seed{i}.csv     found 2026-09-22
-    validate_engine  /tmp/V2VAL_{mid,n100}_seed{i}.csv       found 2026-09-22
+    validate_engine  /tmp/V2VAL_{tag}_seed{i}.csv            found 2026-09-22
+
+Both now carry the key in the name: /tmp/VALSIZE_{universe}_seed{i}_{key}.csv and
+/tmp/V2VAL_{tag}_seed{i}_{key}.csv.
 
 The first was fixed with a private copy of this logic. The second needed the same
 thing, and a second copy is how this repository already lost four tables to

@@ -3,11 +3,10 @@ build_scores_step.py -- the raw panel and monthly score panel, once, for any uni
 ======================================================================================
 
 WHAT THIS REPLACES
-    Four files carried the same body: build_scores.py (58), build_scores74.py (74),
-    build_scores_mid.py and build_scores_n100.py. Each said so in its own docstring
-    -- "A copy of build_scores.py", "A copy of build_scores74.py", "A copy of
-    build_scores_mid.py" -- a chain of copies, each one universe further from the
-    original.
+    Four files carried the same body: two retired-universe scripts (deleted 2026-09-11),
+    build_scores_mid.py and build_scores_n100.py. Each said in its own docstring that
+    it was a copy of the one before it -- a chain of copies, each one universe
+    further from the original.
 
     Every difference between them is a universe property universes/registry.py
     records:
@@ -20,7 +19,7 @@ WHAT THIS REPLACES
         symbol check     u.symbols()
 
 THE PURGE MODE IS A PROPERTY OF THE UNIVERSE, NOT OF THIS FILE
-    The deleted 58 and 74 were scored with purge_mode="calendar", which
+    The two deleted retired universes were scored with purge_mode="calendar", which
     engine_core.score_monthly documents as DEFECTIVE -- it underflows on a holiday
     cluster. They kept it because they were frozen and their published numbers
     could not move. Every remaining universe takes the corrected "trading" value.
@@ -31,7 +30,7 @@ THE PURGE MODE IS A PROPERTY OF THE UNIVERSE, NOT OF THIS FILE
     u.purge_mode, so the setting travels with the universe rather than with
     whichever file happens to score it.
 
-    mid and n100 must resolve "trading". That is
+    midcap150 and nifty100 must resolve "trading". That is
     asserted explicitly, per universe, rather than left to be inferred.
 
 SEEDS ARE UNIVERSE-INVARIANT

@@ -13,10 +13,11 @@ WHY THIS EXISTS
     finding all nineteen.
 
     This module is that definition, once. It began as a DECLARATIVE reader of the
-    existing config modules; at step 7 it absorbed them, and config_mid.py and
-    config_n100.py were deleted in the same commit. Nothing about any path changed
-    in the move -- the values below are the values those files computed, and every
-    artefact was checksummed pre/post on the same panel to prove it.
+    existing config modules; at step 7 it absorbed them, and the midcap150 and
+    nifty100 config modules were deleted in the same commit. Nothing about any
+    path changed in the move -- the values below are the values those files
+    computed, and every artefact was checksummed pre/post on the same panel to
+    prove it.
 
 A UNIVERSE IS NOW ONE ROW HERE, AND THAT IS HOW IT IS REMOVED
     It used to be removable by deleting its config module, and _optional() existed
@@ -27,38 +28,29 @@ A UNIVERSE IS NOW ONE ROW HERE, AND THAT IS HOW IT IS REMOVED
     reach another -- is what the registry exists to prevent, and it still holds.
 
     DELETING A UNIVERSE'S DATA DOES NOT REMOVE THE UNIVERSE, and it did not before
-    either: config_mid.py globbed a directory that might not exist, got an empty
-    symbol list, and imported fine. A row whose data is gone is a registered
-    universe with no symbols, which is a broken checkout rather than a removal.
+    either: the midcap150 config module globbed a directory that might not
+    exist, got an empty symbol list, and imported fine. A row whose data is
+    gone is a registered universe with no symbols, which is a broken checkout
+    rather than a removal.
 
-WHAT IS DELIBERATELY NOT DERIVED BY FORMULA
-    The cache filenames look like they follow a rule -- v5_expanding /
-    v74_expanding / v_mid_expanding -- but they do not, quite: the raw panel is
-    `raw_panel_20.csv` on the 58 and `raw_panel74_20.csv` on the 74, while its
-    permanent copy is `raw_panel_cache.csv` and `raw_panel74_cache.csv`. A clever
-    stem rule would reproduce three of the four and silently invent the fourth.
-    They are written out per universe instead, because a wrong path that LOOKS
-    derived is worse than four explicit strings.
+config.RAW_DATA_DIR IS THE PARENT OF EVERY UNIVERSE'S FOLDER
+    `config.RAW_DATA_DIR` is data/raw, which holds every universe's source
+    folder. Pointing a panel build at it would sweep in every universe at once,
+    which is one reason engine_core.build_panel takes data_dir with no default.
 
-THE 58's DATA DIRECTORY IS NOT config.RAW_DATA_DIR
-    engine_core.build_panel defaults to `config.RAW_DATA_DIR / "nifty50"`, which
-    holds the 58 CSVs; `config.RAW_DATA_DIR` itself is the parent and contains the
-    other universes' folders. Pointing a panel build at the parent would sweep in
-    every universe at once.
-
-    Note also that `config.SYMBOLS` is NOT the 58's symbol list -- it holds five
-    names, is used nowhere, and is vestigial. The 58 is defined by its directory,
-    which is why `symbols()` returns None for it: there is no authoritative list
-    to check a built panel against, unlike mid and n100.
+    `config.SYMBOLS` is not any universe's symbol list -- it holds five names,
+    is used nowhere, and is vestigial. A universe's names are the symbol_list on
+    its row.
 
 THERE IS NO `frozen` FLAG ANY MORE, DELIBERATELY
-    The 58 and the 74 carried `frozen=True`, which pinned purge_mode="calendar",
-    value_at_open=False and a year-cut window so their published numbers could not
-    move. Both universes were deleted on 2026-09-11 and the flag went with them
-    rather than being kept "for the next retirement": an axis that is defined but
-    drives nothing reads as live to the next person. If a universe needs freezing
-    again, the field comes back then, with a universe actually setting it.
-    See RETIRED_UNIVERSES.md.
+    Two retired universes carried `frozen=True`, which pinned
+    purge_mode="calendar", value_at_open=False and a year-cut window so their
+    published numbers could not move. Both were deleted on 2026-09-11 and the
+    flag went with them rather than being kept "for the next retirement": an
+    axis that is defined but drives nothing reads as live to the next person.
+    If a universe needs freezing again, the field comes back then, with a
+    universe actually setting it. See git history
+    (git show 50562ed:RETIRED_UNIVERSES.md).
 """
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -75,9 +67,7 @@ if str(ROOT) not in sys.path:
 # config IS NOT A UNIVERSE'S CONFIG, IT IS THE PROJECT'S -- BT_START_DATE,
 # BT_END_DATE, read_price_csv and require_cache all live in it and every universe
 # uses them. Its absence is a broken checkout, not a universe removal, so it is
-# imported unconditionally and fails loudly. (It also happens to hold the retired
-# 58's paths; removing the 58 means dropping its entry below, not deleting
-# config.py.)
+# imported unconditionally and fails loudly.
 import config
 
 HORIZON = 20          # engine_core.HORIZON; repeated here only to name the caches
@@ -99,8 +89,8 @@ def normalise_stem(stem):
     same index with spaces -- "NIFTY MIDCAP 150.csv", "NIFTY 100.csv" -- where
     this repository's own folders spelled it "NIFTYMIDCAP150.csv" and
     "NIFTY100.csv". Measured against the new folders before the change:
-    _constituents(new_mid, "NIFTYMIDCAP150") returned 149 names and
-    _constituents(new_n100, "NIFTY100") returned 100, each with the index among
+    _constituents(new_midcap150, "NIFTYMIDCAP150") returned 149 names and
+    _constituents(new_nifty100, "NIFTY100") returned 100, each with the index among
     them, AND BOTH ASSERTS IN prepare_data_dir() PASSED -- the second one looks
     for the old spelling, which genuinely is not present, so the guard was
     satisfied by the very rename it exists to catch.
@@ -126,9 +116,9 @@ def _constituents(raw_dir, index_name):
     benchmark. The exclusion is BY NAME, never by position and never by a bare
     glob, and prepare_data_dir() asserts it rather than assuming it.
 
-    A MISSING DIRECTORY YIELDS (), NOT AN ERROR, which is what config_mid.py and
-    config_n100.py did at import: Path.glob on a directory that does not exist
-    simply produces nothing. See the module docstring on why that is a broken
+    A MISSING DIRECTORY YIELDS (), NOT AN ERROR, which is what the midcap150
+    and nifty100 config modules did at import: Path.glob on a directory that
+    does not exist simply produces nothing. See the module docstring on why that is a broken
     checkout rather than a universe removal.
     """
     files = sorted(raw_dir.glob("*.csv"))
@@ -179,7 +169,7 @@ class Universe:
     Field names are chosen to be readable rather than to match any one of the
     nineteen existing vocabularies -- matching one would misdescribe the others.
     """
-    tag: str                      # "58" | "74" | "mid" | "n100"
+    tag: str                      # "nifty100", "midcap150", ... -- see REGISTRY
     label: str                    # for chart titles and report headers; "{n}" is the count
     metrics_dir: Path             # where this universe's artefacts live
     nautilus_scores: str          # parquet filename under nautilus/data/
@@ -190,18 +180,19 @@ class Universe:
     # index at all. index_name has always recorded that a universe HAS one; this
     # records WHERE it is, so a step that plots the cap-weighted benchmark can ask
     # the universe instead of importing that universe's config module by name.
-    # None for the retired 58 and 74: they are directory-defined baskets with no
-    # published index series, which is a fact about them and not a missing path.
+    # None for a universe with no published index series: a directory-defined
+    # basket, which two retired universes were. That is a fact about such a
+    # universe and not a missing path.
     index_file: Optional[Path]
     year_range: Optional[Tuple[int, int]]      # retired universes cut by year; None here
     date_range: Optional[Tuple[object, object]]  # live universes cut by date
 
     # THE SOURCE FOLDER AS DELIVERED -- constituents AND the published index in one
-    # directory. Arrived at step 7 from RAW_DATA_DIR_MID / RAW_DATA_DIR_N100. It is
+    # directory. Arrived at step 7 from the midcap150 and nifty100 config modules. It is
     # NOT data_dir: data_dir is what build_panel may be pointed at, and pointing it
     # here would sweep the index in as one more tradable name.
     #
-    # None MEANS THE DIRECTORY IS THE DEFINITION, which is the retired 58 and 74:
+    # None MEANS THE DIRECTORY IS THE DEFINITION, as on two retired universes:
     # a basket with no published index and no authoritative symbol list, where
     # data_dir simply exists and symbols() answers None. That shape is kept
     # expressible because it was a real shape, not because a universe uses it now.
@@ -225,18 +216,19 @@ class Universe:
     # constituents only -- not without survivorship BIAS.
     #
     # NOT DERIVED FROM, AND DOES NOT DERIVE, the SURVIVORSHIP: sentences in
-    # chart_text and engine_text. Those interpolate live run values (mid's n_late)
-    # and carry a per-universe benchmark carve-out (n100's cap-weighted index),
-    # so a shared static string would either drop the computed figure or become a
-    # template -- and a template with run-time interpolation stops being a
+    # chart_text and engine_text. Those interpolate live run values (midcap150's
+    # n_late) and carry a per-universe benchmark carve-out (nifty100's cap-weighted
+    # index), so a shared static string would either drop the computed figure or
+    # become a template -- and a template with run-time interpolation stops being a
     # declaration. ONE AUTHORITY, TWO RENDERINGS: this field is the declaration and
     # is what fails the build; those are rendered prose for their own figures. If
     # they are ever unified, the chart text CITES this field rather than restating
     # it, and that is separate work.
     survivorship: str
     # THE TRADABLE NAMES, SORTED, INDEX EXCLUDED. Computed by _constituents() when
-    # the row is built -- eagerly, exactly as config_mid.SYMBOLS_MID was computed
-    # at config import -- so a mid-run change to the source folder cannot move it.
+    # the row is built -- eagerly, exactly as the midcap150 config module
+    # computed its symbol list at import -- so a mid-run change to the source
+    # folder cannot move it.
     # () when raw_data_dir is None.
     symbol_list: Tuple[str, ...]
 
@@ -301,8 +293,8 @@ class Universe:
     # WHAT THIS UNIVERSE'S SURVIVORSHIP COSTS, IN ITS OWN WORDS. Added
     # 2026-09-18, and it is a FIELD rather than a shared paragraph because the
     # shared one was written for a midcap universe and printed on every chart:
-    # n50's run said "midcaps that FELL OUT of the index ... midcap churn is far
-    # higher than large-cap churn" under a Nifty 50 heading. n100's says it too,
+    # nifty50's run said "midcaps that FELL OUT of the index ... midcap churn is far
+    # higher than large-cap churn" under a Nifty 50 heading. nifty100's says it too,
     # and always has.
     #
     # CONSOLE OUTPUT, NOT THE PNG. The subtitle that reaches the image is
@@ -317,8 +309,8 @@ class Universe:
     # ------------------------------------------------------------------
     # WHAT THE ENGINE REPORTS FOR THIS UNIVERSE
     # ------------------------------------------------------------------
-    # Added 2026-09-15 with step 5, the engine merge. engine_v2_final_mid.py and
-    # engine_v2_final_n100.py had diverged in 95 lines of code beyond their tags --
+    # Added 2026-09-15 with step 5, the engine merge. The midcap150 and nifty100
+    # engine scripts had diverged in 95 lines of code beyond their tags --
     # unlike the step 3 and step 4 pairs, which differed only in the tag -- and some
     # of that divergence REACHES PUBLISHED ARTEFACTS: v2FINAL_params.json carries a
     # different key set and key ORDER per universe, and chart_v2FINAL.png carries a
@@ -329,8 +321,8 @@ class Universe:
     # moved byte with two possible causes. Unifying any of this is a separate,
     # declared change.
     #
-    # validation_status IS DELIBERATELY NOT A UNIFORM SHAPE. mid carries a dict of
-    # eight measured results; n100 carries a sentence saying the work was not done
+    # validation_status IS DELIBERATELY NOT A UNIFORM SHAPE. midcap150 carries a dict of
+    # eight measured results; nifty100 carries a sentence saying the work was not done
     # on this universe. That asymmetry is the RECORD OF WHICH UNIVERSE GOT THE WORK,
     # and flattening both into one shape would read as though both were measured.
     # The type tells them apart: dict means measured, str means not.
@@ -364,7 +356,7 @@ class Universe:
     engine_text: dict                     # banner, chart title, console blocks
 
     # WHAT THE CHART STEP RENDERS FOR THIS UNIVERSE. Added 2026-09-15 with step 6.
-    # make_mid_chart.py and make_n100_chart.py diverged in 204 code lines ignoring
+    # The midcap150 and nifty100 chart scripts diverged in 204 code lines ignoring
     # whitespace, and SOME OF IT REACHES THE PNG: two render parameters, one legend
     # label, and the output stem itself. Preserved, not harmonised, for the same
     # reason as the engine's: a merge is verifiable by the gate, an artefact change
@@ -399,8 +391,8 @@ class Universe:
     # field explicitly -- so this commit moves no byte. It closes the way the
     # next row could.
     #
-    # THE SHAPE IS STILL DELIBERATELY NOT UNIFORM. mid carries a dict of eight
-    # measured results; n100 and n50 carry sentences saying the work was not done
+    # THE SHAPE IS STILL DELIBERATELY NOT UNIFORM. midcap150 carries a dict of eight
+    # measured results; the other rows carry sentences saying the work was not done
     # on those universes. The type tells them apart: dict means measured, str
     # means not. Requiring the field does not require a shape, and flattening the
     # two would read as though both were measured.
@@ -432,6 +424,11 @@ class Universe:
     score_cache: Path = field(init=False)     # the score panel
     raw_cache: Path = field(init=False)       # the raw feature panel
 
+    @property
+    def name(self):
+        """The label without its constituent count: "Nifty 100", "MidCap150"."""
+        return self.label.split(" (")[0]
+
     def __post_init__(self):
         d = CACHE_DIR / self.tag
         object.__setattr__(self, "data_dir", d / "constituents")
@@ -458,8 +455,9 @@ class Universe:
     def prepare_data_dir(self):
         """The directory build_panel should glob, READY TO USE.
 
-        WHY THIS IS AN ACTION AND NOT JUST data_dir. For the 58 and the 74 the
-        directory simply exists and this returns it. For mid and n100 it does not:
+        WHY THIS IS AN ACTION AND NOT JUST data_dir. For a universe with no
+        raw_data_dir the directory simply exists and this returns it. For every
+        registered universe it does not:
         their source folder holds the published INDEX alongside the constituents,
         and build_panel globs whatever directory it is handed, so pointing it at the
         source would sweep NIFTYMIDCAP150.csv or NIFTY100.csv in as one more
@@ -561,8 +559,8 @@ class Universe:
         """Restrict a price index to this universe's backtest window.
 
         ONLY THE DATE CUT IS LIVE. Every remaining universe cuts by DATE
-        (config.BT_START_DATE..BT_END_DATE). The year-cut branch below is what the
-        deleted 58 and 74 used (2019..2026 / 2019..2025, six trading days longer);
+        (config.BT_START_DATE..BT_END_DATE). The year-cut branch below is what two
+        retired universes used (deleted 2026-09-11; six trading days longer);
         no universe sets `year_range` any more, so it is currently unreachable.
         """
         if self.year_range is not None:
@@ -575,72 +573,67 @@ class Universe:
 # ---------------------------------------------------------------------------
 # WHERE EACH UNIVERSE'S DATA IS AND WHERE ITS ARTEFACTS GO -- arrived at step 7
 # ---------------------------------------------------------------------------
-# FROM config_mid.py AND config_n100.py, deleted in the same commit. Those two
-# modules were 71 and 85 lines. With prose stripped and universe names normalised
-# their CODE differed in exactly two expressions, both path shapes, and neither
-# derivable from the other:
+# FROM THE midcap150 AND nifty100 CONFIG MODULES, deleted in the same commit.
+# Those two modules were 71 and 85 lines. With prose stripped and universe names
+# normalised their CODE differed in exactly two expressions, both path shapes:
+# the source folder and the constituent farm. The farm is now derived from the
+# tag (cache/<tag>/constituents, see Universe.data_dir). The source folder is
+# still written out per universe, because the supplier's folder names are not
+# derivable from the tag (midcap150 is Final_NIFTYMidCap150_EoD_Data, nifty100
+# is Final_NIFTY100_EoD_Data), and a rule that guessed one wrong would point a
+# universe at a missing folder, which yields an empty symbol list rather than
+# an error (see _constituents).
 #
-#   the source folder        mid   Final_NIFTYMidCap150_EoD_Data  <- supplier
-#                            n100  Final_NIFTY100_EoD_Data        <-  folders,
-#                                  both under Final_Without_Survivorship_Data/
-#   the symlink farm         mid   data/raw/MidCap150/constituents  <- under the
-#                                                                     universe folder
-#                            n100  data/raw/N100_constituents       <- under data/raw
-#
-# THEY ARE WRITTEN OUT PER UNIVERSE RATHER THAN REDUCED TO A RULE, for the reason
-# stated at the top of this file about the cache filenames: a stem rule would
-# reproduce one of each pair and silently invent the other. Neither module was a
-# superset of the other -- same nine public names, same order, same function body.
-#
-# RESULTS_DIR_MID AND RESULTS_DIR_N100 DO NOT BECOME FIELDS. Both predecessors
-# defined them and nothing outside those two files ever read either one: they were
+# THE TWO MODULES' RESULTS_DIR CONSTANTS DO NOT BECOME FIELDS. Both predecessors
+# defined one and nothing outside those two files ever read either: they were
 # local intermediates on the way to METRICS_DIR. A field that nothing drives reads
 # as live to the next person -- see the note on the `frozen` flag above.
 _RAW = ROOT / "data" / "raw"
 
-# REPOINTED 2026-09-18. mid and n100 keep their tags, their metrics
+# REPOINTED 2026-09-18. midcap150 and nifty100 keep their metrics
 # directories and their history; what changed underneath them is the panel.
 # Both now read the supplier's without-survivorship set, and the spelling of
 # the index file changed with it -- "NIFTYMIDCAP150" -> "NIFTY MIDCAP 150",
 # "NIFTY100" -> "NIFTY 100". The constituent NAMES are identical across the
 # move (148 and 99, nothing added, nothing dropped); the PRICES are not, and
-# neither is the per-name history: 35 mid names and 16 n100 names now begin
-# later than they did, and 8 mid names and 2 n100 names now begin after
+# neither is the per-name history: 35 midcap150 names and 16 nifty100 names now
+# begin later than they did, and 8 midcap150 names and 2 nifty100 names now begin after
 # BT_START_DATE where they did not before. See PANEL_MIGRATION.md.
 _WITHOUT_SURV = _RAW / "Final_Without_Survivorship_Data"
 
-_MID_SOURCE = _WITHOUT_SURV / "Final_NIFTYMidCap150_EoD_Data"
-_MID_METRICS = ROOT / "results_midcap150" / "metrics"
-_MID_INDEX = "NIFTY MIDCAP 150"
+_MIDCAP150_SOURCE = _WITHOUT_SURV / "Final_NIFTYMidCap150_EoD_Data"
+_MIDCAP150_METRICS = ROOT / "results_midcap150" / "metrics"
+_MIDCAP150_INDEX = "NIFTY MIDCAP 150"
 
-_N100_SOURCE = _WITHOUT_SURV / "Final_NIFTY100_EoD_Data"
-_N100_METRICS = ROOT / "results_nifty100" / "metrics"
-_N100_INDEX = "NIFTY 100"
+_NIFTY100_SOURCE = _WITHOUT_SURV / "Final_NIFTY100_EoD_Data"
+_NIFTY100_METRICS = ROOT / "results_nifty100" / "metrics"
+_NIFTY100_INDEX = "NIFTY 100"
 
-_MID = Universe(
+_MIDCAP150 = Universe(
         tag="midcap150", label="MidCap150 ({n} constituents)",
-        raw_data_dir=_MID_SOURCE,
+        raw_data_dir=_MIDCAP150_SOURCE,
         survivorship=(
             "STATIC. {n} names are TODAY'S MidCap150 members backfilled to "
             "2019-01-01. Midcaps that left the index or delisted during the window "
             "are absent entirely, so both the strategy and its equal-weight "
-            "buy&hold are inflated. Source: data/raw/MidCap150/clean."),
-        symbol_list=_constituents(_MID_SOURCE, _MID_INDEX),
-        metrics_dir=_MID_METRICS,
+            "buy&hold are inflated. Source: data/raw/Final_Without_Survivorship_Data/"
+            "Final_NIFTYMidCap150_EoD_Data."),
+        symbol_list=_constituents(_MIDCAP150_SOURCE, _MIDCAP150_INDEX),
+        metrics_dir=_MIDCAP150_METRICS,
         nautilus_scores="scores_midcap150.parquet",
         nautilus_end=str(config.BT_END_DATE.date()),
         purge_mode="trading",
-        index_name=_MID_INDEX,
+        index_name=_MIDCAP150_INDEX,
         # THE PUBLISHED CAP-WEIGHTED INDEX. Benchmark only, never a tradable name.
         # Base 1-Apr-2005 = 1000, which the file reproduces exactly.
-        index_file=_MID_SOURCE / f"{_MID_INDEX}.csv",
+        index_file=_MIDCAP150_SOURCE / f"{_MIDCAP150_INDEX}.csv",
         year_range=None, date_range=(config.BT_START_DATE, config.BT_END_DATE),
         display_name="MIDCAP150",
         chart_colours=("#e377c2", "#17becf", "#8fd08f", "#7f7f7f",
                        "#1b9e77", "#e6ab02"),
         # VERBATIM, THE TEXT make_chart PRINTED FOR EVERY UNIVERSE. This one was
-        # written for mid and is correct for mid; it moved here unchanged, and
-        # mid's console output is byte-identical across the move.
+        # written for midcap150 and is correct for midcap150; it moved here
+        # unchanged, and midcap150's console output is byte-identical across the move.
         churn_note=(
             "More important than the late listers: midcaps that FELL OUT of the index\n"
             "or delisted between 2019 and 2026 are absent from this file entirely, and\n"
@@ -674,9 +667,10 @@ _MID = Universe(
         },
         # THE KEY ORDER IS THE ARTEFACT. json.dumps preserves insertion order, so
         # this tuple is what makes v2FINAL_params.json byte-identical across the
-        # merge. mid has no "universe" and no "n_symbols"; n100 has both and lacks
-        # "validated"/"rejected". Neither set is more correct -- they are what the
-        # two engines happened to write, and unifying them is a separate change.
+        # merge. midcap150 has no "universe" and no "n_symbols"; nifty100 has both
+        # and lacks "validated"/"rejected". Neither set is more correct -- they are
+        # what the two engines happened to write, and unifying them is a separate
+        # change.
         engine_params_keys=(
             "model", "sizing", "exposure", "top_n", "buffer", "rebalance_days",
             "avg_exposure_pct", "sharpe", "maxdd_pct", "cagr_pct", "cash_yield",
@@ -701,7 +695,7 @@ _MID = Universe(
         chart_text={
             "stem": "chart_midcap150_FINAL",
             # THE INDEX WINDOW END IS A DATA BOUNDARY, not a market one: it is the
-            # last date this universe's index file carries. mid and n100 differ.
+            # last date this universe's index file carries. It differs per universe.
             #
             # CORRECTED 2026-09-18 FROM 2026-06-08. `NIFTY MIDCAP 150.csv` ends
             # 2026-08-06; the old value cut the printed index window 10 sessions
@@ -715,13 +709,13 @@ _MID = Universe(
             "dpi": 140,
             "legend_fontsize": 8,
             "rule_width": 94,
-            # mid's chart says the equal-weight line is NOT investable in the
-            # legend itself; n100's says it only in the prose below the chart.
+            # midcap150's chart says the equal-weight line is NOT investable in the
+            # legend itself; nifty100's says it only in the prose below the chart.
             # Both statements are true of both universes -- which is an argument
             # for unifying them, in a commit that declares the artefact change.
             "bh_not_investable": True,
-            # THE IC / EXTREME-RETURN DIAGNOSTIC BLOCK, mid only. Console output,
-            # no artefact, but it re-reads the score panel, so running it for n100
+            # THE IC / EXTREME-RETURN DIAGNOSTIC BLOCK, midcap150 only. Console output,
+            # no artefact, but it re-reads the score panel, so running it for nifty100
             # would be new work rather than new formatting.
             "diagnostics": True,
             # THE DRAWDOWN-PANEL LEGEND LABEL, and it reaches the PNG. The two
@@ -732,7 +726,7 @@ _MID = Universe(
             # call and never reached its argument. Checksum found it; grep did not.
             "dd_label": lambda lab, mn: f"{lab.split('[')[0].strip()} ({mn:.0f}%)",
             # THE CHART SUBTITLE REACHES THE PNG, and the two universes' subtitles
-            # are different prose that reads different values -- mid's quotes the
+            # are different prose that reads different values -- midcap150's quotes the
             # panel-density figures that only its diagnostics block computes.
             # A CALLABLE, like _symbols and _prepare above, so make_chart.py stays
             # free of per-universe text. `v` is the values the step computed.
@@ -760,37 +754,38 @@ _MID = Universe(
         },
     )
 
-_N100 = Universe(
+_NIFTY100 = Universe(
         tag="nifty100", label="Nifty 100 ({n} constituents)",
-        raw_data_dir=_N100_SOURCE,
+        raw_data_dir=_NIFTY100_SOURCE,
         survivorship=(
             "STATIC. {n} names are TODAY'S Nifty 100 members backfilled to "
             "2019-01-01. Names dropped or delisted during the window are absent "
             "entirely, so both the strategy and its equal-weight buy&hold are "
             "inflated. The published NIFTY100 index line is cap-weighted and is "
-            "NOT survivorship-biased. Source: data/raw/nifty100_benchmark."),
-        symbol_list=_constituents(_N100_SOURCE, _N100_INDEX),
-        metrics_dir=_N100_METRICS,
+            "NOT survivorship-biased. Source: "
+            "data/raw/Final_Without_Survivorship_Data/Final_NIFTY100_EoD_Data."),
+        symbol_list=_constituents(_NIFTY100_SOURCE, _NIFTY100_INDEX),
+        metrics_dir=_NIFTY100_METRICS,
         nautilus_scores="scores_nifty100.parquet",
         nautilus_end=str(config.BT_END_DATE.date()),
         purge_mode="trading",
-        index_name=_N100_INDEX,
+        index_name=_NIFTY100_INDEX,
         # THE PUBLISHED CAP-WEIGHTED INDEX. Benchmark only, never a tradable name.
         # Base 1-Jan-2003 = 1000; the file reads 1,008.00 on 2003-01-02, consistent
         # with NSE's published methodology. Verified, not assumed.
-        index_file=_N100_SOURCE / f"{_N100_INDEX}.csv",
+        index_file=_NIFTY100_SOURCE / f"{_NIFTY100_INDEX}.csv",
         year_range=None, date_range=(config.BT_START_DATE, config.BT_END_DATE),
         display_name="NIFTY 100",
         chart_colours=("#c0392b", "#2e6da4", "#3a9d3a", "#000000",
                        "#7f3f98", "#d95f02"),
         # THE MIDCAP PARAGRAPH, KEPT VERBATIM ON A LARGE-CAP UNIVERSE, AND THAT
-        # IS A GATE AND NOT AN ENDORSEMENT. n100 has printed this text since the
+        # IS A GATE AND NOT AN ENDORSEMENT. nifty100 has printed this text since the
         # shared block existed; it is wrong here in the same way it was wrong on
-        # n50 -- the Nifty 100 is not a midcap index and "midcap churn is far
+        # nifty50 -- the Nifty 100 is not a midcap index and "midcap churn is far
         # higher than large-cap churn" is an argument about a different
-        # universe. Correcting it changes what a reader sees in every n100 run
+        # universe. Correcting it changes what a reader sees in every nifty100 run
         # transcript, which is its own change with its own before/after. The
-        # commit that moved this text was gated on n100's output not moving.
+        # commit that moved this text was gated on nifty100's output not moving.
         churn_note=(
             "More important than the late listers: midcaps that FELL OUT of the index\n"
             "or delisted between 2019 and 2026 are absent from this file entirely, and\n"
@@ -811,11 +806,12 @@ _N100 = Universe(
         # stated in the chart subtitle and in the forensic log header rather than
         # left to be inferred, and results/survivorship.py stays at "static".
         # NOT MEASURED, and a STRING rather than a dict so it cannot be mistaken
-        # for mid's eight results. The seed-robustness and sub-period validations
+        # for midcap150's eight results. The seed-robustness and sub-period validations
         # on record were run elsewhere and are not claimed here.
         validation_status=("not measured on this universe. The seed-robustness "
                            "and sub-period validations on record were run on the "
-                           "58 and the mid and are not claimed here."),
+                           "a retired universe and on midcap150 and are not "
+                           "claimed here."),
         engine_params_keys=(
             "universe", "model", "sizing", "exposure", "top_n", "buffer",
             "rebalance_days", "avg_exposure_pct", "n_symbols", "sharpe",
@@ -855,7 +851,7 @@ _N100 = Universe(
                 # DERIVED, NOT SPELLED OUT. This read "NIFTY100" until
                 # 2026-09-18, which was the file's name before the repoint;
                 # index_name is "NIFTY 100" now and the subtitle went on
-                # printing the old spelling onto the PNG. mid's row already
+                # printing the old spelling onto the PNG. midcap150's row already
                 # derived it. A hardcoded name is a second place for the same
                 # fact to live, and it is the copy that nothing checks.
                 f"Benchmarks: {v['index_name']} is the published CAP-WEIGHTED "
@@ -884,36 +880,36 @@ _N100 = Universe(
 
 
 # ---------------------------------------------------------------------------
-# n50 -- THE FIRST OF THE SUPPLIER'S OTHER SIX, ADDED 2026-09-18
+# nifty50 -- THE FIRST OF THE SUPPLIER'S OTHER SIX, ADDED 2026-09-18
 # ---------------------------------------------------------------------------
-# WHY THIS ONE FIRST, AND WHY ONE AT A TIME. Every one of n50's 50 names is
-# already in n100, measured on the supplier's directories: n50 is a STRICT
-# SUBSET of n100, which was rebuilt on this same vendor panel over the same
-# 1,836 sessions at 9d717b0. So n50 introduces no name this repository
+# WHY THIS ONE FIRST, AND WHY ONE AT A TIME. Every one of nifty50's 50 names is
+# already in nifty100, measured on the supplier's directories: nifty50 is a STRICT
+# SUBSET of nifty100, which was rebuilt on this same vendor panel over the same
+# 1,836 sessions at 9d717b0. So nifty50 introduces no name this repository
 # has not already priced, and a surprise in its output is attributable to the
 # wiring rather than to data nobody has looked at.
 #
 # It also has the best coverage of the eight: 46 of 50 names are present at
-# BT_START_DATE (92.0%, against n100's 88.9% and mid's 75.7%), and its latest
+# BT_START_DATE (92.0%, against nifty100's 88.9% and midcap150's 75.7%), and its latest
 # first date is 2023-08-21 -- it is the only new universe with no name starting
 # in the last two years. The four that start late are MAXHEALTH (2020-08-21),
 # ETERNAL (2021-07-23), NESTLEIND (2023-08-01) and JIOFIN (2023-08-21), all four
-# already among n100's eleven.
+# already among nifty100's eleven.
 #
 # NOTHING HAS BEEN RUN ON THIS UNIVERSE. No panel, no cache, no artefact, no
 # chart. liquidity_note is None and validation_status says so in words, because
 # a placeholder number here would be a claim nobody has earned.
-_N50_SOURCE = _WITHOUT_SURV / "Final_NIFTY50_EoD_Data"
-_N50_METRICS = ROOT / "results_nifty50" / "metrics"
+_NIFTY50_SOURCE = _WITHOUT_SURV / "Final_NIFTY50_EoD_Data"
+_NIFTY50_METRICS = ROOT / "results_nifty50" / "metrics"
 # THE SUPPLIER SPELLS THIS ONE IN TITLE CASE. Seven of the eight index files
 # shout -- "NIFTY 100", "NIFTY MIDCAP 150", "NIFTY SMLCAP 250" -- and this one
 # is "Nifty 50.csv". It is handled by normalise_stem() like any other spelling,
 # and it is written out here rather than derived for exactly that reason.
-_N50_INDEX = "Nifty 50"
+_NIFTY50_INDEX = "Nifty 50"
 
-_N50 = Universe(
+_NIFTY50 = Universe(
         tag="nifty50", label="Nifty 50 ({n} constituents)",
-        raw_data_dir=_N50_SOURCE,
+        raw_data_dir=_NIFTY50_SOURCE,
         survivorship=(
             "STATIC. {n} names are TODAY'S Nifty 50 members backfilled to "
             "2019-01-01. Names dropped or delisted during the window are absent "
@@ -922,47 +918,47 @@ _N50 = Universe(
             "Nifty 50 index line is cap-weighted and is NOT survivorship-biased. "
             "Source: data/raw/Final_Without_Survivorship_Data/"
             "Final_NIFTY50_EoD_Data."),
-        symbol_list=_constituents(_N50_SOURCE, _N50_INDEX),
-        metrics_dir=_N50_METRICS,
+        symbol_list=_constituents(_NIFTY50_SOURCE, _NIFTY50_INDEX),
+        metrics_dir=_NIFTY50_METRICS,
         nautilus_scores="scores_nifty50.parquet",
         nautilus_end=str(config.BT_END_DATE.date()),
         purge_mode="trading",
-        index_name=_N50_INDEX,
-        # THE PUBLISHED CAP-WEIGHTED INDEX. Benchmark only, never a tradable
-        # name. NO BASE VALUE IS CLAIMED HERE: the file begins on 03-01-2000 at
-        # 1,592.20, which is a mid-series value, so unlike mid's and n100's rows
+        index_name=_NIFTY50_INDEX,
+        # THE PUBLISHED CAP-WEIGHTED INDEX. Benchmark only, never a tradable name.
+        # NO BASE VALUE IS CLAIMED HERE: the file begins on 03-01-2000 at 1,592.20,
+        # which is a mid-series value, so unlike midcap150's and nifty100's rows
         # there is no base-date reading in this file to verify a methodology
-        # against. Stating one would be repeating NSE's documentation rather
-        # than checking it. The file carries 6,627 rows, 03-01-2000..26-08-2026.
-        index_file=_N50_SOURCE / f"{_N50_INDEX}.csv",
+        # against. Stating one would be repeating NSE's documentation rather than
+        # checking it. The file carries 6,627 rows, 03-01-2000..26-08-2026.
+        index_file=_NIFTY50_SOURCE / f"{_NIFTY50_INDEX}.csv",
         year_range=None, date_range=(config.BT_START_DATE, config.BT_END_DATE),
         display_name="NIFTY 50",
         # MEASURED, NOT PICKED. The first tuple here was matplotlib's tab10
-        # head, chosen by eye, and it collided three ways against n100 in NORMAL
-        # colour vision on the combined chart: buy&hold #2ca02c vs n100's
+        # head, chosen by eye, and it collided three ways against nifty100 in NORMAL
+        # colour vision on the combined chart: buy&hold #2ca02c vs nifty100's
         # #3a9d3a at dE2000 2.13 -- below the 2.3 just-noticeable difference --
-        # the index #111111 vs n100's #000000 at 2.96, and this universe's
-        # SHIPPING line #1f77b4 vs n100's control #2e6da4 at 4.18. Under
+        # the index #111111 vs nifty100's #000000 at 2.96, and this universe's
+        # SHIPPING line #1f77b4 vs nifty100's control #2e6da4 at 4.18. Under
         # protanopia it also collided with itself, #ff7f0e against #2ca02c at
         # 1.90.
         #
-        # These six were searched out of a 12,015-colour in-gamut Lab grid
-        # (L* 35-72, C* 28-95, so a line reads on white rather than merely
-        # scoring well) under the constraint that mid's and n100's tuples do not
-        # move. Every one clears dE2000 >= 10 against all twelve of their slots
-        # and against each other, in normal vision, deuteranopia and protanopia
-        # (Vienot 1999). Achieved minimum 11.24 overall; 15.29 among the four
-        # slots the CANONICAL combined chart draws, which is the published
-        # figure and is where the margin was spent.
+        # These six were searched out of a 12,015-colour in-gamut Lab grid (L*
+        # 35-72, C* 28-95, so a line reads on white rather than merely scoring well)
+        # under the constraint that midcap150's and nifty100's tuples do not move.
+        # Every one clears dE2000 >= 10 against all twelve of their slots and
+        # against each other, in normal vision, deuteranopia and protanopia (Vienot
+        # 1999). Achieved minimum 11.24 overall; 15.29 among the four slots the
+        # CANONICAL combined chart draws, which is the published figure and is where
+        # the margin was spent.
         #
         # SLOT ORDER IS SEMANTIC, not the search's output order: buy&hold stays
-        # green as it is on mid and n100, and the index stays the darkest of the
-        # six. It is dark red rather than neutral, because a neutral would have
-        # had to clear n100's black and mid's grey and nothing in the readable
-        # band does. NOTHING CHECKS ANY OF THIS -- see KNOWN_ISSUES.md.
+        # green as it is on midcap150 and nifty100, and the index stays the darkest
+        # of the six. It is dark red rather than neutral, because a neutral would
+        # have had to clear nifty100's black and midcap150's grey and nothing in the
+        # readable band does. NOTHING CHECKS ANY OF THIS -- see KNOWN_ISSUES.md.
         chart_colours=("#7f4b70", "#4176fc", "#34c2a5", "#932d41",
                        "#1551e7", "#046e59"),
-        # n50's OWN CHURN, not the midcap paragraph it inherited on its first
+        # nifty50's OWN CHURN, not the midcap paragraph it inherited on its first
         # run. The Nifty 50 is the most stable index of the eight: its members
         # are the largest listed companies in the country and they leave it
         # rarely. That makes the survivorship bias SMALLER here than anywhere
@@ -970,7 +966,7 @@ _N50 = Universe(
         # part worth saying out loud on a chart whose buy&hold line looks
         # achievable.
         #
-        # NO NUMBER IS CLAIMED FOR THE SIZE OF THE BIAS. mid's paragraph quotes
+        # NO NUMBER IS CLAIMED FOR THE SIZE OF THE BIAS. midcap150's paragraph quotes
         # "about 10 points of CAGR" from the Nifty100 measurement; nothing
         # equivalent has been measured for the Nifty 50, and borrowing a midcap
         # or large-cap figure would be inventing one.
@@ -987,7 +983,7 @@ _N50 = Universe(
         # participation study has been run on this panel, and the combined chart
         # drops the note rather than printing an empty one.
         liquidity_note=None,
-        # NOT MEASURED, and a STRING rather than a dict, by the same rule n100
+        # NOT MEASURED, and a STRING rather than a dict, by the same rule nifty100
         # follows: the type tells a measured universe from an unmeasured one.
         validation_status=("not measured on this universe. No seed-robustness, "
                            "sub-period, shuffle or top-N work has been run here, "
@@ -998,9 +994,10 @@ _N50 = Universe(
             "rebalance_days", "avg_exposure_pct", "n_symbols", "sharpe",
             "maxdd_pct", "cagr_pct", "cash_yield", "survivorship", "vs_buyhold",
             "validation_status"),
-        # THE KEY SET AND ORDER FOLLOW n100's, not mid's. n50 is a strict subset
-        # of n100 and is read against it, so a params file whose keys are in a
-        # different order would make the two awkward to diff for no gain.
+        # THE KEY SET AND ORDER FOLLOW nifty100's, not midcap150's. nifty50 is a
+        # strict subset of nifty100 and is read against it, so a params file whose
+        # keys are in a different order would make the two awkward to diff for no
+        # gain.
         engine_params_static={
             "universe": "Nifty 50 ({n} constituents, 'Nifty 50.csv' excluded "
                         "by name)",
@@ -1030,9 +1027,9 @@ _N50 = Universe(
                 f"Nifty 50 universe ({v['n_all']} constituents, index excluded "
                 f"by name)  |  {v['held']} on average  |  ALL "
                 f"NUMBERS AFTER TC (Zerodha + 0.15% slippage)\n"
-                # DERIVED, for the reason given on n100's row. This was
+                # DERIVED, for the reason given on nifty100's row. This was
                 # correct when written and that is exactly the problem: so was
-                # n100's.
+                # nifty100's.
                 f"Benchmarks: {v['index_name']} is the published CAP-WEIGHTED "
                 f"index (investable, and NOT survivorship-biased). Equal-weight "
                 f"buy&hold is the universe, and is NOT investable.\n"
@@ -1053,19 +1050,19 @@ _N50 = Universe(
 # a universe that is still here occupies the same position it always did -- LIVE's
 # order is documented below as declaration order and callers rely on that.
 #
-# n50 IS APPENDED, NEVER INSERTED, so mid and n100 keep positions 0 and 1 and
-# every caller relying on declaration order sees what it saw before. Same
+# nifty50 IS APPENDED, NEVER INSERTED, so midcap150 and nifty100 keep positions
+# 0 and 1 and every caller relying on declaration order sees what it saw before. Same
 # constraint as naming.AXES, same reason: position is load-bearing somewhere the
 # row itself does not mention.
-_MC50_SOURCE = _WITHOUT_SURV / "Final_NIFTYMidCap50_EoD_Data"
-_MC50_METRICS = ROOT / "results_midcap50" / "metrics"
+_MIDCAP50_SOURCE = _WITHOUT_SURV / "Final_NIFTYMidCap50_EoD_Data"
+_MIDCAP50_METRICS = ROOT / "results_midcap50" / "metrics"
 # THE SUPPLIER SHOUTS THIS ONE, like six of the eight: "NIFTY MIDCAP 50.csv".
-# Written out rather than derived, for the reason n50's row gives.
-_MC50_INDEX = "NIFTY MIDCAP 50"
+# Written out rather than derived, for the reason nifty50's row gives.
+_MIDCAP50_INDEX = "NIFTY MIDCAP 50"
 
-_MC50 = Universe(
+_MIDCAP50 = Universe(
         tag="midcap50", label="MidCap50 ({n} constituents)",
-        raw_data_dir=_MC50_SOURCE,
+        raw_data_dir=_MIDCAP50_SOURCE,
         # midcap50's OWN NUMBERS, MEASURED 2026-09-18. NOT nifty50's paragraph
         # with the nouns changed: the late-lister rate here is 8 of 49, which is
         # DOUBLE nifty50's 4 of 50 in a universe a third the size, and a reader
@@ -1083,17 +1080,17 @@ _MC50 = Universe(
             "index line is cap-weighted and is NOT survivorship-biased. "
             "Source: data/raw/Final_Without_Survivorship_Data/"
             "Final_NIFTYMidCap50_EoD_Data."),
-        symbol_list=_constituents(_MC50_SOURCE, _MC50_INDEX),
-        metrics_dir=_MC50_METRICS,
+        symbol_list=_constituents(_MIDCAP50_SOURCE, _MIDCAP50_INDEX),
+        metrics_dir=_MIDCAP50_METRICS,
         nautilus_scores="scores_midcap50.parquet",
         nautilus_end=str(config.BT_END_DATE.date()),
         purge_mode="trading",
-        index_name=_MC50_INDEX,
+        index_name=_MIDCAP50_INDEX,
         # THE PUBLISHED CAP-WEIGHTED INDEX. Benchmark only, never a tradable
         # name. NO BASE VALUE IS CLAIMED: the file begins 01-01-2004, a
         # mid-series value, so like nifty50's row there is no base-date reading
         # here to check a methodology against. 5,589 rows, 01-01-2004..06-08-2026.
-        index_file=_MC50_SOURCE / f"{_MC50_INDEX}.csv",
+        index_file=_MIDCAP50_SOURCE / f"{_MIDCAP50_INDEX}.csv",
         year_range=None, date_range=(config.BT_START_DATE, config.BT_END_DATE),
         display_name="NIFTY MIDCAP 50",
         # MEASURED, NOT PICKED, and the margin is THINNER THAN nifty50's -- which
@@ -1157,8 +1154,8 @@ _MC50 = Universe(
             "could have held, and is NOT achievable."),
         # NOT MEASURED. None is the declaration, not a hole.
         liquidity_note=None,
-        # NOT MEASURED, and a STRING rather than a dict, by the rule n100 and n50
-        # follow: the type tells a measured universe from an unmeasured one.
+        # NOT MEASURED, and a STRING rather than a dict, by the rule nifty100 and
+        # nifty50 follow: the type tells a measured universe from an unmeasured one.
         validation_status=("not measured on this universe. No seed-robustness, "
                            "sub-period, shuffle or top-N work has been run here, "
                            "and none of the validations on record was run on "
@@ -1168,7 +1165,7 @@ _MC50 = Universe(
             "rebalance_days", "avg_exposure_pct", "n_symbols", "sharpe",
             "maxdd_pct", "cagr_pct", "cash_yield", "survivorship", "vs_buyhold",
             "validation_status"),
-        # KEY SET AND ORDER FOLLOW n100's, as n50's does: midcap50 is read
+        # KEY SET AND ORDER FOLLOW nifty100's, as nifty50's does: midcap50 is read
         # against midcap150 and against nifty50, and a third key order would make
         # every such diff awkward for no gain.
         engine_params_static={
@@ -1223,18 +1220,18 @@ _MC50 = Universe(
 
 
 # midcap100 IS APPENDED, NEVER INSERTED, same constraint as every row above it.
-_MC100_SOURCE = _WITHOUT_SURV / "Final_NIFTYMidCap100_EoD_Data"
-_MC100_METRICS = ROOT / "results_midcap100" / "metrics"
+_MIDCAP100_SOURCE = _WITHOUT_SURV / "Final_NIFTYMidCap100_EoD_Data"
+_MIDCAP100_METRICS = ROOT / "results_midcap100" / "metrics"
 # THE SUPPLIER SHOUTS THIS ONE TOO: "NIFTY MIDCAP 100.csv".
-_MC100_INDEX = "NIFTY MIDCAP 100"
+_MIDCAP100_INDEX = "NIFTY MIDCAP 100"
 
-_MC100 = Universe(
+_MIDCAP100 = Universe(
         tag="midcap100", label="MidCap100 ({n} constituents)",
-        raw_data_dir=_MC100_SOURCE,
+        raw_data_dir=_MIDCAP100_SOURCE,
         # midcap100's OWN NUMBERS, MEASURED 2026-09-19 by reading the first
         # dated row of all 98 constituent files. NOT midcap50's paragraph with
-        # the count changed: THE LATE-LISTER RATE HERE IS THE HIGHEST OF THE
-        # FIVE, 21.4% against midcap50's 16.3% and nifty50's 8.0%, and a reader
+        # the count changed: THE LATE-LISTER RATE HERE IS 21.4%, against
+        # midcap50's 16.3% and nifty50's 8.0%, and a reader
         # handed either of those for this panel is being told the bias is
         # roughly half what it is.
         survivorship=(
@@ -1250,23 +1247,23 @@ _MC100 = Universe(
             "IREDA (2023-11-29), PREMIERENE (2024-09-03), WAAREEENER "
             "(2024-10-28), SWIGGY (2024-11-13), VMM (2024-12-18), LGEINDIA "
             "(2025-10-14), LENSKART (2025-11-10) and GROWW (2025-11-12) -- "
-            "which is 21.4% of the universe, THE HIGHEST RATE OF THE FIVE "
-            "UNIVERSES WIRED. The published Nifty MidCap 100 index line is "
+            "which is 21.4% of the universe. The published Nifty MidCap 100 "
+            "index line is "
             "cap-weighted and is NOT survivorship-biased. Source: "
             "data/raw/Final_Without_Survivorship_Data/"
             "Final_NIFTYMidCap100_EoD_Data."),
-        symbol_list=_constituents(_MC100_SOURCE, _MC100_INDEX),
-        metrics_dir=_MC100_METRICS,
+        symbol_list=_constituents(_MIDCAP100_SOURCE, _MIDCAP100_INDEX),
+        metrics_dir=_MIDCAP100_METRICS,
         nautilus_scores="scores_midcap100.parquet",
         nautilus_end=str(config.BT_END_DATE.date()),
         purge_mode="trading",
-        index_name=_MC100_INDEX,
+        index_name=_MIDCAP100_INDEX,
         # THE PUBLISHED CAP-WEIGHTED INDEX. Benchmark only, never a tradable
         # name. NO BASE VALUE IS CLAIMED: the file begins 01-01-2001, a
         # mid-series value, so like midcap50's row there is no base-date
         # reading here to check a methodology against. 6,362 rows,
         # 01-01-2001..06-08-2026.
-        index_file=_MC100_SOURCE / f"{_MC100_INDEX}.csv",
+        index_file=_MIDCAP100_SOURCE / f"{_MIDCAP100_INDEX}.csv",
         year_range=None, date_range=(config.BT_START_DATE, config.BT_END_DATE),
         display_name="NIFTY MIDCAP 100",
         # MEASURED, NOT PICKED, AND IT DOES NOT CLEAR dE 10 -- WHICH IS THE
@@ -1314,14 +1311,14 @@ _MC100 = Universe(
             "The index loses names in BOTH directions -- promoted upward into the\n"
             "large-cap indices, and demoted downward into smallcap -- so the sign\n"
             "of this bias is not known, let alone its size. NOTHING HAS BEEN\n"
-            "MEASURED FOR THIS UNIVERSE. Its 21.4% late-lister rate is the highest\n"
-            "of the five and is a statement about composition, NOT a correction to\n"
-            "apply. The equal-weight buy&hold line is a portfolio nobody could have\n"
-            "held, and is NOT achievable."),
+            "MEASURED FOR THIS UNIVERSE. Its 21.4% late-lister rate is a statement\n"
+            "about composition, NOT a correction to apply. The equal-weight\n"
+            "buy&hold line is a portfolio nobody could have held, and is NOT\n"
+            "achievable."),
         # NOT MEASURED. None is the declaration, not a hole.
         liquidity_note=None,
-        # NOT MEASURED, and a STRING rather than a dict, by the rule n100, n50
-        # and midcap50 follow: the type tells a measured universe from an
+        # NOT MEASURED, and a STRING rather than a dict, by the rule nifty100,
+        # nifty50 and midcap50 follow: the type tells a measured universe from an
         # unmeasured one.
         validation_status=("not measured on this universe. No seed-robustness, "
                            "sub-period, shuffle or top-N work has been run here, "
@@ -1332,7 +1329,7 @@ _MC100 = Universe(
             "rebalance_days", "avg_exposure_pct", "n_symbols", "sharpe",
             "maxdd_pct", "cagr_pct", "cash_yield", "survivorship", "vs_buyhold",
             "validation_status"),
-        # KEY SET AND ORDER FOLLOW n100's, as every row above does.
+        # KEY SET AND ORDER FOLLOW nifty100's, as every row above does.
         engine_params_static={
             "universe": "Nifty MidCap 100 ({n} constituents, "
                         "'NIFTY MIDCAP 100.csv' excluded by name)",
@@ -1366,7 +1363,7 @@ _MC100 = Universe(
                 f"buy&hold is the universe, and is NOT investable.\n"
                 f"SURVIVORSHIP: these {v['n_all']} are TODAY'S index members "
                 f"backfilled to 2019, and 21 of them did not exist at the start "
-                f"-- 21.4%, the HIGHEST rate of the five\nuniverses wired. Names "
+                f"-- 21.4%.\nNames "
                 f"dropped from the MidCap 100 during the window are absent "
                 f"entirely, in BOTH directions, so the sign of the bias is not "
                 f"known. Do not read that buy&hold as achievable.\n"
@@ -1379,17 +1376,17 @@ _MC100 = Universe(
 )
 
 
-# midcap50 IS APPENDED, NEVER INSERTED, for the reason n50's line gives: mid,
-# n100 and n50 keep positions 0, 1 and 2 and every caller relying on declaration
-# order sees what it saw before.
+# midcap50 IS APPENDED, NEVER INSERTED, for the reason nifty50's line gives:
+# midcap150, nifty100 and nifty50 keep positions 0, 1 and 2 and every caller
+# relying on declaration order sees what it saw before.
 # nifty200 IS APPENDED, NEVER INSERTED, same constraint as every row above it.
-_N200_SOURCE = _WITHOUT_SURV / "Final_NIFTY200_EoD_Data"
-_N200_METRICS = ROOT / "results_nifty200" / "metrics"
-_N200_INDEX = "NIFTY 200"
+_NIFTY200_SOURCE = _WITHOUT_SURV / "Final_NIFTY200_EoD_Data"
+_NIFTY200_METRICS = ROOT / "results_nifty200" / "metrics"
+_NIFTY200_INDEX = "NIFTY 200"
 
-_N200 = Universe(
+_NIFTY200 = Universe(
         tag="nifty200", label="Nifty200 ({n} constituents)",
-        raw_data_dir=_N200_SOURCE,
+        raw_data_dir=_NIFTY200_SOURCE,
         # nifty200's OWN NUMBERS, MEASURED 2026-09-19 by reading the first dated
         # row of all 197 constituent files. 32 OF 197 IS 16.2% -- essentially
         # midcap50's rate (16.3%) in a universe four times the size, and well
@@ -1416,16 +1413,16 @@ _N200 = Universe(
             "nifty50's 8.0%. The published Nifty 200 index line is cap-weighted "
             "and is NOT survivorship-biased. Source: "
             "data/raw/Final_Without_Survivorship_Data/Final_NIFTY200_EoD_Data."),
-        symbol_list=_constituents(_N200_SOURCE, _N200_INDEX),
-        metrics_dir=_N200_METRICS,
+        symbol_list=_constituents(_NIFTY200_SOURCE, _NIFTY200_INDEX),
+        metrics_dir=_NIFTY200_METRICS,
         nautilus_scores="scores_nifty200.parquet",
         nautilus_end=str(config.BT_END_DATE.date()),
         purge_mode="trading",
-        index_name=_N200_INDEX,
+        index_name=_NIFTY200_INDEX,
         # THE PUBLISHED CAP-WEIGHTED INDEX. Benchmark only, never a tradable
         # name. NO BASE VALUE IS CLAIMED: the file begins 01-01-2004, a
         # mid-series value. 5,610 rows, 01-01-2004..06-08-2026.
-        index_file=_N200_SOURCE / f"{_N200_INDEX}.csv",
+        index_file=_NIFTY200_SOURCE / f"{_NIFTY200_INDEX}.csv",
         year_range=None, date_range=(config.BT_START_DATE, config.BT_END_DATE),
         display_name="NIFTY 200",
         # MEASURED 2026-09-19, AGAINST THIRTY SLOTS. dE2000 = 7.484141, binary
@@ -1516,17 +1513,17 @@ _N200 = Universe(
 
 
 # smallcap250 IS APPENDED, NEVER INSERTED, same constraint as every row above.
-_SC250_SOURCE = _WITHOUT_SURV / "Final_NIFTYSmallCap250_EoD_Data"
-_SC250_METRICS = ROOT / "results_smallcap250" / "metrics"
+_SMALLCAP250_SOURCE = _WITHOUT_SURV / "Final_NIFTYSmallCap250_EoD_Data"
+_SMALLCAP250_METRICS = ROOT / "results_smallcap250" / "metrics"
 # THE SUPPLIER ABBREVIATES THIS ONE, and it is the only one of the eight that
 # does: "NIFTY SMLCAP 250.csv", not "NIFTY SMALLCAP 250.csv". Written out rather
 # than derived, which is what every row here does and is why the abbreviation
 # cost nothing.
-_SC250_INDEX = "NIFTY SMLCAP 250"
+_SMALLCAP250_INDEX = "NIFTY SMLCAP 250"
 
-_SC250 = Universe(
+_SMALLCAP250 = Universe(
         tag="smallcap250", label="SmallCap250 ({n} constituents)",
-        raw_data_dir=_SC250_SOURCE,
+        raw_data_dir=_SMALLCAP250_SOURCE,
         # smallcap250's OWN NUMBERS, MEASURED 2026-09-19. 90 OF 248 IS 36.3%,
         # THE HIGHEST RATE OF THE SEVEN AND NEARLY DOUBLE midcap100's 21.4%.
         # THE NINETY NAMES ARE IN diagnostics/smallcap250_late_listers.txt
@@ -1558,16 +1555,16 @@ _SC250 = Universe(
             "Nifty SmallCap 250 index line is cap-weighted and is NOT "
             "survivorship-biased. Source: data/raw/"
             "Final_Without_Survivorship_Data/Final_NIFTYSmallCap250_EoD_Data."),
-        symbol_list=_constituents(_SC250_SOURCE, _SC250_INDEX),
-        metrics_dir=_SC250_METRICS,
+        symbol_list=_constituents(_SMALLCAP250_SOURCE, _SMALLCAP250_INDEX),
+        metrics_dir=_SMALLCAP250_METRICS,
         nautilus_scores="scores_smallcap250.parquet",
         nautilus_end=str(config.BT_END_DATE.date()),
         purge_mode="trading",
-        index_name=_SC250_INDEX,
+        index_name=_SMALLCAP250_INDEX,
         # THE PUBLISHED CAP-WEIGHTED INDEX. Benchmark only, never a tradable
         # name. NO BASE VALUE IS CLAIMED: the file begins 01-04-2005, a
         # mid-series value. 5,295 rows, 01-04-2005..06-08-2026.
-        index_file=_SC250_SOURCE / f"{_SC250_INDEX}.csv",
+        index_file=_SMALLCAP250_SOURCE / f"{_SMALLCAP250_INDEX}.csv",
         year_range=None, date_range=(config.BT_START_DATE, config.BT_END_DATE),
         display_name="NIFTY SMALLCAP 250",
         # MEASURED 2026-09-19, AGAINST THIRTY-SIX SLOTS. dE2000 = 6.801402,
@@ -1657,8 +1654,8 @@ _SC250 = Universe(
 
 # nifty500 IS APPENDED, NEVER INSERTED. It is the EIGHTH and last supplier
 # folder: with this row wired, every universe on disk is in the registry.
-_N500_SOURCE = _WITHOUT_SURV / "Final_NIFTY500_EoD_Data"
-_N500_METRICS = ROOT / "results_nifty500" / "metrics"
+_NIFTY500_SOURCE = _WITHOUT_SURV / "Final_NIFTY500_EoD_Data"
+_NIFTY500_METRICS = ROOT / "results_nifty500" / "metrics"
 # THE SUPPLIER SPELLS THIS ONE WITH NO SPACE: "NIFTY500.csv". A THIRD
 # CONVENTION, against "NIFTY 200.csv" (spaced) and "NIFTY MIDCAP 100.csv"
 # (spaced, multi-word), and against smallcap250's abbreviated "NIFTY SMLCAP
@@ -1672,11 +1669,11 @@ _N500_METRICS = ROOT / "results_nifty500" / "metrics"
 # a constituent -- a 496th "stock" that is the benchmark. That is the
 # silent-failure site this project has already closed once, and the fix was to
 # write the supplier's spelling out rather than derive it.
-_N500_INDEX = "NIFTY500"
+_NIFTY500_INDEX = "NIFTY500"
 
-_N500 = Universe(
+_NIFTY500 = Universe(
         tag="nifty500", label="Nifty500 ({n} constituents)",
-        raw_data_dir=_N500_SOURCE,
+        raw_data_dir=_NIFTY500_SOURCE,
         # nifty500's OWN NUMBERS, MEASURED 2026-09-19. 137 of 495 is 27.7% --
         # BELOW smallcap250's 36.3% despite being twice the size, because the
         # Nifty 500 reaches up into the large caps as well as down. The rate
@@ -1691,17 +1688,17 @@ _N500 = Universe(
             "Nifty 500 index line is cap-weighted and is NOT "
             "survivorship-biased. Source: data/raw/"
             "Final_Without_Survivorship_Data/Final_NIFTY500_EoD_Data."),
-        symbol_list=_constituents(_N500_SOURCE, _N500_INDEX),
-        metrics_dir=_N500_METRICS,
+        symbol_list=_constituents(_NIFTY500_SOURCE, _NIFTY500_INDEX),
+        metrics_dir=_NIFTY500_METRICS,
         nautilus_scores="scores_nifty500.parquet",
         nautilus_end=str(config.BT_END_DATE.date()),
         purge_mode="trading",
-        index_name=_N500_INDEX,
+        index_name=_NIFTY500_INDEX,
         # THE PUBLISHED CAP-WEIGHTED INDEX. Benchmark only, never a tradable
         # name. NO BASE VALUE IS CLAIMED: the file begins 03-01-2000, a
         # mid-series value. 6,612 rows, 03-01-2000..06-08-2026 -- the longest
         # index series of the eight.
-        index_file=_N500_SOURCE / f"{_N500_INDEX}.csv",
+        index_file=_NIFTY500_SOURCE / f"{_NIFTY500_INDEX}.csv",
         year_range=None, date_range=(config.BT_START_DATE, config.BT_END_DATE),
         display_name="NIFTY 500",
         # MEASURED 2026-09-19, AGAINST FORTY-TWO SLOTS -- the last palette this
@@ -1788,24 +1785,24 @@ _N500 = Universe(
 )
 
 
-REGISTRY = {u.tag: u for u in (_MID, _N100, _N50, _MC50, _MC100, _N200, _SC250, _N500)}
+REGISTRY = {u.tag: u for u in (_MIDCAP150, _NIFTY100, _NIFTY50, _MIDCAP50, _MIDCAP100, _NIFTY200, _SMALLCAP250, _NIFTY500)}
 
-# THE METRICS DIRECTORY IS CREATED AT IMPORT, exactly as config_mid.py and
-# config_n100.py did with METRICS_DIR.mkdir(parents=True, exist_ok=True) at module
-# level. Steps write into it without checking it exists, so the side effect has to
-# survive the merge or the first write on a fresh checkout fails.
+# THE METRICS DIRECTORY IS CREATED AT IMPORT, exactly as the midcap150 and
+# nifty100 config modules did with METRICS_DIR.mkdir(parents=True,
+# exist_ok=True) at module level. Steps write into it without checking it
+# exists, so the side effect has to survive the merge or the first write on a
+# fresh checkout fails.
 for _u in REGISTRY.values():
     _u.metrics_dir.mkdir(parents=True, exist_ok=True)
 
-# The universes that ship. Eighteen of the nineteen hand-rolled registries carry
-# exactly these two; only nt_run.py knows all four.
+# The universes that ship: every registered universe, in declaration order.
 #
-# ITS ORDER IS DECLARATION ORDER (mid, n100) AND IS NOT THE REPORTING ORDER. Every
-# study script in this repository iterates n100 FIRST and accumulates a combined
-# verdict in that sequence, so a caller whose OUTPUT depends on order must name
-# the universes explicitly -- REGISTRY["n100"], REGISTRY["mid"] -- rather than
-# iterate LIVE. Using LIVE for that swapped the two blocks of
-# verify_v34_arms.py's report, which is how this note came to exist.
+# DECLARATION ORDER IS NOT THE REPORTING ORDER. Rows are appended as universes
+# are added, so LIVE runs midcap150, nifty100, nifty50, midcap50, midcap100,
+# nifty200, smallcap250, nifty500. A caller whose OUTPUT depends on order must
+# use report_order() or certified(), or name the universes explicitly, rather
+# than iterate LIVE. Iterating LIVE for an ordered report once swapped the two
+# blocks of verify_v34_arms.py's report, which is how this note came to exist.
 LIVE = list(REGISTRY.values())
 
 
@@ -1813,25 +1810,44 @@ LIVE = list(REGISTRY.values())
 # REPORTING ORDER -- the sequence a MULTI-UNIVERSE report puts universes in.
 # ---------------------------------------------------------------------------
 # THIS IS NOT REGISTRY ORDER AND MUST NOT BE. Registry order is declaration order
-# (58, 74, mid, n100) and it is the right answer for selection, where the question
-# is "which universes", a set. It is the WRONG answer for a report, where position
+# (see LIVE) and it is the right answer for selection, where the question is
+# "which universes", a set. It is the WRONG answer for a report, where position
 # is visible in a filename, a legend and a colour assignment.
 #
-# n100 BEFORE mid, because every study script in this repository iterates n100
-# first -- the note on LIVE above says so -- and the published combined chart is
-# chart_COMBINED_n100_mid.png. Sorting these two the other way would rename a
-# figure that is already referenced in docs/README.md.
+# THE LARGE-CAP INDICES COME FIRST, widest to narrowest (nifty500, nifty200,
+# nifty100, nifty50), then the midcap indices, widest to narrowest (midcap150,
+# midcap100, midcap50), then smallcap250. nifty50 sits next to nifty100
+# because it is a strict subset of it, so the two large-cap lines are adjacent
+# in every combined report.
 #
-# LIVE BEFORE RETIRED, because the live pair is the project's current scope and a
-# combined chart that leads with a retired universe misstates what is being
-# reported. Within the retired pair, declaration order: 58 then 74.
+# FILENAMES DEPEND ON THIS ORDER. make_combined_universes.py names the combined
+# chart from the selected tags in this sequence, so the certified pair is
+# chart_COMBINED_nifty100_midcap150.png whatever order the tags were typed in.
+# Reordering this tuple renames every combined figure.
 #
 # A TAG ABSENT FROM REGISTRY IS SIMPLY SKIPPED, so this stays correct as universes
 # are removed. A registered tag absent from THIS tuple would be dropped silently
 # from every combined report, which is why report_order() raises on one instead.
-# n50 SITS NEXT TO n100 BECAUSE IT IS A SUBSET OF IT, so the two large-cap
-# lines are adjacent in every combined report rather than separated by mid.
-REPORT_ORDER = ("nifty500", "nifty200", "nifty100", "nifty50", "midcap150", "midcap100", "midcap50", "smallcap250", "58", "74")
+REPORT_ORDER = ("nifty500", "nifty200", "nifty100", "nifty50", "midcap150", "midcap100", "midcap50", "smallcap250")
+
+
+# ---------------------------------------------------------------------------
+# THE CERTIFIED UNIVERSES -- the ones the verification gates measure.
+# ---------------------------------------------------------------------------
+# The leakage, execution-timing, sizing, breadth, top-N and shuffle checks were
+# built and measured on these two universes, and the Nautilus port is certified
+# on them (nt_verify). Until 2026-09-24 each of those scripts wrote the pair out
+# by hand as (REGISTRY["nifty100"], REGISTRY["midcap150"]); this is that pair,
+# once. ORDER IS LOAD-BEARING: every one of those reports runs nifty100 first, and
+# their committed outputs are in that order. Extending a gate to another universe
+# means adding its tag here, which extends every gate at once; the cost is
+# recorded in KNOWN_ISSUES.md ("Verification gates cover 2 of 8 universes").
+CERTIFIED = ("nifty100", "midcap150")
+
+
+def certified():
+    """The CERTIFIED universes as Universe objects, in CERTIFIED order."""
+    return [REGISTRY[t] for t in CERTIFIED]
 
 
 # ---------------------------------------------------------------------------
@@ -1839,10 +1855,10 @@ REPORT_ORDER = ("nifty500", "nifty200", "nifty100", "nifty50", "midcap150", "mid
 # ---------------------------------------------------------------------------
 # REGISTRY answers "which universes EXIST in this checkout". A run answers a
 # narrower question: "which universes did the caller ASK FOR". Until now the two
-# were conflated, because every multi-universe step gated on `"74" in REGISTRY`.
-# That is correct for a REMOVED universe and wrong for an UNSELECTED one:
-# `run.py --universe mid,58` would still put 74 on the fair-comparison chart,
-# because 74 is registered even though nobody asked for it.
+# were conflated: every multi-universe step gated on whether a universe was in
+# REGISTRY. That is correct for a REMOVED universe and wrong for an UNSELECTED
+# one: a run that selected two universes still drew a third on the
+# fair-comparison chart, because it was registered though nobody asked for it.
 #
 # A REPORT MUST NEVER SHOW A UNIVERSE THE CALLER DID NOT SELECT. So selection is
 # recorded here, next to the registry, and the steps that build multi-universe
@@ -1918,14 +1934,67 @@ def get(tag):
             f"unknown universe {tag!r}; known: {', '.join(sorted(REGISTRY))}") from None
 
 
-def from_argv(argv, default=None):
-    """Read --universe=<tag> from a command line.
+RETIRED_TAGS = ("mid", "n100", "n50", "58", "74")
 
-    Reproduces what nt_run.py, nt_verify.py, shuffle_test.py and validate_topn.py
-    each do by hand, including the convention that no flag means "every live
-    universe" rather than an error.
+
+def unknown_universe_message(tags, choices=None):
+    """The one error text for a universe tag that is not registered.
+
+    Names every valid universe. The short tags were renamed on 2026-09-18 and the
+    58 and 74 were deleted on 2026-09-11; none of them is accepted as an alias,
+    because an alias that silently maps an old name keeps the old name alive.
     """
-    picked = [t for t in REGISTRY if f"--universe={t}" in argv]
+    choices = list(REGISTRY) if choices is None else list(choices)
+    old = [t for t in tags if t in RETIRED_TAGS]
+    msg = (f"unknown universe(s) {', '.join(repr(t) for t in tags)}. "
+           f"Valid universes: {', '.join(choices)}.")
+    if old:
+        msg += (" The short tags mid, n100 and n50 were renamed on 2026-09-18 "
+                "(midcap150, nifty100, nifty50) and the 58 and 74 universes were "
+                "deleted on 2026-09-11; none of them is accepted.")
+    return msg
+
+
+def check_tags(tags, choices=None):
+    """Exit with status 2 and unknown_universe_message() if any tag is unknown.
+
+    `choices` narrows the valid set for a tool that supports only some
+    universes; it defaults to every registered universe. "all" is not a tag and
+    is left to the caller.
+    """
+    choices = list(REGISTRY) if choices is None else list(choices)
+    unknown = [t for t in tags if t not in choices]
+    if unknown:
+        import sys
+        print(unknown_universe_message(unknown, choices), file=sys.stderr)
+        raise SystemExit(2)
+    return list(tags)
+
+
+def argv_universes(argv):
+    """Every universe named on a command line by --universe=<t> or --universe <t>.
+
+    Comma-separated values are split. The values are returned as given, in
+    order, and are NOT validated here; pass them to check_tags().
+    """
+    vals = []
+    for i, a in enumerate(argv):
+        if a.startswith("--universe="):
+            vals.append(a.split("=", 1)[1])
+        elif a == "--universe" and i + 1 < len(argv):
+            vals.append(argv[i + 1])
+    return [t for v in vals for t in v.split(",") if t]
+
+
+def from_argv(argv, default=None, choices=None):
+    """Read --universe=<tag> from a command line, refusing any unknown tag.
+
+    No flag means `default` if given, else every registered universe. An
+    unknown tag, including a retired short tag, exits with status 2 and a
+    message naming the valid universes; it is never ignored and never mapped to
+    a current name.
+    """
+    picked = check_tags(argv_universes(argv), choices)
     if picked:
         return [REGISTRY[t] for t in picked]
     return [REGISTRY[default]] if default else list(LIVE)

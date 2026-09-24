@@ -46,10 +46,10 @@ WHAT THIS DOES NOT COVER, STATED RATHER THAN IMPLIED
     v2FINAL_equity.csv. This check cannot run that -- it needs score caches --
     and it says so rather than implying coverage it does not have.
 
-    RETIRED_UNIVERSES-manifest.txt is likewise not verified here: its 171 paths
-    are relative to forensic_snapshot_20260911T0100/, which is not present in
-    this tree. Absent that directory the manifest cannot be checked at all, and
-    a check that silently skips 171 hashes is worse than one that names them.
+    The retired-universe manifest (171 hashes, deleted from the tree on
+    2026-09-24; git show 50562ed:RETIRED_UNIVERSES-manifest.txt) is not verified
+    here: its paths are relative to forensic_snapshot_20260911T0100/, which is
+    not present in this tree.
 """
 import subprocess
 import sys
@@ -213,11 +213,11 @@ def condition_2():
 
     # THE FROZEN ENGINE MUST STAY OFF THIS AXIS, AND THIS IS HOW IT IS ENFORCED.
     #
-    # The phase-1 design said "run.py refuses --tax on for 58 and 74", taken from
-    # cadence.py's docstring, which records exactly such a refusal for the
-    # cadence axis. THAT IS NOT IMPLEMENTABLE: the 58 and the 74 were deleted on
-    # 2026-09-11, universes/registry.py holds only mid and n100, and run.py:396
-    # records that the cadence skip-list was itself dropped because "every
+    # The phase-1 design said run.py should refuse --tax on for the two retired
+    # universes, taken from cadence.py's docstring, which records exactly such a
+    # refusal for the cadence axis. THAT IS NOT IMPLEMENTABLE: both were deleted on
+    # 2026-09-11, universes/registry.py then held only midcap150 and nifty100, and
+    # run.py:396 records that the cadence skip-list was itself dropped because "every
     # universe honours every cadence now". There is no selection left to refuse.
     #
     # What the design was actually protecting is still real -- results/
@@ -340,9 +340,8 @@ def main():
     print("    - file CONTENTS. This checks names. The contents gate is")
     print("      heldout_prereg_run.py's reproduction check against the shipped")
     print("      v2FINAL_equity.csv, which needs score caches and is not run here.")
-    snap = list(ROOT.glob("forensic_snapshot_*"))
-    print(f"    - RETIRED_UNIVERSES-manifest.txt's 171 hashes: "
-          f"{'verifiable' if snap else 'NOT VERIFIABLE -- forensic_snapshot_* absent from this tree'}")
+    print("    - the retired-universe manifest's 171 hashes: not checked (the "
+          "manifest was deleted from the tree on 2026-09-24).")
 
     ok = (c1 is not False) and c2 and c3
     print("\n" + "=" * 78)

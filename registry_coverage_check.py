@@ -33,10 +33,12 @@ WHY THE TABLES ARE READ STATICALLY AND NOT BY IMPORTING THEM
     exit non-zero from somebody else's SystemExit, naming one table when several
     may be missing. So its four tables are read with ast, from source.
 
-    FILES IS NOT A MODULE-LEVEL TABLE AT ALL. It is built inside main() as
-    `FILES = {}` followed by `FILES["nifty100"] = (...)` under a membership test, so
-    the only way to ask which universes it covers is to read the subscript
-    assignments. That is what _subscript_keys does.
+    FILES IS NOT A MODULE-LEVEL TABLE AT ALL. It is built inside main(). Until
+    2026-09-24 that was `FILES = {}` followed by one `FILES["<tag>"] = (...)` per
+    universe, and _subscript_keys read the constant keys. Since 2026-09-24 it is
+    one loop, `for tag in tags: FILES[tag] = (...)`, over the run's selection, so
+    it covers every registered universe by construction. _subscript_keys reports
+    that as a loop-built table (every tag covered) rather than as eight holes.
 
 THREE TABLES LEFT THIS CHECK ON 2026-09-16, AND IT SAYS SO RATHER THAN SHRINKING
     Phase 2 moved make_combined_universes' DISPLAY, COLOURS and LIQUIDITY into
@@ -110,9 +112,13 @@ def _tuple_items(tree, name):
     return None
 
 
+LOOP_BUILT = object()   # _subscript_keys: the table is filled by a loop variable
+
+
 def _subscript_keys(tree, name):
     """The constant keys assigned as `NAME[...] = ...` anywhere, or None if NAME
-    is never bound at all."""
+    is never bound at all. LOOP_BUILT when the keys are a `for` loop's variable
+    (`for tag in tags: NAME[tag] = ...`), which covers whatever is iterated."""
     bound = any(isinstance(n, ast.Assign)
                 and any(isinstance(t, ast.Name) and t.id == name for t in n.targets)
                 for n in ast.walk(tree))
@@ -126,6 +132,15 @@ def _subscript_keys(tree, name):
             if (isinstance(t, ast.Subscript) and isinstance(t.value, ast.Name)
                     and t.value.id == name and isinstance(t.slice, ast.Constant)):
                 out.add(t.slice.value)
+    loop_vars = {f.target.id for f in ast.walk(tree)
+                 if isinstance(f, ast.For) and isinstance(f.target, ast.Name)}
+    for n in ast.walk(tree):
+        if isinstance(n, ast.Assign):
+            for t in n.targets:
+                if (isinstance(t, ast.Subscript) and isinstance(t.value, ast.Name)
+                        and t.value.id == name and isinstance(t.slice, ast.Name)
+                        and t.slice.id in loop_vars and not out):
+                    return LOOP_BUILT
     return out
 
 
@@ -185,6 +200,10 @@ def coverage(registry=None):
         ("make_combined_universes.FILES", _subscript_keys(comb, "FILES"),
          "KeyError at FILES[t], deep in the draw, naming nothing"),
     ]
+    # A LOOP-BUILT TABLE COVERS THE SELECTION, which is every registered universe
+    # when nothing narrows it. Reported as covering all tags, by construction.
+    tables = [(label, set(tags) if covered is LOOP_BUILT else covered, why)
+              for label, covered, why in tables]
     for script, covered in sorted(pipeline_by_script.items()):
         tables.append((f"run_all.PIPELINE_ORDER [{script}]", covered,
                        "SILENT -- that step never runs for this universe"))

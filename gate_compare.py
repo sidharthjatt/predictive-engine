@@ -11,13 +11,13 @@ so it holds artefacts from other arms, other profiles and earlier runs. Those
 files are not touched by the cell under test, so they match themselves, every
 time, no matter what the change did.
 
-MEASURED 2026-09-15: of the 36 deterministic artefacts in the mid_v3 baseline,
-`--universe mid --arm v3` writes 17. The other 19 are v2's and the tradeable
-profile's. Every mid verdict of the form "35 of 36 byte-identical" was therefore
+MEASURED 2026-09-15: of the 36 deterministic artefacts in the midcap150 v3 baseline,
+`--universe midcap150 --arm v3` writes 17. The other 19 are v2's and the tradeable
+profile's. Every midcap150 verdict of the form "35 of 36 byte-identical" was therefore
 reporting 19 files that could not have moved, and a real regression in any of
 them would have been invisible for the same reason.
 
-n100_v2 was not affected -- all 17 of its deterministic baseline artefacts are
+nifty100 v2 was not affected -- all 17 of its deterministic baseline artefacts are
 written by its cell -- which is why the defect survived: half the evidence was
 sound.
 
@@ -27,7 +27,7 @@ one outcome that must never be silent is "not written, and nobody knows why",
 because that is indistinguishable from a step that stopped writing.
 
   python3 gate_compare.py <baseline-cell-dir> <live-metrics-dir> \
-                          --universe mid --arm v3 [--profile research] [--since EPOCH]
+                          --universe midcap150 --arm v3 [--profile research] [--since EPOCH]
 """
 import argparse
 import hashlib
@@ -105,7 +105,7 @@ def _strip_provenance(doc):
 #           label format, which differs in three ways at once (the split token,
 #           the word "max", and .1f versus .0f). The pattern matched the
 #           ax[1].plot call and never reached the argument on its CONTINUATION
-#           LINE. n100's chart moved by 3,971 pixels -- 0.103% of the image, all
+#           LINE. nifty100's chart moved by 3,971 pixels -- 0.103% of the image, all
 #           of it inside one legend box -- and nothing in the survey said so.
 #
 # SO: A MERGE IS NOT GATED UNTIL BOTH UNIVERSES' ARTEFACTS ARE BYTE-IDENTICAL
@@ -114,7 +114,7 @@ def _strip_provenance(doc):
 # step 7 on a survey must not be offered as evidence that a merge is clean.
 #
 # AND A COMPARISON MUST EXERCISE WHAT IT CLAIMS TO. The first pixel diff of that
-# n100 chart reported ZERO differences, because the last run executed at that
+# nifty100 chart reported ZERO differences, because the last run executed at that
 # moment was the PRE-merge one -- so it compared the pre-merge file against its
 # own copy and proved nothing. Same class as the prose stripper that passed a
 # two-line test and did nothing on the real tree: a check that passes because it
@@ -130,8 +130,8 @@ def _strip_provenance(doc):
 # arms.registry.selection_suffix() is EMPTY for a full selection, because only a
 # four-arm run may write the canonical v34 artefacts. So:
 #
-#   --arm all  writes  v34_comparison.csv      chart_v34.png      DAILY_LOG_mid.txt
-#   --arm v3   writes  v34_comparison_v3.csv   chart_v34_v3.png   DAILY_LOG_mid_v3.txt
+#   --arm all  writes  v34_comparison.csv      chart_v34.png      DAILY_LOG_midcap150.txt
+#   --arm v3   writes  v34_comparison_v3.csv   chart_v34_v3.png   DAILY_LOG_midcap150_v3.txt
 #
 # These are DIFFERENT ARTEFACTS FROM DIFFERENT NAMING BRANCHES. An all-arm cell
 # does not subsume a single-arm one, and a gate built only on all-arm cells leaves
@@ -143,8 +143,8 @@ STANDING_GATE = (
     # (universe, arm,  profile,    runtime, artefacts, what it alone exercises)
     ("midcap150",  "all", "research",  "67 s", 43, "canonical unsuffixed v34 artefacts"),
     ("nifty100", "all", "research",  "52 s", 43, "canonical, plus chart_nifty100_v1_v2_v3_v4.png"),
-    ("midcap150",  "v3",  "research",  "24 s", 20, "the SUFFIXED naming branch on mid"),
-    ("nifty100", "v2",  "research",  "20 s", 20, "the suffixed branch on n100; the accepted cell"),
+    ("midcap150",  "v3",  "research",  "24 s", 20, "the SUFFIXED naming branch on midcap150"),
+    ("nifty100", "v2",  "research",  "20 s", 20, "the suffixed branch on nifty100; the accepted cell"),
     # THE TWO TRADEABLE CELLS. Added 2026-09-15 to cover the participation cap, and
     # they exercise the cap's CODE PATH -- vol20 is built, passed and consulted on
     # every buy -- but on today's data it never shrinks an order.
@@ -158,9 +158,9 @@ STANDING_GATE = (
     # belonged to an earlier snapshot; the tree has moved since and nothing
     # re-checked the sentence.
     #
-    # SO THE STATEMENT "mid is the only universe whose cap binds" IS WITHDRAWN.
-    # n100 was already recorded inert; as of this commit mid is inert too, and no
-    # cell in this gate replays a run in which the cap changed a single fill. What
+    # SO THE STATEMENT "midcap150 is the only universe whose cap binds" IS WITHDRAWN.
+    # nifty100 was already recorded inert; as of this commit midcap150 is inert too,
+    # and no cell in this gate replays a run in which the cap changed a single fill. What
     # these cells prove is that the tradeable naming branch and the cap's plumbing
     # reconcile -- not that a cap-shrunk order has ever been replayed.
     #
@@ -197,13 +197,13 @@ STANDING_GATE = (
 
 # THE TWO TRADEABLE CELLS ARE PARTIAL, AND THAT IS NOT A DETAIL. They exercise the
 # engine and the audit -- STEP 10b, 10c, 10d, 12b, 15, 15b all run, the artefacts
-# are written, and all four mid arms reconcile to under a paisa.
+# are written, and all four midcap150 arms reconcile to under a paisa.
 #
 # THEY USED TO DIE AT STEP 16, AND NO LONGER DO. run_all._present() demanded a
 # profile-suffixed v_midcap150_expanding_cache_tradeable.csv; the score panel carries no
 # profile dimension, so the guard was asking for a file that should not exist.
 # Fixed 2026-09-16 by scoping the guard to the axes each input's name declares.
-# `--universe mid --arm v2 --profile tradeable` now runs all nine steps, exit 0.
+# `--universe midcap150 --arm v2 --profile tradeable` now runs all nine steps, exit 0.
 #
 # THE CELLS ARE STILL [PARTIAL], AND FOR A STRONGER REASON THAN BEFORE. They no
 # longer stop early -- but NOTHING HERE COMPARES WHAT STEP 16 AND STEP 17 PRODUCE
@@ -237,7 +237,7 @@ STANDING_GATE = (
 # of these is a real axis of this pipeline that no cell above touches:
 #
 #   --profile tradeable   RECONCILES since 2026-09-15 (audit_step now pairs the cap
-#                         with vol20), and mid v1/v2 tradeable are gate cells above.
+#                         with vol20), and midcap150 v1/v2 tradeable are gate cells above.
 #                         The cells remain [PARTIAL] for the reason given above
 #                         them: nothing here compares what STEP 16 and STEP 17
 #                         produce under this profile against anything.

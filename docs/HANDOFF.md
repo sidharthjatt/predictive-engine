@@ -2,88 +2,72 @@
 
 ## BLOCKER 1, ABOVE EVERYTHING ELSE: THE DATA IS NOT IN THIS REPOSITORY
 
-**"Clone it, install requirements.txt, run it" DOES NOT WORK, and the reason has
-nothing to do with the code.** 172 MB of price data is excluded from git by
-`.gitignore:71` (`data/raw/*`) and must be copied separately:
+**"Clone it, install requirements.txt, run it" does not work until the price
+data is copied in, and nothing in the repository can fetch it.** The data comes
+from the owner of this repository. README.md, "The price data", gives the exact
+layout: one folder, `data/raw/Final_Without_Survivorship_Data/`, 876 MB, 1,392
+CSVs in eight subfolders, one per universe. `data/raw/*` is excluded by
+`.gitignore`.
+
+Check a copy before running anything:
 
 ```
-data/raw/MidCap150/clean/          149 files    95 MB   148 constituents + NIFTYMIDCAP150.csv
-data/raw/nifty100_benchmark/       100 files    77 MB    99 constituents + NIFTY100.csv
+python3 check_data.py
 ```
 
-**THERE IS NO FETCH SCRIPT.** The only downloader in the project,
-`results/extract_membership.py`, retrieves NSE press releases for the survivorship
-work, not prices. **Nothing in this repository can re-acquire this data.** If you
-lose it, it is gone, and a `git clone` gives you a pipeline with nothing to run on.
+It compares every file with the tracked manifest `data/RAW_DATA_SHA256.txt` and
+exits 0 only when all 1,392 files match and no extra file is present.
 
-**THERE IS NO LICENCE.** Nothing records what may be done with it. The rows carry
-their own vendor provenance -- `dhan`, `kite`, `upstox`, mixed within single files
--- and no grant of any kind accompanies them.
-
-**DO NOT READ THIS REPOSITORY AS NEARLY PORTABLE.** Every other blocker below --
-the two stale citations in `requirements.txt`, the `/tmp` hardcoding, the Python
-floor, the symlink farms -- is a half-hour of work. This one is an acquisition
-problem and it is the whole problem. A reader who fixes the others still cannot
-produce a number.
+**There is no fetch script and no licence.** The only downloader in the project,
+`results/extract_membership.py`, retrieves NSE press releases for the
+survivorship work, not prices. Nothing records what may be done with the data.
 
 ### The other blockers, in the order they will bite
 
-They are listed here so "below" in the paragraph above means something. None is
-large; all are real.
+2. **Python 3.12.13, every direct dependency pinned exactly** in
+   `requirements.txt`, the rest in `installed_versions.txt` (section 6).
+3. **Use `./venv/bin/python`, not `python3`**, for everything except
+   `check_data.py`. On the machine this was built on, `python3` is 3.11 with no
+   lightgbm.
+4. **Windows is untested** (README, "Running it").
 
-2. **`requirements.txt` cites two files that do not exist** -- `diagnose_decay.py`
-   and `reality_check.py`. Checked 2026-09-15 by resolving every `.py` named in
-   that file: the other five resolve. A reader following either citation finds
-   nothing and cannot tell whether the dependency is spurious or the file is lost.
-3. **`/tmp` no longer holds the panels** (2026-09-23): they live under `cache/`.
-   Some measurement scripts still write scratch files to `/tmp`, keyed by content.
-4. **Python 3.12.13, with every direct dependency pinned** in `requirements.txt`.
-5. **CLOSED 2026-09-24 — the farms no longer ship.** They live under the
-   gitignored `cache/`, hold hard links (or copies) instead of symlinks, and are
-   rebuilt from `data/raw/` on demand. Until 2026-09-23 they were absolute
-   symlinks inside `data/raw/`, and a copied tree pointed back at the source
-   machine.
-6. **CLOSED 2026-09-16 — `--profile tradeable` completes.** It used to die at
-   STEP 16 on a profile-suffixed score-panel name that cannot exist, because the
-   input guard applied every axis to every required input. Each entry now declares
-   which axes its name carries. `--universe mid --arm v2 --profile tradeable` runs
-   all nine steps, exit 0; so does `--universe mid --arm v3 --rebal 200`.
-   **Completing is not being validated:** STEP 16 and STEP 17 have now run under
-   that profile for the first time and no gate cell covers what they produced.
-7. **Cross-machine reproducibility is untested** -- the next section is about
-   exactly this, and names the four axes nobody has varied.
+Closed and kept here so they are not rediscovered as open:
+
+- **CLOSED 2026-09-24 -- cross-machine reproducibility.** A midcap50 v2 run was
+  byte-identical on macOS arm64, Linux arm64 and Linux amd64 (README, "Running
+  it"), and a fresh clone of origin/main reproduced midcap50 v2 byte for byte,
+  tax off and on, on 2026-09-24.
+- **CLOSED 2026-09-24 -- the farms no longer ship.** They live under the
+  gitignored `cache/`, hold hard links (or copies) instead of symlinks, and are
+  rebuilt from `data/raw/` on demand.
+- **CLOSED 2026-09-16 -- `--profile tradeable` completes.** Completing is not
+  being validated: no gate cell covers what STEP 16 and STEP 17 produce under
+  that profile.
+- **CLOSED -- `requirements.txt` cited two files that do not exist.** The file
+  now says so itself (its lines 69-70).
 
 ---
 
 ## Read this paragraph before anything else
 
-**Cross-machine reproducibility has never been tested.** Nobody has run this
-pipeline on a second machine and compared the numbers. On 2026-09-12 a cold
-rebuild reproduced both universes' published figures byte-identically on every
-field — but that was the **same machine, the same `venv`, the same interpreter**.
-It is evidence that the one pinned dependency is pinned in the right place. It is
-not evidence that you will get the same numbers, and it should not be quoted as
-if it were.
-
-Expect to reproduce the *structure* — the shape of the equity curve, the trade
-count within a few, the drawdown within a point. If you reproduce the headline
-CAGR to two decimal places on different hardware, that is a stronger result than
-this project has ever demonstrated, and it is worth reporting back.
-
 Before trusting any number you produce, read `KNOWN_ISSUES.md` from the top. The
 first entry is the one that matters: the strategy's return edge over a
 fully-invested benchmark is smaller than the noise it is measured through, and
 its drawdown advantage does not survive the control that holds exposure fixed.
+Reproducing a published figure to the last digit (which the fresh-clone check
+above did) shows the pipeline is deterministic; it does not show the figure is
+stable. `diagnostics/price_noise.txt` measures how far a figure moves under a
+0.01% price perturbation.
 
 ---
 
 ## 1. The code
 
-Every `.py` file — **84** of them, all tracked. Ship the directory layout exactly
-as it is:
+Every `.py` file, **101** of them on 2026-09-24, all tracked. Ship the directory
+layout exactly as it is:
 
 ```
-run.py  run_all.py  paths.py  config.py  config_mid.py  config_n100.py
+run.py  run_all.py  paths.py  config.py  check_all.py  check_data.py
 cadence.py  profiles.py  module_state.py  check_pipeline_order.py  (+ root tools)
 results/     the engine, the steps, and the shared libraries
 nautilus/    the execution port (STEP 16, STEP 17)
@@ -109,11 +93,11 @@ indicates which files a run actually touches. Measured 2026-09-13 by resolving
 **LOAD-BEARING (21).** `PIPELINE_ORDER` invokes these, or something it invokes
 imports them. Changing one changes a run.
 
-    steps    build_scores_mid      build_scores_n100      build_scores_step
-             engine_v2_final_mid   engine_v2_final_n100
-             make_mid_audit        make_n100_audit        audit_step
-             make_mid_chart        make_n100_chart        make_combined_universes
-             make_daily_log
+    steps    build_scores          build_scores_step      engine_v2_final
+             make_audit            audit_step             make_chart
+             make_combined_universes                      make_daily_log
+             (one of each since the collapse; each takes a Universe. The list
+             was measured 2026-09-13 with the per-universe pairs, since merged.)
     libs     engine_core  test_exposure  v34_common  features_v2
              arm_sources  survivorship   tradability  qbeast_in_charges
 
@@ -155,8 +139,8 @@ The collapse (steps 3-8) merges the per-universe step pairs, and each merge leav
 prose in `KNOWN_ISSUES.md`, `experiments/`, `diagnostics/` and this file naming a
 predecessor -- `build_scores_mid.py` and `build_scores_n100.py` went at step 3,
 eleven citations with them, and steps 4-7 will add more. **They are left as
-historical record of what those files did**, the same treatment
-`RETIRED_UNIVERSES.md` gives the 58's and 74's scripts, and the same rule that
+historical record of what those files did**, the same treatment the retired
+universes' scripts got in RETIRED_UNIVERSES.md (now in git history), and the same rule that
 left STEPS 0-9 and 11-14 as numbering gaps: a name means what it meant when it was
 written. Each merged module's docstring names its predecessors, so the trail greps
 from either end. **Do not "repair" them.**
@@ -531,55 +515,28 @@ now source data in the same sense as a raw price file. If you lose it, restore i
 from git; nothing can recompute it.
 
 Its end date, 2026-06-08, is a **data** boundary, not a market one — it is simply
-the last date present in the deleted universe's files. See
-`RETIRED_UNIVERSES.md` section 6.
+the last date present in the deleted universe's files. See RETIRED_UNIVERSES.md
+section 6 in git history (`git show 50562ed:RETIRED_UNIVERSES.md`).
 
-## 3. The price data — 172 MB, untracked, three vendors, no licence
+## 3. The price data: 876 MB, untracked, from the repository owner
 
 ```
-data/raw/MidCap150/clean/          149 files    95 MB   148 constituents + NIFTYMIDCAP150.csv
-data/raw/nifty100_benchmark/       100 files    77 MB    99 constituents + NIFTY100.csv
+data/raw/Final_Without_Survivorship_Data/     1,392 files   876 MB   eight folders, one per universe
 ```
 
-**A `git clone` does not produce a runnable repository.** These directories are
-excluded from git and must be copied separately.
+The folder names, file counts and index file of each universe are in README.md,
+"The price data", and every file's SHA-256 is in `data/RAW_DATA_SHA256.txt`
+(`python3 check_data.py` verifies a copy). A universe's constituents are the CSVs
+in its folder (`universes/registry.py`, each row's `raw_data_dir`), so an extra or
+missing file changes the universe. Other folders the owner's copy may hold under
+`data/raw/` (`MidCap150/`, `nifty100_benchmark/`, `EQUITY/` and others from earlier
+vendors) are read by no pipeline step.
 
-**CORRECTED 2026-09-13. This section previously said "no source, vendor, download
-date or licence is recorded anywhere for this data." That was wrong**, and it was
-wrong in the direction that mattered: it told a reader not to look. Every price row
-carries its own provenance, in columns nothing in the pipeline reads:
-
-| column | what it holds |
-|---|---|
-| `source` / `_source` | the vendor: **`dhan`, `kite`, `upstox`** — three of them, mixed within single files |
-| `exchange` / `_exchange` | `NSE` or `BSE` |
-| `product_class` | `EQUITY` |
-| `_window`, `_window_freq`, `_window_start`, `_window_end` | the fetch window, monthly |
-| `_dq_score` | a per-row data-quality score, **0.62 to 1.00** |
-| `_gap_filled` | 0/1, the vendor's own synthetic-row flag |
-| `_merged_at` | full ISO timestamp of the merge |
-
-**THE MERGE VINTAGES DIFFER BY UNIVERSE, and nothing else records this:**
-
-    mid                 _merged_at  2026-08-11
-    n100                _merged_at  2026-07-20
-    N100_Survivorship   _merged_at  2026-07-23 and 2026-07-30
-
-**The two live universes' price data were extracted three weeks apart.** Any
-cross-universe comparison in this project spans that gap, and no result states it.
-
-**WHAT IS GENUINELY MISSING, which is still enough to matter:**
-
-- **No licence.** Nothing records what may be done with this data.
-- **No fetch script.** The only downloader in the project,
-  `results/extract_membership.py`, retrieves NSE press releases for the
-  survivorship work, not prices. There is no way to re-acquire the data from
-  anything the repository contains, so **if you lose it, it is gone.**
-- **No prose describing the columns.** The contract above was recovered by reading
-  the files on 2026-09-13, not from any document.
-
-Read alongside `KNOWN_ISSUES.md`, which now carries the same correction and the
-measured consequences of `_dq_score` and `_gap_filled` going unread.
+Every price row carries its own provenance in columns nothing in the pipeline
+reads: `source` (the vendor), `exchange`, `_dq_score` (0.62 to 1.00),
+`_gap_filled` (the vendor's synthetic-row flag), `_merged_at`, and the fetch
+window. `KNOWN_ISSUES.md` records the consequences of `_dq_score` and
+`_gap_filled` going unread.
 
 Column contract: `date, open, high, low, close, adj_close, volume, open_interest`
 at minimum. `adj_close` is the canonical price and is resolved into `close` at the
@@ -601,39 +558,28 @@ tree pointed back at the source checkout.
 
 ```
 data/reference/*.csv                  3 files, 9.6 MB   membership tooling
-data/raw/membership_workbooks/*.xlsx  4 files, 116 KB   survivorship tooling
-data/raw/N100_Survivorship/…          160 MB            point-in-time membership
 ```
 
-None of this is on the pipeline path. The survivorship membership file is read
-only when `SURVIVORSHIP_MODE = "pit"`, which **no pipeline step sets** — the
-default is `"static"`, today's constituents backfilled. Ship it if you intend to
-work on survivorship; the pipeline runs without it.
+Not on the pipeline path. The point-in-time membership files that
+`SURVIVORSHIP_MODE = "pit"` would read are not in the repository; no pipeline step
+sets that mode, and the default is `"static"`, today's constituents backfilled.
 
 ## 6. The environment
 
-**Python 3.12 or newer.** A hard floor, set by `nautilus_trader`, not a
-preference.
+**Python 3.12.13.** A hard floor of 3.12 is set by `nautilus_trader`; the exact
+patch release is what the byte-identical cross-platform runs used.
 
-**`requirements.txt` pins exactly one thing, deliberately:**
+**Every direct dependency is pinned exactly (`==`) in `requirements.txt`**, and
+`installed_versions.txt` is `pip freeze` of a venv built from it, passed as a
+constraints file so the transitive versions are fixed too:
 
 ```
-lightgbm==4.6.0
+./venv/bin/python -m pip install -r requirements.txt -c installed_versions.txt
 ```
 
-Every score in this project comes from `lgb.LGBMRegressor`. A one-bit float
-difference is enough to flip a split decision, reorder near-tied names at the
-`TOP_N=8` boundary, and move the headline CAGR by two thirds of a point — that is
-measured, not feared; see `KNOWN_ISSUES.md`, *"The headline is not reproducible
-from the artefacts on disk to better than about a point"*. A minor-version bump
-is free to change split arithmetic, so a floor would not preserve the numbers.
-
-Everything else is a range, with the versions present at the last published
-headline recorded in `requirements.txt` as provenance. There is one data point on
-what that looseness costs: on 2026-09-12, five of those libraries had drifted from
-the recorded versions (`scipy`, `scikit-learn`, `joblib`, `matplotlib`,
-`nautilus_trader`) while `lightgbm`, `numpy` and `pandas` matched — and the
-numbers reproduced byte-identically. One observation, same machine.
+Every score comes from `lgb.LGBMRegressor`, and a one-bit float difference is
+enough to reorder near-tied names at the `TOP_N=8` boundary, so a range would let
+two machines produce different numbers from the same file.
 
 **The panels are under `cache/`, not `/tmp`, since 2026-09-23.** Two checkouts on
 one machine shared `/tmp`, and the second read the first one's panels.
@@ -645,26 +591,20 @@ thread-count caps are set by the code, never consulted from outside.
 ## 7. First run
 
 ```bash
-python3 -m venv venv && ./venv/bin/pip install -r requirements.txt
-
-# Confirm the real cost model is active, not the 0.11% fallback.
-# If this prints FALLBACK, every cost figure will differ by about 9%.
-./venv/bin/python -c "import sys;sys.path.insert(0,'results');\
-import engine_core,inspect;\
-print('REAL' if 'compute_leg_charges' in inspect.getsource(engine_core.calc_tc) else 'FALLBACK')"
-
-./venv/bin/python run.py --list                     # resolved plan, runs nothing
-./venv/bin/python run.py --universe mid --arm v2    # ~20 min, most of it scoring
+python3 check_data.py                                    # the data matches the manifest
+python3.12 -m venv venv
+./venv/bin/python -m pip install -r requirements.txt -c installed_versions.txt
+./venv/bin/python run.py --list                          # resolved plan, runs nothing
+./venv/bin/python run.py --universe midcap50 --arm v2    # the README's first command
 ```
 
-Use `./venv/bin/python`, not `python3`. Every step is spawned with
-`sys.executable`, so the launching interpreter propagates to every child.
+These are README.md's steps. Every step runs in `sys.executable`, so the launching
+interpreter propagates to every child.
 
-**Expect about 35 minutes for a cold two-universe run**, of which 34 is the two
-LightGBM scoring steps (measured 2026-09-12: 18.5 min for mid, 15.7 for n100).
-Every other step is seconds. Once the panels exist under `cache/` and their
-content keys match the source CSVs, scoring is skipped and a full run is a couple
-of minutes.
+**The first run of a universe builds its score panel, which dominates**: midcap50
+took 6.5 to 8.5 minutes on a Mac mini M4, nifty500 about 75 (README, "How long it
+takes"). Once a panel exists under `cache/` and its content key matches the source
+CSVs and the code, a repeat run of one combination takes tens of seconds.
 
 ## 8. What is not settled, and what you should not assume
 
@@ -678,18 +618,15 @@ of minutes.
   a task on a list.** Both universes are today's index constituents backfilled;
   names that left before the window ended are absent from every result, every
   chart and every comparison. What was measured about it stands and is not
-  re-litigated: the bias runs in **both** directions (PIT membership took mid v1
+  re-litigated: the bias runs in **both** directions (PIT membership took midcap150 v1
   from +19.03 to +9.68; adding synthetic dropped losers took it to +30.11 or
   +5.10 depending on whether the model sees them), v2's risk advantage survives
-  PIT untouched, and **there is no point-in-time membership for n100 at all** —
-  `rebuilt_100.csv` is the MidCap150, overlapping n100 by 8 of 100 names.
+  PIT untouched, and **there is no point-in-time membership for nifty100 at all** —
+  `rebuilt_100.csv` is the MidCap150, overlapping nifty100 by 8 of 100 names.
   Do not read any figure here as survivorship-corrected, and do not re-open this
   as work.
-- **Cross-machine reproducibility.** Untested. This is the open item this file
-  exists to flag: nothing in this repository can answer whether anyone else can
-  reproduce these numbers, and nobody has tried. It is the first thing a new
-  holder of this code is in a position to establish, and it would be worth more
-  than any further backtest.
+- **Cross-machine reproducibility.** Established on 2026-09-24 for macOS arm64,
+  Linux arm64 and Linux amd64 (README, "Running it"). Windows is untested.
 - **Combination coverage.** Of roughly 540 nominal selection combinations
   (universe × arm × cadence × profile × steps), a small minority have ever been
   run. Nine of fifteen arm subsets have never been exercised; the `tradeable`

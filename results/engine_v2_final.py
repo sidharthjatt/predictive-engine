@@ -14,15 +14,15 @@ panel description, buy&hold label, chart title, and whether the index-absent
 assertion applies). The merge is therefore artefact-neutral by construction, and
 the gate proves it rather than the author asserting it.
 
-NOTHING HERE IS UNIFIED. mid's params carry "validated" and "rejected" and no
-"universe"/"n_symbols"; n100's carry the opposite. mid's chart title is two lines
-and n100's is one. Neither set is more correct -- they are what the two engines
+NOTHING HERE IS UNIFIED. midcap150's params carry "validated" and "rejected" and no
+"universe"/"n_symbols"; nifty100's carry the opposite. midcap150's chart title is two lines
+and nifty100's is one. Neither set is more correct -- they are what the two engines
 happened to write -- and changing either is a judgement about a published
 artefact, which belongs in its own commit where a moved byte has one possible
 cause.
 
-validation_status IS DELIBERATELY ASYMMETRIC. mid's dict of eight measured
-results and n100's sentence saying the work was not done here are a record of
+validation_status IS DELIBERATELY ASYMMETRIC. midcap150's dict of eight measured
+results and nifty100's sentence saying the work was not done here are a record of
 which universe got the validation, not drift. Type tells them apart.
 
 Same strategy, same features, same hyperparameters for every universe; only the
@@ -47,9 +47,9 @@ from engine_core import metrics, precompute
 from test_exposure import backtest_exposure, CASH_YIELD
 import profiles as _prof            # the run's execution-realism profile
 # SURVIVORSHIP REPORTING, BACK-PORTED FROM engine_v2_final_n100.py 2026-09-13.
-# mid has run under the SAME static-membership bias as n100 since it existed --
+# midcap150 has run under the SAME static-membership bias as nifty100 since it existed --
 # 148 of TODAY'S index members backfilled to 2019 -- and said nothing about it in
-# any output it wrote. n100's engine has reported it all along. The bias was never
+# any output it wrote. nifty100's engine has reported it all along. The bias was never
 # universe-specific; only the disclosure was.
 import survivorship as sv
 import naming
@@ -147,7 +147,7 @@ def main(u):
     print(f"  SURVIVORSHIP: {sv.describe_state()}")
 
     # UNLISTED FIX 2026-08-28: this read /tmp/v_midcap150_expanding.csv directly and
-    # raised FileNotFoundError whenever /tmp had been cleared. n100's engine has
+    # raised FileNotFoundError whenever /tmp had been cleared. nifty100's engine has
     # always used config.require_cache with the permanent copy as the fallback;
     # this now matches it. Pre-existing bug, not introduced by the V34 work.
     # Guard loaded per universe -- see engine_core.set_tradeability.
@@ -156,9 +156,9 @@ def main(u):
     src = config.require_cache(u.score_cache, what=_T["panel_what"])
     p = read_table(src, parse_dates=["date"])
     # THE INDEX MUST NOT BE IN THE PANEL AS A TRADABLE NAME, where the universe
-    # declares that check. n100's engine has always asserted it; mid's never did.
+    # declares that check. nifty100's engine has always asserted it; midcap150's never did.
     # Preserved as declared per-universe data rather than switched on for both --
-    # turning it on for mid is a behaviour change and belongs in its own commit.
+    # turning it on for midcap150 is a behaviour change and belongs in its own commit.
     if _T.get("assert_index_absent") and u.index_name:
         assert u.index_name not in set(p["symbol"].unique()), \
             "the index is in the score panel as a tradable name"
@@ -248,8 +248,8 @@ def main(u):
     # while the nine readers were repointed one at a time, each byte-compared; that
     # is finished, and every reader now goes through arms/registry.equity_series.
     #
-    # THE FROZEN 58 AND 74 STILL WRITE `strategy`/`baseline_invvol` AND ALWAYS
-    # WILL. Their engines are those universes' provenance and are not modified, so
+    # THE RETIRED UNIVERSES' FILES CARRY `strategy`/`baseline_invvol` AND ALWAYS
+    # WILL. They are those universes' provenance and are not modified, so
     # equity_series' fallback is permanent rather than transitional -- it is how a
     # frozen universe's file is read, not a shim awaiting deletion.
     pd.DataFrame({"date": fin_eq.index,
@@ -257,14 +257,14 @@ def main(u):
                   "v2_invvol_breadth": fin_eq.values,
                   "buyhold": bh.values}).to_csv(_c(M / "v2FINAL_equity.csv"), index=False)
 
-    # v1 baseline's per-trade log, written the same way daily_trades_58.csv is.
+    # v1 baseline's per-trade log, written the same way daily_trades_<tag>.csv is.
     # Consumers (make_final_chart_fair.py) read the costs from the engine that
     # produced the equity curve, rather than re-running the baseline to recover
     # them. The count is asserted against what the engine itself reported.
     bt = pd.DataFrame(base_audit["trades"])
     assert len(bt) == nb, f"v1 trade log {len(bt)} rows vs engine count {nb}"
     # WRITTEN UNCONDITIONALLY, AND THAT IS A KNOWN LEAK, RECORDED NOT HIDDEN.
-    # `--arm v2` still produces daily_trades_v1_mid.csv -- a file named for an
+    # `--arm v2` still produces daily_trades_v1_<tag>.csv -- a file named for an
     # arm the run did not select. Gating it was TRIED and reverted: STEP 10d
     # make_mid_chart.py declares this file in run_all.REQUIRED_INPUTS as a hard
     # edge, so a gated write makes `--arm v2` die at check_inputs with a missing
@@ -304,7 +304,7 @@ def main(u):
 
     # THE KEY SET AND KEY ORDER ARE PER-UNIVERSE DATA, and json.dumps preserves
     # insertion order, so this loop is what keeps v2FINAL_params.json byte-identical
-    # across the merge. mid writes no "universe" and no "n_symbols"; n100 writes
+    # across the merge. midcap150 writes no "universe" and no "n_symbols"; nifty100 writes
     # both and writes no "validated"/"rejected". Neither set is more correct --
     # they are what the two engines happened to write. Unifying them would move a
     # published artefact, which is a judgement and belongs in its own commit.
@@ -353,7 +353,7 @@ def main(u):
     ax[0].set_ylabel("Cumulative return (%)")
     ax[0].yaxis.set_major_formatter(PercentFormatter(decimals=0))
     # THE TITLE REACHES chart_v2FINAL.png, so it is per-universe data rather than
-    # a literal here: mid's two lines and n100's one are different published
+    # a literal here: midcap150's two lines and nifty100's one are different published
     # artefacts, and unifying them would move a byte for a reason unrelated to
     # this merge.
     ax[0].set_title(naming.run_label(u.label, ["v1", "v2"]) + "\n"
@@ -424,7 +424,7 @@ def main(u):
   right comparison on its own -- return per deployed rupee and drawdown are.
   Idle cash earns {CASH_YIELD*100:g}%, so none of the return above comes from interest.
   EVERY FIGURE ABOVE IS BEFORE TAX. Against a held-lots buy & hold taxed by the
-  same rule, n100's edge is +0.46 before tax and -1.59 after -- a -2.05 swing,
+  same rule, nifty100's edge is +0.46 before tax and -1.59 after -- a -2.05 swing,
   the turnover cost of 478 annual short-term realisations against one deferred
   long-term one. See KNOWN_ISSUES.md and ./venv/bin/python bh_lots_after_tax.py.
 
@@ -440,14 +440,14 @@ def main(u):
     print("SELECTIVITY -- AN OBSERVATION, NOT A CHANGE")
     print("=" * 100)
     print(f"""
-  TOP_N is {TOP_N}, unchanged from the 58 and the 74. Against this universe that is
+  TOP_N is {TOP_N}, unchanged from the two retired universes. Against this universe that is
   a different bet:
 
       58 names  -> top {TOP_N/58*100:.1f}%
       74 names  -> top {TOP_N/74*100:.1f}%
      {n_names} names  -> top {TOP_N/n_names*100:.1f}%
 
-  For the same selectivity as the 58 setup, TOP_N would have to be about
+  For the same selectivity as the retired 58-name setup, TOP_N would have to be about
   {equal_sel:.0f} ({TOP_N}/58 of {n_names}). Under the Fundamental Law, IR is roughly
   IC x sqrt(breadth), and breadth is one of only two levers that can move IR --
   every portfolio-construction experiment on this project has failed precisely
@@ -455,7 +455,7 @@ def main(u):
   them takes the wider universe's breadth and then throws most of it away.
 
   This run deliberately does NOT act on that. TOP_N stays at {TOP_N} so this first
-  pass is untuned and directly comparable to the 58 and the 74. Changing it is a
+  pass is untuned and directly comparable to the retired universes. Changing it is a
   separate pre-registered experiment, and choosing it after seeing these numbers
   would be fitting the parameter to the result.
 """)

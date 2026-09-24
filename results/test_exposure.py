@@ -92,7 +92,7 @@ _CAP_REQUIRED = object()
 #
 # THAT IS THE EXACT FAILURE _CAP_REQUIRED WAS BUILT TO ABOLISH, and it abolished
 # half of it. Measured 2026-09-15: results/audit_step.py passed the cap and no
-# vol20, so every `--profile tradeable` audit of mid replayed the RESEARCH
+# vol20, so every `--profile tradeable` audit of midcap150 replayed the RESEARCH
 # strategy and reconciled it against the TRADEABLE curve -- reported as
 # "v1 MISMATCH Rs 3,851,027.09", which is the cap's whole effect to the paisa.
 # Thirteen further callers had the same pairing and were saved only by the profile
@@ -151,7 +151,7 @@ def backtest_exposure(px, op, sc, dates, pc, mom20, port_vol=None,
         the order is placed at 09:15 against a valuation that does not exist until
         15:30. Selection is unaffected (ranks were fixed on the prior decision day),
         but the QUANTITY bought depends on information from later the same day.
-        Measured on the 58, v1 arm: it flatters CAGR by 0.79 points (24.62 -> 23.83).
+        Measured on a retired universe, v1 arm: it flatters CAGR by 0.79 points (24.62 -> 23.83).
 
         WHY THE DEFAULT IS True RATHER THAN False. nautilus/nt_attribution.py has
         carried this same switch for longer, and every verification path already
@@ -161,7 +161,7 @@ def backtest_exposure(px, op, sc, dates, pc, mom20, port_vol=None,
         the basis its own gate verifies, instead of leaving the two disagreeing.
 
         NOBODY PASSES False ANY MORE. The four callers that did -- the retired
-        58's and 74's engines, their audit and their breadth validation -- were
+        two retired universes' engines, their audit and their breadth validation -- were
         deleted with those universes on 2026-09-11. The parameter is kept because
         the choice it names is real, but every live caller is now on the
         open-valued rule that the 92-of-92 gate verifies.
@@ -504,7 +504,7 @@ def backtest_exposure(px, op, sc, dates, pc, mom20, port_vol=None,
                     # exit above: never buy into a hole. This reason exists because
                     # "no open price (NaN/<=0)" cannot fire here -- ffill always
                     # supplies a price, which is why that reason fires ZERO times
-                    # across every mid and n100 trail while PATANJALI still filled
+                    # across every midcap150 and nifty100 trail while PATANJALI still filled
                     # 33,575 shares on a date with no raw row.
                     if not engine_core.tradeable_on(s, dt):
                         if audit is not None:
@@ -528,7 +528,7 @@ def backtest_exposure(px, op, sc, dates, pc, mom20, port_vol=None,
                     #
                     # APPLIED BEFORE THE CASH TEST BELOW, deliberately: the cap
                     # shrinks the order and the cash test then sees the smaller
-                    # number. Measured, mid v3 at cap=1.00: mean names held 7.60 ->
+                    # number. Measured, midcap150 v3 at cap=1.00: mean names held 7.60 ->
                     # 7.72 and cash-short skips 131 -> 123, because shrinking an
                     # early oversized name frees cash for the tail the loop used to
                     # drop. The two constraints cannot both bind harmfully.

@@ -3,12 +3,14 @@
 A cross-sectional equity ranking system for Indian markets, and the record of the
 twenty-five ideas that were tested against it.
 
-> **NAMING.** The universe tags were renamed on 2026-09-18: `mid` ->
-> `midcap150`, `n100` -> `nifty100`, `n50` -> `nifty50`. Code and live
-> artefacts use the new names; records, diagnostics, `runs/` and all prose
-> still use the old ones and are correct to. **An old tag is not a missing
-> universe.** The map, and the full list of what deliberately keeps the old
-> names, is in [PANEL_MIGRATION.md](PANEL_MIGRATION.md).
+> **NAMING.** Every universe has one name, used in code, file names, output and
+> current docs: `nifty50`, `nifty100`, `nifty200`, `nifty500`, `midcap50`,
+> `midcap100`, `midcap150`, `smallcap250`. The short tags `mid`, `n100` and
+> `n50` were retired on 2026-09-18 and are refused with an error that lists the
+> valid names. They still appear in dated records, pre-registrations and old
+> diagnostics, which are left as written; `mid` there means `midcap150`, `n100`
+> means `nifty100` and `n50` means `nifty50`. The rename is recorded in
+> [PANEL_MIGRATION.md](PANEL_MIGRATION.md).
 
 Strategy one of a planned series on the same market data. Later
 strategies are meant to run against the same universes, the same cost model and
@@ -140,13 +142,14 @@ a starting capital of Rs 10,00,000. All figures after costs.
 figure was an untracked directory. It is transcribed here at full precision,
 verbatim from `v34_comparison.csv` in `forensic_snapshot_20260911T0100/`, which is
 held in two copies on external media with a SHA-256 manifest
-([RETIRED_UNIVERSES-manifest.txt](RETIRED_UNIVERSES-manifest.txt)). A rebuild that
+(`RETIRED_UNIVERSES-manifest.txt`, removed from the tree on 2026-09-24; `git show
+50562ed:RETIRED_UNIVERSES-manifest.txt`). A rebuild that
 disagrees with a number below is a finding, not a refresh.
 
 Provenance of this table: engine as of commit `54e9f31` — `adj_close` canonical,
 interior-gap tradability guard active, `research` profile, cadence 20. **Every
 figure here differs from the ones this README carried before 2026-09-11**, which
-were measured on the close-price basis before those two corrections; mid's MaxDD
+were measured on the close-price basis before those two corrections; midcap150's MaxDD
 moved most, −18.98% to −15.68%.
 
 ### Price noise re-measured 2026-09-24 on the new numerics
@@ -294,9 +297,11 @@ collapses cuts drawdown is the part of the claim that survived the repoint.
 
 Two universes were retired, and on **2026-09-11 they were deleted** -- code, raw
 data and registry entries. Their figures are kept here because the experiment
-record refers to them constantly; the terminal record, including the full-precision
-tables and a SHA-256 manifest of every surviving artefact, is
-[RETIRED_UNIVERSES.md](RETIRED_UNIVERSES.md).
+record refers to them constantly. The terminal record, including the full-precision
+tables and a SHA-256 manifest of every surviving artefact, was RETIRED_UNIVERSES.md;
+it was removed from the tree on 2026-09-24 and is in git history (`git show
+50562ed:RETIRED_UNIVERSES.md`). The two universes were known by their sizes, 58 and
+74, and the table keeps those names because the experiment record uses them.
 
 | universe | window | CAGR | Sharpe | MaxDD | own equal-weight buy & hold |
 |---|---|---|---|---|---|
@@ -320,8 +325,12 @@ pass:
 
 | universe | 0.01-tick reconciliation | artefact |
 |---|---|---|
-| mid | 93 of 93 | recorded in `nautilus/NAUTILUS_STATUS.md` |
-| n100 | 93 of 93 | `diagnostics/nt_verify_n100.txt` |
+| midcap150 | 93 of 93 | recorded in `nautilus/NAUTILUS_STATUS.md` |
+| nifty100 | 93 of 93 | `diagnostics/nt_verify_n100.txt` |
+
+> *These two counts were measured before the 2026-09-24 numerics rebuild and have
+> not been restated. `nautilus/nt_verify.py --universe=<tag>` prints the current
+> count; check_all runs it for both universes on every run.*
 
 What that proves: the two implementations are identical in logic. Order lifecycle,
 cash accounting, fee computation and decision timing all survive the move into an
@@ -339,7 +348,7 @@ So the execution layer is a faithful simulation of bookkeeping and timing. It is
 not a simulation of execution. `NAUTILUS_STATUS.md` says the same in its own words
 and lists what would have to happen before real money.
 
-One number from the n100 verification is worth quoting because it is unflattering.
+One number from the nifty100 verification is worth quoting because it is unflattering.
 At the traded 0.05 tick grid, against the close-valued reference, the port matches
 on only 2 of 93 rebalances, with a maximum quantity error of 14.29%. That is the
 expected consequence of two documented differences — the reference values the
@@ -361,7 +370,7 @@ whole attempt, including that downloading the complete non-bond archive back to
 2016 did not extend coverage by a single day, and that the walk still breaks on a
 missing IREDA exclusion that is in no press release on disk.
 
-**The edge is concentrated in very few names.** mid beats its own buy & hold by
+**The edge is concentrated in very few names.** midcap150 beats its own buy & hold by
 1.99 points. Remove LLOYDSME and that becomes +0.02. Remove TATAINVEST as well and
 it is −0.30. Those figures are from `experiments/EXP21_EXP22_PREREG.txt`, written
 before the experiment that measured them ran. One stock going up 123x is carrying
@@ -375,12 +384,12 @@ treat the edge as suggestive rather than established.
 
 ![Quarterly rank IC, volatility dispersion, and factor-family IC by half](docs/chart_decay.png)
 
-*Quarterly rank IC on the 58 universe: roughly a third of quarters are negative,
+*Quarterly rank IC on the retired 58-name universe: roughly a third of quarters are negative,
 and the two halves read +0.0403 and +0.0214. It was generated by
-`results/diagnose_decay.py`, which ran on the 58 only; both the universe and the
-script were deleted on 2026-09-11, so **this figure cannot be regenerated and no
-equivalent exists for either surviving universe.** See
-[RETIRED_UNIVERSES.md](RETIRED_UNIVERSES.md).*
+`results/diagnose_decay.py`, which ran on that universe only; both the universe and
+the script were deleted on 2026-09-11, so **this figure cannot be regenerated and no
+equivalent exists for any current universe.** See `git show
+50562ed:RETIRED_UNIVERSES.md`.*
 
 **midcap150 holds positions it could not have bought.** Re-measured 2026-09-20 at
 the backtest's own Rs 10,00,000: **12 of 998 fills** with a prior-20-session median
@@ -449,7 +458,7 @@ exposure timing changes neither term. EXP18 fixed a diagnosed IC inversion exact
 as predicted and made performance worse, which means a positive IC does not imply
 better performance in this system. EXP22's premise was refuted rather than merely
 rejected: no position ever reached 20% of portfolio value, so no weight cap at any
-threshold can address mid's concentration, and that closes a whole family of
+threshold can address midcap150's concentration, and that closes a whole family of
 remedies. One experiment, the sizing test, has a pre-registered rule and no
 recorded verdict at all, and it is listed that way rather than guessed at.
 
@@ -483,14 +492,43 @@ be made); a panel is reused only while its sidecar's content key matches the sou
 CSVs and the code that builds it, so adding, removing or editing a CSV forces a
 rebuild.
 
-`data/raw/` is not in the repository: 3.0 GB of vendor OHLCV, excluded for size.
-The code cannot run without it, so it has to come from a backup. Each universe
-reads one supplier folder,
-`data/raw/Final_Without_Survivorship_Data/Final_<INDEX>_EoD_Data/` (for example
-`Final_NIFTYMidCap50_EoD_Data/` for midcap50), holding one CSV per constituent and
-one for the published index. Only `data/raw/.gitkeep` is tracked. (This paragraph
-said six membership files under `data/raw/` were tracked; that stopped being true
-and was corrected on 2026-09-24.)
+## The price data
+
+**The price data is not in this repository and cannot be downloaded from anywhere
+public. It comes from the owner of this repository: ask them for a copy.** It is
+vendor OHLCV, not redistributed here, and nothing runs without it.
+
+The pipeline reads exactly one folder, 876 MB, 1,392 CSV files. Put it at this path,
+with these eight subfolders, one per universe:
+
+    data/raw/Final_Without_Survivorship_Data/
+        Final_NIFTY50_EoD_Data/            nifty50       51 CSV   (50 constituents + Nifty 50.csv)
+        Final_NIFTY100_EoD_Data/           nifty100     100 CSV   (99 + NIFTY 100.csv)
+        Final_NIFTY200_EoD_Data/           nifty200     198 CSV   (197 + NIFTY 200.csv)
+        Final_NIFTY500_EoD_Data/           nifty500     496 CSV   (495 + NIFTY500.csv)
+        Final_NIFTYMidCap50_EoD_Data/      midcap50      50 CSV   (49 + NIFTY MIDCAP 50.csv)
+        Final_NIFTYMidCap100_EoD_Data/     midcap100     99 CSV   (98 + NIFTY MIDCAP 100.csv)
+        Final_NIFTYMidCap150_EoD_Data/     midcap150    149 CSV   (148 + NIFTY MIDCAP 150.csv)
+        Final_NIFTYSmallCap250_EoD_Data/   smallcap250  249 CSV   (248 + NIFTY SMLCAP 250.csv)
+
+Each folder holds one CSV per constituent, named by NSE symbol (`ABB.csv`), and one
+for the published index. A universe's constituents are whatever CSVs are in its
+folder, so an extra or missing file changes that universe and every figure on it.
+For one universe only, copy just its folder; for the published figures, all eight.
+Other folders the owner's copy may have under `data/raw/` are not read by anything.
+
+**Check your copy before running anything:**
+
+```
+python3 check_data.py
+```
+
+It compares every file against the tracked manifest `data/RAW_DATA_SHA256.txt`
+(SHA-256 per file) and exits 0 only if all 1,392 match and no extra file is present;
+otherwise it lists each missing, different or extra file. It needs only the Python
+standard library. With a one-universe copy it reports the other folders as missing,
+which is expected; `shasum -a 256 -c data/RAW_DATA_SHA256.txt` then shows that the
+folder you have is exact.
 
 ## Running it
 
@@ -503,7 +541,8 @@ or Ubuntu the `python3.12-venv` package). The official Docker image
 ```
 git clone https://github.com/sidharthjatt/predictive-engine.git
 cd predictive-engine
-# put the supplier data under data/raw/ -- see "Repository layout"
+# copy the price data into data/raw/ -- see "The price data"
+python3 check_data.py
 python3.12 -m venv venv
 ./venv/bin/python -m pip install -r requirements.txt -c installed_versions.txt
 ```

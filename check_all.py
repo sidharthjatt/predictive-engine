@@ -16,7 +16,7 @@ THE CLASS, STATED ONCE
          module the pipeline never imports. A survey conducted entirely through
          the static gates reported the cost as seven.
       2. seed_noise_measure and seed_noise_report UNIMPORTABLE FOR TWO WEEKS,
-         from the day n50 was registered, beside four green checkers. Found by
+         from the day nifty50 was registered, beside four green checkers. Found by
          accident, in the control arm of an unrelated experiment.
       3. A REGEX OVER PIPELINE_ORDER MATCHING 12 OF 15 ROWS, twice, because the
          script column contains digits. Both times the half-renamed pipeline
@@ -68,6 +68,24 @@ WHAT THIS DOES ABOUT IT
                          crosses LTCG_HOLD_DAYS while HOLDING_PERIOD still says
                          the branch does not fire. This is the gate whose absence
                          let 443- and 588-day lots appear unannounced.
+    GATE 9  LIVE-LIKE    the four delegates that prove the backtest trades like
+                         a live book: fills at the next open on the NSE tick grid
+                         (check_b_exec_timing, verify_next_open_execution), no
+                         feature look-ahead (leakage_check1_causality) and a
+                         positive purge gap (leakage_check2_trading_purge). Split
+                         out of GATE 5 on 2026-09-24 so they count in the final
+                         tally: GATE 5 never asserts (three of its delegates
+                         cannot, see DELEGATES), which hid these four with it.
+                         Asserts when all four ran and passed; a missing input
+                         is a named skip. Covers registry.CERTIFIED only.
+
+WHICH GATE NEVER ASSERTS, AND WHY
+    GATE 5, even with --since and --slow. Three of its delegates can never
+    assert inside this runner: gate_compare.py needs an artefact pair,
+    topn_centralise_check.py has no stored baseline, and
+    leakage_check4_corpactions.py has no pass condition. Any skipped delegate
+    makes GATE 5 a skip, so it is always one. Its delegates still run and a
+    failing one still fails the run.
 
 WHAT GATE 4 IS, AND WHAT IT IS NOT -- READ THIS BEFORE TRUSTING IT
     It was specified as "assert each step declares its outputs, then assert those
@@ -137,6 +155,17 @@ SKIP_PREFIX = ("forensic_snapshot_",)
 # having asserted nothing -- `return` with no value, then `sys.exit(main())`.
 # Wiring them without --run would have produced a green over zero tests, which
 # is the defect class this file exists to catch.
+from universes.registry import CERTIFIED as _CERTIFIED  # noqa: E402
+
+# GATE 9's members. They run inside the delegate loop like every other delegate
+# and are reported in the same table; they are tallied as their own gate.
+LIVE_LIKE = (
+    "results/check_b_exec_timing.py",
+    "nautilus/verify_next_open_execution.py",
+    "results/leakage_check1_causality.py",
+    "results/leakage_check2_trading_purge.py",
+)
+
 DELEGATES = (
     # The four that were already here.
     ("registry_coverage_check.py",            [], False, None),
@@ -155,19 +184,20 @@ DELEGATES = (
     ("tax_acceptance_check.py",               [], False, None),
     ("transitional_asserts_check.py",         [], False, None),
 
-    # ONE UNIVERSE PER INVOCATION. nt_verify.py defaults to the first REGISTERED
-    # universe, which is not a statement about what ships; naming both tags is.
-    ("nautilus/nt_verify.py",                 ["--universe=nifty100"],  False, None),
-    ("nautilus/nt_verify.py",                 ["--universe=midcap150"], False, None),
+    # ONE UNIVERSE PER INVOCATION, once per registry.CERTIFIED tag. nt_verify.py
+    # defaults to the first REGISTERED universe, which is not a statement about
+    # what ships; naming each tag is.
+    *[("nautilus/nt_verify.py", [f"--universe={t}"], False, None)
+      for t in _CERTIFIED],
 
-    # SLOW. validate_engine.py iterates both live universes inside one run, so it
-    # is wired ONCE and must not be given a tag. The other two do not, so they
-    # are wired once per tag.
+    # SLOW. validate_engine.py iterates the certified universes inside one run,
+    # so it is wired ONCE and must not be given a tag. The other two do not, so
+    # they are wired once per tag.
     ("results/validate_engine.py",            [], True, None),
-    ("validate_sizing.py",                    ["--universe=nifty100",  "--run"], True, None),
-    ("validate_sizing.py",                    ["--universe=midcap150", "--run"], True, None),
-    ("results/validate_breadth_live.py",      ["--universe=nifty100",  "--run"], True, None),
-    ("results/validate_breadth_live.py",      ["--universe=midcap150", "--run"], True, None),
+    *[("validate_sizing.py", [f"--universe={t}", "--run"], True, None)
+      for t in _CERTIFIED],
+    *[("results/validate_breadth_live.py", [f"--universe={t}", "--run"], True, None)
+      for t in _CERTIFIED],
 
     # BLOCKED, each with the reason rather than an invented pass condition.
     ("gate_compare.py", [], False,
@@ -240,7 +270,8 @@ SLOW_SHORT = "refits the model; needs --slow"
 def _needs(label):
     import paths as _p
     from universes.registry import REGISTRY as _R
-    two = (_R["nifty100"], _R["midcap150"])
+    from universes.registry import certified as _certified
+    two = _certified()
     if label == "results/leakage_check2_trading_purge.py":
         return [u.raw_cache for u in two]
     if label == "results/validate_topn.py":
@@ -290,7 +321,7 @@ KNOWN_UNIMPORTABLE = {
 # THE SEVEN, BY NUMBER, so the verdict can subtract rather than be told a total.
 # A gate added below without a line here would not be counted, which is the same
 # defect this file exists to catch, so the count is asserted against it in main().
-ALL_GATES = (1, 2, 3, 4, 5, 6, 7, 8)
+ALL_GATES = (1, 2, 3, 4, 5, 6, 7, 8, 9)
 
 
 class Result:
@@ -367,7 +398,7 @@ def gate_imports(res):
     """Import every module in the repository and name the ones that refuse.
 
     THIS IS THE GATE THAT WOULD HAVE CAUGHT seed_noise ON DAY ONE. Those two
-    modules raised SystemExit at import from the moment n50 was registered, and
+    modules raised SystemExit at import from the moment nifty50 was registered, and
     nothing imported them: not run_all, not any checker, not any test. They are
     run by hand, so the failure waited two weeks for a person.
     """
@@ -594,9 +625,12 @@ def gate_delegates(res, slow):
     what "run four of twenty" looked like from the outside: a green run.
     """
     ran = skipped = 0
+    live = {}                     # GATE 9: name -> PASS / FAIL / SKIP
     for name, args, is_slow, blocked in DELEGATES:
         label = " ".join([name] + args)
         p = ROOT / name
+        gate = "GATE 9 live-like" if name in LIVE_LIKE else "GATE 5 delegates"
+        n_before = len(res.delegates)
         if blocked is not None:
             short = SKIP_SHORT.get(name)
             if short is None:
@@ -623,9 +657,14 @@ def gate_delegates(res, slow):
                 pass
             why = (f"needs {len(missing)} run artefact(s) not on disk, first "
                    f"{first}; produce with ./venv/bin/python run.py --universe "
-                   f"nifty100,midcap150")
-            res.delegate(label, "SKIP", why, f"needs run artefacts: {first}")
-            skipped += 1
+                   f"{','.join(_CERTIFIED)}")
+            if name in LIVE_LIKE:
+                live[name] = "SKIP"
+                res.delegate(label, "SKIP", why, None)
+                res.not_asserted.pop()
+            else:
+                res.delegate(label, "SKIP", why, f"needs run artefacts: {first}")
+                skipped += 1
             continue
         r = subprocess.run([sys.executable, str(p)] + args,
                            capture_output=True, text=True)
@@ -653,11 +692,14 @@ def gate_delegates(res, slow):
             continue
         if r.returncode != 0:
             tail = [l for l in (r.stdout + r.stderr).splitlines() if l.strip()][-3:]
-            res.fail("GATE 5 delegates", label,
-                     f"exit {r.returncode}: " + " | ".join(tail))
+            res.fail(gate, label, f"exit {r.returncode}: " + " | ".join(tail))
             res.delegate(label, "FAIL", f"exit {r.returncode}")
+            if name in LIVE_LIKE:
+                live[name] = "FAIL"
         else:
             res.delegate(label, "PASS", "exit 0")
+            if name in LIVE_LIKE:
+                live[name] = "PASS"
 
     for name, why in sorted(RETIRED_DELEGATES.items()):
         short = SKIP_SHORT.get(name)
@@ -667,17 +709,36 @@ def gate_delegates(res, slow):
                      "line would name it without a reason")
         res.delegate(name, "RETIRED", why, short)
 
-    res.note(f"GATE 5  {ran} delegates ran, {skipped} skipped, "
+    n5 = len(DELEGATES) - len(LIVE_LIKE)
+    res.note(f"GATE 5  {ran - sum(1 for v in live.values() if v != 'SKIP')} of "
+             f"{n5} delegates ran, {skipped} skipped, "
              f"{len(RETIRED_DELEGATES)} retired")
-    if skipped:
+    if skipped or RETIRED_DELEGATES:
         # THE TWO COUNTS MUST AGREE. The verdict block below names skipped AND
         # retired delegates, so the one-line reason says both rather than the
         # smaller number -- a reason that reads "8" above a list of 9 is the same
         # concealment one digit smaller.
-        res.skip(5, f"GATE 5  {skipped} of {len(DELEGATES)} delegates did not "
+        res.skip(5, f"GATE 5  {skipped} skipped + {len(RETIRED_DELEGATES)} "
+                    f"retired of {n5 + len(RETIRED_DELEGATES)} delegates did not "
                     f"assert. Not counted as passed.",
                  f"{skipped} skipped + {len(RETIRED_DELEGATES)} retired, "
                  f"named below")
+
+    # GATE 9 -- asserted only when every live-like delegate ran and passed.
+    missing9 = [n for n in LIVE_LIKE if n not in live]
+    if missing9:
+        res.fail("GATE 9 live-like", ", ".join(missing9),
+                 "is in LIVE_LIKE but not wired in DELEGATES")
+    skip9 = [n for n, v in live.items() if v == "SKIP"]
+    if skip9:
+        res.skip(9, f"GATE 9  SKIPPED -- {len(skip9)} of {len(LIVE_LIKE)} live-like "
+                    f"delegates lack run artefacts: {', '.join(skip9)}. Not counted "
+                    f"as passed.",
+                 f"live-like delegates lack run artefacts ({', '.join(skip9)})")
+    elif not missing9 and all(v == "PASS" for v in live.values()):
+        res.note(f"GATE 9  {len(LIVE_LIKE)} of {len(LIVE_LIKE)} live-like delegates "
+                 f"passed on {', '.join(_CERTIFIED)}: next-open fills on the NSE "
+                 f"tick grid, no feature look-ahead on sampled dates, purge gap > 0")
 
 
 # ---------------------------------------------------------------------------
@@ -1243,7 +1304,8 @@ def main(argv=None):
 
     print()
     if res.delegates:
-        print("  GATE 5 DELEGATES, ONE LINE EACH")
+        print("  GATE 5 AND GATE 9 DELEGATES, ONE LINE EACH (GATE 9: "
+              + ", ".join(LIVE_LIKE) + ")")
         w = max(len(d[0]) for d in res.delegates)
         for label, status, detail in res.delegates:
             print(f"    {status:<8}{label:<{w}}  {detail}")
@@ -1264,7 +1326,7 @@ def main(argv=None):
     # THE VERDICT IS COMPUTED FROM THE SKIPS, NEVER TYPED. A constant string is
     # exactly what went wrong: it survived every skip the body recorded.
     n = len(ALL_GATES)
-    assert n == 8, f"ALL_GATES holds {n} gates; the wording below says eight"
+    assert n == 9, f"ALL_GATES holds {n} gates; the wording below says nine"
     ok = res.asserted()
     if res.skipped:
         # GROUPED BY REASON, because the common case is gates 4 and 6 skipping
@@ -1281,8 +1343,10 @@ def main(argv=None):
         _print_not_asserted(res)
         print("        A SKIPPED GATE IS NOT A PASSED GATE. Exit code is 0 "
               "because a skip is legitimate,")
-        print("        not because the work was done. Re-run with --since "
-              "<epoch> after a run to assert all eight.")
+        print("        not because the work was done. --since <epoch> after a run "
+              "asserts GATE 4 and GATE 6;")
+        print("        GATE 5 never asserts in this runner (three delegates cannot; "
+              "see the docstring).")
     else:
         print(f"RESULT: PASS -- all {n} gates asserted, none skipped")
         _print_not_asserted(res)

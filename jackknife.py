@@ -1,45 +1,38 @@
 """
-n100_jackknife.py -- is the Nifty 100 edge concentrated in a few names, the way
-MidCap150's is?
+jackknife.py -- is a universe's edge over its own buy & hold concentrated in a few names?
+
+    ./venv/bin/python jackknife.py --universe=nifty100            # baseline gate + cost, then stop
+    ./venv/bin/python jackknife.py --universe=nifty100 --run      # the full measurement
+    ./venv/bin/python jackknife.py --universe=midcap150 --run \
+        '--named-drop=PATANJALI,LLOYDSME,LAURUSLABS,AIIL,GVT&D,SUZLON,PERSISTENT,JSWENERGY'
+
+Replaces mid_jackknife.py and n100_jackknife.py (2026-09-24). Their edge() was the
+same function with a different panel; this file is that function once, with the
+universe taken from --universe. git history keeps both originals.
 
 THE QUESTION
-    mid beats its own equal-weight buy&hold by about 2 points, and removing one
-    name (LLOYDSME) takes that to roughly zero. Nobody has measured whether n100
-    behaves the same way, and n100 is the universe quoted publicly.
-
-    Two tests, no more:
-      [1] leave-one-out over all 99 names
+    Two tests, and an optional third:
+      [1] leave-one-out over every name in the universe
       [2] 200 random removals of 8 names, as a control
+      [3] --named-drop: one removal of a named set, placed in the [2] distribution.
+    The midcap150 command above is the third arm mid_jackknife.py ran: the eight
+    names flagged as carrying data artefacts. Choosing names by size and then
+    reporting that removing them hurts is circular, which is what the random
+    control in [2] exists to detect, so [3] is only ever read against [2].
 
 EDGE is measured the same way throughout: strategy CAGR minus the CAGR of the
-equal-weight buy&hold of the SAME reduced universe, so both sides see the same
+equal-weight buy & hold of the SAME reduced universe, so both sides see the same
 names. Removing a big winner hurts both, and only the difference is reported.
 
-THERE IS DELIBERATELY NO "CONTAMINATED NAMES" ARM
-    mid_jackknife.py has a third arm that removes eight specific MidCap150 names
-    flagged as carrying data artefacts, and reports where that sits in the random
-    distribution. There is no n100 equivalent, and building one would mean picking
-    names by size and then reporting that removing them hurts -- which is the exact
-    circularity the random control exists to detect. So that arm is absent, and
-    with it the verdict block that depended on it. This script reports; it does not
-    grade.
+REMOVAL SIZE IS 8 FOR EVERY UNIVERSE, WHICH IS NOT THE SAME FRACTION. It is held
+constant in absolute terms so the random arms are comparable across universes; the
+fraction is printed rather than corrected for.
 
-WHY edge() IS COPIED FROM mid_jackknife.py RATHER THAN IMPORTED
-    mid_jackknife.py builds its PANEL at module level (line 44), so importing it
-    loads the MID panel as a side effect. There is no way to get the function
-    without that. The logic below is a verbatim copy with the n100 panel swapped
-    in. DO NOT "tidy" this into an import -- it would silently measure mid.
-    mid_jackknife.py is the provenance of the published mid figures and is not
-    modified by this file.
+THE BASELINE GATE runs first on every universe: this script's reconstruction must
+reproduce the pipeline's own v2 and buy & hold CAGR from v2FINAL_equity.csv within
+0.05 points, or it stops. mid_jackknife.py had no such gate; n100_jackknife.py did.
 
-REMOVAL SIZE IS 8 FOR BOTH UNIVERSES, WHICH IS NOT THE SAME FRACTION
-    8 of 99 is 8.1% of n100; 8 of 148 is 5.4% of mid. Held constant in absolute
-    terms so the two random arms are directly comparable; the fraction difference
-    is printed rather than corrected for.
-
-Reads only. Writes nothing. Run:
-    python3 n100_jackknife.py            # baseline gate + timing estimate, then stop
-    python3 n100_jackknife.py --run      # the full measurement
+Reads only. Writes nothing.
 """
 import sys, time, warnings
 sys.dont_write_bytecode = True
@@ -64,34 +57,46 @@ VOL_WIN = 60
 N_RANDOM = 200
 SEED = 0
 DROP_SIZE = 8
+TOLERANCE = 0.05          # percentage points, on strategy and on buy & hold
 
-# The published n100 figures this run must reproduce before anything else is
-# believed. Read from the artefact at run time, not hardcoded -- these are only
-# here so a reader knows what to expect.
-OFFICIAL = ROOT / "results_nifty100" / "metrics" / "v2FINAL_equity.csv"
-TOLERANCE = 0.05          # percentage points, on strategy and on buy&hold
-
+_U = None
 _P = None
 
 
-def panel():
-    """The nifty100 score panel, read on first use.
+def universe():
+    """The universe named by --universe. Required; an unknown tag exits 2."""
+    global _U
+    if _U is None:
+        from universes.registry import REGISTRY, argv_universes, check_tags
+        picked = check_tags(argv_universes(sys.argv))
+        if len(picked) != 1:
+            raise SystemExit("usage: jackknife.py --universe=<tag> [--run] "
+                             "[--named-drop=SYM,SYM,...]\n  exactly one universe. "
+                             f"Valid: {', '.join(REGISTRY)}")
+        _U = REGISTRY[picked[0]]
+    return _U
 
-    NOT AT IMPORT. This was a module-level read until 2026-09-23, so importing
-    the file (check_all GATE 1 imports every module) read a cache, and on a tree
-    without the panel the import itself failed.
-    """
+
+def panel():
+    """The universe's score panel, read on first use, not at import."""
     global _P
     if _P is None:
-        from universes.registry import REGISTRY
-        _P = read_table(config.require_cache(REGISTRY["nifty100"].score_cache,
-                                              what="Nifty 100 score panel"),
-                         parse_dates=["date"])
+        u = universe()
+        _P = read_table(config.require_cache(u.score_cache, what=f"{u.name} score panel"),
+                        parse_dates=["date"])
     return _P
 
 
+def named_drop():
+    """The --named-drop symbols, or () when the flag is absent."""
+    for a in sys.argv:
+        if a.startswith("--named-drop="):
+            return tuple(s for s in a.split("=", 1)[1].split(",") if s)
+    return ()
+
+
 def edge(drop=()):
-    """(strategy CAGR, buy&hold CAGR, edge) with `drop` removed from the universe."""
+    """(strategy CAGR, buy & hold CAGR, edge) with `drop` removed from the universe."""
     P = panel()
     q = P[~P["symbol"].isin(set(drop))] if len(drop) else P
     px = q.pivot_table(index="date", columns="symbol", values="close").ffill()
@@ -106,7 +111,8 @@ def edge(drop=()):
     # makes that a statement rather than an accident, and STOPS the run if
     # --profile ever reaches here. See profiles.research_only.
     eq, tc, n, _ = backtest_exposure(px, op, sc, bd, pc, mom20, pv,
-                                     mode="breadth", target_vol=pv.loc[bd].median(), participation_cap=_prof.research_only(__name__))
+                                     mode="breadth", target_vol=pv.loc[bd].median(),
+                                     participation_cap=_prof.research_only(__name__))
     bh = 1_000_000 * (1 + px.pct_change().loc[bd].mean(axis=1).fillna(0)).cumprod()
     s = metrics(eq, "s", tc, n)["CAGR%"]
     b = metrics(bh, "b")["CAGR%"]
@@ -114,8 +120,9 @@ def edge(drop=()):
 
 
 def official():
-    """(strategy CAGR, buy&hold CAGR, edge) as the pipeline recorded them."""
-    eq = read_table(OFFICIAL, parse_dates=["date"]).set_index("date")
+    """(strategy CAGR, buy & hold CAGR, edge) as the pipeline recorded them."""
+    eq = read_table(universe().metrics_dir / "v2FINAL_equity.csv",
+                    parse_dates=["date"]).set_index("date")
     s = metrics(arm_reg.equity_series(eq, "v2"), "s")["CAGR%"]
     b = metrics(eq["buyhold"], "b")["CAGR%"]
     return s, b, s - b
@@ -126,7 +133,8 @@ def pct(a, q):
 
 
 def baseline_gate():
-    """Reproduce the published n100 figures, or stop. Returns (edge, seconds)."""
+    """Reproduce the published figures, or stop. Returns (edge, seconds)."""
+    u = universe()
     print("=" * 96)
     print(" BASELINE GATE -- does this script's reconstruction reproduce the pipeline?")
     print("=" * 96)
@@ -153,7 +161,7 @@ def baseline_gate():
         print("\n   Every leave-one-out number downstream is a difference between two")
         print("   curves built by THIS script. If its baseline is not the published")
         print("   strategy, those differences describe something else, and no")
-        print("   concentration claim from them would be about the live n100.")
+        print(f"   concentration claim from them would be about the live {u.tag}.")
         print("   Stopping. This is a finding, not a tolerance to widen.")
         print("!" * 96, flush=True)
         sys.exit(1)
@@ -163,28 +171,38 @@ def baseline_gate():
 
 
 def main():
+    u = universe()
+    named = named_drop()
     syms = sorted(panel()["symbol"].unique())
+    unknown = [s for s in named if s not in syms]
+    if unknown:
+        raise SystemExit(f"--named-drop names symbols not in {u.tag}: {', '.join(unknown)}")
     print("=" * 96)
-    print(f" NIFTY 100 JACKKNIFE -- is the edge concentrated? ({len(syms)} names)")
+    print(f" {u.name.upper()} JACKKNIFE -- is the edge concentrated? ({len(syms)} names)")
     print("=" * 96)
 
     e0, secs = baseline_gate()
 
-    n_calls = 1 + len(syms) + N_RANDOM
+    n_calls = 1 + len(syms) + N_RANDOM + (1 if named else 0)
     print("\n" + "=" * 96)
     print(" COST")
     print("=" * 96)
     print(f"   one edge() call            : {secs:.1f} s")
     print(f"   full run                   : {n_calls} calls "
-          f"(1 baseline + {len(syms)} leave-one-out + {N_RANDOM} random)")
+          f"(1 baseline + {len(syms)} leave-one-out + {N_RANDOM} random"
+          f"{' + 1 named' if named else ''})")
     print(f"   estimate                   : {secs*n_calls/60:.0f} min "
           f"({secs*n_calls:.0f} s), assuming every call costs the baseline")
-    print(f"   removal size {DROP_SIZE} is {DROP_SIZE/len(syms)*100:.1f}% of n100, "
-          f"against {DROP_SIZE/148*100:.1f}% of mid's 148")
+    print(f"   removal size {DROP_SIZE} is {DROP_SIZE/len(syms)*100:.1f}% of {u.tag}")
 
     if "--run" not in sys.argv:
         print("\n   Stopping here. Re-run with --run to execute the full measurement.")
         return
+
+    if named:
+        sn, bn, en = edge(named)
+        print(f"\n NAMED DROP ({len(named)})  strategy {sn:.2f}%   buy&hold {bn:.2f}%   "
+              f"edge {en:+.2f} pt   <- the non-neutral test")
 
     # ---------------------------------------------------------- leave-one-out
     print("\n" + "-" * 96)
@@ -205,8 +223,9 @@ def main():
           f"({(e<0).mean()*100:.1f}%)")
     print("\n   most damaging single removals:")
     for _, r in lo.nsmallest(8, "edge").iterrows():
+        mark = "  <- in the named drop" if r["symbol"] in named else ""
         print(f"     {r['symbol']:<13} edge {r['edge']:+6.2f}  drop {e0-r['edge']:+6.2f}  "
-              f"(strategy {r['strategy']:.2f}%, buy&hold {r['buyhold']:.2f}%)")
+              f"(strategy {r['strategy']:.2f}%, buy&hold {r['buyhold']:.2f}%){mark}")
 
     # ---------------------------------------------------------- random 8-name
     print("\n" + "-" * 96)
@@ -237,8 +256,31 @@ def main():
     print(f"   single removals flipping it negative {int((e<0).sum())} of {len(e)}")
     print(f"   random-{DROP_SIZE} removals flipping it negative  "
           f"{int((red<0).sum())} of {N_RANDOM}")
-    print("\n   This is a measurement, not a pre-registered experiment. There is no")
-    print("   accept rule and no threshold to pass, so the numbers stand as they are.")
+
+    if named:
+        below = float((red <= en).mean())
+        frac_neg = (red < 0).mean()
+        print(f"\n   WHERE THE NAMED DROP SITS: edge {en:+.2f} pt")
+        print(f"     random draws at or below it: {int((red<=en).sum())} of {N_RANDOM} "
+              f"(percentile {below*100:.1f})")
+        print("\n" + "=" * 96)
+        print(" VERDICT ON THE NAMED DROP")
+        print("=" * 96)
+        if frac_neg > 0.5:
+            print(f"  ORDINARY CONCENTRATION. A random {DROP_SIZE} flips the edge negative "
+                  f"{frac_neg*100:.0f}% of the time,")
+            print("  so the named-drop result carries no special information about fragility.")
+        elif below < 0.05:
+            print(f"  GENUINE FRAGILITY. A random {DROP_SIZE} flips the edge negative only "
+                  f"{frac_neg*100:.0f}% of the time,")
+            print(f"  and the named drop sits at the {below*100:.1f}th percentile -- far into the tail.")
+        else:
+            print(f"  MIXED. A random {DROP_SIZE} flips the edge negative {frac_neg*100:.0f}% "
+                  "of the time and")
+            print(f"  the named drop sits at the {below*100:.1f}th percentile. Read both numbers together.")
+    else:
+        print("\n   This is a measurement, not a pre-registered experiment. There is no")
+        print("   accept rule and no threshold to pass, so the numbers stand as they are.")
 
 
 if __name__ == "__main__":

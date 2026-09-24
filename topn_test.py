@@ -1,10 +1,17 @@
 """
-mid_topn_test.py -- does a larger TOP_N fix MidCap150's single-name concentration?
+topn_test.py -- does a larger TOP_N fix a universe's single-name concentration?
 
-WHY
-    Mid's edge over its own buy&hold rests on one name: removing LLOYDSME takes it
-    from +1.99 to +0.02. TOP_N=8 out of 148 names is the top 5.4%, against 13.8%
-    on the 58 universe where the parameter was originally chosen. Equal
+    ./venv/bin/python topn_test.py --universe=midcap150
+
+Replaces mid_topn_test.py (2026-09-24), which was this test hardcoded to
+midcap150; git history keeps it. The accept rule below is that file's, verbatim,
+and was pre-registered for midcap150. Running it on another universe applies the
+same rule; it is not a new pre-registration.
+
+WHY (as written for midcap150)
+    midcap150's edge over its own buy&hold rests on one name: removing LLOYDSME
+    takes it from +1.99 to +0.02. TOP_N=8 out of 148 names is the top 5.4%, against
+    13.8% on the retired universe where the parameter was originally chosen. Equal
     selectivity would be about TOP_N=20.
 
 ACCEPT RULE, FIXED BEFORE ANY RESULT WAS SEEN
@@ -19,7 +26,7 @@ ACCEPT RULE, FIXED BEFORE ANY RESULT WAS SEEN
     BUFFER scales with TOP_N (2x, as it is now). Nothing else changes.
 
 CONCENTRATION IS MEASURED, NOT ASSUMED
-    For every TOP_N the leave-one-out is run over all 148 names and the LARGEST
+    For every TOP_N the leave-one-out is run over every name and the LARGEST
     edge drop is taken, so the "largest contributor" is identified by the test
     itself rather than carried over from TOP_N=8. Edge is always strategy CAGR
     minus the CAGR of the equal-weight buy&hold of the SAME reduced universe, so
@@ -52,22 +59,30 @@ TOPNS = [8, 12, 16, 20]
 MAX_DD_WORSE = 2.0
 CONCENTRATION_FACTOR = 0.5
 
+_U = None
 _P = None
 
 
-def panel():
-    """The midcap150 score panel, read on first use.
+def universe():
+    """The universe named by --universe. Required; an unknown tag exits 2."""
+    global _U
+    if _U is None:
+        from universes.registry import REGISTRY, argv_universes, check_tags
+        picked = check_tags(argv_universes(sys.argv))
+        if len(picked) != 1:
+            raise SystemExit("usage: topn_test.py --universe=<tag>\n  exactly one "
+                             f"universe. Valid: {', '.join(REGISTRY)}")
+        _U = REGISTRY[picked[0]]
+    return _U
 
-    NOT AT IMPORT. This was a module-level read until 2026-09-23, so importing
-    the file (check_all GATE 1 imports every module) read a cache, and on a tree
-    without the panel the import itself failed.
-    """
+
+def panel():
+    """The universe's score panel, read on first use, not at import."""
     global _P
     if _P is None:
-        from universes.registry import REGISTRY
-        _P = read_table(config.require_cache(REGISTRY["midcap150"].score_cache,
-                                              what="MidCap150 score panel"),
-                         parse_dates=["date"])
+        u = universe()
+        _P = read_table(config.require_cache(u.score_cache, what=f"{u.name} score panel"),
+                        parse_dates=["date"])
     return _P
 
 
@@ -97,7 +112,7 @@ def run(drop=(), top_n=8):
 def main():
     syms = sorted(panel()["symbol"].unique())
     print("=" * 96)
-    print(" MIDCAP150 -- TOP_N test, gates fixed before running")
+    print(f" {universe().name.upper()} -- TOP_N test, gates fixed before running")
     print("=" * 96)
 
     base = {}
@@ -110,7 +125,7 @@ def main():
               f"{n:>8}{mb['CAGR%']:>10.2f}{e:>+8.2f}")
 
     print("\n" + "-" * 96)
-    print(" LEAVE-ONE-OUT over all 148 names, per TOP_N -- largest single-name dependency")
+    print(f" LEAVE-ONE-OUT over all {len(syms)} names, per TOP_N -- largest single-name dependency")
     print("-" * 96)
     conc = {}
     for t in TOPNS:

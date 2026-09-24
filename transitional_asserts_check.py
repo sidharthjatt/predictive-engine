@@ -46,7 +46,7 @@ MARKER = "TRANSITIONAL-ASSERT"
 # subscript it warns about -- so a genuinely collapsed file still reported one. And
 # it MISSED the engines and the charts, which do not spell it that way: the engines
 # alias the import (`from universes.registry import REGISTRY as _REG`, then
-# _REG["midcap150"]) and the charts reach their universe through `import config_mid`.
+# _REG["midcap150"]) and the charts reach their universe through `import config_<tag>`.
 # A check that passes four of eight files for a spelling reason is worse than none.
 #
 # The condition is not a syntax. It is: THIS STEP STILL KNOWS ITS UNIVERSE BY NAME.
@@ -62,7 +62,7 @@ def _hardcoded(fn, tree, tags):
     """The registry tags this step still names for itself, in code."""
     out = {n.value for n in ast.walk(fn)
            if isinstance(n, ast.Constant) and isinstance(n.value, str) and n.value in tags}
-    for node in ast.walk(tree):                     # module level: import config_mid
+    for node in ast.walk(tree):                     # module level: import config_<tag>
         names = []
         if isinstance(node, ast.Import):
             names = [a.name for a in node.names]
@@ -102,8 +102,8 @@ def scan():
             if not _takes_universe(src, p):
                 continue
             # THE __main__ GUARD'S OWN SUBSCRIPT IS NOT A DEFECT. It supplies the
-            # argument for a direct `python results/make_mid_audit.py`, which is
-            # how these are run by hand, and it survives the collapse as
+            # argument for a direct `python results/make_audit.py midcap150`, which
+            # is how these are run by hand, and it survives the collapse as
             # REGISTRY[sys.argv[1]] or equivalent. Only main() itself is scanned.
             tree = ast.parse(src, filename=str(p))
             fn = next(n for n in tree.body
