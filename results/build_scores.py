@@ -15,9 +15,9 @@ The index is excluded by pointing build_panel at a constituents-only directory,
 which u.prepare_data_dir() rebuilds; the panel's symbol set is then asserted
 against the registry's list.
 
-Output caches: u.raw_cache and u.score_cache -- cache/<tag>/raw_panel_<tag>_20.csv
-and cache/<tag>/v_<tag>_expanding.csv, each with a .source sidecar holding the
-source key. NO FILENAME IS WRITTEN HERE; they are registry attributes, which is
+Output caches: u.raw_cache and u.score_cache -- cache/<tag>/raw_panel_<tag>_20.parquet
+and cache/<tag>/v_<tag>_expanding.parquet, each with a .source sidecar holding the
+source key and the code key. NO FILENAME IS WRITTEN HERE; they are registry attributes, which is
 why adding a universe costs no edit to this file.
 
 INVOKED TWICE PER FULL RUN, once per universe, from two PIPELINE_ORDER rows that

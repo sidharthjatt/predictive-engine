@@ -68,6 +68,7 @@ from nautilus_trader.model.enums import BookAction, OrderSide
 from nautilus_trader.model.identifiers import InstrumentId, Symbol, Venue
 from nautilus_trader.model.instruments import Equity
 from nautilus_trader.model.objects import Price, Quantity
+from config import read_table  # the one CSV/parquet reader: config.read_table
 
 VENUE = Venue("NSE")
 OPEN_TIME = pd.Timedelta(hours=9, minutes=15)    # NSE open
@@ -269,7 +270,7 @@ def _round_tick(x: float) -> str:
 def load_panel(cache_path):
     """The engine's price panel: union date index, forward filled, exactly as
     engine_v2_final.py builds it."""
-    p = pd.read_csv(cache_path, parse_dates=["date"])
+    p = read_table(cache_path, parse_dates=["date"])
     px = p.pivot_table(index="date", columns="symbol", values="close").ffill()
     op = p.pivot_table(index="date", columns="symbol", values="open").ffill()
     return px, op

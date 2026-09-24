@@ -26,6 +26,7 @@ ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "results"))
 import config
+from config import read_table  # the one CSV/parquet reader: config.read_table
 
 UNIS = [("nifty100", "Nifty 100", ROOT / "results_nifty100" / "metrics"),
         ("midcap150", "MidCap150", ROOT / "results_midcap150" / "metrics")]
@@ -48,8 +49,8 @@ def dd_word(x):
 
 
 def load(M):
-    return (pd.read_csv(M / "v34_comparison.csv").set_index("Config"),
-            pd.read_csv(M / "v34_subperiods.csv"))
+    return (read_table(M / "v34_comparison.csv").set_index("Config"),
+            read_table(M / "v34_subperiods.csv"))
 
 
 def delta_block(c, a, b, out):

@@ -57,6 +57,7 @@ import arms.registry as arm_reg
 import cadence               # noqa: E402
 from test_exposure import backtest_exposure      # noqa: E402
 import profiles as _prof            # the run's execution-realism profile
+from config import read_table  # the one CSV/parquet reader: config.read_table
 
 
 def panel_path(u):
@@ -170,7 +171,7 @@ def _reference_curve(M, arm_name):
     _cad = cadence.suffix() + _prof.suffix() + _tax_axis.suffix()
     f = M / f"v2FINAL_equity{_cad}.csv"
     if f.exists():
-        df = pd.read_csv(f, parse_dates=["date"]).set_index("date")
+        df = read_table(f, parse_dates=["date"]).set_index("date")
         s = _ar.equity_series(df, arm_name)
         if s is not None:
             return s
@@ -178,7 +179,7 @@ def _reference_curve(M, arm_name):
                  f"v34_equity{_cad}.csv"):
         g = M / name
         if g.exists():
-            df = pd.read_csv(g, parse_dates=["date"]).set_index("date")
+            df = read_table(g, parse_dates=["date"]).set_index("date")
             col = _ar.ARMS[arm_name].equity_column
             if col in df.columns:
                 return df[col]
@@ -215,7 +216,7 @@ def run(u, arm=None):
     # not a fault.
     import engine_core as _ec
     _ec.set_tradeability(u)
-    p = pd.read_csv(panel_path(u), parse_dates=["date"])
+    p = read_table(panel_path(u), parse_dates=["date"])
     px = p.pivot_table(index="date", columns="symbol", values="close").ffill()
     op = p.pivot_table(index="date", columns="symbol", values="open").ffill()
     sc = p.pivot_table(index="date", columns="symbol", values="score")

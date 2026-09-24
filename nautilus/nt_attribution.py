@@ -35,11 +35,13 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "results"))
 import config
+from config import read_table  # the one CSV/parquet reader: config.read_table
+from numerics import rolling_std  # platform-identical variance: results/numerics.py
 
 # Inlined from engine_core.precompute so this script does not need lightgbm.
 VOL_WIN = 60
 def precompute(px, vol_win=VOL_WIN):
-    return {"vol": px.pct_change().rolling(vol_win).std() * np.sqrt(252)}
+    return {"vol": rolling_std(px.pct_change(), vol_win) * np.sqrt(252)}
 
 try:
     from qbeast_in_charges import (Broker, Exchange, Product, Segment,
@@ -126,7 +128,7 @@ def load_panel(cache_path=None):
     the 58 panel stays the default so existing callers are unchanged."""
     if cache_path is None:
         cache_path = ROOT / "results" / "metrics" / "v5_expanding_cache.csv"
-    p = pd.read_csv(cache_path, parse_dates=["date"])
+    p = read_table(cache_path, parse_dates=["date"])
     px = p.pivot_table(index="date", columns="symbol", values="close").ffill()
     op = p.pivot_table(index="date", columns="symbol", values="open").ffill()
     sc = p.pivot_table(index="date", columns="symbol", values="score")

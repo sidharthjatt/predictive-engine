@@ -63,6 +63,7 @@ import pandas as pd
 import config
 from engine_core import HORIZON, PURGE
 from universes.registry import REGISTRY
+from config import read_table  # the one CSV/parquet reader: config.read_table
 
 # The RAW PANEL paths -- permanent and working -- come from
 # universes/registry.py, the single definition. Note the working path is the one
@@ -80,7 +81,7 @@ UNIVERSES = {u.tag: (u.raw_cache, LABELS[u.tag])
 
 def run(uni, perm, label, W):
     src = config.require_cache(perm, what=f"{uni} raw panel")
-    p = pd.read_csv(src, parse_dates=["date"])
+    p = read_table(src, parse_dates=["date"])
     p = p.sort_values(["date", "symbol"]).reset_index(drop=True)
     p["ym"] = p["date"].dt.to_period("M")
 

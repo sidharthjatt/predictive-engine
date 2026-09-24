@@ -44,6 +44,8 @@ from test_exposure import backtest_exposure
 from universes.registry import REGISTRY
 from v34_common import ann_vol_pct
 import profiles as _prof            # the run's execution-realism profile
+from config import read_table  # the one CSV/parquet reader: config.read_table
+from numerics import rolling_std  # platform-identical variance: results/numerics.py
 
 SEEDS = [7, 42, 99, 1, 2, 3, 11, 22, 33, 101]
 EMBARGO = 2
@@ -108,11 +110,11 @@ def score_corrected(p, cache, full_cache):
     refits again.
     """
     if Path(cache).exists():
-        return pd.read_csv(cache, parse_dates=["date"])
+        return read_table(cache, parse_dates=["date"])
     if Path(full_cache).exists():
         # The loop completed on a previous attempt; recover it rather than refit.
         print(f"      recovering completed scoring from {full_cache}", flush=True)
-        p = pd.read_csv(full_cache, parse_dates=["date"])
+        p = read_table(full_cache, parse_dates=["date"])
         assert_columns(p, SCORE_PANEL_COLS, "recovered scored panel")
         out = p[SCORE_PANEL_COLS]
         out.to_csv(cache, index=False)
@@ -162,7 +164,7 @@ def arms_from_scores(sp, cfg):
     pc = precompute(px)
     mom20 = px / px.shift(20) - 1
     idx = (1 + px.pct_change().mean(axis=1).fillna(0)).cumprod()
-    pv = idx.pct_change().rolling(VOL_WIN).std() * np.sqrt(252)
+    pv = rolling_std(idx.pct_change(), VOL_WIN) * np.sqrt(252)
     tv = pv.loc[bd].median()
     out = {}
     for tag, sizing, mode in ARMS:
@@ -227,13 +229,13 @@ def run(uni, cfg, W):
     import engine_core as _ec
     from universes.registry import REGISTRY as _REG
     _ec.set_tradeability(_REG[uni])
-    raw = pd.read_csv(config.require_cache(cfg["raw"],
+    raw = read_table(config.require_cache(cfg["raw"],
                                            what=f"{uni} raw panel"),
                       parse_dates=["date"])
     got, want = set(raw["symbol"].unique()), cfg["syms"]()
     if got != want:
         raise SystemExit(f"{uni}: raw panel universe mismatch")
-    cur_sp = pd.read_csv(config.require_cache(cfg["sc"],
+    cur_sp = read_table(config.require_cache(cfg["sc"],
                                               what=f"{uni} score panel"),
                          parse_dates=["date"])
     assert_columns(cur_sp, SCORE_PANEL_COLS, f"{uni} production score panel")
@@ -255,7 +257,7 @@ def run(uni, cfg, W):
     new, _ = arms_from_scores(new_sp, cfg)
 
     # identity gate against the recorded artefact
-    v34 = pd.read_csv(Path(cfg["md"]) / "v34_comparison.csv")
+    v34 = read_table(Path(cfg["md"]) / "v34_comparison.csv")
     r = v34[v34["Config"].astype(str).str.startswith("v2")].iloc[0]
     gate = all(abs(cur["v2"][k] - float(r[k])) < 0.005
                for k in ("CAGR%", "Sharpe", "MaxDD%"))

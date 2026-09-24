@@ -84,6 +84,7 @@ import config                                          # noqa: E402
 import engine_core as _ec                              # noqa: E402
 import price_noise_measure as pnm                      # noqa: E402
 from universes.registry import REGISTRY                # noqa: E402
+from config import read_table  # the one CSV/parquet reader: config.read_table
 
 SEEDS_UNDER_TEST = (101, 202, 303)
 SIGMA = 0.0001
@@ -109,7 +110,7 @@ def scorable_pairs(data_dir):
 # a one-shot pre-registered counterfactual, run once on 2026-09-22, and its rule
 # was fixed before the numbers existed. There is no axis for either name to carry.
 def main():
-    runs = pd.read_csv(DIAG / "price_noise_runs.csv")
+    runs = read_table(DIAG / "price_noise_runs.csv")
     out = []
     W = out.append
     W("=" * 96)

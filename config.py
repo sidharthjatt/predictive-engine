@@ -209,9 +209,58 @@ def smart_parse_dates(s, source=""):
     return _pd.to_datetime(s, errors="coerce", dayfirst=True)
 
 
+# ---------------------------------------------------------------------------
+# THE ONE READER FOR TABULAR DATA, AND THE ONE WRITER FOR PANELS
+# ---------------------------------------------------------------------------
+# MEASURED 2026-09-24 ON macOS arm64, Linux arm64 AND Linux amd64, same pandas
+# 2.3.3: pandas' default read_csv float parser returns different last bits for
+# the SAME bytes on macOS and on Linux (over a million cells of midcap50's raw
+# panel), and on either platform it does not return the values the file was
+# written from. float_precision="round_trip" is exact and identical on all
+# three. A second checkout on another OS therefore read different scores from
+# the same score panel. Every read of a CSV in this repository goes through
+# read_table(); csv_reader_check.py fails on any pandas.read_csv call anywhere
+# else.
+#
+# THE PANELS ARE PARQUET, not CSV: a binary column store round-trips float64
+# exactly with no parsing at all. read_table() dispatches on the suffix, so a
+# caller does not need to know which format a file is.
+_PARQUET_KW = {"parse_dates", "usecols", "columns", "nrows"}
+
+
+def read_table(path, **kw):
+    """Read a CSV or parquet file exactly. CSV floats are parsed round-trip."""
+    p = Path(path)
+    if p.suffix == ".parquet":
+        bad = set(kw) - _PARQUET_KW
+        if bad:
+            raise TypeError(f"read_table({p.name}): {sorted(bad)} has no meaning "
+                            f"for a parquet file")
+        cols = kw.get("usecols", kw.get("columns"))
+        df = _pd.read_parquet(p, columns=list(cols) if cols is not None else None)
+        for c in kw.get("parse_dates") or []:
+            if c in df.columns and not _pd.api.types.is_datetime64_any_dtype(df[c]):
+                df[c] = _pd.to_datetime(df[c])
+        return df.head(kw["nrows"]) if kw.get("nrows") is not None else df
+    if "float_precision" in kw:
+        raise TypeError("read_table: float_precision is fixed to round_trip")
+    return _pd.read_csv(p, float_precision="round_trip", **kw)
+
+
+def write_panel(df, path):
+    """Write a score or raw panel as parquet. Integer columns are written as
+    int64, the dtype the CSV panels were read back as before 2026-09-24."""
+    df = df.copy()
+    for c in df.columns:
+        if _pd.api.types.is_integer_dtype(df[c]) and df[c].dtype != "int64":
+            df[c] = df[c].astype("int64")
+    # naming: axis-free -- the path is a registry cache attribute; panels carry no run axis
+    df.to_parquet(path, index=False)
+
+
 def read_price_csv(path, date_col="date", **kw):
     """Read any raw price CSV; dates auto-normalised to datetime."""
-    df = _pd.read_csv(path, **kw)
+    df = read_table(path, **kw)
     if date_col in df.columns:
         df[date_col] = smart_parse_dates(df[date_col], source=str(path))
     return df
@@ -262,6 +311,38 @@ def source_key_for(u):
     return source_key(sorted(Path(u.prepare_data_dir()).glob("*.csv")))
 
 
+def panel_code_key():
+    """sha256 over everything besides the source CSVs that determines a panel.
+
+    ADDED 2026-09-24. The key recorded only the source data, so a change to the
+    feature code left every cached panel "current": a panel built by the old
+    code would have been read as the output of the new. Covered: the functions
+    that build and score the panel, the feature functions and their constants,
+    results/numerics.py, the seed list, HORIZON and the purge constants, the
+    trading calendar and the LightGBM version. Nothing else, so an edit to the
+    backtest code does not force a 75-minute rebuild.
+    """
+    import hashlib
+    import inspect
+    import lightgbm
+    import engine_core as ec
+    import features_v2 as fv
+    import numerics
+    from build_scores_step import SEEDS
+    h = hashlib.sha256()
+    for fn in (ec.canonical_price, ec._load_calendar, ec._check_calendar,
+               ec.build_panel, ec._fit_seed, ec.score_monthly,
+               fv.add_stock_features, fv.add_market_relative_features,
+               fv.cross_sectional_normalize):
+        h.update(inspect.getsource(fn).encode())
+    h.update(Path(numerics.__file__).read_bytes())
+    h.update(Path(ec.TRADING_CALENDAR).read_bytes())
+    h.update(repr((list(SEEDS), ec.HORIZON, ec.PURGE, ec.PURGE_EMBARGO,
+                   list(fv.FEATS_V2), fv.EXTREME_RET_HI, fv.EXTREME_RET_LO,
+                   lightgbm.__version__)).encode())
+    return "sha256:" + h.hexdigest()
+
+
 def write_cache_source(cache_path, u, key):
     """Record `key` beside a cache. Called by whoever writes the cache.
 
@@ -275,6 +356,7 @@ def write_cache_source(cache_path, u, key):
     # its own; there is no arm, cadence, profile or tax choice expressed here.
     cache_source_file(cache_path).write_text(json.dumps(
         {"universe": u.tag, "raw_data_dir": rel, "digest": key["digest"],
+         "code": panel_code_key(),
          "n_files": key["n_files"], "files": key["files"]}, indent=1) + "\n")
 
 
@@ -308,6 +390,11 @@ def cache_staleness(cache_path, u):
     except ValueError:
         return (f"{side.name} is in the pre-2026-09-23 format (a directory path "
                 f"only), which cannot show whether a CSV was added or removed")
+    code = panel_code_key()
+    if rec.get("code") != code:
+        return ("the code that builds panels changed since this one was built "
+                "(config.panel_code_key)" if rec.get("code") else
+                "it predates the code key (config.panel_code_key, 2026-09-24)")
     cur = source_key_for(u)
     if rec.get("digest") == cur["digest"]:
         return None
@@ -381,15 +468,32 @@ def data_fingerprint(data_dir, raw_data_dir):
     digest a panel's sidecar records.
     """
     from seed_cache_key import source_key
+    import os
     d = Path(data_dir)
     files = sorted(d.glob("*.csv"))
-    targets = {str(f.resolve().parent) for f in files}
-    if len(targets) == 1:
-        target = targets.pop()
-    elif not targets:
+    # WHERE THE FARM'S FILES COME FROM. Until 2026-09-24 the farm held symlinks
+    # and this followed them. It now holds hard links or copies (see
+    # Universe.prepare_data_dir), so each entry is checked against the file of
+    # the same name in raw_data_dir: the same file, or a copy with the same size
+    # and mtime. The recorded value is unchanged for a farm built from
+    # raw_data_dir, which is what GATE 8 compares.
+    raw = Path(raw_data_dir) if raw_data_dir else None
+
+    def _from_raw(f):
+        g = raw / f.name if raw is not None else None
+        if g is None or not g.exists():
+            return False
+        if os.path.samefile(f, g):
+            return True
+        a, b = f.stat(), g.stat()
+        return (a.st_size, a.st_mtime_ns) == (b.st_size, b.st_mtime_ns)
+
+    if not files:
         target = None
+    elif all(_from_raw(f) for f in files):
+        target = str(raw.resolve())
     else:
-        target = f"MIXED: {len(targets)} directories"
+        target = f"MIXED: {sum(not _from_raw(f) for f in files)} entries not from raw_data_dir"
     key = source_key(files)
     # PATHS ARE RECORDED RELATIVE TO THE PROJECT ROOT, 2026-09-23. They were
     # absolute, so the same data in a second checkout wrote a different

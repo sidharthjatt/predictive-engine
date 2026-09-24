@@ -38,9 +38,11 @@ large; all are real.
 3. **`/tmp` no longer holds the panels** (2026-09-23): they live under `cache/`.
    Some measurement scripts still write scratch files to `/tmp`, keyed by content.
 4. **Python 3.12.13, with every direct dependency pinned** in `requirements.txt`.
-5. **The symlink farms must ship EMPTY.** A copy that preserves absolute symlinks
-   pointing at the source machine fails in a way that looks like missing data
-   rather than a bad copy. `rsync` without `-L` and `zip` both do this.
+5. **CLOSED 2026-09-24 — the farms no longer ship.** They live under the
+   gitignored `cache/`, hold hard links (or copies) instead of symlinks, and are
+   rebuilt from `data/raw/` on demand. Until 2026-09-23 they were absolute
+   symlinks inside `data/raw/`, and a copied tree pointed back at the source
+   machine.
 6. **CLOSED 2026-09-16 — `--profile tradeable` completes.** It used to die at
    STEP 16 on a profile-suffixed score-panel name that cannot exist, because the
    input guard applied every axis to every required input. Each entry now declares
@@ -586,9 +588,11 @@ single load boundary in `engine_core.build_panel`.
 ## 4. The symlink farms and the panels -- derived, under cache/, never shipped
 
 Since 2026-09-23 each universe's constituent farm is `cache/<tag>/constituents/`,
-built on demand by `Universe.prepare_data_dir()` with RELATIVE links, and its
-score and raw panels are `cache/<tag>/v_<tag>_expanding.csv` and
-`cache/<tag>/raw_panel_<tag>_20.csv`. `cache/` is gitignored. Copying `data/`
+built on demand by `Universe.prepare_data_dir()` -- hard links to the source CSVs
+since 2026-09-24, copies where a hard link cannot be made, relative symlinks for
+one day before that -- and its score and raw panels are
+`cache/<tag>/v_<tag>_expanding.parquet` and `cache/<tag>/raw_panel_<tag>_20.parquet`
+(CSV until 2026-09-24). `cache/` is gitignored. Copying `data/`
 alone is enough for a second machine: nothing under `data/` is a link any more.
 Before that date the farms were absolute symlinks under `data/raw/` and a copied
 tree pointed back at the source checkout.

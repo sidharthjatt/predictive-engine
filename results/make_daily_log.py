@@ -40,6 +40,7 @@ TOP_N, BUFFER = config.TOP_N, config.BUFFER
 # rest surfaces as a reconciliation failure elsewhere, not as a wrong
 # number here. Value unchanged at 0.0015.
 from slippage import SLIPPAGE  # noqa: E402
+from config import read_table  # the one CSV/parquet reader: config.read_table
 CASH_YIELD = 0.0        # must match test_exposure.py
 START_CAPITAL = 1_000_000
 CASH_DAILY = (1 + CASH_YIELD) ** (1 / 252) - 1
@@ -221,9 +222,9 @@ def stale_note(raw_idx, cal_sorted, sym, d):
 
 
 def load(M, tag):
-    r = lambda f, c: pd.read_csv(M / f"{f}_{tag}.csv", parse_dates=[c])
+    r = lambda f, c: read_table(M / f"{f}_{tag}.csv", parse_dates=[c])
     sk = M / f"daily_skipped_{tag}.csv"
-    skipped = pd.read_csv(sk, parse_dates=["date"]) if sk.exists() else pd.DataFrame()
+    skipped = read_table(sk, parse_dates=["date"]) if sk.exists() else pd.DataFrame()
     if len(skipped) == 0:
         skipped = pd.DataFrame(columns=["date", "side", "symbol", "reason", "detail"])
     return (r("daily_holdings", "date"), r("daily_summary", "date"),

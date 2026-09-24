@@ -1,0 +1,5 @@
+# Check every file out exactly as committed, on every OS. No line-ending
+# conversion: Git for Windows converts LF to CRLF by default, which would change
+# the bytes of files this repository hashes (RETIRED_UNIVERSES-manifest.txt pins
+# SHA-256 values; GATE 8 and the panel keys hash data). Added 2026-09-24.
+* -text

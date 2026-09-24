@@ -80,6 +80,7 @@ TOL = 0.005    # 2-decimal storage; see tick() -- STRICTER than the spec's half-
 # what made the old numbers unusable.
 import arms.registry as _arm_reg
 from nt_run import reports_segment as _reports_segment
+from config import read_table  # the one CSV/parquet reader: config.read_table
 
 ARM = _arm_reg.ARMS["v2"]
 _SEG = _reports_segment(ARM.mode, ARM.sizing)
@@ -152,12 +153,12 @@ def tick(x):
 
 
 def run(uni, fills_p, sc_p, dec_p, label, W):
-    F = pd.read_csv(fills_p)
+    F = read_table(fills_p)
     F["date"] = pd.to_datetime(F["ts_event"], utc=True).dt.tz_localize(None).dt.normalize()
     F["symbol"] = F["instrument_id"].str.split(".").str[0]
     F["px"] = F["last_px"].astype(float)
 
-    P = pd.read_csv(config.require_cache(sc_p, what=f"{uni} panel"),
+    P = read_table(config.require_cache(sc_p, what=f"{uni} panel"),
                     parse_dates=["date"])
     op = P.pivot_table(index="date", columns="symbol", values="open")
     cl = P.pivot_table(index="date", columns="symbol", values="close")
@@ -244,7 +245,7 @@ def run(uni, fills_p, sc_p, dec_p, label, W):
       f"{int(R['on_calendar'].sum()):,} of {len(R):,}")
 
     if Path(dec_p).exists():
-        DEC = pd.read_csv(dec_p)
+        DEC = read_table(dec_p)
         # column name verified from the file, not assumed
         cands = [c for c in DEC.columns if "date" in c.lower() or "decid" in c.lower()]
         if not cands:

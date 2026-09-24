@@ -79,6 +79,8 @@ import urllib.request
 from pathlib import Path
 
 import pandas as pd
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))  # repo root, for config
+from config import read_table  # the one CSV/parquet reader: config.read_table
 
 UA = {"User-Agent": "Mozilla/5.0 (research; index membership reconstruction)"}
 
@@ -292,9 +294,9 @@ def cmd_parse(pdfdir, index_name, out_csv=None):
 
 
 def cmd_rebuild(changes_csv, anchor_csv, size, out_csv=None):
-    ch = pd.read_csv(changes_csv, parse_dates=["effective_date"])
+    ch = read_table(changes_csv, parse_dates=["effective_date"])
     ch = ch.dropna(subset=["effective_date"]).sort_values("effective_date")
-    a = pd.read_csv(anchor_csv)
+    a = read_table(anchor_csv)
     anchor_date = pd.Timestamp(a["effective_date"].iloc[0])
     cur = {s.strip().upper() for s in str(a["symbols"].iloc[0]).split(",") if s.strip()}
     if len(cur) != size:

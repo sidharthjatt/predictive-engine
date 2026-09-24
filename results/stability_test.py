@@ -17,6 +17,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "results"))
 import config
 from features_v2 import FEATS_V2
 from engine_v2 import backtest, metrics, build_panel
+from config import read_table  # the one CSV/parquet reader: config.read_table
 
 DEV_START, DEV_END = 2016, 2018
 SEED_SETS = [[7, 42, 99], [1, 2, 3], [11, 22, 33], [101, 202, 303], [5, 55, 555]]
@@ -54,7 +55,7 @@ def main():
     for h in [20, 40, 60]:
         cache = Path(f"/tmp/raw_panel_{h}.csv")
         if cache.exists():
-            raw[h] = pd.read_csv(cache, parse_dates=["date"])
+            raw[h] = read_table(cache, parse_dates=["date"])
             print(f"  loaded raw panel h={h}")
         else:
             print(f"  building raw panel h={h} ...", flush=True)

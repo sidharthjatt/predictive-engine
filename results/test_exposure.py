@@ -66,6 +66,8 @@ _THIN_WARNED = set()      # see the len(s_) < TOP_N branch in backtest_exposure
 # number here. Value unchanged at 0.0015.
 from slippage import SLIPPAGE  # noqa: E402
 import slippage as _sl  # noqa: E402
+from config import read_table  # the one CSV/parquet reader: config.read_table
+from numerics import rolling_std  # platform-identical variance: results/numerics.py
 START_CAPITAL = 1_000_000
 CASH_YIELD = 0.0        # no yield assumed on idle cash
 # BACKTEST WINDOW -- imported from config.py, the single definition.
@@ -778,7 +780,7 @@ def main():
     if not cache.exists():
         print("  ERROR: /tmp/v5_expanding.csv missing. Rebuild scores first.")
         return
-    p = pd.read_csv(cache, parse_dates=["date"])
+    p = read_table(cache, parse_dates=["date"])
     px = p.pivot_table(index="date", columns="symbol", values="close").ffill()
     op = p.pivot_table(index="date", columns="symbol", values="open").ffill()
     sc = p.pivot_table(index="date", columns="symbol", values="score")
@@ -787,7 +789,7 @@ def main():
     mom20 = px / px.shift(20) - 1
 
     idx = (1 + px.pct_change().mean(axis=1).fillna(0)).cumprod()
-    port_vol = idx.pct_change().rolling(VOL_WIN).std() * np.sqrt(252)
+    port_vol = rolling_std(idx.pct_change(), VOL_WIN) * np.sqrt(252)
     target_vol = port_vol.loc[bd].median()
     print(f"  Vol-target = median realized vol = {target_vol*100:.1f}% (no tuning)\n")
 

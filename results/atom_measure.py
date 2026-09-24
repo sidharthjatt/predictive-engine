@@ -114,6 +114,7 @@ import engine_core as _ec                         # noqa: E402
 from engine_core import build_panel, HORIZON       # noqa: E402
 from features_v2 import FEATS_V2                  # noqa: E402
 from universes.registry import get as ureg_get    # noqa: E402
+from config import read_table  # the one CSV/parquet reader: config.read_table
 
 UNIVERSES = ("nifty100", "midcap150")
 SIGMA, NOISE_SEED = 0.0001, 101
@@ -150,7 +151,7 @@ def perturbed_farm(u, sigma, seed):
     dst.mkdir(parents=True, exist_ok=True)
     rng = np.random.default_rng(seed)
     for f in sorted(src.glob("*.csv")):
-        df = pd.read_csv(f)
+        df = read_table(f)
         a = df["adj_close"].to_numpy(dtype=float)
         df["adj_close"] = a * (1.0 + rng.normal(0.0, sigma, size=len(df)))
         # naming: axis-free -- a scratch copy of the vendor's price farm under

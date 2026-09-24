@@ -40,6 +40,8 @@ from engine_core import metrics
 import config as _config
 import universes.registry as _uni_registry
 import naming
+from config import read_table  # the one CSV/parquet reader: config.read_table
+from numerics import rolling_std  # platform-identical variance: results/numerics.py
 
 
 def _window_label(eq=None):
@@ -486,7 +488,7 @@ def run_arm(u, arm, rebal=None, out_dir=None):
     engine_core.set_tradeability(u)
     src = config.require_cache(u.score_cache,
                                what=f"{u.label} score panel")
-    p = pd.read_csv(src, parse_dates=["date"])
+    p = read_table(src, parse_dates=["date"])
     px = p.pivot_table(index="date", columns="symbol", values="close").ffill()
     op = p.pivot_table(index="date", columns="symbol", values="open").ffill()
     sc = p.pivot_table(index="date", columns="symbol", values="score")
@@ -494,7 +496,7 @@ def run_arm(u, arm, rebal=None, out_dir=None):
     pc = precompute(px)
     mom20 = px / px.shift(20) - 1
     idx = (1 + px.pct_change().mean(axis=1).fillna(0)).cumprod()
-    port_vol = idx.pct_change().rolling(60).std() * np.sqrt(252)
+    port_vol = rolling_std(idx.pct_change(), 60) * np.sqrt(252)
     tv = port_vol.loc[bd].median()
 
     # THE PROFILE'S CAP, RESOLVED ONCE AND PASSED AS AN ARGUMENT.

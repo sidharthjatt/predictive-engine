@@ -77,6 +77,7 @@ from seed_cache_key import seed_cache_key
 from engine_core import metrics, precompute, score_monthly, HORIZON
 from test_exposure import backtest_exposure, TOP_N, BUFFER, START_CAPITAL
 import profiles as _prof            # the run's execution-realism profile
+from config import read_table  # the one CSV/parquet reader: config.read_table
 
 # The same three alternate seed sets engine_core's T2 uses, so T2 is a like-for-like
 # comparison rather than a differently-seeded one.
@@ -187,7 +188,7 @@ def run_universe(tag, cfg, W, fast=False):
     W(f"  TOP_N={TOP_N}  BUFFER={BUFFER}  purge_mode=\"{cfg['purge_mode']}\"")
 
     src = config.require_cache(cfg["perm"], what=f"{tag} score panel")
-    p = pd.read_csv(src, parse_dates=["date"])
+    p = read_table(src, parse_dates=["date"])
     px, op, sc = pivot(p)
     # THE WINDOW IS config's, NOT A YEAR SLICE. Until 2026-09-22 this was
     # `year >= 2019 & year <= y_end`, which runs to the end of the price data
@@ -247,7 +248,7 @@ def run_universe(tag, cfg, W, fast=False):
         W("\n  T2. SEED ROBUSTNESS -- does inverse-vol still win on OTHER score seeds?")
         raw_src = config.require_cache(cfg["raw_perm"],
                                        what=f"{tag} raw panel")
-        raw = pd.read_csv(raw_src, parse_dates=["date"])
+        raw = read_table(raw_src, parse_dates=["date"])
         t2_rows = []
         for si, seeds in enumerate(SEED_SETS):
             # KEYED ON CODE, PANEL CONTENT, TAG, SEEDS AND PURGE MODE. Until
@@ -263,7 +264,7 @@ def run_universe(tag, cfg, W, fast=False):
                 parts=(tag, sorted(seeds), cfg["purge_mode"]))
             cache = cfg["seed_cache"](si, key)
             if cache.exists():
-                ps = pd.read_csv(cache, parse_dates=["date"])
+                ps = read_table(cache, parse_dates=["date"])
                 W(f"      seed set {si+1}/3 from cache {cache.name}")
             else:
                 W(f"      seed set {si+1}/3 -- scoring (refits the model, slow) ...")

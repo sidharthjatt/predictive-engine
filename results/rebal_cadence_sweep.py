@@ -69,6 +69,8 @@ from universes.registry import REGISTRY
 import measured_universes
 from engine_core import precompute, metrics
 import profiles as _prof            # the run's execution-realism profile
+from config import read_table  # the one CSV/parquet reader: config.read_table
+from numerics import rolling_std  # platform-identical variance: results/numerics.py
 
 CADENCES = [5, 10, 20, 40, 60]
 CONTROL = 20
@@ -165,7 +167,7 @@ def load(tag):
     import engine_core as _ec
     _ec.set_tradeability(REGISTRY[tag])
     src = config.require_cache(cache, what=f"{label} score panel")
-    p = pd.read_csv(src, parse_dates=["date"])
+    p = read_table(src, parse_dates=["date"])
     px = p.pivot_table(index="date", columns="symbol", values="close").ffill()
     op = p.pivot_table(index="date", columns="symbol", values="open").ffill()
     sc = p.pivot_table(index="date", columns="symbol", values="score")
@@ -173,7 +175,7 @@ def load(tag):
     pc = precompute(px)
     mom20 = px / px.shift(20) - 1
     idx = (1 + px.pct_change().mean(axis=1).fillna(0)).cumprod()
-    port_vol = idx.pct_change().rolling(VOL_WIN).std() * np.sqrt(252)
+    port_vol = rolling_std(idx.pct_change(), VOL_WIN) * np.sqrt(252)
     tv = port_vol.loc[bd].median()
     return label, M, px, op, sc, bd, pc, mom20, port_vol, tv
 
@@ -295,7 +297,7 @@ def main():
           f"{bd[0].date()} .. {bd[-1].date()}\n{'=' * 118}")
 
         # -------------------------------------------------- the eight controls
-        pub = pd.read_csv(M / "v34_comparison.csv")
+        pub = read_table(M / "v34_comparison.csv")
         w(f"\n  CONTROLS -- REBAL={CONTROL} against each arm's published row of "
           f"v34_comparison.csv, read from the file:")
         all_ok = True

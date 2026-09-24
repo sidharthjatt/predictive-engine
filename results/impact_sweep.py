@@ -40,6 +40,7 @@ import engine_core                               # noqa: E402
 import tradability                               # noqa: E402
 from test_exposure import backtest_exposure      # noqa: E402
 from universes.registry import REGISTRY          # noqa: E402
+from config import read_table  # the one CSV/parquet reader: config.read_table
 
 K_VALUES = (0.001, 0.002, 0.003, 0.005)
 CAPS = (1.00, 0.10)
@@ -51,7 +52,7 @@ MODE, SIZING = "breadth", "invvol"
 def panel(tag):
     u = REGISTRY[tag]
     src = config.require_cache(u.score_cache, what=f"{tag} score panel")
-    p = pd.read_csv(src, parse_dates=["date"])
+    p = read_table(src, parse_dates=["date"])
     px = p.pivot_table(index="date", columns="symbol", values="close").ffill()
     op = p.pivot_table(index="date", columns="symbol", values="open").ffill()
     sc = p.pivot_table(index="date", columns="symbol", values="score")

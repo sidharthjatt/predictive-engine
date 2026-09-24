@@ -97,6 +97,7 @@ from engine_core import canonical_price, precompute  # noqa: E402
 # Read from engine_core rather than restated, so a change there cannot leave this
 # measurement quietly describing the wrong boundary.
 from engine_core import TOP_N, BUFFER, REBAL     # noqa: E402
+from config import read_table  # the one CSV/parquet reader: config.read_table
 
 UNIVERSES = ("nifty100", "midcap150")
 
@@ -108,7 +109,7 @@ EXPECTED_FALLBACK = {"nifty100": 170, "midcap150": 41}
 def _panel(tag):
     """The published score panel, pivoted the way the engine pivots it."""
     u = ureg_get(tag)
-    p = pd.read_csv(u.score_cache, parse_dates=["date"])
+    p = read_table(u.score_cache, parse_dates=["date"])
     px = p.pivot_table(index="date", columns="symbol", values="close").ffill()
     sc = p.pivot_table(index="date", columns="symbol", values="score")
     bd = px.index[(px.index >= config.BT_START_DATE) & (px.index <= config.BT_END_DATE)]
@@ -236,7 +237,7 @@ def part_c(out, tag, sigma, seed):
     n_rows = n_eq = n_gap = n_fallback = 0
     frames = []
     for f in files:
-        df = pd.read_csv(f, parse_dates=["date"])
+        df = read_table(f, parse_dates=["date"])
         if sigma > 0:
             a = df["adj_close"].to_numpy(dtype=float)
             df["adj_close"] = a * (1.0 + rng.normal(0.0, sigma, size=len(df)))

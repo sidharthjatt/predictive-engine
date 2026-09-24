@@ -26,6 +26,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import nt_run
+from config import read_table  # the one CSV/parquet reader: config.read_table
 
 THRESHOLD_PCT = 0.5      # first day the curves differ by more than this
 
@@ -41,7 +42,7 @@ def main():
     port = port.set_index("date")["equity"]
 
     ref_path = ROOT / "results" / "metrics" / "daily_summary_58.csv"
-    ref = pd.read_csv(ref_path, parse_dates=["date"]).set_index("date")["total"]
+    ref = read_table(ref_path, parse_dates=["date"]).set_index("date")["total"]
 
     common = port.index.intersection(ref.index)
     print(f"\n{'=' * 74}")
@@ -72,7 +73,7 @@ def main():
 
     # what traded, in each system, on and just before that day
     lo = common[max(0, i - 3)]
-    rt = pd.read_csv(ROOT / "results" / "metrics" / "daily_trades_58.csv",
+    rt = read_table(ROOT / "results" / "metrics" / "daily_trades_58.csv",
                      parse_dates=["date"])
     rt = rt[(rt["date"] >= lo) & (rt["date"] <= d0)]
     print(f"\n  REFERENCE trades {lo.date()} .. {d0.date()}  ({len(rt)})")

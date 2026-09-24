@@ -27,6 +27,7 @@ import nt_data
 import nt_run
 
 import nt_attribution
+from config import read_table  # the one CSV/parquet reader: config.read_table
 
 # Selected by --universe on the command line. THE CHOICES ARE THE REGISTRY, not a
 # written-down tuple: the tuple used to name the 58 and the 74, and the default was
@@ -204,7 +205,7 @@ def cadence_gap(rebal):
         strat = nt_run.run(str(config.BT_START_DATE.date()), U["end"], quiet=True,
                            universe=UNIVERSE, rebal=rebal)
     port = pd.DataFrame(strat.daily_equity).set_index("date")["equity"]
-    ref = pd.read_csv(ref_f, parse_dates=["date"]).set_index("date")["total"]
+    ref = read_table(ref_f, parse_dates=["date"]).set_index("date")["total"]
     p_fin, r_fin = float(port.iloc[-1]), float(ref.iloc[-1])
     print(f"  cadence {rebal}  {UNIVERSE} v2")
     print(f"    Nautilus final equity   Rs {p_fin:,.2f}   ({strat.rebalances} rebalances, "
@@ -224,7 +225,7 @@ def main():
     eq = pd.DataFrame(strat.daily_equity)
     eq["date"] = pd.to_datetime(eq["date"])
     eq = eq.set_index("date")["equity"]
-    ref_eq = pd.read_csv(M / f"daily_summary_{TAG}.csv", parse_dates=["date"]) \
+    ref_eq = read_table(M / f"daily_summary_{TAG}.csv", parse_dates=["date"]) \
                .set_index("date")["total"]
 
     # THE INTERSECTION USED TO HIDE A MISSING DAY, AND DID.
@@ -245,7 +246,7 @@ def main():
 
     dates, port = port_holdings(strat)
 
-    hr = pd.read_csv(M / f"daily_holdings_{TAG}.csv", parse_dates=["date"])
+    hr = read_table(M / f"daily_holdings_{TAG}.csv", parse_dates=["date"])
     ref = {d: {} for d in dates}
     for _, r in hr[hr["date"].isin(dates)].iterrows():
         ref[r["date"]][r["symbol"]] = int(r["qty"])
@@ -266,7 +267,7 @@ def main():
     a_check = compare(arm_a, ref, dates)
 
     fp = pd.DataFrame(strat.fills)
-    fr = pd.read_csv(M / f"daily_trades_{TAG}.csv", parse_dates=["date"])
+    fr = read_table(M / f"daily_trades_{TAG}.csv", parse_dates=["date"])
 
     n = len(dates)
     mism, sym_mism, qty_only, worst = ref_stats
@@ -303,7 +304,7 @@ def main():
           f"   ({(eq.loc[_d] / ref_eq.loc[_d] - 1) * 100:+.2f}%)")
     # daily_holdings_58.csv has a row per day, not per rebalance, so count the
     # rebalance dates from the decisions file instead.
-    n_ref = len(pd.read_csv(M / f"daily_decisions_{TAG}.csv"))
+    n_ref = len(read_table(M / f"daily_decisions_{TAG}.csv"))
     print(f"\n  rebalances     reference {n_ref:>4}   port {n:>4}")
     # INFORMATIONAL ONLY -- the verdict below does not read these numbers. It
     # tests idx_ok, a_check[0], d_sym and t_stats[0], and nothing else. A large

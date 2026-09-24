@@ -220,7 +220,8 @@ class ValidationResult:
 
 
 def _read_raw(path) -> pd.DataFrame:
-    df = pd.read_csv(path)
+    from config import read_table  # lazy: this module is imported without the repo root on sys.path
+    df = read_table(path)
     cols = {c.lower().strip(): c for c in df.columns}
     if "effective_date" not in cols or "symbols" not in cols:
         raise MembershipError(

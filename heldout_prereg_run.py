@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 """heldout_prereg_run.py -- execute experiments/HELDOUT_PREREG.txt. Once.
 
+NOT TO BE RE-RUN (2026-09-24). Its pre-registration was evaluated on code that
+predates the cross-platform numerics change; see experiments/HELDOUT_PREREG.txt.
+
     ./venv/bin/python heldout_prereg_run.py
 
 WHAT THIS IS, AND WHAT IT REFUSES TO BE
@@ -83,6 +86,8 @@ from engine_core import precompute
 from test_exposure import backtest_exposure, TOP_N, BUFFER
 from build_scores_step import SEEDS
 from universes.registry import REGISTRY
+from config import read_table  # the one CSV/parquet reader: config.read_table
+from numerics import rolling_std  # platform-identical variance: results/numerics.py
 
 PREREG = ROOT / "experiments" / "HELDOUT_PREREG.txt"
 OUT = ROOT / "diagnostics" / "heldout_prereg_result.txt"
@@ -210,14 +215,14 @@ def universe_series(u, W):
     engine_core.set_tradeability(u)          # the interior-gap guard, per section 1
     src = config.require_cache(u.score_cache,
                                what=f"{u.tag} score panel")
-    p = pd.read_csv(src, parse_dates=["date"])
+    p = read_table(src, parse_dates=["date"])
     px = p.pivot_table(index="date", columns="symbol", values="close").ffill()
     op = p.pivot_table(index="date", columns="symbol", values="open").ffill()
     sc = p.pivot_table(index="date", columns="symbol", values="score")
     pc = precompute(px)
     mom20 = px / px.shift(20) - 1
     idx = (1 + px.pct_change().mean(axis=1).fillna(0)).cumprod()
-    port_vol = idx.pct_change().rolling(VOL_WIN).std() * np.sqrt(252)
+    port_vol = rolling_std(idx.pct_change(), VOL_WIN) * np.sqrt(252)
 
     bd_in = px.index[(px.index >= config.BT_START_DATE)
                      & (px.index <= config.BT_END_DATE)]
@@ -249,7 +254,7 @@ def universe_series(u, W):
     # ------------------------------------------------------------------
     # THE REPRODUCTION GATE. Before any held-out figure exists.
     # ------------------------------------------------------------------
-    shipped = pd.read_csv(Path(u.metrics_dir) / "v2FINAL_equity.csv",
+    shipped = read_table(Path(u.metrics_dir) / "v2FINAL_equity.csv",
                           parse_dates=["date"]).set_index("date")["v2_invvol_breadth"]
     mine = eq.reindex(shipped.index)
     if mine.isna().any():

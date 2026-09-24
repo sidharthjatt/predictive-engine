@@ -34,6 +34,8 @@ two columns can be placed side by side.
 """
 import sys, hashlib, subprocess, warnings
 from pathlib import Path
+from config import read_table  # the one CSV/parquet reader: config.read_table
+from numerics import rolling_std  # platform-identical variance: results/numerics.py
 warnings.filterwarnings("ignore")
 sys.dont_write_bytecode = True
 
@@ -75,7 +77,7 @@ ARMS = [("invvol", "none"), ("invvol", "breadth"),
 
 def load(perm, what):
     src = config.require_cache(perm, what=what)
-    p = pd.read_csv(src, parse_dates=["date"])
+    p = read_table(src, parse_dates=["date"])
     px = p.pivot_table(index="date", columns="symbol", values="close").ffill()
     op = p.pivot_table(index="date", columns="symbol", values="open").ffill()
     sc = p.pivot_table(index="date", columns="symbol", values="score")
@@ -89,7 +91,7 @@ def run(uni, perm):
     pc = precompute(px)
     mom20 = px / px.shift(20) - 1
     idx = (1 + px.pct_change().mean(axis=1).fillna(0)).cumprod()
-    port_vol = idx.pct_change().rolling(VOL_WIN).std() * np.sqrt(252)
+    port_vol = rolling_std(idx.pct_change(), VOL_WIN) * np.sqrt(252)
     tv = port_vol.loc[bd].median()
 
     rows = []
@@ -115,7 +117,7 @@ def run(uni, perm):
 def report(before_csv, after_csv):
     """Build diagnostics/topn_centralise_hashes.txt from the two runs."""
     ROOT = Path(__file__).resolve().parent
-    b = pd.read_csv(before_csv); a = pd.read_csv(after_csv)
+    b = read_table(before_csv); a = read_table(after_csv)
     key = ["universe", "sizing", "mode"]
     m = b.merge(a, on=key, suffixes=("_before", "_after"))
     m["identical"] = m["sha256_before"] == m["sha256_after"]

@@ -85,6 +85,7 @@ from engine_core import _fit_seed, HORIZON, PURGE, PURGE_EMBARGO
 from features_v2 import FEATS_V2
 from universes.registry import REGISTRY
 import measured_universes
+from config import read_table  # the one CSV/parquet reader: config.read_table
 
 # The production ensemble. Duplicated in every build_scores*.py; see
 # KNOWN_ISSUES.md on that duplication.
@@ -145,8 +146,8 @@ def probe_universe(tag, cfg, w):
     w(f" {cfg['label']} ({tag})")
     w(f"{'=' * 100}\n")
 
-    raw = pd.read_csv(cfg["raw"], parse_dates=["date"])
-    shipped = pd.read_csv(cfg["scored"], usecols=["date", "symbol", "score"],
+    raw = read_table(cfg["raw"], parse_dates=["date"])
+    shipped = read_table(cfg["scored"], usecols=["date", "symbol", "score"],
                           parse_dates=["date"])
     w(f"  raw panel    {cfg['raw'].name}   rows {len(raw):,}")
     w(f"  scored panel {cfg['scored'].name}   rows {len(shipped):,}")

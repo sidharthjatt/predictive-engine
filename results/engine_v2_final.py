@@ -53,6 +53,8 @@ import profiles as _prof            # the run's execution-realism profile
 # universe-specific; only the disclosure was.
 import survivorship as sv
 import naming
+from config import read_table  # the one CSV/parquet reader: config.read_table
+from numerics import rolling_std  # platform-identical variance: results/numerics.py
 
 REBAL, VOL_WIN = 20, 60
 # REBAL ABOVE IS THE DEFAULT AND STAYS 20. The cadence this RUN selected is read
@@ -152,7 +154,7 @@ def main(u):
     import engine_core as _ec
     _ec.set_tradeability(u)
     src = config.require_cache(u.score_cache, what=_T["panel_what"])
-    p = pd.read_csv(src, parse_dates=["date"])
+    p = read_table(src, parse_dates=["date"])
     # THE INDEX MUST NOT BE IN THE PANEL AS A TRADABLE NAME, where the universe
     # declares that check. n100's engine has always asserted it; mid's never did.
     # Preserved as declared per-universe data rather than switched on for both --
@@ -167,7 +169,7 @@ def main(u):
     pc = precompute(px)
     mom20 = px / px.shift(20) - 1
     idx = (1 + px.pct_change().mean(axis=1).fillna(0)).cumprod()
-    port_vol = idx.pct_change().rolling(VOL_WIN).std() * np.sqrt(252)
+    port_vol = rolling_std(idx.pct_change(), VOL_WIN) * np.sqrt(252)
     tv = port_vol.loc[bd].median()
 
     # baseline (inv-vol, always invested) and final (breadth-scaled)

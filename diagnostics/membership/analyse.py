@@ -8,6 +8,7 @@ import re, sys
 from pathlib import Path
 import pandas as pd
 import pdfplumber
+from config import read_table  # the one CSV/parquet reader: config.read_table
 
 D = Path(__file__).resolve().parent
 PDFS = D.parents[1] / "data" / "raw" / "press_releases"
@@ -23,7 +24,7 @@ REVOKE_DATE = pd.Timestamp("2024-09-30")
 
 
 def multi_source(n):
-    c = pd.read_csv(D / f"final3_{n}.csv")
+    c = read_table(D / f"final3_{n}.csv")
     c["d"] = pd.to_datetime(c["effective_date"], errors="coerce")
     g = c.dropna(subset=["d"]).groupby("d")["source"].apply(list)
     return {d: v for d, v in g.items() if len(v) > 1}, c
@@ -46,9 +47,9 @@ def postponements():
 
 
 def walk(n):
-    a = pd.read_csv(D / f"anchor_{n}.csv")
+    a = read_table(D / f"anchor_{n}.csv")
     cur = S(a.iloc[0]["symbols"]); ad = pd.Timestamp(a.iloc[0]["effective_date"])
-    c = pd.read_csv(D / f"final3_{n}.csv"); c["d"] = pd.to_datetime(c["effective_date"], errors="coerce")
+    c = read_table(D / f"final3_{n}.csv"); c["d"] = pd.to_datetime(c["effective_date"], errors="coerce")
     c = c.dropna(subset=["d"]).sort_values("d")
     ch = {}
     for r in c.itertuples():

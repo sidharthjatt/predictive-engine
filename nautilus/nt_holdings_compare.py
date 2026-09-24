@@ -25,6 +25,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import nt_run
+from config import read_table  # the one CSV/parquet reader: config.read_table
 
 
 def main():
@@ -36,7 +37,7 @@ def main():
         return
     port["date"] = pd.to_datetime(port["date"])
 
-    ref = pd.read_csv(ROOT / "results" / "metrics" / "daily_holdings_58.csv",
+    ref = read_table(ROOT / "results" / "metrics" / "daily_holdings_58.csv",
                       parse_dates=["date"])
 
     dates = sorted(port["date"].unique())
@@ -73,7 +74,7 @@ def main():
 
     # the fills that produced this state, in both systems
     lo = prev if prev is not None else d
-    rt = pd.read_csv(ROOT / "results" / "metrics" / "daily_trades_58.csv",
+    rt = read_table(ROOT / "results" / "metrics" / "daily_trades_58.csv",
                      parse_dates=["date"])
     rt = rt[(rt["date"] > lo) & (rt["date"] <= d)]
     pt = pd.DataFrame(strat.fills)

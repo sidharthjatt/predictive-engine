@@ -33,12 +33,13 @@ import pandas as pd
 import config
 from seed_noise_measure import (SEEDS, K_GRID, M_SUBSETS, ARMS, UNIVERSES,
                                 make_backtester, REQUIRED_RAW, assert_columns)
+from config import read_table  # the one CSV/parquet reader: config.read_table
 
 
 def run(uni, cfg, W):
     store = ROOT / "results" / f"SEEDNOISE_{uni}_scores.npy"
     S = np.load(store)
-    raw = pd.read_csv(config.require_cache(cfg["raw"],
+    raw = read_table(config.require_cache(cfg["raw"],
                                            what=f"{uni} raw panel"),
                       parse_dates=["date"])
     assert_columns(raw, REQUIRED_RAW, f"{uni} raw panel")
@@ -53,7 +54,7 @@ def run(uni, cfg, W):
     W(f"  purge: CURRENT production. Only the seeds vary between sub-ensembles.")
     W("")
     prod = bt(np.nanmean(S[:, :10].astype(np.float64), axis=1), "invvol", "breadth")
-    v34 = pd.read_csv(Path(cfg["md"]) / "v34_comparison.csv")
+    v34 = read_table(Path(cfg["md"]) / "v34_comparison.csv")
     r = v34[v34["Config"].astype(str).str.startswith("v2")].iloc[0]
     W("  BASELINE OFFSET -- STATED, NOT HIDDEN")
     W(f"    production 10 seeds from this store : CAGR {prod['CAGR%']:.2f}  "
@@ -106,7 +107,7 @@ def run(uni, cfg, W):
     W("-" * 100)
     W(" 2. DOES THE PURGE RESULT CLEAR THE MEASURED FLOOR?")
     W("-" * 100)
-    H = pd.read_csv(Path(cfg["md"]) / "purge_fix_headline.csv")
+    H = read_table(Path(cfg["md"]) / "purge_fix_headline.csv")
     for tag, _, _ in ARMS:
         a = k10[k10["arm"] == tag]["CAGR%"].to_numpy()
         d = float(H[H["arm"] == tag]["dCAGR"].iloc[0])

@@ -44,6 +44,7 @@ sys.path.insert(0, str(ROOT / "results"))
 import config
 import paths
 from universes.registry import REGISTRY
+from config import read_table  # the one CSV/parquet reader: config.read_table
 
 OUT_DIR = Path(__file__).resolve().parent / "data"
 # Date window from config.py. The old year cut emitted June-2026 rows that
@@ -61,7 +62,7 @@ def export(cache_path: Path, out_path: Path, tag: str) -> pd.DataFrame:
     if not cache_path.exists():
         raise FileNotFoundError(f"{cache_path} missing -- run run_all.py first")
 
-    df = pd.read_csv(cache_path, usecols=["date", "symbol", "score"], parse_dates=["date"])
+    df = read_table(cache_path, usecols=["date", "symbol", "score"], parse_dates=["date"])
     print(f"  cache rows        : {len(df):,}")
 
     df = df[(df["date"] >= BT_START_DATE) & (df["date"] <= BT_END_DATE)]

@@ -1,4 +1,14 @@
 ================================================================================
+ PRODUCED BY PRE-FIX CODE -- NOTED 2026-09-24, NOT RE-RUN AND NOT TO BE RE-RUN
+================================================================================
+ Every figure in this file was computed before 2026-09-24, when the feature
+ builder's variance, the CSV float parser and the panel format were replaced so
+ that macOS and Linux give identical bits (results/numerics.py,
+ config.read_table). Code after that date produces different panels, and so
+ different numbers, from the same prices. A pre-registration is evaluated once;
+ this one stays as produced. See KNOWN_ISSUES.md.
+
+================================================================================
  SUPERSEDED 2026-09-18 -- THE PANEL THIS WAS COMPUTED ON IS NOT IN THIS CHECKOUT
 ================================================================================
  NOT DELETED, NOT RE-RUN, AND NOT RE-RUNNABLE. Read this before any figure

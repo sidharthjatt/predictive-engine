@@ -143,6 +143,8 @@ from test_exposure import backtest_exposure                   # noqa: E402
 from universes.registry import REGISTRY                       # noqa: E402
 from v34_common import ann_vol_pct                            # noqa: E402
 import arms.registry as arm_reg                               # noqa: E402
+from config import read_table  # the one CSV/parquet reader: config.read_table
+from numerics import rolling_std  # platform-identical variance: results/numerics.py
 
 # THE PRODUCTION ENSEMBLE, NOT A CHOICE MADE HERE. Same ten seeds
 # build_scores_step.py uses; if that list moves, this one must move with it or
@@ -286,7 +288,7 @@ def published_v2(u):
     f = Path(u.metrics_dir) / "v34_comparison.csv"
     if not f.exists():
         return None
-    d = pd.read_csv(f)
+    d = read_table(f)
     arm = arm_reg.ARMS["v2"]
     row = d.loc[d["Config"] == arm.label]
     if row.empty:
@@ -305,7 +307,7 @@ def perturb_farm(src, dst, sigma, noise_seed):
     rng = np.random.default_rng(noise_seed)
     n_rows = n_cross = 0
     for f in sorted(Path(src).glob("*.csv")):
-        df = pd.read_csv(f)
+        df = read_table(f)
         if sigma > 0:
             a = df["adj_close"].to_numpy(dtype=float)
             a = a * (1.0 + rng.normal(0.0, sigma, size=len(df)))
@@ -341,7 +343,7 @@ def run_arm(u, data_dir):
     pc = precompute(px)
     mom20 = px / px.shift(20) - 1
     idx = (1 + px.pct_change().mean(axis=1).fillna(0)).cumprod()
-    pv = idx.pct_change().rolling(VOL_WIN).std() * np.sqrt(252)
+    pv = rolling_std(idx.pct_change(), VOL_WIN) * np.sqrt(252)
     tv = pv.loc[bd].median()
 
     audit = {k: [] for k in ("holdings", "summary", "trades", "ranking",
@@ -378,7 +380,7 @@ def jaccard(a, b):
 
 def load_runs():
     if RUNS_CSV.exists():
-        return pd.read_csv(RUNS_CSV)
+        return read_table(RUNS_CSV)
     return pd.DataFrame()
 
 

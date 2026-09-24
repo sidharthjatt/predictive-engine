@@ -104,6 +104,7 @@ import sys
 import time
 import warnings
 from pathlib import Path
+from config import read_table  # the one CSV/parquet reader: config.read_table
 
 ROOT = Path(__file__).resolve().parent
 if str(ROOT) not in sys.path:
@@ -142,6 +143,7 @@ DELEGATES = (
     ("check_pipeline_order.py",               [], False, None),
     ("check_plan_order.py",                   [], False, None),
     ("naming_declare_check.py",               [], False, None),
+    ("platform_identity_check.py",            [], False, None),
 
     # Cheap, and each already carries an exit status.
     ("results/leakage_check1_causality.py",   [], False, None),
@@ -929,7 +931,7 @@ def gate_ltcg(res, sel):
         if lp is None:
             continue
         try:
-            lots = pd.read_csv(lp)
+            lots = read_table(lp)
         except Exception as e:
             res.fail("GATE 7 ltcg", f"{t} {lp.name}", f"{type(e).__name__}: {e}")
             continue
@@ -984,7 +986,7 @@ def gate_ltcg(res, sel):
             "HOLDING_PERIOD_*_tax.csv")) if "_LOTS_" not in f.name), None)
         if onf is not None:
             try:
-                disk = pd.read_csv(onf).iloc[0]
+                disk = read_table(onf).iloc[0]
                 dn = str(disk["note"]).lower()
                 if (int(disk["max_held_days"]) >= T.LTCG_HOLD_DAYS) and \
                         "does not fire" in dn:
@@ -1028,24 +1030,11 @@ def gate_ltcg(res, sel):
 # count is asserted against the length of this tuple, so a name cannot be added
 # here without the number moving in the same diff.
 GATE8_EXEMPT = (
-    "results_midcap100/metrics/v34_params.json",
-    "results_midcap100/metrics/v34_params_tax.json",
-    "results_midcap150/metrics/v34_params.json",
-    "results_midcap150/metrics/v34_params_tax.json",
-    "results_midcap50/metrics/v34_params.json",
-    "results_midcap50/metrics/v34_params_tax.json",
-    "results_nifty100/metrics/v34_params.json",
-    "results_nifty100/metrics/v34_params_tax.json",
-    "results_nifty200/metrics/v34_params.json",
-    "results_nifty200/metrics/v34_params_tax.json",
-    "results_nifty50/metrics/v34_params.json",
-    "results_nifty50/metrics/v34_params_tax.json",
-    "results_nifty500/metrics/v34_params.json",
-    "results_nifty500/metrics/v34_params_tax.json",
-    "results_smallcap250/metrics/v34_params.json",
-    "results_smallcap250/metrics/v34_params_tax.json",
+    # EMPTY SINCE 2026-09-24. The sixteen artefacts listed here predated the
+    # data_source field; the 2026-09-24 republish rewrote all of them with it,
+    # and the gate below fails any listed file that has gained the field.
 )
-GATE8_EXEMPT_N = 16          # asserted below; move it when the tuple moves
+GATE8_EXEMPT_N = 0           # asserted below; move it when the tuple moves
 
 
 def gate_data_source(res, sel):

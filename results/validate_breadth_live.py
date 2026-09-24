@@ -76,6 +76,8 @@ from engine_core import (precompute, metrics, score_monthly, HORIZON, VOL_WIN,
 from test_exposure import backtest_exposure
 from universes.registry import REGISTRY
 import profiles as _prof            # the run's execution-realism profile
+from config import read_table  # the one CSV/parquet reader: config.read_table
+from numerics import rolling_std  # platform-identical variance: results/numerics.py
 
 # Date window from config.py, NOT engine_core's year ints -- see config.py.
 BT_START_DATE, BT_END_DATE = config.BT_START_DATE, config.BT_END_DATE
@@ -107,7 +109,7 @@ def panel_parts(p):
     pc = precompute(px)
     mom20 = px / px.shift(20) - 1
     idx = (1 + px.pct_change().mean(axis=1).fillna(0)).cumprod()
-    port_vol = idx.pct_change().rolling(VOL_WIN).std() * np.sqrt(252)
+    port_vol = rolling_std(idx.pct_change(), VOL_WIN) * np.sqrt(252)
     return px, op, sc, pc, mom20, port_vol
 
 
@@ -198,7 +200,7 @@ def main():
 
     score_path = config.require_cache(U["score_perm"],
                                       what=f"{U['label']} score panel")
-    prod = pd.read_csv(score_path, parse_dates=["date"])
+    prod = read_table(score_path, parse_dates=["date"])
     parts = panel_parts(prod)
     bd = window_dates(parts[0])
     W(f"\n  score panel  {score_path}")
@@ -208,7 +210,7 @@ def main():
                                     what=f"{U['label']} raw feature panel")
 
     if "--run" not in sys.argv:
-        n_months = len(pd.read_csv(raw_path, usecols=["date"], parse_dates=["date"])
+        n_months = len(read_table(raw_path, usecols=["date"], parse_dates=["date"])
                        .query("date.dt.year >= 2016")["date"].dt.to_period("M")
                        .unique())
         cached = sum(Path(f"/tmp/VALBREADTH_{u}_seed{i}.csv").exists()
@@ -232,12 +234,12 @@ def main():
       " seed sets?")
     W("=" * 104)
     W("  GATED on BOTH: dSharpe > 0 and dMaxDD > 3 points, on ALL three sets.")
-    raw = pd.read_csv(raw_path, parse_dates=["date"])
+    raw = read_table(raw_path, parse_dates=["date"])
     t1_rows = []
     for si, seeds in enumerate(SEED_SETS):
         cache = Path(f"/tmp/VALBREADTH_{u}_seed{si}.csv")
         if cache.exists():
-            ps = pd.read_csv(cache, parse_dates=["date"])
+            ps = read_table(cache, parse_dates=["date"])
             W(f"    seed set {si+1}/{len(SEED_SETS)} {seeds} from cache {cache.name}")
         else:
             W(f"    seed set {si+1}/{len(SEED_SETS)} {seeds} scoring "

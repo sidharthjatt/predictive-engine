@@ -71,6 +71,62 @@ pipeline trades on a price it could not have seen.
 
 ## Results
 
+### Rebuilt 2026-09-24, and identical on macOS and Linux
+
+Every panel and every published cell was rebuilt on 2026-09-24 after the
+feature builder's variance, the CSV float parser and the panel format were
+replaced so that macOS arm64, Linux arm64 and Linux amd64 produce identical
+bits (see "Running it" and `KNOWN_ISSUES.md`). Window 2019-01-01 to 2026-05-29,
+1,836 trading days, from Rs 10,00,000, all figures after costs, cadence 20,
+`research` profile. The `tax on` column charges Indian capital-gains tax in the
+loop; the buy & hold column is untaxed.
+
+**The figures moved, some by several CAGR points, and two gaps against buy &
+hold changed sign:** midcap100 v2 went from 1.30 points behind its basket to 2.04
+ahead, and smallcap250 v2 from 1.48 ahead to 1.98 behind. Nothing about the
+strategy changed; the move is the same last-bit sensitivity of the ranking model
+that the price-noise box below measures (a v2 CAGR standard deviation of 1.0 to
+2.8 points under price perturbations too small to see). Quote these figures with
+that spread in mind.
+
+#### Nifty 100 (99 constituents) -- tax off
+
+| arm | CAGR% | Sharpe | Sortino | MaxDD% | Calmar | Trades | AnnVol% | Deployed% | FinalEquity |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| v1 invvol, 100% invested | 25.71 | 1.25 | 1.63 | -37.52 | 0.69 | 751 | 20.36 | 100.0 | 5442885.74 |
+| v2 invvol, breadth-scaled | 19.4 | 1.5 | 2.01 | -21.81 | 0.89 | 938 | 12.59 | 56.8 | 3716705.42 |
+| v3 provol, 100% invested | 27.58 | 1.15 | 1.56 | -40.72 | 0.68 | 726 | 24.06 | 100.0 | 6072338.23 |
+| v4 provol, breadth-scaled | 20.38 | 1.28 | 1.73 | -26.66 | 0.76 | 930 | 15.69 | 56.8 | 3948930.66 |
+| buy & hold equal-weight | 24.16 | 1.27 | 1.45 | -38.65 | 0.63 | 0 | 18.67 | 100.0 | 4969254.64 |
+
+#### MidCap150 (148 constituents) -- tax off
+
+| arm | CAGR% | Sharpe | Sortino | MaxDD% | Calmar | Trades | AnnVol% | Deployed% | FinalEquity |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| v1 invvol, 100% invested | 36.84 | 1.53 | 1.95 | -42.21 | 0.87 | 874 | 22.53 | 100.0 | 10205162.44 |
+| v2 invvol, breadth-scaled | 28.78 | 1.94 | 2.63 | -21.39 | 1.35 | 1016 | 13.76 | 54.6 | 6510101.81 |
+| v3 provol, 100% invested | 36.34 | 1.36 | 1.82 | -47.8 | 0.76 | 840 | 25.59 | 100.0 | 9931484.57 |
+| v4 provol, breadth-scaled | 33.99 | 1.9 | 2.75 | -25.61 | 1.33 | 1012 | 16.37 | 54.6 | 8730268.78 |
+| buy & hold equal-weight | 25.46 | 1.35 | 1.52 | -37.73 | 0.67 | 0 | 18.42 | 100.0 | 5375524.94 |
+
+#### v2 against its own equal-weight buy & hold, all eight universes
+
+| universe | v2 CAGR% tax off | buy & hold | gap | v2 CAGR% tax on | v2 Sharpe | v2 MaxDD% | v2 trades |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| midcap150 | 28.78 | 25.46 | +3.32 | 24.29 | 1.94 | -21.39 | 1016 |
+| nifty100 | 19.40 | 24.16 | -4.76 | 16.46 | 1.50 | -21.81 | 938 |
+| nifty50 | 13.40 | 20.67 | -7.27 | 11.41 | 1.11 | -23.11 | 864 |
+| midcap50 | 20.97 | 24.34 | -3.37 | 17.81 | 1.54 | -22.21 | 865 |
+| midcap100 | 28.86 | 26.82 | +2.04 | 24.65 | 1.81 | -20.29 | 898 |
+| nifty200 | 28.21 | 25.54 | +2.67 | 24.06 | 1.82 | -20.41 | 969 |
+| smallcap250 | 25.17 | 27.15 | -1.98 | 21.23 | 1.82 | -24.47 | 1086 |
+| nifty500 | 31.14 | 26.09 | +5.05 | 26.32 | 2.07 | -30.83 | 1119 |
+
+### SUPERSEDED 2026-09-24 -- produced by the pre-fix numerics
+
+Everything from here to "The execution layer" was produced before 2026-09-24
+and is kept as it was, not restated. The rebuilt figures are above.
+
 Two universes are live. Window 2019-01-01 to 2026-06-08, 1,842 trading days, from
 a starting capital of Rs 10,00,000. All figures after costs.
 
@@ -396,43 +452,64 @@ If you are about to propose an idea, it is probably in there.
 
 Not tracked, and why: `venv/`, everything under `results*/metrics/`,
 `nautilus/reports/`, the score parquets and `cache/` are all rebuilt by
-`run_all.py`. `cache/<universe>/` holds the score and raw panels and the
-constituent symlink farm; a panel is reused only while its sidecar's content key
-matches the source CSVs, so adding, removing or editing a CSV forces a rebuild.
-`data/raw/` is about 396 MB of vendor OHLCV and is excluded for size — the code
-cannot run without it, so it has to come from a backup rather than from here. Six
-small files under `data/raw/` are tracked as exceptions: the three index membership
-workbooks and their reference cases, plus the reconstructed Nifty 100 membership.
-Those cannot be regenerated, because the press-release PDFs they were derived from
-were deleted.
+`run_all.py`. `cache/<universe>/` holds the score and raw panels (parquet) and the
+constituent farm (hard links to the source CSVs, or copies where a hard link cannot
+be made); a panel is reused only while its sidecar's content key matches the source
+CSVs and the code that builds it, so adding, removing or editing a CSV forces a
+rebuild.
+
+`data/raw/` is not in the repository: 3.0 GB of vendor OHLCV, excluded for size.
+The code cannot run without it, so it has to come from a backup. Each universe
+reads one supplier folder,
+`data/raw/Final_Without_Survivorship_Data/Final_<INDEX>_EoD_Data/` (for example
+`Final_NIFTYMidCap50_EoD_Data/` for midcap50), holding one CSV per constituent and
+one for the published index. Only `data/raw/.gitkeep` is tracked. (This paragraph
+said six membership files under `data/raw/` were tracked; that stopped being true
+and was corrected on 2026-09-24.)
 
 ## Running it
 
-Python 3.12.13. Every direct dependency is pinned exactly in `requirements.txt`;
-`installed_versions.txt` pins the rest.
+**Platforms.** Verified byte-identical on 2026-09-24 on macOS arm64 (Mac mini M4, Python 3.12.13) and on Linux arm64 and Linux amd64 (Docker `python:3.12.13` on the same Mac; amd64 runs under Rosetta translation, not on a physical Intel or AMD CPU). For a midcap50 v2 run, the score and raw panels and every CSV match byte for byte, the Nautilus reports match once their random identifier columns (`event_id`, `position_id`, `init_id`) are dropped and rows sorted, and the charts match pixel for pixel. **Windows is untested.** Nothing in the code needs a symlink any more and `.gitattributes` stops line-ending conversion, but no run has been made on Windows. On Windows the venv interpreter is `venv\Scripts\python.exe`.
+
+**Linux prerequisites:** git, and Python 3.12.13 with its venv module (on Debian
+or Ubuntu the `python3.12-venv` package). The official Docker image
+`python:3.12.13` has both; the floating tag `python:3.12` is a later patch release.
 
 ```
+git clone https://github.com/sidharthjatt/predictive-engine.git
+cd predictive-engine
+# put the supplier data under data/raw/ -- see "Repository layout"
 python3.12 -m venv venv
 ./venv/bin/python -m pip install -r requirements.txt -c installed_versions.txt
-./venv/bin/python run_all.py
 ```
 
-**Not `python3 run_all.py`.** `run_all.py` spawns every step with
-`sys.executable`, so whichever interpreter launches it is used for all 32 steps —
-the launch command is load-bearing, and there is no fallback. On the machine this
-project was built on, `python3` is Python 3.11: it has no `lightgbm`, so the run
-dies at STEP 1, and it is below the 3.12 floor named above. Both failures have
-the one cause. Corrected 2026-09-02; this section previously said
-`python3 run_all.py`. See `KNOWN_ISSUES.md`, *"The documented commands are not
-verified against the machine they run on"*.
+Every direct dependency is pinned exactly in `requirements.txt`, and
+`installed_versions.txt` pins the rest. **Use the venv interpreter, not
+`python3`**: every step runs in the interpreter that launched the run, and on the
+machine this project was built on `python3` is 3.11 with no `lightgbm`.
 
-Two full `--fresh` rebuilds are recorded at 141.9 and 143.9 minutes
-(`run_all_ewma2_log.txt`, `run_all_ewma_log.txt`), but both are from a
-two-universe pipeline — those runs built the 58 and the 74, both since deleted.
-The current pipeline builds mid and n100 and has no recorded full-rebuild time. With the
-panels under `cache/` current, the score-building steps report `score panel
-current, skipping build` and the model is not refitted at all.
+**One universe and one arm:**
 
-`python3 nautilus/nt_verify.py --universe=n100` runs the reconciliation. It
-executes two complete backtests. One run on 2026-08-27 took roughly 30 minutes,
+```
+./venv/bin/python run.py --universe midcap50 --arm v2
+./venv/bin/python run.py --list        # the universes and arms, and the plan, without running
+```
+
+`--rebal <days>`, `--tax on` and `--profile tradeable` select the other axes.
+Every run writes a folder under `runs/` with its artefacts and `run.log`.
+
+**How long it takes** (Mac mini M4, measured 2026-09-23). The FIRST run of a
+universe builds its score panel, which dominates: midcap50 6.5 min, nifty50 8.8,
+midcap100 11.9, nifty100 16.0, midcap150 17.0, nifty200 29.6, smallcap250 34.5,
+nifty500 74.7 (measured while other work shared the machine; treat them as upper
+bounds). A REPEAT run reuses the panel: 13-35 s for one midcap50 cell, across the
+48 combinations of arm, tax, profile and cadence swept that day.
+
+**Everything:** `./venv/bin/python run_all.py` runs all eight universes and all
+four arms.
+
+`./venv/bin/python nautilus/nt_verify.py --universe=nifty100` runs the
+reconciliation (`--universe=midcap150` for the other certified universe;
+`--rebal=<n>` reports the port-versus-vectorised gap at another cadence without
+gating it). It executes two complete backtests. One run on 2026-08-27 took roughly 30 minutes,
 which is an observed duration on a single run rather than a timed benchmark.

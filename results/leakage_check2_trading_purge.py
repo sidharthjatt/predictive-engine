@@ -100,6 +100,7 @@ import config                                        # noqa: E402
 import engine_core as _ec                            # noqa: E402
 from engine_core import HORIZON, PURGE_EMBARGO       # noqa: E402
 from universes.registry import REGISTRY              # noqa: E402
+from config import read_table  # the one CSV/parquet reader: config.read_table
 
 LABELS = {"nifty100": "NIFTY 100", "midcap150": "MIDCAP150"}
 UNIVERSES = {u.tag: (u.raw_cache, u.purge_mode, LABELS[u.tag])
@@ -112,7 +113,7 @@ PROBE_SEEDS = [7]
 
 def run(uni, perm, purge_mode, label, W):
     src = config.require_cache(perm, what=f"{uni} raw panel")
-    raw = pd.read_csv(src, parse_dates=["date"])
+    raw = read_table(src, parse_dates=["date"])
 
     W("=" * 100)
     W(f" CHECK 2 (TRADING RULE) -- TRAINING MASK AND PURGE -- {label} ({uni})")

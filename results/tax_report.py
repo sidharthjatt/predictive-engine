@@ -53,6 +53,8 @@ import pandas as pd
 
 import tax as _tax
 import tax_util as T
+from config import read_table  # the one CSV/parquet reader: config.read_table
+from numerics import rolling_std  # platform-identical variance: results/numerics.py
 
 # The four stems. Composed through naming.name() -- the only composer measured to
 # carry all four axes without modification (naming.CARRIES, re-probed 2026-09-17).
@@ -264,14 +266,14 @@ def main(u):
     engine_core.set_tradeability(u)
     src = config.require_cache(u.score_cache,
                                what=f"{u.tag} score panel")
-    p = pd.read_csv(src, parse_dates=["date"])
+    p = read_table(src, parse_dates=["date"])
     px = p.pivot_table(index="date", columns="symbol", values="close").ffill()
     op = p.pivot_table(index="date", columns="symbol", values="open").ffill()
     sc = p.pivot_table(index="date", columns="symbol", values="score")
     pc = precompute(px)
     mom20 = px / px.shift(20) - 1
     idx = (1 + px.pct_change().mean(axis=1).fillna(0)).cumprod()
-    port_vol = idx.pct_change().rolling(60).std() * np.sqrt(252)
+    port_vol = rolling_std(idx.pct_change(), 60) * np.sqrt(252)
     bd = px.index[(px.index >= config.BT_START_DATE)
                   & (px.index <= config.BT_END_DATE)]
 
@@ -309,7 +311,7 @@ def main(u):
               f"did not run for {u.tag}")
         return
     rows_bh = list(csv.DictReader(open(bh, newline="")))
-    fy_close = float(pd.read_csv(wrote[1])["close_equity"].iloc[-1])
+    fy_close = float(read_table(wrote[1])["close_equity"].iloc[-1])
     BASIS = {
         "v2 before tax":      "v34_equity.csv (engine, tax=off)",
         "v2 after tax":       "bh_lots taxed backtest, tail settled at final session",
