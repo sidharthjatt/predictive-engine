@@ -24,33 +24,31 @@
   fills file      nautilus/reports/nifty100/v2/fills.csv
   arm             v2 -- v2 invvol, breadth-scaled   (segment 'v2',
                   from nt_run.reports_segment, the writer's own rule)
-  fills recorded  940
-  on 0.05 grid    210 of 940 fill prices (22.3%)
-  price panel     v_nifty100_expanding.csv
-  reconstruction  round(price * (1 +/- 0.0015), 2)  -- 2-decimal storage
-  tolerance       0.005 -- TIGHTENED from the spec's half-tick 0.025;
-                  see tick() for why the spec's assumption was wrong
+  fills recorded  938
+  on 0.05 grid    902 of 938 fill prices (96.2%)
+  price panel     v_nifty100_expanding.parquet
+  reconstruction  price * (1 +/- 0.0015) rounded to that date's NSE tick
+                  (nt_data.quote_frame and _round_to, the port's own rule)
+  tolerance       half of that date's tick: exact equality on the grid
 
   MATCHES, PER CANDIDATE (a fill may match more than one)
-    (a) that day's OPEN      -- the design          939 of 940
-    (b) that day's CLOSE     -- same-day close       11 of 940
-    (c) previous CLOSE       -- signal-day close     65 of 940
-    (d) previous OPEN                                13 of 940
+    (a) that day's OPEN      -- the design          938 of 938
+    (b) that day's CLOSE     -- same-day close       12 of 938
+    (c) previous CLOSE       -- signal-day close     74 of 938
+    (d) previous OPEN                                12 of 938
 
-  fills matching (a): 939 of 940
-  fills matching NOTHING: 1
-  fills matching (a) UNIQUELY: 854
+  fills matching (a): 938 of 938
+  fills matching NOTHING: 0
+  fills matching (a) UNIQUELY: 846
   fills matching (a) AND another candidate (ambiguous, prices within half a
-    tick of each other -- a limit of the instrument, not an exception): 85
+    tick of each other -- a limit of the instrument, not an exception): 92
 
-  EXCEPTIONS -- fills NOT matching the fill day's open: 1
-    date        symbol        side     fill px  (a) open  (b) close  (c) prevC  (d) prevO
-    2020-05-22  CHOLAFIN      BUY       130.19    130.20     123.43     130.09     138.01
+  EXCEPTIONS -- fills NOT matching the fill day's open: 0
 
   FILLS EXECUTING AT A CLOSE RATHER THAN AN OPEN: 0
 
-  every fill date on the panel's trading calendar: 940 of 940
-  fills whose PREVIOUS session is a recorded decision date: 940 of 940
+  every fill date on the panel's trading calendar: 938 of 938
+  fills whose PREVIOUS session is a recorded decision date: 938 of 938
 
 
 ====================================================================================================
@@ -60,39 +58,35 @@
   fills file      nautilus/reports/midcap150/v2/fills.csv
   arm             v2 -- v2 invvol, breadth-scaled   (segment 'v2',
                   from nt_run.reports_segment, the writer's own rule)
-  fills recorded  1,006
-  on 0.05 grid    214 of 1,006 fill prices (21.3%)
-  price panel     v_midcap150_expanding.csv
-  reconstruction  round(price * (1 +/- 0.0015), 2)  -- 2-decimal storage
-  tolerance       0.005 -- TIGHTENED from the spec's half-tick 0.025;
-                  see tick() for why the spec's assumption was wrong
+  fills recorded  1,016
+  on 0.05 grid    987 of 1,016 fill prices (97.1%)
+  price panel     v_midcap150_expanding.parquet
+  reconstruction  price * (1 +/- 0.0015) rounded to that date's NSE tick
+                  (nt_data.quote_frame and _round_to, the port's own rule)
+  tolerance       half of that date's tick: exact equality on the grid
 
   MATCHES, PER CANDIDATE (a fill may match more than one)
-    (a) that day's OPEN      -- the design         1003 of 1,006
-    (b) that day's CLOSE     -- same-day close       10 of 1,006
-    (c) previous CLOSE       -- signal-day close     71 of 1,006
-    (d) previous OPEN                                12 of 1,006
+    (a) that day's OPEN      -- the design         1016 of 1,016
+    (b) that day's CLOSE     -- same-day close       10 of 1,016
+    (c) previous CLOSE       -- signal-day close     75 of 1,016
+    (d) previous OPEN                                14 of 1,016
 
-  fills matching (a): 1,003 of 1,006
-  fills matching NOTHING: 3
-  fills matching (a) UNIQUELY: 913
+  fills matching (a): 1,016 of 1,016
+  fills matching NOTHING: 0
+  fills matching (a) UNIQUELY: 921
   fills matching (a) AND another candidate (ambiguous, prices within half a
-    tick of each other -- a limit of the instrument, not an exception): 90
+    tick of each other -- a limit of the instrument, not an exception): 95
 
-  EXCEPTIONS -- fills NOT matching the fill day's open: 3
-    date        symbol        side     fill px  (a) open  (b) close  (c) prevC  (d) prevO
-    2019-07-26  ESCORTS       BUY       470.70    470.71     474.16     470.91     483.72
-    2022-06-22  TATAELXSI     BUY      7561.32   7561.33    7503.54    7562.93    7311.95
-    2025-10-10  3MINDIA       BUY     29313.90  29313.91   29634.38   29308.90   29248.81
+  EXCEPTIONS -- fills NOT matching the fill day's open: 0
 
   FILLS EXECUTING AT A CLOSE RATHER THAN AN OPEN: 0
 
-  every fill date on the panel's trading calendar: 1,006 of 1,006
-  fills whose PREVIOUS session is a recorded decision date: 1,006 of 1,006
+  every fill date on the panel's trading calendar: 1,016 of 1,016
+  fills whose PREVIOUS session is a recorded decision date: 1,016 of 1,016
 
 
   INPUT READ (gitignored; holds whatever last wrote it):
-    midcap150  /Users/sidharthchoudhary/Downloads/algo_trading_project/nautilus/reports/midcap150/v2/fills.csv written 2026-09-23 12:01  (1,006 fills)
-    nifty100   /Users/sidharthchoudhary/Downloads/algo_trading_project/nautilus/reports/nifty100/v2/fills.csv written 2026-09-23 12:00  (940 fills)
-  ungated, reported only: 4 fill(s) not matching the day's open exactly.
+    midcap150  /Users/sidharthchoudhary/Downloads/algo_trading_project/nautilus/reports/midcap150/v2/fills.csv written 2026-09-24 15:27  (1,016 fills)
+    nifty100   /Users/sidharthchoudhary/Downloads/algo_trading_project/nautilus/reports/nifty100/v2/fills.csv written 2026-09-24 15:27  (938 fills)
+  ungated, reported only: 0 fill(s) not matching the day's open exactly.
   RESULT: PASS -- 0 fills executed at a close and 0 fell off the trading calendar, across 2 universe(s).

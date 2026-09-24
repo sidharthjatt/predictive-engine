@@ -27,7 +27,9 @@ currently wrong.
 **Every figure dated before 2026-09-24 was produced by the old numerics** and is
 not what the code now produces from the same prices. The published tables were
 rebuilt on 2026-09-24 (README, "Results"); the old ones stay there, marked
-superseded. Measurements that were not re-run -- the price-noise and seed-noise
+superseded. The sigma 0.01% price-noise distributions for nifty100 v2 and
+midcap150 v2 were re-run on 2026-09-24 (`diagnostics/price_noise.txt`). Measurements
+that were not re-run -- the sigma 0.50% price-noise blocks, the seed-noise
 distributions, the tradeable 32-cell grid, the impact sweep, the heldout
 pre-registration -- are pre-fix figures.
 
@@ -67,19 +69,17 @@ differ). One universe was proven; the other seven were not rebuilt off the Mac.
 
 ## Small defects found by the 2026-09-24 pass, logged rather than fixed
 
-- **Fifteen data files are committed with the executable bit** (mode 100755):
-  diagnostics/drawdown_exit*.{txt,csv}, purge_fix_measure.txt,
-  rebal_cadence_*.{csv,txt}, seed_noise.txt, shuffle_*.txt and topn_*.txt. None is
-  meant to be executable. Left as committed.
-- **check_b_exec_timing's verdict depends on which program last wrote its input.**
-  It reads nautilus/reports/{nifty100,midcap150}/v2/fills.csv. nt_verify writes
-  those at a 0.01 tick grid and the check was calibrated on that (an exact
-  2-decimal open, 0.005 tolerance). The pipeline's STEP 17 writes the same files on
-  the NSE grid (0.05 for most of the window), where 712 of nifty100's 938 fills
-  miss the exact open by a tick and one coincides with a close. Measured
-  2026-09-24 after the full republish: FAIL on the pipeline's fills, PASS on
-  nt_verify's. Not an execution defect. Which fills the check should certify is a
-  question for the owner, not changed here.
+- **FIXED 2026-09-24: fifteen data files were committed with the executable bit**
+  (diagnostics/drawdown_exit*, purge_fix_measure.txt, rebal_cadence_*,
+  seed_noise.txt, shuffle_*.txt, topn_*.txt). Set to 100644 in the index.
+- **FIXED 2026-09-24: check_b_exec_timing's verdict depended on which program
+  last wrote its input.** Every nt_run.run() caller wrote into nautilus/reports/;
+  tools now write to nautilus/tool_reports/ and only the pipeline's STEP 17
+  writes nautilus/reports/. check_b certifies the pipeline's fills, reconstructed
+  with the port's own quote rule on the NSE grid, tolerance half that date's tick:
+  938/938 (nifty100) and 1016/1016 (midcap150) match the open exactly. The one
+  "fill at a close" the old 2-decimal test reported (2023-08-08 VEDL BUY 87.00)
+  is the open-derived price on the 0.05 tick; the old test mis-rounded it.
 - **The copy fallback in the constituent farm trusts size and modification
   time.** Where a hard link cannot be made the source file is copied with its
   mtime and recopied only when size or mtime differ, so an in-place edit that
@@ -214,6 +214,10 @@ exhaustion.
 
 ### THE PHENOMENON, WHICH IS NOT IN DOUBT
 
+(Pre-fix numerics, superseded 2026-09-24; the re-measured figures are in the
+entry "The published v2 CAGR is not reproducible under rounding-level price
+changes".)
+
 At sigma 0.01% -- rounding-level price noise -- the perturbed CAGR sits ABOVE the
 published figure far more often than chance allows: 43 of 50 perturbed cells
 across both live universes, one-sided p = 1.0e-07. nifty100's published 19.01 is
@@ -294,7 +298,7 @@ in a separate entry that a reader may not reach.
 
 **THE nifty100 MEAN ON THAT LINE IS WRONG, AND THE LINE IS LEFT IN PLACE.
 CORRECTED 2026-09-22.** The ten sigma = 0.01% draws in
-`diagnostics/price_noise_runs.csv` are 21.30, 19.32, 21.15, 19.38, 22.55, 21.45,
+`diagnostics/price_noise_runs_superseded_20260924.csv` are 21.30, 19.32, 21.15, 19.38, 22.55, 21.45,
 19.84, 21.47, 20.50 and 20.60. They sum to 207.56 and average **20.76**, not
 20.72. Corrected line:
 
@@ -369,7 +373,7 @@ able to see that it was not blocked on anything.
 
 One draw is a full re-run: perturbed panel rebuilt, 10-seed ensemble refitted,
 backtest re-executed. The only direct measurements of that cost are the 52 runs
-already in `diagnostics/price_noise_runs.csv`:
+already in `diagnostics/price_noise_runs_superseded_20260924.csv`:
 
     nifty100    470,711 panel rows    15.33 min/draw   (mean of 26 runs)
     midcap150   564,850 panel rows    17.17 min/draw   (mean of 26 runs)
@@ -3720,7 +3724,13 @@ figure from it is stable to better than about a point at K=10.
 
 Measured 2026-09-20 (nifty100) and 2026-09-21 (midcap150) by
 `results/price_noise_measure.py`; per-run record in
-`diagnostics/price_noise_runs.csv`, report in `diagnostics/price_noise.txt`.
+`diagnostics/price_noise_runs_superseded_20260924.csv`, report in
+`diagnostics/price_noise_superseded_20260924.txt`.
+
+**SUPERSEDED 2026-09-24.** The figures in this entry are pre-fix numerics. Re-run at
+sigma 0.01%, n=10: nifty100 published 19.40, mean 21.21, sd 1.29, range 18.74 to
+22.79, 9 of 10 draws above published; midcap150 published 28.78, mean 29.64, sd
+2.23, range 26.72 to 33.42, 7 of 10 above. Report in `diagnostics/price_noise.txt`.
 Open. **This is a finding about what the published numbers are, not a caveat on
 one of them.**
 
