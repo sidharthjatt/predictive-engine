@@ -30,8 +30,7 @@ ONE EXPORT PER REGISTERED UNIVERSE, DERIVED, NOT LISTED
 Source : u.score_cache        for every u in universes/registry.REGISTRY
 Output : nautilus/data/{u.nautilus_scores}
 
-Reads only. Nothing under results/, results74/, results_midcap150/ or results_nifty100/ is
-modified.
+Reads only. Nothing under results/ or any results_<tag>/ directory is modified.
 """
 import sys
 from pathlib import Path
@@ -116,7 +115,7 @@ def main():
     print("Exporting model scores for the Nautilus execution layer...")
     rows = {}
     # ONLY THE SELECTED UNIVERSES. Iterating all of REGISTRY meant `--universe
-    # mid` tried to export panels for three universes this run never built --
+    # midcap150` tried to export panels for three universes this run never built --
     # which from a warm tree silently exported STALE parquet from an earlier run,
     # and from a cold one had nothing to read.
     import universes.registry as _ur
@@ -126,7 +125,7 @@ def main():
             print(f"  {tag}: not in this run's selection -- not exported")
             continue
         # config.require_cache, LIKE EVERY OTHER CONSUMER OF A PERMANENT PANEL.
-        # v34_common, validate_engine, make_mid_chart, engine_v2_final_mid/n100
+        # v34_common, validate_engine, make_chart, engine_v2_final
         # and eight study scripts all resolve the two locations through it; this
         # file was the one hold-out, reading u.score_cache with no fallback, and
         # that is what crashed the first cold run at STEP 16.

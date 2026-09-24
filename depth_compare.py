@@ -1,8 +1,8 @@
 """
 depth_compare.py -- the port under "unlimited" depth versus "volume" depth.
 
-Runs n100 and mid twice each and reports what changes when the quote stops being
-infinitely deep. Changes no default: DEPTH_MODE is set on the module for the
+Runs nifty100 and midcap150 twice each and reports what changes when the quote
+stops being infinitely deep. Changes no default: DEPTH_MODE is set on the module for the
 duration of a run and restored afterwards.
 
 WHAT IS COUNTED
@@ -35,17 +35,16 @@ sys.path.insert(0, str(ROOT / "results"))
 
 import nt_data, nt_run
 from engine_core import metrics
-from universes.registry import REGISTRY
+from universes.registry import REGISTRY, certified
 from config import read_table  # the one CSV/parquet reader: config.read_table
 
 SLIPPAGE = nt_run.SLIPPAGE
 
 # THE SOURCE FOLDER, NOT data_dir, AND THE SORTED SYMBOL LIST. Both came from
-# config_n100 / config_mid until step 7; both are registry fields now and carry
-# the same values. `symbol_list` is the sorted tuple the configs' SYMBOLS_* were,
+# the per-universe config modules until step 7; both are registry fields now and
+# carry the same values. `symbol_list` is the sorted tuple the configs' SYMBOLS_* were,
 # so the volume panel is loaded in the same order it always was.
-UNIV = [("nifty100", REGISTRY["nifty100"].raw_data_dir, REGISTRY["nifty100"].symbol_list),
-        ("midcap150", REGISTRY["midcap150"].raw_data_dir, REGISTRY["midcap150"].symbol_list)]
+UNIV = [(u.tag, u.raw_data_dir, u.symbol_list) for u in certified()]
 
 
 def perf_from_strat(strat, tag):

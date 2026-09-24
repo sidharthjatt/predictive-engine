@@ -22,8 +22,8 @@ from features_v2 import EXTREME_RET_HI, EXTREME_RET_LO
 
 BT_START = pd.Timestamp("2019-01-01")
 # THE UNIVERSES, AND THEIR PATHS, COME FROM THE REGISTRY. This was three literal
-# rows naming config74 and a `nifty50` directory; two of the three universes have
-# since been deleted, and the module could not even be imported afterwards.
+# rows naming a retired universe's config module and a `nifty50` directory; two
+# of the three universes have since been deleted, and the module could not even be imported afterwards.
 from universes.registry import REGISTRY          # noqa: E402
 from config import read_table  # the one CSV/parquet reader: config.read_table
 

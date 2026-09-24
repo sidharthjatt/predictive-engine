@@ -2,21 +2,21 @@
 
     ./venv/bin/python bh_lots_after_tax.py
 
-READ THE CONCENTRATION WARNING BEFORE QUOTING THE mid NUMBERS. This script
+READ THE CONCENTRATION WARNING BEFORE QUOTING THE midcap150 NUMBERS. This script
 prints it; it is repeated here because a figure gets copied out of a terminal
 more often than a docstring gets read.
 
-    mid  bh_lots terminal value is 53.0% ONE NAME (AIIL, 956x over the window),
+    midcap150  bh_lots terminal value is 53.0% ONE NAME (AIIL, 956x over the window),
          68.4% in three (AIIL, PATANJALI, LLOYDSME). The median name returns
-         3.45x. The mid "benchmark" is therefore a single-stock bet wearing a
+         3.45x. The midcap150 "benchmark" is therefore a single-stock bet wearing a
          116-name basket's name, and the universe is SURVIVORSHIP_MODE=static --
          today's MidCap150 members backfilled -- so AIIL is in the basket
          PRECISELY BECAUSE it went up 956x. Buy-and-hold is the most
          survivorship-exposed construction there is, and this is what that looks
-         like. mid's bh_lots CAGR is not an achievable return and the v2-vs-mid
-         comparison must not be quoted as a strategy result.
+         like. midcap150's bh_lots CAGR is not an achievable return and the
+         v2-vs-midcap150 comparison must not be quoted as a strategy result.
 
-    n100 top name 8.1%, top three 18.8%, and bh_lots (23.97%) lands within 0.03
+    nifty100 top name 8.1%, top three 18.8%, and bh_lots (23.97%) lands within 0.03
          points of the published daily-rebalanced bh (24.00%). That comparison
          is diversified and usable.
 
@@ -61,7 +61,7 @@ HALVES=[("2019-2022",2019,2022),("2023-2026",2023,2026)]
 # ---------------------------------------------------------------------------
 # A benchmark is an INSTRUMENT. It can only resolve an effect larger than its own
 # sensitivity to a single input. The effect this benchmark exists to measure is
-# the after-tax edge swing -- MEASURED at -2.05 CAGR points on n100 (3f0ef05):
+# the after-tax edge swing -- MEASURED at -2.05 CAGR points on nifty100 (3f0ef05):
 # v2 loses 3.77 points to tax, a held-lots buy & hold loses 1.72, and the 2.05
 # between them is the turnover cost. If dropping ONE NAME from the basket moves
 # the benchmark's CAGR by more than that, the instrument cannot see the effect,
@@ -77,23 +77,23 @@ HALVES=[("2019-2022",2019,2022),("2023-2026",2023,2026)]
 #
 # Evaluated on the two universes actually measured, over the 2,705-day window:
 #
-#     n100   CAGR 23.97%   ->  w_max 11.62%
-#     mid    CAGR 44.34%   ->  w_max 10.05%
+#     nifty100   CAGR 23.97%   ->  w_max 11.62%
+#     midcap150  CAGR 44.34%   ->  w_max 10.05%
 #
 # THE LIMIT TAKES THE MORE PERMISSIVE OF THE TWO, 11.62%, ON PURPOSE. Taking the
-# tighter one would be choosing the number that rejects mid most comfortably,
+# tighter one would be choosing the number that rejects midcap150 most comfortably,
 # which is tuning a test to a verdict already known. The looser bound still
-# rejects mid by a factor of 4.6 and still admits n100 with 3.5 points of margin,
-# so the conclusion does not depend on which of the two was used -- and that
+# rejects midcap150 by a factor of 4.6 and still admits nifty100 with 3.5 points of
+# margin, so the conclusion does not depend on which of the two was used -- and that
 # insensitivity is the reason it can be stated as a choice rather than a fit.
 #
-# WHAT IT DOES NOT CLAIM. Passing does not make a basket well-diversified: n100's
+# WHAT IT DOES NOT CLAIM. Passing does not make a basket well-diversified: nifty100's
 # top name at 8.1% still moves the benchmark CAGR by -1.41 points, which is most
 # of the effect being measured. It is a floor on usability, not a certificate.
 # The number is pinned to a 7.4-year window and to these CAGRs; a materially
 # different window needs it recomputed, not carried over.
 CONC_LIMIT = 0.1162
-CONC_LIMIT_BASIS = ("2.05-point effect size (n100 after-tax edge swing, 3f0ef05) "
+CONC_LIMIT_BASIS = ("2.05-point effect size (nifty100 after-tax edge swing, 3f0ef05) "
                     "over a 2,705-day window at 23.97% CAGR")
 
 def cagr(s):

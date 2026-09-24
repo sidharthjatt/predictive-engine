@@ -631,10 +631,10 @@ def test_cumulative_does_not_fire_on_genuine_index_expansion():
     Every transition is a non-strict superset, which is why the first version of
     the check fired at 11 of 11. The distinguishing facts are that the growth
     happens in ONE step rather than being sustained across reconstitutions."""
-    n50 = ANCHORS + [f"EQ{i:03d}" for i in range(43)]
-    n100 = n50 + [f"EX{i:03d}" for i in range(50)]
+    nifty50 = ANCHORS + [f"EQ{i:03d}" for i in range(43)]
+    nifty100 = nifty50 + [f"EX{i:03d}" for i in range(50)]
     rows = [{"effective_date": f"{2010+i}-03-31",
-             "symbols": ",".join(n50 if i < 6 else n100),
+             "symbols": ",".join(nifty50 if i < 6 else nifty100),
              "inclusions": ",".join(f"EX{j:03d}" for j in range(50)) if i == 6 else "",
              "exclusions": ""} for i in range(12)]
     r = sv.validate(write_csv("expansion.csv", rows), index_name="nifty100")

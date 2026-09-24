@@ -518,7 +518,7 @@ def run_arm(u, arm, rebal=None, out_dir=None):
         mode=arm.mode, target_vol=tv, sizing=arm.sizing, audit=audit,
         tax_enabled=_tax_axis.selected(),
         # EVERY universe is valued at the open. The two that opted out of this
-        # correction were the retired 58 and 74, and they are gone.
+        # correction were two retired universes, and they are gone.
         value_at_open=True, rebal=rebal, **_capkw)
 
     bh = START_CAPITAL * (1 + px.pct_change().loc[bd].mean(axis=1).fillna(0)).cumprod()

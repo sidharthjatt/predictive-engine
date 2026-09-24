@@ -80,4 +80,4 @@
   the training mask and the label are CHECK 2.
 
 
-  RESULT: PASS -- no feature moved on any sampled date, on 2 universe(s): midcap150, nifty100.
+  RESULT: PASS -- no FEATS_V2 value at t moved when every row after t was corrupted, on 24 sampled dates per universe, on 2 universe(s): midcap150, nifty100. Dates outside the sample and the labels are not tested.

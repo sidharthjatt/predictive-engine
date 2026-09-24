@@ -76,7 +76,7 @@ import pandas as pd
 
 import config
 import test_exposure
-from universes.registry import REGISTRY
+from universes.registry import REGISTRY, certified
 import measured_universes
 from engine_core import precompute, metrics
 from config import read_table  # the one CSV/parquet reader: config.read_table
@@ -101,7 +101,7 @@ OUT_EQUITY = ROOT / "diagnostics" / "drawdown_exit_equity.csv"
 #
 # The LABEL stays local: it is printed into diagnostics/drawdown_exit.txt.
 # Order is load-bearing -- the measurement is reported universe by universe.
-LABELS = {"nifty100": "NIFTY 100", "midcap150": "MIDCAP150"}
+LABELS = {u.tag: u.display_name for u in certified()}
 
 # WHICH UNIVERSES THIS STUDY HAS MEASUREMENTS FOR, DECLARED -- see MEASURED_FOR
 # below, which is where UNIVERSES now comes from. It was the hand-written pair
@@ -123,8 +123,8 @@ TRADABILITY_EXPECT = {
 # neither can be invented for a universe nobody has measured, and a declared
 # universe missing from EITHER is refused by name rather than defaulted.
 #
-# NOTE THE TWO CONSTANTS ARE WRITTEN IN OPPOSITE ORDERS -- SEED_FLOOR is n100
-# first, TRADABILITY_EXPECT is mid first. Neither is the report order. That is
+# NOTE THE TWO CONSTANTS ARE WRITTEN IN OPPOSITE ORDERS -- SEED_FLOOR is nifty100
+# first, TRADABILITY_EXPECT is midcap150 first. Neither is the report order. That is
 # exactly why the order lives here, in one sequence, rather than being taken from
 # whichever constant a reader happened to look at.
 MEASURED_FOR = ("nifty100", "midcap150")
@@ -412,7 +412,7 @@ def main():
     w("  NO ACCEPT RULE. NOTHING CAN BE PROMOTED. MaxDD has NO measured noise floor")
     w("  on any arm and entry 28 could not distinguish it from a random null, so the")
     w("  rule's PRIMARY OBJECTIVE REMAINS UNJUDGEABLE. Only CAGR cost is inferable:")
-    w(f"  measured floors n100 {SEED_FLOOR['nifty100']}, mid {SEED_FLOOR['midcap150']}.")
+    w(f"  measured floors nifty100 {SEED_FLOOR['nifty100']}, midcap150 {SEED_FLOOR['midcap150']}.")
     w("  " + "=" * 116)
 
     res, gates_ok = {}, True
@@ -466,7 +466,7 @@ def main():
         # identical to the last decimal. A gate whose own name is the exit path
         # reported PASS either way. G4 is the check that moves when the exit does.
         #
-        # UNIVERSE-CORRECT. On n100 the expected count is ZERO, and "zero because
+        # UNIVERSE-CORRECT. On nifty100 the expected count is ZERO, and "zero because
         # nothing is untradeable" and "zero because the guard never loaded" are the
         # same observation there. They must not be the same PASS, so the guard's
         # own state is asserted first: TRADEABLE is a dict (never None) and its tag

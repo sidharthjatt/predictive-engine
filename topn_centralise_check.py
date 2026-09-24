@@ -27,7 +27,7 @@ Discharges the proof obligation in experiments/TOPN_SPEC.txt Part A: four arms
 (invvol/provol x none/breadth) on both live universes, eight SHA256 hashes,
 recorded before the edit and again after. Reads the score panel through
 config.require_cache and the raw prices through the engine's own pivot, exactly
-as engine_v2_final_n100.py and engine_v2_final_mid.py do.
+as results/engine_v2_final.py does.
 
 Takes a label argument ("before" / "after") and writes one CSV per label so the
 two columns can be placed side by side.
@@ -59,7 +59,7 @@ import config
 from engine_core import precompute
 import test_exposure
 from test_exposure import backtest_exposure
-from universes.registry import REGISTRY
+from universes.registry import REGISTRY, certified
 import profiles as _prof            # the run's execution-realism profile
 
 VOL_WIN = 60
@@ -69,7 +69,7 @@ VOL_WIN = 60
 # kept local here. Order is load-bearing: the hash table is emitted universe by
 # universe and compared row for row against the previous run.
 UNIVERSES = {u.tag: u.score_cache
-             for u in (REGISTRY["nifty100"], REGISTRY["midcap150"])}
+             for u in certified()}
 
 ARMS = [("invvol", "none"), ("invvol", "breadth"),
         ("provol", "none"), ("provol", "breadth")]
@@ -195,8 +195,9 @@ def report(before_csv, after_csv):
     L.append("   results/make_stats_both.py, which was frozen at 12/24 with a 6% cash")
     L.append("   yield. Both remain open in KNOWN_ISSUES.md.")
     L.append("")
-    L.append("   DOES NOT COVER the retired 58 and 74. They keep their own literals by")
-    L.append("   design, so there is nothing there for this proof to move.")
+    L.append("   DOES NOT COVER the retired universes (deleted 2026-09-11). They kept")
+    L.append("   their own literals by design, so there was nothing there for this")
+    L.append("   proof to move.")
     L.append("")
     out = ROOT / "diagnostics" / "topn_centralise_hashes.txt"
     out.write_text("\n".join(L) + "\n")

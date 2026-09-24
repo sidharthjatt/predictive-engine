@@ -663,10 +663,10 @@ class PredictiveEngineStrategy(Strategy):
         #     15:31 is ever reached. The fills happened; the equity row did not.
         #
         #     Measured cost: the port's series held 1,841 rows against the reference's
-        #     1,842 on the 58, and the missing 2026-06-08 carried TEN fills that moved
-        #     Rs 1.1m out of positions into cash. Equity read 3,236,727.28 (05 June)
-        #     where the true final figure is 3,214,422.58 (08 June). On mid the missing
-        #     day carried twelve fills and Rs 106,221 of difference. Every statistic
+        #     1,842 on a retired universe, and the missing 2026-06-08 carried TEN
+        #     fills that moved Rs 1.1m out of positions into cash. Equity read
+        #     3,236,727.28 (05 June) where the true final figure is 3,214,422.58
+        #     (08 June). On midcap150 the missing day carried twelve fills and Rs 106,221 of difference. Every statistic
         #     taken from the series -- CAGR, Sharpe, MaxDD -- silently omitted it.
         #
         # RECORDED HERE RATHER THAN BY MOVING THE TIMER TO 15:30.

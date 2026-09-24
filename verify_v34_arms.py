@@ -41,8 +41,8 @@ nautilus/reports/{universe}/{arm}/ -- gitignored, and per-arm since 2026-09-04,
 before which all four arms of a universe overwrote one directory and only the
 last survived.
 
-    python3 verify_v34_arms.py                 # both universes, four arms each
-    python3 verify_v34_arms.py --universe=mid  # one universe
+    python3 verify_v34_arms.py                       # both universes, four arms each
+    python3 verify_v34_arms.py --universe=midcap150  # one universe
 """
 import contextlib
 import io
@@ -67,7 +67,7 @@ import nt_strategy
 import nt_attribution
 import nt_verify
 
-from universes.registry import REGISTRY
+from universes.registry import REGISTRY, certified
 from arms.registry import ARMS as ARM_REGISTRY
 
 # BOTH REGISTRIES FEED THIS FILE, and it is the one place where that matters
@@ -83,11 +83,11 @@ from arms.registry import ARMS as ARM_REGISTRY
 # four arms it had only two of. mode is threaded through now, so the four arms are
 # four arms.
 ARMS = [(a.name, a.mode, a.sizing) for a in ARM_REGISTRY.values()]
-# ORDER IS LOAD-BEARING AND IS NOT registry.LIVE's ORDER. LIVE comes out in the
-# registry's declaration order (58, 74, mid, n100 -> mid, n100), while this
-# report -- like every other script here -- runs n100 first. Using LIVE swapped
-# the two blocks in the output. The order is therefore stated explicitly.
-UNIVERSES = [u.tag for u in (REGISTRY["nifty100"], REGISTRY["midcap150"])]
+# ORDER IS LOAD-BEARING AND IS NOT registry.LIVE's ORDER. LIVE is the registry's
+# declaration order (midcap150 first), while this report -- like every other
+# script here -- runs nifty100 first. Using LIVE swapped the two blocks in the
+# output. registry.CERTIFIED states the order once.
+UNIVERSES = [u.tag for u in certified()]
 
 
 def verify_arm(universe, arm, mode, sizing):
@@ -144,7 +144,8 @@ def verify_arm(universe, arm, mode, sizing):
 
 
 def main():
-    unis = [u for u in UNIVERSES if f"--universe={u}" in sys.argv] or UNIVERSES
+    from universes.registry import argv_universes, check_tags
+    unis = check_tags(argv_universes(sys.argv), UNIVERSES) or UNIVERSES
     print("=" * 100)
     print(" V34 CORRECTNESS GATE -- nt_verify, four arms, both universes")
     print("=" * 100)

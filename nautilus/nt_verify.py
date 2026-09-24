@@ -30,15 +30,16 @@ import nt_attribution
 from config import read_table  # the one CSV/parquet reader: config.read_table
 
 # Selected by --universe on the command line. THE CHOICES ARE THE REGISTRY, not a
-# written-down tuple: the tuple used to name the 58 and the 74, and the default was
-# the literal "58", so this module raised KeyError at import the day they were
-# deleted. The reference CSVs, the price panel and the score parquet all move
+# written-down tuple: the tuple used to name two retired universes, and the
+# default was one of their tags, so this module raised KeyError at import the day
+# they were deleted. The reference CSVs, the price panel and the score parquet all move
 # together, because a verification is only meaningful when both sides read the same
 # universe.
-UNIVERSE = next(iter(nt_run.UNIVERSES))
-for _u in nt_run.UNIVERSES:
-    if f"--universe={_u}" in sys.argv:
-        UNIVERSE = _u
+# An unknown tag, including a retired short tag, exits with the list of valid
+# universes rather than falling back to the default.
+from universes.registry import argv_universes, check_tags
+_picked = check_tags(argv_universes(sys.argv), nt_run.UNIVERSES)
+UNIVERSE = _picked[-1] if _picked else next(iter(nt_run.UNIVERSES))
 U = nt_run.UNIVERSES[UNIVERSE]
 M = U["metrics"]
 TAG = U["tag"]
@@ -232,8 +233,9 @@ def main():
     #     `common` silently discards any date one side lacks, so when the port's
     #     series held 1,841 rows against the reference's 1,842 the comparison simply
     #     moved to the last date they shared and reported it as "final equity". The
-    #     missing 2026-06-08 carried ten fills on the 58 and twelve on mid. Nothing
-    #     in the output said so: the numbers looked like a clean 0.03% agreement.
+    #     missing 2026-06-08 carried ten fills on a retired universe and twelve on
+    #     midcap150. Nothing in the output said so: the numbers looked like a clean
+    #     0.03% agreement.
     #
     #     A date index that does not match is a defect to report, not a set to
     #     narrow. The comparison below still runs -- it is diagnostic and refusing to
@@ -258,7 +260,7 @@ def main():
     # for a difference it is designed to have, so both baselines are reported.
     arm_d = arm(panel, dates, size_at_close=False, value_at_open=True, tick_round=True)
     # ARM A is the reference's own configuration. Its holdings must reproduce
-    # daily_holdings_58.csv, and that is checked below rather than assumed -- it is
+    # daily_holdings_{TAG}.csv, and that is checked below rather than assumed -- it is
     # what licenses ARM D as a baseline at all.
     arm_a = arm(panel, dates, size_at_close=False)
 
@@ -302,7 +304,7 @@ def main():
     print(f"                 reference Rs {ref_eq.loc[_d]:>12,.0f}")
     print(f"                 port      Rs {eq.loc[_d]:>12,.0f}"
           f"   ({(eq.loc[_d] / ref_eq.loc[_d] - 1) * 100:+.2f}%)")
-    # daily_holdings_58.csv has a row per day, not per rebalance, so count the
+    # daily_holdings_{TAG}.csv has a row per day, not per rebalance, so count the
     # rebalance dates from the decisions file instead.
     n_ref = len(read_table(M / f"daily_decisions_{TAG}.csv"))
     print(f"\n  rebalances     reference {n_ref:>4}   port {n:>4}")
@@ -375,7 +377,8 @@ def main():
         print("  trading days, so no figure above describes the same window on both")
         print("  sides. This is reported rather than intersected away because a silent")
         print("  intersection is what let a missing final day -- carrying ten fills on")
-        print("  the 58 -- go unnoticed while the output read as a clean agreement.")
+        print("  a retired universe -- go unnoticed while the output read as a clean")
+        print("  agreement.")
     elif a_check[1] != 0:
         print("  INCONCLUSIVE. ARM A does not reproduce the reference engine's own")
         print("  SELECTION -- the two engines hold different symbols, so ARM D is")

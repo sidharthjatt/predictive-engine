@@ -30,12 +30,12 @@ import survivorship as sv
 # 1. ALWAYS validate before trusting a file.
 print(sv.validation_report("data/raw/index_membership_nifty100.csv",
                            index_name="nifty100",
-                           price_dir="data/raw/N100/clean"))
+                           price_dir="data/raw/Final_Without_Survivorship_Data/Final_NIFTY100_EoD_Data"))
 
 # 2. Load. Raises MembershipError if it does not validate.
 m = sv.load("data/raw/index_membership_nifty100.csv",
             index_name="nifty100",
-            price_dir="data/raw/N100/clean")
+            price_dir="data/raw/Final_Without_Survivorship_Data/Final_NIFTY100_EoD_Data")
 
 # 3. Turn the switch on.
 sv.set_mode("pit")          # "static" (default) | "pit"

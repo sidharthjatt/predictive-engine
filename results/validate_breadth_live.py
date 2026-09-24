@@ -18,8 +18,9 @@ THE THREE TESTS
 
     T1 AND T2 ARE ASYMMETRIC AND THAT IS INHERITED, NOT CHOSEN. T1 gates on Sharpe
     AND drawdown; T2 gates on Sharpe ALONE. A rule that improved Sharpe in both
-    halves while WORSENING drawdown in one of them would pass T2. The 58's suite
-    was written that way and harmonising it here would be changing the test.
+    halves while WORSENING drawdown in one of them would pass T2. The original
+    suite (validate_breadth.py, written for a retired universe) was written that
+    way and harmonising it here would be changing the test.
 
     THE dMaxDD > 3 BAR IS UNDERIVED. Nothing in validate_breadth.py derives it and
     nothing here does either -- it is a magic constant of the same class as T1's
@@ -40,17 +41,17 @@ T3 IS REPORTED, NEVER JUDGED
 
 CACHES ARE NAMESPACED AND THERE IS NO FALLBACK
     validate_breadth.py:56-60 falls back to engine_core's /tmp/FINAL_seed{i}.csv.
-    On the 58 that is sound -- same raw panel, same seeds. Carried here unchanged
-    it would silently score a 58-stock panel and print a verdict for the wrong
-    universe with no error at all. The caches here are
+    On the retired universe it was written for that is sound -- same raw panel,
+    same seeds. Carried here unchanged it would silently score that universe's
+    panel and print a verdict for the wrong universe with no error at all. The caches here are
     /tmp/VALBREADTH_{universe}_seed{i}.csv and NOTHING ELSE IS READ. No cache
     written by another script is used, including /tmp/VALSIZE_* -- see the spec.
 
 Reads the panels. Writes the /tmp seed caches, three CSVs into the universe's
 metrics folder, and one report into diagnostics/.
 
-    python3 results/validate_breadth_live.py --universe=n100          # cost only
-    python3 results/validate_breadth_live.py --universe=n100 --run    # full run
+    python3 results/validate_breadth_live.py --universe=nifty100      # cost only
+    python3 results/validate_breadth_live.py --universe=nifty100 --run  # full run
 """
 import json
 import subprocess
@@ -83,15 +84,15 @@ from numerics import rolling_std  # platform-identical variance: results/numeric
 BT_START_DATE, BT_END_DATE = config.BT_START_DATE, config.BT_END_DATE
 
 # ALL FOUR PANEL PATHS AND THE METRICS DIRECTORY come from
-# universes/registry.py -- the single definition. The LABEL stays local; this
-# file uses the "Nifty 100"/"MidCap150" spelling, and it is written into
-# breadth_live_params.json as well as printed, so it must not move.
-LABELS = {"nifty100": "Nifty 100", "midcap150": "MidCap150"}
+# universes/registry.py -- the single definition. The label is u.name, the
+# "Nifty 100"/"MidCap150" spelling this file has always written into
+# breadth_live_params.json and printed.
+from universes.registry import certified
 UNIVERSES = {
     u.tag: {"score_perm": u.score_cache,
             "raw_perm": u.raw_cache,
-            "metrics": u.metrics_dir, "label": LABELS[u.tag]}
-    for u in (REGISTRY["nifty100"], REGISTRY["midcap150"])
+            "metrics": u.metrics_dir, "label": u.name}
+    for u in certified()
 }
 
 # Verbatim from results/validate_breadth.py. Not reordered, not extended.
@@ -172,10 +173,11 @@ def _git_state():
 
 
 def universe_from_argv():
-    for u in UNIVERSES:
-        if f"--universe={u}" in sys.argv:
-            return u
-    print("usage: validate_breadth_live.py --universe=n100|mid [--run]")
+    from universes.registry import argv_universes, check_tags
+    picked = check_tags(argv_universes(sys.argv), UNIVERSES)
+    if picked:
+        return picked[-1]
+    print(f"usage: validate_breadth_live.py --universe=<{'|'.join(UNIVERSES)}> [--run]")
     print("  no default -- the universe must be named explicitly.")
     sys.exit(2)
 
@@ -268,7 +270,7 @@ def main():
     W(" T2. SUB-PERIOD STABILITY -- does breadth hold in both halves?")
     W("=" * 104)
     W("  GATED on dSharpe > 0 in both halves. THERE IS NO DRAWDOWN CRITERION HERE.")
-    W("  That asymmetry with T1 is inherited from the 58's suite, not chosen: a")
+    W("  That asymmetry with T1 is inherited from validate_breadth.py, not chosen: a")
     W("  rule improving Sharpe in both halves while worsening drawdown in one")
     W("  would pass T2. MaxDD is printed below but does NOT gate.")
     t2_rows = []
@@ -342,7 +344,7 @@ def main():
     params = {"universe": u, "label": U["label"],
               "window": [str(BT_START_DATE.date()), str(BT_END_DATE.date())],
               "seed_sets": SEED_SETS, "dd_bar_points": DD_BAR,
-              "dd_bar_note": "underived; copied from the 58's suite, not recalibrated",
+              "dd_bar_note": "underived; copied from validate_breadth.py, not recalibrated",
               "criteria": {k: bool(v) for k, v in passed.items()},
               "verdict": "PASS" if n_ok == len(passed) else "FAIL",
               "t3_gated": False,

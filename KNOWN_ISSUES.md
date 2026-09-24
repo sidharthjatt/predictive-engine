@@ -1,18 +1,21 @@
 # Known issues
 
 > **NAMING.** The universe tags were renamed on 2026-09-18: `mid` ->
-> `midcap150`, `n100` -> `nifty100`, `n50` -> `nifty50`. Code and live
-> artefacts use the new names; records, diagnostics, `runs/` and all prose
-> still use the old ones and are correct to. **An old tag is not a missing
-> universe.** The map, and the full list of what deliberately keeps the old
-> names, is in [PANEL_MIGRATION.md](PANEL_MIGRATION.md).
+> `midcap150`, `n100` -> `nifty100`, `n50` -> `nifty50`. Since 2026-09-24 code,
+> output and current text use the full names only, and the old tags are refused
+> with an error listing the valid universes. Dated entries below keep the tag
+> that was in use when they were written. **An old tag is not a missing
+> universe.** The map is in [PANEL_MIGRATION.md](PANEL_MIGRATION.md).
 
 > **THE 58 AND THE 74 WERE DELETED ON 2026-09-11.** Both universes, their raw
 > data, their registry entries and the 26 scripts that served them are gone from
 > this repository. Every reference to them below is **historical**: it records what
 > was measured and when, and none of it can be re-run. The figures are preserved at
 > full precision, with a SHA-256 manifest of every surviving artefact, in
-> [RETIRED_UNIVERSES.md](RETIRED_UNIVERSES.md). Where a passage names a deleted file, it is
+> RETIRED_UNIVERSES.md, removed from the tree on 2026-09-24 and kept in git
+> history (`git show 50562ed:RETIRED_UNIVERSES.md`, and
+> `RETIRED_UNIVERSES-manifest.txt` the same way). Every later link to either file
+> below resolves that way. Where a passage names a deleted file, it is
 > describing what that file did, not something you can run.
 
 Defects that are recorded but not fixed. Anything found and left alone belongs
@@ -21,6 +24,71 @@ because of it. Nothing in this file is a plan; it is a list of things that are
 currently wrong.
 
 ---
+
+## Verification gates cover 2 of 8 universes -- costed 2026-09-24, not extended
+
+`universes/registry.CERTIFIED` is `("nifty100", "midcap150")`. GATE 9 in
+check_all (check_b_exec_timing, verify_next_open_execution,
+leakage_check1_causality, leakage_check2_trading_purge) and the nt_verify
+delegates of GATE 5 run on those two only, so next-open fills, feature causality
+and the purge are proven on 2 of 8 universes. Every other universe is published
+without them.
+
+Measured on 2026-09-24 on the Mac mini M4, each script run alone on the two
+certified universes (247 symbols between them):
+
+| delegate | 2 universes | per symbol | all 8 (1,384 symbols), estimated |
+|---|---:|---:|---:|
+| leakage_check1_causality | 122.9 s | 0.50 s | about 690 s |
+| leakage_check2_trading_purge | 5.4 s | | about 30 s |
+| check_b_exec_timing | 3.5 s | | about 20 s |
+| verify_next_open_execution | 0.7 s | no universe | 0.7 s |
+| nt_verify, per universe | 11.6 s and 15.4 s | about 0.11 s | about 150 s for all 8 |
+
+The estimate scales each run by symbol count, which is what each script iterates.
+Extending to all eight would add about 14 minutes to a default check_all run,
+from 275 s to roughly 1,100 s. No new run artefacts are needed: all eight
+universes' raw panels, score panels, daily audit files and Nautilus v2 fills are
+written by `run_all.py`. The change itself is one line (add the tags to
+`CERTIFIED`), but that also changes what validate_sizing, validate_breadth_live,
+validate_topn, shuffle_test and the combined pair chart cover, and whether the
+six added universes pass has never been measured.
+
+## Left by the 2026-09-24 cleanup pass, deliberately
+
+- **Comments inside the panel-key functions still name the retired 58 and 74 and
+  the old tags.** `config.panel_code_key()` hashes the source text of
+  `engine_core.canonical_price`, `_load_calendar`, `_check_calendar`,
+  `build_panel`, `_fit_seed` and `score_monthly`, three functions in
+  `features_v2.py`, and the whole of `data/nse_trading_calendar.csv`. An edit to
+  a comment there changes the key and forces every score panel to rebuild (about
+  3.5 hours for all eight). Left: `results/engine_core.py` 243, 256, 266, 271,
+  292, 320, 329, 332, 343, 345, 658, 709; `results/features_v2.py` 147, 158; the
+  header of `data/nse_trading_calendar.csv`. Two of them are error strings citing
+  RETIRED_UNIVERSES.md, which resolves through git history.
+- **`jackknife.py`'s baseline gate fails on both certified universes.** It
+  reconstructs v2 at 19.29% on nifty100 against the pipeline's 19.40%, and buy &
+  hold at 23.65% against 24.16%; on midcap150, 27.75% against 28.78% and 24.90%
+  against 25.46%. The replaced `n100_jackknife.py` failed identically before the
+  merge, and `mid_jackknife.py` produced the same 27.75 / 24.90 with no gate. The
+  likely cause is in `config.py`: these scripts use engine_core's integer year
+  window (`BT_START`, `BT_END`), not the date window (`config.BT_START_DATE`,
+  `BT_END_DATE`) the pipeline uses; this is not verified. The README's concentration figures (LLOYDSME, `:373`) come from this
+  code path. Not fixed: fixing it changes a published figure.
+- **Names of deleted files stay in comments and docstrings** where they record
+  what a file did (`engine_v2_final_mid.py`, `make_n100_chart.py`,
+  `build_scores_mid.py` and so on), and quoted incident file names stay as quoted
+  (`v_mid_expanding_cache_r200.csv`, `daily_trades_n100.csv`).
+- **Tracked diagnostics written before 2026-09-24 are not regenerated** and keep
+  the tags their scripts printed then, except the six check_all rewrites on every
+  run, which are committed on the current code.
+- **`run_all.PIPELINE_ORDER` still lists one row per (step, universe),** 52 rows
+  written out by hand. check_pipeline_order, check_plan_order and GATE 2 key on
+  those labels (`STEP 10a` ... `STEP 18.02`), so generating the table from the
+  registry would renumber every step. Recorded as a question, not changed.
+- **Per-universe measured constants stay declared per universe** (seed-noise
+  floors, expected tradability counts, purge-study months, price-noise sigma),
+  as `measured_universes.py` requires: they are results, not configuration.
 
 ## macOS and Linux gave different numbers from the same code and data -- FIXED 2026-09-24
 
@@ -197,7 +265,7 @@ on those days. No cadence-20 result differs: the four affected days (31 March
 - **`heldout_prereg_run.py` does not support `--profile tradeable`.** It runs past
   BT_END_DATE, where `profiles.cap_kwargs()` computes no median volume, so it was
   not moved onto that helper. It raises TypeError under tradeable, which is loud.
-- **Dead /tmp paths from the retired 58 remain** in engine_core.main(),
+- **Dead /tmp paths from a retired universe (deleted 2026-09-11) remain** in engine_core.main(),
   test_exposure's `__main__`, nt_data.py, nt_attribution.py,
   test_feature_pruning.py and stability_test.py. None has a caller that can run.
 - **Transitive dependencies are not pinned by requirements.txt.**
@@ -1352,13 +1420,13 @@ universe. That looks like the worst instance in the tree. It is unreachable:
 * **Nothing calls `main()`.** No module imports it, and `engine_core.py` is not
   a row in `run_all.PIPELINE_ORDER`. It is reachable only by running the file.
 * **Both of its inputs are gone.** It reads `/tmp/v5_expanding.csv` (line 711)
-  and `/tmp/raw_panel_20.csv` (line 761). Both are the retired 58's, deleted
+  and `/tmp/raw_panel_20.csv` (line 761). Both belonged to a retired universe, deleted
   with the universe on 2026-09-11, and neither is on disk.
 * No `/tmp/FINAL_seed*.csv` exists, so there was nothing to invalidate.
 
 **It was NOT fixed, deliberately.** Adding a content key to a function that
 cannot run, on a universe that no longer exists, changes nothing and would imply
-the path is live. It is recorded here instead. If the 58 is ever restored this
+the path is live. It is recorded here instead. If that universe is ever restored this
 must be fixed before `main()` is run.
 
 The live scoring path has no seed cache of this kind: `score_monthly` is called
@@ -1375,7 +1443,7 @@ hash. `validate_engine.py` is wired into `check_all.py --slow` and ran on
 on a path that actually executes.
 
 **Fixed** by the shared key in `seed_cache_key.py`. The name is now
-`/tmp/V2VAL_{mid,n100}_seed{i}_{key}.csv`, over `engine_core.py`,
+`/tmp/V2VAL_{tag}_seed{i}_{key}.csv`, over `engine_core.py`,
 `validate_engine.py`, `config.py`, the raw panel's content, the tag, the seed
 values and `purge_mode` -- the last because it is per-universe in this file and
 two universes differing only by it must not share an entry.
@@ -1878,9 +1946,15 @@ called; this one is about a measurement that was called correctly and written
 up as more than it was. Both survive because prose is the only place the error
 lives and nothing reads prose.
 
-## make_daily_log's cash identity does not model the tax deduction, so every taxed run ends "some days failed"
+## make_daily_log's cash identity does not model the tax deduction, so every taxed run ends "some days failed" -- FIXED 2026-09-20, closed 2026-09-24
 
-Found 2026-09-19, on midcap100's first taxed run. Open. **The numbers are
+**FIXED in 946fb5a (2026-09-20)** by `results/make_daily_log.py`
+`tax_due_by_date()`, which replays the run's fills through `tax_util.Ledger` and
+adds the deducted tax to the cash identity. Confirmed 2026-09-24 on two taxed
+runs from scratch: nifty200 v1 cadence 20 and smallcap250 v1 cadence 60 both end
+`VERDICT: every day reconciles.` The entry below is the original finding.
+
+Found 2026-09-19, on midcap100's first taxed run. **The numbers are
 correct; the check is wrong about them.**
 
 `results/make_daily_log.py:668` reports `reconciliation cash 1829/1836 ...
@@ -2651,7 +2725,7 @@ PROPOSED"* and states it *"must be resolved in any spec"*. Still open as of
     SOURCE_DIR = config.RAW_DATA_DIR / "nifty50"
 
 **`results/make_trading_calendar.py` WAS DELETED ON 2026-09-11, commit `2fe48ff`,
-with the 58 universe it read. The line number above points into a file that is no
+with the retired universe it read. The line number above points into a file that is no
 longer in the tree.** The entry is kept unedited below because it records why the
 calendar is shaped the way it is, and that reasoning is still load-bearing: the
 file it describes writing is still tracked and still read on every panel build.
@@ -2861,7 +2935,7 @@ both sets of verdicts exist side by side and each says which engine it is about.
 **The shipping engine's verdicts are not the validation engine's, and the
 difference is the point of this entry:**
 
-| | 58 (retired) | midcap150 | nifty100 |
+| | retired universe | midcap150 | nifty100 |
 |---|---|---|---|
 | shipping engine, 2026-09-04 | **4 of 4** | **0 of 4** | **4 of 4** |
 | mean book / trades | 8.15 / 734 | 7.98 / 845 | 8.01 / 831 |
@@ -3862,7 +3936,7 @@ byte-identical rather than argued to be harmless: 2 of 2 equity curves on the 58
 and 8 of 8 on the live universes unchanged —
 `diagnostics/leakage_labels_hashes.txt`. **NOT regenerable:**
 `results/hash_58_engine_core.py` was deleted on 2026-09-11 in `aafe6cb` and the
-58 panel it hashed is gone, so the hashes stand as evidence of what was measured
+retired universe's panel it hashed is gone, so the hashes stand as evidence of what was measured
 rather than as something that can be reproduced. That file carries the reason at
 the point of citation.
 
@@ -4291,7 +4365,7 @@ THE PARAGRAPH ABOVE ENDS AT "restored intact" AND READS AS THOUGH THE FILE IS
 STILL THERE.** It is not. `results/hash_58_engine_core.py` was restored on
 2026-09-03, and deleted on 2026-09-11 in commit `aafe6cb` -- "Delete eight scripts
 the retirement left with nothing to run on" -- with the reason stated there:
-*"hashes the 58's equity curve; the panel is gone"*. The 58, its raw files and its
+*"hashes the 58's equity curve; the panel is gone"*. The retired universe, its raw files and its
 cache went the same day in `2fe48ff`, so the script had nothing left to hash.
 
 **THAT IS NOT THE ERROR REPEATING ITSELF.** The 2026-09-03 deletion failed the
@@ -4396,7 +4470,7 @@ the record, not a proposal to act.**
 **These are the evidence behind validation verdicts.** `FINAL_val_*` holds the
 per-seed, per-sub-period and per-vol-window results of the four-test inverse-vol
 sizing suite — the suite whose outcome this project quotes as "4 of 4 PASS on
-n100, 1 of 4 on mid". `breadth_val_*` holds the equivalent for the breadth suite
+nifty100, 1 of 4 on midcap150". `breadth_val_*` holds the equivalent for the breadth suite
 on the retired 58.
 
 **No code reads any of the three `FINAL_val_*` files, and no document cites one.**
@@ -4710,7 +4784,7 @@ only levers are to give buffer names a target, to trim them, or to drop them.
 **Five funding models were measured. The two that close the gap both cost
 performance on every universe:**
 
-| model | midcap150 CAGR / blocked | nifty100 CAGR / blocked | 58 CAGR / blocked | trades |
+| model | midcap150 CAGR / blocked | nifty100 CAGR / blocked | retired universe CAGR / blocked | trades |
 |---|---|---|---|---|
 | current — cash only | 44.69 / 93 | 34.60 / 120 | 23.83 / 137 | baseline |
 | A trim over-target top-N only | 44.28 / 81 | 33.32 / 106 | 24.82 / 128 | +8-11% |
@@ -4734,7 +4808,7 @@ top eight to fund the entrants. **B is counterproductive**: topping up incumbent
 before funding entrants raises skips from 93 to 100 on midcap150.
 
 **And their CAGR effect has no consistent sign** — A is -0.41/-1.28/+0.99, B2 is
-+0.72/-0.88/+0.61 across midcap150/nifty100/58. That is inside the seed-noise floor this
++0.72/-0.88/+0.61 across midcap150/nifty100/the retired universe. That is inside the seed-noise floor this
 project measured at sd 0.97-2.14 CAGR points (`EXPERIMENTS.md` entry 29).
 
 **One thing the gap does cost, measurably.** It is why the shipping engine holds a
@@ -4830,7 +4904,7 @@ Found 2026-08-28. Breadth CLOSED 2026-08-29. The sizing half remains open.
 Breadth sets total exposure at every rebalance — `expo = mean(mom_20 > 0)`, which
 is why average deployment sits at 54–56% rather than 100% — and every published v2
 and v4 figure depends on it entirely. Until 2026-08-29 it had been validated only
-on the retired 58, by `results/validate_breadth.py`, which has never run on nifty100 or
+on a retired universe, by `results/validate_breadth.py`, which has never run on nifty100 or
 midcap150.
 
 **Closed by `results/validate_breadth_live.py`**, run on both universes on
@@ -5141,7 +5215,7 @@ header; `nt_export_scores` exports only the selected universes.
 **Verified from an empty tree afterwards:** exit 0, 0 tracebacks, 19.0 min with
 the midcap150 score panel rebuilt from data/ (18.9 min), checker 42/9/0. All 36
 artefacts are midcap150-scoped and carry `_r40`, `runs/mid/v1@r40` and `v3@r40`, and no
-58, 74 or nifty100 artefact is produced at all.
+retired-universe or nifty100 artefact is produced at all.
 
 **`runs/mid/v1@r40` AND `v3@r40` ARE NOT ON DISK, AND WERE ALREADY NOT ON DISK
 BEFORE THE 2026-09-20 RUN-FOLDER DELETION.** Checked on 2026-09-20 before
@@ -7517,7 +7591,7 @@ _cad = cadence.suffix() + profiles.suffix()      # tax was missing
 
 | axis | what the mispairing cost | how it was caught |
 |---|---|---|
-| cadence | v1 MISMATCH **Rs 2,923,934**, v2 **Rs 1,825,210** on mid at `--rebal 40` | it failed loudly |
+| cadence | v1 MISMATCH **Rs 2,923,934**, v2 **Rs 1,825,210** on midcap150 at `--rebal 40` | it failed loudly |
 | profile | "a MISMATCH of the cap's whole effect" | it failed loudly |
 | tax | **Rs 761,619** | **it did not fail** -- found only while GATE 6 was being written |
 
@@ -7937,11 +8011,15 @@ that is preferable to 49 sites that are confidently wrong.
 
 ### Compounds whose file still exists under its OLD name -- also not candidates
 
-`mid_jackknife.py`, `n100_jackknife.py`, `mid_topn_test.py`, `runs/mid/`,
-`diagnostics/shuffle_{mid,n100}.txt`, `diagnostics/topn_{mid,n100}.txt`,
+`runs/mid/`, `diagnostics/shuffle_{mid,n100}.txt`, `diagnostics/topn_{mid,n100}.txt`,
 `diagnostics/n100_jackknife.txt`. The prose pointing at these is CORRECT AS IT
 STANDS. Renaming it breaks a working reference. Same standing note as the bare-tag
 passes: whoever renames these files comes back to this document.
+
+**Changed 2026-09-24:** the root scripts `mid_jackknife.py`, `n100_jackknife.py`
+and `mid_topn_test.py` are no longer on this list. They were replaced by
+`jackknife.py --universe <tag>` and `topn_test.py --universe <tag>`, and git
+history keeps the old files.
 
 **Before DELETING any of these, read "An old-looking name is not evidence of an old-named duplicate" under "If you are reading an old-named thing" in `PANEL_MIGRATION.md`.**
 
@@ -7963,9 +8041,9 @@ Recorded because each cost a lookup and three of the four are now CLOSED:
    now `pre_repoint_baseline/metrics_mid/`*`_mid_v3.csv`, which is not going
    anywhere: it is the only surviving copy of the pre-repoint figures. Old name
    exists, so still not a candidate.
-3. **`mid_jackknife.edge`** -- **CLOSED.** Not a file extension. It is a METHOD:
-   `mid_jackknife.py:50`, `def edge(drop=())`. The module exists under its old
-   name; nothing to rename.
+3. **`mid_jackknife.edge`** -- **CLOSED.** Not a file extension. It was a METHOD,
+   `def edge(drop=())` in `mid_jackknife.py`. That script was replaced on
+   2026-09-24 by `jackknife.py --universe <tag>`; git history keeps it.
 4. **`diagnostics/mid_jackknife.txt` IS ABSENT WHILE `diagnostics/n100_jackknife.txt`
    EXISTS -- OPEN.** The jackknife diagnostic was written for one universe and not
    the other, and nothing in this repository says which of the two it is: never
@@ -8169,7 +8247,7 @@ stamp they all share is when the tree was copied, not when they were measured.
 **`task3_impact.txt` CANNOT BE RE-RUN, and that is a finding rather than a gap in
 this turn's work.** It was scheduled for a re-run on 2026-09-20 because Stage 2B's
 impact model was to be judged against it. No generator script for it survives
-anywhere in the tree, and two of its three universes -- the 58 and the 74 -- were
+anywhere in the tree, and two of its three universes -- both retired -- were
 deleted on 2026-09-11 with their raw data and registry entries. Its header says so.
 **Stage 2B has no pre-repoint impact baseline to be judged against**, and one
 cannot be reconstructed from this repository.

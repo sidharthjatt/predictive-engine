@@ -22,7 +22,7 @@ THE REMOVAL FIGURE IS ARITHMETIC, NOT A RE-RUN
     symbol's net realised P&L from the total and express the remainder against
     the same starting capital. IT IS NOT the same as re-running the strategy on a
     universe without that name -- the model would have selected differently and
-    the capital would have gone elsewhere. mid_jackknife.py does the true re-run.
+    the capital would have gone elsewhere. jackknife.py does the true re-run.
     Both numbers are reported so the difference is visible.
 """
 import sys
@@ -39,7 +39,7 @@ import numpy as np
 import pandas as pd
 import arms.registry as arm_reg
 import config
-from universes.registry import REGISTRY
+from universes.registry import REGISTRY, certified
 from config import read_table  # the one CSV/parquet reader: config.read_table
 
 START = 1_000_000
@@ -49,9 +49,9 @@ START = 1_000_000
 #
 # The LABEL stays local: it is printed into diagnostics/attribution_v2.txt.
 # Order is load-bearing -- the report is written universe by universe.
-LABELS = {"nifty100": "NIFTY 100", "midcap150": "MIDCAP150"}
+LABELS = {u.tag: u.display_name for u in certified()}
 UNIVERSES = {u.tag: (u.metrics_dir, u.tag, LABELS[u.tag])
-             for u in (REGISTRY["nifty100"], REGISTRY["midcap150"])}
+             for u in certified()}
 
 
 def round_trips(df):
@@ -157,7 +157,7 @@ def run(uni, md, tag, label, W):
     W(f"    that is a {(1-(tot-top['net'])/tot)*100:.1f}% reduction in realised P&L")
     W("    THIS IS NOT the strategy re-run without that name. The model would have")
     W("    selected differently and the capital would have gone elsewhere. A true")
-    W("    leave-one-out requires re-running the engine; mid_jackknife.py does that.")
+    W("    leave-one-out requires re-running the engine; jackknife.py does that.")
     W("")
     per.to_csv(Path(md) / "attribution_v2_per_symbol.csv", index=False)
     R.to_csv(Path(md) / "attribution_v2_round_trips.csv", index=False)

@@ -2,9 +2,9 @@
 run.py -- one entry point: choose the universe and the arm, everything runs for it.
 ==================================================================================
 
-    ./venv/bin/python run.py --universe mid --arm v3
+    ./venv/bin/python run.py --universe midcap150 --arm v3
     ./venv/bin/python run.py --universe all --arm all
-    ./venv/bin/python run.py --universe n100 --arm v1 --rebal 5
+    ./venv/bin/python run.py --universe nifty100 --arm v1 --rebal 5
     ./venv/bin/python run.py --list                 # resolve and print, run nothing
     ./venv/bin/python run.py --dry-run              # same, with output paths
 
@@ -19,13 +19,10 @@ TWO KINDS OF STEP, AND THEY SELECT DIFFERENTLY
     combinations available with no code change, which is the property this file
     exists to provide.
 
-    PIPELINE STEPS are the thirty-one scripts run_all.py ordered. Most are still
-    bound to one universe by their own filename -- engine_v2_final_mid.py is
-    MidCap150 and nothing else -- because the engine family was deliberately not
-    merged: what separates those files is written analysis, not duplication. So a
-    NEW universe gets its scores, its audit and every arm automatically, and would
-    still need an engine and a chart script written for it. That limit is real and
-    is stated here rather than discovered later.
+    PIPELINE STEPS are the scripts run_all.PIPELINE_ORDER lists. The per-universe
+    ones (build_scores, engine_v2_final, make_audit, make_chart, bh_lots_after_tax,
+    tax_report) each take a Universe, so a NEW universe is one row in
+    universes/registry.py and gets every step and every arm with no code change.
 
 WHAT IS NOT MOVED
     results*/metrics/ is untouched. Every existing artefact keeps its path, so the
@@ -132,7 +129,7 @@ def _resolve_arity(pipeline, resolver):
             # THE SILENT FAILURE THE OLD _check_step_universes() CAUGHT, kept.
             # A step registered to a deleted universe is never selected -- no
             # error, no log line -- so it stops running and the run still reports
-            # success. That is how the 58's steps could have outlived the 58.
+            # success. That is how a deleted universe's steps could outlive it.
             bad.append(f"    {label:<9} {scr:<28} names universe '{tag}', which the "
                        f"registry does not define (known: {', '.join(sorted(REGISTRY))})")
     if bad:
@@ -165,17 +162,18 @@ def resolve_universes(name):
     """ANY SUBSET OF THE REGISTERED UNIVERSES, size 1 to 4.
 
     Accepts "all" (every registered universe), a single tag, or a comma-separated
-    list -- "mid,58". Whitespace around a tag is tolerated because a shell quoting
-    a list is the normal way this gets typed.
+    list -- "midcap150,nifty100". Whitespace around a tag is tolerated because a
+    shell quoting a list is the normal way this gets typed.
 
     THE RESULT IS ALWAYS IN REGISTRY ORDER, NOT IN THE ORDER TYPED. Selection must
-    name a SET, not a sequence: `--universe mid,58` and `--universe 58,mid` are the
-    same request and must produce the same artefacts, or the filename of a combined
+    name a SET, not a sequence: `--universe midcap150,nifty100` and
+    `--universe nifty100,midcap150` are the same request and must produce the same artefacts, or the filename of a combined
     comparison would depend on typing order and two runs of the same selection
     would leave two files. Reporting order is a separate decision and lives in
     universes/registry.REPORT_ORDER, which the steps that care consult.
 
-    A REPEATED TAG IS NOT AN ERROR, it is the same set: `--universe mid,mid` is mid.
+    A REPEATED TAG IS NOT AN ERROR, it is the same set: `--universe nifty50,nifty50`
+    is nifty50.
     Deduplication happens through REGISTRY iteration below, so it cannot produce a
     universe twice on one chart.
     """
@@ -185,12 +183,10 @@ def resolve_universes(name):
     if not want:
         raise SystemExit("--universe was empty; give a tag, a comma-separated list, "
                          f"or 'all'. known: {', '.join(REGISTRY)}")
-    unknown = [t for t in want if t not in REGISTRY]
-    if unknown:
-        # NAMES EVERY UNKNOWN TAG, not just the first. Typing three tags and being
-        # told about one typo at a time is three runs to learn one thing.
-        raise SystemExit(f"unknown universe(s) {', '.join(repr(t) for t in unknown)}; "
-                         f"known: {', '.join(REGISTRY)}")
+    # NAMES EVERY UNKNOWN TAG, not just the first, and refuses the retired short
+    # tags with the list of valid universes (registry.check_tags). Exit status 2.
+    from universes.registry import check_tags
+    check_tags(want)
     sel = set(want)
     return [u for t, u in REGISTRY.items() if t in sel]
 
@@ -266,13 +262,10 @@ def pipeline_steps(unis):
 def arm_steps(unis, arms, rebal=None):
     """One entry per (universe, arm).
 
-    NOTHING IS SKIPPED HERE ANY MORE. The skip list existed for the retired 58 and
-    74: they ran only the shipping arms, because their engines never called
-    v34_common and had no v3/v4 path at all, and they ran only at cadence 20. Both
-    universes are deleted, so every (universe, arm) pair in the selection is real
-    and runnable. The second return value is kept -- callers unpack two -- and is
-    always empty; when a universe needs excluding again it will be for a reason
-    that exists then, recorded then.
+    NOTHING IS SKIPPED. Every (universe, arm) pair in the selection is runnable.
+    The second return value is kept -- callers unpack two -- and is always empty;
+    when a universe needs excluding it will be for a reason that exists then,
+    recorded then.
     """
     runs, skipped = [], []
     for u in unis:
@@ -297,12 +290,10 @@ def preflight(args, plan):
     nature. A selection naming a universe, arm, cadence or profile that nothing
     defines does not crash -- it selects an empty set, runs the steps that remain,
     and reports success over a smaller pipeline than the one that was asked for.
-    That is how the 58's steps could have stayed registered after the 58 was
-    deleted. And a universe-tagged artefact in results/metrics is the second half
-    of the same defect: results/metrics was the 58's output home as well as the
-    shared engine directory, so a step that still writes v2FINAL_* there is writing
-    a retired universe's filename into a directory that no longer belongs to any
-    universe. See RETIRED_UNIVERSES.md.
+    And a universe-tagged artefact in results/metrics is the second half of the
+    same defect: results/metrics was a retired universe's output home as well as
+    the shared engine directory, so a step that still writes v2FINAL_* there is
+    writing a universe's filename into a directory that belongs to no universe.
 
     Each check names EVERY offender, not the first: learning about one typo per run
     is three runs to learn one thing.
@@ -364,13 +355,13 @@ def preflight(args, plan):
         raise SystemExit("REFUSING TO START -- the run names something that does "
                          "not exist, or something that exists is not named where "
                          "it must be:\n" + "\n".join(f"  {b}" for b in bad)
-                         + "\n  Nothing has run. See RETIRED_UNIVERSES.md and "
+                         + "\n  Nothing has run. See universes/registry.py and "
                            "registry_coverage_check.py.")
 
 
-# The naming schemes a universe's artefacts use. FINAL_*/v2FINAL_* were the
-# retired 58's and 74's and no live code may emit them again; v34_* is the live
-# pair's and belongs in results_midcap150/ and results_nifty100/, never here.
+# The naming schemes a universe's artefacts use. FINAL_*/v2FINAL_* and v34_*
+# belong in each universe's results_<universe>/metrics/, never in the shared
+# results/metrics/.
 _UNIVERSE_ARTEFACT = re.compile(
     r"^(FINAL_|v2FINAL_|v34_|DAILY_LOG_|daily_trades_|daily_summary_|cash_series_)"
     r"|_(" + "|".join(sorted(REGISTRY)) + r")\.(csv|json|txt|png)$")
@@ -392,11 +383,7 @@ def build_plan(args):
     plan = {"universes": unis, "arms": arms, "pipeline": [], "arm_runs": [],
             "skipped": [], "dropped": []}
     if args.steps in ("pipeline", "all"):
-        # EVERY UNIVERSE HONOURS EVERY CADENCE NOW. This dropped the retired 58
-        # and 74 from a non-default-cadence run, because their engines pinned
-        # REBAL=20 and ignored the flag -- `--universe mid,58 --rebal 40` used to
-        # run the 58's whole pipeline at 20 and write artefacts with no marker
-        # saying so. Both universes are deleted; the drop list stays in the plan
+        # EVERY UNIVERSE HONOURS EVERY CADENCE. The drop list stays in the plan
         # shape because the reporting code reads it, and is always empty.
         _pipe_unis = list(unis)
         plan["pipeline"], plan["_run_all"], plan["dropped"] = pipeline_steps(_pipe_unis)
@@ -481,7 +468,8 @@ def print_plan(plan, args, show_paths=False):
 def main(argv=None):
     ap = argparse.ArgumentParser(description="Run the pipeline for one universe/arm combination.")
     ap.add_argument("--universe", default="all",
-                    help="universe tag, a comma-separated subset (e.g. mid,58), or "
+                    help="universe tag, a comma-separated subset (e.g. "
+                         "midcap150,nifty100), or "
                          "'all' (default). known: " + ", ".join(REGISTRY))
     ap.add_argument("--arm", default="all",
                     help="arm name, a comma-separated subset (e.g. v1,v3), or "
@@ -715,8 +703,8 @@ def _execute(plan, args, state):
 
     # TELL THE STEPS WHAT WAS SELECTED, not just what is registered.
     # A step that builds MULTI-UNIVERSE output cannot get this from REGISTRY: with
-    # `--universe mid,58` the registry still holds 74, and the fair-comparison
-    # chart would put a universe on the page that nobody asked for. Set once, here,
+    # `--universe midcap150,nifty100` the registry still holds six more, and the
+    # fair-comparison chart would put universes on the page that nobody asked for. Set once, here,
     # before any step runs, so every step sees the same answer.
     # PRE-FLIGHT FIRST, BEFORE ANY SELECTION IS RECORDED OR ANY STEP RUNS.
     preflight(args, plan)
@@ -850,8 +838,8 @@ def _execute(plan, args, state):
         # THE INVOCATION'S UNIVERSE GOES WITH IT. `tag` is this row's third field
         # and was bound by the loop above and dropped here, so the guard evaluated
         # every `u:` qualifier against the RUN's selection instead of against the
-        # step being started. Under `--universe all` that made STEP 10d, mid's
-        # chart, demand n100's trade logs -- written at STEP 10f and 10g, after it.
+        # step being started. Under `--universe all` that made STEP 10d, midcap150's
+        # chart, demand nifty100's trade logs -- written at STEP 10f and 10g, after it.
         mod["check_inputs"](label, scr, tag)
         print("\n" + "=" * 90); print(f">>> {label}  {scr}"); print("=" * 90, flush=True)
         t0 = time.time()
@@ -871,11 +859,10 @@ def _execute(plan, args, state):
         print(f"    [{label} done in {(time.time()-t0)/60:.1f} min]")
 
     # A DROPPED COMBINATION IS ANNOUNCED, NOT SILENTLY OMITTED.
-    # arm_steps() separates the (universe, arm) pairs that cannot run -- a frozen
-    # universe has no v3/v4 path at all -- from the ones that can. print_plan
-    # showed them under SKIPPED, but only on --list/--dry-run: an actual
-    # `--universe mid,58 --arm v1,v3` ran three of its four combinations and said
-    # nothing about the fourth. A selection that quietly does less than it was
+    # arm_steps() separates the (universe, arm) pairs that cannot run from the ones
+    # that can (today none is excluded). print_plan showed them under SKIPPED, but
+    # only on --list/--dry-run: an actual run once did three of four requested
+    # combinations and said nothing about the fourth. A selection that quietly does less than it was
     # asked is the failure this project keeps finding; it is reported here, in the
     # run's own log, where the person who asked for it will read it.
     if plan["skipped"]:

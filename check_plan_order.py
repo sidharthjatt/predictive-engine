@@ -13,7 +13,7 @@ WHAT THIS ASKS THAT check_pipeline_order DOES NOT
     written by an invocation that comes before it?
 
     THE DIFFERENCE IS THE COLLAPSE. One script now appears at several positions --
-    make_chart.py is STEP 10d for mid and STEP 10h for n100 -- and
+    make_chart.py is STEP 10d for midcap150 and STEP 10h for nifty100 -- and
     check_pipeline_order keeps the EARLIEST position per script
     (check_pipeline_order.py:430) and unions each script's reads and writes across
     its rows (468-469). So make_chart.py collapses to 10d, make_audit.py to 10c,
@@ -27,7 +27,7 @@ WHAT IT CAUGHT, AND WHY NOTHING ELSE COULD
           MISSING results_nifty100/metrics/daily_trades_n100.csv     writer STEP 10g
           MISSING results_nifty100/metrics/daily_trades_v1_n100.csv  writer STEP 10f
 
-    Mid's chart demanded n100's trade logs, written two and three steps LATER. The
+    MidCap150's chart demanded nifty100's trade logs, written two and three steps LATER. The
     cause was a declaration-scope defect -- REQUIRED_INPUTS' `u:` qualifier was
     evaluated against the run's selected_tags() rather than against the
     invocation's universe -- and the ordering it produced was unsatisfiable.

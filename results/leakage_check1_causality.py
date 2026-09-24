@@ -29,7 +29,7 @@ import numpy as np
 import pandas as pd
 import config
 from features_v2 import FEATS_V2, add_stock_features, add_market_relative_features
-from universes.registry import REGISTRY
+from universes.registry import REGISTRY, certified
 
 N_DATES = 24
 PRICE_COLS = ["open", "high", "low", "close"]
@@ -39,9 +39,9 @@ PRICE_COLS = ["open", "high", "low", "close"]
 # into diagnostics/leakage_check1_causality.txt, and the sibling scripts use two
 # other spellings for the same two universes. Labels are presentation; paths are
 # facts. Order is load-bearing -- the report is written universe by universe.
-LABELS = {"nifty100": "NIFTY 100", "midcap150": "MIDCAP150"}
+LABELS = {u.tag: u.display_name for u in certified()}
 UNIVERSES = {u.tag: (u.data_dir, LABELS[u.tag])
-             for u in (REGISTRY["nifty100"], REGISTRY["midcap150"])}
+             for u in certified()}
 
 
 def load_raw(d):
@@ -198,8 +198,10 @@ def main():
                    f"feature-universe pair(s) moved under a future-only corruption.")
         rc = 1
     else:
-        out.append(f"  RESULT: PASS -- no feature moved on any sampled date, "
-                   f"on {len(bad)} universe(s): {', '.join(sorted(bad))}.")
+        out.append(f"  RESULT: PASS -- no FEATS_V2 value at t moved when every row "
+                   f"after t was corrupted, on {N_DATES} sampled dates per universe, "
+                   f"on {len(bad)} universe(s): {', '.join(sorted(bad))}. Dates "
+                   f"outside the sample and the labels are not tested.")
         rc = 0
     (ROOT / "diagnostics" / "leakage_check1_causality.txt").write_text("\n".join(out) + "\n")
     print("\n".join(out))

@@ -4,7 +4,7 @@ paths.py -- where every artefact goes, derived once.
 
 WHAT THIS IS FOR
     Output paths are currently written as literals at the point of use: a script
-    imports its universe's config module, binds `M = config_mid.METRICS_DIR_MID`,
+    imports its universe's config module, binds its metrics directory to `M`,
     and then writes `M / "v34_comparison.csv"`. That works, and it is why the
     universes do not collide today -- the universe is in the DIRECTORY. But it
     means the layout is not stated anywhere; it is implied by ninety-odd write
@@ -52,13 +52,13 @@ def metrics(u):
 
 
 def artefact(u, name):
-    """One named artefact for a universe, e.g. artefact(mid, 'v34_comparison.csv')."""
+    """One named artefact for a universe, e.g. artefact(midcap150, 'v34_comparison.csv')."""
     return u.metrics_dir / name
 
 
 def tagged_artefact(u, stem, ext="csv"):
     """The daily-audit family, which puts the tag in the FILENAME as well as the
-    directory -- daily_holdings_mid.csv and so on. Belt and braces, and the only
+    directory -- daily_holdings_midcap150.csv and so on. Belt and braces, and the only
     place in the repository that does it."""
     return u.metrics_dir / f"{stem}_{u.tag}.{ext}"
 
@@ -90,7 +90,7 @@ def nautilus_reports(u, arm=None):
 
 # --------------------------------------------------------------- diagnostics
 def diagnostic(name, u=None):
-    """A findings file. Some are per-universe (topn_mid.txt), some are combined
+    """A findings file. Some are per-universe (topn_midcap150.txt), some are combined
     verdicts (topn_verdict.txt); both spellings already exist."""
     DIAGNOSTICS_DIR.mkdir(exist_ok=True)
     return DIAGNOSTICS_DIR / (f"{name}_{u.tag}.txt" if u else f"{name}.txt")
@@ -104,14 +104,14 @@ DEFAULT_REBAL = 20
 # artefact IS.
 #
 # THE PER-UNIVERSE HALF IS READ FROM THE REGISTRY, not written down. It used to be
-# four literal paths, two of which (results74/metrics, and results/metrics as the
-# 58's output home) outlived the universes that wrote into them -- a run folder
+# four literal paths, two of which (the metrics dirs of two retired universes,
+# deleted 2026-09-11) outlived the universes that wrote into them -- a run folder
 # would still have gone looking for artefacts nothing could produce. A new
 # universe's metrics dir is now collected the moment it is registered.
 #
 # results/metrics IS STILL LISTED, but no longer as any universe's output: it is
 # the shared, non-universe artefact directory (stability_*, feature docs). See
-# RETIRED_UNIVERSES.md and engine_core.refuse_universe_artefact().
+# engine_core.refuse_universe_artefact().
 def _artefact_dirs():
     from universes.registry import REGISTRY
     per_universe = tuple(
@@ -129,8 +129,8 @@ def run_folder_name(uni_tags, arm_names, rebal, when=None):
     THE NAME SAYS WHAT THE RUN WAS, not just when it happened. A timestamp alone
     sorts correctly and tells you nothing; the selection is what you actually
     search for six weeks later. "all" is used where an axis is fully selected,
-    because 58-74-mid-n100_v1-v2-v3-v4 is not more informative than "all", only
-    longer.
+    because midcap150-nifty100-nifty50-midcap50_v1-v2-v3-v4 is not more informative
+    than "all", only longer.
 
     The cadence is always spelled, including the default, so that a folder name is
     never ambiguous about which cadence produced it -- unlike the ARTEFACT names,
@@ -147,18 +147,18 @@ def run_dir(u, arm=None, rebal=None):
     """runs/{universe}/{arm}/ -- and {arm}@r{n} for a non-default cadence.
 
     THE CADENCE BELONGS IN THE PATH, AND ITS ABSENCE WAS A BUG. `--rebal 40`
-    wrote its results straight into runs/mid/v1/, replacing the published
+    wrote its results straight into runs/midcap150/v1/, replacing the published
     cadence-20 artefacts with cadence-40 ones. params.json recorded `rebal: 40`,
     so the FILE said what it was while the PATH said something else -- and the
-    next reader of runs/mid/v1/comparison.csv had no way to know. Verified by
+    next reader of runs/midcap150/v1/comparison.csv had no way to know. Verified by
     checksum before this change: one `--rebal 40` run changed that file.
 
-    THE DEFAULT CADENCE IS UNSUFFIXED, so runs/mid/v1/ keeps meaning exactly what
+    THE DEFAULT CADENCE IS UNSUFFIXED, so runs/midcap150/v1/ keeps meaning exactly what
     it has always meant and every published artefact under runs/ is untouched.
-    Only a non-default cadence gets a name of its own: runs/mid/v1@r40/.
+    Only a non-default cadence gets a name of its own: runs/midcap150/v1@r40/.
 
     "@" RATHER THAN "_" separates the two axes visually and cannot collide with an
-    arm name: arm names are v1..v4 and never contain "@", so runs/mid/v1@r40 can
+    arm name: arm names are v1..v4 and never contain "@", so runs/midcap150/v1@r40 can
     only ever parse one way.
     """
     # THE PROFILE AND TAX AXES JOIN THE PATH, 2026-09-23, from naming.path_tail,

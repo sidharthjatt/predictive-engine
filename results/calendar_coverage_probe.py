@@ -1,5 +1,5 @@
 """
-calendar_coverage_probe.py -- can a coverage threshold replace the 58-derived
+calendar_coverage_probe.py -- can a coverage threshold replace the tracked
 trading calendar?
 
 WHAT THIS PROBE DOES NOW. It reads data/nse_trading_calendar.csv and the raw
@@ -9,9 +9,9 @@ diagnostics/calendar_coverage_probe.txt. It does not write the calendar, and it
 hashes the file before and after its own run to prove that.
 
 THE QUESTION IT WAS BUILT TO SETTLE, AND WHY THAT QUESTION IS CLOSED. The NSE
-trading calendar was derived from the RETIRED 58 universe's raw files, by
+trading calendar was derived from a RETIRED universe's raw files, by
 results/make_trading_calendar.py -- a script DELETED ON 2026-09-11, commit
-2fe48ff, along with the 58 and its raw files. engine_core._load_calendar() still
+2fe48ff, along with that universe and its raw files. engine_core._load_calendar() still
 raises without the resulting artefact, for EVERY universe. The candidate
 decoupling, specified in experiments/CALENDAR_DECOUPLE_SPEC.txt, was: build the
 calendar from the selected universe's own files and drop any date carried by
@@ -27,7 +27,7 @@ A DIFFERENT THRESHOLD WOULD CLOSE. The verdict is computed from the measured
 rows, not written here.
 
 WHY A SINGLE THRESHOLD CANNOT WORK -- THE SHAPE OF THE TEST
-    Split every date in a universe's union by whether the tracked 58-derived
+    Split every date in a universe's union by whether the tracked
     calendar contains it. A threshold T reproduces that calendar exactly if and
     only if
 
@@ -47,7 +47,7 @@ WHAT THIS MEASURES, AND OVER WHAT RANGE
     where the design fails.
 
 WHAT THIS DOES NOT ESTABLISH
-    That the 58-derived calendar is CORRECT about the dates where they disagree.
+    That the tracked calendar is CORRECT about the dates where they disagree.
     No external NSE source is consulted here or anywhere in this project. Three
     of the binding dates are Saturdays and whether they were genuine sessions is
     untested. This script establishes only that a coverage filter cannot
@@ -74,7 +74,7 @@ sys.path.insert(0, str(ROOT)); sys.path.insert(0, str(ROOT / "results"))
 import pandas as pd
 
 import config
-from universes.registry import REGISTRY
+from universes.registry import REGISTRY, certified
 from config import read_table  # the one CSV/parquet reader: config.read_table
 
 TRACKED = ROOT / "data" / "nse_trading_calendar.csv"
@@ -94,9 +94,9 @@ WIN_LO, WIN_HI = pd.Timestamp("2019-01-01"), pd.Timestamp("2026-05-29")
 # NOTE the tuple order here is (label, dir), the reverse of the leakage checks'
 # (dir, label). That inconsistency is preserved rather than tidied, because
 # changing it would touch this file's unpacking for no behavioural gain.
-LABELS = {"nifty100": "NIFTY 100", "midcap150": "MIDCAP150"}
+LABELS = {u.tag: u.display_name for u in certified()}
 UNIVERSES = {u.tag: (LABELS[u.tag], u.data_dir)
-             for u in (REGISTRY["nifty100"], REGISTRY["midcap150"])}
+             for u in certified()}
 
 
 def sha256(path):
@@ -147,7 +147,7 @@ def main():
     cal = set(pd.to_datetime(read_table(TRACKED, comment="#")["date"]))
 
     w("=" * 100)
-    w(" CAN A COVERAGE THRESHOLD REPLACE THE 58-DERIVED TRADING CALENDAR?")
+    w(" CAN A COVERAGE THRESHOLD REPLACE THE TRACKED TRADING CALENDAR?")
     w("=" * 100)
     w()
     w(f"  tracked calendar   {TRACKED.relative_to(ROOT)}")
@@ -172,7 +172,7 @@ def main():
         # ---------------------------------------------------- per-year identity
         filt = {d for d, f in frac.items() if f >= COVERAGE_MIN}
         w(f"\n  PER-YEAR IDENTITY AT COVERAGE_MIN = {COVERAGE_MIN}")
-        w(f"    {'year':6} {'active':>7} {'58 cal':>7} {'filtered':>9} "
+        w(f"    {'year':6} {'active':>7} {'tracked':>7} {'filtered':>9} "
           f"{'filt-only':>10} {'cal-only':>9}")
         years = sorted({d.year for d in cal} | {d.year for d in frac})
         fails = []
@@ -200,14 +200,14 @@ def main():
             w(f"\n  EVERY DIFFERING DATE, LISTED. Not characterised, listed.")
             for d in fo_all:
                 w(f"    {d.date()} {d.strftime('%a')}  {frac[d]*100:6.2f}%  "
-                  f"in FILTERED set, ABSENT from the 58 calendar")
+                  f"in FILTERED set, ABSENT from the tracked calendar")
             for d in co_all:
                 if d in frac:
                     w(f"    {d.date()} {d.strftime('%a')}  {frac[d]*100:6.2f}%  "
-                      f"in the 58 CALENDAR, ABSENT from filtered set")
+                      f"in the TRACKED CALENDAR, ABSENT from filtered set")
                 else:
                     w(f"    {d.date()} {d.strftime('%a')}     ----  "
-                      f"in the 58 CALENDAR, NOT IN THIS UNIVERSE'S UNION AT ALL "
+                      f"in the TRACKED CALENDAR, NOT IN THIS UNIVERSE'S UNION AT ALL "
                       f"(missing data, not a filtering decision)")
 
         # ------------------------------------------ the threshold-independent test
@@ -256,7 +256,7 @@ def main():
         w(f"\n  DETERMINATION: SPLIT RESULT. The universes disagree; read the rows.")
 
     w(f"\n  WHAT THIS DOES NOT ESTABLISH:")
-    w(f"    - that the 58-derived calendar is CORRECT about the dates where they")
+    w(f"    - that the tracked calendar is CORRECT about the dates where they")
     w(f"      disagree. No external NSE source was consulted. Several of the")
     w(f"      binding dates are Saturdays and whether they were genuine sessions")
     w(f"      is untested.")

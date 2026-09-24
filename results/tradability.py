@@ -19,7 +19,7 @@ WHAT THIS EXISTS TO STOP
     NONE of these are visible to the existing guards. They never trip the +-55%
     EXTREME_RET scan (AIIL and HEXT move less than that), and they never trip
     "no open price (NaN/<=0)" because ffill supplies a price -- that reason fires
-    ZERO times across every mid and n100 trail. Asking whether a RAW ROW EXISTED
+    ZERO times across every midcap150 and nifty100 trail. Asking whether a RAW ROW EXISTED
     is the only thing that finds them.
 
 WHY A SEPARATE, PRICE-SIDE FLAG AND NOT bad_ret OR scorable
@@ -48,7 +48,7 @@ WAIT = 0             # further sessions blocked after the resumption session
 
 # Axis c is a REPORT, not a repair. A resumption close that matches the
 # pre-gap close is only suspicious when a coincidence is implausible: 20 of the 21
-# exact matches in mid+n100 are AIIL between Rs 0.40 and Rs 2.90, where the tick is
+# exact matches in midcap150+nifty100 are AIIL between Rs 0.40 and Rs 2.90, where the tick is
 # Rs 0.05 and only a handful of prices are reachable. Conditioning on a long gap
 # leaves exactly one flag -- HEXT -- instead of 21.
 REPORT_MIN_GAP = 20
@@ -58,8 +58,8 @@ REPORT_TOL = 0.001   # 0.1%
 def _rows(data_dir, cal):
     """{symbol: [dates with a raw row, ascending]} -- calendar-restricted.
 
-    config.read_price_csv routes through config.smart_parse_dates: the 58/74 files
-    and the mid/n100 files use different date formats and a hardcoded strptime
+    config.read_price_csv routes through config.smart_parse_dates: the retired universes' files
+    and the midcap150/nifty100 files use different date formats and a hardcoded strptime
     silently drops whole universes.
 
     The calendar restriction matters in both directions. 70 of the 148 MidCap150

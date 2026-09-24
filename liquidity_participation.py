@@ -6,8 +6,8 @@ MEASUREMENT ONLY. Nothing is changed by this script.
 THE VOLUME COLUMN IS NOT IN THE PANEL
     The task described using "the volume column already in the panel". It is not
     there: the score panel is date,symbol,open,close,score,year and the raw panel
-    carries the 17 features, y_rank and scorable but no volume. build_panel never
-    keeps it (build_scores_n100.py:44 lists the columns retained).
+    carries the 17 features, y_rank and scorable but no volume. build_panel
+    (results/engine_core.py) never keeps it.
 
     Volume IS in the source CSVs, so the median is built from those.
 

@@ -3,7 +3,7 @@
 --------------------------------------------------------------------------------
   The version of this diagnostic committed at 40b938e read
       nautilus/reports/<universe>/fills.csv
-  and found, on n100, 977 of 978 fills reconstructing as that day's OPEN to
+  and found, on nifty100, 977 of 978 fills reconstructing as that day's OPEN to
   within 0.005, with one exception (CHOLAFIN, 2020-05-22) and zero fills
   executing at a close.
 
@@ -89,4 +89,4 @@
     midcap150  /Users/sidharthchoudhary/Downloads/algo_trading_project/nautilus/reports/midcap150/v2/fills.csv written 2026-09-24 15:27  (1,016 fills)
     nifty100   /Users/sidharthchoudhary/Downloads/algo_trading_project/nautilus/reports/nifty100/v2/fills.csv written 2026-09-24 15:27  (938 fills)
   ungated, reported only: 0 fill(s) not matching the day's open exactly.
-  RESULT: PASS -- 0 fills executed at a close and 0 fell off the trading calendar, across 2 universe(s).
+  RESULT: PASS -- gated: 0 fills match a close without matching the open, and 0 fills fall off the trading calendar, on 2 universe(s) (nifty100, midcap150), v2 arm. Not gated: that every fill matches the day's open (reported above).

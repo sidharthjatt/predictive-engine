@@ -1,5 +1,5 @@
 """
-run_all.py -- the complete pipeline (58 + 74 + benchmark), from scratch, in one command.
+run_all.py -- the complete pipeline (every universe + benchmark), from scratch, in one command.
 =================================================================================
     ./venv/bin/python run_all.py            # uses cache if present (fast)
     ./venv/bin/python run_all.py --fresh    # everything from scratch (clears cache)
@@ -26,25 +26,25 @@ This rebuilds both universes, the benchmark comparison, and every chart and CSV.
 
 ORDER:
   === MIDCAP150 ===
-  10a. build_scores (mid)   -> MidCap150 scores (SLOW)
-  10b. engine_v2_final(mid)-> MidCap150 v2 FINAL
-  10c. make_audit (mid)     -> MidCap150 daily audit CSVs
-  10d. make_chart (mid)   -> MidCap150 chart + cap-weighted index benchmark
+  10a. build_scores (midcap150)    -> MidCap150 scores (SLOW)
+  10b. engine_v2_final (midcap150) -> MidCap150 v2 FINAL
+  10c. make_audit (midcap150)      -> MidCap150 daily audit CSVs
+  10d. make_chart (midcap150)      -> MidCap150 chart + cap-weighted index benchmark
   === NIFTY 100 ===
-  10e. build_scores (n100)  -> Nifty 100 scores (SLOW)
-  10f. engine_v2_final(n100)-> Nifty 100 v2 FINAL
-  10g. make_audit (n100)    -> Nifty 100 daily audit CSVs
-  10h. make_chart (n100)  -> Nifty 100 chart + cap-weighted index benchmark
+  10e. build_scores (nifty100)     -> Nifty 100 scores (SLOW)
+  10f. engine_v2_final (nifty100)  -> Nifty 100 v2 FINAL
+  10g. make_audit (nifty100)       -> Nifty 100 daily audit CSVs
+  10h. make_chart (nifty100)       -> Nifty 100 chart + cap-weighted index benchmark
   === ACROSS UNIVERSES ===
   12b. make_combined_universes -> the published comparison figure
   15.  make_daily_log          -> forensic daily text log
   16.  nt_export_scores        -> Nautilus score parquets
   17.  nt_execute              -> the execution engine, per (universe, arm)
 
-STEPS 0-9 AND 11-14 ARE GONE, not renumbered. They were the retired 58's and
-74's, deleted on 2026-09-11 with those universes; the surviving numbering is
-left as it was so a step's name means the same thing it did in every log and
-every document written before that date. See RETIRED_UNIVERSES.md.
+STEPS 0-9 AND 11-14 ARE GONE, not renumbered. They belonged to two retired
+universes, deleted on 2026-09-11; the surviving numbering is left as it was so
+a step's name means the same thing it did in every log and every document
+written before that date. See git history (git show 50562ed:RETIRED_UNIVERSES.md).
 
 ORDERING IS LOAD-BEARING. A consumer must never be listed before its producer.
 run_all.py enforces the non-obvious cases itself -- see REQUIRED_INPUTS below,
@@ -75,7 +75,7 @@ FileNotFoundError.
 # currently iterates an unsorted set of strings into an output, but nothing
 # enforces that either, so the seed is pinned rather than relied upon.
 #
-# NOT COVERED: a step run STANDALONE (`python3 results/build_scores.py n100`)
+# NOT COVERED: a step run STANDALONE (`python3 results/build_scores.py nifty100`)
 # does not pass through here and gets the machine defaults. That gap is real and
 # is not closed by this block.
 import os as _os
@@ -90,11 +90,11 @@ ROOT = Path(__file__).resolve().parent
 R = ROOT / "results"
 
 # THERE IS NO FROZEN-WRITE OVERRIDE ANY MORE, and no frozen/ directory. Both
-# existed for the retired 58 and 74: their scripts refused to run unless
+# existed for two retired universes: their scripts refused to run unless
 # ALLOW_FROZEN_WRITE was set, because results*/metrics/ is gitignored and a stray
 # standalone run overwrote a published artefact with no way back. Those universes
 # were deleted on 2026-09-11 and every script they owned went with them. See
-# RETIRED_UNIVERSES.md.
+# git history (git show 50562ed:RETIRED_UNIVERSES.md).
 
 # WHERE STEPS LIVE. Searched in order, not matched against a list of names.
 #
@@ -147,7 +147,7 @@ FRESH = "--fresh" in sys.argv
 
 # THE PANEL CACHES ARE REGISTRY ATTRIBUTES, u.score_cache and u.raw_cache under
 # cache/<tag>/. This file used to carry CACHE_TMP -- fourteen /tmp names, eight of
-# them the retired 58's and 74's and none of them a live universe's -- and
+# them retired universes' and none of them a live universe's -- and
 # CACHE_PERM over every registered universe. `--fresh` cleared both lists, so it
 # deleted seven unselected universes' panels and missed the selected one's /tmp
 # copy, which the next step then reused. run.py now clears the selected
@@ -206,12 +206,13 @@ FRESH = "--fresh" in sys.argv
 # IT IS A CLAIM ABOUT THE CODE, NOT ABOUT TESTING. A step may only use this
 # sentinel if its source really is generic. A step that handles SOME universes and
 # not others must NOT use it -- it lists its subset as an explicit literal tuple,
-# e.g. ("mid", "n100"), which is checked against the registry and is exactly the
+# e.g. ("midcap150", "nifty100"), which is checked against the registry and is exactly the
 # spelling that says "these, and not whatever arrives later".
 #
 #   None              touches no universe metrics directory (the default, and what
 #                     every per-universe row uses -- field 3 already names it)
-#   ("mid", "n100")   touches exactly these, and does not follow the registry
+#   ("midcap150", "nifty100")
+#                     touches exactly these, and does not follow the registry
 #   SPANS_REGISTRY    generic over the registry, resolved live at scan time
 #
 # SPANS_REGISTRY IS LOAD-BEARING ON THE AUTHOR BEING HONEST, AND NOTHING CHECKS IT.
@@ -219,7 +220,7 @@ FRESH = "--fresh" in sys.argv
 #
 # The sentinel is a claim ABOUT THE SOURCE: that the step's paths are built from a
 # loop over the registered tags, so every registered directory really is touched.
-# If that claim is false -- paths built inside an `if t == "mid":` branch, say --
+# If that claim is false -- paths built inside an `if t == "midcap150":` branch, say --
 # check_pipeline_order will credit the step with EVERY registered directory and
 # resolve producer edges the code never produces.
 #
@@ -298,7 +299,7 @@ PIPELINE_ORDER = [
     ("STEP 10f", "engine_v2_final.py",         "nifty100"),
     ("STEP 10g", "make_audit.py",              "nifty100"),
     ("STEP 10h", "make_chart.py",              "nifty100"),
-    # n50, ADDED 2026-09-18. NEW LABELS, NOT 10i-10l. 10i meant
+    # nifty50, ADDED 2026-09-18. NEW LABELS, NOT 10i-10l. 10i meant
     # make_combined_universes.py until it moved to STEP 12b, and reusing any of
     # that block would make every log written before the move ambiguous -- the
     # same identity-over-compaction rule the 2026-09-11 retirement followed when
@@ -308,7 +309,7 @@ PIPELINE_ORDER = [
     ("STEP 10o", "make_audit.py",              "nifty50"),
     ("STEP 10p", "make_chart.py",              "nifty50"),
     # midcap50, ADDED 2026-09-18. NEW LABELS AGAIN, 10q-10t, and not 10i-10l
-    # for the reason the n50 block states: a reused label makes every log
+    # for the reason the nifty50 block states: a reused label makes every log
     # written before the reuse ambiguous.
     ("STEP 10q", "build_scores.py",            "midcap50"),
     ("STEP 10r", "engine_v2_final.py",         "midcap50"),
@@ -324,7 +325,7 @@ PIPELINE_ORDER = [
     #
     # 10y and 10z are the last single-letter suffixes, and a universe needs
     # FOUR. 10i-10l are burnt -- they were make_combined_universes' labels
-    # before it moved to STEP 12b, and the n50 block above states why a reused
+    # before it moved to STEP 12b, and the nifty50 block above states why a reused
     # label makes every log written before the reuse ambiguous. 11-14 are the
     # deliberate gap left by the 2026-09-11 retirement, left so a step's name
     # still means what it meant in every older log; repopulating that gap would
@@ -368,10 +369,11 @@ PIPELINE_ORDER = [
     ("STEP 10.07", "make_audit.py",             "nifty500"),
     ("STEP 10.08", "make_chart.py",             "nifty500"),
     # MOVED FROM STEP 10i, and the move is load-bearing rather than cosmetic.
-    # The combined chart is now generic over the selection, so it may need the 58's
-    # and the 74's per-trade logs -- and those are written by STEP 12 immediately
-    # above. At 10i they did not exist, which is why the old step could only ever
-    # combine mid and n100. Its mid and n100 inputs are written at 10c and 10g, so
+    # The combined chart is generic over the selection, so it needed per-trade
+    # logs from two retired universes (deleted 2026-09-11), written by their
+    # STEP 12, which ran after 10i. At 10i those logs did not exist, which is why
+    # the old step could only ever combine midcap150 and nifty100. Its midcap150
+    # and nifty100 inputs are written at 10c and 10g, so
     # they are still upstream; nothing consumes the chart, so nothing downstream
     # moved. Output verified byte-identical across the move.
     # FIELD 4: this step is generic over the registry -- it loops the selected
@@ -440,8 +442,8 @@ PIPELINE_ORDER = [
 # Every entry is: consumer script -> [(file it reads, the step that writes it,
 # the axis qualifier)].
 #
-# WHY THIS EXISTS. make_final_chart_fair.py read daily_trades_58.csv, which was
-# produced two steps LATER. The pipeline appeared to work for months because the
+# WHY THIS EXISTS. make_final_chart_fair.py read a retired universe's
+# daily_trades file, which was produced two steps LATER. The pipeline appeared to work for months because the
 # file survived in metrics/ from the previous run; the first run against a truly
 # empty metrics/ died with a bare FileNotFoundError raised inside pandas, naming
 # a path but not the step that owed it.
@@ -461,7 +463,8 @@ PIPELINE_ORDER = [
 # This was ten hand-written tuples, five per universe, and every one of them was
 # `<that universe's metrics_dir> / <filename carrying its tag>` -- knowledge the
 # registry already holds. Adding a universe meant finding all five; four of them
-# outlived the 58 and the 74 by five days and were deleted in 6d618ac.
+# outlived the retired universes they served by five days and were deleted in
+# 6d618ac.
 #
 # THE PATHS COME FROM paths.py, NOT FROM A FORMAT STRING WRITTEN HERE.
 # paths.tagged_artefact(u, "daily_trades") is the existing definition of the
@@ -471,7 +474,7 @@ PIPELINE_ORDER = [
 #
 # THE STEP LABEL IS LOOKED UP FROM PIPELINE_ORDER BY (script, universe), NEVER
 # RESTATED. The third element of each tuple used to read "STEP 10c make_audit.py"
-# for mid and "STEP 10g make_audit.py" for n100 -- those are PIPELINE_ORDER
+# for midcap150 and "STEP 10g make_audit.py" for nifty100 -- those are PIPELINE_ORDER
 # labels, and a copy of them here would be the seventh hardcoded list in this
 # repository, going stale against the rows above exactly as STEP_UNIVERSES and
 # SCORE_BUILD_STEPS did. _step_label raises rather than guessing: a label that
@@ -510,7 +513,7 @@ def _step_label(script, tag):
 # check_inputs._present() used to compose cadence.suffix() + profiles.suffix()
 # onto EVERY required input, as though all five were alike. Two of them are not.
 #
-#   `--rebal 200` on mid v3 completed eight of nine steps and died at STEP 16
+#   `--rebal 200` on midcap150 v3 completed eight of nine steps and died at STEP 16
 #   demanding v_mid_expanding_cache_r200.csv. The panel step had written
 #   v_mid_expanding_cache.csv and that was correct: the score panel does not vary
 #   with cadence, so there is no r200 copy of it to write. The refusal machinery
@@ -573,10 +576,10 @@ def _required_inputs():
         # from STEP 10i to STEP 12b -- at 10i the logs did not exist yet.
         # THE UNIVERSE IS NAMED HERE TOO, AND IT WAS NOT. This entry carried "v2"
         # alone -- the arm, and nothing about whose file it is -- so it was demanded
-        # whatever the selection was. `--universe n100` therefore required mid's
+        # whatever the selection was. `--universe nifty100` therefore required midcap150's
         # trade log, which that plan never writes, while the step itself reads only
         # selected_tags() (make_combined_universes.py:184). Latent since step 6 and
-        # invisible because mid's file was always on disk; found by
+        # invisible because midcap150's file was always on disk; found by
         # check_plan_order.py on its first run.
         #
         # STEP 12b IS STILL A WHOLE-RUN STEP. Its invocation carries tag=None, so
@@ -611,7 +614,7 @@ def _required_inputs():
         #
         # AXIS_FREE for the reason the --rebal 200 refusal established: the
         # score panel carries no axis suffix, so composing one onto it would
-        # demand v_mid_expanding_cache_tax.csv, which nothing writes.
+        # demand v_midcap150_expanding_tax.csv, which nothing writes.
         out["tax_report.py"].append(
             (paths.score_cache(u),
              _step_label("build_scores.py", u.tag), f"u:{u.tag}", AXIS_FREE))
@@ -660,15 +663,15 @@ def entry_applies(e, tag, usel, asel, label="", script=""):
     defect this function grew a parameter for. The qualifier arrived with step 6 to
     stop a merged make_chart.py demanding the other universe's files, and it was
     tested with `q[2:] in selected_tags()` -- which asks "did this RUN select
-    n100", not "is this invocation n100". Both hold under `--universe all`, so
-    STEP 10d (mid's chart) demanded n100's trade logs, which STEP 10f and 10g write
+    nifty100", not "is this invocation nifty100". Both hold under `--universe all`, so
+    STEP 10d (midcap150's chart) demanded nifty100's trade logs, which STEP 10f and 10g write
     afterwards. Unsatisfiable on a cold tree, and invisible on a warm one.
 
     THE LIST FORM ARRIVED WITH STEP 6. Before the collapse, a chart's inputs were
     keyed by a per-universe FILENAME -- make_mid_chart.py -- so the file identity
     supplied the universe and the third field only had to name the arm. One merged
-    make_chart.py serves both universes from one key, so a `--universe mid` run
-    would have been made to demand n100's trade logs. The universe is now written
+    make_chart.py serves both universes from one key, so a `--universe midcap150` run
+    would have been made to demand nifty100's trade logs. The universe is now written
     down beside the arm instead of being implied by which file the entry sits under.
     """
     # ----------------------------------------------------------------------
@@ -728,9 +731,9 @@ def entry_applies(e, tag, usel, asel, label="", script=""):
             # AND THAT IS THE OPPOSITE OF `u:` ON PURPOSE.
             #
             # `u:` had to move to invocation scope because ONE SCRIPT SERVES TWO
-            # UNIVERSES IN ONE RUN -- merged make_chart.py is STEP 10d for mid and
-            # STEP 10h for n100 -- so "did this RUN select n100" and "is this
-            # INVOCATION n100" are different questions and the plan built from the
+            # UNIVERSES IN ONE RUN -- merged make_chart.py is STEP 10d for midcap150
+            # and STEP 10h for nifty100 -- so "did this RUN select nifty100" and "is
+            # this INVOCATION nifty100" are different questions and the plan built from the
             # wrong one was unsatisfiable.
             #
             # There is no such collapse on the tax axis. run.py sets the tax
@@ -783,7 +786,7 @@ def check_inputs(label, script, tag):
     """Fail by name before a step runs, rather than from inside pandas.
 
     AN ENTRY MAY CARRY A THIRD FIELD, the arm it belongs to. That input is
-    required only when the arm is selected: daily_trades_v1_mid.csv is not
+    required only when the arm is selected: daily_trades_v1_midcap150.csv is not
     written by `--arm v2`, and demanding it there turned a correct selective run
     into a hard stop. Entries with no third field are required unconditionally,
     which is all of them but two.
@@ -830,7 +833,7 @@ def check_inputs(label, script, tag):
 
         THE CADENCE PROBLEM THE FALLBACK EXISTED FOR IS REAL AND IS NOT
         REINTRODUCED. Under --rebal 40 the producers write
-        daily_trades_mid_r40.csv and leave the cadence-20 file alone. The guard
+        daily_trades_midcap150_r40.csv and leave the cadence-20 file alone. The guard
         therefore asks for the name THIS RUN'S AXES PRODUCE, built the same way the
         producers build it, rather than for the canonical name with a fallback.
         """

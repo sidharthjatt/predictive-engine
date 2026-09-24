@@ -46,7 +46,7 @@ import config
 from engine_core import precompute, metrics
 import test_exposure
 from test_exposure import backtest_exposure
-from universes.registry import REGISTRY
+from universes.registry import REGISTRY, certified
 from v34_common import ann_vol_pct, _git_state
 import profiles as _prof            # the run's execution-realism profile
 from config import read_table  # the one CSV/parquet reader: config.read_table
@@ -64,12 +64,12 @@ GATED_ARMS = ("v1", "v2")         # v2 ships; v1 is the clean selection test
 # written into shuffle_params.json, and the sibling scripts spell the same two
 # universes two other ways. Labels are presentation; paths are facts.
 # Order is load-bearing -- the verdict accumulates universe by universe.
-LABELS = {"nifty100": "NIFTY 100", "midcap150": "MIDCAP150"}
+LABELS = {u.tag: u.display_name for u in certified()}
 UNIVERSES = {
     u.tag: {"perm": u.score_cache,
             "metrics_dir": u.metrics_dir, "symbols": u.symbols,
             "label": LABELS[u.tag]}
-    for u in (REGISTRY["nifty100"], REGISTRY["midcap150"])
+    for u in certified()
 }
 
 
@@ -79,7 +79,7 @@ def load_panel(cfg, uni):
     # AGAINST. A script that recomputes and then checks itself against a
     # published row must run under the production guards, or it measures a
     # different engine. rebal_cadence_sweep.py failed exactly this way:
-    # mid v3 AnnVol% recomputed 24.89 against 24.88 published.
+    # midcap150 v3 AnnVol% recomputed 24.89 against 24.88 published.
     import engine_core as _ec
     from universes.registry import REGISTRY as _REG
     _ec.set_tradeability(_REG[uni])

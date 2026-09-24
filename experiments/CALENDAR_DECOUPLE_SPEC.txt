@@ -9,7 +9,7 @@ DECOUPLING THE TRADING CALENDAR FROM THE RETIRED 58 UNIVERSE
 *** OUTCOME 2026-09-11: THE SUBJECT OF THIS SPEC NO LONGER EXISTS.             ***
 ***                                                                            ***
 *** The decoupling was never built, and then the thing it would have changed   ***
-*** was deleted. results/make_trading_calendar.py and the 58 universe were     ***
+*** was deleted. results/make_trading_calendar.py and the retired universe were ***
 *** both removed on 2026-09-11 in commit 2fe48ff. Every reference below to     ***
 *** that script -- lines 14, 48 and 317 among them -- names a file that is not ***
 *** in the tree.                                                               ***

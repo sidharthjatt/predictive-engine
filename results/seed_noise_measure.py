@@ -68,8 +68,8 @@ REQUIRED_RAW = ["date", "symbol", "open", "close", "y_rank", "scorable"]
 # either tag changed and would silently have measured the wrong two if a third
 # universe were added. A universe with no LABELS entry is refused by name rather
 # than dropped from the measurement.
-# n50 ADDED 2026-09-18, and it should have been added the day n50 was wired.
-# This dict refused at IMPORT from the moment n50 entered the registry --
+# nifty50 ADDED 2026-09-18, and it should have been added the day nifty50 was wired.
+# This dict refused at IMPORT from the moment nifty50 entered the registry --
 # seed_noise_measure and seed_noise_report were both unimportable, and no gate
 # noticed: registry_coverage_check does not read it, and nothing imports these
 # two except a person running them. It is the NINTH thing a new universe needs
@@ -180,7 +180,7 @@ def run_universe(uni, cfg, W):
     # AGAINST. A script that recomputes and then checks itself against a
     # published row must run under the production guards, or it measures a
     # different engine. rebal_cadence_sweep.py failed exactly this way:
-    # mid v3 AnnVol% recomputed 24.89 against 24.88 published.
+    # midcap150 v3 AnnVol% recomputed 24.89 against 24.88 published.
     import engine_core as _ec
     from universes.registry import REGISTRY as _REG
     _ec.set_tradeability(_REG[uni])

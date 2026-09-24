@@ -127,7 +127,7 @@ TAX PARTIALLY DAMPS ITSELF, AND THE TWO NUMBERS MUST NOT BE SWAPPED
     smaller gains, and a smaller gain is a smaller bill. So a taxed run pays LESS
     than its own untaxed trade log implies -- tax partially damps itself.
 
-    MEASURED ON mid, full window, v2 breadth arm:
+    MEASURED ON midcap150, full window, v2 breadth arm:
 
         Rs 833,105   implied by the UNTAXED run's trade log
         Rs 798,365   actually charged by the TAXED run        (-4.2%)

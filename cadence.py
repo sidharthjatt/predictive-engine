@@ -22,8 +22,9 @@ WHAT THE DEFAULT MEANS
     else int(rebal)` resolves both to the same 20. Byte-identical by construction.
 
 THE FROZEN UNIVERSES HAVE EXACTLY ONE CADENCE
-    58 and 74 are retired: their published numbers must not move, their engines
-    pin REBAL=20, and the Nautilus port that certifies them is pinned to 20 too.
+    The retired universes (deleted 2026-09-11) are frozen: their published numbers
+    must not move, their engines pin REBAL=20, and the Nautilus port that
+    certifies them is pinned to 20 too.
     run.py refuses a non-default cadence for them rather than running it, so
     nothing here needs to special-case them -- but the reason is recorded because
     the refusal looks arbitrary without it.

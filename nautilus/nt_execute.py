@@ -31,8 +31,8 @@ WHAT IT SKIPS, AND WHY IT SAYS SO
     for the research side.
 
 RUNTIME
-    Measured at 4.3 s (58) to 7.5 s (mid) per backtest, so the twelve combinations
-    of a full run cost about ninety seconds. It is a pipeline step because that is
+    Measured at 4.3 s (a retired universe) to 7.5 s (midcap150) per backtest, so
+    the twelve combinations of a full run cost about ninety seconds. It is a pipeline step because that is
     affordable, not because it is free.
 """
 import sys
@@ -68,7 +68,7 @@ def main():
     for u in uni_reg.selected():
         for a in arm_reg.selected():
             # run.py's arm_steps applies no refusals any more -- the two it had
-            # were for the retired 58 and 74 -- so neither does this, and the two
+            # were for the retired universes -- so neither does this, and the two
             # halves of a run still cannot disagree about what is possible.
             U = nt_run.UNIVERSES[u.tag]
             strat = nt_run.run(str(config.BT_START_DATE.date()), U["end"],

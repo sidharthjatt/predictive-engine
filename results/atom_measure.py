@@ -116,7 +116,7 @@ from features_v2 import FEATS_V2                  # noqa: E402
 from universes.registry import get as ureg_get    # noqa: E402
 from config import read_table  # the one CSV/parquet reader: config.read_table
 
-UNIVERSES = ("nifty100", "midcap150")
+from universes.registry import CERTIFIED as UNIVERSES    # noqa: E402
 SIGMA, NOISE_SEED = 0.0001, 101
 
 # THE PRODUCTION ENSEMBLE, NOT A CHOICE MADE HERE. Same ten seeds

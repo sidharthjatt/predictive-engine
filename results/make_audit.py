@@ -22,7 +22,7 @@ axes and NO FILENAME IS WRITTEN HERE:
   daily_skipped_<tag>.csv    orders created but not filled, with the reason
 
 INVOKED TWICE PER FULL RUN, once per universe, from two PIPELINE_ORDER rows that
-keep their own labels -- STEP 10c for mid, STEP 10g for n100.
+keep their own labels -- STEP 10c for midcap150, STEP 10g for nifty100.
 
 THE PER-UNIVERSE REGISTRY SUBSCRIPT IS GONE, AND check_pipeline_order NO LONGER
 NEEDS IT. The merged files kept that literal deliberately: the scanner read it to
@@ -34,7 +34,7 @@ four `audit before chart` edges survive the merge.
 AND THIS DOCSTRING MUST NOT SPELL THAT SUBSCRIPT OUT. check_pipeline_order scans
 SOURCE TEXT, comments and docstrings included, so writing the literal here bound a
 phantom tag to BOTH pipeline rows: STEP 10g then saw two candidate directories,
-could not choose, and dropped n100's edges to unresolved. Prose about a name is
+could not choose, and dropped nifty100's edges to unresolved. Prose about a name is
 indistinguishable from the name to a text scanner -- the same trap
 transitional_asserts_check.py hit when its own marker comment matched its regex.
 """
@@ -55,8 +55,8 @@ def main(u):
     # ONE TRAIL PER SELECTED ARM. This step wrote exactly one, v2's, because
     # audit_step hardcoded breadth+invvol.
     #
-    # A FROZEN UNIVERSE IS NOT REACHED FROM HERE. mid and n100 are live; the 58
-    # and 74 went through frozen/make_daily_audit.py, deliberately left on v2 only.
+    # A FROZEN UNIVERSE IS NOT REACHED FROM HERE. midcap150 and nifty100 are live; the retired
+    # universes went through frozen/make_daily_audit.py, deliberately left on v2 only.
     for _a in arm_reg.selected():
         audit_step.run(u, _a)
 

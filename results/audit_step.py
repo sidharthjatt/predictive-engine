@@ -3,15 +3,15 @@ audit_step.py -- the daily audit trail, once, for any universe.
 ==============================================================
 
 WHAT THIS REPLACES
-    Three files carried this same ~60-line body: make_daily_audit.py (58 and 74),
-    make_mid_audit.py and make_n100_audit.py. The mid and n100 pair were 98.4%
+    Three files carried this same ~60-line body: make_daily_audit.py (two retired universes),
+    make_mid_audit.py and make_n100_audit.py. The midcap150 and nifty100 pair were 98.4%
     identical -- one differing code line each side -- and both were, by their own
-    docstrings, copies of the 58/74 script with the tail call changed.
+    docstrings, copies of the retired-universe script with the tail call changed.
 
     Every difference between them turned out to be a universe property that
     universes/registry.py already records. Nothing needed inventing:
 
-        window          u.trading_days(index)   -- the retired 58/74 cut by YEAR
+        window          u.trading_days(index)   -- the retired pair cut by YEAR
                                                    (2019..2026 / 2019..2025) and the
                                                    live pair cut by DATE. Verified to
                                                    reproduce all four exactly:
@@ -21,7 +21,7 @@ WHAT THIS REPLACES
         filename tag    u.tag
 
 SIZING IS VALUED AT THE OPEN, WITH NO OPT-OUT
-    The deleted 58 and 74 passed value_at_open=False here -- the pre-2026-09-04
+    The two deleted retired universes passed value_at_open=False here -- the pre-2026-09-04
     close-valued sizing -- because they were frozen and their published numbers
     could not move. Nothing opts out any more: every universe is valued at the
     open, and this file no longer reads a per-universe flag to decide.
@@ -31,9 +31,8 @@ SIZING IS VALUED AT THE OPEN, WITH NO OPT-OUT
     only one side moved.
 
 THE ENTRY POINTS STAY SEPARATE, DELIBERATELY
-    make_mid_audit.py and make_n100_audit.py remain as thin per-universe entry
-    points rather than collapsing into one script with two
-    PIPELINE_ORDER entries. check_pipeline_order.analyse keys its ordering dicts BY
+    results/make_audit.py is the thin entry point, invoked once per universe by
+    its own PIPELINE_ORDER row, rather than one call covering every universe. check_pipeline_order.analyse keys its ordering dicts BY
     SCRIPT NAME (`order = {scr: i ...}`), so three entries sharing one name collapse
     to a single position and the 10c-before-10d ordering it exists to enforce becomes
     invisible. Duplicating a name to save two files would disable a safety check to
@@ -86,8 +85,7 @@ def artefact_tag(u, arm):
     nt_holdings_compare.py read daily_summary_{tag}.csv, daily_holdings_{tag}.csv
     and daily_trades_{tag}.csv by those exact names, and they are the 92-of-92
     correctness gate. Suffixing v2 would break the gate that certifies the engine.
-    DAILY_LOG_{tag}.txt inherits the same rule, and README cites DAILY_LOG_mid.txt
-    and DAILY_LOG_n100.txt by name. Every other arm is suffixed.
+    DAILY_LOG_{tag}.txt inherits the same rule. Every other arm is suffixed.
 
     THE CADENCE JOINS THE FILENAME, empty at the default, so v2's unsuffixed names
     are untouched by a default run.
@@ -136,14 +134,14 @@ def _reference_curve(M, arm_name):
     # reconciling a cadence-40 trail against the cadence-20 curve reports a
     # MISMATCH of millions of rupees and refuses to write the trail. That is the
     # check working, but it is checking the wrong pair -- measured, before this
-    # line existed: v1 MISMATCH Rs 2,923,934 and v2 MISMATCH Rs 1,825,210 on mid
+    # line existed: v1 MISMATCH Rs 2,923,934 and v2 MISMATCH Rs 1,825,210 on midcap150
     # at --rebal 40.
     #
     # AT A NON-DEFAULT CADENCE THERE IS NO FALLBACK TO THE UNSUFFIXED FILE.
     # Both chains used to end at one -- v2FINAL_equity.csv and v34_equity.csv --
     # which is a cadence-20 curve. Reaching either from a --rebal 200 run would
     # reconcile a cadence-200 trail against a cadence-20 curve: exactly the
-    # mispairing measured above (v1 Rs 2,923,934, v2 Rs 1,825,210 on mid at
+    # mispairing measured above (v1 Rs 2,923,934, v2 Rs 1,825,210 on midcap150 at
     # --rebal 40). It failed safe only by accident, because audit_step.run()
     # happens to refuse a trail whose difference exceeds a paisa. Returning None
     # here makes it safe BY DESIGN: the caller reports that there is no reference
@@ -235,9 +233,9 @@ def run(u, arm=None):
     # participation_cap() alone until 2026-09-15. backtest_exposure applies the cap
     # only where vol20 supplies a prior-20-session median, so a tradeable audit
     # replayed the RESEARCH strategy and reconciled it against the TRADEABLE curve:
-    # "v1 MISMATCH Rs 3,851,027.09" on mid, which is the cap's whole effect to the
+    # "v1 MISMATCH Rs 3,851,027.09" on midcap150, which is the cap's whole effect to the
     # paisa. The trail was then refused -- correctly, for the wrong reason -- and
-    # mid, the only universe where the cap binds, has never had a tradeable audit.
+    # midcap150, the only universe where the cap binds, has never had a tradeable audit.
     #
     # THE SAME EXPRESSION THE ENGINES USE, deliberately. engine_v2_final_*.py and
     # v34_common.py build vol20 exactly this way; the audit must replay what the

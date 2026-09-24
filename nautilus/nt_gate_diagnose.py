@@ -123,7 +123,8 @@ ARMS = [(a.name, a.mode, a.sizing) for a in ARM_REGISTRY.values()]
 # The two the gate actually runs. Stated here the way verify_v34_arms.py states
 # them, so the difference between what is covered and what exists is visible
 # rather than implied.
-GATE_UNIVERSES = ["nifty100", "midcap150"]
+from universes.registry import CERTIFIED          # noqa: E402
+GATE_UNIVERSES = list(CERTIFIED)
 ALL_UNIVERSES = sorted(REGISTRY)
 
 REPORT = ROOT / "diagnostics" / "gate_divergence.txt"

@@ -3,15 +3,11 @@ make_combined_universes.py -- ONE combined chart across whichever universes this
 run selected.
 
 WHAT REPLACED WHAT
-    This file was make_combined_n100_mid.py, and it was hardcoded to exactly two
-    universes. Its SPEC named n100 and mid as literals, so the project could not
-    compare any other pair -- 58 against mid, or all four -- without editing the
-    step. It now takes the selection and compares exactly that.
-
-    THE n100+mid OUTPUT DID NOT MOVE. With those two selected this writes
-    chart_COMBINED_n100_mid.png, byte for byte the file the old step wrote, into
-    the same directory. That is a verified property, not an intention: the
-    rename would otherwise be a silent way to change a published figure.
+    This file replaced a step hardcoded to exactly two universes, so the project
+    could not compare any other set without editing the step. It now takes the
+    selection and compares exactly that. The output is
+    chart_COMBINED_<tag>_<tag>....png, tags in registry.REPORT_ORDER; with the
+    certified pair selected that is chart_COMBINED_nifty100_midcap150.png.
 
 THE RULE ABOUT HOW MANY UNIVERSES
     N == 1  nothing is written. A one-series "combined" chart restates that
@@ -21,9 +17,9 @@ THE RULE ABOUT HOW MANY UNIVERSES
             never a universe that was not selected.
 
 SELECTION, NOT REGISTRATION
-    It asks universes/registry.selected_tags(), not REGISTRY. `--universe mid,58`
-    leaves 74 registered and unselected; plotting it would put a universe on the
-    page that nobody asked for. Run on its own with no selection set, the default
+    It asks universes/registry.selected_tags(), not REGISTRY.
+    `--universe midcap150,nifty100` leaves six universes registered and
+    unselected; plotting them would put universes on the page nobody asked for. Run on its own with no selection set, the default
     is every registered universe, which is what the old step saw.
 
 WHAT IS PLOTTED, PER UNIVERSE
@@ -32,11 +28,10 @@ WHAT IS PLOTTED, PER UNIVERSE
     cap-weighted index. Before-TC and after-TC CAGR are both in the legend, so the
     cost drag is visible rather than implied.
 
-    THE RETIRED 58 AND 74 HAVE NO PUBLISHED INDEX. registry.index_file is None for
-    them, which is a fact about those universes and not a missing path, so they
-    contribute three lines instead of four. Inventing a benchmark for them -- an
-    equal-weighted basket labelled as an index -- is the exact error this project
-    already made once and corrected.
+    A UNIVERSE WITH NO PUBLISHED INDEX (registry.index_file is None) contributes
+    three lines instead of four. Inventing a benchmark for it -- an equal-weighted
+    basket labelled as an index -- is the exact error this project already made
+    once and corrected. Every registered universe has an index today.
 
 THE TWO BENCHMARKS ARE NOT INTERCHANGEABLE
     The cap-weighted index is investable and is NOT survivorship-biased -- it is the
@@ -148,17 +143,16 @@ PLOT_ARMS = ("v2", "v1")
 _COUNT_WORD = {2: "both", 3: "all three", 4: "all four"}
 # Keyed by count, not by universe: it survives a universe being added or removed.
 
-# THE STANDING PUBLISHED COMPARISON. n100-vs-mid is the figure docs/README.md
-# embeds and the top-level README displays, so it is refreshed whenever both of
-# its universes are selected -- not only when they are the WHOLE selection. It is
-# named here, once, rather than being inferred from the registry: which figure the
-# project publishes is an editorial fact, not a property of the universes, and
-# deriving it would silently repoint the README the day a third universe is added.
+# THE STANDING COMPARISON PAIR. It is refreshed whenever both of its universes
+# are selected -- not only when they are the WHOLE selection. It is the certified
+# pair, registry.CERTIFIED, declared once in the registry (2026-09-24; it was a
+# second hand-written copy of the same two tags here). Which pair is shown is an
+# editorial decision recorded there, not something inferred from the rows.
 #
 # IT IS STILL CHECKED AGAINST THE REGISTRY at import, because the one thing it may
 # not be is a pair that cannot exist -- that would fail at chart time, deep in a
 # draw call, rather than here.
-PAIR_CHART = ("nifty100", "midcap150")
+from universes.registry import CERTIFIED as PAIR_CHART  # noqa: E402
 
 # THE REGISTRY SIZE THIS PAIR WAS LAST CONFIRMED AGAINST. Widened 2026-09-18, when
 # the registry was about to go from 2 universes to 10.
@@ -172,11 +166,11 @@ PAIR_CHART = ("nifty100", "midcap150")
 # IT RAISES RATHER THAN WARNS, BY DECISION. PAIR_CHART is the figure the README
 # publishes; a warning scrolls past and one wrong figure shipped silently costs
 # more than confirming a line once per registry change.
-# RE-CONFIRMED AT 3 ON 2026-09-18, AND THE PAIR DID NOT MOVE. n50 was wired and
-# run that day; it is NOT in the published pair and should not be. Nothing on
-# that universe has been validated -- no seed, sub-period, shuffle or top-N test
-# -- and a figure the README displays is not the place to introduce a universe
-# whose only property so far is that it produced numbers. ('n100', 'mid') stays.
+# RE-CONFIRMED AT 3 ON 2026-09-18, AND THE PAIR DID NOT MOVE. nifty50 was wired
+# and run that day; it is NOT in the pair and should not be. Nothing on that
+# universe has been validated -- no seed, sub-period, shuffle or top-N test -- and
+# a standing figure is not the place to introduce a universe whose only property
+# so far is that it produced numbers. (nifty100, midcap150) stays.
 #
 # The guard did its job: it stopped a run rather than letting the pair be read as
 # still-confirmed while the registry grew around it. Bumping this is the record
@@ -226,8 +220,8 @@ def main():
     CAP = 1_000_000
 
     # WHICHEVER UNIVERSES THIS RUN SELECTED, IN REPORT ORDER. report_order puts
-    # n100 before mid, which is what makes the derived filename resolve to the
-    # published chart_COMBINED_n100_mid.png rather than renaming it.
+    # nifty100 before midcap150, so the pair's filename is
+    # chart_COMBINED_nifty100_midcap150.png whatever order they were typed in.
     tags = report_order(t for t in selected_tags() if t in REGISTRY)
 
     sel = set(arm_reg.selected_names())
@@ -244,111 +238,27 @@ def main():
         print("=" * 108)
         return
 
-    # THE FOUR INPUT PATHS ARE SPELLED OUT PER UNIVERSE, IN THE DOTTED FORM, so
-    # check_pipeline_order resolves each read to the right directory. This is the
-    # shape the two-universe step used and it is kept for its reason, not its
-    # history: the scanner is STATIC. Written generically as
-    # `Path(u.metrics_dir) / f"daily_trades_{t}.csv"` the whole block runs
-    # perfectly and resolves to nothing -- measured, 34 resolved cross-step
-    # dependencies down to 26, with the step's own reads listed as
-    # `?/metrics/daily_trades_{t}.csv`. Neither the directory nor the placeholder
-    # can be expanded from a loop variable.
+    # THE FOUR INPUT PATHS, ONE LOOP OVER THE SELECTED UNIVERSES. Until 2026-09-24
+    # this was eight hand-written blocks, one per universe, because the static
+    # scanner in check_pipeline_order could not resolve a directory bound from a
+    # loop variable. It now can (REG_LOOP_ASSIGN): `M = REGISTRY[tag].metrics_dir`
+    # expands over the row's declared span with {tag} substituted per universe,
+    # so this loop resolves to the same producer edges the blocks did. A new
+    # universe needs no code here, only a registry row.
     #
-    # THE GUARD IS WRITTEN AROUND THE LITERALS, NOT IN PLACE OF THEM -- the same
-    # rule make_daily_audit.py states -- so selection still decides what is read
-    # while the literals stay visible to the scanner.
-    #
-    # A NEW UNIVERSE NEEDS A BLOCK HERE. That is the same obligation
-    # registry.REPORT_ORDER already imposes; and because FILES is looked up with
-    # [t] below, a missing block is a KeyError naming the tag rather than a chart
-    # quietly one universe short.
-    # EVERY INPUT THROUGH _ci, 2026-09-12. This dict named the four canonical
-    # filenames directly -- bypassing even the `_ci` helper defined in this same
-    # file -- so it loaded whichever run last wrote them, on ANY of the four axes,
-    # and recorded nothing about which. That is why the published figure was
-    # withdrawn from README on 2026-09-12: unlike the table beside it, whose
-    # filename proved its axes, the chart's provenance was not recoverable after
-    # the fact.
-    #
-    # THE LITERAL STAYS IN THE CALL, the same rule _c and _ci follow everywhere
-    # else: check_pipeline_order reads the `DIR / "<literal>"` shape out of this
-    # source to resolve the step's edges, and a computed name made three of them
-    # vanish once already.
-    # THE DIRECTORY IS BOUND TO A NAME FIRST, AND check_pipeline_order READS THAT
-    # BINDING. Until step 7 these were `config_n100.METRICS_DIR_N100 / "..."`, a
-    # spelling the scanner resolved through its (config module, METRICS_DIR name)
-    # map. The config modules are gone, so the map has nothing to match and the
-    # eight STEP 12b producer edges would have fallen into `unresolved` with the
-    # check still reporting success -- the same way four audit edges vanished when
-    # the audit pair merged. check_pipeline_order.REG_ASSIGN recognises this shape
-    # instead. The per-universe name is deliberate: one shared `M` would give the
-    # scanner one variable standing for two directories.
+    # EVERY INPUT THROUGH _ci, so each name carries this run's axis suffixes and
+    # the chart's provenance is recoverable from its inputs (withdrawn from README
+    # on 2026-09-12 for lacking exactly that). The loop variable must stay named
+    # `tag` and the literals must stay in the call: the scanner reads the
+    # `M / "<literal>"` shape out of this source.
     FILES = {}
-    if "nifty100" in tags:
-        M_nifty100 = REGISTRY["nifty100"].metrics_dir
-        FILES["nifty100"] = (_ci(M_nifty100 / "v2FINAL_equity.csv"),
-                         _ci(M_nifty100 / "v2FINAL_params.json"),
-                         _ci(M_nifty100 / "daily_trades_nifty100.csv"),
-                         _ci(M_nifty100 / "daily_trades_v1_nifty100.csv"))
-    if "midcap150" in tags:
-        M_midcap150 = REGISTRY["midcap150"].metrics_dir
-        FILES["midcap150"] = (_ci(M_midcap150 / "v2FINAL_equity.csv"),
-                        _ci(M_midcap150 / "v2FINAL_params.json"),
-                        _ci(M_midcap150 / "daily_trades_midcap150.csv"),
-                        _ci(M_midcap150 / "daily_trades_v1_midcap150.csv"))
-    # n50, ADDED 2026-09-18. WRITTEN OUT, NOT LOOPED, for the reason stated
-    # above and in the commit that declined to write the loop: the
-    # `DIR / "<literal>"` shape is what check_pipeline_order reads out of this
-    # source to resolve STEP 12b's producer edges, and a computed name made
-    # three of them vanish once already. A loop here would convert a silent miss
-    # into a silent invention.
-    if "nifty50" in tags:
-        M_nifty50 = REGISTRY["nifty50"].metrics_dir
-        FILES["nifty50"] = (_ci(M_nifty50 / "v2FINAL_equity.csv"),
-                        _ci(M_nifty50 / "v2FINAL_params.json"),
-                        _ci(M_nifty50 / "daily_trades_nifty50.csv"),
-                        _ci(M_nifty50 / "daily_trades_v1_nifty50.csv"))
-    # midcap50, ADDED 2026-09-18. WRITTEN OUT, NOT LOOPED, for the reason above.
-    #
-    # ALL FOUR ROWS NOW SPELL THE LIVE TAG. paths.tagged_artefact composes
-    # "<stem>_<tag>.csv" from u.tag, and until 2026-09-18 the three rows above
-    # still said mid, n100 and n50 -- names the engine had not written since the
-    # rename. Six of this step's producer edges resolved to nothing as a result.
-    if "midcap50" in tags:
-        M_midcap50 = REGISTRY["midcap50"].metrics_dir
-        FILES["midcap50"] = (_ci(M_midcap50 / "v2FINAL_equity.csv"),
-                        _ci(M_midcap50 / "v2FINAL_params.json"),
-                        _ci(M_midcap50 / "daily_trades_midcap50.csv"),
-                        _ci(M_midcap50 / "daily_trades_v1_midcap50.csv"))
-    # midcap100, ADDED 2026-09-19. WRITTEN OUT, NOT LOOPED, for the reason above.
-    if "midcap100" in tags:
-        M_midcap100 = REGISTRY["midcap100"].metrics_dir
-        FILES["midcap100"] = (_ci(M_midcap100 / "v2FINAL_equity.csv"),
-                        _ci(M_midcap100 / "v2FINAL_params.json"),
-                        _ci(M_midcap100 / "daily_trades_midcap100.csv"),
-                        _ci(M_midcap100 / "daily_trades_v1_midcap100.csv"))
-    # nifty200, ADDED 2026-09-19. WRITTEN OUT, NOT LOOPED, for the reason above.
-    if "nifty200" in tags:
-        M_nifty200 = REGISTRY["nifty200"].metrics_dir
-        FILES["nifty200"] = (_ci(M_nifty200 / "v2FINAL_equity.csv"),
-                        _ci(M_nifty200 / "v2FINAL_params.json"),
-                        _ci(M_nifty200 / "daily_trades_nifty200.csv"),
-                        _ci(M_nifty200 / "daily_trades_v1_nifty200.csv"))
-    # smallcap250, ADDED 2026-09-19. WRITTEN OUT, NOT LOOPED, reason above.
-    if "smallcap250" in tags:
-        M_smallcap250 = REGISTRY["smallcap250"].metrics_dir
-        FILES["smallcap250"] = (_ci(M_smallcap250 / "v2FINAL_equity.csv"),
-                        _ci(M_smallcap250 / "v2FINAL_params.json"),
-                        _ci(M_smallcap250 / "daily_trades_smallcap250.csv"),
-                        _ci(M_smallcap250 / "daily_trades_v1_smallcap250.csv"))
-    # nifty500, ADDED 2026-09-19. WRITTEN OUT, NOT LOOPED, reason above.
-    if "nifty500" in tags:
-        M_nifty500 = REGISTRY["nifty500"].metrics_dir
-        FILES["nifty500"] = (_ci(M_nifty500 / "v2FINAL_equity.csv"),
-                        _ci(M_nifty500 / "v2FINAL_params.json"),
-                        _ci(M_nifty500 / "daily_trades_nifty500.csv"),
-                        _ci(M_nifty500 / "daily_trades_v1_nifty500.csv"))
-    # LOADED ONCE, PLOTTED POSSIBLY TWICE. The published n100+mid pair chart is
+    for tag in tags:
+        M = REGISTRY[tag].metrics_dir
+        FILES[tag] = (_ci(M / "v2FINAL_equity.csv"),
+                      _ci(M / "v2FINAL_params.json"),
+                      _ci(M / f"daily_trades_{tag}.csv"),
+                      _ci(M / f"daily_trades_v1_{tag}.csv"))
+    # LOADED ONCE, PLOTTED POSSIBLY TWICE. The nifty100+midcap150 pair chart is
     # drawn from the SAME rows as the N-way chart when both are produced, so the
     # two figures cannot disagree about a number.
     UNIV = []
@@ -364,7 +274,7 @@ def main():
         eq = read_table(eqf, parse_dates=["date"]).set_index("date")
         # ARMS BY NAME, NOT BY THE COLUMN THEY HAPPEN TO SIT IN.
         # equity_series falls back to the legacy `strategy`/`baseline_invvol`
-        # spelling, which is what the deleted 58 and 74 wrote.
+        # spelling, which is what the retired universes wrote.
         eq_v2 = arm_reg.equity_series(eq, "v2")
         eq_v1 = arm_reg.equity_series(eq, "v1")
         index = None
@@ -454,17 +364,16 @@ def main():
     # ------------------------------------------------------------------
     # THE PUBLISHED PAIR CHART, IN ADDITION TO THE N-WAY ONE.
     # ------------------------------------------------------------------
-    # n100-vs-mid is the project's standing comparison: it is the figure
-    # docs/README.md embeds and the one the top-level README displays. It is NOT
+    # nifty100-vs-midcap150 is the project's standing comparison. It is NOT
     # merely "the N-way chart when N happens to be 2" -- it is a published figure
     # in its own right, and a four-universe run that silently stopped refreshing
     # it left the docs copy stale with nothing saying so.
     #
-    # So whenever BOTH n100 and mid are in the selection, the pair chart is
+    # So whenever BOTH are in the selection, the pair chart is
     # refreshed as well. Two different, valid comparisons, not a contradiction:
     # the N-way chart answers "how do the selected universes compare", the pair
-    # chart answers "how do the two live universes compare", and the second
-    # question does not stop being asked because a retired universe was also run.
+    # chart answers "how do the two certified universes compare", and the second
+    # question does not stop being asked because other universes were also run.
     #
     # ONLY WHEN N > 2. At N == 2 the selection IS the pair, the N-way chart above
     # already wrote exactly this file, and drawing it again would render the same
@@ -472,10 +381,7 @@ def main():
     #
     # IT IS DRAWN AS IF ONLY THE PAIR WERE SELECTED: _subtitle derives the
     # out-of-scope sentence from REGISTRY minus the rows being PLOTTED, not minus
-    # the selection, so the string does not depend on what else ran. With the 58
-    # and 74 deleted the registry is exactly this pair, so that sentence is now
-    # empty -- the subtitle of the published chart changes on this commit, and
-    # there is no version of "58 and 74 are out of scope" that stays true.
+    # the selection, so the string does not depend on what else ran.
     pair = [r for r in UNIV if r["tag"] in PAIR_CHART]
     pair = [dict(r, arms={n: d for n, d in r["arms"].items() if n in CANON_ARMS})
             for r in pair]
@@ -495,8 +401,8 @@ def main():
 def _ci(path):
     """This run's cadence-, profile- and tax-named sibling of `path`.
 
-    THE PROFILE WAS MISSING HERE AND PRESENT IN THE OTHER TWO. make_mid_chart and
-    make_n100_chart each carry a `_ci` of the same name that composes
+    THE PROFILE WAS MISSING HERE AND PRESENT IN THE OTHER TWO. The two per-universe
+    chart scripts (since merged into make_chart.py) each carried a `_ci` that composed
     cadence.suffix() + profiles.suffix(); this one composed the cadence alone. So
     under `--profile tradeable` the engines wrote v2FINAL_equity_tradeable.csv and
     this helper looked for a file that did not exist, fell through to `path`, and
@@ -645,21 +551,13 @@ def _subtitle(UNIV):
     computed from REGISTRY minus the universes ON THIS FIGURE, so a subtitle cannot
     depend on what else the run did and make the same figure two files.
 
-    THE PUBLISHED PAIR CHART NO LONGER CARRIES THAT SENTENCE AT ALL. It used to
-    read "58 and 74 are out of scope and are not plotted"; the registry is now
-    exactly the plotted pair, so there is nothing out of scope and the clause is
-    omitted rather than rendered empty. The sentence still appears on a
-    single-universe chart, where the other universe genuinely is out of scope.
-    This is a deliberate change to a published figure -- there is no version of
-    the old sentence that stays true once the universes it names are deleted.
+    The clause is omitted, not rendered empty, when nothing is out of scope.
 
     EVERY CLAUSE IS CONDITIONAL ON THE UNIVERSES ACTUALLY PLOTTED. The old block
-    was one hardcoded string naming n100 and mid, including a liquidity paragraph
+    was one hardcoded string naming two universes, including a liquidity paragraph
     quoting their measured numbers, so drawing any other set would have printed
     claims about universes that were not on the page.
 
-    With n100 and mid selected this reproduces the old string except for the
-    deleted out-of-scope clause.
     """
     n = len(UNIV)
     word = _COUNT_WORD.get(n, f"all {n}")
@@ -678,9 +576,8 @@ def _subtitle(UNIV):
     if unsel:
         # A COUNT, NOT A LIST, SINCE 2026-09-18. This named every registered
         # universe not on the figure, so the PUBLISHED PAIR CHART's caption grew
-        # by one name per universe added: it read "n50 is out of scope and is not
-        # plotted" the day n50 landed, and would have read "n50, mid50, mid100,
-        # n200, small250 and n600 are out of scope" by the end of the migration.
+        # by one name per universe added, and would have listed six by the end of
+        # the migration.
         # A published figure whose text churns every time something unrelated is
         # registered cannot be compared with its own previous version.
         #
@@ -707,9 +604,8 @@ def _subtitle(UNIV):
     # LIQUIDITY BELONGS HERE MOST OF ALL.
     #   Each universe's individual chart carries its own liquidity line, but this
     #   is the only page where they appear together, and the contrast is the whole
-    #   point: the same depth model costs n100 0.01 CAGR points and mid 1.80.
-    #   Reading mid's 29.18% next to n100's 25.36% without that is reading a gap of
-    #   3.8 points that realistic execution more than halves.
+    #   point: the depth model's cost differs by universe (see each universe's
+    #   liquidity_note in universes/registry.py).
     # None CONTRIBUTES NOTHING, exactly as an absent key used to. The difference is
     # upstream: the field must be supplied, so "this universe has no note" is a
     # statement somebody made rather than a gap nobody noticed.
@@ -719,11 +615,10 @@ def _subtitle(UNIV):
            if notes else "")
 
     # WINDOWS THAT DO NOT END TOGETHER ARE SAID SO, ON THE CHART.
-    # The live pair ends 2026-05-29, the 58 runs to 2026-06-08 and the 74 stops
-    # 2025-12-23. Comparing cumulative returns across universes that stop on
-    # different days is partly reading a calendar difference, and a reader should
-    # not have to open another file to discover that. Empty when they agree, which
-    # is why the n100+mid chart is unchanged.
+    # Comparing cumulative returns across universes that stop on different days is
+    # partly reading a calendar difference, and a reader should not have to open
+    # another file to discover that. Empty when they agree, which every registered
+    # universe does today (2026-05-29).
     ends = {u["tag"]: u["eq"].index[-1] for u in UNIV}
     win = ""
     if len({e.date() for e in ends.values()}) > 1:

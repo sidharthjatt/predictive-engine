@@ -11,10 +11,10 @@ WHY
     This compares the two portfolios at every rebalance date and stops at the first
     one where the held symbols or their quantities differ. That is the origin.
 
-REFERENCE  results/metrics/daily_holdings_58.csv
+REFERENCE  results_<universe>/metrics/daily_holdings_<universe>.csv  (results/make_audit.py)
 PORT       recorded by the strategy during the run
 
-Run: python3 nautilus/nt_holdings_compare.py
+Run: ./venv/bin/python nautilus/nt_holdings_compare.py --universe=nifty100
 """
 import sys
 from pathlib import Path
@@ -25,11 +25,25 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import nt_run
+import paths
 from config import read_table  # the one CSV/parquet reader: config.read_table
 
 
+def _universe():
+    """The universe named by --universe=<tag>; defaults to the first certified one.
+
+    An unknown tag, including a retired short tag, exits 2 with the valid list.
+    Until 2026-09-24 this tool read the retired 58's artefacts from
+    results/metrics/ and could not run on any universe that exists.
+    """
+    from universes.registry import CERTIFIED, REGISTRY, argv_universes, check_tags
+    picked = check_tags(argv_universes(sys.argv), nt_run.UNIVERSES)
+    return REGISTRY[picked[-1] if picked else CERTIFIED[0]]
+
+
 def main():
-    strat = nt_run.run("2019-01-01", "2026-06-08")
+    u = _universe()
+    strat = nt_run.run("2019-01-01", nt_run.UNIVERSES[u.tag]["end"], universe=u.tag)
 
     port = pd.DataFrame(strat.holdings_log)
     if port.empty:
@@ -37,7 +51,7 @@ def main():
         return
     port["date"] = pd.to_datetime(port["date"])
 
-    ref = read_table(ROOT / "results" / "metrics" / "daily_holdings_58.csv",
+    ref = read_table(paths.tagged_artefact(u, "daily_holdings"),
                       parse_dates=["date"])
 
     dates = sorted(port["date"].unique())
@@ -74,7 +88,7 @@ def main():
 
     # the fills that produced this state, in both systems
     lo = prev if prev is not None else d
-    rt = read_table(ROOT / "results" / "metrics" / "daily_trades_58.csv",
+    rt = read_table(paths.tagged_artefact(u, "daily_trades"),
                      parse_dates=["date"])
     rt = rt[(rt["date"] > lo) & (rt["date"] <= d)]
     pt = pd.DataFrame(strat.fills)

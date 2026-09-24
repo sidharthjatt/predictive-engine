@@ -2,7 +2,7 @@
  CHECK 2 (TRADING RULE) -- TRAINING MASK AND PURGE -- NIFTY 100 (nifty100)
 ====================================================================================================
 
-  panel raw_panel_nifty100_20.csv   rows 470,711   symbols 99
+  panel raw_panel_nifty100_20.parquet   rows 470,711   symbols 99
   purge_mode from the registry: 'trading'      HORIZON = 20 TRADING rows   PURGE_EMBARGO = 2
   scoring months considered: 126   trained: 126   skipped by the engine: 0
 
@@ -34,7 +34,7 @@
  CHECK 2 (TRADING RULE) -- TRAINING MASK AND PURGE -- MIDCAP150 (midcap150)
 ====================================================================================================
 
-  panel raw_panel_midcap150_20.csv   rows 564,850   symbols 148
+  panel raw_panel_midcap150_20.parquet   rows 564,850   symbols 148
   purge_mode from the registry: 'trading'      HORIZON = 20 TRADING rows   PURGE_EMBARGO = 2
   scoring months considered: 126   trained: 126   skipped by the engine: 0
 
@@ -64,4 +64,4 @@
 
   RULE TESTED: the TRADING purge, cut = cal[pos(first) - HORIZON - PURGE_EMBARGO], which is what
   engine_core.score_monthly runs for both live universes. The calendar rule is the sibling check.
-  RESULT: PASS -- the purge holds in every trained month: 252 month-universe pair(s) across 2 universe(s) (midcap150 126, nifty100 126).
+  RESULT: PASS -- gated: the gap from the last training row's label to the first scored date is > 0 trading days in every trained month, 252 month-universe pair(s) across 2 universe(s) (midcap150 126, nifty100 126). Gap >= PURGE_EMBARGO is reported above, not gated.

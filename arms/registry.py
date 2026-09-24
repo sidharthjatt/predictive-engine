@@ -60,7 +60,7 @@ ARMS = {a.name: a for a in (
 )}
 
 # The two that ship on every universe. v3 and v4 are computed only for the live
-# universes, inside v34_common.run_v34 -- the 58 and the 74 have no v3/v4 at all.
+# universes, inside v34_common.run_v34.
 SHIPPING = [ARMS["v1"], ARMS["v2"]]
 
 
@@ -155,8 +155,8 @@ def get(name):
 # also write the arm-keyed names (Arm.equity_column), and every reader goes
 # through equity_series() below.
 #
-# THE FROZEN 58 AND 74 STILL WRITE ONLY THE OLD NAMES, and always will: their
-# engines are those universes' provenance and are not modified. So the lookup
+# THE RETIRED UNIVERSES (deleted 2026-09-11) WROTE ONLY THE OLD NAMES: their
+# engines were those universes' provenance and were never modified. So the lookup
 # tries the arm-keyed name and falls back to the legacy one. That fallback is not
 # a transition shim to be deleted later -- it is how a frozen universe's file is
 # read, permanently.

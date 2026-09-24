@@ -22,12 +22,12 @@ selection actually contains:
     b_v2 = ... if "v2" in _sel else None
     b_v1 = ... if "v1" in _sel else None
 
-Without it `--universe mid --arm v3` demands v1's trade log and dies. That was
+Without it `--universe midcap150 --arm v3` demands v1's trade log and dies. That was
 live for two days, it is the reason one of the two gate cells could not run, and
 the merge must not lose it.
 
-NOTHING IS UNIFIED. mid renders at dpi 140 and n100 at 150; mid prints an IC and
-extreme-return diagnostic block that n100 has never had. Both are preserved as
+NOTHING IS UNIFIED. midcap150 renders at dpi 140 and nifty100 at 150; midcap150 prints an IC and
+extreme-return diagnostic block that nifty100 has never had. Both are preserved as
 declared per-universe data. Harmonising them moves published artefacts and belongs
 in its own commit.
 
@@ -79,7 +79,7 @@ def before_tc(eq, log):
 
     A MISSING LOG IS FATAL HERE, AND IT USED TO BE A ZERO. Back-ported from
     make_n100_chart.py on 2026-09-13, where `baa5daa` fixed it on 2026-09-12.
-    **mid has been substituting zeros for the intervening day, and for the whole
+    **midcap150 has been substituting zeros for the intervening day, and for the whole
     life of the file before that.**
 
     It returned `(None, 0.0, 0)` when the file was absent -- a tuple
@@ -94,8 +94,8 @@ def before_tc(eq, log):
 
     THE CRASH IS THE LUCKY OUTCOME. The unlucky one is a chart rendering a curve
     labelled "0 trades, Rs 0" that a reader takes for a measurement. That is the
-    same defect that surfaced as the STEP 10h crash on n100 -- it crashed there
-    only because n100 reached the formatting line first.
+    same defect that surfaced as the STEP 10h crash on nifty100 -- it crashed there
+    only because nifty100 reached the formatting line first.
 
     The caller's job is not to call this for an arm the run did not select. That
     is what ARMS_ON is for.
@@ -272,7 +272,7 @@ def main(u):
     # the arm-awareness behind, then reasoned: "The --arm v3 path does not ask
     # for v1's curve, so the regression run does not exercise the changed
     # branch." The line above it asked for v1's curve unconditionally, so the
-    # v3 path reached the new raise and died there. `--universe mid --arm v3`
+    # v3 path reached the new raise and died there. `--universe midcap150 --arm v3`
     # was unrunnable from 905e598 until this commit, and the claim that it
     # could not reach the branch is why nobody looked.
     _sel = set(arm_reg.selected_names())
@@ -319,10 +319,10 @@ def main(u):
         bt = f"{b:>9.2f}%" if b is not None else f"{'--':>10}"
         print(f"    {lab:<42} {bt} {cagr(s_):>8.2f}% {sharpe(s_):>7.2f} "
               f"{dd(s_).min():>7.2f}% {iv:>4}%")
-    # THE IC / EXTREME-RETURN DIAGNOSTIC BLOCK, mid only, and declared as such.
+    # THE IC / EXTREME-RETURN DIAGNOSTIC BLOCK, midcap150 only, and declared as such.
     # Console output with no artefact, but it RE-READS THE SCORE PANEL, so
     # running it for a universe that never had it is new work rather than new
-    # formatting. Preserved as per-universe data; switching it on for n100 is a
+    # formatting. Preserved as per-universe data; switching it on for nifty100 is a
     # change to what that run does and belongs in its own commit.
     if _CT["diagnostics"]:
         ic = read_table(score_panel_path(), usecols=["date","symbol"], parse_dates=["date"])
@@ -337,7 +337,7 @@ def main(u):
         print( "    over the UNION date index, so every day a midcap did not trade voided its")
         print( "    next 60 windows and those rows were dropped. Coverage was 35.7% and 42.1%")
         print( "    against 93.8-100% for the other 15 features, only 65 of 148 names were ever")
-        print( "    scored, breadth read 0.202 against 0.550 on the 58, and deployment collapsed")
+        print( "    scored, breadth read 0.202 against 0.550 on a retired universe, and deployment collapsed")
         print( "    to about 20%. Both features are now computed on each symbol's own trading")
         print( "    index; coverage is 97.0% and 98.5%. The first MidCap150 result (CAGR 9.06%)")
         print( "    was an artefact of that bug and must not be quoted.")
@@ -358,7 +358,7 @@ def main(u):
         #
         # That conflation was read off this output and transcribed into KNOWN_ISSUES,
         # where it was then "corrected" in the wrong direction. See KNOWN_ISSUES.md,
-        # "The mid benchmark is better defined than this file said".
+        # "The midcap150 benchmark is better defined than this file said".
         _art = sorted({_d for (_d, _s) in _ext.index})          # the artefact days
         _m_art = _m.copy()
         for _d in _art:
@@ -402,7 +402,7 @@ def main(u):
           f"(listed later): {', '.join(late[:8])}{' ...' if n_late > 8 else ''}")
     print(f"    {alive} of {n_all} existed on 2019-01-01.")
     # FROM THE ROW, NOT FROM HERE. These six lines used to be literal, written
-    # for a midcap universe, and printed under every heading: n50's first run
+    # for a midcap universe, and printed under every heading: nifty50's first run
     # said "midcap churn is far higher than large-cap churn" on a Nifty 50
     # chart. Churn is a property OF A UNIVERSE, so the sentence belongs to the
     # universe. u.churn_note has no default, so a new row cannot omit it and
@@ -411,8 +411,8 @@ def main(u):
         print(f"    {_line}")
     # THE SUBTITLE IS PER-UNIVERSE PROSE AND IT REACHES THE PNG, so it lives in the
     # registry as a callable and this step only supplies the values. The previous
-    # version of this merge inlined mid's subtitle for both universes; it read
-    # n_panel and per_day, which only mid's diagnostics block binds, so n100 died
+    # version of this merge inlined midcap150's subtitle for both universes; it read
+    # n_panel and per_day, which only midcap150's diagnostics block binds, so nifty100 died
     # with UnboundLocalError at STEP 10h and wrote neither its chart nor its daily
     # log. gate_compare's UNCLASSIFIED branch is what caught it.
     _vals = {"n_all": n_all, "n_late": n_late, "alive": alive,
@@ -496,7 +496,7 @@ def main(u):
     # BOTH renders above are conditional on the selection. Under `--rebal 200` the
     # canonical branch does not run at all, and the line still announced
     # chart_midcap150_FINAL.png: a gated file this step had not touched, named as though
-    # it had just been written. The comment that stood here said the n100 half had
+    # it had just been written. The comment that stood here said the nifty100 half had
     # once "named a literal rather than what was written", so the defect was known
     # in one direction and reintroduced in the other.
     #

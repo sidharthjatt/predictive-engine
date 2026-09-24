@@ -141,9 +141,9 @@ recorded here unreconciled rather than one of them written up as the cause.**
 `data/raw/MidCap150/clean/NIFTYMIDCAP150.csv` also ends `06-08-2026`, so the
 value was already wrong before the repoint and this is not migration damage. The
 two dates are the same eight characters with day and month exchanged, which is
-what a `DD-MM-YYYY` file read as `MM-DD-YYYY` produces. n100's equivalent is the
+what a `DD-MM-YYYY` file read as `MM-DD-YYYY` produces. nifty100's equivalent is the
 contrast: it read `2026-06-22`, the old `NIFTY100.csv` ends `22-06-2026`, so
-**n100's was correct until the repoint** and was corrected to `2026-08-06`
+**nifty100's was correct until the repoint** and was corrected to `2026-08-06`
 with it.
 
 *Reading 2 -- the value is the panel cutoff, not a mangled index date.*
@@ -159,9 +159,9 @@ its stated definition.
 **Neither reading has been eliminated.** Reading 1 explains the character
 pattern; reading 2 explains the value. Do not cite either as the cause in a
 commit message or a code comment until one is ruled out. What would settle it:
-the provenance of the literal when it was first written -- if n100's
+the provenance of the literal when it was first written -- if nifty100's
 `2026-06-22` also coincided with a panel or price boundary at that time,
-reading 1 survives alone; if it did not, reading 2 needs an account of n100.
+reading 1 survives alone; if it did not, reading 2 needs an account of nifty100.
 
 **Fixing midcap150's changes a published chart subtitle**, which is an artefact
 change. The reader is display-only -- `make_chart.py` slices the INDEX series
@@ -237,12 +237,9 @@ The five universes not yet wired will use `midcap50`, `midcap100`, `nifty200`,
 `nifty500` and `smallcap250`. `.gitignore` already carries their metrics
 directories under those names.
 
-**`58` and `74` ARE NOT RENAMED AND WILL NOT BE.** They were deleted on
-2026-09-11 and `RETIRED_UNIVERSES.md` is their terminal record; renaming a tag
-in a record of something that no longer exists makes the record describe
-something that never did. They keep their positions in
-`universes/registry.REPORT_ORDER`, where a tag absent from the registry is
-skipped rather than raised on.
+**The two retired universes, deleted 2026-09-11, get no new tag.** Since
+2026-09-24 they are no longer listed in `universes/registry.REPORT_ORDER`; git
+history keeps their records.
 
 ### THE SECOND NAMING WORLD: STEP LABELS, adopted 2026-09-19
 
@@ -297,7 +294,7 @@ up as properties.
 |---|---|
 | `STEP 11`-`STEP 14` | the deliberate gap from the 2026-09-11 retirement, left so a step's name still means what it meant in every older log. 5 prose mentions in KNOWN_ISSUES, plus `check_pipeline_order.py:80` on "a real STEP 13 -> 14 edge" and `run_all.py:358` on STEP 12 |
 | `STEP 10i`-`10l` | burnt: `make_combined_universes`' labels before it moved to STEP 12b |
-| `STEP 0`-`STEP 9` | the retired 58 and 74 |
+| `STEP 0`-`STEP 9` | the two retired universes, deleted 2026-09-11 |
 | `RETIRED_UNIVERSES.md` + `-manifest.txt` | terminal records, SHA-256 pinned |
 
 **`runs/` IS FREE, AND THIS WAS CHECKED RATHER THAN ASSUMED.** 49 run
