@@ -316,9 +316,11 @@ def main(u):
     fy_close = float(read_table(wrote[1])["close_equity"].iloc[-1])
     BASIS = {
         "v2 before tax":      "v34_equity.csv (engine, tax=off)",
-        "v2 after tax":       "bh_lots taxed backtest, tail settled at final session",
-        "bh_lots before tax": "bh_lots equal-rupee basket, untaxed",
-        "bh_lots after tax":  "bh_lots equal-rupee basket, liability settled at end",
+        "v2 after tax":       "taxed backtest, last partial FY settled in-loop at the final session; nothing sold at the end",
+        "v2 sold on the last day": "taxed backtest with every holding sold on the final session (sell charges and tax paid)",
+        "bh_lots before tax": "bh_lots equal-rupee basket, held, untaxed",
+        "bh_lots after tax":  "bh_lots equal-rupee basket held to the end: nothing realised, nil tax, no sell charge",
+        "bh_lots sold on the last day": "bh_lots sold on the final session: sell charges and tax on the realised gain",
         "bh published":       "costless daily-rebalanced index -- untaxable, reference only",
     }
     out_rows = []
@@ -339,15 +341,18 @@ def main(u):
     else:
         print(f"      saved -> {tt.name}   TAX_COST_OF_TURNOVER "
               f"{float(_c['cagr_full']):+.2f} pts")
-    # THE TWO TAXED v2 FIGURES ARE NOT THE SAME NUMBER, AND THAT IS NOT A
-    # DISAGREEMENT. FY_EQUITY's close is the in-loop taxed curve; bh_lots' "v2
-    # after tax" settles the UNASSESSED tail at the final session so the two
-    # lines are comparable at the endpoint. They differ by exactly that tail.
+    # SINCE 2026-09-25 THE TWO TAXED v2 FIGURES ARE THE SAME NUMBER. The engine
+    # settles the last partial financial year in-loop, so FY_EQUITY's close and
+    # bh_lots' "v2 after tax" are one curve's endpoint. A difference is a defect.
     _v2_post = [r for r in out_rows if r["line"] == "v2 after tax"]
     if _v2_post:
         _d = fy_close - float(_v2_post[0]["final_equity"])
-        print(f"        FY_EQUITY close Rs {fy_close:,.2f} less settled tail "
-              f"Rs {_d:,.2f} = bh_lots' v2-after-tax line")
+        print(f"        FY_EQUITY close Rs {fy_close:,.2f}; bh_lots' v2-after-tax line "
+              f"differs by Rs {_d:,.2f}")
+        if abs(_d) > 0.01:
+            raise AssertionError(
+                f"FY_EQUITY close and BH_LOTS 'v2 after tax' disagree by Rs {_d:,.2f}; "
+                f"both are the same in-loop taxed curve since 2026-09-25")
 
 
 if __name__ == "__main__":

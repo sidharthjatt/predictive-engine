@@ -101,42 +101,17 @@ def cagr(s):
     return ((s.iloc[-1]/s.iloc[0])**(1/y)-1)*100
 
 def bh_lots(px,op,bd):
-    """-> (equity series, terminal tax, detail). Buy once, hold, realise at end."""
-    d0,dN=bd[0],bd[-1]
-    o0=op.loc[d0]
-    syms=[s for s in o0.index if not np.isnan(o0[s]) and o0[s]>0]
-    per=START_CAPITAL/len(syms)
-    shares,cash={},START_CAPITAL
-    for s in syms:
-        pr=float(o0[s])*(1+SLIPPAGE)
-        q=int(per//pr)
-        if q<1: continue
-        tc=calc_tc(pr,q,"BUY")
-        if cash < q*pr+tc: continue
-        cash-=q*pr+tc; shares[s]=(q,pr)
-    # mark to market every session, no rebalance, no further trade
-    held=pd.DataFrame({s:px[s] for s in shares})
-    qty=pd.Series({s:shares[s][0] for s in shares})
-    eq=(held.loc[bd].fillna(method="ffill")*qty).sum(axis=1)+cash
-    # the single realisation, at the last session's open with the usual slippage
-    gain=0.0; proceeds=0.0; sell_tc=0.0
-    oN=op.loc[dN]
-    for s,(q,bp) in shares.items():
-        pr=float(oN.get(s,np.nan))
-        if np.isnan(pr) or pr<=0: pr=float(px.loc[dN,s])
-        pr*=(1-SLIPPAGE)
-        proceeds+=q*pr; sell_tc+=calc_tc(pr,q,"SELL")
-        gain+=q*(round(pr,2)-round(bp,2))          # section 3(C): price diff only
-    held_days=(dN-d0).days
-    fy=T.financial_year(dN); reg=T.regime_of(dN)
-    b=dict.fromkeys(T.BUCKETS,0.0)
-    b[("long_" if held_days>=T.LTCG_HOLD_DAYS else "short_")+reg]=gain
-    tx=T.tax_for_fy(fy,b)
-    globals()["_SH"]=shares
-    return eq,tx,dict(names=len(shares),held_days=held_days,fy=T.fy_label(fy),
-                      regime=reg,gain=gain,tax=tx["total_tax"],
-                      exemption=tx["exemption"],residual_cash=cash,
-                      proceeds=proceeds,sell_tc=sell_tc)
+    """-> (headline equity, last-day tax row, detail). Thin wrapper over
+    results/bh_held.held_lots, kept so the name and its callers survive.
+
+    SINCE 2026-09-25 the headline is held to the end and never sold, so it pays
+    no tax and no sell charge; the "sold on the last day" curve and its tax are
+    in detail["eq_last_day"] and the returned tax row."""
+    import bh_held
+    r=bh_held.held_lots(px,op,bd)
+    globals()["_SH"]=r["shares"]
+    det=dict(r["detail"]); det["eq_last_day"]=r["eq_last_day"]
+    return r["eq_headline"],det.pop("tax_row"),det
 
 
 # EVERYTHING BELOW RAN AT IMPORT UNTIL 2026-09-18, AND THAT WAS A DEFECT RATHER
@@ -203,18 +178,22 @@ def main(u):
         v2_off,_,_,_=backtest_exposure(px,op,sc,bd,pc,mom20,pv,audit=None,tax_enabled=False,**kw)
         a={k:[] for k in ("holdings","summary","trades","ranking","decisions","skipped")}
         v2_on ,_,_,_=backtest_exposure(px,op,sc,bd,pc,mom20,pv,audit=a,tax_enabled=True,**kw)
+        a2={k:[] for k in ("holdings","summary","trades","ranking","decisions","skipped")}
+        v2_last,_,_,_=backtest_exposure(px,op,sc,bd,pc,mom20,pv,audit=a2,tax_enabled=True,
+                                        end_sale=True,**kw)
         stmt,_=T.liability_schedule(a["tax"]["lots"],bd)
-        v2_unassessed=float(stmt.loc[~stmt["assessed"],"total_tax"].sum())
 
         bh_eq,bh_tx,det=bh_lots(px,op,bd)
+        bh_last=det["eq_last_day"]
         bh_pub=START_CAPITAL*(1+px.pct_change().loc[bd].mean(axis=1).fillna(0)).cumprod()
 
-        # SETTLED: every outstanding liability paid at the window's last session, for
-        # BOTH lines. Without this the comparison is not like-for-like -- section 3(9)
-        # assesses bh_lots' single realisation in 2027, outside the window, so an
-        # unsettled bh_lots pays literally nothing.
-        v2_settled=v2_on.copy();  v2_settled.iloc[-1]-=v2_unassessed
-        bh_settled=bh_eq.copy();  bh_settled.iloc[-1]-=bh_tx["total_tax"]
+        # SINCE 2026-09-25 NOTHING IS SETTLED HERE. The engine settles the last,
+        # partial financial year in-loop on the final session (tax_util.Ledger
+        # .due_on), so v2_on is already after all tax on what it realised. The
+        # headline sells nothing at the end, for either line; the "sold on the
+        # last day" lines sell everything, pay the sell charges and are taxed.
+        v2_settled=v2_on
+        bh_settled=bh_eq
 
         print(f"\n{'-'*96}\n {tag.upper()}   {bd[0].date()} .. {bd[-1].date()}   {len(bd):,} sessions")
         print(f"{'-'*96}")
@@ -222,7 +201,9 @@ def main(u):
               f"({det['held_days']/365.25:.1f}y) -> LONG term")
         print(f"      single realisation in {det['fy']}, regime '{det['regime']}', gain Rs {det['gain']:,.0f}, "
               f"exemption Rs {det['exemption']:,.0f}")
-        print(f"      LTCG due Rs {det['tax']:,.0f}   (rate {T.LTCG_RATE[det['regime']]*100:g}%)")
+        print(f"      if sold on the last day: LTCG due Rs {det['tax']:,.0f}   (rate "
+              f"{T.LTCG_RATE[det['regime']]*100:g}%), sell charges Rs {det['sell_tc']:,.0f}; "
+              f"headline sells nothing and pays neither")
 
         # THE LABELS SAY *WHEN*, NOT ONLY *WHETHER*. "after tax (settled)" was true
         # but silent on the thing that separates the two lines: v2 paid across the
@@ -230,18 +211,20 @@ def main(u):
         _nded=int(stmt["assessed"].sum())
         # THE LABELS ARE BOUND ONCE AND REUSED as the res{} keys below. Repeating the
         # literal at the lookup is what broke when the wording changed.
-        L_V2_POST=f"v2  after tax  ({_nded} deductions in-loop, tail settled at end)"
-        L_BH_POST="bh_lots after tax  (nil in-loop, entire liability settled at end)"
+        L_V2_POST=f"v2  after tax  ({_nded} deductions in-loop, last FY settled at end)"
+        L_BH_POST="bh_lots after tax  (held to the end, nothing realised, nil tax)"
+        L_V2_LAST="v2  sold on the last day, after tax"
+        L_BH_LAST="bh_lots sold on the last day, after sell charges and tax"
         L_V2_PRE="v2  before tax"; L_BH_PRE="bh_lots before tax"
         L_BH_PUB="bh published (costless, daily-rebal)"
-        rows=[(L_V2_PRE,v2_off),(L_V2_POST,v2_settled),
-              (L_BH_PRE,bh_eq),(L_BH_POST,bh_settled),
+        rows=[(L_V2_PRE,v2_off),(L_V2_POST,v2_settled),(L_V2_LAST,v2_last),
+              (L_BH_PRE,bh_eq),(L_BH_POST,bh_settled),(L_BH_LAST,bh_last),
               (L_BH_PUB,bh_pub)]
         print(f"\n  WHEN THE TAX LEFT CASH -- the two lines are not comparable along the path")
-        print(f"      v2       deducted in-loop  Rs {a['tax']['cum_tax']:>12,.0f}"
-              f"      settled at end  Rs {v2_unassessed:>12,.0f}")
-        print(f"      bh_lots  deducted in-loop  Rs {0:>12,.0f}"
-              f"      settled at end  Rs {bh_tx['total_tax']:>12,.0f}")
+        print(f"      v2       headline  Rs {a['tax']['cum_tax']:>12,.0f}"
+              f"      sold on the last day  Rs {a2['tax']['cum_tax']:>12,.0f}")
+        print(f"      bh_lots  headline  Rs {0:>12,.0f}"
+              f"      sold on the last day  Rs {bh_tx['total_tax']:>12,.0f}")
         print(f"\n  {'line':<66}{'FULL':>10}{'2019-2022':>12}{'2023-2026':>12}   final equity")
         res={}
         for lab,s in rows:
@@ -251,19 +234,15 @@ def main(u):
         print()
         for _l in (
           "  v2's capital-gains tax leaves cash on the first trading day at or after 31",
-          "  March of each financial year, so it is gone before the next morning's fills and",
-          "  the capital it removes stops compounding for the rest of the run. bh_lots",
-          "  realises once at BT_END_DATE, and its entire liability falls due in FY2026-27 --",
-          "  outside the window -- so nothing is deducted in-loop and both lines are settled",
-          "  together at the final session. The two curves are therefore comparable at the",
-          "  endpoint but not along the path: v2 has been paying since 2020, bh_lots pays",
-          "  once at the end. bh_lots keeps the use of that capital for the whole window,",
-          "  which is not an artefact of the settlement -- it is the deferral a low-turnover",
-          "  book actually earns, and it is already inside the after-tax gap below rather",
-          "  than missing from it."):
+          "  March of each financial year, and the last, partial year is settled on the",
+          "  final session. bh_lots never sells in the headline, so it realises nothing and",
+          "  pays no tax; that deferral is what a book that never trades earns. The 'sold on",
+          "  the last day' lines sell everything on the final session, pay the same sell",
+          "  charges and are taxed under the same rules."):
             print(_l)
         e_pre =res[L_V2_PRE]-res[L_BH_PRE]
         e_post=res[L_V2_POST]-res[L_BH_POST]
+        e_last=res[L_V2_LAST]-res[L_BH_LAST]
         e_pub =res[L_V2_PRE]-res[L_BH_PUB]
         # THE GATE. A concentrated basket does not get to print an edge at all.
         # Annotating the number was not enough: a figure gets copied out of a
@@ -289,7 +268,7 @@ def main(u):
             print(f"        Limit basis: {CONC_LIMIT_BASIS}.")
         else:
             print(f"\n  EDGE  v2 - bh_lots   before tax {e_pre:+.2f} pts      after tax {e_post:+.2f} pts"
-                  f"      swing {e_post-e_pre:+.2f}")
+                  f"      swing {e_post-e_pre:+.2f}      sold on the last day {e_last:+.2f} pts")
         print(f"  EDGE  v2 - bh published (the +0.89/+0.43 baseline) {e_pub:+.2f} pts"
               f"   [costless daily-rebalanced index, untaxable -- reference only]")
 
@@ -309,13 +288,14 @@ def main(u):
                    f"benchmark {_impact:+.2f} pts against an effect size of 2.05, "
                    f"and the universe is SURVIVORSHIP_MODE=static so that name is "
                    f"in the basket because of the run it had")
-        _v2_tax_total = float(a["tax"]["cum_tax"]) + v2_unassessed
         _lines = [
-            ("v2 before tax",      L_V2_PRE,  v2_off,      0.0),
-            ("v2 after tax",       L_V2_POST, v2_settled,  _v2_tax_total),
-            ("bh_lots before tax", L_BH_PRE,  bh_eq,       0.0),
-            ("bh_lots after tax",  L_BH_POST, bh_settled,  float(bh_tx["total_tax"])),
-            ("bh published",       L_BH_PUB,  bh_pub,      float("nan")),
+            ("v2 before tax",                L_V2_PRE,  v2_off,      0.0),
+            ("v2 after tax",                 L_V2_POST, v2_settled,  float(a["tax"]["cum_tax"])),
+            ("v2 sold on the last day",      L_V2_LAST, v2_last,     float(a2["tax"]["cum_tax"])),
+            ("bh_lots before tax",           L_BH_PRE,  bh_eq,       0.0),
+            ("bh_lots after tax",            L_BH_POST, bh_settled,  0.0),
+            ("bh_lots sold on the last day", L_BH_LAST, bh_last,     float(bh_tx["total_tax"])),
+            ("bh published",                 L_BH_PUB,  bh_pub,      float("nan")),
         ]
         _out = []
         for _key, _lab, _s, _paid in _lines:
@@ -331,6 +311,9 @@ def main(u):
                      "cagr_2019_2022": "", "cagr_2023_2026": "",
                      "final_equity": "", "tax_paid": "", "withheld_reason": ""})
         _out.append({"line": "gap_after_tax", "cagr_full": round(e_post, 4),
+                     "cagr_2019_2022": "", "cagr_2023_2026": "",
+                     "final_equity": "", "tax_paid": "", "withheld_reason": ""})
+        _out.append({"line": "gap_sold_on_the_last_day", "cagr_full": round(e_last, 4),
                      "cagr_2019_2022": "", "cagr_2023_2026": "",
                      "final_equity": "", "tax_paid": "", "withheld_reason": ""})
         _out.append({"line": "TAX_COST_OF_TURNOVER",

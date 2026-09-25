@@ -302,7 +302,10 @@ def tax_due_by_date(summary_dates, trades):
         late = led.due_on(d, after_fills=True)
         if late:
             due[d] = due.get(d, 0.0) + late
-            label[d] = ", ".join(fy_label(f) for f in led.assess_on.get(pd.Timestamp(d), []))
+            fys = list(led.assess_on.get(pd.Timestamp(d), []))
+            if led.end is not None and pd.Timestamp(d) == led.end:
+                fys += sorted(led.settled_at_end)
+            label[d] = ", ".join(fy_label(f) for f in fys)
     return {"due": due, "label": label}
 
 
