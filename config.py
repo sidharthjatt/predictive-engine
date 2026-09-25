@@ -311,8 +311,41 @@ def source_key_for(u):
     return source_key(sorted(Path(u.prepare_data_dir()).glob("*.csv")))
 
 
+def _code_tokens(src):
+    """The token stream of Python source with comments and blank lines removed.
+
+    A comment or a blank line cannot change what the code computes, so neither
+    may change a cache key. Everything else -- names, operators, literals,
+    docstrings, error strings, indentation -- is kept, token by token.
+    """
+    import io
+    import textwrap
+    import tokenize
+    toks = tokenize.generate_tokens(io.StringIO(textwrap.dedent(src)).readline)
+    return "\x00".join(f"{t.type}:{t.string}" for t in toks
+                        if t.type not in (tokenize.COMMENT, tokenize.NL))
+
+
+def _data_lines(path):
+    """A data file's bytes with its `#` comment lines removed.
+
+    engine_core._load_calendar reads the calendar with comment="#", so a header
+    comment is invisible to the code and must be invisible to the key.
+    """
+    return b"".join(l for l in Path(path).read_bytes().splitlines(keepends=True)
+                    if not l.lstrip().startswith(b"#"))
+
+
 def panel_code_key():
     """sha256 over everything besides the source CSVs that determines a panel.
+
+    COMMENTS ARE NOT PART OF THE KEY SINCE 2026-09-25. The functions below are
+    hashed as token streams without comment tokens (_code_tokens), and the
+    calendar without its `#` header (_data_lines), so rewording a comment does
+    not force a rebuild. Docstrings and error strings are code tokens and are
+    still covered. Changing this function changed every key once; all eight
+    panels were rebuilt on 2026-09-25 and were byte-identical to the panels the
+    previous key described.
 
     ADDED 2026-09-24. The key recorded only the source data, so a change to the
     feature code left every cached panel "current": a panel built by the old
@@ -334,9 +367,9 @@ def panel_code_key():
                ec.build_panel, ec._fit_seed, ec.score_monthly,
                fv.add_stock_features, fv.add_market_relative_features,
                fv.cross_sectional_normalize):
-        h.update(inspect.getsource(fn).encode())
-    h.update(Path(numerics.__file__).read_bytes())
-    h.update(Path(ec.TRADING_CALENDAR).read_bytes())
+        h.update(_code_tokens(inspect.getsource(fn)).encode())
+    h.update(_code_tokens(Path(numerics.__file__).read_text()).encode())
+    h.update(_data_lines(ec.TRADING_CALENDAR))
     h.update(repr((list(SEEDS), ec.HORIZON, ec.PURGE, ec.PURGE_EMBARGO,
                    list(fv.FEATS_V2), fv.EXTREME_RET_HI, fv.EXTREME_RET_LO,
                    lightgbm.__version__)).encode())

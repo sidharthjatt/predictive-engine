@@ -29,7 +29,7 @@ import numpy as np
 import pandas as pd
 import config
 from features_v2 import FEATS_V2, add_stock_features, add_market_relative_features
-from universes.registry import REGISTRY, certified
+from universes.registry import REGISTRY, gated
 
 N_DATES = 24
 PRICE_COLS = ["open", "high", "low", "close"]
@@ -39,9 +39,9 @@ PRICE_COLS = ["open", "high", "low", "close"]
 # into diagnostics/leakage_check1_causality.txt, and the sibling scripts use two
 # other spellings for the same two universes. Labels are presentation; paths are
 # facts. Order is load-bearing -- the report is written universe by universe.
-LABELS = {u.tag: u.display_name for u in certified()}
+LABELS = {u.tag: u.display_name for u in gated()}
 UNIVERSES = {u.tag: (u.data_dir, LABELS[u.tag])
-             for u in certified()}
+             for u in gated()}
 
 
 def load_raw(d):

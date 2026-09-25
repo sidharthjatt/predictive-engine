@@ -25,56 +25,66 @@ currently wrong.
 
 ---
 
-## Verification gates cover 2 of 8 universes -- costed 2026-09-24, not extended
+## GATE 9 runs on all 8 universes since 2026-09-25; nt_verify fails on 4 of the 6 uncertified
 
-`universes/registry.CERTIFIED` is `("nifty100", "midcap150")`. GATE 9 in
-check_all (check_b_exec_timing, verify_next_open_execution,
-leakage_check1_causality, leakage_check2_trading_purge) and the nt_verify
-delegates of GATE 5 run on those two only, so next-open fills, feature causality
-and the purge are proven on 2 of 8 universes. Every other universe is published
-without them.
+**GATE 9 was extended to every registered universe on 2026-09-25**
+(`universes/registry.gated()`) and passes on all eight, with no check loosened:
 
-Measured on 2026-09-24 on the Mac mini M4, each script run alone on the two
-certified universes (247 symbols between them):
-
-| delegate | 2 universes | per symbol | all 8 (1,384 symbols), estimated |
+| universe | check_b fills, all at the open | leakage_check1 cells per feature | purge months gap > 0 (gap < 2) |
 |---|---:|---:|---:|
-| leakage_check1_causality | 122.9 s | 0.50 s | about 690 s |
-| leakage_check2_trading_purge | 5.4 s | | about 30 s |
-| check_b_exec_timing | 3.5 s | | about 20 s |
-| verify_next_open_execution | 0.7 s | no universe | 0.7 s |
-| nt_verify, per universe | 11.6 s and 15.4 s | about 0.11 s | about 150 s for all 8 |
+| nifty100 | 938 of 938 | 4,752 | 126 of 126 (0) |
+| midcap150 | 1,016 of 1,016 | 7,104 | 126 of 126 (0) |
+| nifty50 | 864 of 864 | 2,400 | 126 of 126 (0) |
+| midcap50 | 865 of 865 | 2,352 | 126 of 126 (0) |
+| midcap100 | 898 of 898 | 4,704 | 126 of 126 (0) |
+| nifty200 | 969 of 969 | 9,456 | 126 of 126 (0) |
+| smallcap250 | 1,086 of 1,086 | 11,904 | 126 of 126 (0) |
+| nifty500 | 1,119 of 1,119 | 23,760 | 126 of 126 (0) |
 
-The estimate scales each run by symbol count, which is what each script iterates.
-Extending to all eight would add about 14 minutes to a default check_all run,
-from 275 s to roughly 1,100 s. No new run artefacts are needed: all eight
-universes' raw panels, score panels, daily audit files and Nautilus v2 fills are
-written by `run_all.py`. The change itself is one line (add the tags to
-`CERTIFIED`), but that also changes what validate_sizing, validate_breadth_live,
-validate_topn, shuffle_test and the combined pair chart cover, and whether the
-six added universes pass has never been measured.
+Measured run times alone: leakage_check1 724 s (it was 123 s on two universes),
+leakage_check2 21 s, check_b 7 s. `registry.CERTIFIED` still names two universes
+and still scopes nt_verify, validate_sizing, validate_breadth_live, validate_topn,
+shuffle_test and the pair chart.
+
+**nt_verify, run once on all eight (not gated beyond the certified two), fails on
+four.** v2, cadence 20, 92 rebalances each; full output in
+`diagnostics/nt_verify_all_universes_20260925.txt`:
+
+| universe | same symbol set (gated) | 0.01-grid identical | unexplained |
+|---|---:|---:|---:|
+| nifty100, midcap150, nifty50, smallcap250 | 92 of 92 | 92 of 92 | 0 |
+| midcap50 | 91 of 92 | 92 of 92 | 0 |
+| midcap100 | 92 of 92 | 80 of 92 | 12 |
+| nifty200 | 92 of 92 | 91 of 92 | 1 |
+| nifty500 | 92 of 92 | 91 of 92 | 1 |
+
+The port and the vectorised engine are therefore not proven identical on
+midcap50, midcap100, nifty200 and nifty500, and every Nautilus figure for those
+four is unverified. Not investigated. The midcap50 case is a selection mismatch
+on one rebalance, which is the gated property; the other three are quantity
+differences that nt_verify cannot explain as share-count quantization.
 
 ## Left by the 2026-09-24 cleanup pass, deliberately
 
-- **Comments inside the panel-key functions still name the retired 58 and 74 and
-  the old tags.** `config.panel_code_key()` hashes the source text of
-  `engine_core.canonical_price`, `_load_calendar`, `_check_calendar`,
-  `build_panel`, `_fit_seed` and `score_monthly`, three functions in
-  `features_v2.py`, and the whole of `data/nse_trading_calendar.csv`. An edit to
-  a comment there changes the key and forces every score panel to rebuild (about
-  3.5 hours for all eight). Left: `results/engine_core.py` 243, 256, 266, 271,
-  292, 320, 329, 332, 343, 345, 658, 709; `results/features_v2.py` 147, 158; the
-  header of `data/nse_trading_calendar.csv`. Two of them are error strings citing
-  RETIRED_UNIVERSES.md, which resolves through git history.
-- **`jackknife.py`'s baseline gate fails on both certified universes.** It
-  reconstructs v2 at 19.29% on nifty100 against the pipeline's 19.40%, and buy &
-  hold at 23.65% against 24.16%; on midcap150, 27.75% against 28.78% and 24.90%
-  against 25.46%. The replaced `n100_jackknife.py` failed identically before the
-  merge, and `mid_jackknife.py` produced the same 27.75 / 24.90 with no gate. The
-  likely cause is in `config.py`: these scripts use engine_core's integer year
-  window (`BT_START`, `BT_END`), not the date window (`config.BT_START_DATE`,
-  `BT_END_DATE`) the pipeline uses; this is not verified. The README's concentration figures (LLOYDSME, `:373`) come from this
-  code path. Not fixed: fixing it changes a published figure.
+- **Comments inside the panel-key functions named the retired universes and the
+  old tags -- FIXED 2026-09-25.** `config.panel_code_key()` now hashes the
+  functions as token streams without comments (`config._code_tokens`) and the
+  calendar without its `#` header (`config._data_lines`). The key changed once;
+  all eight universes' raw and score panels were rebuilt and every one was
+  byte-identical to its backup. The docstring and error-string edits were made
+  before that rebuild, and the comment edits after it, which left the key at
+  `sha256:b33a551a...` as the sidecars record.
+- **`jackknife.py`'s baseline gate failed on both certified universes -- FIXED
+  2026-09-25.** Cause: it cut the backtest with engine_core's integer years
+  (`BT_START`, `BT_END` = 2019, 2026), which runs to the calendar's last session,
+  2026-06-08 -- 1,842 sessions against the pipeline's 1,836 to 2026-05-29. With
+  `config.BT_START_DATE`/`BT_END_DATE` it reproduces `v2FINAL_equity.csv` exactly
+  on both universes (tradeability made no difference; it is set anyway). The gate
+  now requires identical curves. The concentration figures were re-measured and
+  restated in README ("The edge is concentrated..."), the old ones marked
+  superseded. **`topn_test.py` has the same window** and was not changed: it
+  carries a pre-registered accept rule, and changing what it measures is a
+  question for the owner.
 - **Names of deleted files stay in comments and docstrings** where they record
   what a file did (`engine_v2_final_mid.py`, `make_n100_chart.py`,
   `build_scores_mid.py` and so on), and quoted incident file names stay as quoted
@@ -82,13 +92,26 @@ six added universes pass has never been measured.
 - **Tracked diagnostics written before 2026-09-24 are not regenerated** and keep
   the tags their scripts printed then, except the six check_all rewrites on every
   run, which are committed on the current code.
-- **`run_all.PIPELINE_ORDER` still lists one row per (step, universe),** 52 rows
-  written out by hand. check_pipeline_order, check_plan_order and GATE 2 key on
-  those labels (`STEP 10a` ... `STEP 18.02`), so generating the table from the
-  registry would renumber every step. Recorded as a question, not changed.
+- **`run_all.PIPELINE_ORDER` still lists one row per (step, universe)**: see
+  the entry below, "run_all.PIPELINE_ORDER's hand-written rows -- DEFERRED".
 - **Per-universe measured constants stay declared per universe** (seed-noise
   floors, expected tradability counts, purge-study months, price-noise sigma),
   as `measured_universes.py` requires: they are results, not configuration.
+
+## run_all.PIPELINE_ORDER's hand-written rows -- DEFERRED 2026-09-25
+
+`run_all.PIPELINE_ORDER` writes out 52 rows by hand, one per (step, universe):
+`("STEP 10a", "build_scores.py", "midcap150")` through
+`("STEP 18.02", "tax_report.py", "nifty500")`. Adding a universe means adding six
+rows and inventing six labels, so a universe is not yet only a registry row.
+
+Deferred by decision on 2026-09-25, not fixed. The labels are keys: GATE 2
+checks the row count against `PIPELINE_ROW_COUNT`, and check_pipeline_order,
+check_plan_order and the run folders' logs name steps by label. Generating the
+rows from the registry would renumber every step, and the irregular labels
+(`10za`, `10.01`) exist because steps were inserted without renumbering. Doing it
+means choosing a label scheme and migrating every reader of the labels in one
+change.
 
 ## macOS and Linux gave different numbers from the same code and data -- FIXED 2026-09-24
 

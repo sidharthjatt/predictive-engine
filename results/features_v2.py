@@ -144,8 +144,8 @@ def add_market_relative_features(panel):
     #     and pandas' rolling(60) needs 60 non-NaN observations, so a single missing
     #     day voided that symbol's next 60 windows.
     #
-    #     Harmless on the 58 and the 74, where essentially every name trades every
-    #     day. Fatal on MidCap150, where median per-symbol coverage of the union
+    #     Harmless on the two retired universes, where essentially every name traded
+    #     every day. Fatal on MidCap150, where median per-symbol coverage of the union
     #     index is 70.6%: beta_60 survived on 42.1% of rows and idio_vol_60 on
     #     35.7%, against 93.8-100% for the other fifteen features. Since the panel
     #     drops any row with a NaN feature, only 32.9% of rows survived, and the
@@ -155,7 +155,7 @@ def add_market_relative_features(panel):
     #     Computing per symbol removes the coupling: a gap in one name can no longer
     #     void windows in that name, and never could in any other. Where a symbol
     #     trades every union date the two are arithmetically identical, which is why
-    #     the 58 is the control for this change.
+    #     a retired universe was the control for this change.
     #
     # The formulas, the window and the ddof convention below are unchanged. Only the
     # index the window runs over is different.

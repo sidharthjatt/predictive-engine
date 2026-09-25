@@ -6,10 +6,10 @@
 # carries, in the same class as a raw price file -- which is what it always was
 # in substance, since a trading calendar is a record of what the exchange did.
 #
-# provenance:  union of trading dates across the 58 raw CSVs in data/raw/nifty50
-#              (the retired "58" universe), written by results/make_trading_calendar.py
+# provenance:  union of trading dates across the raw CSVs of a retired 58-name
+#              universe in data/raw/nifty50, written by results/make_trading_calendar.py
 #              -- THAT SCRIPT NO LONGER EXISTS. It was deleted on 2026-09-11 in
-#              commit 2fe48ff, together with the 58 universe and its raw files.
+#              commit 2fe48ff, together with that universe and its raw files.
 #              This file is frozen tracked source data: restore it from git, do
 #              not look for a step that regenerates it.
 # last_derived_sha256:
@@ -17,8 +17,8 @@
 #              -- sha256 of this file, header included, as that script last wrote
 #              it. The dates below are byte-identical to that build; only this
 #              header has changed since.
-# why the 58:  its files carried no market-holiday rows, unlike 70 of the 148
-#              MidCap150 files and 24 of the 100 Nifty 100 files. mid u n100 covers
+# why that one: its files carried no market-holiday rows, unlike 70 of the 148
+#              MidCap150 files and 24 of the 100 Nifty 100 files. midcap150 u nifty100 covers
 #              every session listed here, but ADDS 279 phantom dates -- and 247 of
 #              those appear in BOTH, so the two surviving universes corroborate
 #              each other's errors rather than cross-checking them. That is why
@@ -29,8 +29,8 @@
 #
 # THE END DATE IS A DATA BOUNDARY, NOT A MARKET BOUNDARY.
 #   2026-06-08 is simply the last date present in data/raw/nifty50. The market did
-#   not stop trading on it. The surviving raw data already runs past it -- n100 to
-#   2026-06-22, mid to 2026-08-06 -- and those sessions are ABSENT here, so
+#   not stop trading on it. The surviving raw data already runs past it -- nifty100 to
+#   2026-06-22, midcap150 to 2026-08-06 -- and those sessions are ABSENT here, so
 #   build_panel drops them. Anyone widening config.BT_END_DATE past 2026-06-08
 #   will meet engine_core._check_calendar's RANGE assertion, which is the intended
 #   behaviour: it refuses rather than silently truncating the panel.

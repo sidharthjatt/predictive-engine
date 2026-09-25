@@ -85,8 +85,218 @@
   fills whose PREVIOUS session is a recorded decision date: 1,016 of 1,016
 
 
+====================================================================================================
+ CHECK B -- EXECUTION TIMING FROM THE FILL RECORD -- NIFTY 50 (nifty50)
+====================================================================================================
+
+  fills file      nautilus/reports/nifty50/v2/fills.csv
+  arm             v2 -- v2 invvol, breadth-scaled   (segment 'v2',
+                  from nt_run.reports_segment, the writer's own rule)
+  fills recorded  864
+  on 0.05 grid    857 of 864 fill prices (99.2%)
+  price panel     v_nifty50_expanding.parquet
+  reconstruction  price * (1 +/- 0.0015) rounded to that date's NSE tick
+                  (nt_data.quote_frame and _round_to, the port's own rule)
+  tolerance       half of that date's tick: exact equality on the grid
+
+  MATCHES, PER CANDIDATE (a fill may match more than one)
+    (a) that day's OPEN      -- the design          864 of 864
+    (b) that day's CLOSE     -- same-day close        7 of 864
+    (c) previous CLOSE       -- signal-day close     60 of 864
+    (d) previous OPEN                                11 of 864
+
+  fills matching (a): 864 of 864
+  fills matching NOTHING: 0
+  fills matching (a) UNIQUELY: 786
+  fills matching (a) AND another candidate (ambiguous, prices within half a
+    tick of each other -- a limit of the instrument, not an exception): 78
+
+  EXCEPTIONS -- fills NOT matching the fill day's open: 0
+
+  FILLS EXECUTING AT A CLOSE RATHER THAN AN OPEN: 0
+
+  every fill date on the panel's trading calendar: 864 of 864
+  fills whose PREVIOUS session is a recorded decision date: 864 of 864
+
+
+====================================================================================================
+ CHECK B -- EXECUTION TIMING FROM THE FILL RECORD -- NIFTY MIDCAP 50 (midcap50)
+====================================================================================================
+
+  fills file      nautilus/reports/midcap50/v2/fills.csv
+  arm             v2 -- v2 invvol, breadth-scaled   (segment 'v2',
+                  from nt_run.reports_segment, the writer's own rule)
+  fills recorded  865
+  on 0.05 grid    826 of 865 fill prices (95.5%)
+  price panel     v_midcap50_expanding.parquet
+  reconstruction  price * (1 +/- 0.0015) rounded to that date's NSE tick
+                  (nt_data.quote_frame and _round_to, the port's own rule)
+  tolerance       half of that date's tick: exact equality on the grid
+
+  MATCHES, PER CANDIDATE (a fill may match more than one)
+    (a) that day's OPEN      -- the design          865 of 865
+    (b) that day's CLOSE     -- same-day close       13 of 865
+    (c) previous CLOSE       -- signal-day close     78 of 865
+    (d) previous OPEN                                15 of 865
+
+  fills matching (a): 865 of 865
+  fills matching NOTHING: 0
+  fills matching (a) UNIQUELY: 767
+  fills matching (a) AND another candidate (ambiguous, prices within half a
+    tick of each other -- a limit of the instrument, not an exception): 98
+
+  EXCEPTIONS -- fills NOT matching the fill day's open: 0
+
+  FILLS EXECUTING AT A CLOSE RATHER THAN AN OPEN: 0
+
+  every fill date on the panel's trading calendar: 865 of 865
+  fills whose PREVIOUS session is a recorded decision date: 865 of 865
+
+
+====================================================================================================
+ CHECK B -- EXECUTION TIMING FROM THE FILL RECORD -- NIFTY MIDCAP 100 (midcap100)
+====================================================================================================
+
+  fills file      nautilus/reports/midcap100/v2/fills.csv
+  arm             v2 -- v2 invvol, breadth-scaled   (segment 'v2',
+                  from nt_run.reports_segment, the writer's own rule)
+  fills recorded  898
+  on 0.05 grid    863 of 898 fill prices (96.1%)
+  price panel     v_midcap100_expanding.parquet
+  reconstruction  price * (1 +/- 0.0015) rounded to that date's NSE tick
+                  (nt_data.quote_frame and _round_to, the port's own rule)
+  tolerance       half of that date's tick: exact equality on the grid
+
+  MATCHES, PER CANDIDATE (a fill may match more than one)
+    (a) that day's OPEN      -- the design          898 of 898
+    (b) that day's CLOSE     -- same-day close       12 of 898
+    (c) previous CLOSE       -- signal-day close     83 of 898
+    (d) previous OPEN                                13 of 898
+
+  fills matching (a): 898 of 898
+  fills matching NOTHING: 0
+  fills matching (a) UNIQUELY: 795
+  fills matching (a) AND another candidate (ambiguous, prices within half a
+    tick of each other -- a limit of the instrument, not an exception): 103
+
+  EXCEPTIONS -- fills NOT matching the fill day's open: 0
+
+  FILLS EXECUTING AT A CLOSE RATHER THAN AN OPEN: 0
+
+  every fill date on the panel's trading calendar: 898 of 898
+  fills whose PREVIOUS session is a recorded decision date: 898 of 898
+
+
+====================================================================================================
+ CHECK B -- EXECUTION TIMING FROM THE FILL RECORD -- NIFTY 200 (nifty200)
+====================================================================================================
+
+  fills file      nautilus/reports/nifty200/v2/fills.csv
+  arm             v2 -- v2 invvol, breadth-scaled   (segment 'v2',
+                  from nt_run.reports_segment, the writer's own rule)
+  fills recorded  969
+  on 0.05 grid    940 of 969 fill prices (97.0%)
+  price panel     v_nifty200_expanding.parquet
+  reconstruction  price * (1 +/- 0.0015) rounded to that date's NSE tick
+                  (nt_data.quote_frame and _round_to, the port's own rule)
+  tolerance       half of that date's tick: exact equality on the grid
+
+  MATCHES, PER CANDIDATE (a fill may match more than one)
+    (a) that day's OPEN      -- the design          969 of 969
+    (b) that day's CLOSE     -- same-day close       14 of 969
+    (c) previous CLOSE       -- signal-day close     70 of 969
+    (d) previous OPEN                                10 of 969
+
+  fills matching (a): 969 of 969
+  fills matching NOTHING: 0
+  fills matching (a) UNIQUELY: 877
+  fills matching (a) AND another candidate (ambiguous, prices within half a
+    tick of each other -- a limit of the instrument, not an exception): 92
+
+  EXCEPTIONS -- fills NOT matching the fill day's open: 0
+
+  FILLS EXECUTING AT A CLOSE RATHER THAN AN OPEN: 0
+
+  every fill date on the panel's trading calendar: 969 of 969
+  fills whose PREVIOUS session is a recorded decision date: 969 of 969
+
+
+====================================================================================================
+ CHECK B -- EXECUTION TIMING FROM THE FILL RECORD -- NIFTY SMALLCAP 250 (smallcap250)
+====================================================================================================
+
+  fills file      nautilus/reports/smallcap250/v2/fills.csv
+  arm             v2 -- v2 invvol, breadth-scaled   (segment 'v2',
+                  from nt_run.reports_segment, the writer's own rule)
+  fills recorded  1,086
+  on 0.05 grid    1,053 of 1,086 fill prices (97.0%)
+  price panel     v_smallcap250_expanding.parquet
+  reconstruction  price * (1 +/- 0.0015) rounded to that date's NSE tick
+                  (nt_data.quote_frame and _round_to, the port's own rule)
+  tolerance       half of that date's tick: exact equality on the grid
+
+  MATCHES, PER CANDIDATE (a fill may match more than one)
+    (a) that day's OPEN      -- the design         1086 of 1,086
+    (b) that day's CLOSE     -- same-day close       22 of 1,086
+    (c) previous CLOSE       -- signal-day close     96 of 1,086
+    (d) previous OPEN                                16 of 1,086
+
+  fills matching (a): 1,086 of 1,086
+  fills matching NOTHING: 0
+  fills matching (a) UNIQUELY: 959
+  fills matching (a) AND another candidate (ambiguous, prices within half a
+    tick of each other -- a limit of the instrument, not an exception): 127
+
+  EXCEPTIONS -- fills NOT matching the fill day's open: 0
+
+  FILLS EXECUTING AT A CLOSE RATHER THAN AN OPEN: 0
+
+  every fill date on the panel's trading calendar: 1,086 of 1,086
+  fills whose PREVIOUS session is a recorded decision date: 1,086 of 1,086
+
+
+====================================================================================================
+ CHECK B -- EXECUTION TIMING FROM THE FILL RECORD -- NIFTY 500 (nifty500)
+====================================================================================================
+
+  fills file      nautilus/reports/nifty500/v2/fills.csv
+  arm             v2 -- v2 invvol, breadth-scaled   (segment 'v2',
+                  from nt_run.reports_segment, the writer's own rule)
+  fills recorded  1,119
+  on 0.05 grid    1,103 of 1,119 fill prices (98.6%)
+  price panel     v_nifty500_expanding.parquet
+  reconstruction  price * (1 +/- 0.0015) rounded to that date's NSE tick
+                  (nt_data.quote_frame and _round_to, the port's own rule)
+  tolerance       half of that date's tick: exact equality on the grid
+
+  MATCHES, PER CANDIDATE (a fill may match more than one)
+    (a) that day's OPEN      -- the design         1119 of 1,119
+    (b) that day's CLOSE     -- same-day close       14 of 1,119
+    (c) previous CLOSE       -- signal-day close     78 of 1,119
+    (d) previous OPEN                                17 of 1,119
+
+  fills matching (a): 1,119 of 1,119
+  fills matching NOTHING: 0
+  fills matching (a) UNIQUELY: 1,013
+  fills matching (a) AND another candidate (ambiguous, prices within half a
+    tick of each other -- a limit of the instrument, not an exception): 106
+
+  EXCEPTIONS -- fills NOT matching the fill day's open: 0
+
+  FILLS EXECUTING AT A CLOSE RATHER THAN AN OPEN: 0
+
+  every fill date on the panel's trading calendar: 1,119 of 1,119
+  fills whose PREVIOUS session is a recorded decision date: 1,119 of 1,119
+
+
   INPUT READ (gitignored; holds whatever last wrote it):
-    midcap150  /Users/sidharthchoudhary/Downloads/algo_trading_project/nautilus/reports/midcap150/v2/fills.csv written 2026-09-24 15:27  (1,016 fills)
-    nifty100   /Users/sidharthchoudhary/Downloads/algo_trading_project/nautilus/reports/nifty100/v2/fills.csv written 2026-09-24 15:27  (938 fills)
+    midcap100  /Users/sidharthchoudhary/Downloads/algo_trading_project/nautilus/reports/midcap100/v2/fills.csv written 2026-09-25 04:39  (898 fills)
+    midcap150  /Users/sidharthchoudhary/Downloads/algo_trading_project/nautilus/reports/midcap150/v2/fills.csv written 2026-09-25 04:18  (1,016 fills)
+    midcap50   /Users/sidharthchoudhary/Downloads/algo_trading_project/nautilus/reports/midcap50/v2/fills.csv written 2026-09-25 03:46  (865 fills)
+    nifty100   /Users/sidharthchoudhary/Downloads/algo_trading_project/nautilus/reports/nifty100/v2/fills.csv written 2026-09-25 04:01  (938 fills)
+    nifty200   /Users/sidharthchoudhary/Downloads/algo_trading_project/nautilus/reports/nifty200/v2/fills.csv written 2026-09-25 05:05  (969 fills)
+    nifty50    /Users/sidharthchoudhary/Downloads/algo_trading_project/nautilus/reports/nifty50/v2/fills.csv written 2026-09-25 04:27  (864 fills)
+    nifty500   /Users/sidharthchoudhary/Downloads/algo_trading_project/nautilus/reports/nifty500/v2/fills.csv written 2026-09-25 06:24  (1,119 fills)
+    smallcap250 /Users/sidharthchoudhary/Downloads/algo_trading_project/nautilus/reports/smallcap250/v2/fills.csv written 2026-09-25 05:28  (1,086 fills)
   ungated, reported only: 0 fill(s) not matching the day's open exactly.
-  RESULT: PASS -- gated: 0 fills match a close without matching the open, and 0 fills fall off the trading calendar, on 2 universe(s) (nifty100, midcap150), v2 arm. Not gated: that every fill matches the day's open (reported above).
+  RESULT: PASS -- gated: 0 fills match a close without matching the open, and 0 fills fall off the trading calendar, on 8 universe(s) (nifty100, midcap150, nifty50, midcap50, midcap100, nifty200, smallcap250, nifty500), v2 arm. Not gated: that every fill matches the day's open (reported above).
