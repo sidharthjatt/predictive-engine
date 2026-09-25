@@ -77,7 +77,8 @@ WHAT THIS DOES ABOUT IT
                          tally: GATE 5 never asserts (three of its delegates
                          cannot, see DELEGATES), which hid these four with it.
                          Asserts when all four ran and passed; a missing input
-                         is a named skip. Covers registry.CERTIFIED only.
+                         is a named skip. Covers every registered universe
+                         (registry.gated()) since 2026-09-25.
 
 WHICH GATE NEVER ASSERTS, AND WHY
     GATE 5, even with --since and --slow. Three of its delegates can never
@@ -270,14 +271,17 @@ SLOW_SHORT = "refits the model; needs --slow"
 def _needs(label):
     import paths as _p
     from universes.registry import REGISTRY as _R
-    from universes.registry import certified as _certified
+    from universes.registry import certified as _certified, gated as _gated
     two = _certified()
+    every = _gated()
     if label == "results/leakage_check2_trading_purge.py":
-        return [u.raw_cache for u in two]
+        return [u.raw_cache for u in every]
+    if label == "results/leakage_check1_causality.py":
+        return [u.data_dir for u in every]
     if label == "results/validate_topn.py":
         return [u.score_cache for u in two] + [u.metrics_dir / "v34_comparison.csv" for u in two]
     if label == "results/check_b_exec_timing.py":
-        return [x for u in two for x in (
+        return [x for u in every for x in (
             ROOT / "nautilus" / "reports" / u.tag / "v2" / "fills.csv",
             u.score_cache, _p.tagged_artefact(u, "daily_decisions"))]
     if label.startswith("nautilus/nt_verify.py --universe="):
@@ -736,8 +740,9 @@ def gate_delegates(res, slow):
                     f"as passed.",
                  f"live-like delegates lack run artefacts ({', '.join(skip9)})")
     elif not missing9 and all(v == "PASS" for v in live.values()):
+        from universes.registry import gated as _gated
         res.note(f"GATE 9  {len(LIVE_LIKE)} of {len(LIVE_LIKE)} live-like delegates "
-                 f"passed on {', '.join(_CERTIFIED)}: next-open fills on the NSE "
+                 f"passed on all {len(_gated())} universes: next-open fills on the NSE "
                  f"tick grid, no feature look-ahead on sampled dates, purge gap > 0")
 
 

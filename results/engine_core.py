@@ -240,7 +240,7 @@ def _load_calendar():
             "    git checkout -- data/nse_trading_calendar.csv\n"
             "\n"
             "  DO NOT TRY TO REBUILD IT. There is nothing left to rebuild it from.\n"
-            "  It was computed once, from the 58 universe's raw files, by\n"
+            "  It was computed once, from a retired universe's raw files, by\n"
             "  results/make_trading_calendar.py. Both were deleted on 2026-09-11 in\n"
             "  commit 2fe48ff, so that script is not in the tree and restoring it\n"
             "  would not help: the raw files it read are gone too.\n"
@@ -253,8 +253,7 @@ def _load_calendar():
             "\n"
             "  The panel cannot be built without the calendar, because a panel that\n"
             "  silently keeps market-holiday rows is what this filter exists to\n"
-            "  prevent. See RETIRED_UNIVERSES.md section 6 and the file's own\n"
-            "  header.")
+            "  prevent. See the calendar file's own header.")
     d = read_table(TRADING_CALENDAR, comment="#", parse_dates=["date"])
     return set(d["date"])
 
@@ -262,13 +261,13 @@ def _load_calendar():
 def _check_calendar(cal, panel, tag=""):
     """Fail loudly if the calendar cannot be trusted for THIS panel.
 
-    Two guards, both aimed at the one real weakness of deriving the calendar from
-    the 58 universe: that the 58 could later be narrowed, truncated or re-sourced.
+    Two guards, both aimed at the one real weakness of a calendar derived from one
+    retired universe's files: that it could be narrowed, truncated or re-sourced.
 
       RANGE   -- the calendar must span the panel's own range. Catches truncation.
       DENSITY -- every date the filter removes must be THIN, i.e. carry fewer
                  symbols than a normal day OF ITS OWN YEAR. A phantom holiday
-                 shows ~32 of 148 mid symbols against that year's ~96, so it
+                 shows ~32 of 148 midcap150 symbols against that year's ~96, so it
                  passes; a genuine session wrongly dropped would be AT FULL
                  DENSITY FOR ITS OWN ERA and fires the assertion.
 
@@ -289,7 +288,7 @@ def _check_calendar(cal, panel, tag=""):
     with measured margin behind it. See KNOWN_ISSUES.md for the margin.
 
     The literal check "calendar covers fewer days than the panel" is deliberately
-    NOT used: the mid panel legitimately holds 6,810 dates against the calendar's
+    NOT used: the midcap150 panel legitimately holds 6,810 dates against the calendar's
     6,574, because 236 of them are the phantom dates being removed. That check
     would fail by construction on exactly the case the filter is built for. The
     density guard is the same intent expressed so it fires only when wrong.
@@ -317,8 +316,8 @@ def _check_calendar(cal, panel, tag=""):
             f"panel that are AT FULL DENSITY FOR THEIR OWN YEAR, e.g. "
             f"{[str(d.date()) for d in dense[:5]]}. Worst is {worst.date()} at "
             f"{per_date.get(worst, 0):.0f} symbols against a {worst.year} median "
-            f"of {era.get(worst.year, gmed):.0f}. The calendar is wrong or the 58 "
-            f"universe it derives from has changed. Refusing to filter.")
+            f"of {era.get(worst.year, gmed):.0f}. The calendar is wrong or this "
+            f"panel's source data has changed. Refusing to filter.")
     return removed
 
 
@@ -326,12 +325,12 @@ def build_panel(horizon, data_dir, pin_scorable=None):
     """Build the full feature panel from one universe's raw stock CSVs.
 
     `data_dir` IS REQUIRED, AND THAT IS THE POINT. It used to default to None and
-    fall back to `config.RAW_DATA_DIR / "nifty50"` -- the 58 -- so any caller that
-    forgot to pass a universe silently built a DIFFERENT universe's panel and
-    reported it under the caller's name. Nothing failed; the numbers were simply
-    another universe's. The 58 is deleted and that directory no longer exists, so
-    the fallback would now be a confusing FileNotFoundError deep in a glob; this
-    raises at the call instead, naming what is missing.
+    fall back to a retired universe's folder, so any caller that forgot to pass a
+    universe silently built a DIFFERENT universe's panel and reported it under the
+    caller's name. Nothing failed; the numbers were simply another universe's.
+    That folder no longer exists, so the fallback would now be a confusing
+    FileNotFoundError deep in a glob; this raises at the call instead, naming what
+    is missing.
 
     (This previously lived in engine_v2.py and was nearly lost when that file was
     deleted. It is permanent here now.)
@@ -340,9 +339,9 @@ def build_panel(horizon, data_dir, pin_scorable=None):
         raise ValueError(
             "build_panel(horizon, data_dir): data_dir is required and must name "
             "the universe's raw directory -- pass REGISTRY[tag].prepare_data_dir() "
-            "or u.data_dir. It used to default to the 58, which meant a caller "
-            "that omitted it silently built and reported the wrong universe. See "
-            "RETIRED_UNIVERSES.md.")
+            "or u.data_dir. It used to default to a retired universe's folder, "
+            "which meant a caller that omitted it silently built and reported "
+            "the wrong universe. See universes/registry.py.")
     frames = []
     _src = data_dir
     _cal = _load_calendar()
@@ -655,10 +654,11 @@ def score_monthly(raw, seeds, purge=PURGE, purge_mode="trading"):
     It is not larger: a bigger embargo removes training rows, which would change
     results for a reason unrelated to leakage.
 
-    WHY "calendar" STILL EXISTS. The retired 58 and 74 are frozen and their
-    published numbers must not move. Their builders pin purge_mode="calendar"
-    explicitly. THE DEFAULT IS THE CORRECT MODE so that anything new gets it
-    right; legacy behaviour must now be asked for by name.
+    WHY "calendar" STILL EXISTS. The retired universes' builders pinned
+    purge_mode="calendar" so their published numbers could not move, and
+    results/leakage_check2_purge.py still audits that rule as a record. THE
+    DEFAULT IS THE CORRECT MODE so that anything new gets it right; legacy
+    behaviour must be asked for by name.
 
     THE HEADLINE MOVES UNDER "trading", AND THE MOVE IS NOT AN IMPROVEMENT. It is
     not distinguishable from re-fit variation -- see EXPERIMENTS.md entry 29,
@@ -706,7 +706,7 @@ def score_monthly(raw, seeds, purge=PURGE, purge_mode="trading"):
         if PARALLEL_SEEDS and len(seeds) > 1:
             # One process per seed, each single-threaded.
             #
-            # EQUIVALENCE AND COST, re-measured 2026-08-23 on the 58 panel
+            # EQUIVALENCE AND COST, re-measured 2026-08-23 on a retired universe's panel
             # (month 2026-01, 257,973 training rows, 10 seeds, Mac Mini M4,
             # 10 cores = 4 performance + 6 efficiency):
             #

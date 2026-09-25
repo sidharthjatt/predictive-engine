@@ -41,7 +41,7 @@ sys.path.insert(0, str(ROOT / "nautilus"))
 import numpy as np
 import pandas as pd
 import config
-from universes.registry import REGISTRY, certified
+from universes.registry import REGISTRY, gated
 import paths
 
 # SLIPPAGE comes from slippage.py, which is the only definition. It was
@@ -96,13 +96,13 @@ _SEG = _reports_segment(ARM.mode, ARM.sizing)
 # The LABEL stays local: it is printed into
 # diagnostics/checkB_execution_timing.txt. Labels are presentation; paths are
 # facts. Order is load-bearing -- the report is written universe by universe.
-LABELS = {u.tag: u.display_name for u in certified()}
+LABELS = {u.tag: u.display_name for u in gated()}
 UNIVERSES = {
     u.tag: (ROOT / "nautilus" / "reports" / u.tag / _SEG / "fills.csv",
             u.score_cache,
             paths.tagged_artefact(u, "daily_decisions"),
             LABELS[u.tag])
-    for u in certified()
+    for u in gated()
 }
 
 

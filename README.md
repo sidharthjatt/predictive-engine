@@ -320,19 +320,31 @@ runs inside it. The research pipeline exports `date | symbol | score` to parquet
 and the port consumes that; the parquet is the only channel between the two.
 
 The port reconciles against the research engine on every rebalance date at zero
-tolerance — plain equality on integer share counts, no epsilon. Both live universes
-pass:
+tolerance — plain equality on integer share counts, no epsilon. Measured
+2026-09-25 on the current numerics with `nautilus/nt_verify.py --universe=<tag>`,
+v2, cadence 20, n = 92 rebalances per universe. check_all gates the two certified
+universes on every run; the other six were measured once and four of them fail:
 
-| universe | 0.01-tick reconciliation | artefact |
-|---|---|---|
-| midcap150 | 93 of 93 | recorded in `nautilus/NAUTILUS_STATUS.md` |
-| nifty100 | 93 of 93 | `diagnostics/nt_verify_n100.txt` |
+| universe | same symbol set (gated) | 0.01-tick reconciliation | unexplained | result |
+|---|---:|---:|---:|---|
+| nifty100 | 92 of 92 | 92 of 92 | 0 | PASS |
+| midcap150 | 92 of 92 | 92 of 92 | 0 | PASS |
+| nifty50 | 92 of 92 | 92 of 92 | 0 | PASS |
+| smallcap250 | 92 of 92 | 92 of 92 | 0 | PASS |
+| midcap50 | **91 of 92** | 92 of 92 | 0 | **FAIL** |
+| midcap100 | 92 of 92 | **80 of 92** | 12 | **FAIL** |
+| nifty200 | 92 of 92 | **91 of 92** | 1 | **FAIL** |
+| nifty500 | 92 of 92 | **91 of 92** | 1 | **FAIL** |
 
-> *These two counts were measured before the 2026-09-24 numerics rebuild and have
-> not been restated. `nautilus/nt_verify.py --universe=<tag>` prints the current
-> count; check_all runs it for both universes on every run.*
+So the port is certified identical in logic on nifty100 and midcap150 only. On the
+four failing universes it is not, and the cause is not investigated; see
+`KNOWN_ISSUES.md`.
 
-What that proves: the two implementations are identical in logic. Order lifecycle,
+> *Superseded 2026-09-25: this table read "midcap150 93 of 93, nifty100 93 of 93",
+> measured before the 2026-09-24 numerics rebuild, when the window held 93
+> rebalances.*
+
+What that proves, on the four passing universes: the two implementations are identical in logic. Order lifecycle,
 cash accounting, fee computation and decision timing all survive the move into an
 event-driven framework.
 
@@ -350,12 +362,17 @@ and lists what would have to happen before real money.
 
 One number from the nifty100 verification is worth quoting because it is unflattering.
 At the traded 0.05 tick grid, against the close-valued reference, the port matches
-on only 2 of 93 rebalances, with a maximum quantity error of 14.29%. That is the
-expected consequence of two documented differences — the reference values the
-portfolio at a close the strategy cannot see, and quantity is a floor division by a
-tick-snapped price — and against the fair baseline the figure is 89 of 93 with a
-maximum error of 0.13%. But the 14.29% is real and it is in the artefact, so it is
-here too.
+on only 43 of 92 rebalances, with a maximum quantity error of 11.11% (measured
+2026-09-25, n = 92). That is the expected consequence of two documented differences
+— the reference values the portfolio at a close the strategy cannot see, and
+quantity is a floor division by a tick-snapped price — and against the fair
+baseline (the same engine valued at the open on 0.05 ticks) the figure is 90 of 92
+with a maximum error of 0.05%. But the 11.11% is real and it is in the output, so
+it is here too.
+
+> *Superseded 2026-09-25: this paragraph read "2 of 93 rebalances, with a maximum
+> quantity error of 14.29% ... against the fair baseline the figure is 89 of 93 with
+> a maximum error of 0.13%", measured before the 2026-09-24 numerics rebuild.*
 
 ## What is wrong with these results
 
@@ -370,11 +387,26 @@ whole attempt, including that downloading the complete non-bond archive back to
 2016 did not extend coverage by a single day, and that the walk still breaks on a
 missing IREDA exclusion that is in no press release on disk.
 
-**The edge is concentrated in very few names.** midcap150 beats its own buy & hold by
-1.99 points. Remove LLOYDSME and that becomes +0.02. Remove TATAINVEST as well and
-it is −0.30. Those figures are from `experiments/EXP21_EXP22_PREREG.txt`, written
-before the experiment that measured them ran. One stock going up 123x is carrying
-the result.
+**The edge is concentrated in very few names, but not the ones it used to be.**
+Re-measured 2026-09-25 with `jackknife.py` on the published v2 run (window
+2019-01-01 to 2026-05-29, 1,836 sessions, cadence 20, research profile, tax off;
+the script's baseline reproduces `v2FINAL_equity.csv` exactly). midcap150 beats its
+own buy & hold by **3.32** points. Removing **TATAELXSI** alone takes that to
+**+0.07**. Removing LLOYDSME leaves **+2.94**, and removing TATAINVEST as well
+**+2.65**. No single removal of the 148 makes the edge negative; **30 of 200**
+random 8-name removals do. On nifty100 the edge is −4.76 and every one of the 99
+single removals leaves it negative. Each figure is one draw (n=1). Records:
+`diagnostics/jackknife_midcap150_20260925.txt`,
+`diagnostics/jackknife_nifty100_20260925.txt`.
+
+> *Superseded 2026-09-25: this paragraph read "midcap150 beats its own buy & hold
+> by 1.99 points. Remove LLOYDSME and that becomes +0.02. Remove TATAINVEST as well
+> and it is −0.30. Those figures are from `experiments/EXP21_EXP22_PREREG.txt`,
+> written before the experiment that measured them ran. One stock going up 123x is
+> carrying the result." Those figures were measured on the price data used before
+> the 2026-09-18 repoint and before the 2026-09-24 numerics rebuild, with the
+> jackknife's old window, which ran six sessions past the backtest's end to
+> 2026-06-08. The pre-registration keeps them as written.*
 
 **No significance test was ever run on the headline edge.** Not that it failed one
 — nobody ran one. Individual experiments carry noise controls and shuffle tests,
@@ -515,7 +547,10 @@ Each folder holds one CSV per constituent, named by NSE symbol (`ABB.csv`), and 
 for the published index. A universe's constituents are whatever CSVs are in its
 folder, so an extra or missing file changes that universe and every figure on it.
 For one universe only, copy just its folder; for the published figures, all eight.
-Other folders the owner's copy may have under `data/raw/` are not read by anything.
+Other folders the owner's copy may have under `data/raw/` are not read by anything:
+on the owner's machine these are `EQUITY/` (780 MB), `Final_With_Survivorship_Data/`
+(1,337 MB), `MidCap150/` (99 MB), `nifty100_benchmark/` (81 MB) and
+`Survivorship_Bias/` (1 MB), earlier vendor pulls kept for the record.
 
 **Check your copy before running anything:**
 
@@ -526,9 +561,12 @@ python3 check_data.py
 It compares every file against the tracked manifest `data/RAW_DATA_SHA256.txt`
 (SHA-256 per file) and exits 0 only if all 1,392 match and no extra file is present;
 otherwise it lists each missing, different or extra file. It needs only the Python
-standard library. With a one-universe copy it reports the other folders as missing,
-which is expected; `shasum -a 256 -c data/RAW_DATA_SHA256.txt` then shows that the
-folder you have is exact.
+standard library. For a copy holding one universe, check just that folder (this
+form reads universes/registry.py, so it needs the venv):
+
+```
+./venv/bin/python check_data.py --universe=midcap50
+```
 
 ## Running it
 

@@ -99,12 +99,12 @@ import pandas as pd                                  # noqa: E402
 import config                                        # noqa: E402
 import engine_core as _ec                            # noqa: E402
 from engine_core import HORIZON, PURGE_EMBARGO       # noqa: E402
-from universes.registry import REGISTRY, certified              # noqa: E402
+from universes.registry import REGISTRY, gated              # noqa: E402
 from config import read_table  # the one CSV/parquet reader: config.read_table
 
-LABELS = {u.tag: u.display_name for u in certified()}
+LABELS = {u.tag: u.display_name for u in gated()}
 UNIVERSES = {u.tag: (u.raw_cache, u.purge_mode, LABELS[u.tag])
-             for u in certified()}
+             for u in gated()}
 
 # One seed. The training mask does not depend on the seed list and the fit is
 # stubbed, so more seeds would repeat the same month loop for nothing.

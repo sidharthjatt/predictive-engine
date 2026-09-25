@@ -29,8 +29,17 @@ constant in absolute terms so the random arms are comparable across universes; t
 fraction is printed rather than corrected for.
 
 THE BASELINE GATE runs first on every universe: this script's reconstruction must
-reproduce the pipeline's own v2 and buy & hold CAGR from v2FINAL_equity.csv within
-0.05 points, or it stops. mid_jackknife.py had no such gate; n100_jackknife.py did.
+reproduce the pipeline's own v2 and buy & hold equity curves in v2FINAL_equity.csv
+EXACTLY -- same dates, same values -- or it stops. mid_jackknife.py had no such
+gate; n100_jackknife.py had one at 0.05 CAGR points.
+
+THE WINDOW IS config.BT_START_DATE .. BT_END_DATE, THE PIPELINE'S, SINCE 2026-09-25.
+Both originals cut the backtest with engine_core's integer years (2019..2026),
+which runs to the calendar's last session, 2026-06-08: 1,842 sessions against the
+pipeline's 1,836 to 2026-05-29. Those six extra days are the whole of the gap the
+old gate reported (v2 19.29 against 19.40 on nifty100, 27.75 against 28.78 on
+midcap150). Every concentration figure measured with the old window was measured
+over those 1,842 sessions.
 
 Reads only. Writes nothing.
 """
@@ -46,7 +55,8 @@ ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "results"))
 import config
-from engine_core import metrics, precompute, BT_START, BT_END
+import engine_core as _ec
+from engine_core import metrics, precompute
 from test_exposure import backtest_exposure
 import arms.registry as arm_reg
 import profiles as _prof            # the run's execution-realism profile
@@ -57,7 +67,7 @@ VOL_WIN = 60
 N_RANDOM = 200
 SEED = 0
 DROP_SIZE = 8
-TOLERANCE = 0.05          # percentage points, on strategy and on buy & hold
+BT_START_DATE, BT_END_DATE = config.BT_START_DATE, config.BT_END_DATE
 
 _U = None
 _P = None
@@ -82,6 +92,7 @@ def panel():
     global _P
     if _P is None:
         u = universe()
+        _ec.set_tradeability(u)     # as engine_v2_final does, before any backtest
         _P = read_table(config.require_cache(u.score_cache, what=f"{u.name} score panel"),
                         parse_dates=["date"])
     return _P
@@ -95,14 +106,14 @@ def named_drop():
     return ()
 
 
-def edge(drop=()):
-    """(strategy CAGR, buy & hold CAGR, edge) with `drop` removed from the universe."""
+def curves(drop=()):
+    """(v2 equity, buy & hold equity, trade cost, trade count) with `drop` removed."""
     P = panel()
     q = P[~P["symbol"].isin(set(drop))] if len(drop) else P
     px = q.pivot_table(index="date", columns="symbol", values="close").ffill()
     op = q.pivot_table(index="date", columns="symbol", values="open").ffill()
     sc = q.pivot_table(index="date", columns="symbol", values="score")
-    bd = px.index[(px.index.year >= BT_START) & (px.index.year <= BT_END)]
+    bd = px.index[(px.index >= BT_START_DATE) & (px.index <= BT_END_DATE)]
     pc = precompute(px); mom20 = px / px.shift(20) - 1
     idx = (1 + px.pct_change().mean(axis=1).fillna(0)).cumprod()
     pv = rolling_std(idx.pct_change(), VOL_WIN) * np.sqrt(252)
@@ -114,18 +125,22 @@ def edge(drop=()):
                                      mode="breadth", target_vol=pv.loc[bd].median(),
                                      participation_cap=_prof.research_only(__name__))
     bh = 1_000_000 * (1 + px.pct_change().loc[bd].mean(axis=1).fillna(0)).cumprod()
+    return eq, bh, tc, n
+
+
+def edge(drop=()):
+    """(strategy CAGR, buy & hold CAGR, edge) with `drop` removed from the universe."""
+    eq, bh, tc, n = curves(drop)
     s = metrics(eq, "s", tc, n)["CAGR%"]
     b = metrics(bh, "b")["CAGR%"]
     return s, b, s - b
 
 
 def official():
-    """(strategy CAGR, buy & hold CAGR, edge) as the pipeline recorded them."""
+    """(v2 equity, buy & hold equity) as the pipeline recorded them."""
     eq = read_table(universe().metrics_dir / "v2FINAL_equity.csv",
                     parse_dates=["date"]).set_index("date")
-    s = metrics(arm_reg.equity_series(eq, "v2"), "s")["CAGR%"]
-    b = metrics(eq["buyhold"], "b")["CAGR%"]
-    return s, b, s - b
+    return arm_reg.equity_series(eq, "v2"), eq["buyhold"]
 
 
 def pct(a, q):
@@ -139,25 +154,34 @@ def baseline_gate():
     print(" BASELINE GATE -- does this script's reconstruction reproduce the pipeline?")
     print("=" * 96)
     t0 = time.perf_counter()
-    s, b, e = edge()
+    eq, bh, tc, n = curves()
     secs = time.perf_counter() - t0
-    os_, ob_, oe_ = official()
+    oeq, obh = official()
+    s, b = metrics(eq, "s", tc, n)["CAGR%"], metrics(bh, "b")["CAGR%"]
+    os_, ob_ = metrics(oeq, "s")["CAGR%"], metrics(obh, "b")["CAGR%"]
+    e, oe_ = s - b, os_ - ob_
 
     print(f"\n   {'':<20}{'this script':>14}{'v2FINAL_equity':>17}{'delta':>10}")
     print(f"   {'strategy CAGR':<20}{s:>13.2f}%{os_:>16.2f}%{s-os_:>+10.2f}")
     print(f"   {'buy & hold CAGR':<20}{b:>13.2f}%{ob_:>16.2f}%{b-ob_:>+10.2f}")
     print(f"   {'edge':<20}{e:>+13.2f} {oe_:>+16.2f} {e-oe_:>+10.2f}")
+    print(f"   sessions            {len(eq):>13}  {len(oeq):>15}  "
+          f"({eq.index[0].date()} .. {eq.index[-1].date()})")
 
     bad = []
-    if abs(s - os_) > TOLERANCE: bad.append(("strategy", s, os_, s - os_))
-    if abs(b - ob_) > TOLERANCE: bad.append(("buy & hold", b, ob_, b - ob_))
+    for name, mine, off in (("strategy", eq, oeq), ("buy & hold", bh, obh)):
+        same = (len(mine) == len(off) and (mine.index == off.index).all()
+                and np.array_equal(mine.to_numpy(), off.to_numpy()))
+        if not same:
+            n_common = len(mine.index.intersection(off.index))
+            bad.append((name, len(mine), len(off), n_common))
     if bad:
         print("\n" + "!" * 96)
-        print(" GATE FAILED -- the reconstruction does not reproduce the pipeline")
+        print(" GATE FAILED -- the reconstruction does not reproduce the pipeline exactly")
         print("!" * 96)
-        for name, mine, off, d in bad:
-            print(f"   {name}: this script {mine:.2f}%, artefact {off:.2f}%, "
-                  f"difference {d:+.2f} pt (tolerance {TOLERANCE})")
+        for name, nm, no, nc in bad:
+            print(f"   {name}: this script {nm} sessions, artefact {no}, {nc} dates in "
+                  f"common; the curves are not identical")
         print("\n   Every leave-one-out number downstream is a difference between two")
         print("   curves built by THIS script. If its baseline is not the published")
         print("   strategy, those differences describe something else, and no")
@@ -166,7 +190,7 @@ def baseline_gate():
         print("!" * 96, flush=True)
         sys.exit(1)
 
-    print(f"\n   GATE PASSED -- both sides within {TOLERANCE} pt.")
+    print("\n   GATE PASSED -- v2 and buy & hold curves identical to v2FINAL_equity.csv.")
     return e, secs
 
 

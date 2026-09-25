@@ -1,0 +1,62 @@
+jackknife.py record, measured 2026-09-25 at commit 75e8b89 plus the pass A2 window fix (uncommitted at run time).
+command: ./venv/bin/python jackknife.py --universe=nifty100 --run
+
+================================================================================================
+ NIFTY 100 JACKKNIFE -- is the edge concentrated? (99 names)
+================================================================================================
+================================================================================================
+ BASELINE GATE -- does this script's reconstruction reproduce the pipeline?
+================================================================================================
+
+                          this script   v2FINAL_equity     delta
+   strategy CAGR               19.40%           19.40%     +0.00
+   buy & hold CAGR             24.16%           24.16%     +0.00
+   edge                        -4.76            -4.76      +0.00
+   sessions                     1836             1836  (2019-01-01 .. 2026-05-29)
+
+   GATE PASSED -- v2 and buy & hold curves identical to v2FINAL_equity.csv.
+
+================================================================================================
+ COST
+================================================================================================
+   one edge() call            : 0.7 s
+   full run                   : 300 calls (1 baseline + 99 leave-one-out + 200 random)
+   estimate                   : 3 min (201 s), assuming every call costs the baseline
+   removal size 8 is 8.1% of nifty100
+
+------------------------------------------------------------------------------------------------
+ [1] LEAVE-ONE-OUT over all 99 names
+------------------------------------------------------------------------------------------------
+
+   edge distribution over 99 single-name removals:
+     min -6.11   p10 -5.38   median -4.75   p90 -4.02   max -3.42
+     removals that flip the edge negative: 99 of 99 (100.0%)
+
+   most damaging single removals:
+     ADANIENSOL    edge  -6.11  drop  +1.35  (strategy 17.83%, buy&hold 23.94%)
+     CANBK         edge  -5.78  drop  +1.02  (strategy 18.47%, buy&hold 24.25%)
+     BRITANNIA     edge  -5.57  drop  +0.81  (strategy 18.75%, buy&hold 24.32%)
+     COALINDIA     edge  -5.55  drop  +0.79  (strategy 18.73%, buy&hold 24.28%)
+     GODREJCP      edge  -5.51  drop  +0.75  (strategy 18.85%, buy&hold 24.36%)
+     CIPLA         edge  -5.47  drop  +0.71  (strategy 18.75%, buy&hold 24.22%)
+     VEDL          edge  -5.47  drop  +0.71  (strategy 18.59%, buy&hold 24.06%)
+     BAJAJHLDNG    edge  -5.45  drop  +0.69  (strategy 18.71%, buy&hold 24.16%)
+
+------------------------------------------------------------------------------------------------
+ [2] 200 RANDOM REMOVALS OF 8 NAMES   (seed 0)
+------------------------------------------------------------------------------------------------
+
+   edge distribution over 200 random 8-name removals:
+     min -7.69   p10 -5.54   median -4.27   p90 -2.55   max -0.57
+     removals that flip the edge negative: 200 of 200 (100.0%)
+
+================================================================================================
+ SUMMARY -- reported, not graded
+================================================================================================
+   baseline edge                        -4.76 pt
+   largest single-name drop             +1.35 pt (ADANIENSOL, edge -> -6.11)
+   single removals flipping it negative 99 of 99
+   random-8 removals flipping it negative  200 of 200
+
+   This is a measurement, not a pre-registered experiment. There is no
+   accept rule and no threshold to pass, so the numbers stand as they are.

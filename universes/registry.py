@@ -1834,20 +1834,31 @@ REPORT_ORDER = ("nifty500", "nifty200", "nifty100", "nifty50", "midcap150", "mid
 # ---------------------------------------------------------------------------
 # THE CERTIFIED UNIVERSES -- the ones the verification gates measure.
 # ---------------------------------------------------------------------------
-# The leakage, execution-timing, sizing, breadth, top-N and shuffle checks were
-# built and measured on these two universes, and the Nautilus port is certified
-# on them (nt_verify). Until 2026-09-24 each of those scripts wrote the pair out
-# by hand as (REGISTRY["nifty100"], REGISTRY["midcap150"]); this is that pair,
-# once. ORDER IS LOAD-BEARING: every one of those reports runs nifty100 first, and
-# their committed outputs are in that order. Extending a gate to another universe
-# means adding its tag here, which extends every gate at once; the cost is
-# recorded in KNOWN_ISSUES.md ("Verification gates cover 2 of 8 universes").
+# The sizing, breadth, top-N and shuffle checks were built and measured on these
+# two universes, and the Nautilus port is certified on them (nt_verify). Until
+# 2026-09-24 each of those scripts wrote the pair out by hand as
+# (REGISTRY["nifty100"], REGISTRY["midcap150"]); this is that pair, once. ORDER IS
+# LOAD-BEARING: every one of those reports runs nifty100 first, and their committed
+# outputs are in that order. The leakage and execution-timing checks (GATE 9) run
+# on every universe since 2026-09-25 through gated(), below. nt_verify fails on
+# four of the other six (KNOWN_ISSUES.md, "GATE 9 runs on all 8 universes"), so
+# adding a tag here is not free.
 CERTIFIED = ("nifty100", "midcap150")
 
 
 def certified():
     """The CERTIFIED universes as Universe objects, in CERTIFIED order."""
     return [REGISTRY[t] for t in CERTIFIED]
+
+
+def gated():
+    """Every registered universe, the CERTIFIED ones first and in their order.
+
+    The universes check_all's GATE 9 (next-open fills, feature causality, purge)
+    runs on since 2026-09-25. CERTIFIED first so the two blocks those reports
+    always carried keep their place; the rest follow in registry order.
+    """
+    return certified() + [u for t, u in REGISTRY.items() if t not in CERTIFIED]
 
 
 # ---------------------------------------------------------------------------

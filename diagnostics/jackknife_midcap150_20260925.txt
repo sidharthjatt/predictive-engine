@@ -1,0 +1,76 @@
+jackknife.py record, measured 2026-09-25 at commit 75e8b89 plus the pass A2 window fix (uncommitted at run time).
+command: ./venv/bin/python jackknife.py --universe=midcap150 --run '--named-drop=LLOYDSME,TATAINVEST'
+
+================================================================================================
+ MIDCAP150 JACKKNIFE -- is the edge concentrated? (148 names)
+================================================================================================
+================================================================================================
+ BASELINE GATE -- does this script's reconstruction reproduce the pipeline?
+================================================================================================
+
+                          this script   v2FINAL_equity     delta
+   strategy CAGR               28.78%           28.78%     +0.00
+   buy & hold CAGR             25.46%           25.46%     +0.00
+   edge                        +3.32            +3.32      +0.00
+   sessions                     1836             1836  (2019-01-01 .. 2026-05-29)
+
+   GATE PASSED -- v2 and buy & hold curves identical to v2FINAL_equity.csv.
+
+================================================================================================
+ COST
+================================================================================================
+   one edge() call            : 0.9 s
+   full run                   : 350 calls (1 baseline + 148 leave-one-out + 200 random + 1 named)
+   estimate                   : 5 min (317 s), assuming every call costs the baseline
+   removal size 8 is 5.4% of midcap150
+
+ NAMED DROP (2)  strategy 27.93%   buy&hold 25.28%   edge +2.65 pt   <- the non-neutral test
+
+------------------------------------------------------------------------------------------------
+ [1] LEAVE-ONE-OUT over all 148 names
+------------------------------------------------------------------------------------------------
+
+   edge distribution over 148 single-name removals:
+     min +0.07   p10 +2.15   median +3.09   p90 +3.43   max +4.21
+     removals that flip the edge negative: 0 of 148 (0.0%)
+
+   most damaging single removals:
+     TATAELXSI     edge  +0.07  drop  +3.25  (strategy 25.49%, buy&hold 25.42%)
+     FLUOROCHEM    edge  +1.00  drop  +2.32  (strategy 26.41%, buy&hold 25.41%)
+     KALYANKJIL    edge  +1.29  drop  +2.03  (strategy 26.65%, buy&hold 25.36%)
+     COCHINSHIP    edge  +1.32  drop  +2.00  (strategy 26.66%, buy&hold 25.34%)
+     APARINDS      edge  +1.44  drop  +1.88  (strategy 26.65%, buy&hold 25.21%)
+     JSL           edge  +1.46  drop  +1.86  (strategy 26.65%, buy&hold 25.19%)
+     PIIND         edge  +1.73  drop  +1.59  (strategy 27.20%, buy&hold 25.47%)
+     POWERINDIA    edge  +1.75  drop  +1.57  (strategy 26.90%, buy&hold 25.15%)
+
+------------------------------------------------------------------------------------------------
+ [2] 200 RANDOM REMOVALS OF 8 NAMES   (seed 0)
+------------------------------------------------------------------------------------------------
+
+   edge distribution over 200 random 8-name removals:
+     min -2.86   p10 -0.56   median +1.05   p90 +2.62   max +4.24
+     removals that flip the edge negative: 30 of 200 (15.0%)
+
+================================================================================================
+ SUMMARY -- reported, not graded
+================================================================================================
+   baseline edge                        +3.32 pt
+   largest single-name drop             +3.25 pt (TATAELXSI, edge -> +0.07)
+   single removals flipping it negative 0 of 148
+   random-8 removals flipping it negative  30 of 200
+
+   WHERE THE NAMED DROP SITS: edge +2.65 pt
+     random draws at or below it: 181 of 200 (percentile 90.5)
+
+================================================================================================
+ VERDICT ON THE NAMED DROP
+================================================================================================
+  MIXED. A random 8 flips the edge negative 15% of the time and
+  the named drop sits at the 90.5th percentile. Read both numbers together.
+
+SINGLE NAMED REMOVALS, same code and panel, measured the same day with jackknife.edge():
+  LLOYDSME alone              strategy 28.32%   buy&hold 25.38%   edge +2.94 pt
+  TATAINVEST alone            strategy 28.06%   buy&hold 25.36%   edge +2.70 pt
+  LLOYDSME and TATAINVEST     strategy 27.93%   buy&hold 25.28%   edge +2.65 pt
+  TATAELXSI alone             strategy 25.49%   buy&hold 25.42%   edge +0.07 pt
