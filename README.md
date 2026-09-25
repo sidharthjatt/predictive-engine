@@ -73,7 +73,99 @@ pipeline trades on a price it could not have seen.
 
 ## Results
 
-### Rebuilt 2026-09-24, and identical on macOS and Linux
+### Read these first
+
+- **One name carries midcap150's edge.** midcap150 v2 beats its own buy & hold by
+  +3.32 CAGR points, and removing one stock, TATAELXSI, cuts that to +0.07
+  (tax off, reference buy & hold, measured 2026-09-25; see "The edge is
+  concentrated" below).
+- **Most cells are one draw.** Only nifty100 v2 and midcap150 v2 with tax off have
+  a measured spread (n=10, under a 0.01% price perturbation). Every other figure
+  is a single run (n=1) with no error bar, and figures of this kind have moved by
+  up to 5.9 CAGR points under changes too small to be strategy changes.
+- **The investable buy & hold pays no tax in the headline** because it never
+  sells. That is what holding and never trading earns. The "sold on the last day"
+  column prices the alternative: everything sold on 2026-05-29, with sell charges
+  and capital-gains tax.
+- **The survivorship bias is permanent.** Every universe is today's index members
+  backfilled to 2019 (see "What is wrong with these results").
+
+### Republished 2026-09-25: tax off and tax on, every universe and arm
+
+Window 2019-01-01 to 2026-05-29, 1,836 trading days, from Rs 10,00,000, all
+figures after costs, cadence 20, `research` profile. Run folders
+`runs/20260925T101022_all_all_r20` (tax off) and `runs/20260925T102105_all_all_r20`
+(tax on).
+
+- **Tax off** figures are identical to the 2026-09-24 publication (all 536 CSVs
+  compared; the Nautilus reports differ only in random identifier columns).
+- **Tax on, headline**: capital-gains tax is paid from cash in the loop under
+  TAX_AND_CHARGES.docx; the last, partial financial year (FY2026-27) is settled on
+  the final session on the gains realised by then; nothing is sold at the end.
+- **Tax on, sold on the last day**: the same run, with every holding sold at the
+  final session's open (its close where the open is missing), paying the usual
+  sell charges, and the realised gains taxed under the same rules.
+
+| universe | arm | tax off: CAGR% | MaxDD% | Sharpe | tax on, headline: CAGR% | MaxDD% | Sharpe | tax on, sold on the last day: CAGR% | n (tax off) |
+|---|---|---:|---:|---:|---:|---:|---:|---:|---|
+| nifty50 | v1 | 18.54 | -37.73 | 0.99 | 15.11 | -37.73 | 0.83 | 15.30 | n=1 |
+| nifty50 | v2 | 13.40 | -23.11 | 1.11 | 11.41 | -23.11 | 0.95 | 11.65 | n=1 |
+| nifty50 | v3 | 21.87 | -42.06 | 1.04 | 18.65 | -42.06 | 0.90 | 18.90 | n=1 |
+| nifty50 | v4 | 15.46 | -24.43 | 1.10 | 13.21 | -25.29 | 0.94 | 13.43 | n=1 |
+| nifty100 | v1 | 25.71 | -37.52 | 1.25 | 21.53 | -37.52 | 1.06 | 21.53 | n=1 |
+| nifty100 | v2 | 19.40 | -21.81 | 1.50 | 16.43 | -21.82 | 1.26 | 16.45 | n=10, sd 1.29 |
+| nifty100 | v3 | 27.58 | -40.72 | 1.15 | 23.68 | -40.72 | 1.01 | 23.66 | n=1 |
+| nifty100 | v4 | 20.38 | -26.66 | 1.28 | 17.46 | -26.66 | 1.11 | 17.48 | n=1 |
+| nifty200 | v1 | 38.22 | -41.05 | 1.55 | 32.35 | -41.06 | 1.33 | 32.55 | n=1 |
+| nifty200 | v2 | 28.21 | -20.41 | 1.82 | 24.06 | -20.41 | 1.54 | 24.25 | n=1 |
+| nifty200 | v3 | 34.88 | -56.70 | 1.29 | 29.60 | -56.46 | 1.12 | 29.65 | n=1 |
+| nifty200 | v4 | 29.12 | -26.40 | 1.68 | 24.57 | -26.86 | 1.41 | 24.62 | n=1 |
+| nifty500 | v1 | 39.98 | -51.70 | 1.55 | 33.53 | -51.70 | 1.33 | 33.54 | n=1 |
+| nifty500 | v2 | 31.14 | -30.83 | 2.07 | 26.32 | -30.83 | 1.72 | 26.40 | n=1 |
+| nifty500 | v3 | 46.39 | -60.72 | 1.57 | 36.89 | -60.83 | 1.30 | 36.78 | n=1 |
+| nifty500 | v4 | 33.44 | -42.28 | 1.92 | 28.31 | -42.28 | 1.60 | 28.34 | n=1 |
+| midcap50 | v1 | 28.74 | -34.95 | 1.39 | 25.21 | -34.96 | 1.22 | 25.47 | n=1 |
+| midcap50 | v2 | 20.97 | -22.21 | 1.54 | 17.81 | -22.20 | 1.30 | 17.89 | n=1 |
+| midcap50 | v3 | 26.09 | -38.20 | 1.18 | 22.06 | -38.21 | 1.02 | 22.29 | n=1 |
+| midcap50 | v4 | 19.47 | -26.08 | 1.34 | 16.38 | -26.04 | 1.13 | 16.49 | n=1 |
+| midcap100 | v1 | 37.90 | -36.96 | 1.59 | 32.32 | -36.98 | 1.37 | 32.43 | n=1 |
+| midcap100 | v2 | 28.86 | -20.29 | 1.81 | 24.49 | -20.30 | 1.54 | 24.58 | n=1 |
+| midcap100 | v3 | 35.99 | -45.07 | 1.32 | 30.90 | -45.06 | 1.17 | 31.03 | n=1 |
+| midcap100 | v4 | 23.12 | -36.10 | 1.26 | 19.36 | -36.10 | 1.07 | 19.47 | n=1 |
+| midcap150 | v1 | 36.84 | -42.21 | 1.53 | 30.95 | -42.21 | 1.31 | 31.05 | n=1 |
+| midcap150 | v2 | 28.78 | -21.39 | 1.94 | 24.16 | -21.39 | 1.61 | 24.24 | n=10, sd 2.23 |
+| midcap150 | v3 | 36.34 | -47.80 | 1.36 | 30.49 | -47.80 | 1.17 | 30.54 | n=1 |
+| midcap150 | v4 | 33.99 | -25.61 | 1.90 | 29.00 | -25.61 | 1.62 | 29.04 | n=1 |
+| smallcap250 | v1 | 48.81 | -36.71 | 1.93 | 41.06 | -36.71 | 1.66 | 41.07 | n=1 |
+| smallcap250 | v2 | 25.17 | -24.47 | 1.82 | 21.05 | -24.46 | 1.50 | 21.09 | n=1 |
+| smallcap250 | v3 | 46.69 | -40.19 | 1.67 | 39.37 | -40.19 | 1.44 | 39.50 | n=1 |
+| smallcap250 | v4 | 24.60 | -31.89 | 1.54 | 20.37 | -31.94 | 1.27 | 20.48 | n=1 |
+
+Buy & hold, the same for every arm of a universe. The reference is the costless
+daily-rebalanced equal-weight index the strategy tables have always used, and it
+is untaxed. The investable buy & hold buys equal rupees of every name once, pays
+the strategy's buy charges, and never trades again; taxed, its headline realises
+nothing and pays nothing, and "sold on the last day" pays the strategy's sell
+charges and long-term tax on the whole gain. The two right-hand columns are v2
+(tax on) against the investable buy & hold, headline against headline and
+last-day against last-day.
+
+| universe | buy & hold, reference (untaxed, daily-rebalanced index): CAGR% | MaxDD% | buy & hold, investable (held lots), taxed, headline: CAGR% | MaxDD% | held lots, sold on the last day: CAGR% | v2 tax on headline minus investable headline | v2 sold on the last day minus held lots sold on the last day |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| nifty50 | 20.67 | -39.11 | 19.62 | -37.78 | 18.35 | -8.21 | -6.70 |
+| nifty100 | 24.16 | -38.65 | 23.38 | -35.99 | 21.97 | -6.95 | -5.52 |
+| nifty200 | 25.54 | -38.44 | 23.69 | -36.36 | 22.27 | +0.37 | +1.98 |
+| nifty500 | 26.09 | -41.43 | 24.43 | -36.29 | 22.91 | +1.89 | +3.49 |
+| midcap50 | 24.34 | -37.57 | 25.97 | -38.55 | 24.51 | -8.16 | -6.62 |
+| midcap100 | 26.82 | -38.42 | 24.48 | -38.56 | 23.04 | +0.01 | +1.54 |
+| midcap150 | 25.46 | -37.73 | 23.55 | -35.88 | 22.16 | +0.61 | +2.08 |
+| smallcap250 | 27.15 | -48.65 | 26.60 | -44.98 | 24.95 | -5.55 | -3.86 |
+
+### SUPERSEDED 2026-09-25 for its tax-on figures -- rebuilt 2026-09-24, and identical on macOS and Linux
+
+*The tax-off figures in this section are unchanged and still current. Its tax-on
+figures predate the 2026-09-25 settlement of FY2026-27 and are superseded by the
+section above; they are kept as they were.*
 
 Every panel and every published cell was rebuilt on 2026-09-24 after the
 feature builder's variance, the CSV float parser and the panel format were
@@ -319,32 +411,35 @@ conclusions were measured on.
 runs inside it. The research pipeline exports `date | symbol | score` to parquet
 and the port consumes that; the parquet is the only channel between the two.
 
-The port reconciles against the research engine on every rebalance date at zero
+The port is checked against the research engine on every rebalance date at zero
 tolerance — plain equality on integer share counts, no epsilon. Measured
 2026-09-25 on the current numerics with `nautilus/nt_verify.py --universe=<tag>`,
-v2, cadence 20, n = 92 rebalances per universe. check_all gates the two certified
-universes on every run; the other six were measured once and four of them fail:
+v2, cadence 20, n = 92 rebalances per universe. check_all gates nifty100 and
+midcap150 on every run; the other six were measured once:
 
-| universe | same symbol set (gated) | 0.01-tick reconciliation | unexplained | result |
+| universe | rebalances with the same names | rebalances with identical holdings (0.01 tick) | differences nt_verify cannot explain | status |
 |---|---:|---:|---:|---|
-| nifty100 | 92 of 92 | 92 of 92 | 0 | PASS |
-| midcap150 | 92 of 92 | 92 of 92 | 0 | PASS |
-| nifty50 | 92 of 92 | 92 of 92 | 0 | PASS |
-| smallcap250 | 92 of 92 | 92 of 92 | 0 | PASS |
-| midcap50 | **91 of 92** | 92 of 92 | 0 | **FAIL** |
-| midcap100 | 92 of 92 | **80 of 92** | 12 | **FAIL** |
-| nifty200 | 92 of 92 | **91 of 92** | 1 | **FAIL** |
-| nifty500 | 92 of 92 | **91 of 92** | 1 | **FAIL** |
+| nifty100 | 92 of 92 | 92 of 92 | 0 | reconciled, gated |
+| midcap150 | 92 of 92 | 92 of 92 | 0 | reconciled, gated |
+| nifty50 | 92 of 92 | 92 of 92 | 0 | matched once, not gated |
+| smallcap250 | 92 of 92 | 92 of 92 | 0 | matched once, not gated |
+| midcap50 | 91 of 92 | 92 of 92 | 0 | **not reconciled** |
+| midcap100 | 92 of 92 | 80 of 92 | 12 | **not reconciled** |
+| nifty200 | 92 of 92 | 91 of 92 | 1 | **not reconciled** |
+| nifty500 | 92 of 92 | 91 of 92 | 1 | **not reconciled** |
 
-So the port is certified identical in logic on nifty100 and midcap150 only. On the
-four failing universes it is not, and the cause is not investigated; see
-`KNOWN_ISSUES.md`.
+**midcap50, midcap100, nifty200 and nifty500 are not reconciled.** On midcap50 the
+port holds a different set of names from the research engine on 1 of 92
+rebalances. On midcap100 the holdings differ on 12 of 92 rebalances, and on
+nifty200 and nifty500 on 1 of 92 each. None of these differences is explained,
+and none has been investigated. Every Nautilus figure for those four universes is
+unverified. See `KNOWN_ISSUES.md`.
 
 > *Superseded 2026-09-25: this table read "midcap150 93 of 93, nifty100 93 of 93",
 > measured before the 2026-09-24 numerics rebuild, when the window held 93
 > rebalances.*
 
-What that proves, on the four passing universes: the two implementations are identical in logic. Order lifecycle,
+What that proves, on nifty100 and midcap150 (and, measured once, nifty50 and smallcap250): the two implementations are identical in logic. Order lifecycle,
 cash accounting, fee computation and decision timing all survive the move into an
 event-driven framework.
 

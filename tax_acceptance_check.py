@@ -31,6 +31,13 @@ WHY THIS IS TWO CONDITIONS AND NOT ONE
     an implementation that renames published files. Neither is the acceptance
     test; both together are.
 
+    CONDITION 3 pins the 365-day long-term boundary. CONDITION 4 (2026-09-25)
+    pins the end-of-window rules against hand-worked numbers: the last partial
+    financial year settled on the final session; the investable buy & hold
+    selling nothing in the headline and paying the strategy's own sell charge
+    and tax when sold on the last day; the strategy keeping its holdings in the
+    headline and ending flat with end_sale=True.
+
 CONDITION 1 IS MEASURED AGAINST git HEAD, NOT AGAINST A TYPED-IN EXPECTATION
     A hardcoded list of expected default names would be a restatement of what
     this file's author believed the names were -- the same class of defect as a
@@ -328,6 +335,146 @@ def condition_3():
     return ok_all
 
 
+def condition_4():
+    """The end-of-window rules of 2026-09-25, each against a hand-worked number.
+
+      4a  the last, partial financial year is SETTLED on the final session, after
+          its fills, on realised gains, with the document's netting and the full
+          annual exemption; an earlier year is still assessed under section 3(9)
+      4b  the investable buy & hold: the headline sells nothing, so it pays no
+          tax and no sell charge; "sold on the last day" pays the strategy's own
+          sell charge (calc_tc) and long-term tax on the realised gain
+      4c  the strategy: the headline keeps its holdings at the end; end_sale=True
+          ends with none, and its tax is exactly tax_for_fy over what it realised
+
+    Synthetic data only: no caches, no panel, no network.
+    """
+    import numpy as np
+    import pandas as pd
+    for p in (ROOT, ROOT / "results"):
+        if str(p) not in sys.path:
+            sys.path.insert(0, str(p))
+    import tax_util as T
+    import bh_held
+    import test_exposure as TE
+    from engine_core import precompute
+
+    print("\n  CONDITION 4 -- end-of-window settlement and the last-day sale")
+
+    # ---- 4a. Partial-year settlement, worked by hand ------------------------
+    dates = pd.bdate_range("2026-03-02", "2026-05-29")
+    led = T.Ledger(dates)
+    fills = {   # date -> [(side, sym, qty, price)]
+        pd.Timestamp("2026-03-10"): [("SELL", "D", 10, 150.0)],
+        pd.Timestamp("2026-04-06"): [("BUY", "A", 100, 100.0), ("BUY", "C", 50, 200.0)],
+        pd.Timestamp("2026-05-04"): [("SELL", "A", 100, 110.0), ("SELL", "B", 1000, 400.0)],
+        pd.Timestamp("2026-05-05"): [("SELL", "C", 50, 190.0)],
+    }
+    led.buy("D", 10, 100.0, pd.Timestamp("2025-04-10"))      # FY2025-26, short
+    led.buy("B", 1000, 100.0, pd.Timestamp("2025-01-15"))    # held 474 days, long
+    paid = {}
+    for d in dates:
+        due = led.due_on(d)
+        for side, sym, q, pr in fills.get(d, []):
+            (led.buy if side == "BUY" else led.sell)(sym, q, pr, d)
+        due += led.due_on(d, after_fills=True)
+        if due:
+            paid[d] = due
+    # FY2025-26: short_new +500 -> 500 x 20% = 100, assessed 2026-03-31 (a
+    #   Tuesday, inside FY2025-26, so after that day's fills).
+    # FY2026-27: short_new +1,000 - 500 = 500 -> 100; long_new 300,000 less the
+    #   Rs 1,25,000 exemption = 175,000 x 12.5% = 21,875; total 21,975, settled
+    #   on the last session 2026-05-29.
+    want = {pd.Timestamp("2026-03-31"): 100.0, pd.Timestamp("2026-05-29"): 21_975.0}
+    ok_a = (set(paid) == set(want)
+            and all(abs(paid[d] - want[d]) < 1e-6 for d in want)
+            and led.settled_at_end == {2026})
+    stmt, _ = T.liability_schedule(pd.DataFrame(led.rows), dates)
+    r26 = stmt[stmt["fy"] == 2026].iloc[0]
+    ok_a = ok_a and bool(r26["assessed"]) and r26["assessed_basis"] == "backtest end" \
+        and abs(float(r26["total_tax"]) - 21_975.0) < 1e-6
+    print(f"    4a partial year: paid {dict((str(k.date()), round(v, 2)) for k, v in paid.items())}"
+          f"  expect {{'2026-03-31': 100.0, '2026-05-29': 21975.0}}  "
+          f"{'PASS' if ok_a else 'FAIL'}")
+    assert ok_a, f"end-of-window settlement: paid {paid}, expected {want}"
+
+    # ---- 4b. Buy & hold, headline and last-day sale, worked by hand ---------
+    bd = pd.bdate_range("2025-05-01", "2026-05-29")
+    px = pd.DataFrame({"X": 100.0, "Y": 200.0}, index=bd)
+    op = px.copy()
+    px.iloc[-1] = [140.0, 170.0]
+    op.iloc[-1] = [150.0, 180.0]
+    r = bh_held.held_lots(px, op, bd)
+    s = TE.SLIPPAGE
+    cash = TE.START_CAPITAL
+    qty, bpx = {}, {}
+    # The construction's own rule: equal rupees per name, a name skipped when
+    # the cash left cannot pay for it and its charge. Here X's buy charge leaves
+    # too little for Y, so only X is held -- the hand calculation follows suit.
+    for sym, p0 in (("X", 100.0), ("Y", 200.0)):
+        pr = p0 * (1 + s)
+        q = int((TE.START_CAPITAL / 2) // pr)
+        cost = q * pr + TE.calc_tc(pr, q, "BUY")
+        if cash < cost:
+            continue
+        cash -= cost
+        qty[sym], bpx[sym] = q, pr
+    close_n = {"X": 140.0, "Y": 170.0}
+    head = cash + sum(qty[k] * close_n[k] for k in qty)
+    proceeds = sell_tc = gain = 0.0
+    for sym, pN in ((k, {"X": 150.0, "Y": 180.0}[k]) for k in qty):
+        pr = pN * (1 - s)
+        proceeds += qty[sym] * pr
+        sell_tc += TE.calc_tc(pr, qty[sym], "SELL")
+        gain += qty[sym] * (round(pr, 2) - round(bpx[sym], 2))
+    tax = max(gain - 125_000.0, 0.0) * 0.125     # held 393 days: long, new rate
+    last = cash + proceeds - sell_tc - tax
+    ok_b = (abs(r["eq_headline"].iloc[-1] - head) < 1e-6
+            and abs(r["eq_last_day"].iloc[-1] - last) < 1e-6
+            and abs(r["detail"]["sell_tc"] - sell_tc) < 1e-9 and sell_tc > 0
+            and abs(r["detail"]["tax"] - tax) < 1e-6 and tax > 0
+            and bh_held.calc_tc is TE.calc_tc)
+    print(f"    4b buy & hold: headline {r['eq_headline'].iloc[-1]:,.2f} (expect {head:,.2f}, "
+          f"no tax, no sell charge); last day {r['eq_last_day'].iloc[-1]:,.2f} (expect "
+          f"{last:,.2f}: sell charges {sell_tc:,.2f}, tax {tax:,.2f})  "
+          f"{'PASS' if ok_b else 'FAIL'}")
+    assert ok_b, "buy & hold headline or last-day figure does not match the hand-worked case"
+
+    # ---- 4c. The strategy engine, headline against last-day sale ------------
+    bd = pd.bdate_range("2026-01-01", "2026-05-29")
+    # Ten names, so a TOP_N=8 selection is possible; constant scores, so the
+    # engine buys once and never sells until the end; every price rises, so the
+    # last-day sale realises a short-term gain inside FY2026-27.
+    syms = [f"S{k}" for k in range(10)]
+    steps = np.arange(len(bd))
+    px = pd.DataFrame({sym: 100.0 * (1 + (k + 1) * 0.0005) ** steps
+                       for k, sym in enumerate(syms)}, index=bd)
+    op = px.shift(1).fillna(px.iloc[0])
+    sc = pd.DataFrame({sym: float(10 - k) for k, sym in enumerate(syms)}, index=bd)
+    pc = precompute(px, vol_win=5)
+    pc["vol"] = pc["vol"].fillna(0.2).replace(0, 0.2)
+    mom20 = px / px.shift(20) - 1
+    out = {}
+    for end_sale in (False, True):
+        a = {k: [] for k in ("holdings", "summary", "trades", "ranking", "decisions", "skipped")}
+        eq, tc, n, _ = TE.backtest_exposure(px, op, sc, bd, pc, mom20, mode="none",
+                                            audit=a, tax_enabled=True, end_sale=end_sale,
+                                            participation_cap=None)
+        led = a["tax"]["ledger"]
+        want_tax = sum(T.tax_for_fy(fy, b)["total_tax"] for fy, b in led.realized.items())
+        out[end_sale] = dict(held=a["summary"][-1]["n_stocks"], tax=a["tax"]["cum_tax"],
+                             want=want_tax, cash=a["summary"][-1]["cash"], final=eq.iloc[-1])
+    h, l = out[False], out[True]
+    ok_c = (h["held"] > 0 and l["held"] == 0
+            and abs(h["tax"] - h["want"]) < 1e-6 and abs(l["tax"] - l["want"]) < 1e-6
+            and l["tax"] > h["tax"] and abs(l["final"] - l["cash"]) < 0.01)
+    print(f"    4c strategy: headline holds {h['held']} at the end, tax {h['tax']:,.2f}; "
+          f"last day holds {l['held']}, tax {l['tax']:,.2f} = tax_for_fy over realised "
+          f"{l['want']:,.2f}  {'PASS' if ok_c else 'FAIL'}")
+    assert ok_c, f"engine end-of-window behaviour wrong: {out}"
+    return ok_a and ok_b and ok_c
+
+
 def main():
     print("=" * 78)
     print(" TAX AXIS ACCEPTANCE -- inert at default, real off it")
@@ -335,6 +482,7 @@ def main():
     c1 = condition_1()
     c2 = condition_2()
     c3 = condition_3()
+    c4 = condition_4()
 
     print("\n  NOT COVERED BY THIS CHECK, AND NOT IMPLIED:")
     print("    - file CONTENTS. This checks names. The contents gate is")
@@ -343,7 +491,7 @@ def main():
     print("    - the retired-universe manifest's 171 hashes: not checked (the "
           "manifest was deleted from the tree on 2026-09-24).")
 
-    ok = (c1 is not False) and c2 and c3
+    ok = (c1 is not False) and c2 and c3 and c4
     print("\n" + "=" * 78)
     print(f" RESULT: {'PASS' if ok else 'FAIL'}"
           + ("   (condition 1 UNAVAILABLE -- see above)" if c1 is None else ""))

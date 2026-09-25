@@ -98,6 +98,48 @@ differences that nt_verify cannot explain as share-count quantization.
   floors, expected tradability counts, purge-study months, price-noise sigma),
   as `measured_universes.py` requires: they are results, not configuration.
 
+## Tax at the end of the window: FY2026-27 settled, no forced sale, and a "sold on the last day" figure -- CHANGED 2026-09-25
+
+Approved by the owner on 2026-09-25. The tax rules of TAX_AND_CHARGES.docx are
+unchanged; what changed is what happens at the window's end.
+
+- **The last, partial financial year is settled.** Until 2026-09-25 FY2026-27's
+  liability was computed and never deducted, because section 3(9) assesses it in
+  2027. `tax_util.Ledger.due_on` now settles every year still unassessed on the
+  window's last session, after that day's fills, on the gains realised by then,
+  with `tax_for_fy` unchanged (the document's netting and the full annual
+  exemption). `liability_schedule` marks such a year `assessed_basis = "backtest
+  end"`. The document is silent on a window that ends mid-year; the settlement
+  date is the owner's decision.
+- **Headline: nothing is sold at the end,** for the strategy or buy & hold. The
+  investable buy & hold (`results/bh_held.py`, held equal-rupee lots) therefore
+  realises nothing and pays no tax and no sell charge in the headline.
+- **"Sold on the last day"** (`backtest_exposure(end_sale=True)`,
+  `bh_held.held_lots()["eq_last_day"]`): every holding is sold on the last
+  session at its open (its close where the open is missing), with the usual
+  slippage and the strategy's `calc_tc` sell charge, and the gains are taxed
+  under the same rules. The strategy's sale is not participation-capped.
+- **Effect:** tax-off figures are identical. Tax-on headline CAGR moved by 0.00
+  to -0.57 points across the 32 cells (README, "Republished 2026-09-25").
+  `tax_acceptance_check.py` condition 4 pins all of this to hand-worked numbers.
+
+**Questions left open by the change.** The document does not say (1) whether a
+partial year's exemption should be pro-rated (it is not), or (2) at which price a
+final liquidation should happen. The open was chosen because every other sell
+fills at an open; on midcap50 v2 most held names closed below their open on
+2026-05-29, so the last-day figure (17.89%) came out above the headline (17.81%).
+
+## Widening registry.CERTIFIED beyond nifty100 and midcap150 -- DEFERRED 2026-09-25
+
+`universes/registry.CERTIFIED` is `("nifty100", "midcap150")`. It scopes
+nt_verify's gate, validate_sizing, validate_breadth_live, validate_topn,
+shuffle_test and the combined pair chart, none of which has ever run on the other
+six universes. GATE 9 already covers all eight (`registry.gated()`). Widening
+`CERTIFIED` was deferred by the owner on 2026-09-25. Known cost and blocker:
+nt_verify fails on midcap50, midcap100, nifty200 and nifty500 (entry "GATE 9 runs
+on all 8 universes"), and the refit validations take about 22 minutes per
+universe each.
+
 ## run_all.PIPELINE_ORDER's hand-written rows -- DEFERRED 2026-09-25
 
 `run_all.PIPELINE_ORDER` writes out 52 rows by hand, one per (step, universe):

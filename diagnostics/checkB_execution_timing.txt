@@ -290,13 +290,13 @@
 
 
   INPUT READ (gitignored; holds whatever last wrote it):
-    midcap100  /Users/sidharthchoudhary/Downloads/algo_trading_project/nautilus/reports/midcap100/v2/fills.csv written 2026-09-25 04:39  (898 fills)
-    midcap150  /Users/sidharthchoudhary/Downloads/algo_trading_project/nautilus/reports/midcap150/v2/fills.csv written 2026-09-25 04:18  (1,016 fills)
-    midcap50   /Users/sidharthchoudhary/Downloads/algo_trading_project/nautilus/reports/midcap50/v2/fills.csv written 2026-09-25 03:46  (865 fills)
-    nifty100   /Users/sidharthchoudhary/Downloads/algo_trading_project/nautilus/reports/nifty100/v2/fills.csv written 2026-09-25 04:01  (938 fills)
-    nifty200   /Users/sidharthchoudhary/Downloads/algo_trading_project/nautilus/reports/nifty200/v2/fills.csv written 2026-09-25 05:05  (969 fills)
-    nifty50    /Users/sidharthchoudhary/Downloads/algo_trading_project/nautilus/reports/nifty50/v2/fills.csv written 2026-09-25 04:27  (864 fills)
-    nifty500   /Users/sidharthchoudhary/Downloads/algo_trading_project/nautilus/reports/nifty500/v2/fills.csv written 2026-09-25 06:24  (1,119 fills)
-    smallcap250 /Users/sidharthchoudhary/Downloads/algo_trading_project/nautilus/reports/smallcap250/v2/fills.csv written 2026-09-25 05:28  (1,086 fills)
+    midcap100  /Users/sidharthchoudhary/Downloads/algo_trading_project/nautilus/reports/midcap100/v2/fills.csv written 2026-09-25 10:15  (898 fills)
+    midcap150  /Users/sidharthchoudhary/Downloads/algo_trading_project/nautilus/reports/midcap150/v2/fills.csv written 2026-09-25 10:14  (1,016 fills)
+    midcap50   /Users/sidharthchoudhary/Downloads/algo_trading_project/nautilus/reports/midcap50/v2/fills.csv written 2026-09-25 10:15  (865 fills)
+    nifty100   /Users/sidharthchoudhary/Downloads/algo_trading_project/nautilus/reports/nifty100/v2/fills.csv written 2026-09-25 10:14  (938 fills)
+    nifty200   /Users/sidharthchoudhary/Downloads/algo_trading_project/nautilus/reports/nifty200/v2/fills.csv written 2026-09-25 10:16  (969 fills)
+    nifty50    /Users/sidharthchoudhary/Downloads/algo_trading_project/nautilus/reports/nifty50/v2/fills.csv written 2026-09-25 10:15  (864 fills)
+    nifty500   /Users/sidharthchoudhary/Downloads/algo_trading_project/nautilus/reports/nifty500/v2/fills.csv written 2026-09-25 10:17  (1,119 fills)
+    smallcap250 /Users/sidharthchoudhary/Downloads/algo_trading_project/nautilus/reports/smallcap250/v2/fills.csv written 2026-09-25 10:16  (1,086 fills)
   ungated, reported only: 0 fill(s) not matching the day's open exactly.
   RESULT: PASS -- gated: 0 fills match a close without matching the open, and 0 fills fall off the trading calendar, on 8 universe(s) (nifty100, midcap150, nifty50, midcap50, midcap100, nifty200, smallcap250, nifty500), v2 arm. Not gated: that every fill matches the day's open (reported above).

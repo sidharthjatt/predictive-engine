@@ -116,11 +116,18 @@ THE STUB YEARS, DECIDED IN THE OPEN
     accrued gain. Pro-rating would not fix that; only a staged liquidation
     would, and that is a different benchmark.
 
-    AND ONE STUB IS NEVER ASSESSED AT ALL. Section 3(9) assesses a financial
-    year on the first trading day at or after 31 March. For FY2026-27 that date
-    is in 2027, outside the backtest window, so its liability is COMPUTED and
-    NEVER DEDUCTED. assess_dates() reports it as unassessed rather than
-    dropping it, because a liability that silently vanishes flatters the result.
+    THE LAST STUB IS SETTLED AT THE BACKTEST END, SINCE 2026-09-25. Section 3(9)
+    assesses a financial year on the first trading day at or after 31 March. For
+    FY2026-27 that date is in 2027, outside the backtest window, so until
+    2026-09-25 its liability was computed and never deducted. By the owner's
+    decision of 2026-09-25 it is now deducted from cash on the window's last
+    session, after that day's fills, on the gains realised to that date, with the
+    document's netting and exemption rules unchanged (Ledger.due_on,
+    liability_schedule). The document says nothing about a window that ends
+    mid-year; this settlement date is that decision, not a rule quoted from it.
+    The FY2026-27 exemption is the full annual Rs 1,25,000, as for every other
+    financial year: the document keys the exemption on the financial year and
+    does not pro-rate, so neither does this.
 
 TAX PARTIALLY DAMPS ITSELF, AND THE TWO NUMBERS MUST NOT BE SWAPPED
     The deduction shrinks cash, cash sizes every order, smaller positions realise
@@ -395,9 +402,10 @@ def liability_schedule(lots, trading_days):
     deduction consumes: one entry per assessed financial year, keyed by the
     trading day the lump sum comes out of cash.
 
-    UNASSESSED YEARS ARE IN THE FRAME AND NOT IN THE DICT, and the frame says
-    which. Nothing here deducts anything or touches an equity curve; this module
-    computes what is owed and when, and results/test_exposure.py moves the cash.
+    A YEAR SECTION 3(9) WOULD ASSESS AFTER THE WINDOW IS SETTLED ON ITS LAST
+    SESSION (since 2026-09-25, matching Ledger.due_on), so every year is in the
+    dict and `assessed_basis` says which rule dated it. Nothing here deducts
+    anything or touches an equity curve; results/test_exposure.py moves the cash.
     """
     buckets = realized_buckets(lots)
     rows = [tax_for_fy(fy, b) for fy, b in sorted(buckets.items())]
@@ -405,23 +413,25 @@ def liability_schedule(lots, trading_days):
     last = pd.Timestamp(max(pd.DatetimeIndex(trading_days)))
     for r in rows:
         d = when[r["fy"]]
-        r["assessed_on"] = d
-        r["assessed"] = d is not None
-        # THE NOTE IS A COLUMN, NOT A FOOTNOTE ON THE RENDERER. An unassessed
-        # year's liability is real, computed, and never deducted; a reader
-        # scanning FY_TAX_STATEMENT must see WHY from the row itself rather than
-        # from prose somewhere else that a later edit can drift away from.
-        if r["assessed"]:
+        # THE NOTE IS A COLUMN, NOT A FOOTNOTE ON THE RENDERER, so a reader
+        # scanning FY_TAX_STATEMENT sees from the row itself which rule dated it.
+        if d is not None:
+            r["assessed_on"] = d
+            r["assessed"] = True
+            r["assessed_basis"] = "section 3(9)"
             r["assessed_note"] = ""
         else:
             due_d = pd.Timestamp(year=r["fy"] + 1, month=3, day=31)
+            r["assessed_on"] = last
+            r["assessed"] = True
+            r["assessed_basis"] = "backtest end"
             r["assessed_note"] = (
-                f"NOT DEDUCTED -- section 3(9) assesses {r['fy_label']} on the "
-                f"first trading day at or after {due_d.date()}, which is outside "
-                f"the backtest window (ends {last.date()}). The liability is real "
-                f"and is reported here; no cash was taken for it, so the final "
-                f"sessions of the window are effectively untaxed -- and that "
-                f"untaxed tail includes the held-out sessions.")
+                f"SETTLED AT THE BACKTEST END -- section 3(9) would assess "
+                f"{r['fy_label']} on the first trading day at or after "
+                f"{due_d.date()}, outside the window. Settled on {last.date()}, "
+                f"after that day's fills, on gains realised to that date, with the "
+                f"document's netting and full annual exemption (decision of "
+                f"2026-09-25; the document is silent on a window ending mid-year).")
     due = {r["assessed_on"]: r["total_tax"]
            for r in rows if r["assessed"] and r["total_tax"] > 0}
     return pd.DataFrame(rows), due
@@ -467,6 +477,10 @@ class Ledger:
         # is FY2026-27 on this window, and liability_schedule() is what reports
         # that rather than this.
         d = pd.DatetimeIndex(sorted(pd.DatetimeIndex(dates)))
+        # THE LAST SESSION, on which every year still unassessed is settled
+        # (due_on, after_fills=True). None for an empty calendar.
+        self.end = d[-1] if len(d) else None
+        self.settled_at_end = set()
         self.assess_on = {}
         for fy in sorted({financial_year(x) for x in d}):
             later = d[d >= pd.Timestamp(year=fy + 1, month=3, day=31)]
@@ -537,6 +551,17 @@ class Ledger:
             b = self.realized.get(fy)
             if b:
                 total += tax_for_fy(fy, b)["total_tax"]
+        # SETTLEMENT AT THE BACKTEST END, 2026-09-25. On the last session, after
+        # its fills, every financial year with realised gains that section 3(9)
+        # would assess after the window is settled now, on what was realised by
+        # this date, with the same tax_for_fy. On this window that is FY2026-27.
+        if after_fills and self.end is not None and pd.Timestamp(date) == self.end:
+            for fy in sorted(self.realized):
+                if fy in self.assessed:
+                    continue
+                self.assessed.add(fy)
+                self.settled_at_end.add(fy)
+                total += tax_for_fy(fy, self.realized[fy])["total_tax"]
         return total
 
     def leaked(self):

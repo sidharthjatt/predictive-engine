@@ -135,9 +135,20 @@ def backtest_exposure(px, op, sc, dates, pc, mom20, port_vol=None,
                       mode="none", target_vol=None, audit=None, sizing="invvol",
                       const_expo=None, value_at_open=True, rebal=None,
                       funding="cash", participation_cap=_CAP_REQUIRED, vol20=_VOL20_REQUIRED,
-                      tax_enabled=False, impact_k=None, impact_out=None):
+                      tax_enabled=False, impact_k=None, impact_out=None,
+                      end_sale=False):
     """audit=None reproduces the original code path exactly: no overhead, and the
     official numbers are unchanged.
+
+    end_sale -- SELL EVERYTHING ON THE LAST SESSION (2026-09-25). False, the
+        default and the headline: positions still held at the end are marked to
+        market and never sold, so no gain is realised on them and no sell charge
+        is paid. True gives the "sold on the last day" figure: after that day's
+        ordinary fills every remaining holding is sold at that day's open, or its
+        close where the open is missing, with the same slippage and calc_tc as any
+        sell, and the gains enter the tax ledger before the end-of-window
+        settlement. The sale is NOT participation-capped: it is a full
+        liquidation by definition. False leaves every run exactly as it was.
     Passing a dict with holdings/summary/trades/ranking/decisions/skipped keys logs
     a daily snapshot into it.
 
@@ -586,6 +597,31 @@ def backtest_exposure(px, op, sc, dates, pc, mom20, port_vol=None,
                     shares[s] = shares.get(s, 0) + q
             pending = None
 
+        # THE LAST-DAY SALE -- see end_sale in the docstring. After the day's
+        # ordinary fills and before the end-of-window tax settlement below.
+        if end_sale and i == len(dates) - 1:
+            for s in list(shares.keys()):
+                raw = opens.get(s, np.nan)
+                if np.isnan(raw) or raw <= 0:
+                    raw = prices.get(s, np.nan)
+                q = int(shares[s])
+                if np.isnan(raw) or raw <= 0 or q < 1:
+                    continue
+                pr, _pend = _fill_price("SELL", s, dt, raw, q)
+                tc = calc_tc(pr, q, "SELL")
+                cash += q * pr - tc; cum_tc += tc; n_trades += 1
+                _commit_impact(_pend)
+                if ledger is not None:
+                    ledger.sell(s, q, round(pr, 2), dt)
+                if audit is not None:
+                    audit["trades"].append({"date": dt, "action": "SELL", "symbol": s,
+                        "qty": q, "price": round(pr, 2), "value": round(q*pr, 2),
+                        "tc": round(tc, 2)})
+                    audit["skipped"].append({"date": dt, "side": "SELL", "symbol": s,
+                        "reason": "sold on the last day",
+                        "detail": "end_sale=True: full liquidation on the final session"})
+                del shares[s]
+
         if i % _rebal == 0 and i < len(dates) - 1:
             if mode == "none":
                 expo = 1.0
@@ -723,10 +759,14 @@ def backtest_exposure(px, op, sc, dates, pc, mom20, port_vol=None,
                 cash -= _due
                 cum_tax += _due
                 if audit is not None:
+                    _end = (ledger.end is not None and pd.Timestamp(dt) == ledger.end
+                            and ledger.settled_at_end)
                     audit["skipped"].append({"date": dt, "side": "TAX", "symbol": "",
                         "reason": f"capital-gains tax assessed, Rs {_due:,.2f}",
-                        "detail": "section 3(9): one lump sum, after this day's fills "
-                                  "(assessment day inside the assessed year)"})
+                        "detail": ("settled at the backtest end, after this day's "
+                                   "fills, on gains realised to date" if _end else
+                                   "section 3(9): one lump sum, after this day's fills "
+                                   "(assessment day inside the assessed year)")})
 
         mtm = sum(q * prices[s] for s, q in shares.items()
                   if not np.isnan(prices.get(s, np.nan)))

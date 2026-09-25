@@ -1878,6 +1878,15 @@ target."*
 > This was flagged as a pending design question early in this project and never
 > tested. It is being tested now rather than left as a note.
 
+*Note added 2026-09-25, outside the quoted pre-registration. The TOP_N result
+quoted above ("TOP_N was tested and failed its concentration gate") came from
+`mid_topn_test.py`, now `topn_test.py --universe=midcap150`. That script cuts the
+backtest with engine_core's integer years (2019 to 2026), so it was measured on a
+window ending 2026-06-08, six sessions past the pipeline's end date of 2026-05-29.
+The script and its pre-registered rule are not changed; its verdict has not been
+re-measured on the pipeline's window. The LLOYDSME and TATAINVEST figures in the
+same quote were measured the same way and are superseded in README (2026-09-25).*
+
 **The accept rule — verbatim.** Note Gate D, which is the whole experiment:
 
 > **A.** mid Sharpe not lower, in BOTH depth modes.

@@ -528,6 +528,31 @@ def run_arm(u, arm, rebal=None, out_dir=None):
     mh, nsk = held_and_skips(audit)
     rows[0]["MeanNamesHeld"], rows[0]["CashShortSkips"] = round(mh, 2), nsk
     rows[1]["MeanNamesHeld"], rows[1]["CashShortSkips"] = "", ""
+    # UNDER tax=on, THREE MORE ROWS, AFTER THE TWO THAT HAVE ALWAYS BEEN HERE
+    # (2026-09-25). Row 0 is the headline: nothing sold at the end, the last
+    # partial financial year settled on realised gains. Row 1 is the untaxed
+    # daily-rebalanced buy & hold, the reference. Then the same arm with every
+    # holding sold on the last day, the investable held-lots buy & hold after tax
+    # (held to the end, so nothing realised and nil tax), and that basket sold on
+    # the last day with sell charges and tax. tax=off writes exactly the two rows
+    # it always wrote.
+    if _tax_axis.selected():
+        import bh_held
+        eq_l, tc_l, ntr_l, _ = backtest_exposure(
+            px, op, sc, bd, pc, mom20, port_vol,
+            mode=arm.mode, target_vol=tv, sizing=arm.sizing, audit=None,
+            tax_enabled=True, end_sale=True,
+            value_at_open=True, rebal=rebal, **_capkw)
+        hb = bh_held.held_lots(px, op, bd)
+        hd = hb["detail"]
+        extra = [arm_row(eq_l, f"{arm.label}, sold on the last day", tc_l, ntr_l, dep),
+                 arm_row(hb["eq_headline"], "buy & hold held lots, taxed (investable)",
+                         hd["buy_tc"], hd["names"], 100.0),
+                 arm_row(hb["eq_last_day"], "buy & hold held lots, sold on the last day",
+                         hd["buy_tc"] + hd["sell_tc"], 2 * hd["names"], 100.0)]
+        for r in extra:
+            r["MeanNamesHeld"], r["CashShortSkips"] = "", ""
+        rows += extra
     comp = pd.DataFrame(rows)
     comp.to_csv(out / "comparison.csv", index=False)
 
