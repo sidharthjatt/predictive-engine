@@ -104,7 +104,13 @@ figures after costs, cadence 20, `research` profile. Run folders
   the final session on the gains realised by then; nothing is sold at the end.
 - **Tax on, sold on the last day**: the same run, with every holding sold at the
   final session's open (its close where the open is missing), paying the usual
-  sell charges, and the realised gains taxed under the same rules.
+  sell charges, and the realised gains taxed under the same rules. The sale fills
+  at the open because every trade in the engine does, so this figure can come out
+  above the headline when the held names close below their open that day.
+- **The last, partial year gets the full exemption.** FY2026-27 is taxed with the
+  whole annual Rs 1,25,000 long-term exemption, not a pro-rated share: the
+  exemption is set per financial year, and this year is cut short only because
+  the data ends on 2026-05-29.
 
 | universe | arm | tax off: CAGR% | MaxDD% | Sharpe | tax on, headline: CAGR% | MaxDD% | Sharpe | tax on, sold on the last day: CAGR% | n (tax off) |
 |---|---|---:|---:|---:|---:|---:|---:|---:|---|

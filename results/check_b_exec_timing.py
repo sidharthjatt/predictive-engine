@@ -268,7 +268,7 @@ def main():
     # THE VERDICT LINE AND THE EXIT STATUS, ADDED 2026-09-21. No measurement,
     # candidate rule or printed number above changed.
     #
-    # THE VERDICT NAMES ITS INPUT AND THAT INPUT'S mtime, because this file reads
+    # THE VERDICT NAMES ITS INPUT, AND THE RUN LOG NAMES ITS mtime, because this file reads
     # nautilus/reports/<universe>/<seg>/fills.csv, which is GITIGNORED and holds
     # whatever last wrote it. A run of nt_verify or verify_v34_arms at a
     # non-production tick regenerates it, so a verdict that did not say which file
@@ -276,6 +276,12 @@ def main():
     # else's run under this file's name. Measured 2026-09-21: this session's own
     # gate runs had rewritten both fills.csv at tick 0.01 fixed rather than the
     # production 0.05/nse grid.
+    #
+    # THE mtime IS PRINTED, NOT WRITTEN TO THE TRACKED DIAGNOSTIC (2026-09-25).
+    # In the file it made every pipeline run change a committed record whose
+    # verdict had not changed, so check_all left the tree dirty after any run.
+    # The file keeps the repository-relative path and the fill count; the write
+    # time goes to stdout, which is the run's log.
     #
     # WHAT IS GATED: no fill may execute at a CLOSE rather than an open, and every
     # fill must fall on the panel's trading calendar. Those are the two claims
@@ -293,7 +299,12 @@ def main():
         fp = Path(f)
         mt = (datetime.fromtimestamp(fp.stat().st_mtime).strftime("%Y-%m-%d %H:%M")
               if fp.exists() else "ABSENT")
-        out.append(f"    {u:<10} {fp} written {mt}  ({r['n']:,} fills)")
+        try:
+            rel = fp.resolve().relative_to(ROOT)
+        except ValueError:
+            rel = fp
+        out.append(f"    {u:<10} {rel}  ({r['n']:,} fills)")
+        print(f"  input {rel} written {mt}")
     tot_close = sum(r["at_a_close"] for r, _ in res.values())
     tot_offcal = sum(r["off_calendar"] for r, _ in res.values())
     tot_nmo = sum(r["not_matching_open"] for r, _ in res.values())

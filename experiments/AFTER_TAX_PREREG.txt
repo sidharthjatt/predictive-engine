@@ -1,0 +1,90 @@
+AFTER-TAX EDGE UNDER PRICE NOISE -- PRE-REGISTRATION
+================================================================================
+Written 2026-09-25, before any run of this measurement. The rule below was set by
+the owner on 2026-09-25 and is copied here unchanged. The harness,
+results/after_tax_noise.py, is committed in the same commit as this file, and no
+draw has been computed when this file is committed.
+
+QUESTION
+
+    On the two universes where v2's tax-on headline beats the investable taxed
+    buy & hold in the published run (README, "Republished 2026-09-25": nifty500
+    +1.89 points, midcap150 +0.61), does that after-tax edge survive price noise
+    too small to see?
+
+CELLS
+
+    nifty500 v2 and midcap150 v2. Tax on. Headline figure: the in-loop capital-
+    gains ledger of TAX_AND_CHARGES.docx, the last partial financial year
+    (FY2026-27) settled on the final session on realised gains, nothing sold at
+    the end. Cadence 20, research profile (no participation cap), window
+    2019-01-01 to 2026-05-29, the production 10-seed ensemble, purge mode from
+    the registry.
+
+BENCHMARK
+
+    The investable taxed buy & hold, headline figure: results/bh_held.held_lots,
+    eq_headline -- equal rupees of every name priced on the first session, bought
+    at that open plus slippage with the buy charge, held to the end, nothing
+    realised, nil tax. It is built on the SAME perturbed panel as the strategy in
+    each draw.
+
+WHAT ONE DRAW IS
+
+    adj_close' = adj_close * (1 + eps), eps ~ Normal(0, sigma), drawn for every
+    (symbol, date) with results/price_noise_measure.perturb_farm, unchanged: one
+    numpy Generator per noise seed, consumed in sorted filename order. The raw
+    panel is rebuilt and the 10-seed monthly ensemble refitted from the perturbed
+    farm, then v2 and the benchmark are run on it.
+
+    sigma = 0.0001 (0.01%). Noise seeds 101, 202, 303, 404, 505, 606, 707, 808,
+    909, 1010 -- n = 10, the seeds of the existing price-noise runs at this sigma
+    (diagnostics/price_noise_runs.csv).
+
+    gap = CAGR% of v2 minus CAGR% of the benchmark, both at full precision with
+    engine_core.metrics' formula, (end / start) ** (365.25 / calendar days) - 1.
+    A draw "beats the investable buy & hold" when its gap is greater than zero.
+    sd is the sample standard deviation of the ten gaps (ddof = 1), as the
+    existing price-noise report uses.
+
+IDENTITY BASELINE
+
+    sigma = 0 is run first, through the same code, for each universe. It must
+    reproduce the published v2 tax-on headline CAGR and the investable buy & hold
+    headline CAGR in results_<universe>/metrics/BH_LOTS_<universe>_tax.csv to
+    within 0.005 points (midcap150 24.1551 and 23.5541; nifty500 26.3168 and
+    24.4295). If it does not, that universe's measurement stops and no draw is
+    counted. The baseline is not one of the ten draws.
+
+ACCEPT RULE, FIXED NOW
+
+    An after-tax edge is supported for a universe only if at least 9 of 10 draws
+    beat the investable buy & hold, and the mean gap exceeds one sd of the gaps.
+    Anything else is reported as not supported. No second attempt, no new seeds,
+    no change to the rule after seeing results.
+
+    Each universe is judged on its own. A verdict needs all ten draws; a
+    universe with fewer than ten recorded draws has no verdict.
+
+ORDER AND COST
+
+    midcap150 first, then nifty500. Estimated before running, from measured
+    per-run costs: midcap150 about 17 minutes per run (the existing price-noise
+    runs at this sigma took 16.6 to 18.4), 11 runs including the baseline, about
+    3.2 hours; nifty500 about 54 minutes per run (its panel rebuild on
+    2026-09-25), 11 runs, about 10 hours.
+
+WHAT IS NOT A SECOND ATTEMPT
+
+    A run is deterministic in its seed and code. A run interrupted before its row
+    is written may be re-executed with the same seed and the same committed code;
+    that recomputes the same draw and is not a second attempt. Any change to the
+    harness after the first draw is written, or any draw with a seed not listed
+    above, voids the measurement for that universe.
+
+RECORD
+
+    diagnostics/after_tax_noise_runs.csv, one row per run, with the harness's own
+    sha256 and perturb_farm's; diagnostics/after_tax_noise.txt, the report, which
+    states each universe's ten gaps, mean, sd, min, max, draws above zero, and the
+    verdict under the rule above.

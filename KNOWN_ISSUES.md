@@ -123,11 +123,17 @@ unchanged; what changed is what happens at the window's end.
   to -0.57 points across the 32 cells (README, "Republished 2026-09-25").
   `tax_acceptance_check.py` condition 4 pins all of this to hand-worked numbers.
 
-**Questions left open by the change.** The document does not say (1) whether a
-partial year's exemption should be pro-rated (it is not), or (2) at which price a
-final liquidation should happen. The open was chosen because every other sell
-fills at an open; on midcap50 v2 most held names closed below their open on
-2026-05-29, so the last-day figure (17.89%) came out above the headline (17.81%).
+**Decided by the owner, 2026-09-25.**
+1. **No pro-rating of the partial year's exemption.** FY2026-27 gets the full
+   annual Rs 1,25,000. The exemption is an allowance per financial year, and
+   FY2026-27 is cut short only because the price data ends on 2026-05-29, not
+   because the year is shorter.
+2. **The last-day sale fills at that day's open,** the engine's fill rule for
+   every trade. So a "sold on the last day" figure can come out above the
+   headline when the held names close below their open on the last day: on
+   midcap50 v2 it is 17.89% against 17.81%.
+3. **The participation cap on the last-day sale under `--profile tradeable` is
+   DEFERRED 2026-09-25.** The sale is uncapped; no tradeable cell is published.
 
 ## Widening registry.CERTIFIED beyond nifty100 and midcap150 -- DEFERRED 2026-09-25
 
