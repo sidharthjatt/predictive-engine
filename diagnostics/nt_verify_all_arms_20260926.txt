@@ -1,6 +1,7 @@
 nt_verify.py --arm=<arm> on every registered universe and every arm, measured 2026-09-26 on the
-current panels. Cadence 20. One section per (universe, arm). The v2 sections reproduce
-diagnostics/nt_verify_all_universes_20260925.txt.
+current panels, cadence 20, AFTER ARM A was set to value the book at the open (the engine's
+setting). One section per (universe, arm). An earlier run the same day, with ARM A valued at the
+close, is in git history (d9fa249); it had every v1 and v3 cell INCONCLUSIVE.
 
 ################################################################ nifty100 v1
 data from 2018-06-15 (warm-up) | trading 2019-01-01 to 2026-05-29
@@ -47,21 +48,27 @@ decided_on  breadth_pos  breadth_total  breadth  exposure  port_value  cash_befo
     quantity error: median 0.05%  max 0.64%
 
   control: ARM A vs the reference's own holdings
-           SELECTION (gated)  -- 85 of 92 rebalances hold the same symbol set
-           SIZING (not gated) -- 83 of 92 differ in quantity only, worst 36.18% on a single position
+           SELECTION (gated)  -- 92 of 92 rebalances hold the same symbol set
+           SIZING (not gated) -- 0 of 92 differ in quantity only
 
   reconciliation on a 0.01 tick grid (both sides) -- 92 of 92 identical
   of the 0 that differ: 0 are SHARE-COUNT QUANTIZATION, 0 are not
 
 ========================================================================
-  INCONCLUSIVE. ARM A does not reproduce the reference engine's own
-  SELECTION -- the two engines hold different symbols, so ARM D is
-  not a trustworthy baseline for the port's sizing. Fix that first.
-  (Quantity-only differences are reported above and do not reach
-   here: they are a known divergence between two reimplementations,
-   not evidence about which book the engine chose.)
+  VERIFIED. On a 0.01 tick grid the port and the open-valued reference
+  hold the SAME SYMBOLS at every rebalance, and every quantity
+  difference is share-count quantization by its exact signature: one
+  share, one symbol, port lower. The two systems are identical in
+  logic, and what the real 0.05 grid shows above is three measured,
+  documented things:
+    - the reference values the portfolio at the execution day's CLOSE,
+      which a strategy standing at 09:15 cannot know;
+    - quantity is a floor division by a tick-snapped price, and one
+      0.05 tick is 0.19% of a Rs 27 share;
+    - the floor itself quantizes, which no tick grid removes.
+  Nothing else remains unexplained.
 
-  RESULT: FAIL -- universe nifty100, arm v1, 0.01-grid reconciliation 92 of 92 identical, 0 quantization, 0 unexplained.
+  RESULT: PASS -- universe nifty100, arm v1, 0.01-grid reconciliation 92 of 92 identical, 0 quantization, 0 unexplained.
 ========================================================================
 
 ################################################################ nifty100 v2
@@ -110,7 +117,7 @@ decided_on  breadth_pos  breadth_total  breadth  exposure  port_value  cash_befo
 
   control: ARM A vs the reference's own holdings
            SELECTION (gated)  -- 92 of 92 rebalances hold the same symbol set
-           SIZING (not gated) -- 85 of 92 differ in quantity only, worst 20.00% on a single position
+           SIZING (not gated) -- 0 of 92 differ in quantity only
 
   reconciliation on a 0.01 tick grid (both sides) -- 92 of 92 identical
   of the 0 that differ: 0 are SHARE-COUNT QUANTIZATION, 0 are not
@@ -177,21 +184,27 @@ decided_on  breadth_pos  breadth_total  breadth  exposure  port_value  cash_befo
     quantity error: median 0.04%  max 0.72%
 
   control: ARM A vs the reference's own holdings
-           SELECTION (gated)  -- 87 of 92 rebalances hold the same symbol set
-           SIZING (not gated) -- 85 of 92 differ in quantity only, worst 4.41% on a single position
+           SELECTION (gated)  -- 92 of 92 rebalances hold the same symbol set
+           SIZING (not gated) -- 0 of 92 differ in quantity only
 
   reconciliation on a 0.01 tick grid (both sides) -- 92 of 92 identical
   of the 0 that differ: 0 are SHARE-COUNT QUANTIZATION, 0 are not
 
 ========================================================================
-  INCONCLUSIVE. ARM A does not reproduce the reference engine's own
-  SELECTION -- the two engines hold different symbols, so ARM D is
-  not a trustworthy baseline for the port's sizing. Fix that first.
-  (Quantity-only differences are reported above and do not reach
-   here: they are a known divergence between two reimplementations,
-   not evidence about which book the engine chose.)
+  VERIFIED. On a 0.01 tick grid the port and the open-valued reference
+  hold the SAME SYMBOLS at every rebalance, and every quantity
+  difference is share-count quantization by its exact signature: one
+  share, one symbol, port lower. The two systems are identical in
+  logic, and what the real 0.05 grid shows above is three measured,
+  documented things:
+    - the reference values the portfolio at the execution day's CLOSE,
+      which a strategy standing at 09:15 cannot know;
+    - quantity is a floor division by a tick-snapped price, and one
+      0.05 tick is 0.19% of a Rs 27 share;
+    - the floor itself quantizes, which no tick grid removes.
+  Nothing else remains unexplained.
 
-  RESULT: FAIL -- universe nifty100, arm v3, 0.01-grid reconciliation 92 of 92 identical, 0 quantization, 0 unexplained.
+  RESULT: PASS -- universe nifty100, arm v3, 0.01-grid reconciliation 92 of 92 identical, 0 quantization, 0 unexplained.
 ========================================================================
 
 ################################################################ nifty100 v4
@@ -240,7 +253,7 @@ decided_on  breadth_pos  breadth_total  breadth  exposure  port_value  cash_befo
 
   control: ARM A vs the reference's own holdings
            SELECTION (gated)  -- 92 of 92 rebalances hold the same symbol set
-           SIZING (not gated) -- 90 of 92 differ in quantity only, worst 3.70% on a single position
+           SIZING (not gated) -- 0 of 92 differ in quantity only
 
   reconciliation on a 0.01 tick grid (both sides) -- 92 of 92 identical
   of the 0 that differ: 0 are SHARE-COUNT QUANTIZATION, 0 are not
@@ -307,21 +320,27 @@ decided_on  breadth_pos  breadth_total  breadth  exposure  port_value  cash_befo
     quantity error: median 0.01%  max 0.02%
 
   control: ARM A vs the reference's own holdings
-           SELECTION (gated)  -- 86 of 92 rebalances hold the same symbol set
-           SIZING (not gated) -- 82 of 92 differ in quantity only, worst 23.89% on a single position
+           SELECTION (gated)  -- 92 of 92 rebalances hold the same symbol set
+           SIZING (not gated) -- 0 of 92 differ in quantity only
 
   reconciliation on a 0.01 tick grid (both sides) -- 92 of 92 identical
   of the 0 that differ: 0 are SHARE-COUNT QUANTIZATION, 0 are not
 
 ========================================================================
-  INCONCLUSIVE. ARM A does not reproduce the reference engine's own
-  SELECTION -- the two engines hold different symbols, so ARM D is
-  not a trustworthy baseline for the port's sizing. Fix that first.
-  (Quantity-only differences are reported above and do not reach
-   here: they are a known divergence between two reimplementations,
-   not evidence about which book the engine chose.)
+  VERIFIED. On a 0.01 tick grid the port and the open-valued reference
+  hold the SAME SYMBOLS at every rebalance, and every quantity
+  difference is share-count quantization by its exact signature: one
+  share, one symbol, port lower. The two systems are identical in
+  logic, and what the real 0.05 grid shows above is three measured,
+  documented things:
+    - the reference values the portfolio at the execution day's CLOSE,
+      which a strategy standing at 09:15 cannot know;
+    - quantity is a floor division by a tick-snapped price, and one
+      0.05 tick is 0.19% of a Rs 27 share;
+    - the floor itself quantizes, which no tick grid removes.
+  Nothing else remains unexplained.
 
-  RESULT: FAIL -- universe midcap150, arm v1, 0.01-grid reconciliation 92 of 92 identical, 0 quantization, 0 unexplained.
+  RESULT: PASS -- universe midcap150, arm v1, 0.01-grid reconciliation 92 of 92 identical, 0 quantization, 0 unexplained.
 ========================================================================
 
 ################################################################ midcap150 v2
@@ -369,7 +388,7 @@ decided_on  breadth_pos  breadth_total  breadth  exposure  port_value  cash_befo
 
   control: ARM A vs the reference's own holdings
            SELECTION (gated)  -- 92 of 92 rebalances hold the same symbol set
-           SIZING (not gated) -- 87 of 92 differ in quantity only, worst 3.85% on a single position
+           SIZING (not gated) -- 0 of 92 differ in quantity only
 
   reconciliation on a 0.01 tick grid (both sides) -- 92 of 92 identical
   of the 0 that differ: 0 are SHARE-COUNT QUANTIZATION, 0 are not
@@ -436,21 +455,27 @@ decided_on  breadth_pos  breadth_total  breadth  exposure  port_value  cash_befo
     quantity error: median 0.08%  max 0.13%
 
   control: ARM A vs the reference's own holdings
-           SELECTION (gated)  -- 89 of 92 rebalances hold the same symbol set
-           SIZING (not gated) -- 86 of 92 differ in quantity only, worst 5.88% on a single position
+           SELECTION (gated)  -- 92 of 92 rebalances hold the same symbol set
+           SIZING (not gated) -- 0 of 92 differ in quantity only
 
   reconciliation on a 0.01 tick grid (both sides) -- 92 of 92 identical
   of the 0 that differ: 0 are SHARE-COUNT QUANTIZATION, 0 are not
 
 ========================================================================
-  INCONCLUSIVE. ARM A does not reproduce the reference engine's own
-  SELECTION -- the two engines hold different symbols, so ARM D is
-  not a trustworthy baseline for the port's sizing. Fix that first.
-  (Quantity-only differences are reported above and do not reach
-   here: they are a known divergence between two reimplementations,
-   not evidence about which book the engine chose.)
+  VERIFIED. On a 0.01 tick grid the port and the open-valued reference
+  hold the SAME SYMBOLS at every rebalance, and every quantity
+  difference is share-count quantization by its exact signature: one
+  share, one symbol, port lower. The two systems are identical in
+  logic, and what the real 0.05 grid shows above is three measured,
+  documented things:
+    - the reference values the portfolio at the execution day's CLOSE,
+      which a strategy standing at 09:15 cannot know;
+    - quantity is a floor division by a tick-snapped price, and one
+      0.05 tick is 0.19% of a Rs 27 share;
+    - the floor itself quantizes, which no tick grid removes.
+  Nothing else remains unexplained.
 
-  RESULT: FAIL -- universe midcap150, arm v3, 0.01-grid reconciliation 92 of 92 identical, 0 quantization, 0 unexplained.
+  RESULT: PASS -- universe midcap150, arm v3, 0.01-grid reconciliation 92 of 92 identical, 0 quantization, 0 unexplained.
 ========================================================================
 
 ################################################################ midcap150 v4
@@ -499,7 +524,7 @@ decided_on  breadth_pos  breadth_total  breadth  exposure  port_value  cash_befo
 
   control: ARM A vs the reference's own holdings
            SELECTION (gated)  -- 92 of 92 rebalances hold the same symbol set
-           SIZING (not gated) -- 86 of 92 differ in quantity only, worst 10.00% on a single position
+           SIZING (not gated) -- 0 of 92 differ in quantity only
 
   reconciliation on a 0.01 tick grid (both sides) -- 92 of 92 identical
   of the 0 that differ: 0 are SHARE-COUNT QUANTIZATION, 0 are not
@@ -565,21 +590,27 @@ decided_on  breadth_pos  breadth_total  breadth  exposure  port_value  cash_befo
     differing by quantity   : 0
 
   control: ARM A vs the reference's own holdings
-           SELECTION (gated)  -- 84 of 92 rebalances hold the same symbol set
-           SIZING (not gated) -- 82 of 92 differ in quantity only, worst 3.73% on a single position
+           SELECTION (gated)  -- 92 of 92 rebalances hold the same symbol set
+           SIZING (not gated) -- 0 of 92 differ in quantity only
 
   reconciliation on a 0.01 tick grid (both sides) -- 92 of 92 identical
   of the 0 that differ: 0 are SHARE-COUNT QUANTIZATION, 0 are not
 
 ========================================================================
-  INCONCLUSIVE. ARM A does not reproduce the reference engine's own
-  SELECTION -- the two engines hold different symbols, so ARM D is
-  not a trustworthy baseline for the port's sizing. Fix that first.
-  (Quantity-only differences are reported above and do not reach
-   here: they are a known divergence between two reimplementations,
-   not evidence about which book the engine chose.)
+  VERIFIED. On a 0.01 tick grid the port and the open-valued reference
+  hold the SAME SYMBOLS at every rebalance, and every quantity
+  difference is share-count quantization by its exact signature: one
+  share, one symbol, port lower. The two systems are identical in
+  logic, and what the real 0.05 grid shows above is three measured,
+  documented things:
+    - the reference values the portfolio at the execution day's CLOSE,
+      which a strategy standing at 09:15 cannot know;
+    - quantity is a floor division by a tick-snapped price, and one
+      0.05 tick is 0.19% of a Rs 27 share;
+    - the floor itself quantizes, which no tick grid removes.
+  Nothing else remains unexplained.
 
-  RESULT: FAIL -- universe nifty50, arm v1, 0.01-grid reconciliation 92 of 92 identical, 0 quantization, 0 unexplained.
+  RESULT: PASS -- universe nifty50, arm v1, 0.01-grid reconciliation 92 of 92 identical, 0 quantization, 0 unexplained.
 ========================================================================
 
 ################################################################ nifty50 v2
@@ -627,7 +658,7 @@ decided_on  breadth_pos  breadth_total  breadth  exposure  port_value  cash_befo
 
   control: ARM A vs the reference's own holdings
            SELECTION (gated)  -- 92 of 92 rebalances hold the same symbol set
-           SIZING (not gated) -- 87 of 92 differ in quantity only, worst 4.55% on a single position
+           SIZING (not gated) -- 0 of 92 differ in quantity only
 
   reconciliation on a 0.01 tick grid (both sides) -- 92 of 92 identical
   of the 0 that differ: 0 are SHARE-COUNT QUANTIZATION, 0 are not
@@ -694,8 +725,8 @@ decided_on  breadth_pos  breadth_total  breadth  exposure  port_value  cash_befo
     quantity error: median 0.06%  max 0.49%
 
   control: ARM A vs the reference's own holdings
-           SELECTION (gated)  -- 87 of 92 rebalances hold the same symbol set
-           SIZING (not gated) -- 85 of 92 differ in quantity only, worst 24.34% on a single position
+           SELECTION (gated)  -- 92 of 92 rebalances hold the same symbol set
+           SIZING (not gated) -- 0 of 92 differ in quantity only
 
   reconciliation on a 0.01 tick grid (both sides) -- 73 of 92 identical
   of the 19 that differ: 18 are SHARE-COUNT QUANTIZATION, 1 are not
@@ -730,12 +761,11 @@ decided_on  breadth_pos  breadth_total  breadth  exposure  port_value  cash_befo
     midcap150 holds shares at Rs 2.45. nifty100 has nothing that cheap.
 
 ========================================================================
-  INCONCLUSIVE. ARM A does not reproduce the reference engine's own
-  SELECTION -- the two engines hold different symbols, so ARM D is
-  not a trustworthy baseline for the port's sizing. Fix that first.
-  (Quantity-only differences are reported above and do not reach
-   here: they are a known divergence between two reimplementations,
-   not evidence about which book the engine chose.)
+  NOT VERIFIED. 1 rebalance(s) differ in a way share-count
+  quantization does not explain -- more than one share, more than one
+  symbol, or a different symbol set -- on a 0.01 grid where tick
+  quantization cannot be the cause. Something else is wrong.
+  Do not trade this.
 
   RESULT: FAIL -- universe nifty50, arm v3, 0.01-grid reconciliation 73 of 92 identical, 18 quantization, 1 unexplained.
 ========================================================================
@@ -784,21 +814,27 @@ decided_on  breadth_pos  breadth_total  breadth  exposure  port_value  cash_befo
     differing by quantity   : 0
 
   control: ARM A vs the reference's own holdings
-           SELECTION (gated)  -- 91 of 92 rebalances hold the same symbol set
-           SIZING (not gated) -- 89 of 92 differ in quantity only, worst 6.67% on a single position
+           SELECTION (gated)  -- 92 of 92 rebalances hold the same symbol set
+           SIZING (not gated) -- 0 of 92 differ in quantity only
 
   reconciliation on a 0.01 tick grid (both sides) -- 92 of 92 identical
   of the 0 that differ: 0 are SHARE-COUNT QUANTIZATION, 0 are not
 
 ========================================================================
-  INCONCLUSIVE. ARM A does not reproduce the reference engine's own
-  SELECTION -- the two engines hold different symbols, so ARM D is
-  not a trustworthy baseline for the port's sizing. Fix that first.
-  (Quantity-only differences are reported above and do not reach
-   here: they are a known divergence between two reimplementations,
-   not evidence about which book the engine chose.)
+  VERIFIED. On a 0.01 tick grid the port and the open-valued reference
+  hold the SAME SYMBOLS at every rebalance, and every quantity
+  difference is share-count quantization by its exact signature: one
+  share, one symbol, port lower. The two systems are identical in
+  logic, and what the real 0.05 grid shows above is three measured,
+  documented things:
+    - the reference values the portfolio at the execution day's CLOSE,
+      which a strategy standing at 09:15 cannot know;
+    - quantity is a floor division by a tick-snapped price, and one
+      0.05 tick is 0.19% of a Rs 27 share;
+    - the floor itself quantizes, which no tick grid removes.
+  Nothing else remains unexplained.
 
-  RESULT: FAIL -- universe nifty50, arm v4, 0.01-grid reconciliation 92 of 92 identical, 0 quantization, 0 unexplained.
+  RESULT: PASS -- universe nifty50, arm v4, 0.01-grid reconciliation 92 of 92 identical, 0 quantization, 0 unexplained.
 ========================================================================
 
 ################################################################ midcap50 v1
@@ -846,19 +882,18 @@ decided_on  breadth_pos  breadth_total  breadth  exposure  port_value  cash_befo
     quantity error: median 0.03%  max 0.05%
 
   control: ARM A vs the reference's own holdings
-           SELECTION (gated)  -- 83 of 92 rebalances hold the same symbol set
-           SIZING (not gated) -- 81 of 92 differ in quantity only, worst 44.08% on a single position
+           SELECTION (gated)  -- 92 of 92 rebalances hold the same symbol set
+           SIZING (not gated) -- 0 of 92 differ in quantity only
 
   reconciliation on a 0.01 tick grid (both sides) -- 90 of 92 identical
   of the 2 that differ: 0 are SHARE-COUNT QUANTIZATION, 2 are not
 
 ========================================================================
-  INCONCLUSIVE. ARM A does not reproduce the reference engine's own
-  SELECTION -- the two engines hold different symbols, so ARM D is
-  not a trustworthy baseline for the port's sizing. Fix that first.
-  (Quantity-only differences are reported above and do not reach
-   here: they are a known divergence between two reimplementations,
-   not evidence about which book the engine chose.)
+  NOT VERIFIED. 2 rebalance(s) differ in a way share-count
+  quantization does not explain -- more than one share, more than one
+  symbol, or a different symbol set -- on a 0.01 grid where tick
+  quantization cannot be the cause. Something else is wrong.
+  Do not trade this.
 
   RESULT: FAIL -- universe midcap50, arm v1, 0.01-grid reconciliation 90 of 92 identical, 0 quantization, 2 unexplained.
 ========================================================================
@@ -908,21 +943,27 @@ decided_on  breadth_pos  breadth_total  breadth  exposure  port_value  cash_befo
     quantity error: median 0.03%  max 0.03%
 
   control: ARM A vs the reference's own holdings
-           SELECTION (gated)  -- 91 of 92 rebalances hold the same symbol set
-           SIZING (not gated) -- 86 of 92 differ in quantity only, worst 23.57% on a single position
+           SELECTION (gated)  -- 92 of 92 rebalances hold the same symbol set
+           SIZING (not gated) -- 0 of 92 differ in quantity only
 
   reconciliation on a 0.01 tick grid (both sides) -- 92 of 92 identical
   of the 0 that differ: 0 are SHARE-COUNT QUANTIZATION, 0 are not
 
 ========================================================================
-  INCONCLUSIVE. ARM A does not reproduce the reference engine's own
-  SELECTION -- the two engines hold different symbols, so ARM D is
-  not a trustworthy baseline for the port's sizing. Fix that first.
-  (Quantity-only differences are reported above and do not reach
-   here: they are a known divergence between two reimplementations,
-   not evidence about which book the engine chose.)
+  VERIFIED. On a 0.01 tick grid the port and the open-valued reference
+  hold the SAME SYMBOLS at every rebalance, and every quantity
+  difference is share-count quantization by its exact signature: one
+  share, one symbol, port lower. The two systems are identical in
+  logic, and what the real 0.05 grid shows above is three measured,
+  documented things:
+    - the reference values the portfolio at the execution day's CLOSE,
+      which a strategy standing at 09:15 cannot know;
+    - quantity is a floor division by a tick-snapped price, and one
+      0.05 tick is 0.19% of a Rs 27 share;
+    - the floor itself quantizes, which no tick grid removes.
+  Nothing else remains unexplained.
 
-  RESULT: FAIL -- universe midcap50, arm v2, 0.01-grid reconciliation 92 of 92 identical, 0 quantization, 0 unexplained.
+  RESULT: PASS -- universe midcap50, arm v2, 0.01-grid reconciliation 92 of 92 identical, 0 quantization, 0 unexplained.
 ========================================================================
 
 ################################################################ midcap50 v3
@@ -970,8 +1011,8 @@ decided_on  breadth_pos  breadth_total  breadth  exposure  port_value  cash_befo
     quantity error: median 0.01%  max 0.80%
 
   control: ARM A vs the reference's own holdings
-           SELECTION (gated)  -- 85 of 92 rebalances hold the same symbol set
-           SIZING (not gated) -- 83 of 92 differ in quantity only, worst 22.78% on a single position
+           SELECTION (gated)  -- 92 of 92 rebalances hold the same symbol set
+           SIZING (not gated) -- 0 of 92 differ in quantity only
 
   reconciliation on a 0.01 tick grid (both sides) -- 79 of 92 identical
   of the 13 that differ: 1 are SHARE-COUNT QUANTIZATION, 12 are not
@@ -989,12 +1030,11 @@ decided_on  breadth_pos  breadth_total  breadth  exposure  port_value  cash_befo
     midcap150 holds shares at Rs 2.45. nifty100 has nothing that cheap.
 
 ========================================================================
-  INCONCLUSIVE. ARM A does not reproduce the reference engine's own
-  SELECTION -- the two engines hold different symbols, so ARM D is
-  not a trustworthy baseline for the port's sizing. Fix that first.
-  (Quantity-only differences are reported above and do not reach
-   here: they are a known divergence between two reimplementations,
-   not evidence about which book the engine chose.)
+  NOT VERIFIED. 12 rebalance(s) differ in a way share-count
+  quantization does not explain -- more than one share, more than one
+  symbol, or a different symbol set -- on a 0.01 grid where tick
+  quantization cannot be the cause. Something else is wrong.
+  Do not trade this.
 
   RESULT: FAIL -- universe midcap50, arm v3, 0.01-grid reconciliation 79 of 92 identical, 1 quantization, 12 unexplained.
 ========================================================================
@@ -1045,7 +1085,7 @@ decided_on  breadth_pos  breadth_total  breadth  exposure  port_value  cash_befo
 
   control: ARM A vs the reference's own holdings
            SELECTION (gated)  -- 92 of 92 rebalances hold the same symbol set
-           SIZING (not gated) -- 90 of 92 differ in quantity only, worst 20.00% on a single position
+           SIZING (not gated) -- 0 of 92 differ in quantity only
 
   reconciliation on a 0.01 tick grid (both sides) -- 90 of 92 identical
   of the 2 that differ: 0 are SHARE-COUNT QUANTIZATION, 2 are not
@@ -1105,21 +1145,27 @@ decided_on  breadth_pos  breadth_total  breadth  exposure  port_value  cash_befo
     quantity error: median 0.02%  max 0.18%
 
   control: ARM A vs the reference's own holdings
-           SELECTION (gated)  -- 80 of 92 rebalances hold the same symbol set
-           SIZING (not gated) -- 78 of 92 differ in quantity only, worst 38.61% on a single position
+           SELECTION (gated)  -- 92 of 92 rebalances hold the same symbol set
+           SIZING (not gated) -- 0 of 92 differ in quantity only
 
   reconciliation on a 0.01 tick grid (both sides) -- 92 of 92 identical
   of the 0 that differ: 0 are SHARE-COUNT QUANTIZATION, 0 are not
 
 ========================================================================
-  INCONCLUSIVE. ARM A does not reproduce the reference engine's own
-  SELECTION -- the two engines hold different symbols, so ARM D is
-  not a trustworthy baseline for the port's sizing. Fix that first.
-  (Quantity-only differences are reported above and do not reach
-   here: they are a known divergence between two reimplementations,
-   not evidence about which book the engine chose.)
+  VERIFIED. On a 0.01 tick grid the port and the open-valued reference
+  hold the SAME SYMBOLS at every rebalance, and every quantity
+  difference is share-count quantization by its exact signature: one
+  share, one symbol, port lower. The two systems are identical in
+  logic, and what the real 0.05 grid shows above is three measured,
+  documented things:
+    - the reference values the portfolio at the execution day's CLOSE,
+      which a strategy standing at 09:15 cannot know;
+    - quantity is a floor division by a tick-snapped price, and one
+      0.05 tick is 0.19% of a Rs 27 share;
+    - the floor itself quantizes, which no tick grid removes.
+  Nothing else remains unexplained.
 
-  RESULT: FAIL -- universe midcap100, arm v1, 0.01-grid reconciliation 92 of 92 identical, 0 quantization, 0 unexplained.
+  RESULT: PASS -- universe midcap100, arm v1, 0.01-grid reconciliation 92 of 92 identical, 0 quantization, 0 unexplained.
 ========================================================================
 
 ################################################################ midcap100 v2
@@ -1168,7 +1214,7 @@ decided_on  breadth_pos  breadth_total  breadth  exposure  port_value  cash_befo
 
   control: ARM A vs the reference's own holdings
            SELECTION (gated)  -- 92 of 92 rebalances hold the same symbol set
-           SIZING (not gated) -- 90 of 92 differ in quantity only, worst 6.25% on a single position
+           SIZING (not gated) -- 0 of 92 differ in quantity only
 
   reconciliation on a 0.01 tick grid (both sides) -- 80 of 92 identical
   of the 12 that differ: 0 are SHARE-COUNT QUANTIZATION, 12 are not
@@ -1228,8 +1274,8 @@ decided_on  breadth_pos  breadth_total  breadth  exposure  port_value  cash_befo
     quantity error: median 0.05%  max 0.54%
 
   control: ARM A vs the reference's own holdings
-           SELECTION (gated)  -- 81 of 92 rebalances hold the same symbol set
-           SIZING (not gated) -- 79 of 92 differ in quantity only, worst 22.33% on a single position
+           SELECTION (gated)  -- 92 of 92 rebalances hold the same symbol set
+           SIZING (not gated) -- 0 of 92 differ in quantity only
 
   reconciliation on a 0.01 tick grid (both sides) -- 68 of 92 identical
   of the 24 that differ: 5 are SHARE-COUNT QUANTIZATION, 19 are not
@@ -1251,12 +1297,11 @@ decided_on  breadth_pos  breadth_total  breadth  exposure  port_value  cash_befo
     midcap150 holds shares at Rs 2.45. nifty100 has nothing that cheap.
 
 ========================================================================
-  INCONCLUSIVE. ARM A does not reproduce the reference engine's own
-  SELECTION -- the two engines hold different symbols, so ARM D is
-  not a trustworthy baseline for the port's sizing. Fix that first.
-  (Quantity-only differences are reported above and do not reach
-   here: they are a known divergence between two reimplementations,
-   not evidence about which book the engine chose.)
+  NOT VERIFIED. 19 rebalance(s) differ in a way share-count
+  quantization does not explain -- more than one share, more than one
+  symbol, or a different symbol set -- on a 0.01 grid where tick
+  quantization cannot be the cause. Something else is wrong.
+  Do not trade this.
 
   RESULT: FAIL -- universe midcap100, arm v3, 0.01-grid reconciliation 68 of 92 identical, 5 quantization, 19 unexplained.
 ========================================================================
@@ -1307,7 +1352,7 @@ decided_on  breadth_pos  breadth_total  breadth  exposure  port_value  cash_befo
 
   control: ARM A vs the reference's own holdings
            SELECTION (gated)  -- 92 of 92 rebalances hold the same symbol set
-           SIZING (not gated) -- 90 of 92 differ in quantity only, worst 8.33% on a single position
+           SIZING (not gated) -- 0 of 92 differ in quantity only
 
   reconciliation on a 0.01 tick grid (both sides) -- 92 of 92 identical
   of the 0 that differ: 0 are SHARE-COUNT QUANTIZATION, 0 are not
@@ -1374,8 +1419,8 @@ decided_on  breadth_pos  breadth_total  breadth  exposure  port_value  cash_befo
     quantity error: median 0.02%  max 0.05%
 
   control: ARM A vs the reference's own holdings
-           SELECTION (gated)  -- 82 of 92 rebalances hold the same symbol set
-           SIZING (not gated) -- 80 of 92 differ in quantity only, worst 3.61% on a single position
+           SELECTION (gated)  -- 92 of 92 rebalances hold the same symbol set
+           SIZING (not gated) -- 0 of 92 differ in quantity only
 
   reconciliation on a 0.01 tick grid (both sides) -- 39 of 92 identical
   of the 53 that differ: 26 are SHARE-COUNT QUANTIZATION, 27 are not
@@ -1418,12 +1463,11 @@ decided_on  breadth_pos  breadth_total  breadth  exposure  port_value  cash_befo
     midcap150 holds shares at Rs 2.45. nifty100 has nothing that cheap.
 
 ========================================================================
-  INCONCLUSIVE. ARM A does not reproduce the reference engine's own
-  SELECTION -- the two engines hold different symbols, so ARM D is
-  not a trustworthy baseline for the port's sizing. Fix that first.
-  (Quantity-only differences are reported above and do not reach
-   here: they are a known divergence between two reimplementations,
-   not evidence about which book the engine chose.)
+  NOT VERIFIED. 27 rebalance(s) differ in a way share-count
+  quantization does not explain -- more than one share, more than one
+  symbol, or a different symbol set -- on a 0.01 grid where tick
+  quantization cannot be the cause. Something else is wrong.
+  Do not trade this.
 
   RESULT: FAIL -- universe nifty200, arm v1, 0.01-grid reconciliation 39 of 92 identical, 26 quantization, 27 unexplained.
 ========================================================================
@@ -1474,7 +1518,7 @@ decided_on  breadth_pos  breadth_total  breadth  exposure  port_value  cash_befo
 
   control: ARM A vs the reference's own holdings
            SELECTION (gated)  -- 92 of 92 rebalances hold the same symbol set
-           SIZING (not gated) -- 89 of 92 differ in quantity only, worst 3.57% on a single position
+           SIZING (not gated) -- 0 of 92 differ in quantity only
 
   reconciliation on a 0.01 tick grid (both sides) -- 91 of 92 identical
   of the 1 that differ: 0 are SHARE-COUNT QUANTIZATION, 1 are not
@@ -1534,8 +1578,8 @@ decided_on  breadth_pos  breadth_total  breadth  exposure  port_value  cash_befo
     quantity error: median 0.06%  max 3.33%
 
   control: ARM A vs the reference's own holdings
-           SELECTION (gated)  -- 78 of 92 rebalances hold the same symbol set
-           SIZING (not gated) -- 76 of 92 differ in quantity only, worst 19.44% on a single position
+           SELECTION (gated)  -- 92 of 92 rebalances hold the same symbol set
+           SIZING (not gated) -- 0 of 92 differ in quantity only
 
   reconciliation on a 0.01 tick grid (both sides) -- 83 of 92 identical
   of the 9 that differ: 1 are SHARE-COUNT QUANTIZATION, 8 are not
@@ -1553,12 +1597,11 @@ decided_on  breadth_pos  breadth_total  breadth  exposure  port_value  cash_befo
     midcap150 holds shares at Rs 2.45. nifty100 has nothing that cheap.
 
 ========================================================================
-  INCONCLUSIVE. ARM A does not reproduce the reference engine's own
-  SELECTION -- the two engines hold different symbols, so ARM D is
-  not a trustworthy baseline for the port's sizing. Fix that first.
-  (Quantity-only differences are reported above and do not reach
-   here: they are a known divergence between two reimplementations,
-   not evidence about which book the engine chose.)
+  NOT VERIFIED. 8 rebalance(s) differ in a way share-count
+  quantization does not explain -- more than one share, more than one
+  symbol, or a different symbol set -- on a 0.01 grid where tick
+  quantization cannot be the cause. Something else is wrong.
+  Do not trade this.
 
   RESULT: FAIL -- universe nifty200, arm v3, 0.01-grid reconciliation 83 of 92 identical, 1 quantization, 8 unexplained.
 ========================================================================
@@ -1609,7 +1652,7 @@ decided_on  breadth_pos  breadth_total  breadth  exposure  port_value  cash_befo
 
   control: ARM A vs the reference's own holdings
            SELECTION (gated)  -- 92 of 92 rebalances hold the same symbol set
-           SIZING (not gated) -- 89 of 92 differ in quantity only, worst 8.33% on a single position
+           SIZING (not gated) -- 0 of 92 differ in quantity only
 
   reconciliation on a 0.01 tick grid (both sides) -- 90 of 92 identical
   of the 2 that differ: 0 are SHARE-COUNT QUANTIZATION, 2 are not
@@ -1669,19 +1712,18 @@ decided_on  breadth_pos  breadth_total  breadth  exposure  port_value  cash_befo
     quantity error: median 0.01%  max 0.19%
 
   control: ARM A vs the reference's own holdings
-           SELECTION (gated)  -- 84 of 92 rebalances hold the same symbol set
-           SIZING (not gated) -- 82 of 92 differ in quantity only, worst 52.50% on a single position
+           SELECTION (gated)  -- 92 of 92 rebalances hold the same symbol set
+           SIZING (not gated) -- 0 of 92 differ in quantity only
 
   reconciliation on a 0.01 tick grid (both sides) -- 90 of 92 identical
   of the 2 that differ: 0 are SHARE-COUNT QUANTIZATION, 2 are not
 
 ========================================================================
-  INCONCLUSIVE. ARM A does not reproduce the reference engine's own
-  SELECTION -- the two engines hold different symbols, so ARM D is
-  not a trustworthy baseline for the port's sizing. Fix that first.
-  (Quantity-only differences are reported above and do not reach
-   here: they are a known divergence between two reimplementations,
-   not evidence about which book the engine chose.)
+  NOT VERIFIED. 2 rebalance(s) differ in a way share-count
+  quantization does not explain -- more than one share, more than one
+  symbol, or a different symbol set -- on a 0.01 grid where tick
+  quantization cannot be the cause. Something else is wrong.
+  Do not trade this.
 
   RESULT: FAIL -- universe smallcap250, arm v1, 0.01-grid reconciliation 90 of 92 identical, 0 quantization, 2 unexplained.
 ========================================================================
@@ -1732,7 +1774,7 @@ decided_on  breadth_pos  breadth_total  breadth  exposure  port_value  cash_befo
 
   control: ARM A vs the reference's own holdings
            SELECTION (gated)  -- 92 of 92 rebalances hold the same symbol set
-           SIZING (not gated) -- 86 of 92 differ in quantity only, worst 10.00% on a single position
+           SIZING (not gated) -- 0 of 92 differ in quantity only
 
   reconciliation on a 0.01 tick grid (both sides) -- 92 of 92 identical
   of the 0 that differ: 0 are SHARE-COUNT QUANTIZATION, 0 are not
@@ -1799,8 +1841,8 @@ decided_on  breadth_pos  breadth_total  breadth  exposure  port_value  cash_befo
     quantity error: median 0.01%  max 0.10%
 
   control: ARM A vs the reference's own holdings
-           SELECTION (gated)  -- 89 of 92 rebalances hold the same symbol set
-           SIZING (not gated) -- 86 of 92 differ in quantity only, worst 15.59% on a single position
+           SELECTION (gated)  -- 92 of 92 rebalances hold the same symbol set
+           SIZING (not gated) -- 0 of 92 differ in quantity only
 
   reconciliation on a 0.01 tick grid (both sides) -- 84 of 92 identical
   of the 8 that differ: 6 are SHARE-COUNT QUANTIZATION, 2 are not
@@ -1823,12 +1865,11 @@ decided_on  breadth_pos  breadth_total  breadth  exposure  port_value  cash_befo
     midcap150 holds shares at Rs 2.45. nifty100 has nothing that cheap.
 
 ========================================================================
-  INCONCLUSIVE. ARM A does not reproduce the reference engine's own
-  SELECTION -- the two engines hold different symbols, so ARM D is
-  not a trustworthy baseline for the port's sizing. Fix that first.
-  (Quantity-only differences are reported above and do not reach
-   here: they are a known divergence between two reimplementations,
-   not evidence about which book the engine chose.)
+  NOT VERIFIED. 2 rebalance(s) differ in a way share-count
+  quantization does not explain -- more than one share, more than one
+  symbol, or a different symbol set -- on a 0.01 grid where tick
+  quantization cannot be the cause. Something else is wrong.
+  Do not trade this.
 
   RESULT: FAIL -- universe smallcap250, arm v3, 0.01-grid reconciliation 84 of 92 identical, 6 quantization, 2 unexplained.
 ========================================================================
@@ -1879,7 +1920,7 @@ decided_on  breadth_pos  breadth_total  breadth  exposure  port_value  cash_befo
 
   control: ARM A vs the reference's own holdings
            SELECTION (gated)  -- 92 of 92 rebalances hold the same symbol set
-           SIZING (not gated) -- 88 of 92 differ in quantity only, worst 9.09% on a single position
+           SIZING (not gated) -- 0 of 92 differ in quantity only
 
   reconciliation on a 0.01 tick grid (both sides) -- 92 of 92 identical
   of the 0 that differ: 0 are SHARE-COUNT QUANTIZATION, 0 are not
@@ -1946,8 +1987,8 @@ decided_on  breadth_pos  breadth_total  breadth  exposure  port_value  cash_befo
     quantity error: median 0.03%  max 0.16%
 
   control: ARM A vs the reference's own holdings
-           SELECTION (gated)  -- 88 of 92 rebalances hold the same symbol set
-           SIZING (not gated) -- 85 of 92 differ in quantity only, worst 6.38% on a single position
+           SELECTION (gated)  -- 92 of 92 rebalances hold the same symbol set
+           SIZING (not gated) -- 0 of 92 differ in quantity only
 
   reconciliation on a 0.01 tick grid (both sides) -- 88 of 92 identical
   of the 4 that differ: 1 are SHARE-COUNT QUANTIZATION, 3 are not
@@ -1965,12 +2006,11 @@ decided_on  breadth_pos  breadth_total  breadth  exposure  port_value  cash_befo
     midcap150 holds shares at Rs 2.45. nifty100 has nothing that cheap.
 
 ========================================================================
-  INCONCLUSIVE. ARM A does not reproduce the reference engine's own
-  SELECTION -- the two engines hold different symbols, so ARM D is
-  not a trustworthy baseline for the port's sizing. Fix that first.
-  (Quantity-only differences are reported above and do not reach
-   here: they are a known divergence between two reimplementations,
-   not evidence about which book the engine chose.)
+  NOT VERIFIED. 3 rebalance(s) differ in a way share-count
+  quantization does not explain -- more than one share, more than one
+  symbol, or a different symbol set -- on a 0.01 grid where tick
+  quantization cannot be the cause. Something else is wrong.
+  Do not trade this.
 
   RESULT: FAIL -- universe nifty500, arm v1, 0.01-grid reconciliation 88 of 92 identical, 1 quantization, 3 unexplained.
 ========================================================================
@@ -2020,7 +2060,7 @@ decided_on  breadth_pos  breadth_total  breadth  exposure  port_value  cash_befo
 
   control: ARM A vs the reference's own holdings
            SELECTION (gated)  -- 92 of 92 rebalances hold the same symbol set
-           SIZING (not gated) -- 86 of 92 differ in quantity only, worst 8.33% on a single position
+           SIZING (not gated) -- 0 of 92 differ in quantity only
 
   reconciliation on a 0.01 tick grid (both sides) -- 91 of 92 identical
   of the 1 that differ: 0 are SHARE-COUNT QUANTIZATION, 1 are not
@@ -2080,8 +2120,8 @@ decided_on  breadth_pos  breadth_total  breadth  exposure  port_value  cash_befo
     quantity error: median 0.02%  max 0.28%
 
   control: ARM A vs the reference's own holdings
-           SELECTION (gated)  -- 81 of 92 rebalances hold the same symbol set
-           SIZING (not gated) -- 78 of 92 differ in quantity only, worst 5.75% on a single position
+           SELECTION (gated)  -- 92 of 92 rebalances hold the same symbol set
+           SIZING (not gated) -- 0 of 92 differ in quantity only
 
   reconciliation on a 0.01 tick grid (both sides) -- 28 of 92 identical
   of the 64 that differ: 1 are SHARE-COUNT QUANTIZATION, 63 are not
@@ -2099,12 +2139,11 @@ decided_on  breadth_pos  breadth_total  breadth  exposure  port_value  cash_befo
     midcap150 holds shares at Rs 2.45. nifty100 has nothing that cheap.
 
 ========================================================================
-  INCONCLUSIVE. ARM A does not reproduce the reference engine's own
-  SELECTION -- the two engines hold different symbols, so ARM D is
-  not a trustworthy baseline for the port's sizing. Fix that first.
-  (Quantity-only differences are reported above and do not reach
-   here: they are a known divergence between two reimplementations,
-   not evidence about which book the engine chose.)
+  NOT VERIFIED. 63 rebalance(s) differ in a way share-count
+  quantization does not explain -- more than one share, more than one
+  symbol, or a different symbol set -- on a 0.01 grid where tick
+  quantization cannot be the cause. Something else is wrong.
+  Do not trade this.
 
   RESULT: FAIL -- universe nifty500, arm v3, 0.01-grid reconciliation 28 of 92 identical, 1 quantization, 63 unexplained.
 ========================================================================
@@ -2155,7 +2194,7 @@ decided_on  breadth_pos  breadth_total  breadth  exposure  port_value  cash_befo
 
   control: ARM A vs the reference's own holdings
            SELECTION (gated)  -- 92 of 92 rebalances hold the same symbol set
-           SIZING (not gated) -- 84 of 92 differ in quantity only, worst 5.00% on a single position
+           SIZING (not gated) -- 0 of 92 differ in quantity only
 
   reconciliation on a 0.01 tick grid (both sides) -- 88 of 92 identical
   of the 4 that differ: 0 are SHARE-COUNT QUANTIZATION, 4 are not

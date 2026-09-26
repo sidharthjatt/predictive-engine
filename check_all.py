@@ -194,16 +194,13 @@ DELEGATES = (
     # ONE UNIVERSE PER INVOCATION, once per registry.CERTIFIED tag. nt_verify.py
     # defaults to the first REGISTERED universe, which is not a statement about
     # what ships; naming each tag is.
-    # v4 JOINED v2 ON 2026-09-26. nt_verify takes --arm since then, and a run of
-    # all four arms on all eight universes verified v2 and v4 on both certified
-    # universes and neither v1 nor v3 on any universe (INCONCLUSIVE: the reference
-    # re-implementation does not reproduce the audit trail's selection for the
-    # 100%-invested arms). v1 and v3 are not wired, so the runner does not go red
-    # on a known, logged failure; see KNOWN_ISSUES.md and
-    # diagnostics/nt_verify_all_arms_20260926.txt.
+    # EVERY ARM SINCE 2026-09-26. nt_verify takes --arm since then. v1 and v3
+    # were INCONCLUSIVE everywhere until ARM A was set to value the book at the
+    # open, as the reference does; after that all four arms verify on both
+    # certified universes (diagnostics/nt_verify_all_arms_20260926.txt).
     *[("nautilus/nt_verify.py", [f"--universe={t}"] + ([] if a == "v2" else [f"--arm={a}"]),
        False, None)
-      for t in _CERTIFIED for a in ("v2", "v4")],
+      for t in _CERTIFIED for a in ("v1", "v2", "v3", "v4")],
 
     # SLOW. validate_engine.py iterates the certified universes inside one run,
     # so it is wired ONCE and must not be given a tag. The other two do not, so

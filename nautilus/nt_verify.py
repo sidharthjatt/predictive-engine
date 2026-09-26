@@ -289,7 +289,17 @@ def main():
     # ARM A is the reference's own configuration. Its holdings must reproduce
     # daily_holdings_{TAG}.csv, and that is checked below rather than assumed -- it is
     # what licenses ARM D as a baseline at all.
-    arm_a = arm(panel, dates, size_at_close=False, **_ARM_KW)
+    #
+    # VALUED AT THE OPEN SINCE 2026-09-26, because the reference is. audit_step
+    # writes daily_holdings with value_at_open=True (the engine's setting since
+    # 2026-09-04), and ARM A kept the default, value_at_open=False, so it sized
+    # every buy from a close-valued book the reference never used. On the two
+    # 100%-invested arms that changed which buys the cash could cover, and so
+    # which names were held: v1 and v3 were INCONCLUSIVE on all eight universes.
+    # With the flag set, ARM A's holdings equal the audit trail's -- names and
+    # share counts -- on 92 of 92 rebalances in all 32 (universe, arm) cells,
+    # measured 2026-09-26. ARM A now differs from ARM D only by tick rounding.
+    arm_a = arm(panel, dates, size_at_close=False, value_at_open=True, **_ARM_KW)
 
     ref_stats = compare(port, ref, dates)
     d_stats = compare(port, arm_d, dates)

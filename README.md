@@ -469,29 +469,39 @@ nifty200 and nifty500 on 1 of 92 each. None of these differences is explained,
 and none has been investigated. Every Nautilus figure for those four universes is
 unverified. See `KNOWN_ISSUES.md`.
 
+> *Superseded 2026-09-26 for midcap50: its "91 of 92" and the sentence saying the port
+> holds a different set of names there came from nt_verify's control re-run, which
+> valued the book at the close, not from the port. With that re-run valuing at the open
+> as the research engine does, midcap50 v2 is 92 of 92 on names, 92 of 92 on the 0.01
+> grid, and verified. The other seven rows are unchanged.*
+
 > *Superseded 2026-09-25: this table read "midcap150 93 of 93, nifty100 93 of 93",
 > measured before the 2026-09-24 numerics rebuild, when the window held 93
 > rebalances.*
 
-**The other three arms, measured 2026-09-26** with `nt_verify.py --arm=<arm>` on all
-eight universes (`diagnostics/nt_verify_all_arms_20260926.txt`; the v2 rows reproduce
-the table above):
+**Every arm, measured 2026-09-26** with `nt_verify.py --arm=<arm>` on all eight
+universes (`diagnostics/nt_verify_all_arms_20260926.txt`; for v2 only midcap50 changes,
+see the note under the table above):
 
-| arm | verified | inconclusive | not verified |
-|---|---:|---:|---:|
-| v1 invvol, 100% invested | 0 of 8 | 8 | 0 |
-| v2 invvol, breadth-scaled | 4 of 8 | 1 | 3 |
-| v3 provol, 100% invested | 0 of 8 | 8 | 0 |
-| v4 provol, breadth-scaled | 4 of 8 (nifty100, midcap150, midcap100, smallcap250) | 1 | 3 |
+| arm | verified | not verified |
+|---|---|---:|
+| v1 invvol, 100% invested | 4 of 8: nifty100, midcap150, nifty50, midcap100 | 4 |
+| v2 invvol, breadth-scaled | 5 of 8: nifty100, midcap150, nifty50, midcap50, smallcap250 | 3 |
+| v3 provol, 100% invested | 2 of 8: nifty100, midcap150 | 6 |
+| v4 provol, breadth-scaled | 5 of 8: nifty100, midcap150, nifty50, midcap100, smallcap250 | 3 |
 
-**No v1 or v3 cell is verified by nt_verify on any universe.** The port picks the
-same names as the open-valued reference on every rebalance of all 32 cells, and on
-nifty100 and midcap150 it matches that reference on the 0.01 tick grid on 92 of 92
-rebalances for every arm (`verify_v34_arms.py`, gated since 2026-09-26). What fails
-for v1 and v3 is the control that licenses that reference: a second reimplementation
-of the backtest does not reproduce the research engine's selection for the two
-100%-invested arms. Not investigated; see `KNOWN_ISSUES.md`. check_all gates v2 and
-v4 through nt_verify on nifty100 and midcap150.
+All four arms verify on nifty100 and midcap150, and check_all gates all four there.
+The port picks the same names as the reference on every rebalance of all 32 cells;
+the 16 failures are share-count differences that nt_verify cannot explain as
+quantization, on the 0.01 tick grid. Not investigated; see `KNOWN_ISSUES.md`. Every
+Nautilus figure for a cell marked not verified is unverified.
+
+> *Superseded 2026-09-26: this block first read "No v1 or v3 cell is verified by
+> nt_verify on any universe" (v1 0 of 8, v3 0 of 8, both 8 inconclusive). The
+> reference re-run inside nt_verify valued the book at the close while the research
+> engine values it at the open; on the 100%-invested arms that changed which buys the
+> cash covered. With the reference set to value at the open, its holdings equal the
+> research engine's on all 32 cells, and the verdicts are the ones above.*
 
 What that proves, on nifty100 and midcap150 (and, measured once, nifty50 and smallcap250): the two implementations are identical in logic. Order lifecycle,
 cash accounting, fee computation and decision timing all survive the move into an
