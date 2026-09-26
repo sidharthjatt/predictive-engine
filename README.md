@@ -87,6 +87,8 @@ pipeline trades on a price it could not have seen.
   sells. That is what holding and never trading earns. The "sold on the last day"
   column prices the alternative: everything sold on 2026-05-29, with sell charges
   and capital-gains tax.
+- **No universe has a supported after-tax edge over the investable buy & hold**
+  (see the pre-registered test below the buy & hold table).
 - **The survivorship bias is permanent.** Every universe is today's index members
   backfilled to 2019 (see "What is wrong with these results").
 
@@ -166,6 +168,13 @@ last-day against last-day.
 | midcap100 | 26.82 | -38.42 | 24.48 | -38.56 | 23.04 | +0.01 | +1.54 |
 | midcap150 | 25.46 | -37.73 | 23.55 | -35.88 | 22.16 | +0.61 | +2.08 |
 | smallcap250 | 27.15 | -48.65 | 26.60 | -44.98 | 24.95 | -5.55 | -3.86 |
+
+nifty500 +1.89 and midcap150 +0.61 are single draws. Under the pre-registered
+after-tax price-noise test (`experiments/AFTER_TAX_PREREG.txt`, n=10, sigma 0.01%,
+seeds 101 to 1010), neither after-tax edge is supported: midcap150 beat the
+investable buy & hold in 8 of 10 draws (mean gap +1.51, sd 1.99), nifty500 in 2 of
+10 (mean gap -0.27, sd 1.20). Report: `diagnostics/after_tax_noise.txt`; per-run
+record: `diagnostics/after_tax_noise_runs.csv`.
 
 ### SUPERSEDED 2026-09-25 for its tax-on figures -- rebuilt 2026-09-24, and identical on macOS and Linux
 
