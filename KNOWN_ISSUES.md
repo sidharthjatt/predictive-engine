@@ -25,6 +25,50 @@ currently wrong.
 
 ---
 
+## adj_close and close disagree for one or two sessions on about 0.4% of rows -- FOUND 2026-09-27, NOT CLEANED
+
+A read-only scan of every universe's farm (every session where adj_close/close moves
+more than 1% from the previous session) found 14,852 distinct symbol-days on 469
+symbols. 6,830 revert to the previous ratio within two sessions, which a split, bonus
+or dividend cannot do (those back-adjust every earlier date and leave a lasting step).
+Inside the backtest window, 2019-01-01 to 2026-05-29, 2,543 reverting symbol-days on
+461 symbols, 733 larger than 5% and 94 larger than 10%. On every one adj_close lies
+inside the day's low-high range, so `canonical_price` keeps it and scales the open by
+the same ratio: the engine trades, values, builds features and labels at those prices.
+
+- **Every source carries them**, as a share of that source's rows: upstox/NSE 0.14%,
+  dhan/NSE 0.14%, upstox/BSE 0.18%, dhan/BSE 0.11%, kite/NSE 0.37%, kite/BSE 0.30%.
+- **They cluster on the most violent market days**: 2020-03-23 (167 symbols),
+  2020-03-12 (98), 2024-06-04 (83), 2020-04-07 (40), 2019-09-20 (22).
+- **No independent source on disk.** Every copy under `data/raw/` is the same vendor
+  merge; the older `data/raw/MidCap150/clean/` merge has the pre-move ratio on 6 of
+  769 flagged midcap150 rows. No corporate-action dataset exists.
+- **Direct effect on the two traced cells**: fills on flagged days cost nifty500 v3
+  Rs 145,437 (1.42% of final equity) and smallcap250 v1 Rs 136,103 (1.07%), both
+  against the arm. Decisions taken from distorted closes are not estimated.
+- HAL's move from 471 to 662 in August 2020, which drives nifty500 v3's port gap, is in
+  the raw opens of clean days; the HAL fills were on clean rows.
+
+A cleaning rule is proposed, not applied (pass E report): on an excursion of one or
+two sessions that returns within 0.1% of the previous ratio, set adj_close to close
+times the previous ratio. It would change 0.37% to 0.51% of each universe's rows in
+the window. **Every published figure and every noise draw so far is computed on the
+uncleaned data.** The owner decides the rule; the cleaning is a separate step, with
+the raw files unchanged.
+
+`results/leakage_check4_corpactions.py` still states that the panel uses close and
+ignores adj_close. That predates `canonical_price` and is wrong; logged, not changed.
+
+## Four-arm noise test, stage 1 of 3 -- 2026-09-27
+
+`experiments/FOUR_ARM_NOISE_PREREG.txt`, stage 1 (nifty50, midcap100, midcap50,
+nifty100): all four baselines passed, 40 of 40 draws, 7.0 hours at 2 x 5. Under the
+rule, 3 of the 16 cells decided so far are supported -- midcap100 v1, midcap100 v3
+([NOT VERIFIED] by nt_verify) and nifty100 v1 -- out of 32 cells tested; the other
+13 are not supported. Report: `diagnostics/four_arm_noise.txt`; records:
+`diagnostics/four_arm_noise_runs.csv`. Stages 2 and 3 are held until the owner decides
+on the data cleaning above; all of stage 1 is on the uncleaned data.
+
 ## The two largest port gaps are tick-grid forks at a cash-short skip, not engine defects -- 2026-09-26
 
 nt_verify reports the Nautilus port ending 5.75% below the research engine on nifty500

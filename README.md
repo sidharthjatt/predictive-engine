@@ -89,6 +89,9 @@ pipeline trades on a price it could not have seen.
   and capital-gains tax.
 - **No universe has a supported after-tax edge over the investable buy & hold**
   (see the pre-registered test below the buy & hold table).
+- **About 0.4% of price rows carry a one- or two-session adj_close/close mismatch**
+  that is not a corporate action (found 2026-09-27, not yet cleaned). Every figure
+  here is computed on those rows; see `KNOWN_ISSUES.md`.
 - **The survivorship bias is permanent.** Every universe is today's index members
   backfilled to 2019 (see "What is wrong with these results").
 

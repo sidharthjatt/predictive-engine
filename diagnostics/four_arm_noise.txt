@@ -1,0 +1,113 @@
+FOUR-ARM AFTER-TAX EDGE UNDER PRICE NOISE -- experiments/FOUR_ARM_NOISE_PREREG.txt
+======================================================================================
+Arm tax-on headline CAGR minus the investable taxed buy & hold headline CAGR, points,
+on the same perturbed panel. sigma 0.0001 (0.01%), seeds 101 to 1010, n=10, research and tradeable profiles.
+RULE (verbatim): For each cell and profile, an after-tax edge is supported only if at least 9 of 10 draws have a gap strictly above zero and the mean gap exceeds one sample sd (ddof=1) of the gaps. A cell is reported as supported only if it passes under both research and tradeable. Anything else is not supported.
+32 cells are tested: 4 arms x 8 universes. Every cell is reported, under both profiles.
+[NOT VERIFIED] marks a cell whose nt_verify result was NOT VERIFIED on 2026-09-26.
+
+nifty50
+  baseline PASSED (every arm, both profiles, and the buy & hold within 0.0001 of the published figures); buy & hold 19.6197
+  v1 research  gaps -3.6727 -4.9148 -6.6569 -2.6697 -1.2081 -4.8407 -1.1144 -4.7401 -4.7124 -3.6786
+  v1 research  mean -3.8208  sd 1.7460  min -6.6569  max -1.1144  draws above zero 0 of 10  -> fails
+  v1 tradeable gaps -3.6727 -4.9148 -6.6569 -2.6697 -1.2081 -4.8407 -1.1144 -4.7401 -4.7124 -3.6786
+  v1 tradeable mean -3.8208  sd 1.7460  min -6.6569  max -1.1144  draws above zero 0 of 10  -> fails
+  v1 VERDICT: NOT SUPPORTED (research fails, tradeable fails)
+  v2 research  gaps -7.6225 -8.6212 -8.5071 -8.7227 -8.4231 -8.3042 -6.5750 -8.7522 -9.8057 -8.5367
+  v2 research  mean -8.3870  sd 0.8318  min -9.8057  max -6.5750  draws above zero 0 of 10  -> fails
+  v2 tradeable gaps -7.6225 -8.6212 -8.5071 -8.7227 -8.4231 -8.3042 -6.5750 -8.7522 -9.8057 -8.5367
+  v2 tradeable mean -8.3870  sd 0.8318  min -9.8057  max -6.5750  draws above zero 0 of 10  -> fails
+  v2 VERDICT: NOT SUPPORTED (research fails, tradeable fails)
+  v3 research  gaps +0.7119 -1.9443 -1.3630 -1.3184 +0.8308 +1.0292 -0.9903 -2.9217 -1.5152 -2.0360
+  v3 research  mean -0.9517  sd 1.3554  min -2.9217  max +1.0292  draws above zero 3 of 10  -> fails
+  v3 tradeable gaps +0.7119 -1.9443 -1.3630 -1.3184 +0.8308 +1.0292 -0.9903 -2.9217 -1.5152 -2.0360
+  v3 tradeable mean -0.9517  sd 1.3554  min -2.9217  max +1.0292  draws above zero 3 of 10  -> fails
+  v3 VERDICT: NOT SUPPORTED (research fails, tradeable fails)  [NOT VERIFIED]
+  v4 research  gaps -4.0956 -4.9195 -5.6079 -6.5758 -4.4540 -4.5057 -3.3364 -5.4123 -6.9512 -4.1146
+  v4 research  mean -4.9973  sd 1.1425  min -6.9512  max -3.3364  draws above zero 0 of 10  -> fails
+  v4 tradeable gaps -4.0956 -4.9195 -5.6079 -6.5758 -4.4540 -4.5057 -3.3364 -5.4123 -6.9512 -4.1146
+  v4 tradeable mean -4.9973  sd 1.1425  min -6.9512  max -3.3364  draws above zero 0 of 10  -> fails
+  v4 VERDICT: NOT SUPPORTED (research fails, tradeable fails)
+
+midcap100
+  baseline PASSED (every arm, both profiles, and the buy & hold within 0.0001 of the published figures); buy & hold 24.4762
+  v1 research  gaps +8.1255 +7.2005 +2.7999 +4.4991 +6.4111 +4.3978 +3.3996 +7.5593 +7.6878 +3.0808
+  v1 research  mean +5.5161  sd 2.0926  min +2.7999  max +8.1255  draws above zero 10 of 10  -> passes
+  v1 tradeable gaps +8.1184 +7.1612 +2.7998 +4.4982 +6.5725 +4.3966 +3.3969 +7.6974 +7.6241 +3.0808
+  v1 tradeable mean +5.5346  sd 2.1051  min +2.7998  max +8.1184  draws above zero 10 of 10  -> passes
+  v1 VERDICT: SUPPORTED (research passes, tradeable passes) -- one of 32 cells tested
+  v2 research  gaps -1.6347 -1.2483 -2.8472 -2.7195 -0.9291 -2.8299 -4.9242 -0.0478 -0.4785 -2.9173
+  v2 research  mean -2.0577  sd 1.4627  min -4.9242  max -0.0478  draws above zero 0 of 10  -> fails
+  v2 tradeable gaps -1.6347 -1.2483 -2.8472 -2.7195 -0.9291 -2.8299 -4.9242 -0.0478 -0.4785 -2.9173
+  v2 tradeable mean -2.0577  sd 1.4627  min -4.9242  max -0.0478  draws above zero 0 of 10  -> fails
+  v2 VERDICT: NOT SUPPORTED (research fails, tradeable fails)  [NOT VERIFIED]
+  v3 research  gaps +4.4926 +6.1964 +7.0349 +9.0159 +12.0104 +6.0770 +3.6469 +3.9069 +7.1290 +2.7788
+  v3 research  mean +6.2289  sd 2.7819  min +2.7788  max +12.0104  draws above zero 10 of 10  -> passes
+  v3 tradeable gaps +4.3876 +6.1776 +6.9335 +9.0159 +12.0104 +6.1847 +3.9735 +3.7970 +7.0974 +2.7788
+  v3 tradeable mean +6.2356  sd 2.7637  min +2.7788  max +12.0104  draws above zero 10 of 10  -> passes
+  v3 VERDICT: SUPPORTED (research passes, tradeable passes) -- one of 32 cells tested  [NOT VERIFIED]
+  v4 research  gaps -4.4517 -2.1187 -4.2650 -3.1826 -1.9953 -3.2710 -3.7624 -1.6303 +0.3712 -5.8063
+  v4 research  mean -3.0112  sd 1.7415  min -5.8063  max +0.3712  draws above zero 1 of 10  -> fails
+  v4 tradeable gaps -4.4517 -2.1187 -4.2650 -3.1826 -1.9953 -3.2710 -3.7624 -1.6303 +0.3712 -5.8063
+  v4 tradeable mean -3.0112  sd 1.7415  min -5.8063  max +0.3712  draws above zero 1 of 10  -> fails
+  v4 VERDICT: NOT SUPPORTED (research fails, tradeable fails)
+
+midcap50
+  baseline PASSED (every arm, both profiles, and the buy & hold within 0.0001 of the published figures); buy & hold 25.9739
+  v1 research  gaps -2.5467 -0.4067 +1.5211 -3.7832 -1.4759 -4.9667 -2.0074 -4.4398 -1.6717 -5.4597
+  v1 research  mean -2.5237  sd 2.1802  min -5.4597  max +1.5211  draws above zero 1 of 10  -> fails
+  v1 tradeable gaps -2.5467 -0.4067 +1.5211 -3.7832 -1.4759 -4.9667 -2.0074 -4.4398 -1.6717 -5.4597
+  v1 tradeable mean -2.5237  sd 2.1802  min -5.4597  max +1.5211  draws above zero 1 of 10  -> fails
+  v1 VERDICT: NOT SUPPORTED (research fails, tradeable fails)  [NOT VERIFIED]
+  v2 research  gaps -8.3743 -9.7467 -8.8633 -9.6107 -6.3638 -8.5876 -9.6346 -8.3647 -7.6423 -8.1745
+  v2 research  mean -8.5363  sd 1.0350  min -9.7467  max -6.3638  draws above zero 0 of 10  -> fails
+  v2 tradeable gaps -8.3743 -9.7467 -8.8633 -9.6107 -6.3638 -8.5876 -9.6346 -8.3647 -7.6423 -8.1745
+  v2 tradeable mean -8.5363  sd 1.0350  min -9.7467  max -6.3638  draws above zero 0 of 10  -> fails
+  v2 VERDICT: NOT SUPPORTED (research fails, tradeable fails)
+  v3 research  gaps -0.0571 -2.5940 +2.1672 -6.3473 -2.4740 -4.9181 -5.1404 -5.4907 -5.1385 -5.1881
+  v3 research  mean -3.5181  sd 2.7517  min -6.3473  max +2.1672  draws above zero 1 of 10  -> fails
+  v3 tradeable gaps -0.0571 -2.5940 +2.1672 -6.3473 -2.4740 -4.9181 -5.1404 -5.4907 -5.1385 -5.1881
+  v3 tradeable mean -3.5181  sd 2.7517  min -6.3473  max +2.1672  draws above zero 1 of 10  -> fails
+  v3 VERDICT: NOT SUPPORTED (research fails, tradeable fails)  [NOT VERIFIED]
+  v4 research  gaps -9.4117 -11.6447 -10.6828 -10.9371 -7.6101 -10.4991 -12.7524 -11.4825 -10.3775 -9.1508
+  v4 research  mean -10.4549  sd 1.4501  min -12.7524  max -7.6101  draws above zero 0 of 10  -> fails
+  v4 tradeable gaps -9.4117 -11.6447 -10.6828 -10.9371 -7.6101 -10.4991 -12.7524 -11.4825 -10.3775 -9.1508
+  v4 tradeable mean -10.4549  sd 1.4501  min -12.7524  max -7.6101  draws above zero 0 of 10  -> fails
+  v4 VERDICT: NOT SUPPORTED (research fails, tradeable fails)  [NOT VERIFIED]
+
+nifty100
+  baseline PASSED (every arm, both profiles, and the buy & hold within 0.0001 of the published figures); buy & hold 23.3803
+  v1 research  gaps +2.0241 +0.8386 +1.0598 +0.5163 +2.1340 +1.2517 +1.9274 +2.8926 +1.2896 +1.8242
+  v1 research  mean +1.5758  sd 0.7111  min +0.5163  max +2.8926  draws above zero 10 of 10  -> passes
+  v1 tradeable gaps +2.0241 +0.8386 +1.0598 +0.4541 +2.3080 +1.2517 +1.9274 +2.8926 +1.2896 +1.4974
+  v1 tradeable mean +1.5543  sd 0.7342  min +0.4541  max +2.8926  draws above zero 10 of 10  -> passes
+  v1 VERDICT: SUPPORTED (research passes, tradeable passes) -- one of 32 cells tested
+  v2 research  gaps -3.9445 -7.5024 -5.4464 -5.0401 -4.5757 -4.8432 -4.6809 -4.8152 -6.7713 -6.4938
+  v2 research  mean -5.4114  sd 1.1350  min -7.5024  max -3.9445  draws above zero 0 of 10  -> fails
+  v2 tradeable gaps -3.9445 -7.5024 -5.4464 -5.0401 -4.5757 -4.8432 -4.6809 -4.8152 -6.7713 -6.4938
+  v2 tradeable mean -5.4114  sd 1.1350  min -7.5024  max -3.9445  draws above zero 0 of 10  -> fails
+  v2 VERDICT: NOT SUPPORTED (research fails, tradeable fails)
+  v3 research  gaps -0.0174 +1.9386 +0.3325 -0.7587 +2.5402 -1.8427 -0.9791 +0.0763 -2.8492 -4.0464
+  v3 research  mean -0.5606  sd 2.0168  min -4.0464  max +2.5402  draws above zero 4 of 10  -> fails
+  v3 tradeable gaps -0.0174 +1.9386 +0.3325 -0.7587 +2.5402 -1.8427 -0.9791 +0.0763 -2.8492 -4.0464
+  v3 tradeable mean -0.5606  sd 2.0168  min -4.0464  max +2.5402  draws above zero 4 of 10  -> fails
+  v3 VERDICT: NOT SUPPORTED (research fails, tradeable fails)
+  v4 research  gaps -3.9770 -6.7995 -6.9074 -3.8927 -1.7971 -3.3582 -2.5057 -4.7045 -8.2272 -7.6602
+  v4 research  mean -4.9829  sd 2.2583  min -8.2272  max -1.7971  draws above zero 0 of 10  -> fails
+  v4 tradeable gaps -3.9770 -6.7995 -6.9074 -3.8927 -1.7971 -3.3582 -2.5057 -4.7045 -8.2272 -7.6602
+  v4 tradeable mean -4.9829  sd 2.2583  min -8.2272  max -1.7971  draws above zero 0 of 10  -> fails
+  v4 VERDICT: NOT SUPPORTED (research fails, tradeable fails)
+
+midcap150
+  not run
+
+smallcap250
+  not run
+
+nifty200
+  not run
+
+nifty500
+  not run
+
+SUMMARY: 16 cell(s) decided so far, of 32 tested; supported: midcap100 v1, midcap100 v3, nifty100 v1 (32 cells were tested)
