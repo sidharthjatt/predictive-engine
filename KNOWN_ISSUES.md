@@ -25,6 +25,36 @@ currently wrong.
 
 ---
 
+## results/noise_parallel.py: layout measured, no measurement taken -- 2026-09-26
+
+The harness runs each noise draw as its own process, fits the ten seeds in a fixed
+number of loky workers per draw (each fit one thread, as in the old harness), runs all
+four arms under research and tradeable, tax on, on each draw's panel, and writes one
+result file per draw atomically. It has taken no measurement; any test run with it
+needs a pre-registration first.
+
+Timed on midcap150 seed 101 with nothing else running, memory summed over each draw's
+process tree (loky workers included) every 2 s:
+
+| layout (draws x loky workers) | time per draw | draws per hour | peak memory, all draws |
+|---|--:|--:|--:|
+| old harness, one draw, 10 workers (after_tax_noise_runs.csv) | 16.6 min | 3.61 | not recorded |
+| 1 x 10 | 17.4 min | 3.45 | 5.45 GiB |
+| 2 x 5 | 33.1 min | 3.63 | 5.18 GiB |
+| 3 x 3 | 49.6 min | 3.63 | 5.40 GiB |
+
+**Chosen: 2 x 5.** It ties 3 x 3 on throughput (3.625 against 3.629 per hour) and holds
+one fewer copy of the panel. nifty500 at 5 workers, alone: 68.8 min, 5.17 GB peak; two
+nifty500 draws together at 2 x 5: 108 to 109 min each, 6.25 GiB peak. Every draw timed
+here reproduced the recorded v2 and investable buy & hold CAGRs, final equity and tax
+of `diagnostics/after_tax_noise_runs.csv` exactly (midcap150 seed 101 six times,
+nifty500 seeds 101 and 202).
+
+Estimated full run at 2 x 5, all four arms, eight universes, baseline plus ten draws
+each: about 28.5 hours (the old harness, one draw at a time: about 31 hours). The
+per-draw times of the six unmeasured universes are interpolated from their panel
+rebuild times of 2026-09-24.
+
 ## The tradeable profile on all 32 cells, tax on, 2026-09-26 -- UNGATED
 
 `run.py --universe all --arm all --tax on --profile tradeable`, cadence 20, on the
