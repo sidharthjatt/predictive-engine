@@ -137,3 +137,8 @@ data/reference/*.docx
 forensic_snapshot_*/
 pre_repoint_baseline/
 superseded_tradeable_*/
+
+# Per-draw results, logs and scratch farms of experiments/FOUR_ARM_NOISE_PREREG.txt,
+# written by scripts/run_noise_stage.sh. The committed record is
+# diagnostics/four_arm_noise_runs.csv and diagnostics/four_arm_noise.txt.
+noise_runs/

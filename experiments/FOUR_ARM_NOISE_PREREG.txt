@@ -1,0 +1,125 @@
+FOUR-ARM AFTER-TAX EDGE UNDER PRICE NOISE -- PRE-REGISTRATION
+================================================================================
+Written 2026-09-26, before any draw of this measurement. The rule and the
+statements marked VERBATIM were set by the owner on 2026-09-26 and are copied here
+unchanged. The harness (results/noise_parallel.py, sha256 prefix
+d9bac5e74ae9ff19) and the stage script (scripts/run_noise_stage.sh) are committed
+in the same commit as this file. No draw has been computed when this file is
+committed.
+
+QUESTION
+
+    Does any arm's after-tax edge over the investable taxed buy & hold survive
+    price noise too small to see, on any universe, under both execution profiles?
+
+CELLS (VERBATIM)
+
+    Cells: arms v1, v2, v3, v4 on all eight universes, 32 cells, tax on, headline
+    CAGR, each measured against the investable taxed buy & hold on the same
+    perturbed panel. Both the research and the tradeable profile are computed on
+    every draw.
+
+    Universes: nifty50, midcap100, midcap50, nifty100, midcap150, smallcap250,
+    nifty200, nifty500. Arms as in arms/registry.py (v1 none/invvol, v2
+    breadth/invvol, v3 none/provol, v4 breadth/provol). Cadence 20. Window
+    2019-01-01 to 2026-05-29. Headline: the in-loop capital-gains ledger, the last
+    partial financial year settled on the final session, nothing sold at the end.
+    Research profile: no participation cap. Tradeable profile: the cap of
+    profiles.PROFILES["tradeable"] (1.00 x prior-20-session median volume), volume
+    read from the universe's own farm (volume is not perturbed). The investable
+    taxed buy & hold is results/bh_held.held_lots, eq_headline, built on the same
+    perturbed panel; it takes no cap and is the same under both profiles.
+
+NOISE (VERBATIM)
+
+    Noise: sigma 0.01%, n=10, seeds 101 to 1010. Each universe also runs one
+    sigma-0 baseline that must reproduce the published full-precision figures
+    (research: from diagnostics/tax_on_all_arms.csv; tradeable: from the
+    2026-09-26 tradeable tax-on grid) within 0.0001 points. If a baseline fails,
+    that universe stops and none of its draws count.
+
+    One draw: adj_close' = adj_close * (1 + eps), eps ~ Normal(0, 0.0001), for
+    every (symbol, date), by results/price_noise_measure.perturb_farm, unchanged
+    (sha256 prefix c0a78e120d6e948b). Seeds 101, 202, 303, 404, 505, 606, 707, 808,
+    909, 1010. The raw panel is rebuilt and the production 10-seed monthly ensemble
+    refitted from the perturbed farm; the ten fits run in 5 loky worker processes,
+    each fit single-threaded, as in the production path.
+
+    The 2026-09-26 tradeable tax-on grid is diagnostics/tradeable_tax_all_arms.csv.
+    The baseline compares every arm under both profiles, and the investable buy &
+    hold, with those two files (bh_cagr, arm_cagr, tradeable_cagr). A universe's
+    noise draws do not start until its baseline has passed.
+
+    gap = CAGR% of the arm minus CAGR% of the investable taxed buy & hold, both at
+    full precision with engine_core.metrics' formula,
+    (end / start) ** (365.25 / calendar days) - 1. sd is the sample standard
+    deviation of the ten gaps (ddof = 1).
+
+ACCEPT RULE, FIXED NOW (VERBATIM)
+
+    Accept rule, fixed now: for each cell and profile, an after-tax edge is
+    supported only if at least 9 of 10 draws have a gap strictly above zero and
+    the mean gap exceeds one sample sd (ddof=1) of the gaps. A cell is reported as
+    supported only if it passes under both research and tradeable. Anything else
+    is not supported.
+
+    A verdict needs the baseline and all ten draws of that universe. A universe
+    with fewer has no verdict.
+
+THE TWO CELLS ALREADY DECIDED (VERBATIM)
+
+    v2 on midcap150 and nifty500 already has a verdict under AFTER_TAX_PREREG.txt.
+    Those verdicts stand and are not decided again. Their v2 and buy & hold
+    figures in every draw must match diagnostics/after_tax_noise_runs.csv to full
+    precision; any mismatch voids that universe's measurement.
+
+    "Full precision" is equality with that file's recorded values: CAGR rounded
+    to 6 decimals, final equity and tax to the paisa. The check covers the
+    baseline and all ten seeds. Their gap statistics are reported under both
+    profiles, with the earlier verdict (NOT SUPPORTED) in place of a new one.
+
+REPORTING (VERBATIM)
+
+    All 32 cells are reported under both profiles, including every cell that
+    fails. The report states that 32 cells were tested, next to any cell that is
+    supported.
+
+    Cells whose nt_verify result is NOT VERIFIED are reported with that flag
+    beside the verdict.
+
+    The NOT VERIFIED cells, from diagnostics/nt_verify_all_arms_20260926.txt:
+    nifty50 v3; midcap50 v1, v3, v4; midcap100 v2, v3; nifty200 v1, v2, v3, v4;
+    smallcap250 v1, v3; nifty500 v1, v2, v3, v4.
+
+    Per cell and profile the report states the ten gaps, their mean, sd, min, max,
+    the number of draws above zero, and the verdict under the rule above. Records:
+    diagnostics/four_arm_noise_runs.csv (one row per draw, arm and profile) and
+    diagnostics/four_arm_noise.txt (the report), written by
+    `results/noise_parallel.py analyse`. Per-draw result files and logs are kept in
+    noise_runs/four_arm/, which is not tracked.
+
+NO SECOND ATTEMPT (VERBATIM)
+
+    No second attempt, no new seeds, no change to the rule, the cells or the
+    harness after the first draw is written. Re-running an interrupted draw with
+    the same seed and the same committed code recomputes the same draw and is not
+    a second attempt. A change to the harness after the first draw voids every
+    universe not yet finished.
+
+    Every draw records the harness's sha256 prefix; the analysis voids a universe
+    whose baseline and draws do not all carry the committed harness's hash.
+
+STAGES (VERBATIM)
+
+    Stages: stage 1 = nifty50, midcap100, midcap50, nifty100; stage 2 = midcap150,
+    smallcap250, nifty200; stage 3 = nifty500. Order within a stage is fixed.
+
+    Within a stage the work list is fixed: for each universe in the order above,
+    its baseline and then seeds 101 to 1010. Two draws run at a time; the next to
+    start is the first item in the list whose universe's baseline has passed (a
+    baseline can always start). A stage is run with
+
+        scripts/run_noise_stage.sh <stage>
+
+    which resumes on a re-run. Estimated wall time from the 2026-09-26 layout
+    measurements: stage 1 about 7 hours, stage 2 about 11, stage 3 about 10.

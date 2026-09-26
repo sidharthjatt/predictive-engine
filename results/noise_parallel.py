@@ -6,12 +6,29 @@ noise_parallel.py -- price-noise draws in parallel, all four arms, both profiles
     ./venv/bin/python results/noise_parallel.py merge  --out /path/to/outdir
     ./venv/bin/python results/noise_parallel.py verify --out /path/to/outdir
     ./venv/bin/python results/noise_parallel.py one --universe midcap150 --seed 101 --loky 10 --out DIR
+    ./venv/bin/python results/noise_parallel.py stage 1 --out noise_runs/four_arm
+    ./venv/bin/python results/noise_parallel.py analyse --out noise_runs/four_arm
 
-A HARNESS, NOT A MEASUREMENT. No pre-registration names this file, and nothing it
-writes is a published figure. It exists so that a later pre-registered test can
-run every arm on every universe in a practical wall-clock time. It does not touch
-results/after_tax_noise.py, which remains the harness of the pre-registered v2
-measurement.
+THE HARNESS OF experiments/FOUR_ARM_NOISE_PREREG.txt. `stage` and `analyse`
+implement that pre-registration and nothing else; read it for the accept rule.
+It does not touch results/after_tax_noise.py, which remains the harness of the
+earlier v2 measurement (experiments/AFTER_TAX_PREREG.txt).
+
+STAGES, BASELINES AND THE ORDER OF WORK
+    `stage N` runs the universes of STAGES[N] in that order, each as a sigma-0
+    baseline followed by the ten noise seeds, two draws at a time with five loky
+    workers each. A universe's draws start only after its baseline result exists
+    and passed (baseline_check: every arm under both profiles and the investable
+    buy & hold within BASELINE_TOL of the published figures). A universe whose
+    baseline fails gets no draws. Work is taken in list order: the first job whose
+    baseline condition is met starts next, so a later universe's baseline can run
+    beside an earlier universe's draws. Re-running the same command resumes: every
+    draw with a result file is skipped.
+
+ANALYSE merges the draws, checks each universe (baseline passed, ten draws, one
+harness hash, and on midcap150 and nifty500 v2 and the buy & hold equal to
+diagnostics/after_tax_noise_runs.csv), applies RULE to every cell and profile,
+and writes diagnostics/four_arm_noise.txt and diagnostics/four_arm_noise_runs.csv.
 
 ONE PROCESS PER DRAW, EACH WITH A FIXED NUMBER OF LOKY WORKERS
     `run` starts up to --workers child processes, one per (universe, seed), each
@@ -86,6 +103,34 @@ REBAL = 20
 PROFILES = ("research", "tradeable")
 PYTHON = str(ROOT / "venv" / "bin" / "python")
 DEFAULT_WORK = "/tmp/noise_parallel"
+
+# FIXED BY experiments/FOUR_ARM_NOISE_PREREG.txt.
+STAGES = {1: ("nifty50", "midcap100", "midcap50", "nifty100"),
+          2: ("midcap150", "smallcap250", "nifty200"),
+          3: ("nifty500",)}
+NOISE_SEEDS = (101, 202, 303, 404, 505, 606, 707, 808, 909, 1010)
+ARM_NAMES = ("v1", "v2", "v3", "v4")
+STAGE_WORKERS, STAGE_LOKY = 2, 5
+BASELINE_TOL = 0.0001
+PUBLISHED_RESEARCH = ROOT / "diagnostics" / "tax_on_all_arms.csv"
+PUBLISHED_TRADEABLE = ROOT / "diagnostics" / "tradeable_tax_all_arms.csv"
+PRIOR_V2 = ROOT / "diagnostics" / "after_tax_noise_runs.csv"
+PRIOR_V2_UNIVERSES = ("midcap150", "nifty500")
+# nt_verify NOT VERIFIED cells as of 2026-09-26 (check_all.NT_VERIFY_UNGATED),
+# copied so the flag is fixed with the pre-registration.
+NOT_VERIFIED = {
+    ("nifty50", "v3"), ("midcap50", "v1"), ("midcap50", "v3"), ("midcap50", "v4"),
+    ("midcap100", "v2"), ("midcap100", "v3"),
+    ("nifty200", "v1"), ("nifty200", "v2"), ("nifty200", "v3"), ("nifty200", "v4"),
+    ("smallcap250", "v1"), ("smallcap250", "v3"),
+    ("nifty500", "v1"), ("nifty500", "v2"), ("nifty500", "v3"), ("nifty500", "v4"),
+}
+RULE = ("For each cell and profile, an after-tax edge is supported only if at least 9 "
+        "of 10 draws have a gap strictly above zero and the mean gap exceeds one sample "
+        "sd (ddof=1) of the gaps. A cell is reported as supported only if it passes "
+        "under both research and tradeable. Anything else is not supported.")
+REPORT = ROOT / "diagnostics" / "four_arm_noise.txt"
+RUNS_CSV = ROOT / "diagnostics" / "four_arm_noise_runs.csv"
 
 
 def cagr(eq):
@@ -206,10 +251,39 @@ def result_path(out, tag, seed):
     return Path(out) / "draws" / f"{draw_name(tag, seed)}.json"
 
 
+def baseline_check(res):
+    """-> (ok, failures): the sigma-0 run against the published full-precision figures."""
+    from config import read_table
+    pr = read_table(PUBLISHED_RESEARCH)
+    pt = read_table(PUBLISHED_TRADEABLE)
+    tag, fails = res["tag"], []
+    want = [("bh", res["bh_cagr"], float(pr[pr.universe == tag].bh_cagr.iloc[0]))]
+    for a in ARM_NAMES:
+        want.append((f"{a}@research", res["arms"][f"{a}@research"]["cagr"],
+                     float(pr[(pr.universe == tag) & (pr.arm == a)].arm_cagr.iloc[0])))
+        want.append((f"{a}@tradeable", res["arms"][f"{a}@tradeable"]["cagr"],
+                     float(pt[(pt.universe == tag) & (pt.arm == a)].tradeable_cagr.iloc[0])))
+    for name, got, pub in want:
+        if abs(got - pub) > BASELINE_TOL:
+            fails.append(f"{name}: {got:.6f} against published {pub:.4f}")
+    return not fails, fails
+
+
 def cmd_one(a):
     res = one_draw(a.universe, a.seed, a.sigma, a.work, a.loky)
+    if a.seed == 0:
+        ok, fails = baseline_check(res)
+        res["baseline"] = {"ok": ok, "failures": fails, "tolerance": BASELINE_TOL}
     write_atomic(result_path(a.out, a.universe, a.seed), json.dumps(res, indent=1))
     return 0
+
+
+def _baseline_state(out, tag):
+    """None if no baseline result yet, else True/False for pass/fail."""
+    f = result_path(out, tag, 0)
+    if not f.exists():
+        return None
+    return bool(json.loads(f.read_text()).get("baseline", {}).get("ok", False))
 
 
 def _peak_rss(time_file):
@@ -272,9 +346,24 @@ def cmd_run(a):
             jobs.append((tag, s))
     running, peak, failed, done = {}, {}, [], []
     peak_all, t_start = 0, time.time()
+    gate = a.baseline
     while jobs or running:
-        while jobs and len(running) < a.workers:
-            tag, s = jobs.pop(0)
+        while len(running) < a.workers:
+            # With --baseline, a universe's noise draws wait for its baseline to
+            # exist and pass; a failed baseline drops them. Otherwise first come.
+            pick = None
+            for i, (tag, s) in enumerate(list(jobs)):
+                st = _baseline_state(out, tag) if (gate and s != 0) else True
+                if st is False:
+                    print(f"  drop {draw_name(tag, s)}: {tag} baseline failed", flush=True)
+                    jobs.remove((tag, s))
+                    continue
+                if st:
+                    pick = jobs.index((tag, s))
+                    break
+            if pick is None:
+                break
+            tag, s = jobs.pop(pick)
             name = draw_name(tag, s)
             sigma = 0.0 if s == 0 else SIGMA
             log = open(out / "logs" / f"{name}.log", "w")
@@ -286,6 +375,11 @@ def cmd_run(a):
                                               cwd=str(ROOT)), log, time.time())
             peak[name] = 0
             print(f"  start {name}  ({len(running)} running, {len(jobs)} queued)", flush=True)
+        if not running and jobs:
+            print(f"  STOPPED: {len(jobs)} draw(s) wait on a baseline that has no result "
+                  f"(its process failed; see {out / 'logs'}). Re-run to retry it.", flush=True)
+            failed.append("baseline missing")
+            break
         time.sleep(2)
         total = _tree_rss()
         now = 0
@@ -392,6 +486,151 @@ def cmd_verify(a):
     return 1 if bad or not checked else 0
 
 
+def cmd_stage(a):
+    """Run one pre-registered stage, then print how many draws each universe has."""
+    if a.n not in STAGES:
+        raise SystemExit(f"stage must be one of {sorted(STAGES)}")
+    out = Path(a.out)
+    args = argparse.Namespace(universe=",".join(STAGES[a.n]),
+                              seeds=",".join(str(x) for x in NOISE_SEEDS), baseline=True,
+                              workers=STAGE_WORKERS, loky=STAGE_LOKY, out=str(out),
+                              work=str(out / "work"))
+    rc = cmd_run(args)
+    print(f"\n  STAGE {a.n}: finished draws per universe (baseline + 10 seeds = 11)")
+    for tag in STAGES[a.n]:
+        n = sum(result_path(out, tag, sd).exists() for sd in (0,) + NOISE_SEEDS)
+        b = _baseline_state(out, tag)
+        bl = "no baseline yet" if b is None else ("baseline PASSED" if b else "baseline FAILED")
+        print(f"    {tag:<12} {n:>2} of 11   {bl}")
+    return rc
+
+
+def _prior_v2_matches(d, ref):
+    """v2 research and the buy & hold equal the earlier measurement's row, or None if no row."""
+    r = ref[(ref["tag"] == d["tag"]) & (ref["noise_seed"] == d["noise_seed"])]
+    if not len(r):
+        return None
+    r = r.iloc[0]
+    v = d["arms"]["v2@research"]
+    return (round(v["cagr"], 6) == float(r["v2_cagr"])
+            and round(d["bh_cagr"], 6) == float(r["bh_cagr"])
+            and round(v["final_equity"], 2) == float(r["v2_final_equity"])
+            and round(v["tax"], 2) == float(r["v2_tax"]))
+
+
+def verdict(gaps):
+    """RULE for one cell and profile. -> (supported, above, mean, sd)."""
+    import numpy as np
+    g = np.asarray(gaps, dtype=float)
+    above = int((g > 0).sum())
+    mean = float(g.mean())
+    sd = float(g.std(ddof=1))
+    return (len(g) == 10 and above >= 9 and mean > sd), above, mean, sd
+
+
+def cmd_analyse(a):
+    """Apply experiments/FOUR_ARM_NOISE_PREREG.txt to every finished universe."""
+    import pandas as pd
+    from config import read_table
+    draws = load_draws(a.out)
+    ref = read_table(PRIOR_V2)
+    order = [t for n in sorted(STAGES) for t in STAGES[n]]
+    rows = []
+    for d in draws:
+        for r in d["arms"].values():
+            rows.append({"tag": d["tag"], "sigma": d["sigma"], "noise_seed": d["noise_seed"],
+                         "arm": r["arm"], "profile": r["profile"], "cagr": round(r["cagr"], 6),
+                         "bh_cagr": round(d["bh_cagr"], 6),
+                         "gap": round(r["cagr"] - d["bh_cagr"], 6),
+                         "tax": round(r["tax"], 2), "final_equity": round(r["final_equity"], 2),
+                         "trades": r["trades"], "cap_binds": r["cap_binds"],
+                         "rows": d["rows"], "bound_crossings": d["bound_crossings"],
+                         "minutes_total": d["minutes_total"], "run_date": d["run_date"],
+                         "script_sha256": d["script_sha256"],
+                         "perturb_sha256": d["perturb_sha256"]})
+    df = pd.DataFrame(rows)
+    if len(df):
+        df["_o"] = df["tag"].map({t: i for i, t in enumerate(order)})
+        df = df.sort_values(["_o", "noise_seed", "profile", "arm"]).drop(columns="_o")
+    # naming: axis-free -- the pre-registered record of one measurement, fixed to
+    # tax on, cadence 20 and both profiles; it varies over no published axis
+    write_atomic(RUNS_CSV, df.to_csv(index=False))
+
+    by = {(d["tag"], d["noise_seed"]): d for d in draws}
+    L = ["FOUR-ARM AFTER-TAX EDGE UNDER PRICE NOISE -- experiments/FOUR_ARM_NOISE_PREREG.txt",
+         "=" * 86,
+         "Arm tax-on headline CAGR minus the investable taxed buy & hold headline CAGR, points,",
+         f"on the same perturbed panel. sigma {SIGMA} (0.01%), seeds {NOISE_SEEDS[0]} to "
+         f"{NOISE_SEEDS[-1]}, n=10, research and tradeable profiles.",
+         f"RULE (verbatim): {RULE}",
+         "32 cells are tested: 4 arms x 8 universes. Every cell is reported, under both profiles.",
+         "[NOT VERIFIED] marks a cell whose nt_verify result was NOT VERIFIED on 2026-09-26.", ""]
+    supported, decided = [], 0
+    for tag in order:
+        base = by.get((tag, 0))
+        got = [s for s in NOISE_SEEDS if (tag, s) in by]
+        L.append(f"{tag}")
+        if base is None:
+            L += ["  not run", ""]
+            continue
+        b = base.get("baseline", {})
+        if not b.get("ok"):
+            L += [f"  baseline FAILED: {'; '.join(b.get('failures', []))}",
+                  "  measurement stopped for this universe; no draw counts", ""]
+            continue
+        L.append(f"  baseline PASSED (every arm, both profiles, and the buy & hold within "
+                 f"{BASELINE_TOL} of the published figures); buy & hold {base['bh_cagr']:.4f}")
+        if len(got) < 10:
+            L += [f"  {len(got)} of 10 draws recorded; no verdict until all 10 are in", ""]
+            continue
+        shas = {by[(tag, s)]["script_sha256"] for s in (0,) + NOISE_SEEDS}
+        if shas != {_SCRIPT_SHA}:
+            L += [f"  VOID: draws carry harness hash(es) {sorted(shas)}, the committed harness "
+                  f"is {_SCRIPT_SHA}", ""]
+            continue
+        if tag in PRIOR_V2_UNIVERSES:
+            m = [_prior_v2_matches(by[(tag, s)], ref) for s in (0,) + NOISE_SEEDS]
+            if not all(m):
+                L += ["  VOID: v2 or the buy & hold differs from "
+                      "diagnostics/after_tax_noise_runs.csv on seed(s) "
+                      + ", ".join(str(s) for s, ok in zip((0,) + NOISE_SEEDS, m) if not ok), ""]
+                continue
+            L.append("  v2 and the buy & hold equal diagnostics/after_tax_noise_runs.csv on the "
+                     "baseline and all ten seeds")
+        for arm in ARM_NAMES:
+            flag = "  [NOT VERIFIED]" if (tag, arm) in NOT_VERIFIED else ""
+            res = {}
+            for prof in PROFILES:
+                gaps = [by[(tag, s)]["arms"][f"{arm}@{prof}"]["cagr"] - by[(tag, s)]["bh_cagr"]
+                        for s in NOISE_SEEDS]
+                ok, above, mean, sd = verdict(gaps)
+                res[prof] = ok
+                L.append(f"  {arm} {prof:<9} gaps " + " ".join(f"{g:+.4f}" for g in gaps))
+                L.append(f"  {arm} {prof:<9} mean {mean:+.4f}  sd {sd:.4f}  min {min(gaps):+.4f}  "
+                         f"max {max(gaps):+.4f}  draws above zero {above} of 10  -> "
+                         f"{'passes' if ok else 'fails'}")
+            if arm == "v2" and tag in PRIOR_V2_UNIVERSES:
+                L.append(f"  {arm} VERDICT: not decided again -- the verdict under "
+                         f"experiments/AFTER_TAX_PREREG.txt stands (NOT SUPPORTED){flag}")
+                continue
+            decided += 1
+            cell_ok = res["research"] and res["tradeable"]
+            if cell_ok:
+                supported.append(f"{tag} {arm}")
+            L.append(f"  {arm} VERDICT: {'SUPPORTED' if cell_ok else 'NOT SUPPORTED'} "
+                     f"(research {'passes' if res['research'] else 'fails'}, tradeable "
+                     f"{'passes' if res['tradeable'] else 'fails'})"
+                     + (" -- one of 32 cells tested" if cell_ok else "") + flag)
+        L.append("")
+    L.append(f"SUMMARY: {decided} cell(s) decided so far, of 32 tested; supported: "
+             + (", ".join(supported) + " (32 cells were tested)" if supported else "none"))
+    text = "\n".join(L) + "\n"
+    # naming: axis-free -- the pre-registered report, see RUNS_CSV above
+    write_atomic(REPORT, text)
+    print(text)
+    return 0
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[1])
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -410,11 +649,15 @@ def main(argv=None):
     r.add_argument("--loky", type=int, required=True, help="loky workers per draw")
     r.add_argument("--out", required=True)
     r.add_argument("--work", default=DEFAULT_WORK)
-    for n in ("merge", "verify"):
+    for n in ("merge", "verify", "analyse"):
         s = sub.add_parser(n)
         s.add_argument("--out", required=True)
+    st = sub.add_parser("stage")
+    st.add_argument("n", type=int)
+    st.add_argument("--out", required=True)
     a = ap.parse_args(argv)
-    return {"one": cmd_one, "run": cmd_run, "merge": cmd_merge, "verify": cmd_verify}[a.cmd](a)
+    return {"one": cmd_one, "run": cmd_run, "merge": cmd_merge, "verify": cmd_verify,
+            "stage": cmd_stage, "analyse": cmd_analyse}[a.cmd](a)
 
 
 if __name__ == "__main__":
