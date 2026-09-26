@@ -279,18 +279,35 @@ def main(u):
     bd = px.index[(px.index >= config.BT_START_DATE)
                   & (px.index <= config.BT_END_DATE)]
 
+    # EVERY SELECTED ARM, SINCE 2026-09-26. This ran v2 alone and wrote v2's four
+    # artefacts; v1, v3 and v4 were charged tax in-loop by the engine and nothing
+    # reconciled their ledgers. Each arm now gets its own taxed backtest, its own
+    # four artefacts under audit_step.artefact_tag (v2 unsuffixed, the others
+    # _v1/_v3/_v4), the same reconcile() to the paisa, and its own TAX_TURNOVER
+    # from its own BH_LOTS file.
+    import arms.registry as arm_reg
+    M = Path(u.metrics_dir)
+    for arm in arm_reg.selected():
+        _one_arm(u, arm, M, px, op, sc, bd, pc, mom20, port_vol,
+                 cadence, profiles, backtest_exposure, audit_step)
+
+
+def _one_arm(u, arm, M, px, op, sc, bd, pc, mom20, port_vol,
+             cadence, profiles, backtest_exposure, audit_step):
+    """One arm's taxed backtest, its four artefacts and its TAX_TURNOVER."""
+    an = arm.name
     audit = {k: [] for k in
              ("holdings", "summary", "trades", "ranking", "decisions", "skipped")}
     eq, _tc, _ntr, _expo = backtest_exposure(
-        px, op, sc, bd, pc, mom20, port_vol, mode="breadth",
+        px, op, sc, bd, pc, mom20, port_vol, mode=arm.mode, sizing=arm.sizing,
         target_vol=port_vol.loc[bd].median(), rebal=cadence.selected(),
         audit=audit, tax_enabled=True, **profiles.cap_kwargs(u))
 
     # THE TAG COMES FROM audit_step.artefact_tag, NOT FROM u.tag ALONE, so these
     # four sit beside the trail they describe under every axis combination.
-    tag = audit_step.artefact_tag(u, "v2")
-    wrote = write_all(Path(u.metrics_dir), tag, eq, audit["tax"], bd)
-    print(f"    tax artefacts for {u.tag}: cum_tax Rs {audit['tax']['cum_tax']:,.2f}")
+    tag = audit_step.artefact_tag(u, arm)
+    wrote = write_all(M, tag, eq, audit["tax"], bd)
+    print(f"    tax artefacts for {u.tag} {an}: cum_tax Rs {audit['tax']['cum_tax']:,.2f}")
     for w in wrote:
         print(f"      saved -> {w.name}")
 
@@ -306,18 +323,18 @@ def main(u):
     # IT IS A SEPARATE FILE, not columns on v34_comparison.csv or
     # daily_trades_*, for the reason this module already gives: gates read those
     # and sixteen of them were pinned by SHA-256 in the retired-universe manifest.
-    M = Path(u.metrics_dir)
     bh = M / f"BH_LOTS_{tag}.csv"
     if not bh.exists():
         print(f"      TAX_TURNOVER not written: {bh.name} is absent -- STEP 17e-h "
-              f"did not run for {u.tag}")
+              f"did not run for {u.tag} {an}")
         return
     rows_bh = list(csv.DictReader(open(bh, newline="")))
     fy_close = float(read_table(wrote[1])["close_equity"].iloc[-1])
     BASIS = {
-        "v2 before tax":      "v34_equity.csv (engine, tax=off)",
-        "v2 after tax":       "taxed backtest, last partial FY settled in-loop at the final session; nothing sold at the end",
-        "v2 sold on the last day": "taxed backtest with every holding sold on the final session (sell charges and tax paid)",
+        f"{an} before tax":      ("v34_equity.csv (engine, tax=off)" if an == "v2" else
+                                  "untaxed backtest of the same arm (tax=off)"),
+        f"{an} after tax":       "taxed backtest, last partial FY settled in-loop at the final session; nothing sold at the end",
+        f"{an} sold on the last day": "taxed backtest with every holding sold on the final session (sell charges and tax paid)",
         "bh_lots before tax": "bh_lots equal-rupee basket, held, untaxed",
         "bh_lots after tax":  "bh_lots equal-rupee basket held to the end: nothing realised, nil tax, no sell charge",
         "bh_lots sold on the last day": "bh_lots sold on the final session: sell charges and tax on the realised gain",
@@ -341,19 +358,19 @@ def main(u):
     else:
         print(f"      saved -> {tt.name}   TAX_COST_OF_TURNOVER "
               f"{float(_c['cagr_full']):+.2f} pts")
-    # SINCE 2026-09-25 THE TWO TAXED v2 FIGURES ARE THE SAME NUMBER. The engine
+    # SINCE 2026-09-25 THE TWO TAXED FIGURES ARE THE SAME NUMBER. The engine
     # settles the last partial financial year in-loop, so FY_EQUITY's close and
-    # bh_lots' "v2 after tax" are one curve's endpoint. A difference is a defect.
-    _v2_post = [r for r in out_rows if r["line"] == "v2 after tax"]
-    if _v2_post:
-        _d = fy_close - float(_v2_post[0]["final_equity"])
-        print(f"        FY_EQUITY close Rs {fy_close:,.2f}; bh_lots' v2-after-tax line "
-              f"differs by Rs {_d:,.2f}")
-        if abs(_d) > 0.01:
-            raise AssertionError(
-                f"FY_EQUITY close and BH_LOTS 'v2 after tax' disagree by Rs {_d:,.2f}; "
-                f"both are the same in-loop taxed curve since 2026-09-25")
-
+    # bh_lots' "<arm> after tax" are one curve's endpoint. A difference is a defect.
+    _post = [r for r in out_rows if r["line"] == f"{an} after tax"]
+    if not _post:
+        raise AssertionError(f"{bh.name} has no '{an} after tax' line")
+    _d = fy_close - float(_post[0]["final_equity"])
+    print(f"        FY_EQUITY close Rs {fy_close:,.2f}; bh_lots' {an}-after-tax line "
+          f"differs by Rs {_d:,.2f}")
+    if abs(_d) > 0.01:
+        raise AssertionError(
+            f"FY_EQUITY close and BH_LOTS '{an} after tax' disagree by Rs {_d:,.2f}; "
+            f"both are the same in-loop taxed curve since 2026-09-25")
 
 if __name__ == "__main__":
     # STANDALONE, BY TAG -- the same contract make_audit.py uses.

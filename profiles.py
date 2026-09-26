@@ -269,9 +269,6 @@ UNGATED_NOTICE = (
 # UNGATED_NOTICE, which is a property of the tree -- no gate cell covers this
 # profile -- and not a measurement of any run.
 
-# WHICH ARM OWNS WHICH FILENAME. v2 is the shipping arm and its artefacts carry no
-# arm token; this is the project-wide convention, not an omission.
-_ARM_TOKEN = {"v1": "_v1", "v2": "", "v3": "_v3", "v4": "_v4"}
 
 
 def cap_report(cells):
@@ -280,7 +277,7 @@ def cap_report(cells):
     `cells` is an iterable of (universe_tag, arm_name). Returns a list of lines.
 
     NOTHING HERE IS STORED. Every number is counted out of the
-    daily_skipped_<tag>[_<arm>]_tradeable.csv this run just wrote. A cell whose
+    daily_skipped_<artefact_tag>.csv this run just wrote. A cell whose
     artefact is absent is reported absent rather than assumed inert -- that is the
     distinction the notice this replaces could not make.
     """
@@ -291,9 +288,20 @@ def cap_report(cells):
     if is_default():
         return []
     out, total, unread = [], 0, 0
+    # THE FILE IS NAMED BY THE WRITER'S RULE, audit_step.artefact_tag, since
+    # 2026-09-26. It was composed here from the profile alone, so a --tax on
+    # (or non-default cadence) run counted the tax-off, default-cadence file of
+    # an earlier run: on 2026-09-26 the tax-on tradeable banner reported
+    # smallcap250 v1 5 capped fills, read from a 2026-09-22 file, where the
+    # run's own file holds 4.
+    import sys as _sys
+    _res = str(Path(__file__).resolve().parent / "results")
+    if _res not in _sys.path:
+        _sys.path.insert(0, _res)
+    import audit_step
     for tag, arm in cells:
         f = (Path(REGISTRY[tag].metrics_dir)
-             / f"daily_skipped_{tag}{_ARM_TOKEN[arm]}_{selected()}.csv")
+             / f"daily_skipped_{audit_step.artefact_tag(REGISTRY[tag], arm)}.csv")
         if not f.exists():
             out.append(f"    {tag} {arm}: daily_skipped artefact not written "
                        f"({f.name}) -- NOT MEASURED, not inert")

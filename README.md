@@ -176,6 +176,25 @@ investable buy & hold in 8 of 10 draws (mean gap +1.51, sd 1.99), nifty500 in 2 
 10 (mean gap -0.27, sd 1.20). Report: `diagnostics/after_tax_noise.txt`; per-run
 record: `diagnostics/after_tax_noise_runs.csv`.
 
+All four arms against the investable taxed buy & hold, tax-on headline minus
+investable headline, CAGR points (`diagnostics/tax_on_all_arms.csv`, computed at full
+precision from each arm's taxed equity curve, 2026-09-26). The arm CAGRs are the ones
+in the tables above. Every cell is one draw (n=1); only v2 on nifty500 and midcap150
+has been tested under price noise, and neither edge was supported. A few v2 gaps
+here differ by 0.01 from the table above (midcap150 +0.60 against +0.61), because
+this table rounds after subtracting and that one subtracts rounded figures.
+
+| universe | investable buy & hold | v1 gap | v2 gap | v3 gap | v4 gap |
+|---|---:|---:|---:|---:|---:|
+| nifty50 | 19.62 | -4.51 | -8.21 | -0.97 | -6.41 |
+| nifty100 | 23.38 | -1.85 | -6.95 | +0.30 | -5.92 |
+| nifty200 | 23.69 | +8.66 | +0.37 | +5.92 | +0.88 |
+| nifty500 | 24.43 | +9.11 | +1.89 | +12.46 | +3.88 |
+| midcap50 | 25.97 | -0.76 | -8.17 | -3.91 | -9.59 |
+| midcap100 | 24.48 | +7.84 | +0.01 | +6.42 | -5.11 |
+| midcap150 | 23.55 | +7.40 | +0.60 | +6.94 | +5.44 |
+| smallcap250 | 26.60 | +14.46 | -5.55 | +12.77 | -6.23 |
+
 ### SUPERSEDED 2026-09-25 for its tax-on figures -- rebuilt 2026-09-24, and identical on macOS and Linux
 
 *The tax-off figures in this section are unchanged and still current. Its tax-on
@@ -454,6 +473,26 @@ unverified. See `KNOWN_ISSUES.md`.
 > measured before the 2026-09-24 numerics rebuild, when the window held 93
 > rebalances.*
 
+**The other three arms, measured 2026-09-26** with `nt_verify.py --arm=<arm>` on all
+eight universes (`diagnostics/nt_verify_all_arms_20260926.txt`; the v2 rows reproduce
+the table above):
+
+| arm | verified | inconclusive | not verified |
+|---|---:|---:|---:|
+| v1 invvol, 100% invested | 0 of 8 | 8 | 0 |
+| v2 invvol, breadth-scaled | 4 of 8 | 1 | 3 |
+| v3 provol, 100% invested | 0 of 8 | 8 | 0 |
+| v4 provol, breadth-scaled | 4 of 8 (nifty100, midcap150, midcap100, smallcap250) | 1 | 3 |
+
+**No v1 or v3 cell is verified by nt_verify on any universe.** The port picks the
+same names as the open-valued reference on every rebalance of all 32 cells, and on
+nifty100 and midcap150 it matches that reference on the 0.01 tick grid on 92 of 92
+rebalances for every arm (`verify_v34_arms.py`, gated since 2026-09-26). What fails
+for v1 and v3 is the control that licenses that reference: a second reimplementation
+of the backtest does not reproduce the research engine's selection for the two
+100%-invested arms. Not investigated; see `KNOWN_ISSUES.md`. check_all gates v2 and
+v4 through nt_verify on nifty100 and midcap150.
+
 What that proves, on nifty100 and midcap150 (and, measured once, nifty50 and smallcap250): the two implementations are identical in logic. Order lifecycle,
 cash accounting, fee computation and decision timing all survive the move into an
 event-driven framework.
@@ -721,7 +760,8 @@ bounds). A REPEAT run reuses the panel: 13-35 s for one midcap50 cell, across th
 four arms.
 
 `./venv/bin/python nautilus/nt_verify.py --universe=nifty100` runs the
-reconciliation (`--universe=midcap150` for the other certified universe;
+reconciliation for v2 (`--arm=v1`, `v3` or `v4` for another arm;
+`--universe=midcap150` for the other certified universe;
 `--rebal=<n>` reports the port-versus-vectorised gap at another cadence without
 gating it). It executes two complete backtests. One run on 2026-08-27 took roughly 30 minutes,
 which is an observed duration on a single run rather than a timed benchmark.

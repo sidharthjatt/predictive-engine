@@ -159,11 +159,18 @@ def main(u):
               f"(absent, not empty)")
         return
     tag = u.tag
-    print("="*96)
-    print(" v2 AFTER TAX vs BUY & HOLD AFTER TAX   (bh_lots: equal-rupee once, "
-          "no rebalance, realise at end)")
-    print("="*96)
-    if True:
+    # EVERY SELECTED ARM, SINCE 2026-09-26. This compared v2 alone. Each arm now
+    # gets the same three backtests and its own BH_LOTS_<artefact_tag>.csv; the
+    # buy & hold rows are the same basket in every arm's file. v2 keeps its row
+    # labels ("v2 after tax" and so on), which after_tax_noise.published and
+    # tax_report read by name; the other arms' rows carry their own name.
+    import arms.registry as arm_reg
+    for arm in arm_reg.selected():
+        an = arm.name
+        print("="*96)
+        print(f" {an} AFTER TAX vs BUY & HOLD AFTER TAX   (bh_lots: equal-rupee once, "
+              "no rebalance, realise at end)")
+        print("="*96)
         engine_core.set_tradeability(u)
         p=read_table(config.require_cache(u.score_cache,what=tag),parse_dates=["date"])
         px=p.pivot_table(index="date",columns="symbol",values="close").ffill()
@@ -173,7 +180,7 @@ def main(u):
         idx=(1+px.pct_change().mean(axis=1).fillna(0)).cumprod()
         pv=rolling_std(idx.pct_change(), VOL_WIN)*np.sqrt(252)
         bd=px.index[(px.index>=config.BT_START_DATE)&(px.index<=config.BT_END_DATE)]
-        kw=dict(mode="breadth",target_vol=pv.loc[bd].median(),rebal=cadence.selected(),
+        kw=dict(mode=arm.mode,sizing=arm.sizing,target_vol=pv.loc[bd].median(),rebal=cadence.selected(),
                 **profiles.cap_kwargs(u))
         v2_off,_,_,_=backtest_exposure(px,op,sc,bd,pc,mom20,pv,audit=None,tax_enabled=False,**kw)
         a={k:[] for k in ("holdings","summary","trades","ranking","decisions","skipped")}
@@ -195,7 +202,7 @@ def main(u):
         v2_settled=v2_on
         bh_settled=bh_eq
 
-        print(f"\n{'-'*96}\n {tag.upper()}   {bd[0].date()} .. {bd[-1].date()}   {len(bd):,} sessions")
+        print(f"\n{'-'*96}\n {tag.upper()} {an}   {bd[0].date()} .. {bd[-1].date()}   {len(bd):,} sessions")
         print(f"{'-'*96}")
         print(f"  bh_lots construction: {det['names']} names, equal-rupee, held {det['held_days']:,} days "
               f"({det['held_days']/365.25:.1f}y) -> LONG term")
@@ -211,17 +218,17 @@ def main(u):
         _nded=int(stmt["assessed"].sum())
         # THE LABELS ARE BOUND ONCE AND REUSED as the res{} keys below. Repeating the
         # literal at the lookup is what broke when the wording changed.
-        L_V2_POST=f"v2  after tax  ({_nded} deductions in-loop, last FY settled at end)"
+        L_V2_POST=f"{an}  after tax  ({_nded} deductions in-loop, last FY settled at end)"
         L_BH_POST="bh_lots after tax  (held to the end, nothing realised, nil tax)"
-        L_V2_LAST="v2  sold on the last day, after tax"
+        L_V2_LAST=f"{an}  sold on the last day, after tax"
         L_BH_LAST="bh_lots sold on the last day, after sell charges and tax"
-        L_V2_PRE="v2  before tax"; L_BH_PRE="bh_lots before tax"
+        L_V2_PRE=f"{an}  before tax"; L_BH_PRE="bh_lots before tax"
         L_BH_PUB="bh published (costless, daily-rebal)"
         rows=[(L_V2_PRE,v2_off),(L_V2_POST,v2_settled),(L_V2_LAST,v2_last),
               (L_BH_PRE,bh_eq),(L_BH_POST,bh_settled),(L_BH_LAST,bh_last),
               (L_BH_PUB,bh_pub)]
         print(f"\n  WHEN THE TAX LEFT CASH -- the two lines are not comparable along the path")
-        print(f"      v2       headline  Rs {a['tax']['cum_tax']:>12,.0f}"
+        print(f"      {an}       headline  Rs {a['tax']['cum_tax']:>12,.0f}"
               f"      sold on the last day  Rs {a2['tax']['cum_tax']:>12,.0f}")
         print(f"      bh_lots  headline  Rs {0:>12,.0f}"
               f"      sold on the last day  Rs {bh_tx['total_tax']:>12,.0f}")
@@ -233,7 +240,7 @@ def main(u):
             print(f"  {lab:<66}{full:>9.2f}%{h[0]:>11.2f}%{h[1]:>11.2f}%   {s.iloc[-1]:>14,.0f}")
         print()
         for _l in (
-          "  v2's capital-gains tax leaves cash on the first trading day at or after 31",
+          f"  {an}'s capital-gains tax leaves cash on the first trading day at or after 31",
           "  March of each financial year, and the last, partial year is settled on the",
           "  final session. bh_lots never sells in the headline, so it realises nothing and",
           "  pays no tax; that deferral is what a book that never trades earns. The 'sold on",
@@ -267,9 +274,9 @@ def main(u):
             print(f"        run it had. Any edge printed here would be that one name's history.")
             print(f"        Limit basis: {CONC_LIMIT_BASIS}.")
         else:
-            print(f"\n  EDGE  v2 - bh_lots   before tax {e_pre:+.2f} pts      after tax {e_post:+.2f} pts"
+            print(f"\n  EDGE  {an} - bh_lots   before tax {e_pre:+.2f} pts      after tax {e_post:+.2f} pts"
                   f"      swing {e_post-e_pre:+.2f}      sold on the last day {e_last:+.2f} pts")
-        print(f"  EDGE  v2 - bh published (the +0.89/+0.43 baseline) {e_pub:+.2f} pts"
+        print(f"  EDGE  {an} - bh published (the +0.89/+0.43 baseline) {e_pub:+.2f} pts"
               f"   [costless daily-rebalanced index, untaxable -- reference only]")
 
         # ------------------------------------------------------------------
@@ -289,9 +296,9 @@ def main(u):
                    f"and the universe is SURVIVORSHIP_MODE=static so that name is "
                    f"in the basket because of the run it had")
         _lines = [
-            ("v2 before tax",                L_V2_PRE,  v2_off,      0.0),
-            ("v2 after tax",                 L_V2_POST, v2_settled,  float(a["tax"]["cum_tax"])),
-            ("v2 sold on the last day",      L_V2_LAST, v2_last,     float(a2["tax"]["cum_tax"])),
+            (f"{an} before tax",             L_V2_PRE,  v2_off,      0.0),
+            (f"{an} after tax",              L_V2_POST, v2_settled,  float(a["tax"]["cum_tax"])),
+            (f"{an} sold on the last day",   L_V2_LAST, v2_last,     float(a2["tax"]["cum_tax"])),
             ("bh_lots before tax",           L_BH_PRE,  bh_eq,       0.0),
             ("bh_lots after tax",            L_BH_POST, bh_settled,  0.0),
             ("bh_lots sold on the last day", L_BH_LAST, bh_last,     float(bh_tx["total_tax"])),
@@ -322,7 +329,7 @@ def main(u):
                      "final_equity": "", "tax_paid": "",
                      "withheld_reason": _reason})
         import audit_step as _as
-        _atag = _as.artefact_tag(u, "v2")
+        _atag = _as.artefact_tag(u, arm)
         _p = Path(u.metrics_dir) / f"BH_LOTS_{_atag}.csv"
         # naming: arm,cadence,profile,tax via artefact_tag -- `_atag` is
         # audit_step.artefact_tag's output and already carries all four axes, so

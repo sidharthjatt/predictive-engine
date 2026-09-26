@@ -1,0 +1,2171 @@
+nt_verify.py --arm=<arm> on every registered universe and every arm, measured 2026-09-26 on the
+current panels. Cadence 20. One section per (universe, arm). The v2 sections reproduce
+diagnostics/nt_verify_all_universes_20260925.txt.
+
+################################################################ nifty100 v1
+data from 2018-06-15 (warm-up) | trading 2019-01-01 to 2026-05-29
+  instruments 99 | events 364,312
+  score rows  166,553 over 1836 days
+
+  reports -> nautilus/tool_reports/nifty100/v1/  [nifty100 universe, arm v1: mode=none sizing=invvol]  (orders_all 751, order_fills 751, fills 751, positions 379)
+
+  rebalances       : 92
+  orders submitted : 751
+  orders filled    : 751
+  open positions   : 7
+  cash             : Rs 984,282.84
+  positions value  : Rs 4,464,204.22
+  EQUITY           : Rs 5,448,487.06   (from Rs 1,000,000)
+
+  first 3 rebalance decisions:
+decided_on  breadth_pos  breadth_total  breadth  exposure  port_value  cash_before  invest_value  n_held_before  n_buy  n_sell
+2019-01-01           50             88   0.5682       1.0  1000000.00   1000000.00     980000.00              0      8       0
+2019-01-29           21             88   0.2386       1.0   956924.28     20207.25     937785.79              8      7       4
+2019-02-26           48             88   0.5455       1.0   936808.58     11007.57     918072.41              9      5       3
+
+========================================================================
+ NAUTILUS PORT -- VERIFICATION AGAINST THE REFERENCE ENGINE  [nifty100 universe, arm v1]
+========================================================================
+
+  final equity  (2026-05-29)
+                 reference Rs    5,442,886
+                 port      Rs    5,448,487   (+0.10%)
+
+  rebalances     reference   92   port   92
+  fills [FYI]    reference  751   port  751   (not a pass/fail gate)
+
+  vs REFERENCE (valued at the execution day's close)
+    identical holdings      : 7 of 92
+    differing by symbol set : 0
+    differing by quantity   : 85
+    quantity error: median 0.13%  max 2.08%
+
+  vs ARM D     (same engine, valued at the open, 0.05 ticks)
+    identical holdings      : 53 of 92
+    differing by symbol set : 0
+    differing by quantity   : 39
+    quantity error: median 0.05%  max 0.64%
+
+  control: ARM A vs the reference's own holdings
+           SELECTION (gated)  -- 85 of 92 rebalances hold the same symbol set
+           SIZING (not gated) -- 83 of 92 differ in quantity only, worst 36.18% on a single position
+
+  reconciliation on a 0.01 tick grid (both sides) -- 92 of 92 identical
+  of the 0 that differ: 0 are SHARE-COUNT QUANTIZATION, 0 are not
+
+========================================================================
+  INCONCLUSIVE. ARM A does not reproduce the reference engine's own
+  SELECTION -- the two engines hold different symbols, so ARM D is
+  not a trustworthy baseline for the port's sizing. Fix that first.
+  (Quantity-only differences are reported above and do not reach
+   here: they are a known divergence between two reimplementations,
+   not evidence about which book the engine chose.)
+
+  RESULT: FAIL -- universe nifty100, arm v1, 0.01-grid reconciliation 92 of 92 identical, 0 quantization, 0 unexplained.
+========================================================================
+
+################################################################ nifty100 v2
+data from 2018-06-15 (warm-up) | trading 2019-01-01 to 2026-05-29
+  instruments 99 | events 364,312
+  score rows  166,553 over 1836 days
+
+  reports -> nautilus/tool_reports/nifty100/v2/  [nifty100 universe, arm v2: mode=breadth sizing=invvol]  (orders_all 938, order_fills 938, fills 938, positions 473)
+
+  rebalances       : 92
+  orders submitted : 938
+  orders filled    : 938
+  open positions   : 8
+  cash             : Rs 517,049.92
+  positions value  : Rs 3,199,696.98
+  EQUITY           : Rs 3,716,746.90   (from Rs 1,000,000)
+
+  first 3 rebalance decisions:
+decided_on  breadth_pos  breadth_total  breadth  exposure  port_value  cash_before  invest_value  n_held_before  n_buy  n_sell
+2019-01-01           50             88   0.5682    0.5682  1000000.00   1000000.00     556818.18              0      8       0
+2019-01-29           21             88   0.2386    0.2386   975484.51    445496.63     228130.35              8      7       4
+2019-02-26           48             88   0.5455    0.5455   974438.19    530441.13     520881.51             11      5       5
+
+========================================================================
+ NAUTILUS PORT -- VERIFICATION AGAINST THE REFERENCE ENGINE  [nifty100 universe, arm v2]
+========================================================================
+
+  final equity  (2026-05-29)
+                 reference Rs    3,716,705
+                 port      Rs    3,716,747   (+0.00%)
+
+  rebalances     reference   92   port   92
+  fills [FYI]    reference  938   port  938   (not a pass/fail gate)
+
+  vs REFERENCE (valued at the execution day's close)
+    identical holdings      : 43 of 92
+    differing by symbol set : 0
+    differing by quantity   : 49
+    quantity error: median 0.09%  max 11.11%
+
+  vs ARM D     (same engine, valued at the open, 0.05 ticks)
+    identical holdings      : 90 of 92
+    differing by symbol set : 0
+    differing by quantity   : 2
+    quantity error: median 0.05%  max 0.05%
+
+  control: ARM A vs the reference's own holdings
+           SELECTION (gated)  -- 92 of 92 rebalances hold the same symbol set
+           SIZING (not gated) -- 85 of 92 differ in quantity only, worst 20.00% on a single position
+
+  reconciliation on a 0.01 tick grid (both sides) -- 92 of 92 identical
+  of the 0 that differ: 0 are SHARE-COUNT QUANTIZATION, 0 are not
+
+========================================================================
+  VERIFIED. On a 0.01 tick grid the port and the open-valued reference
+  hold the SAME SYMBOLS at every rebalance, and every quantity
+  difference is share-count quantization by its exact signature: one
+  share, one symbol, port lower. The two systems are identical in
+  logic, and what the real 0.05 grid shows above is three measured,
+  documented things:
+    - the reference values the portfolio at the execution day's CLOSE,
+      which a strategy standing at 09:15 cannot know;
+    - quantity is a floor division by a tick-snapped price, and one
+      0.05 tick is 0.19% of a Rs 27 share;
+    - the floor itself quantizes, which no tick grid removes.
+  Nothing else remains unexplained.
+
+  RESULT: PASS -- universe nifty100, arm v2, 0.01-grid reconciliation 92 of 92 identical, 0 quantization, 0 unexplained.
+========================================================================
+
+################################################################ nifty100 v3
+data from 2018-06-15 (warm-up) | trading 2019-01-01 to 2026-05-29
+  instruments 99 | events 364,312
+  score rows  166,553 over 1836 days
+
+  reports -> nautilus/tool_reports/nifty100/v3/  [nifty100 universe, arm v3: mode=none sizing=provol]  (orders_all 726, order_fills 726, fills 726, positions 367)
+
+  rebalances       : 92
+  orders submitted : 726
+  orders filled    : 726
+  open positions   : 8
+  cash             : Rs 423,368.17
+  positions value  : Rs 5,661,920.24
+  EQUITY           : Rs 6,085,288.41   (from Rs 1,000,000)
+
+  first 3 rebalance decisions:
+decided_on  breadth_pos  breadth_total  breadth  exposure  port_value  cash_before  invest_value  n_held_before  n_buy  n_sell
+2019-01-01           50             88   0.5682       1.0  1000000.00   1000000.00     980000.00              0      8       0
+2019-01-29           21             88   0.2386       1.0   953423.63     21911.76     934355.16              8      7       4
+2019-02-26           48             88   0.5455       1.0   937643.72      2575.79     918890.84              7      6       2
+
+========================================================================
+ NAUTILUS PORT -- VERIFICATION AGAINST THE REFERENCE ENGINE  [nifty100 universe, arm v3]
+========================================================================
+
+  final equity  (2026-05-29)
+                 reference Rs    6,072,338
+                 port      Rs    6,085,288   (+0.21%)
+
+  rebalances     reference   92   port   92
+  fills [FYI]    reference  726   port  726   (not a pass/fail gate)
+
+  vs REFERENCE (valued at the execution day's close)
+    identical holdings      : 2 of 92
+    differing by symbol set : 0
+    differing by quantity   : 90
+    quantity error: median 0.23%  max 2.94%
+
+  vs ARM D     (same engine, valued at the open, 0.05 ticks)
+    identical holdings      : 69 of 92
+    differing by symbol set : 0
+    differing by quantity   : 23
+    quantity error: median 0.04%  max 0.72%
+
+  control: ARM A vs the reference's own holdings
+           SELECTION (gated)  -- 87 of 92 rebalances hold the same symbol set
+           SIZING (not gated) -- 85 of 92 differ in quantity only, worst 4.41% on a single position
+
+  reconciliation on a 0.01 tick grid (both sides) -- 92 of 92 identical
+  of the 0 that differ: 0 are SHARE-COUNT QUANTIZATION, 0 are not
+
+========================================================================
+  INCONCLUSIVE. ARM A does not reproduce the reference engine's own
+  SELECTION -- the two engines hold different symbols, so ARM D is
+  not a trustworthy baseline for the port's sizing. Fix that first.
+  (Quantity-only differences are reported above and do not reach
+   here: they are a known divergence between two reimplementations,
+   not evidence about which book the engine chose.)
+
+  RESULT: FAIL -- universe nifty100, arm v3, 0.01-grid reconciliation 92 of 92 identical, 0 quantization, 0 unexplained.
+========================================================================
+
+################################################################ nifty100 v4
+data from 2018-06-15 (warm-up) | trading 2019-01-01 to 2026-05-29
+  instruments 99 | events 364,312
+  score rows  166,553 over 1836 days
+
+  reports -> nautilus/tool_reports/nifty100/v4/  [nifty100 universe, arm v4: mode=breadth sizing=provol]  (orders_all 930, order_fills 930, fills 930, positions 469)
+
+  rebalances       : 92
+  orders submitted : 930
+  orders filled    : 930
+  open positions   : 8
+  cash             : Rs 851,323.86
+  positions value  : Rs 3,158,534.26
+  EQUITY           : Rs 4,009,858.12   (from Rs 1,000,000)
+
+  first 3 rebalance decisions:
+decided_on  breadth_pos  breadth_total  breadth  exposure  port_value  cash_before  invest_value  n_held_before  n_buy  n_sell
+2019-01-01           50             88   0.5682    0.5682  1000000.00   1000000.00     556818.18              0      8       0
+2019-01-29           21             88   0.2386    0.2386   973596.84    444892.14     227688.90              8      7       4
+2019-02-26           48             88   0.5455    0.5455   976255.27    489611.55     521852.82             11      5       5
+
+========================================================================
+ NAUTILUS PORT -- VERIFICATION AGAINST THE REFERENCE ENGINE  [nifty100 universe, arm v4]
+========================================================================
+
+  final equity  (2026-05-29)
+                 reference Rs    3,948,931
+                 port      Rs    4,009,858   (+1.54%)
+
+  rebalances     reference   92   port   92
+  fills [FYI]    reference  930   port  930   (not a pass/fail gate)
+
+  vs REFERENCE (valued at the execution day's close)
+    identical holdings      : 5 of 92
+    differing by symbol set : 2
+    differing by quantity   : 85
+    quantity error: median 0.59%  max 6.67%
+
+  vs ARM D     (same engine, valued at the open, 0.05 ticks)
+    identical holdings      : 81 of 92
+    differing by symbol set : 0
+    differing by quantity   : 11
+    quantity error: median 0.05%  max 0.29%
+
+  control: ARM A vs the reference's own holdings
+           SELECTION (gated)  -- 92 of 92 rebalances hold the same symbol set
+           SIZING (not gated) -- 90 of 92 differ in quantity only, worst 3.70% on a single position
+
+  reconciliation on a 0.01 tick grid (both sides) -- 92 of 92 identical
+  of the 0 that differ: 0 are SHARE-COUNT QUANTIZATION, 0 are not
+
+========================================================================
+  VERIFIED. On a 0.01 tick grid the port and the open-valued reference
+  hold the SAME SYMBOLS at every rebalance, and every quantity
+  difference is share-count quantization by its exact signature: one
+  share, one symbol, port lower. The two systems are identical in
+  logic, and what the real 0.05 grid shows above is three measured,
+  documented things:
+    - the reference values the portfolio at the execution day's CLOSE,
+      which a strategy standing at 09:15 cannot know;
+    - quantity is a floor division by a tick-snapped price, and one
+      0.05 tick is 0.19% of a Rs 27 share;
+    - the floor itself quantizes, which no tick grid removes.
+  Nothing else remains unexplained.
+
+  RESULT: PASS -- universe nifty100, arm v4, 0.01-grid reconciliation 92 of 92 identical, 0 quantization, 0 unexplained.
+========================================================================
+
+################################################################ midcap150 v1
+data from 2018-06-15 (warm-up) | trading 2019-01-01 to 2026-05-29
+  instruments 148 | events 504,754
+  score rows  227,670 over 1836 days
+
+  reports -> nautilus/tool_reports/midcap150/v1/  [midcap150 universe, arm v1: mode=none sizing=invvol]  (orders_all 874, order_fills 874, fills 874, positions 441)
+
+  rebalances       : 92
+  orders submitted : 874
+  orders filled    : 874
+  open positions   : 8
+  cash             : Rs 191,358.79
+  positions value  : Rs 10,015,652.88
+  EQUITY           : Rs 10,207,011.67   (from Rs 1,000,000)
+
+  first 3 rebalance decisions:
+decided_on  breadth_pos  breadth_total  breadth  exposure  port_value  cash_before  invest_value  n_held_before  n_buy  n_sell
+2019-01-01           63            112   0.5625       1.0  1000000.00   1000000.00     980000.00              0      8       0
+2019-01-29           23            112   0.2054       1.0   970781.00     57027.47     951365.38              8      7       6
+2019-02-26           55            113   0.4867       1.0   927383.52     15844.08     908835.85              8      5       5
+
+========================================================================
+ NAUTILUS PORT -- VERIFICATION AGAINST THE REFERENCE ENGINE  [midcap150 universe, arm v1]
+========================================================================
+
+  final equity  (2026-05-29)
+                 reference Rs   10,205,162
+                 port      Rs   10,207,012   (+0.02%)
+
+  rebalances     reference   92   port   92
+  fills [FYI]    reference  874   port  874   (not a pass/fail gate)
+
+  vs REFERENCE (valued at the execution day's close)
+    identical holdings      : 13 of 92
+    differing by symbol set : 0
+    differing by quantity   : 79
+    quantity error: median 0.08%  max 0.83%
+
+  vs ARM D     (same engine, valued at the open, 0.05 ticks)
+    identical holdings      : 87 of 92
+    differing by symbol set : 0
+    differing by quantity   : 5
+    quantity error: median 0.01%  max 0.02%
+
+  control: ARM A vs the reference's own holdings
+           SELECTION (gated)  -- 86 of 92 rebalances hold the same symbol set
+           SIZING (not gated) -- 82 of 92 differ in quantity only, worst 23.89% on a single position
+
+  reconciliation on a 0.01 tick grid (both sides) -- 92 of 92 identical
+  of the 0 that differ: 0 are SHARE-COUNT QUANTIZATION, 0 are not
+
+========================================================================
+  INCONCLUSIVE. ARM A does not reproduce the reference engine's own
+  SELECTION -- the two engines hold different symbols, so ARM D is
+  not a trustworthy baseline for the port's sizing. Fix that first.
+  (Quantity-only differences are reported above and do not reach
+   here: they are a known divergence between two reimplementations,
+   not evidence about which book the engine chose.)
+
+  RESULT: FAIL -- universe midcap150, arm v1, 0.01-grid reconciliation 92 of 92 identical, 0 quantization, 0 unexplained.
+========================================================================
+
+################################################################ midcap150 v2
+data from 2018-06-15 (warm-up) | trading 2019-01-01 to 2026-05-29
+  instruments 148 | events 504,754
+  score rows  227,670 over 1836 days
+
+  reports -> nautilus/tool_reports/midcap150/v2/  [midcap150 universe, arm v2: mode=breadth sizing=invvol]  (orders_all 1016, order_fills 1016, fills 1016, positions 512)
+
+  rebalances       : 92
+  orders submitted : 1016
+  orders filled    : 1016
+  open positions   : 8
+  cash             : Rs 808,963.51
+  positions value  : Rs 5,696,879.96
+  EQUITY           : Rs 6,505,843.47   (from Rs 1,000,000)
+
+  first 3 rebalance decisions:
+decided_on  breadth_pos  breadth_total  breadth  exposure  port_value  cash_before  invest_value  n_held_before  n_buy  n_sell
+2019-01-01           63            112   0.5625    0.5625  1000000.00   1000000.00     551250.00              0      8       0
+2019-01-29           23            112   0.2054    0.2054   983820.71    482829.41     197993.92              8      7       6
+2019-02-26           55            113   0.4867    0.4867   971953.74    679417.11     463613.33              9      5       6
+
+========================================================================
+ NAUTILUS PORT -- VERIFICATION AGAINST THE REFERENCE ENGINE  [midcap150 universe, arm v2]
+========================================================================
+
+  final equity  (2026-05-29)
+                 reference Rs    6,510,102
+                 port      Rs    6,505,843   (-0.07%)
+
+  rebalances     reference   92   port   92
+  fills [FYI]    reference 1016   port 1016   (not a pass/fail gate)
+
+  vs REFERENCE (valued at the execution day's close)
+    identical holdings      : 19 of 92
+    differing by symbol set : 0
+    differing by quantity   : 73
+    quantity error: median 0.11%  max 2.70%
+
+  vs ARM D     (same engine, valued at the open, 0.05 ticks)
+    identical holdings      : 92 of 92
+    differing by symbol set : 0
+    differing by quantity   : 0
+
+  control: ARM A vs the reference's own holdings
+           SELECTION (gated)  -- 92 of 92 rebalances hold the same symbol set
+           SIZING (not gated) -- 87 of 92 differ in quantity only, worst 3.85% on a single position
+
+  reconciliation on a 0.01 tick grid (both sides) -- 92 of 92 identical
+  of the 0 that differ: 0 are SHARE-COUNT QUANTIZATION, 0 are not
+
+========================================================================
+  VERIFIED. On a 0.01 tick grid the port and the open-valued reference
+  hold the SAME SYMBOLS at every rebalance, and every quantity
+  difference is share-count quantization by its exact signature: one
+  share, one symbol, port lower. The two systems are identical in
+  logic, and what the real 0.05 grid shows above is three measured,
+  documented things:
+    - the reference values the portfolio at the execution day's CLOSE,
+      which a strategy standing at 09:15 cannot know;
+    - quantity is a floor division by a tick-snapped price, and one
+      0.05 tick is 0.19% of a Rs 27 share;
+    - the floor itself quantizes, which no tick grid removes.
+  Nothing else remains unexplained.
+
+  RESULT: PASS -- universe midcap150, arm v2, 0.01-grid reconciliation 92 of 92 identical, 0 quantization, 0 unexplained.
+========================================================================
+
+################################################################ midcap150 v3
+data from 2018-06-15 (warm-up) | trading 2019-01-01 to 2026-05-29
+  instruments 148 | events 504,754
+  score rows  227,670 over 1836 days
+
+  reports -> nautilus/tool_reports/midcap150/v3/  [midcap150 universe, arm v3: mode=none sizing=provol]  (orders_all 840, order_fills 840, fills 840, positions 424)
+
+  rebalances       : 92
+  orders submitted : 840
+  orders filled    : 840
+  open positions   : 8
+  cash             : Rs 188,780.85
+  positions value  : Rs 9,734,495.28
+  EQUITY           : Rs 9,923,276.13   (from Rs 1,000,000)
+
+  first 3 rebalance decisions:
+decided_on  breadth_pos  breadth_total  breadth  exposure  port_value  cash_before  invest_value  n_held_before  n_buy  n_sell
+2019-01-01           63            112   0.5625       1.0  1000000.00   1000000.00     980000.00              0      8       0
+2019-01-29           23            112   0.2054       1.0   933799.20     43862.66     915123.22              8      7       6
+2019-02-26           55            113   0.4867       1.0   893834.53     33763.41     875957.84              8      5       5
+
+========================================================================
+ NAUTILUS PORT -- VERIFICATION AGAINST THE REFERENCE ENGINE  [midcap150 universe, arm v3]
+========================================================================
+
+  final equity  (2026-05-29)
+                 reference Rs    9,931,485
+                 port      Rs    9,923,276   (-0.08%)
+
+  rebalances     reference   92   port   92
+  fills [FYI]    reference  840   port  840   (not a pass/fail gate)
+
+  vs REFERENCE (valued at the execution day's close)
+    identical holdings      : 8 of 92
+    differing by symbol set : 0
+    differing by quantity   : 84
+    quantity error: median 0.11%  max 2.04%
+
+  vs ARM D     (same engine, valued at the open, 0.05 ticks)
+    identical holdings      : 88 of 92
+    differing by symbol set : 0
+    differing by quantity   : 4
+    quantity error: median 0.08%  max 0.13%
+
+  control: ARM A vs the reference's own holdings
+           SELECTION (gated)  -- 89 of 92 rebalances hold the same symbol set
+           SIZING (not gated) -- 86 of 92 differ in quantity only, worst 5.88% on a single position
+
+  reconciliation on a 0.01 tick grid (both sides) -- 92 of 92 identical
+  of the 0 that differ: 0 are SHARE-COUNT QUANTIZATION, 0 are not
+
+========================================================================
+  INCONCLUSIVE. ARM A does not reproduce the reference engine's own
+  SELECTION -- the two engines hold different symbols, so ARM D is
+  not a trustworthy baseline for the port's sizing. Fix that first.
+  (Quantity-only differences are reported above and do not reach
+   here: they are a known divergence between two reimplementations,
+   not evidence about which book the engine chose.)
+
+  RESULT: FAIL -- universe midcap150, arm v3, 0.01-grid reconciliation 92 of 92 identical, 0 quantization, 0 unexplained.
+========================================================================
+
+################################################################ midcap150 v4
+data from 2018-06-15 (warm-up) | trading 2019-01-01 to 2026-05-29
+  instruments 148 | events 504,754
+  score rows  227,670 over 1836 days
+
+  reports -> nautilus/tool_reports/midcap150/v4/  [midcap150 universe, arm v4: mode=breadth sizing=provol]  (orders_all 1012, order_fills 1012, fills 1012, positions 510)
+
+  rebalances       : 92
+  orders submitted : 1012
+  orders filled    : 1012
+  open positions   : 8
+  cash             : Rs 1,072,171.57
+  positions value  : Rs 7,643,830.37
+  EQUITY           : Rs 8,716,001.94   (from Rs 1,000,000)
+
+  first 3 rebalance decisions:
+decided_on  breadth_pos  breadth_total  breadth  exposure  port_value  cash_before  invest_value  n_held_before  n_buy  n_sell
+2019-01-01           63            112   0.5625    0.5625  1000000.00   1000000.00     551250.00              0      8       0
+2019-01-29           23            112   0.2054    0.2054   963173.21    476631.22     193838.61              8      7       6
+2019-02-26           55            113   0.4867    0.4867   951799.94    688427.04     454000.15              9      5       6
+
+========================================================================
+ NAUTILUS PORT -- VERIFICATION AGAINST THE REFERENCE ENGINE  [midcap150 universe, arm v4]
+========================================================================
+
+  final equity  (2026-05-29)
+                 reference Rs    8,730,269
+                 port      Rs    8,716,002   (-0.16%)
+
+  rebalances     reference   92   port   92
+  fills [FYI]    reference 1012   port 1012   (not a pass/fail gate)
+
+  vs REFERENCE (valued at the execution day's close)
+    identical holdings      : 5 of 92
+    differing by symbol set : 0
+    differing by quantity   : 87
+    quantity error: median 0.21%  max 10.00%
+
+  vs ARM D     (same engine, valued at the open, 0.05 ticks)
+    identical holdings      : 87 of 92
+    differing by symbol set : 0
+    differing by quantity   : 5
+    quantity error: median 0.03%  max 0.04%
+
+  control: ARM A vs the reference's own holdings
+           SELECTION (gated)  -- 92 of 92 rebalances hold the same symbol set
+           SIZING (not gated) -- 86 of 92 differ in quantity only, worst 10.00% on a single position
+
+  reconciliation on a 0.01 tick grid (both sides) -- 92 of 92 identical
+  of the 0 that differ: 0 are SHARE-COUNT QUANTIZATION, 0 are not
+
+========================================================================
+  VERIFIED. On a 0.01 tick grid the port and the open-valued reference
+  hold the SAME SYMBOLS at every rebalance, and every quantity
+  difference is share-count quantization by its exact signature: one
+  share, one symbol, port lower. The two systems are identical in
+  logic, and what the real 0.05 grid shows above is three measured,
+  documented things:
+    - the reference values the portfolio at the execution day's CLOSE,
+      which a strategy standing at 09:15 cannot know;
+    - quantity is a floor division by a tick-snapped price, and one
+      0.05 tick is 0.19% of a Rs 27 share;
+    - the floor itself quantizes, which no tick grid removes.
+  Nothing else remains unexplained.
+
+  RESULT: PASS -- universe midcap150, arm v4, 0.01-grid reconciliation 92 of 92 identical, 0 quantization, 0 unexplained.
+========================================================================
+
+################################################################ nifty50 v1
+data from 2018-06-15 (warm-up) | trading 2019-01-01 to 2026-05-29
+  instruments 50 | events 189,188
+  score rows  87,061 over 1836 days
+
+  reports -> nautilus/tool_reports/nifty50/v1/  [nifty50 universe, arm v1: mode=none sizing=invvol]  (orders_all 697, order_fills 697, fills 697, positions 353)
+
+  rebalances       : 92
+  orders submitted : 697
+  orders filled    : 697
+  open positions   : 9
+  cash             : Rs 25,470.77
+  positions value  : Rs 3,318,440.28
+  EQUITY           : Rs 3,343,911.05   (from Rs 1,000,000)
+
+  first 3 rebalance decisions:
+decided_on  breadth_pos  breadth_total  breadth  exposure  port_value  cash_before  invest_value  n_held_before  n_buy  n_sell
+2019-01-01           21             46   0.4565       1.0  1000000.00   1000000.00     980000.00              0      8       0
+2019-01-29           15             46   0.3261       1.0   965237.00     20112.38     945932.26              8      6       3
+2019-02-26           28             46   0.6087       1.0   980460.81     21135.35     960851.60              9      5       5
+
+========================================================================
+ NAUTILUS PORT -- VERIFICATION AGAINST THE REFERENCE ENGINE  [nifty50 universe, arm v1]
+========================================================================
+
+  final equity  (2026-05-29)
+                 reference Rs    3,524,668
+                 port      Rs    3,343,911   (-5.13%)
+
+  rebalances     reference   92   port   92
+  fills [FYI]    reference  699   port  697   (not a pass/fail gate)
+
+  vs REFERENCE (valued at the execution day's close)
+    identical holdings      : 21 of 92
+    differing by symbol set : 6
+    differing by quantity   : 65
+    quantity error: median 4.84%  max 24.14%
+
+  vs ARM D     (same engine, valued at the open, 0.05 ticks)
+    identical holdings      : 92 of 92
+    differing by symbol set : 0
+    differing by quantity   : 0
+
+  control: ARM A vs the reference's own holdings
+           SELECTION (gated)  -- 84 of 92 rebalances hold the same symbol set
+           SIZING (not gated) -- 82 of 92 differ in quantity only, worst 3.73% on a single position
+
+  reconciliation on a 0.01 tick grid (both sides) -- 92 of 92 identical
+  of the 0 that differ: 0 are SHARE-COUNT QUANTIZATION, 0 are not
+
+========================================================================
+  INCONCLUSIVE. ARM A does not reproduce the reference engine's own
+  SELECTION -- the two engines hold different symbols, so ARM D is
+  not a trustworthy baseline for the port's sizing. Fix that first.
+  (Quantity-only differences are reported above and do not reach
+   here: they are a known divergence between two reimplementations,
+   not evidence about which book the engine chose.)
+
+  RESULT: FAIL -- universe nifty50, arm v1, 0.01-grid reconciliation 92 of 92 identical, 0 quantization, 0 unexplained.
+========================================================================
+
+################################################################ nifty50 v2
+data from 2018-06-15 (warm-up) | trading 2019-01-01 to 2026-05-29
+  instruments 50 | events 189,188
+  score rows  87,061 over 1836 days
+
+  reports -> nautilus/tool_reports/nifty50/v2/  [nifty50 universe, arm v2: mode=breadth sizing=invvol]  (orders_all 864, order_fills 864, fills 864, positions 438)
+
+  rebalances       : 92
+  orders submitted : 864
+  orders filled    : 864
+  open positions   : 12
+  cash             : Rs 424,615.03
+  positions value  : Rs 2,112,944.80
+  EQUITY           : Rs 2,537,559.83   (from Rs 1,000,000)
+
+  first 3 rebalance decisions:
+decided_on  breadth_pos  breadth_total  breadth  exposure  port_value  cash_before  invest_value  n_held_before  n_buy  n_sell
+2019-01-01           21             46   0.4565    0.4565  1000000.00   1000000.00     447391.30              0      8       0
+2019-01-29           15             46   0.3261    0.3261   984149.83    553149.09     314500.05              8      6       3
+2019-02-26           28             46   0.6087    0.6087   993208.68    493349.06     592470.57             11      3       5
+
+========================================================================
+ NAUTILUS PORT -- VERIFICATION AGAINST THE REFERENCE ENGINE  [nifty50 universe, arm v2]
+========================================================================
+
+  final equity  (2026-05-29)
+                 reference Rs    2,537,380
+                 port      Rs    2,537,560   (+0.01%)
+
+  rebalances     reference   92   port   92
+  fills [FYI]    reference  864   port  864   (not a pass/fail gate)
+
+  vs REFERENCE (valued at the execution day's close)
+    identical holdings      : 48 of 92
+    differing by symbol set : 0
+    differing by quantity   : 44
+    quantity error: median 0.30%  max 2.33%
+
+  vs ARM D     (same engine, valued at the open, 0.05 ticks)
+    identical holdings      : 92 of 92
+    differing by symbol set : 0
+    differing by quantity   : 0
+
+  control: ARM A vs the reference's own holdings
+           SELECTION (gated)  -- 92 of 92 rebalances hold the same symbol set
+           SIZING (not gated) -- 87 of 92 differ in quantity only, worst 4.55% on a single position
+
+  reconciliation on a 0.01 tick grid (both sides) -- 92 of 92 identical
+  of the 0 that differ: 0 are SHARE-COUNT QUANTIZATION, 0 are not
+
+========================================================================
+  VERIFIED. On a 0.01 tick grid the port and the open-valued reference
+  hold the SAME SYMBOLS at every rebalance, and every quantity
+  difference is share-count quantization by its exact signature: one
+  share, one symbol, port lower. The two systems are identical in
+  logic, and what the real 0.05 grid shows above is three measured,
+  documented things:
+    - the reference values the portfolio at the execution day's CLOSE,
+      which a strategy standing at 09:15 cannot know;
+    - quantity is a floor division by a tick-snapped price, and one
+      0.05 tick is 0.19% of a Rs 27 share;
+    - the floor itself quantizes, which no tick grid removes.
+  Nothing else remains unexplained.
+
+  RESULT: PASS -- universe nifty50, arm v2, 0.01-grid reconciliation 92 of 92 identical, 0 quantization, 0 unexplained.
+========================================================================
+
+################################################################ nifty50 v3
+data from 2018-06-15 (warm-up) | trading 2019-01-01 to 2026-05-29
+  instruments 50 | events 189,188
+  score rows  87,061 over 1836 days
+
+  reports -> nautilus/tool_reports/nifty50/v3/  [nifty50 universe, arm v3: mode=none sizing=provol]  (orders_all 656, order_fills 656, fills 656, positions 332)
+
+  rebalances       : 92
+  orders submitted : 656
+  orders filled    : 656
+  open positions   : 8
+  cash             : Rs 83,794.04
+  positions value  : Rs 4,243,796.66
+  EQUITY           : Rs 4,327,590.70   (from Rs 1,000,000)
+
+  first 3 rebalance decisions:
+decided_on  breadth_pos  breadth_total  breadth  exposure  port_value  cash_before  invest_value  n_held_before  n_buy  n_sell
+2019-01-01           21             46   0.4565       1.0  1000000.00   1000000.00     980000.00              0      8       0
+2019-01-29           15             46   0.3261       1.0   951584.03     19802.53     932552.35              8      6       3
+2019-02-26           28             46   0.6087       1.0   989686.53     13284.89     969892.80              8      5       4
+
+========================================================================
+ NAUTILUS PORT -- VERIFICATION AGAINST THE REFERENCE ENGINE  [nifty50 universe, arm v3]
+========================================================================
+
+  final equity  (2026-05-29)
+                 reference Rs    4,327,602
+                 port      Rs    4,327,591   (-0.00%)
+
+  rebalances     reference   92   port   92
+  fills [FYI]    reference  656   port  656   (not a pass/fail gate)
+
+  vs REFERENCE (valued at the execution day's close)
+    identical holdings      : 53 of 92
+    differing by symbol set : 0
+    differing by quantity   : 39
+    quantity error: median 0.09%  max 0.27%
+
+  vs ARM D     (same engine, valued at the open, 0.05 ticks)
+    identical holdings      : 71 of 92
+    differing by symbol set : 0
+    differing by quantity   : 21
+    quantity error: median 0.06%  max 0.49%
+
+  control: ARM A vs the reference's own holdings
+           SELECTION (gated)  -- 87 of 92 rebalances hold the same symbol set
+           SIZING (not gated) -- 85 of 92 differ in quantity only, worst 24.34% on a single position
+
+  reconciliation on a 0.01 tick grid (both sides) -- 73 of 92 identical
+  of the 19 that differ: 18 are SHARE-COUNT QUANTIZATION, 1 are not
+    share-count quantization -- one share, one symbol, port lower:
+      2021-05-06  BEL          -1 share
+      2021-06-04  BEL          -1 share
+      2021-08-31  BEL          -1 share
+      2021-09-29  BEL          -1 share
+      2022-01-24  ONGC         -1 share
+      2022-02-22  JSWSTEEL     -1 share
+      2023-02-09  ETERNAL      -1 share
+      2023-12-04  WIPRO        -1 share
+      2024-01-02  WIPRO        -1 share
+      2024-06-27  ONGC         -1 share
+      2024-07-26  ONGC         -1 share
+      2024-08-26  ONGC         -1 share
+      2024-09-23  ONGC         -1 share
+      2024-10-22  ONGC         -1 share
+      2024-11-21  ONGC         -1 share
+      2024-12-19  ONGC         -1 share
+      2025-01-17  ONGC         -1 share
+      2025-09-10  POWERGRID    -1 share
+    MECHANISM: quantity is int((invest_val * w) // price) on both
+    sides. A 0.01 grid makes the two PRICES agree; it does not
+    remove the floor. The two paths reach invest_val to about 1e-6
+    relative, and whether that flips the floor depends on how far
+    the quotient sits above its integer as a FRACTION of the
+    quotient -- so the exposure scales with share count, and share
+    count scales with cheapness. Tightest margin over every buy:
+      nifty100   9.49e-06  UNIONBANK Rs 28.74,  2,383 shares -- held
+      midcap150  2.60e-06  SUZLON    Rs  2.54, 21,332 shares -- flipped
+    midcap150 holds shares at Rs 2.45. nifty100 has nothing that cheap.
+
+========================================================================
+  INCONCLUSIVE. ARM A does not reproduce the reference engine's own
+  SELECTION -- the two engines hold different symbols, so ARM D is
+  not a trustworthy baseline for the port's sizing. Fix that first.
+  (Quantity-only differences are reported above and do not reach
+   here: they are a known divergence between two reimplementations,
+   not evidence about which book the engine chose.)
+
+  RESULT: FAIL -- universe nifty50, arm v3, 0.01-grid reconciliation 73 of 92 identical, 18 quantization, 1 unexplained.
+========================================================================
+
+################################################################ nifty50 v4
+data from 2018-06-15 (warm-up) | trading 2019-01-01 to 2026-05-29
+  instruments 50 | events 189,188
+  score rows  87,061 over 1836 days
+
+  reports -> nautilus/tool_reports/nifty50/v4/  [nifty50 universe, arm v4: mode=breadth sizing=provol]  (orders_all 868, order_fills 868, fills 868, positions 440)
+
+  rebalances       : 92
+  orders submitted : 868
+  orders filled    : 868
+  open positions   : 12
+  cash             : Rs 473,629.90
+  positions value  : Rs 2,424,673.89
+  EQUITY           : Rs 2,898,303.79   (from Rs 1,000,000)
+
+  first 3 rebalance decisions:
+decided_on  breadth_pos  breadth_total  breadth  exposure  port_value  cash_before  invest_value  n_held_before  n_buy  n_sell
+2019-01-01           21             46   0.4565    0.4565  1000000.00   1000000.00     447391.30              0      8       0
+2019-01-29           15             46   0.3261    0.3261   977910.97    553349.36     312506.33              8      6       3
+2019-02-26           28             46   0.6087    0.6087   991074.22    475802.19     591197.32             11      3       5
+
+========================================================================
+ NAUTILUS PORT -- VERIFICATION AGAINST THE REFERENCE ENGINE  [nifty50 universe, arm v4]
+========================================================================
+
+  final equity  (2026-05-29)
+                 reference Rs    2,900,147
+                 port      Rs    2,898,304   (-0.06%)
+
+  rebalances     reference   92   port   92
+  fills [FYI]    reference  868   port  868   (not a pass/fail gate)
+
+  vs REFERENCE (valued at the execution day's close)
+    identical holdings      : 29 of 92
+    differing by symbol set : 0
+    differing by quantity   : 63
+    quantity error: median 0.15%  max 1.72%
+
+  vs ARM D     (same engine, valued at the open, 0.05 ticks)
+    identical holdings      : 92 of 92
+    differing by symbol set : 0
+    differing by quantity   : 0
+
+  control: ARM A vs the reference's own holdings
+           SELECTION (gated)  -- 91 of 92 rebalances hold the same symbol set
+           SIZING (not gated) -- 89 of 92 differ in quantity only, worst 6.67% on a single position
+
+  reconciliation on a 0.01 tick grid (both sides) -- 92 of 92 identical
+  of the 0 that differ: 0 are SHARE-COUNT QUANTIZATION, 0 are not
+
+========================================================================
+  INCONCLUSIVE. ARM A does not reproduce the reference engine's own
+  SELECTION -- the two engines hold different symbols, so ARM D is
+  not a trustworthy baseline for the port's sizing. Fix that first.
+  (Quantity-only differences are reported above and do not reach
+   here: they are a known divergence between two reimplementations,
+   not evidence about which book the engine chose.)
+
+  RESULT: FAIL -- universe nifty50, arm v4, 0.01-grid reconciliation 92 of 92 identical, 0 quantization, 0 unexplained.
+========================================================================
+
+################################################################ midcap50 v1
+data from 2018-06-15 (warm-up) | trading 2019-01-01 to 2026-05-29
+  instruments 49 | events 177,874
+  score rows  80,977 over 1836 days
+
+  reports -> nautilus/tool_reports/midcap50/v1/  [midcap50 universe, arm v1: mode=none sizing=invvol]  (orders_all 662, order_fills 662, fills 662, positions 335)
+
+  rebalances       : 92
+  orders submitted : 662
+  orders filled    : 662
+  open positions   : 8
+  cash             : Rs 184,604.31
+  positions value  : Rs 6,268,904.21
+  EQUITY           : Rs 6,453,508.52   (from Rs 1,000,000)
+
+  first 3 rebalance decisions:
+decided_on  breadth_pos  breadth_total  breadth  exposure  port_value  cash_before  invest_value  n_held_before  n_buy  n_sell
+2019-01-01           23             41   0.5610       1.0  1000000.00   1000000.00     980000.00              0      8       0
+2019-01-29           14             41   0.3415       1.0   982995.69     20506.85     963335.78              8      6       5
+2019-02-26           24             41   0.5854       1.0   945433.74     53121.18     926525.07              7      6       3
+
+========================================================================
+ NAUTILUS PORT -- VERIFICATION AGAINST THE REFERENCE ENGINE  [midcap50 universe, arm v1]
+========================================================================
+
+  final equity  (2026-05-29)
+                 reference Rs    6,492,744
+                 port      Rs    6,453,509   (-0.60%)
+
+  rebalances     reference   92   port   92
+  fills [FYI]    reference  664   port  662   (not a pass/fail gate)
+
+  vs REFERENCE (valued at the execution day's close)
+    identical holdings      : 6 of 92
+    differing by symbol set : 1
+    differing by quantity   : 85
+    quantity error: median 0.59%  max 2.22%
+
+  vs ARM D     (same engine, valued at the open, 0.05 ticks)
+    identical holdings      : 88 of 92
+    differing by symbol set : 0
+    differing by quantity   : 4
+    quantity error: median 0.03%  max 0.05%
+
+  control: ARM A vs the reference's own holdings
+           SELECTION (gated)  -- 83 of 92 rebalances hold the same symbol set
+           SIZING (not gated) -- 81 of 92 differ in quantity only, worst 44.08% on a single position
+
+  reconciliation on a 0.01 tick grid (both sides) -- 90 of 92 identical
+  of the 2 that differ: 0 are SHARE-COUNT QUANTIZATION, 2 are not
+
+========================================================================
+  INCONCLUSIVE. ARM A does not reproduce the reference engine's own
+  SELECTION -- the two engines hold different symbols, so ARM D is
+  not a trustworthy baseline for the port's sizing. Fix that first.
+  (Quantity-only differences are reported above and do not reach
+   here: they are a known divergence between two reimplementations,
+   not evidence about which book the engine chose.)
+
+  RESULT: FAIL -- universe midcap50, arm v1, 0.01-grid reconciliation 90 of 92 identical, 0 quantization, 2 unexplained.
+========================================================================
+
+################################################################ midcap50 v2
+data from 2018-06-15 (warm-up) | trading 2019-01-01 to 2026-05-29
+  instruments 49 | events 177,874
+  score rows  80,977 over 1836 days
+
+  reports -> nautilus/tool_reports/midcap50/v2/  [midcap50 universe, arm v2: mode=breadth sizing=invvol]  (orders_all 865, order_fills 865, fills 865, positions 438)
+
+  rebalances       : 92
+  orders submitted : 865
+  orders filled    : 865
+  open positions   : 11
+  cash             : Rs 296,411.62
+  positions value  : Rs 3,800,878.59
+  EQUITY           : Rs 4,097,290.21   (from Rs 1,000,000)
+
+  first 3 rebalance decisions:
+decided_on  breadth_pos  breadth_total  breadth  exposure  port_value  cash_before  invest_value  n_held_before  n_buy  n_sell
+2019-01-01           23             41   0.5610    0.5610  1000000.00   1000000.00     549756.10              0      8       0
+2019-01-29           14             41   0.3415    0.3415   990472.98    451402.35     331446.08              8      6       5
+2019-02-26           24             41   0.5854    0.5854   971568.60    514231.23     557348.62              9      5       3
+
+========================================================================
+ NAUTILUS PORT -- VERIFICATION AGAINST THE REFERENCE ENGINE  [midcap50 universe, arm v2]
+========================================================================
+
+  final equity  (2026-05-29)
+                 reference Rs    4,095,676
+                 port      Rs    4,097,290   (+0.04%)
+
+  rebalances     reference   92   port   92
+  fills [FYI]    reference  865   port  865   (not a pass/fail gate)
+
+  vs REFERENCE (valued at the execution day's close)
+    identical holdings      : 8 of 92
+    differing by symbol set : 0
+    differing by quantity   : 84
+    quantity error: median 0.12%  max 1.85%
+
+  vs ARM D     (same engine, valued at the open, 0.05 ticks)
+    identical holdings      : 91 of 92
+    differing by symbol set : 0
+    differing by quantity   : 1
+    quantity error: median 0.03%  max 0.03%
+
+  control: ARM A vs the reference's own holdings
+           SELECTION (gated)  -- 91 of 92 rebalances hold the same symbol set
+           SIZING (not gated) -- 86 of 92 differ in quantity only, worst 23.57% on a single position
+
+  reconciliation on a 0.01 tick grid (both sides) -- 92 of 92 identical
+  of the 0 that differ: 0 are SHARE-COUNT QUANTIZATION, 0 are not
+
+========================================================================
+  INCONCLUSIVE. ARM A does not reproduce the reference engine's own
+  SELECTION -- the two engines hold different symbols, so ARM D is
+  not a trustworthy baseline for the port's sizing. Fix that first.
+  (Quantity-only differences are reported above and do not reach
+   here: they are a known divergence between two reimplementations,
+   not evidence about which book the engine chose.)
+
+  RESULT: FAIL -- universe midcap50, arm v2, 0.01-grid reconciliation 92 of 92 identical, 0 quantization, 0 unexplained.
+========================================================================
+
+################################################################ midcap50 v3
+data from 2018-06-15 (warm-up) | trading 2019-01-01 to 2026-05-29
+  instruments 49 | events 177,874
+  score rows  80,977 over 1836 days
+
+  reports -> nautilus/tool_reports/midcap50/v3/  [midcap50 universe, arm v3: mode=none sizing=provol]  (orders_all 654, order_fills 654, fills 654, positions 331)
+
+  rebalances       : 92
+  orders submitted : 654
+  orders filled    : 654
+  open positions   : 8
+  cash             : Rs 433,982.10
+  positions value  : Rs 5,079,066.84
+  EQUITY           : Rs 5,513,048.94   (from Rs 1,000,000)
+
+  first 3 rebalance decisions:
+decided_on  breadth_pos  breadth_total  breadth  exposure  port_value  cash_before  invest_value  n_held_before  n_buy  n_sell
+2019-01-01           23             41   0.5610       1.0  1000000.00   1000000.00     980000.00              0      8       0
+2019-01-29           14             41   0.3415       1.0   984177.90     20355.15     964494.34              8      6       5
+2019-02-26           24             41   0.5854       1.0   964972.36    110450.20     945672.91              8      5       3
+
+========================================================================
+ NAUTILUS PORT -- VERIFICATION AGAINST THE REFERENCE ENGINE  [midcap50 universe, arm v3]
+========================================================================
+
+  final equity  (2026-05-29)
+                 reference Rs    5,565,661
+                 port      Rs    5,513,049   (-0.95%)
+
+  rebalances     reference   92   port   92
+  fills [FYI]    reference  656   port  654   (not a pass/fail gate)
+
+  vs REFERENCE (valued at the execution day's close)
+    identical holdings      : 2 of 92
+    differing by symbol set : 1
+    differing by quantity   : 89
+    quantity error: median 1.02%  max 12.18%
+
+  vs ARM D     (same engine, valued at the open, 0.05 ticks)
+    identical holdings      : 51 of 92
+    differing by symbol set : 0
+    differing by quantity   : 41
+    quantity error: median 0.01%  max 0.80%
+
+  control: ARM A vs the reference's own holdings
+           SELECTION (gated)  -- 85 of 92 rebalances hold the same symbol set
+           SIZING (not gated) -- 83 of 92 differ in quantity only, worst 22.78% on a single position
+
+  reconciliation on a 0.01 tick grid (both sides) -- 79 of 92 identical
+  of the 13 that differ: 1 are SHARE-COUNT QUANTIZATION, 12 are not
+    share-count quantization -- one share, one symbol, port lower:
+      2026-04-07  COFORGE      -1 share
+    MECHANISM: quantity is int((invest_val * w) // price) on both
+    sides. A 0.01 grid makes the two PRICES agree; it does not
+    remove the floor. The two paths reach invest_val to about 1e-6
+    relative, and whether that flips the floor depends on how far
+    the quotient sits above its integer as a FRACTION of the
+    quotient -- so the exposure scales with share count, and share
+    count scales with cheapness. Tightest margin over every buy:
+      nifty100   9.49e-06  UNIONBANK Rs 28.74,  2,383 shares -- held
+      midcap150  2.60e-06  SUZLON    Rs  2.54, 21,332 shares -- flipped
+    midcap150 holds shares at Rs 2.45. nifty100 has nothing that cheap.
+
+========================================================================
+  INCONCLUSIVE. ARM A does not reproduce the reference engine's own
+  SELECTION -- the two engines hold different symbols, so ARM D is
+  not a trustworthy baseline for the port's sizing. Fix that first.
+  (Quantity-only differences are reported above and do not reach
+   here: they are a known divergence between two reimplementations,
+   not evidence about which book the engine chose.)
+
+  RESULT: FAIL -- universe midcap50, arm v3, 0.01-grid reconciliation 79 of 92 identical, 1 quantization, 12 unexplained.
+========================================================================
+
+################################################################ midcap50 v4
+data from 2018-06-15 (warm-up) | trading 2019-01-01 to 2026-05-29
+  instruments 49 | events 177,874
+  score rows  80,977 over 1836 days
+
+  reports -> nautilus/tool_reports/midcap50/v4/  [midcap50 universe, arm v4: mode=breadth sizing=provol]  (orders_all 863, order_fills 863, fills 863, positions 437)
+
+  rebalances       : 92
+  orders submitted : 863
+  orders filled    : 863
+  open positions   : 11
+  cash             : Rs 501,841.81
+  positions value  : Rs 3,235,279.53
+  EQUITY           : Rs 3,737,121.34   (from Rs 1,000,000)
+
+  first 3 rebalance decisions:
+decided_on  breadth_pos  breadth_total  breadth  exposure  port_value  cash_before  invest_value  n_held_before  n_buy  n_sell
+2019-01-01           23             41   0.5610    0.5610  1000000.00   1000000.00     549756.10              0      8       0
+2019-01-29           14             41   0.3415    0.3415   991136.46    451112.03     331668.10              8      6       5
+2019-02-26           24             41   0.5854    0.5854   981452.59    574064.17     563018.66              9      5       3
+
+========================================================================
+ NAUTILUS PORT -- VERIFICATION AGAINST THE REFERENCE ENGINE  [midcap50 universe, arm v4]
+========================================================================
+
+  final equity  (2026-05-29)
+                 reference Rs    3,733,096
+                 port      Rs    3,737,121   (+0.11%)
+
+  rebalances     reference   92   port   92
+  fills [FYI]    reference  863   port  863   (not a pass/fail gate)
+
+  vs REFERENCE (valued at the execution day's close)
+    identical holdings      : 6 of 92
+    differing by symbol set : 0
+    differing by quantity   : 86
+    quantity error: median 0.17%  max 2.94%
+
+  vs ARM D     (same engine, valued at the open, 0.05 ticks)
+    identical holdings      : 91 of 92
+    differing by symbol set : 0
+    differing by quantity   : 1
+    quantity error: median 0.02%  max 0.02%
+
+  control: ARM A vs the reference's own holdings
+           SELECTION (gated)  -- 92 of 92 rebalances hold the same symbol set
+           SIZING (not gated) -- 90 of 92 differ in quantity only, worst 20.00% on a single position
+
+  reconciliation on a 0.01 tick grid (both sides) -- 90 of 92 identical
+  of the 2 that differ: 0 are SHARE-COUNT QUANTIZATION, 2 are not
+
+========================================================================
+  NOT VERIFIED. 2 rebalance(s) differ in a way share-count
+  quantization does not explain -- more than one share, more than one
+  symbol, or a different symbol set -- on a 0.01 grid where tick
+  quantization cannot be the cause. Something else is wrong.
+  Do not trade this.
+
+  RESULT: FAIL -- universe midcap50, arm v4, 0.01-grid reconciliation 90 of 92 identical, 0 quantization, 2 unexplained.
+========================================================================
+
+################################################################ midcap100 v1
+data from 2018-06-15 (warm-up) | trading 2019-01-01 to 2026-05-29
+  instruments 98 | events 345,540
+  score rows  156,551 over 1836 days
+
+  reports -> nautilus/tool_reports/midcap100/v1/  [midcap100 universe, arm v1: mode=none sizing=invvol]  (orders_all 700, order_fills 700, fills 700, positions 354)
+
+  rebalances       : 92
+  orders submitted : 700
+  orders filled    : 700
+  open positions   : 8
+  cash             : Rs 207,893.76
+  positions value  : Rs 10,608,706.60
+  EQUITY           : Rs 10,816,600.36   (from Rs 1,000,000)
+
+  first 3 rebalance decisions:
+decided_on  breadth_pos  breadth_total  breadth  exposure  port_value  cash_before  invest_value  n_held_before  n_buy  n_sell
+2019-01-01           46             77   0.5974       1.0   1000000.0   1000000.00     980000.00              0      8       0
+2019-01-29           18             77   0.2338       1.0   1026477.4     19925.11    1005947.85              8      6       5
+2019-02-26           37             77   0.4805       1.0   1016313.9    118654.25     995987.62              8      7       4
+
+========================================================================
+ NAUTILUS PORT -- VERIFICATION AGAINST THE REFERENCE ENGINE  [midcap100 universe, arm v1]
+========================================================================
+
+  final equity  (2026-05-29)
+                 reference Rs   10,806,881
+                 port      Rs   10,816,600   (+0.09%)
+
+  rebalances     reference   92   port   92
+  fills [FYI]    reference  700   port  700   (not a pass/fail gate)
+
+  vs REFERENCE (valued at the execution day's close)
+    identical holdings      : 3 of 92
+    differing by symbol set : 0
+    differing by quantity   : 89
+    quantity error: median 0.10%  max 0.87%
+
+  vs ARM D     (same engine, valued at the open, 0.05 ticks)
+    identical holdings      : 70 of 92
+    differing by symbol set : 0
+    differing by quantity   : 22
+    quantity error: median 0.02%  max 0.18%
+
+  control: ARM A vs the reference's own holdings
+           SELECTION (gated)  -- 80 of 92 rebalances hold the same symbol set
+           SIZING (not gated) -- 78 of 92 differ in quantity only, worst 38.61% on a single position
+
+  reconciliation on a 0.01 tick grid (both sides) -- 92 of 92 identical
+  of the 0 that differ: 0 are SHARE-COUNT QUANTIZATION, 0 are not
+
+========================================================================
+  INCONCLUSIVE. ARM A does not reproduce the reference engine's own
+  SELECTION -- the two engines hold different symbols, so ARM D is
+  not a trustworthy baseline for the port's sizing. Fix that first.
+  (Quantity-only differences are reported above and do not reach
+   here: they are a known divergence between two reimplementations,
+   not evidence about which book the engine chose.)
+
+  RESULT: FAIL -- universe midcap100, arm v1, 0.01-grid reconciliation 92 of 92 identical, 0 quantization, 0 unexplained.
+========================================================================
+
+################################################################ midcap100 v2
+data from 2018-06-15 (warm-up) | trading 2019-01-01 to 2026-05-29
+  instruments 98 | events 345,540
+  score rows  156,551 over 1836 days
+
+  reports -> nautilus/tool_reports/midcap100/v2/  [midcap100 universe, arm v2: mode=breadth sizing=invvol]  (orders_all 898, order_fills 898, fills 898, positions 453)
+
+  rebalances       : 92
+  orders submitted : 898
+  orders filled    : 898
+  open positions   : 8
+  cash             : Rs 977,167.36
+  positions value  : Rs 5,563,963.05
+  EQUITY           : Rs 6,541,130.41   (from Rs 1,000,000)
+
+  first 3 rebalance decisions:
+decided_on  breadth_pos  breadth_total  breadth  exposure  port_value  cash_before  invest_value  n_held_before  n_buy  n_sell
+2019-01-01           46             77   0.5974    0.5974  1000000.00   1000000.00     585454.55              0      8       0
+2019-01-29           18             77   0.2338    0.2338  1015801.08    415233.46     232710.79              8      6       5
+2019-02-26           37             77   0.4805    0.4805  1008014.26    610920.27     474683.08              9      7       4
+
+========================================================================
+ NAUTILUS PORT -- VERIFICATION AGAINST THE REFERENCE ENGINE  [midcap100 universe, arm v2]
+========================================================================
+
+  final equity  (2026-05-29)
+                 reference Rs    6,539,389
+                 port      Rs    6,541,130   (+0.03%)
+
+  rebalances     reference   92   port   92
+  fills [FYI]    reference  898   port  898   (not a pass/fail gate)
+
+  vs REFERENCE (valued at the execution day's close)
+    identical holdings      : 24 of 92
+    differing by symbol set : 0
+    differing by quantity   : 68
+    quantity error: median 0.09%  max 1.45%
+
+  vs ARM D     (same engine, valued at the open, 0.05 ticks)
+    identical holdings      : 84 of 92
+    differing by symbol set : 0
+    differing by quantity   : 8
+    quantity error: median 0.35%  max 0.35%
+
+  control: ARM A vs the reference's own holdings
+           SELECTION (gated)  -- 92 of 92 rebalances hold the same symbol set
+           SIZING (not gated) -- 90 of 92 differ in quantity only, worst 6.25% on a single position
+
+  reconciliation on a 0.01 tick grid (both sides) -- 80 of 92 identical
+  of the 12 that differ: 0 are SHARE-COUNT QUANTIZATION, 12 are not
+
+========================================================================
+  NOT VERIFIED. 12 rebalance(s) differ in a way share-count
+  quantization does not explain -- more than one share, more than one
+  symbol, or a different symbol set -- on a 0.01 grid where tick
+  quantization cannot be the cause. Something else is wrong.
+  Do not trade this.
+
+  RESULT: FAIL -- universe midcap100, arm v2, 0.01-grid reconciliation 80 of 92 identical, 0 quantization, 12 unexplained.
+========================================================================
+
+################################################################ midcap100 v3
+data from 2018-06-15 (warm-up) | trading 2019-01-01 to 2026-05-29
+  instruments 98 | events 345,540
+  score rows  156,551 over 1836 days
+
+  reports -> nautilus/tool_reports/midcap100/v3/  [midcap100 universe, arm v3: mode=none sizing=provol]  (orders_all 676, order_fills 676, fills 676, positions 342)
+
+  rebalances       : 92
+  orders submitted : 676
+  orders filled    : 676
+  open positions   : 8
+  cash             : Rs 189,364.70
+  positions value  : Rs 9,584,272.30
+  EQUITY           : Rs 9,773,637.00   (from Rs 1,000,000)
+
+  first 3 rebalance decisions:
+decided_on  breadth_pos  breadth_total  breadth  exposure  port_value  cash_before  invest_value  n_held_before  n_buy  n_sell
+2019-01-01           46             77   0.5974       1.0  1000000.00   1000000.00     980000.00              0      8       0
+2019-01-29           18             77   0.2338       1.0  1015747.30     19748.76     995432.35              8      6       5
+2019-02-26           37             77   0.4805       1.0  1017784.85     92778.21     997429.15              8      7       3
+
+========================================================================
+ NAUTILUS PORT -- VERIFICATION AGAINST THE REFERENCE ENGINE  [midcap100 universe, arm v3]
+========================================================================
+
+  final equity  (2026-05-29)
+                 reference Rs    9,744,000
+                 port      Rs    9,773,637   (+0.30%)
+
+  rebalances     reference   92   port   92
+  fills [FYI]    reference  676   port  676   (not a pass/fail gate)
+
+  vs REFERENCE (valued at the execution day's close)
+    identical holdings      : 3 of 92
+    differing by symbol set : 0
+    differing by quantity   : 89
+    quantity error: median 0.28%  max 1.92%
+
+  vs ARM D     (same engine, valued at the open, 0.05 ticks)
+    identical holdings      : 20 of 92
+    differing by symbol set : 0
+    differing by quantity   : 72
+    quantity error: median 0.05%  max 0.54%
+
+  control: ARM A vs the reference's own holdings
+           SELECTION (gated)  -- 81 of 92 rebalances hold the same symbol set
+           SIZING (not gated) -- 79 of 92 differ in quantity only, worst 22.33% on a single position
+
+  reconciliation on a 0.01 tick grid (both sides) -- 68 of 92 identical
+  of the 24 that differ: 5 are SHARE-COUNT QUANTIZATION, 19 are not
+    share-count quantization -- one share, one symbol, port lower:
+      2019-11-26  ASHOKLEY     -1 share
+      2019-12-24  ASHOKLEY     -1 share
+      2020-02-18  IDEA         -1 share
+      2020-03-19  IDEA         -1 share
+      2020-08-14  YESBANK      -1 share
+    MECHANISM: quantity is int((invest_val * w) // price) on both
+    sides. A 0.01 grid makes the two PRICES agree; it does not
+    remove the floor. The two paths reach invest_val to about 1e-6
+    relative, and whether that flips the floor depends on how far
+    the quotient sits above its integer as a FRACTION of the
+    quotient -- so the exposure scales with share count, and share
+    count scales with cheapness. Tightest margin over every buy:
+      nifty100   9.49e-06  UNIONBANK Rs 28.74,  2,383 shares -- held
+      midcap150  2.60e-06  SUZLON    Rs  2.54, 21,332 shares -- flipped
+    midcap150 holds shares at Rs 2.45. nifty100 has nothing that cheap.
+
+========================================================================
+  INCONCLUSIVE. ARM A does not reproduce the reference engine's own
+  SELECTION -- the two engines hold different symbols, so ARM D is
+  not a trustworthy baseline for the port's sizing. Fix that first.
+  (Quantity-only differences are reported above and do not reach
+   here: they are a known divergence between two reimplementations,
+   not evidence about which book the engine chose.)
+
+  RESULT: FAIL -- universe midcap100, arm v3, 0.01-grid reconciliation 68 of 92 identical, 5 quantization, 19 unexplained.
+========================================================================
+
+################################################################ midcap100 v4
+data from 2018-06-15 (warm-up) | trading 2019-01-01 to 2026-05-29
+  instruments 98 | events 345,540
+  score rows  156,551 over 1836 days
+
+  reports -> nautilus/tool_reports/midcap100/v4/  [midcap100 universe, arm v4: mode=breadth sizing=provol]  (orders_all 898, order_fills 898, fills 898, positions 453)
+
+  rebalances       : 92
+  orders submitted : 898
+  orders filled    : 898
+  open positions   : 8
+  cash             : Rs 697,712.59
+  positions value  : Rs 3,974,061.25
+  EQUITY           : Rs 4,671,773.84   (from Rs 1,000,000)
+
+  first 3 rebalance decisions:
+decided_on  breadth_pos  breadth_total  breadth  exposure  port_value  cash_before  invest_value  n_held_before  n_buy  n_sell
+2019-01-01           46             77   0.5974    0.5974  1000000.00   1000000.00     585454.55              0      8       0
+2019-01-29           18             77   0.2338    0.2338  1009407.53    415824.76     231246.09              8      6       5
+2019-02-26           37             77   0.4805    0.4805  1006140.70    635285.83     473800.80              9      7       4
+
+========================================================================
+ NAUTILUS PORT -- VERIFICATION AGAINST THE REFERENCE ENGINE  [midcap100 universe, arm v4]
+========================================================================
+
+  final equity  (2026-05-29)
+                 reference Rs    4,665,010
+                 port      Rs    4,671,774   (+0.14%)
+
+  rebalances     reference   92   port   92
+  fills [FYI]    reference  898   port  898   (not a pass/fail gate)
+
+  vs REFERENCE (valued at the execution day's close)
+    identical holdings      : 7 of 92
+    differing by symbol set : 0
+    differing by quantity   : 85
+    quantity error: median 0.19%  max 4.35%
+
+  vs ARM D     (same engine, valued at the open, 0.05 ticks)
+    identical holdings      : 69 of 92
+    differing by symbol set : 0
+    differing by quantity   : 23
+    quantity error: median 0.01%  max 0.79%
+
+  control: ARM A vs the reference's own holdings
+           SELECTION (gated)  -- 92 of 92 rebalances hold the same symbol set
+           SIZING (not gated) -- 90 of 92 differ in quantity only, worst 8.33% on a single position
+
+  reconciliation on a 0.01 tick grid (both sides) -- 92 of 92 identical
+  of the 0 that differ: 0 are SHARE-COUNT QUANTIZATION, 0 are not
+
+========================================================================
+  VERIFIED. On a 0.01 tick grid the port and the open-valued reference
+  hold the SAME SYMBOLS at every rebalance, and every quantity
+  difference is share-count quantization by its exact signature: one
+  share, one symbol, port lower. The two systems are identical in
+  logic, and what the real 0.05 grid shows above is three measured,
+  documented things:
+    - the reference values the portfolio at the execution day's CLOSE,
+      which a strategy standing at 09:15 cannot know;
+    - quantity is a floor division by a tick-snapped price, and one
+      0.05 tick is 0.19% of a Rs 27 share;
+    - the floor itself quantizes, which no tick grid removes.
+  Nothing else remains unexplained.
+
+  RESULT: PASS -- universe midcap100, arm v4, 0.01-grid reconciliation 92 of 92 identical, 0 quantization, 0 unexplained.
+========================================================================
+
+################################################################ nifty200 v1
+data from 2018-06-15 (warm-up) | trading 2019-01-01 to 2026-05-29
+  instruments 197 | events 709,852
+  score rows  323,104 over 1836 days
+
+  reports -> nautilus/tool_reports/nifty200/v1/  [nifty200 universe, arm v1: mode=none sizing=invvol]  (orders_all 810, order_fills 810, fills 810, positions 409)
+
+  rebalances       : 92
+  orders submitted : 810
+  orders filled    : 810
+  open positions   : 8
+  cash             : Rs 178,086.59
+  positions value  : Rs 10,813,117.20
+  EQUITY           : Rs 10,991,203.79   (from Rs 1,000,000)
+
+  first 3 rebalance decisions:
+decided_on  breadth_pos  breadth_total  breadth  exposure  port_value  cash_before  invest_value  n_held_before  n_buy  n_sell
+2019-01-01           96            165   0.5818       1.0  1000000.00   1000000.00     980000.00              0      8       0
+2019-01-29           39            165   0.2364       1.0   990231.28     20331.15     970426.65              8      5       4
+2019-02-26           85            165   0.5152       1.0  1012277.32     24180.43     992031.77              7      5       4
+
+========================================================================
+ NAUTILUS PORT -- VERIFICATION AGAINST THE REFERENCE ENGINE  [nifty200 universe, arm v1]
+========================================================================
+
+  final equity  (2026-05-29)
+                 reference Rs   10,992,187
+                 port      Rs   10,991,204   (-0.01%)
+
+  rebalances     reference   92   port   92
+  fills [FYI]    reference  810   port  810   (not a pass/fail gate)
+
+  vs REFERENCE (valued at the execution day's close)
+    identical holdings      : 15 of 92
+    differing by symbol set : 0
+    differing by quantity   : 77
+    quantity error: median 0.05%  max 0.69%
+
+  vs ARM D     (same engine, valued at the open, 0.05 ticks)
+    identical holdings      : 78 of 92
+    differing by symbol set : 0
+    differing by quantity   : 14
+    quantity error: median 0.02%  max 0.05%
+
+  control: ARM A vs the reference's own holdings
+           SELECTION (gated)  -- 82 of 92 rebalances hold the same symbol set
+           SIZING (not gated) -- 80 of 92 differ in quantity only, worst 3.61% on a single position
+
+  reconciliation on a 0.01 tick grid (both sides) -- 39 of 92 identical
+  of the 53 that differ: 26 are SHARE-COUNT QUANTIZATION, 27 are not
+    share-count quantization -- one share, one symbol, port lower:
+      2019-09-25  CGPOWER      -1 share
+      2020-06-19  HINDUNILVR   -1 share
+      2020-07-17  IDEA         -1 share
+      2021-02-04  CGPOWER      -1 share
+      2021-05-06  CGPOWER      -1 share
+      2021-08-02  ADANIPOWER   -1 share
+      2021-10-28  ATGL         -1 share
+      2022-02-22  BEL          -1 share
+      2022-07-19  OIL          -1 share
+      2022-08-18  OIL          -1 share
+      2023-01-11  CGPOWER      -1 share
+      2023-04-12  COCHINSHIP   -1 share
+      2023-07-10  VBL          -1 share
+      2023-08-07  VBL          -1 share
+      2023-12-04  MAZDOCK      -1 share
+      2024-07-26  MOTILALOFS   -1 share
+      2024-08-26  MOTILALOFS   -1 share
+      2024-12-19  HUDCO        -1 share
+      2025-01-17  HUDCO        -1 share
+      2025-02-13  HUDCO        -1 share
+      2025-06-16  GMRAIRPORT   -1 share
+      2025-09-10  PATANJALI    -1 share
+      2025-10-09  HDFCBANK     -1 share
+      2025-12-08  NYKAA        -1 share
+      2026-01-06  HUDCO        -1 share
+      2026-02-04  BANKINDIA    -1 share
+    MECHANISM: quantity is int((invest_val * w) // price) on both
+    sides. A 0.01 grid makes the two PRICES agree; it does not
+    remove the floor. The two paths reach invest_val to about 1e-6
+    relative, and whether that flips the floor depends on how far
+    the quotient sits above its integer as a FRACTION of the
+    quotient -- so the exposure scales with share count, and share
+    count scales with cheapness. Tightest margin over every buy:
+      nifty100   9.49e-06  UNIONBANK Rs 28.74,  2,383 shares -- held
+      midcap150  2.60e-06  SUZLON    Rs  2.54, 21,332 shares -- flipped
+    midcap150 holds shares at Rs 2.45. nifty100 has nothing that cheap.
+
+========================================================================
+  INCONCLUSIVE. ARM A does not reproduce the reference engine's own
+  SELECTION -- the two engines hold different symbols, so ARM D is
+  not a trustworthy baseline for the port's sizing. Fix that first.
+  (Quantity-only differences are reported above and do not reach
+   here: they are a known divergence between two reimplementations,
+   not evidence about which book the engine chose.)
+
+  RESULT: FAIL -- universe nifty200, arm v1, 0.01-grid reconciliation 39 of 92 identical, 26 quantization, 27 unexplained.
+========================================================================
+
+################################################################ nifty200 v2
+data from 2018-06-15 (warm-up) | trading 2019-01-01 to 2026-05-29
+  instruments 197 | events 709,852
+  score rows  323,104 over 1836 days
+
+  reports -> nautilus/tool_reports/nifty200/v2/  [nifty200 universe, arm v2: mode=breadth sizing=invvol]  (orders_all 969, order_fills 969, fills 969, positions 489)
+
+  rebalances       : 92
+  orders submitted : 969
+  orders filled    : 969
+  open positions   : 9
+  cash             : Rs 545,224.76
+  positions value  : Rs 5,754,529.30
+  EQUITY           : Rs 6,299,754.06   (from Rs 1,000,000)
+
+  first 3 rebalance decisions:
+decided_on  breadth_pos  breadth_total  breadth  exposure  port_value  cash_before  invest_value  n_held_before  n_buy  n_sell
+2019-01-01           96            165   0.5818    0.5818  1000000.00   1000000.00     570181.82              0      8       0
+2019-01-29           39            165   0.2364    0.2364   994259.72    431396.65     230306.71              8      5       4
+2019-02-26           85            165   0.5152    0.5152  1005010.35    537063.94     507377.95              9      5       6
+
+========================================================================
+ NAUTILUS PORT -- VERIFICATION AGAINST THE REFERENCE ENGINE  [nifty200 universe, arm v2]
+========================================================================
+
+  final equity  (2026-05-29)
+                 reference Rs    6,299,251
+                 port      Rs    6,299,754   (+0.01%)
+
+  rebalances     reference   92   port   92
+  fills [FYI]    reference  969   port  969   (not a pass/fail gate)
+
+  vs REFERENCE (valued at the execution day's close)
+    identical holdings      : 37 of 92
+    differing by symbol set : 0
+    differing by quantity   : 55
+    quantity error: median 0.09%  max 0.51%
+
+  vs ARM D     (same engine, valued at the open, 0.05 ticks)
+    identical holdings      : 89 of 92
+    differing by symbol set : 0
+    differing by quantity   : 3
+    quantity error: median 0.01%  max 0.01%
+
+  control: ARM A vs the reference's own holdings
+           SELECTION (gated)  -- 92 of 92 rebalances hold the same symbol set
+           SIZING (not gated) -- 89 of 92 differ in quantity only, worst 3.57% on a single position
+
+  reconciliation on a 0.01 tick grid (both sides) -- 91 of 92 identical
+  of the 1 that differ: 0 are SHARE-COUNT QUANTIZATION, 1 are not
+
+========================================================================
+  NOT VERIFIED. 1 rebalance(s) differ in a way share-count
+  quantization does not explain -- more than one share, more than one
+  symbol, or a different symbol set -- on a 0.01 grid where tick
+  quantization cannot be the cause. Something else is wrong.
+  Do not trade this.
+
+  RESULT: FAIL -- universe nifty200, arm v2, 0.01-grid reconciliation 91 of 92 identical, 0 quantization, 1 unexplained.
+========================================================================
+
+################################################################ nifty200 v3
+data from 2018-06-15 (warm-up) | trading 2019-01-01 to 2026-05-29
+  instruments 197 | events 709,852
+  score rows  323,104 over 1836 days
+
+  reports -> nautilus/tool_reports/nifty200/v3/  [nifty200 universe, arm v3: mode=none sizing=provol]  (orders_all 778, order_fills 778, fills 778, positions 393)
+
+  rebalances       : 92
+  orders submitted : 778
+  orders filled    : 778
+  open positions   : 8
+  cash             : Rs 202,870.54
+  positions value  : Rs 8,969,515.80
+  EQUITY           : Rs 9,172,386.34   (from Rs 1,000,000)
+
+  first 3 rebalance decisions:
+decided_on  breadth_pos  breadth_total  breadth  exposure  port_value  cash_before  invest_value  n_held_before  n_buy  n_sell
+2019-01-01           96            165   0.5818       1.0  1000000.00   1000000.00     980000.00              0      8       0
+2019-01-29           39            165   0.2364       1.0   990112.39     21685.66     970310.14              8      5       4
+2019-02-26           85            165   0.5152       1.0  1008002.85    193361.64     987842.79              8      5       5
+
+========================================================================
+ NAUTILUS PORT -- VERIFICATION AGAINST THE REFERENCE ENGINE  [nifty200 universe, arm v3]
+========================================================================
+
+  final equity  (2026-05-29)
+                 reference Rs    9,168,666
+                 port      Rs    9,172,386   (+0.04%)
+
+  rebalances     reference   92   port   92
+  fills [FYI]    reference  778   port  778   (not a pass/fail gate)
+
+  vs REFERENCE (valued at the execution day's close)
+    identical holdings      : 6 of 92
+    differing by symbol set : 0
+    differing by quantity   : 86
+    quantity error: median 0.07%  max 3.33%
+
+  vs ARM D     (same engine, valued at the open, 0.05 ticks)
+    identical holdings      : 17 of 92
+    differing by symbol set : 0
+    differing by quantity   : 75
+    quantity error: median 0.06%  max 3.33%
+
+  control: ARM A vs the reference's own holdings
+           SELECTION (gated)  -- 78 of 92 rebalances hold the same symbol set
+           SIZING (not gated) -- 76 of 92 differ in quantity only, worst 19.44% on a single position
+
+  reconciliation on a 0.01 tick grid (both sides) -- 83 of 92 identical
+  of the 9 that differ: 1 are SHARE-COUNT QUANTIZATION, 8 are not
+    share-count quantization -- one share, one symbol, port lower:
+      2019-09-25  CGPOWER      -1 share
+    MECHANISM: quantity is int((invest_val * w) // price) on both
+    sides. A 0.01 grid makes the two PRICES agree; it does not
+    remove the floor. The two paths reach invest_val to about 1e-6
+    relative, and whether that flips the floor depends on how far
+    the quotient sits above its integer as a FRACTION of the
+    quotient -- so the exposure scales with share count, and share
+    count scales with cheapness. Tightest margin over every buy:
+      nifty100   9.49e-06  UNIONBANK Rs 28.74,  2,383 shares -- held
+      midcap150  2.60e-06  SUZLON    Rs  2.54, 21,332 shares -- flipped
+    midcap150 holds shares at Rs 2.45. nifty100 has nothing that cheap.
+
+========================================================================
+  INCONCLUSIVE. ARM A does not reproduce the reference engine's own
+  SELECTION -- the two engines hold different symbols, so ARM D is
+  not a trustworthy baseline for the port's sizing. Fix that first.
+  (Quantity-only differences are reported above and do not reach
+   here: they are a known divergence between two reimplementations,
+   not evidence about which book the engine chose.)
+
+  RESULT: FAIL -- universe nifty200, arm v3, 0.01-grid reconciliation 83 of 92 identical, 1 quantization, 8 unexplained.
+========================================================================
+
+################################################################ nifty200 v4
+data from 2018-06-15 (warm-up) | trading 2019-01-01 to 2026-05-29
+  instruments 197 | events 709,852
+  score rows  323,104 over 1836 days
+
+  reports -> nautilus/tool_reports/nifty200/v4/  [nifty200 universe, arm v4: mode=breadth sizing=provol]  (orders_all 965, order_fills 965, fills 965, positions 487)
+
+  rebalances       : 92
+  orders submitted : 965
+  orders filled    : 965
+  open positions   : 9
+  cash             : Rs 614,622.63
+  positions value  : Rs 6,023,132.30
+  EQUITY           : Rs 6,637,754.93   (from Rs 1,000,000)
+
+  first 3 rebalance decisions:
+decided_on  breadth_pos  breadth_total  breadth  exposure  port_value  cash_before  invest_value  n_held_before  n_buy  n_sell
+2019-01-01           96            165   0.5818    0.5818  1000000.00   1000000.00     570181.82              0      8       0
+2019-01-29           39            165   0.2364    0.2364   994224.42    431985.17     230298.53              8      5       4
+2019-02-26           85            165   0.5152    0.5152  1009049.57    608083.79     509417.15              9      5       6
+
+========================================================================
+ NAUTILUS PORT -- VERIFICATION AGAINST THE REFERENCE ENGINE  [nifty200 universe, arm v4]
+========================================================================
+
+  final equity  (2026-05-29)
+                 reference Rs    6,636,715
+                 port      Rs    6,637,755   (+0.02%)
+
+  rebalances     reference   92   port   92
+  fills [FYI]    reference  965   port  965   (not a pass/fail gate)
+
+  vs REFERENCE (valued at the execution day's close)
+    identical holdings      : 23 of 92
+    differing by symbol set : 0
+    differing by quantity   : 69
+    quantity error: median 0.09%  max 1.12%
+
+  vs ARM D     (same engine, valued at the open, 0.05 ticks)
+    identical holdings      : 84 of 92
+    differing by symbol set : 0
+    differing by quantity   : 8
+    quantity error: median 0.01%  max 0.14%
+
+  control: ARM A vs the reference's own holdings
+           SELECTION (gated)  -- 92 of 92 rebalances hold the same symbol set
+           SIZING (not gated) -- 89 of 92 differ in quantity only, worst 8.33% on a single position
+
+  reconciliation on a 0.01 tick grid (both sides) -- 90 of 92 identical
+  of the 2 that differ: 0 are SHARE-COUNT QUANTIZATION, 2 are not
+
+========================================================================
+  NOT VERIFIED. 2 rebalance(s) differ in a way share-count
+  quantization does not explain -- more than one share, more than one
+  symbol, or a different symbol set -- on a 0.01 grid where tick
+  quantization cannot be the cause. Something else is wrong.
+  Do not trade this.
+
+  RESULT: FAIL -- universe nifty200, arm v4, 0.01-grid reconciliation 90 of 92 identical, 0 quantization, 2 unexplained.
+========================================================================
+
+################################################################ smallcap250 v1
+data from 2018-06-15 (warm-up) | trading 2019-01-01 to 2026-05-29
+  instruments 248 | events 764,234
+  score rows  337,709 over 1836 days
+
+  reports -> nautilus/tool_reports/smallcap250/v1/  [smallcap250 universe, arm v1: mode=none sizing=invvol]  (orders_all 903, order_fills 903, fills 903, positions 455)
+
+  rebalances       : 92
+  orders submitted : 903
+  orders filled    : 903
+  open positions   : 7
+  cash             : Rs 1,277,106.90
+  positions value  : Rs 17,062,049.39
+  EQUITY           : Rs 18,339,156.29   (from Rs 1,000,000)
+
+  first 3 rebalance decisions:
+decided_on  breadth_pos  breadth_total  breadth  exposure  port_value  cash_before  invest_value  n_held_before  n_buy  n_sell
+2019-01-01           99            157   0.6306       1.0  1000000.00   1000000.00     980000.00              0      8       0
+2019-01-29           26            158   0.1646       1.0   976735.09     26475.84     957200.39              8      6       5
+2019-02-26           61            158   0.3861       1.0   959248.73     32017.47     940063.76              9      8       6
+
+========================================================================
+ NAUTILUS PORT -- VERIFICATION AGAINST THE REFERENCE ENGINE  [smallcap250 universe, arm v1]
+========================================================================
+
+  final equity  (2026-05-29)
+                 reference Rs   18,992,314
+                 port      Rs   18,339,156   (-3.44%)
+
+  rebalances     reference   92   port   92
+  fills [FYI]    reference  901   port  903   (not a pass/fail gate)
+
+  vs REFERENCE (valued at the execution day's close)
+    identical holdings      : 1 of 92
+    differing by symbol set : 4
+    differing by quantity   : 87
+    quantity error: median 3.42%  max 4.41%
+
+  vs ARM D     (same engine, valued at the open, 0.05 ticks)
+    identical holdings      : 74 of 92
+    differing by symbol set : 0
+    differing by quantity   : 18
+    quantity error: median 0.01%  max 0.19%
+
+  control: ARM A vs the reference's own holdings
+           SELECTION (gated)  -- 84 of 92 rebalances hold the same symbol set
+           SIZING (not gated) -- 82 of 92 differ in quantity only, worst 52.50% on a single position
+
+  reconciliation on a 0.01 tick grid (both sides) -- 90 of 92 identical
+  of the 2 that differ: 0 are SHARE-COUNT QUANTIZATION, 2 are not
+
+========================================================================
+  INCONCLUSIVE. ARM A does not reproduce the reference engine's own
+  SELECTION -- the two engines hold different symbols, so ARM D is
+  not a trustworthy baseline for the port's sizing. Fix that first.
+  (Quantity-only differences are reported above and do not reach
+   here: they are a known divergence between two reimplementations,
+   not evidence about which book the engine chose.)
+
+  RESULT: FAIL -- universe smallcap250, arm v1, 0.01-grid reconciliation 90 of 92 identical, 0 quantization, 2 unexplained.
+========================================================================
+
+################################################################ smallcap250 v2
+data from 2018-06-15 (warm-up) | trading 2019-01-01 to 2026-05-29
+  instruments 248 | events 764,234
+  score rows  337,709 over 1836 days
+
+  reports -> nautilus/tool_reports/smallcap250/v2/  [smallcap250 universe, arm v2: mode=breadth sizing=invvol]  (orders_all 1086, order_fills 1086, fills 1086, positions 548)
+
+  rebalances       : 92
+  orders submitted : 1086
+  orders filled    : 1086
+  open positions   : 10
+  cash             : Rs 517,159.50
+  positions value  : Rs 4,768,276.85
+  EQUITY           : Rs 5,285,436.35   (from Rs 1,000,000)
+
+  first 3 rebalance decisions:
+decided_on  breadth_pos  breadth_total  breadth  exposure  port_value  cash_before  invest_value  n_held_before  n_buy  n_sell
+2019-01-01           99            157   0.6306    0.6306  1000000.00   1000000.00     617961.78              0      8       0
+2019-01-29           26            158   0.1646    0.1646   985316.03    382701.29     158897.80              8      6       5
+2019-02-26           61            158   0.3861    0.3861   977921.17    688861.38     370000.81              9      8       6
+
+========================================================================
+ NAUTILUS PORT -- VERIFICATION AGAINST THE REFERENCE ENGINE  [smallcap250 universe, arm v2]
+========================================================================
+
+  final equity  (2026-05-29)
+                 reference Rs    5,273,353
+                 port      Rs    5,285,436   (+0.23%)
+
+  rebalances     reference   92   port   92
+  fills [FYI]    reference 1086   port 1086   (not a pass/fail gate)
+
+  vs REFERENCE (valued at the execution day's close)
+    identical holdings      : 4 of 92
+    differing by symbol set : 0
+    differing by quantity   : 88
+    quantity error: median 0.24%  max 2.33%
+
+  vs ARM D     (same engine, valued at the open, 0.05 ticks)
+    identical holdings      : 87 of 92
+    differing by symbol set : 0
+    differing by quantity   : 5
+    quantity error: median 0.12%  max 0.19%
+
+  control: ARM A vs the reference's own holdings
+           SELECTION (gated)  -- 92 of 92 rebalances hold the same symbol set
+           SIZING (not gated) -- 86 of 92 differ in quantity only, worst 10.00% on a single position
+
+  reconciliation on a 0.01 tick grid (both sides) -- 92 of 92 identical
+  of the 0 that differ: 0 are SHARE-COUNT QUANTIZATION, 0 are not
+
+========================================================================
+  VERIFIED. On a 0.01 tick grid the port and the open-valued reference
+  hold the SAME SYMBOLS at every rebalance, and every quantity
+  difference is share-count quantization by its exact signature: one
+  share, one symbol, port lower. The two systems are identical in
+  logic, and what the real 0.05 grid shows above is three measured,
+  documented things:
+    - the reference values the portfolio at the execution day's CLOSE,
+      which a strategy standing at 09:15 cannot know;
+    - quantity is a floor division by a tick-snapped price, and one
+      0.05 tick is 0.19% of a Rs 27 share;
+    - the floor itself quantizes, which no tick grid removes.
+  Nothing else remains unexplained.
+
+  RESULT: PASS -- universe smallcap250, arm v2, 0.01-grid reconciliation 92 of 92 identical, 0 quantization, 0 unexplained.
+========================================================================
+
+################################################################ smallcap250 v3
+data from 2018-06-15 (warm-up) | trading 2019-01-01 to 2026-05-29
+  instruments 248 | events 764,234
+  score rows  337,709 over 1836 days
+
+  reports -> nautilus/tool_reports/smallcap250/v3/  [smallcap250 universe, arm v3: mode=none sizing=provol]  (orders_all 907, order_fills 907, fills 907, positions 458)
+
+  rebalances       : 92
+  orders submitted : 907
+  orders filled    : 907
+  open positions   : 9
+  cash             : Rs 428,889.83
+  positions value  : Rs 16,760,062.13
+  EQUITY           : Rs 17,188,951.96   (from Rs 1,000,000)
+
+  first 3 rebalance decisions:
+decided_on  breadth_pos  breadth_total  breadth  exposure  port_value  cash_before  invest_value  n_held_before  n_buy  n_sell
+2019-01-01           99            157   0.6306       1.0  1000000.00   1000000.00     980000.00              0      8       0
+2019-01-29           26            158   0.1646       1.0   946837.64     22733.78     927900.89              8      6       5
+2019-02-26           61            158   0.3861       1.0   950427.25     80294.24     931418.70              7      8       5
+
+========================================================================
+ NAUTILUS PORT -- VERIFICATION AGAINST THE REFERENCE ENGINE  [smallcap250 universe, arm v3]
+========================================================================
+
+  final equity  (2026-05-29)
+                 reference Rs   17,077,745
+                 port      Rs   17,188,952   (+0.65%)
+
+  rebalances     reference   92   port   92
+  fills [FYI]    reference  907   port  907   (not a pass/fail gate)
+
+  vs REFERENCE (valued at the execution day's close)
+    identical holdings      : 1 of 92
+    differing by symbol set : 0
+    differing by quantity   : 91
+    quantity error: median 0.64%  max 6.25%
+
+  vs ARM D     (same engine, valued at the open, 0.05 ticks)
+    identical holdings      : 60 of 92
+    differing by symbol set : 0
+    differing by quantity   : 32
+    quantity error: median 0.01%  max 0.10%
+
+  control: ARM A vs the reference's own holdings
+           SELECTION (gated)  -- 89 of 92 rebalances hold the same symbol set
+           SIZING (not gated) -- 86 of 92 differ in quantity only, worst 15.59% on a single position
+
+  reconciliation on a 0.01 tick grid (both sides) -- 84 of 92 identical
+  of the 8 that differ: 6 are SHARE-COUNT QUANTIZATION, 2 are not
+    share-count quantization -- one share, one symbol, port lower:
+      2023-08-07  SONATSOFTW   -1 share
+      2023-09-05  SONATSOFTW   -1 share
+      2024-03-28  JPPOWER      -1 share
+      2024-04-30  ZEEL         -1 share
+      2024-05-29  ZEEL         -1 share
+      2025-09-10  HFCL         -1 share
+    MECHANISM: quantity is int((invest_val * w) // price) on both
+    sides. A 0.01 grid makes the two PRICES agree; it does not
+    remove the floor. The two paths reach invest_val to about 1e-6
+    relative, and whether that flips the floor depends on how far
+    the quotient sits above its integer as a FRACTION of the
+    quotient -- so the exposure scales with share count, and share
+    count scales with cheapness. Tightest margin over every buy:
+      nifty100   9.49e-06  UNIONBANK Rs 28.74,  2,383 shares -- held
+      midcap150  2.60e-06  SUZLON    Rs  2.54, 21,332 shares -- flipped
+    midcap150 holds shares at Rs 2.45. nifty100 has nothing that cheap.
+
+========================================================================
+  INCONCLUSIVE. ARM A does not reproduce the reference engine's own
+  SELECTION -- the two engines hold different symbols, so ARM D is
+  not a trustworthy baseline for the port's sizing. Fix that first.
+  (Quantity-only differences are reported above and do not reach
+   here: they are a known divergence between two reimplementations,
+   not evidence about which book the engine chose.)
+
+  RESULT: FAIL -- universe smallcap250, arm v3, 0.01-grid reconciliation 84 of 92 identical, 6 quantization, 2 unexplained.
+========================================================================
+
+################################################################ smallcap250 v4
+data from 2018-06-15 (warm-up) | trading 2019-01-01 to 2026-05-29
+  instruments 248 | events 764,234
+  score rows  337,709 over 1836 days
+
+  reports -> nautilus/tool_reports/smallcap250/v4/  [smallcap250 universe, arm v4: mode=breadth sizing=provol]  (orders_all 1091, order_fills 1091, fills 1091, positions 551)
+
+  rebalances       : 92
+  orders submitted : 1091
+  orders filled    : 1091
+  open positions   : 11
+  cash             : Rs 346,610.02
+  positions value  : Rs 4,771,687.64
+  EQUITY           : Rs 5,118,297.66   (from Rs 1,000,000)
+
+  first 3 rebalance decisions:
+decided_on  breadth_pos  breadth_total  breadth  exposure  port_value  cash_before  invest_value  n_held_before  n_buy  n_sell
+2019-01-01           99            157   0.6306    0.6306  1000000.00   1000000.00     617961.78              0      8       0
+2019-01-29           26            158   0.1646    0.1646   966554.37    385242.66     155872.19              8      6       5
+2019-02-26           61            158   0.3861    0.3861   961308.19    613103.90     363715.21              9      8       6
+
+========================================================================
+ NAUTILUS PORT -- VERIFICATION AGAINST THE REFERENCE ENGINE  [smallcap250 universe, arm v4]
+========================================================================
+
+  final equity  (2026-05-29)
+                 reference Rs    5,098,490
+                 port      Rs    5,118,298   (+0.39%)
+
+  rebalances     reference   92   port   92
+  fills [FYI]    reference 1091   port 1091   (not a pass/fail gate)
+
+  vs REFERENCE (valued at the execution day's close)
+    identical holdings      : 3 of 92
+    differing by symbol set : 0
+    differing by quantity   : 89
+    quantity error: median 0.38%  max 9.09%
+
+  vs ARM D     (same engine, valued at the open, 0.05 ticks)
+    identical holdings      : 88 of 92
+    differing by symbol set : 0
+    differing by quantity   : 4
+    quantity error: median 0.03%  max 0.05%
+
+  control: ARM A vs the reference's own holdings
+           SELECTION (gated)  -- 92 of 92 rebalances hold the same symbol set
+           SIZING (not gated) -- 88 of 92 differ in quantity only, worst 9.09% on a single position
+
+  reconciliation on a 0.01 tick grid (both sides) -- 92 of 92 identical
+  of the 0 that differ: 0 are SHARE-COUNT QUANTIZATION, 0 are not
+
+========================================================================
+  VERIFIED. On a 0.01 tick grid the port and the open-valued reference
+  hold the SAME SYMBOLS at every rebalance, and every quantity
+  difference is share-count quantization by its exact signature: one
+  share, one symbol, port lower. The two systems are identical in
+  logic, and what the real 0.05 grid shows above is three measured,
+  documented things:
+    - the reference values the portfolio at the execution day's CLOSE,
+      which a strategy standing at 09:15 cannot know;
+    - quantity is a floor division by a tick-snapped price, and one
+      0.05 tick is 0.19% of a Rs 27 share;
+    - the floor itself quantizes, which no tick grid removes.
+  Nothing else remains unexplained.
+
+  RESULT: PASS -- universe smallcap250, arm v4, 0.01-grid reconciliation 92 of 92 identical, 0 quantization, 0 unexplained.
+========================================================================
+
+################################################################ nifty500 v1
+data from 2018-06-15 (warm-up) | trading 2019-01-01 to 2026-05-29
+  instruments 495 | events 1,633,300
+  score rows  731,932 over 1836 days
+
+  reports -> nautilus/tool_reports/nifty500/v1/  [nifty500 universe, arm v1: mode=none sizing=invvol]  (orders_all 938, order_fills 938, fills 938, positions 473)
+
+  rebalances       : 92
+  orders submitted : 938
+  orders filled    : 938
+  open positions   : 8
+  cash             : Rs 501,236.77
+  positions value  : Rs 11,580,425.47
+  EQUITY           : Rs 12,081,662.24   (from Rs 1,000,000)
+
+  first 3 rebalance decisions:
+decided_on  breadth_pos  breadth_total  breadth  exposure  port_value  cash_before  invest_value  n_held_before  n_buy  n_sell
+2019-01-01          212            357   0.5938       1.0  1000000.00   1000000.00     980000.00              0      8       0
+2019-01-29           70            358   0.1955       1.0   920772.74     19351.15     902357.29              8      8       8
+2019-02-26          164            359   0.4568       1.0   910398.03     22181.39     892190.07              8      5       4
+
+========================================================================
+ NAUTILUS PORT -- VERIFICATION AGAINST THE REFERENCE ENGINE  [nifty500 universe, arm v1]
+========================================================================
+
+  final equity  (2026-05-29)
+                 reference Rs   12,072,187
+                 port      Rs   12,081,662   (+0.08%)
+
+  rebalances     reference   92   port   92
+  fills [FYI]    reference  938   port  938   (not a pass/fail gate)
+
+  vs REFERENCE (valued at the execution day's close)
+    identical holdings      : 4 of 92
+    differing by symbol set : 0
+    differing by quantity   : 88
+    quantity error: median 0.09%  max 1.72%
+
+  vs ARM D     (same engine, valued at the open, 0.05 ticks)
+    identical holdings      : 61 of 92
+    differing by symbol set : 0
+    differing by quantity   : 31
+    quantity error: median 0.03%  max 0.16%
+
+  control: ARM A vs the reference's own holdings
+           SELECTION (gated)  -- 88 of 92 rebalances hold the same symbol set
+           SIZING (not gated) -- 85 of 92 differ in quantity only, worst 6.38% on a single position
+
+  reconciliation on a 0.01 tick grid (both sides) -- 88 of 92 identical
+  of the 4 that differ: 1 are SHARE-COUNT QUANTIZATION, 3 are not
+    share-count quantization -- one share, one symbol, port lower:
+      2021-05-06  SUZLON       -1 share
+    MECHANISM: quantity is int((invest_val * w) // price) on both
+    sides. A 0.01 grid makes the two PRICES agree; it does not
+    remove the floor. The two paths reach invest_val to about 1e-6
+    relative, and whether that flips the floor depends on how far
+    the quotient sits above its integer as a FRACTION of the
+    quotient -- so the exposure scales with share count, and share
+    count scales with cheapness. Tightest margin over every buy:
+      nifty100   9.49e-06  UNIONBANK Rs 28.74,  2,383 shares -- held
+      midcap150  2.60e-06  SUZLON    Rs  2.54, 21,332 shares -- flipped
+    midcap150 holds shares at Rs 2.45. nifty100 has nothing that cheap.
+
+========================================================================
+  INCONCLUSIVE. ARM A does not reproduce the reference engine's own
+  SELECTION -- the two engines hold different symbols, so ARM D is
+  not a trustworthy baseline for the port's sizing. Fix that first.
+  (Quantity-only differences are reported above and do not reach
+   here: they are a known divergence between two reimplementations,
+   not evidence about which book the engine chose.)
+
+  RESULT: FAIL -- universe nifty500, arm v1, 0.01-grid reconciliation 88 of 92 identical, 1 quantization, 3 unexplained.
+========================================================================
+
+################################################################ nifty500 v2
+data from 2018-06-15 (warm-up) | trading 2019-01-01 to 2026-05-29
+  instruments 495 | events 1,633,300
+  score rows  731,932 over 1836 days
+
+  reports -> nautilus/tool_reports/nifty500/v2/  [nifty500 universe, arm v2: mode=breadth sizing=invvol]  (orders_all 1119, order_fills 1119, fills 1119, positions 564)
+
+  rebalances       : 92
+  orders submitted : 1119
+  orders filled    : 1119
+  open positions   : 9
+  cash             : Rs 524,924.12
+  positions value  : Rs 6,921,809.67
+  EQUITY           : Rs 7,446,733.79   (from Rs 1,000,000)
+
+  first 3 rebalance decisions:
+decided_on  breadth_pos  breadth_total  breadth  exposure  port_value  cash_before  invest_value  n_held_before  n_buy  n_sell
+2019-01-01          212            357   0.5938    0.5938  1000000.00   1000000.00     581960.78              0      8       0
+2019-01-29           70            358   0.1955    0.1955   952971.56    417926.56     182608.52              8      8       8
+2019-02-26          164            359   0.4568    0.4568   949831.50    772851.14     425228.19              8      5       4
+
+========================================================================
+ NAUTILUS PORT -- VERIFICATION AGAINST THE REFERENCE ENGINE  [nifty500 universe, arm v2]
+========================================================================
+
+  final equity  (2026-05-29)
+                 reference Rs    7,444,473
+                 port      Rs    7,446,734   (+0.03%)
+
+  rebalances     reference   92   port   92
+  fills [FYI]    reference 1119   port 1119   (not a pass/fail gate)
+
+  vs REFERENCE (valued at the execution day's close)
+    identical holdings      : 17 of 92
+    differing by symbol set : 0
+    differing by quantity   : 75
+    quantity error: median 0.12%  max 0.79%
+
+  vs ARM D     (same engine, valued at the open, 0.05 ticks)
+    identical holdings      : 92 of 92
+    differing by symbol set : 0
+    differing by quantity   : 0
+
+  control: ARM A vs the reference's own holdings
+           SELECTION (gated)  -- 92 of 92 rebalances hold the same symbol set
+           SIZING (not gated) -- 86 of 92 differ in quantity only, worst 8.33% on a single position
+
+  reconciliation on a 0.01 tick grid (both sides) -- 91 of 92 identical
+  of the 1 that differ: 0 are SHARE-COUNT QUANTIZATION, 1 are not
+
+========================================================================
+  NOT VERIFIED. 1 rebalance(s) differ in a way share-count
+  quantization does not explain -- more than one share, more than one
+  symbol, or a different symbol set -- on a 0.01 grid where tick
+  quantization cannot be the cause. Something else is wrong.
+  Do not trade this.
+
+  RESULT: FAIL -- universe nifty500, arm v2, 0.01-grid reconciliation 91 of 92 identical, 0 quantization, 1 unexplained.
+========================================================================
+
+################################################################ nifty500 v3
+data from 2018-06-15 (warm-up) | trading 2019-01-01 to 2026-05-29
+  instruments 495 | events 1,633,300
+  score rows  731,932 over 1836 days
+
+  reports -> nautilus/tool_reports/nifty500/v3/  [nifty500 universe, arm v3: mode=none sizing=provol]  (orders_all 951, order_fills 951, fills 951, positions 479)
+
+  rebalances       : 92
+  orders submitted : 951
+  orders filled    : 951
+  open positions   : 7
+  cash             : Rs 1,157,516.44
+  positions value  : Rs 14,694,428.92
+  EQUITY           : Rs 15,851,945.36   (from Rs 1,000,000)
+
+  first 3 rebalance decisions:
+decided_on  breadth_pos  breadth_total  breadth  exposure  port_value  cash_before  invest_value  n_held_before  n_buy  n_sell
+2019-01-01          212            357   0.5938       1.0  1000000.00   1000000.00     980000.00              0      8       0
+2019-01-29           70            358   0.1955       1.0   922676.80     19499.81     904223.26              8      8       8
+2019-02-26          164            359   0.4568       1.0   907479.19     23138.93     889329.61              8      5       4
+
+========================================================================
+ NAUTILUS PORT -- VERIFICATION AGAINST THE REFERENCE ENGINE  [nifty500 universe, arm v3]
+========================================================================
+
+  final equity  (2026-05-29)
+                 reference Rs   16,818,669
+                 port      Rs   15,851,945   (-5.75%)
+
+  rebalances     reference   92   port   92
+  fills [FYI]    reference  951   port  951   (not a pass/fail gate)
+
+  vs REFERENCE (valued at the execution day's close)
+    identical holdings      : 1 of 92
+    differing by symbol set : 1
+    differing by quantity   : 90
+    quantity error: median 5.74%  max 9.09%
+
+  vs ARM D     (same engine, valued at the open, 0.05 ticks)
+    identical holdings      : 29 of 92
+    differing by symbol set : 0
+    differing by quantity   : 63
+    quantity error: median 0.02%  max 0.28%
+
+  control: ARM A vs the reference's own holdings
+           SELECTION (gated)  -- 81 of 92 rebalances hold the same symbol set
+           SIZING (not gated) -- 78 of 92 differ in quantity only, worst 5.75% on a single position
+
+  reconciliation on a 0.01 tick grid (both sides) -- 28 of 92 identical
+  of the 64 that differ: 1 are SHARE-COUNT QUANTIZATION, 63 are not
+    share-count quantization -- one share, one symbol, port lower:
+      2019-06-27  CGCL         -1 share
+    MECHANISM: quantity is int((invest_val * w) // price) on both
+    sides. A 0.01 grid makes the two PRICES agree; it does not
+    remove the floor. The two paths reach invest_val to about 1e-6
+    relative, and whether that flips the floor depends on how far
+    the quotient sits above its integer as a FRACTION of the
+    quotient -- so the exposure scales with share count, and share
+    count scales with cheapness. Tightest margin over every buy:
+      nifty100   9.49e-06  UNIONBANK Rs 28.74,  2,383 shares -- held
+      midcap150  2.60e-06  SUZLON    Rs  2.54, 21,332 shares -- flipped
+    midcap150 holds shares at Rs 2.45. nifty100 has nothing that cheap.
+
+========================================================================
+  INCONCLUSIVE. ARM A does not reproduce the reference engine's own
+  SELECTION -- the two engines hold different symbols, so ARM D is
+  not a trustworthy baseline for the port's sizing. Fix that first.
+  (Quantity-only differences are reported above and do not reach
+   here: they are a known divergence between two reimplementations,
+   not evidence about which book the engine chose.)
+
+  RESULT: FAIL -- universe nifty500, arm v3, 0.01-grid reconciliation 28 of 92 identical, 1 quantization, 63 unexplained.
+========================================================================
+
+################################################################ nifty500 v4
+data from 2018-06-15 (warm-up) | trading 2019-01-01 to 2026-05-29
+  instruments 495 | events 1,633,300
+  score rows  731,932 over 1836 days
+
+  reports -> nautilus/tool_reports/nifty500/v4/  [nifty500 universe, arm v4: mode=breadth sizing=provol]  (orders_all 1117, order_fills 1117, fills 1117, positions 563)
+
+  rebalances       : 92
+  orders submitted : 1117
+  orders filled    : 1117
+  open positions   : 9
+  cash             : Rs 405,977.99
+  positions value  : Rs 8,067,798.89
+  EQUITY           : Rs 8,473,776.88   (from Rs 1,000,000)
+
+  first 3 rebalance decisions:
+decided_on  breadth_pos  breadth_total  breadth  exposure  port_value  cash_before  invest_value  n_held_before  n_buy  n_sell
+2019-01-01          212            357   0.5938    0.5938  1000000.00   1000000.00     581960.78              0      8       0
+2019-01-29           70            358   0.1955    0.1955   954083.00    417782.39     182821.49              8      8       8
+2019-02-26          164            359   0.4568    0.4568   949703.29    771386.17     425170.79              8      5       4
+
+========================================================================
+ NAUTILUS PORT -- VERIFICATION AGAINST THE REFERENCE ENGINE  [nifty500 universe, arm v4]
+========================================================================
+
+  final equity  (2026-05-29)
+                 reference Rs    8,469,036
+                 port      Rs    8,473,777   (+0.06%)
+
+  rebalances     reference   92   port   92
+  fills [FYI]    reference 1117   port 1117   (not a pass/fail gate)
+
+  vs REFERENCE (valued at the execution day's close)
+    identical holdings      : 6 of 92
+    differing by symbol set : 0
+    differing by quantity   : 86
+    quantity error: median 0.09%  max 3.23%
+
+  vs ARM D     (same engine, valued at the open, 0.05 ticks)
+    identical holdings      : 32 of 92
+    differing by symbol set : 0
+    differing by quantity   : 60
+    quantity error: median 0.06%  max 0.40%
+
+  control: ARM A vs the reference's own holdings
+           SELECTION (gated)  -- 92 of 92 rebalances hold the same symbol set
+           SIZING (not gated) -- 84 of 92 differ in quantity only, worst 5.00% on a single position
+
+  reconciliation on a 0.01 tick grid (both sides) -- 88 of 92 identical
+  of the 4 that differ: 0 are SHARE-COUNT QUANTIZATION, 4 are not
+
+========================================================================
+  NOT VERIFIED. 4 rebalance(s) differ in a way share-count
+  quantization does not explain -- more than one share, more than one
+  symbol, or a different symbol set -- on a 0.01 grid where tick
+  quantization cannot be the cause. Something else is wrong.
+  Do not trade this.
+
+  RESULT: FAIL -- universe nifty500, arm v4, 0.01-grid reconciliation 88 of 92 identical, 0 quantization, 4 unexplained.
+========================================================================

@@ -1,41 +1,28 @@
-==============================================================================
-PRE-REPOINT DIAGNOSTIC -- DO NOT QUOTE THESE FIGURES WITHOUT RE-RUNNING.
-Production date UNKNOWN -- this file has no row in
-diagnostics/INVENTORY.csv. The filesystem says 2026-09-17 00:12, which is
-when the tree was copied, not when the measurement was taken.
-Stamped 2026-09-20.
-
-The universes were repointed at Final_Without_Survivorship_Data on 2026-09-18.
-This file was produced before that, so every figure in it describes price data
-the tree no longer holds.
-
-Two figures from this era have been re-measured since, and each moved further
-than the finding it supported: the largest midcap150 participation went
-1,614.52% -> 34.46%, and the depth-model cost went 1.80 -> 0.04 CAGR points.
-Neither move is attributed. Do not assume the numbers below are approximately
-right, and do not quote them without re-running the measurement.
-==============================================================================
+verify_v34_arms.py, run 2026-09-26 on the current data (repointed 2026-09-18) and numerics (2026-09-24).
+Replaces a pre-repoint output that was marked not to be quoted; that version is in git history.
+Wired into check_all as a delegate the same day.
 
 ====================================================================================================
  V34 CORRECTNESS GATE -- nt_verify, four arms, both universes
 ====================================================================================================
   window 2019-01-01 to 2026-05-29   (from config.py, shared by engine and port)
-  the SIZING column is read back from the modules at run time, not from
-  the loop variable, so it cannot report a rule the code did not use.
+  the applied columns are what each side RECORDED at its decision point,
+  not what it was asked to apply, so they cannot report a rule the code
+  did not actually use.
 
-  N100
-    arm  intended  nt_strategy  nt_attribution  result          verdict
-    v1   invvol    invvol       invvol          92 of 92        VERIFIED
-    v2   invvol    invvol       invvol          92 of 92        VERIFIED
-    v3   provol    provol       provol          92 of 92        VERIFIED
-    v4   provol    provol       provol          92 of 92        VERIFIED
+  NIFTY100
+    arm  intended        port applied     reference applied   result          verdict
+    v1   none/invvol     none/invvol      none/invvol         92 of 92        VERIFIED
+    v2   breadth/invvol  breadth/invvol   breadth/invvol      92 of 92        VERIFIED
+    v3   none/provol     none/provol      none/provol         92 of 92        VERIFIED
+    v4   breadth/provol  breadth/provol   breadth/provol      92 of 92        VERIFIED
 
-  MID
-    arm  intended  nt_strategy  nt_attribution  result          verdict
-    v1   invvol    invvol       invvol          92 of 92        VERIFIED
-    v2   invvol    invvol       invvol          92 of 92        VERIFIED
-    v3   provol    provol       provol          92 of 92        VERIFIED
-    v4   provol    provol       provol          92 of 92        VERIFIED
+  MIDCAP150
+    arm  intended        port applied     reference applied   result          verdict
+    v1   none/invvol     none/invvol      none/invvol         92 of 92        VERIFIED
+    v2   breadth/invvol  breadth/invvol   breadth/invvol      92 of 92        VERIFIED
+    v3   none/provol     none/provol      none/provol         92 of 92        VERIFIED
+    v4   breadth/provol  breadth/provol   breadth/provol      92 of 92        VERIFIED
 
 ====================================================================================================
  GATE PASSED -- every arm VERIFIED on every universe run

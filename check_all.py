@@ -185,11 +185,25 @@ DELEGATES = (
     ("tax_acceptance_check.py",               [], False, None),
     ("transitional_asserts_check.py",         [], False, None),
 
+    # THE PORT AGAINST THE REFERENCE FOR EVERY ARM, on the certified universes.
+    # Wired 2026-09-26 after a re-run on the current data and numerics passed 92
+    # of 92 on all four arms of both; its previous output predated the
+    # 2026-09-18 data repoint. About 70 s.
+    ("verify_v34_arms.py",                    [], False, None),
+
     # ONE UNIVERSE PER INVOCATION, once per registry.CERTIFIED tag. nt_verify.py
     # defaults to the first REGISTERED universe, which is not a statement about
     # what ships; naming each tag is.
-    *[("nautilus/nt_verify.py", [f"--universe={t}"], False, None)
-      for t in _CERTIFIED],
+    # v4 JOINED v2 ON 2026-09-26. nt_verify takes --arm since then, and a run of
+    # all four arms on all eight universes verified v2 and v4 on both certified
+    # universes and neither v1 nor v3 on any universe (INCONCLUSIVE: the reference
+    # re-implementation does not reproduce the audit trail's selection for the
+    # 100%-invested arms). v1 and v3 are not wired, so the runner does not go red
+    # on a known, logged failure; see KNOWN_ISSUES.md and
+    # diagnostics/nt_verify_all_arms_20260926.txt.
+    *[("nautilus/nt_verify.py", [f"--universe={t}"] + ([] if a == "v2" else [f"--arm={a}"]),
+       False, None)
+      for t in _CERTIFIED for a in ("v2", "v4")],
 
     # SLOW. validate_engine.py iterates the certified universes inside one run,
     # so it is wired ONCE and must not be given a tag. The other two do not, so
@@ -281,12 +295,20 @@ def _needs(label):
     if label == "results/validate_topn.py":
         return [u.score_cache for u in two] + [u.metrics_dir / "v34_comparison.csv" for u in two]
     if label == "results/check_b_exec_timing.py":
-        return [x for u in every for x in (
-            ROOT / "nautilus" / "reports" / u.tag / "v2" / "fills.csv",
-            u.score_cache, _p.tagged_artefact(u, "daily_decisions"))]
+        from arms.registry import ARMS as _A
+        return [u.score_cache for u in every] + [
+            ROOT / "nautilus" / "reports" / u.tag / a / "fills.csv"
+            for u in every for a in _A]
+    if label == "verify_v34_arms.py":
+        return [u.score_cache for u in two]
     if label.startswith("nautilus/nt_verify.py --universe="):
-        u = _R[label.split("=", 1)[1]]
-        return [u.score_cache] + [_p.tagged_artefact(u, s) for s in
+        opts = dict(a.split("=", 1) for a in label.split()[1:])
+        u = _R[opts["--universe"]]
+        if str(ROOT / "results") not in sys.path:
+            sys.path.insert(0, str(ROOT / "results"))
+        import audit_step as _as
+        tag = _as.artefact_tag(u, opts.get("--arm", "v2"))
+        return [u.score_cache] + [u.metrics_dir / f"{s}_{tag}.csv" for s in
                                   ("daily_summary", "daily_holdings",
                                    "daily_trades", "daily_decisions")]
     return []
@@ -750,9 +772,9 @@ def gate_delegates(res, slow):
 # GATE 6 -- the tax axis CHARGES tax, it does not merely rename files
 # ---------------------------------------------------------------------------
 
-def _tax_ledger(u, M):
-    """(FY_EQUITY, FY_TAX_STATEMENT) paths for u's v2 at default cadence and
-    profile under tax=on, named by the writers' own composers."""
+def _tax_ledger(u, M, arm="v2", stems=("FY_EQUITY", "FY_TAX_STATEMENT")):
+    """Paths of `stems` for u's `arm` at default cadence and profile under
+    tax=on, named by the writers' own composers. Every arm since 2026-09-26."""
     import cadence as _cd
     import profiles as _pf
     import tax as _tx
@@ -763,9 +785,8 @@ def _tax_ledger(u, M):
     saved = (_cd._SELECTED, _pf.selected(), _tx.selected())
     try:
         _cd.set_selection(None); _pf.set_selection(None); _tx.set_selection(True)
-        tag = audit_step.artefact_tag(u, ARMS["v2"])
-        return (M / tax_report.artefact_name("FY_EQUITY", tag),
-                M / tax_report.artefact_name("FY_TAX_STATEMENT", tag))
+        tag = audit_step.artefact_tag(u, ARMS[getattr(arm, "name", arm)])
+        return tuple(M / tax_report.artefact_name(s, tag) for s in stems)
     finally:
         _cd.set_selection(saved[0]); _pf.set_selection(saved[1]); _tx.set_selection(saved[2])
 
@@ -854,11 +875,17 @@ def gate_tax(res, since, sel):
         res.fail("GATE 6 tax", "registry", f"{type(e).__name__}: {e}")
         return
     tags = sorted(REGISTRY) if sel in (None, "all") else [t.strip() for t in sel.split(",")]
+    # EVERY ARM, SINCE 2026-09-26. This checked v2's column and v2's ledger only;
+    # tax_report now writes a ledger per arm, and each is held to the same two
+    # identities against that arm's own column of v34_equity_tax.csv.
+    from arms.registry import ARMS as _ARMS
     checked = 0
-    for t in tags:
+    for t, arm in [(t, a) for t in tags for a in _ARMS.values()]:
         u = REGISTRY.get(t)
         if u is None:
             continue
+        col_name = arm.equity_column
+        tn = f"{t}/{arm.name}"
         M = Path(u.metrics_dir)
         taxed = M / "v34_equity_tax.csv"
         plain = M / "v34_equity.csv"
@@ -869,7 +896,7 @@ def gate_tax(res, since, sel):
         # until 2026-09-23, and FY_EQUITY_<tag>_r10_tax.csv sorts before
         # FY_EQUITY_<tag>_tax.csv: one cadence-10 tax run made the gate compare
         # the cadence-10 ledger with the cadence-20 curve and fail by Rs 329,753.
-        fy, stmt = _tax_ledger(u, M)
+        fy, stmt = _tax_ledger(u, M, arm)
         if not taxed.exists() or not fy.exists() or not stmt.exists():
             continue
         checked += 1
@@ -880,11 +907,11 @@ def gate_tax(res, since, sel):
             return [r for r in rows], rows[-1]
 
         trows, tlast = col(taxed, None)
-        if "v2_invvol_breadth" not in tlast:
-            res.fail("GATE 6 tax", f"{t} v34_equity_tax.csv",
-                     "no v2_invvol_breadth column to check")
+        if col_name not in tlast:
+            res.fail("GATE 6 tax", f"{tn} v34_equity_tax.csv",
+                     f"no {col_name} column to check")
             continue
-        t_final = float(tlast["v2_invvol_breadth"])
+        t_final = float(tlast[col_name])
 
         with open(fy, newline="") as fh:
             fyr = list(csv.DictReader(fh))
@@ -892,19 +919,19 @@ def gate_tax(res, since, sel):
 
         # (i) EXACT, to a paisa.
         if abs(t_final - fy_final) > 0.01:
-            res.fail("GATE 6 tax", f"{t} taxed equity vs FY_EQUITY",
-                     f"v34_equity_tax v2 final Rs {t_final:,.2f} against "
+            res.fail("GATE 6 tax", f"{tn} taxed equity vs FY_EQUITY",
+                     f"v34_equity_tax {arm.name} final Rs {t_final:,.2f} against "
                      f"FY_EQUITY close_equity Rs {fy_final:,.2f} -- two paths "
                      f"through the same engine disagree by Rs "
                      f"{abs(t_final-fy_final):,.2f}")
             continue
 
         if not plain.exists():
-            res.note(f"GATE 6  {t}: no untaxed v34_equity.csv to compare against")
+            res.note(f"GATE 6  {tn}: no untaxed v34_equity.csv to compare against")
             continue
         with open(plain, newline="") as fh:
             prows = list(csv.DictReader(fh))
-        p_final = float(prows[-1]["v2_invvol_breadth"])
+        p_final = float(prows[-1][col_name])
 
         with open(stmt, newline="") as fh:
             srows = list(csv.DictReader(fh))
@@ -924,12 +951,12 @@ def gate_tax(res, since, sel):
         gap = p_final - t_final
         # (ii) AT LEAST, never equal -- see the docstring.
         if gap < assessed - 0.01:
-            res.fail("GATE 6 tax", f"{t} taxed equity vs ledger",
+            res.fail("GATE 6 tax", f"{tn} taxed equity vs ledger",
                      f"the taxed curve is only Rs {gap:,.2f} below the untaxed "
                      f"one, which is LESS than the Rs {assessed:,.2f} the ledger "
                      f"says was deducted. Tax was named but not charged.")
             continue
-        res.note(f"GATE 6  {t}: taxed equity == FY_EQUITY to a paisa; gap Rs "
+        res.note(f"GATE 6  {tn}: taxed equity == FY_EQUITY to a paisa; gap Rs "
                  f"{gap:,.2f} >= assessed Rs {assessed:,.2f} "
                  f"(compounding Rs {gap-assessed:,.2f}; statement total Rs "
                  f"{total:,.2f}, unassessed Rs {unassessed:,.2f})")
@@ -987,14 +1014,21 @@ def gate_ltcg(res, sel):
         return
 
     tags = sorted(REGISTRY) if sel in (None, "all") else [t.strip() for t in sel.split(",")]
+    # EVERY ARM, EACH FILE NAMED EXACTLY, SINCE 2026-09-26. This took the first
+    # HOLDING_PERIOD_LOTS_*_tax.csv in sort order, which was v2's research file
+    # only by the accident of "_tax" sorting before "_tradeable_tax" and "_v1_tax".
+    # Each arm's research, default-cadence lots are now named by the writer's rule
+    # (_tax_ledger) and checked.
+    from arms.registry import ARMS as _ARMS
     checked, stale = 0, []
-    for t in tags:
-        u = REGISTRY.get(t)
+    for t0, arm in [(t, a) for t in tags for a in _ARMS.values()]:
+        u = REGISTRY.get(t0)
         if u is None:
             continue
-        lp = next(iter(sorted(Path(u.metrics_dir).glob(
-            f"HOLDING_PERIOD_LOTS_*_tax.csv"))), None)
-        if lp is None:
+        t = f"{t0}/{arm.name}"
+        lp, onf = _tax_ledger(u, Path(u.metrics_dir), arm,
+                              ("HOLDING_PERIOD_LOTS", "HOLDING_PERIOD"))
+        if not lp.exists():
             continue
         try:
             lots = read_table(lp)
@@ -1044,13 +1078,9 @@ def gate_ltcg(res, sel):
         # the file that is already on disk was written by an earlier run and may
         # predate a fix. Reported, never failed: no code change can turn it
         # green, only a re-run, and a gate that cannot be satisfied is ignored.
-        # glob "HOLDING_PERIOD_*" also matches HOLDING_PERIOD_LOTS_*, and
-        # sorted() puts LOTS first because "L" < a lowercase tag. Filter, then
-        # take -- taking then filtering silently reports nothing, which is how
-        # this block did nothing on its first run.
-        onf = next((f for f in sorted(Path(u.metrics_dir).glob(
-            "HOLDING_PERIOD_*_tax.csv")) if "_LOTS_" not in f.name), None)
-        if onf is not None:
+        # The summary file is named exactly too (onf above), so the old glob's
+        # LOTS-sorts-first trap no longer applies.
+        if onf.exists():
             try:
                 disk = read_table(onf).iloc[0]
                 dn = str(disk["note"]).lower()

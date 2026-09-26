@@ -81,29 +81,34 @@ from slippage import SLIPPAGE  # noqa: E402
 # Importing nt_run costs about 1.4 s and pulls nautilus_trader; that is the price
 # of having one rule instead of two, and this is a hand-run probe.
 #
-# ONE ARM, DECLARED. v2 is the SHIPPING arm -- breadth-scaled inverse-vol, the
-# strategy every published figure comes from -- so it is the one whose execution
-# timing is worth checking. v1, v3 and v4 sit at sibling paths and are not read.
-# The arm is printed in the report header, because "whichever ran last" is exactly
-# what made the old numbers unusable.
+# EVERY ARM, SINCE 2026-09-26. Until then this read v2 only, on the ground that
+# v2 is the shipping arm, and v1, v3 and v4 sat at sibling paths unread. Every
+# arm's fills come from the same port through the same order path, and every arm
+# has published figures, so each is checked the same way. Each section names its
+# arm, because "whichever ran last" is exactly what made the old numbers unusable.
+# The decision file is the arm's own audit artefact, named by
+# audit_step.artefact_tag, the writer's rule (v2 unsuffixed, others _v1/_v3/_v4).
 import arms.registry as _arm_reg
 from nt_run import reports_segment as _reports_segment
 from config import read_table  # the one CSV/parquet reader: config.read_table
 
-ARM = _arm_reg.ARMS["v2"]
-_SEG = _reports_segment(ARM.mode, ARM.sizing)
+
+def _decisions(u, arm):
+    import audit_step
+    return u.metrics_dir / f"daily_decisions_{audit_step.artefact_tag(u, arm)}.csv"
+
 
 # The LABEL stays local: it is printed into
 # diagnostics/checkB_execution_timing.txt. Labels are presentation; paths are
-# facts. Order is load-bearing -- the report is written universe by universe.
+# facts. Order is load-bearing -- the report is written universe by universe,
+# arm by arm within each universe.
 LABELS = {u.tag: u.display_name for u in gated()}
-UNIVERSES = {
-    u.tag: (ROOT / "nautilus" / "reports" / u.tag / _SEG / "fills.csv",
-            u.score_cache,
-            paths.tagged_artefact(u, "daily_decisions"),
-            LABELS[u.tag])
-    for u in gated()
-}
+CELLS = [
+    (u.tag, arm,
+     ROOT / "nautilus" / "reports" / u.tag / _reports_segment(arm.mode, arm.sizing) / "fills.csv",
+     u.score_cache, _decisions(u, arm), LABELS[u.tag])
+    for u in gated() for arm in _arm_reg.ARMS.values()
+]
 
 
 # ---------------------------------------------------------------------------
@@ -135,7 +140,7 @@ HISTORY = """\
 """
 
 
-def run(uni, fills_p, sc_p, dec_p, label, W):
+def run(uni, arm, fills_p, sc_p, dec_p, label, W):
     F = read_table(fills_p)
     F["date"] = pd.to_datetime(F["ts_event"], utc=True).dt.tz_localize(None).dt.normalize()
     F["symbol"] = F["instrument_id"].str.split(".").str[0]
@@ -157,14 +162,15 @@ def run(uni, fills_p, sc_p, dec_p, label, W):
     op = opf  # the calendar check below reads op.index
 
     W("=" * 100)
-    W(f" CHECK B -- EXECUTION TIMING FROM THE FILL RECORD -- {label} ({uni})")
+    W(f" CHECK B -- EXECUTION TIMING FROM THE FILL RECORD -- {label} ({uni}), arm {arm.name}")
     W("=" * 100)
     W("")
     W(f"  fills file      {fills_p.relative_to(ROOT)}")
     # THE ARM IS NAMED, AND THAT IS THE POINT OF THE REPOINT. The superseded
     # version of this file read a shared fills.csv holding whichever arm ran last,
     # so its 978 fills belonged to nothing in particular.
-    W(f"  arm             {ARM.name} -- {ARM.label}   (segment '{_SEG}',")
+    W(f"  arm             {arm.name} -- {arm.label}   "
+      f"(segment '{_reports_segment(arm.mode, arm.sizing)}',")
     W(f"                  from nt_run.reports_segment, the writer's own rule)")
     W(f"  fills recorded  {len(F):,}")
     # HOW MANY FILL PRICES LIE ON THE 0.05 TICK GRID -- MEASURED, ALWAYS PRINTED.
@@ -262,8 +268,8 @@ def run(uni, fills_p, sc_p, dec_p, label, W):
 def main():
     out = [HISTORY, ""]
     res = {}
-    for uni, (f, s, d, lab) in UNIVERSES.items():
-        res[uni] = (run(uni, f, s, d, lab, out.append), f)
+    for uni, arm, f, s, d, lab in CELLS:
+        res[f"{uni}/{arm.name}"] = (run(uni, arm, f, s, d, lab, out.append), f)
         out.append("")
     # THE VERDICT LINE AND THE EXIT STATUS, ADDED 2026-09-21. No measurement,
     # candidate rule or printed number above changed.
@@ -303,7 +309,7 @@ def main():
             rel = fp.resolve().relative_to(ROOT)
         except ValueError:
             rel = fp
-        out.append(f"    {u:<10} {rel}  ({r['n']:,} fills)")
+        out.append(f"    {u:<16} {rel}  ({r['n']:,} fills)")
         print(f"  input {rel} written {mt}")
     tot_close = sum(r["at_a_close"] for r, _ in res.values())
     tot_offcal = sum(r["off_calendar"] for r, _ in res.values())
@@ -318,7 +324,8 @@ def main():
     else:
         out.append(f"  RESULT: PASS -- gated: 0 fills match a close without matching "
                    f"the open, and 0 fills fall off the trading calendar, on "
-                   f"{len(res)} universe(s) ({', '.join(res)}), v2 arm. Not gated: "
+                   f"{len(res)} universe/arm cell(s) ({len(LABELS)} universes x "
+                   f"{len(_arm_reg.ARMS)} arms). Not gated: "
                    f"that every fill matches the day's open (reported above).")
         rc = 0
     (ROOT / "diagnostics" / "checkB_execution_timing.txt").write_text("\n".join(out) + "\n")

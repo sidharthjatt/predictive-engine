@@ -25,6 +25,145 @@ currently wrong.
 
 ---
 
+## The tradeable profile on all 32 cells, tax on, 2026-09-26 -- UNGATED
+
+`run.py --universe all --arm all --tax on --profile tradeable`, cadence 20, on the
+current numerics; the comparison is `diagnostics/tradeable_tax_all_arms.csv`
+(`results/tradeable_tax_grid.py`). The profile is UNGATED (`profiles.UNGATED_NOTICE`):
+nothing replays what the port does under it.
+
+The cap binds in 7 of 32 cells, all of them v1 or v3. In the other 25 the tradeable
+curve equals the research curve exactly. Gap is against the investable taxed buy &
+hold, which takes no cap and is the same under both profiles.
+
+| universe | arm | capped fills | research CAGR | tradeable CAGR | difference | gap, research | gap, tradeable |
+|---|---|--:|--:|--:|--:|--:|--:|
+| nifty100 | v1 | 1 | 21.53 | 21.50 | -0.03 | -1.85 | -1.88 |
+| midcap100 | v1 | 1 | 32.32 | 32.04 | -0.29 | +7.84 | +7.56 |
+| midcap100 | v3 | 1 | 30.90 | 30.85 | -0.04 | +6.42 | +6.38 |
+| smallcap250 | v1 | 4 | 41.06 | 41.31 | +0.24 | +14.46 | +14.71 |
+| smallcap250 | v3 | 2 | 39.37 | 37.73 | -1.64 | +12.77 | +11.13 |
+| nifty500 | v1 | 2 | 33.53 | 33.34 | -0.19 | +9.11 | +8.91 |
+| nifty500 | v3 | 1 | 36.89 | 36.83 | -0.06 | +12.46 | +12.40 |
+
+**smallcap250 v3 loses 1.64 points** to 2 capped fills, far more than any cell of
+the 2026-09-22 tax-off grid (largest -0.20). Not investigated. smallcap250 v1 gains
+0.24 on 4 capped fills; whether that is the channel described in "The participation
+cap has a third channel" was not checked. No sign of a gap against the buy & hold changes under the cap.
+
+**`profiles.cap_report` counted the wrong file -- FIXED 2026-09-26.** It composed
+the daily_skipped name from the profile alone, so this run's closing banner read the
+tax-off tradeable files of 2026-09-22 and printed smallcap250 v1 5, v3 3 and nifty500
+v3 3 capped fills where this run's own files hold 4, 2 and 1. It now names the file
+with `audit_step.artefact_tag`. The banner is printed only; no published figure used it.
+
+## Which checks cover which arm, after the 2026-09-26 four-arm pass
+
+Every check below was v2-only, or v1 and v2 only, before 2026-09-26.
+
+| check | arms now | note |
+|---|---|---|
+| GATE 9 `check_b_exec_timing.py` | all four, 8 universes | 32 cells, 0 fills at a close, 0 off the calendar, every fill at the day's open |
+| GATE 6 tax (taxed curve vs ledger) | all four, 8 universes | each arm's `v34_equity_tax` column against its own FY_EQUITY, to a paisa |
+| GATE 7 LTCG | all four, 8 universes | each arm's lots named exactly; it took the first file in sort order before |
+| `tax_report.py`, `bh_lots_after_tax.py` | every selected arm | four ledger files, TAX_TURNOVER and BH_LOTS per arm; reconcile() to the paisa on all 32 |
+| `verify_v34_arms.py` | all four, nifty100 and midcap150 | re-run on current data, 92 of 92 each; wired into check_all |
+| `nautilus/nt_verify.py` | `--arm`; check_all runs v2 and v4 on the certified two | v1 and v3 fail everywhere, see the entry above |
+
+**Not extended, with the reason:**
+
+- `validate_engine.py`, `validate_sizing.py`: they test inverse-vol sizing against
+  equal weight at 100% invested. v3 and v4 use pro-vol sizing, which these tests
+  do not describe; v2 differs from v1 only by breadth scaling, which they exclude.
+- `validate_breadth_live.py`: governed by `experiments/BREADTH_LIVE_SPEC.txt`,
+  which fixes breadth against 100% invested at inverse-vol sizing (v2 against v1).
+  Running it at pro-vol (v4 against v3) is a new test that needs its own spec.
+- `validate_topn.py`: governed by `experiments/TOPN_SPEC.txt`, whose verdict rule
+  is fixed on v2. Another arm is a new pre-registration.
+- Price noise, after-tax noise, jackknife, pinned mask, drawdown exit, shuffle,
+  seed noise, the impact sweep: these are measurements, several under
+  pre-registered rules. Running them on other arms produces new results and needs
+  a pre-registration first. `results/noise_parallel.py` (2026-09-26) is the
+  harness that would run a four-arm noise test; no measurement has been taken with
+  it.
+- Arm-independent, nothing to extend: leakage checks 1 and 2, `check_a`,
+  `platform_identity_check`, `verify_next_open_execution` (synthetic orders),
+  `tax_acceptance_check` (naming, and hand-worked ledger cases), the registry and
+  naming checks, GATE 8 (already every `v34_params*.json`).
+- `nt_daily_compare.py`, `nt_holdings_compare.py`: diagnostic tracers with no pass
+  condition.
+
+## nt_verify on every arm, 2026-09-26: v1 and v3 are verified nowhere, and 8 of 32 cells pass
+
+`nautilus/nt_verify.py` takes `--arm` since 2026-09-26; until then it verified v2
+only. Run once on all four arms of all eight universes, cadence 20, research;
+full output in `diagnostics/nt_verify_all_arms_20260926.txt`. The v2 rows
+reproduce the 2026-09-25 run exactly.
+
+| universe | arm | same symbol set, ARM A vs audit trail (gated) | port vs ARM D, symbol-set mismatches (gated) | 0.01-grid identical | quantization | unexplained | verdict |
+|---|---|--:|--:|--:|--:|--:|---|
+| nifty100 | v1 | 85 of 92 | 0 | 92 of 92 | 0 | 0 | INCONCLUSIVE |
+| nifty100 | v2 | 92 of 92 | 0 | 92 of 92 | 0 | 0 | VERIFIED |
+| nifty100 | v3 | 87 of 92 | 0 | 92 of 92 | 0 | 0 | INCONCLUSIVE |
+| nifty100 | v4 | 92 of 92 | 0 | 92 of 92 | 0 | 0 | VERIFIED |
+| midcap150 | v1 | 86 of 92 | 0 | 92 of 92 | 0 | 0 | INCONCLUSIVE |
+| midcap150 | v2 | 92 of 92 | 0 | 92 of 92 | 0 | 0 | VERIFIED |
+| midcap150 | v3 | 89 of 92 | 0 | 92 of 92 | 0 | 0 | INCONCLUSIVE |
+| midcap150 | v4 | 92 of 92 | 0 | 92 of 92 | 0 | 0 | VERIFIED |
+| nifty50 | v1 | 84 of 92 | 0 | 92 of 92 | 0 | 0 | INCONCLUSIVE |
+| nifty50 | v2 | 92 of 92 | 0 | 92 of 92 | 0 | 0 | VERIFIED |
+| nifty50 | v3 | 87 of 92 | 0 | 73 of 92 | 18 | 1 | INCONCLUSIVE |
+| nifty50 | v4 | 91 of 92 | 0 | 92 of 92 | 0 | 0 | INCONCLUSIVE |
+| midcap50 | v1 | 83 of 92 | 0 | 90 of 92 | 0 | 2 | INCONCLUSIVE |
+| midcap50 | v2 | 91 of 92 | 0 | 92 of 92 | 0 | 0 | INCONCLUSIVE |
+| midcap50 | v3 | 85 of 92 | 0 | 79 of 92 | 1 | 12 | INCONCLUSIVE |
+| midcap50 | v4 | 92 of 92 | 0 | 90 of 92 | 0 | 2 | NOT VERIFIED |
+| midcap100 | v1 | 80 of 92 | 0 | 92 of 92 | 0 | 0 | INCONCLUSIVE |
+| midcap100 | v2 | 92 of 92 | 0 | 80 of 92 | 0 | 12 | NOT VERIFIED |
+| midcap100 | v3 | 81 of 92 | 0 | 68 of 92 | 5 | 19 | INCONCLUSIVE |
+| midcap100 | v4 | 92 of 92 | 0 | 92 of 92 | 0 | 0 | VERIFIED |
+| nifty200 | v1 | 82 of 92 | 0 | 39 of 92 | 26 | 27 | INCONCLUSIVE |
+| nifty200 | v2 | 92 of 92 | 0 | 91 of 92 | 0 | 1 | NOT VERIFIED |
+| nifty200 | v3 | 78 of 92 | 0 | 83 of 92 | 1 | 8 | INCONCLUSIVE |
+| nifty200 | v4 | 92 of 92 | 0 | 90 of 92 | 0 | 2 | NOT VERIFIED |
+| smallcap250 | v1 | 84 of 92 | 0 | 90 of 92 | 0 | 2 | INCONCLUSIVE |
+| smallcap250 | v2 | 92 of 92 | 0 | 92 of 92 | 0 | 0 | VERIFIED |
+| smallcap250 | v3 | 89 of 92 | 0 | 84 of 92 | 6 | 2 | INCONCLUSIVE |
+| smallcap250 | v4 | 92 of 92 | 0 | 92 of 92 | 0 | 0 | VERIFIED |
+| nifty500 | v1 | 88 of 92 | 0 | 88 of 92 | 1 | 3 | INCONCLUSIVE |
+| nifty500 | v2 | 92 of 92 | 0 | 91 of 92 | 0 | 1 | NOT VERIFIED |
+| nifty500 | v3 | 81 of 92 | 0 | 28 of 92 | 1 | 63 | INCONCLUSIVE |
+| nifty500 | v4 | 92 of 92 | 0 | 88 of 92 | 0 | 4 | NOT VERIFIED |
+
+**8 of 32 VERIFIED (v2 on 4 universes, v4 on 4), 18 INCONCLUSIVE, 6 NOT VERIFIED.**
+The port never picks a different symbol set from the open-valued reference (ARM D)
+in any of the 32 cells. Not investigated beyond one line each:
+
+- **Every v1 and v3 cell is INCONCLUSIVE** because ARM A (`nt_attribution.run`,
+  close-sized) does not reproduce the audit trail's symbol set on 78 to 89 of 92
+  rebalances. Likely cause: the two 100%-invested arms skip many buys as cash-short
+  (97 and 122 skips on midcap150, against 3 and 4 for v2 and v4), and the two
+  reimplementations order or fund those buys differently, so different names end
+  up held.
+- **nifty50 v4 and midcap50 v2 are INCONCLUSIVE** on one rebalance each of the same
+  control; likely the same funding-order difference on a single date.
+- **The 0.01-grid "unexplained" differences** (midcap100 v2 12, nifty200 v1 27,
+  nifty500 v3 63, and smaller counts elsewhere) are quantity differences beyond
+  one share. Likely cause: a sizing difference that compounds once a cash-short
+  skip has made the two books diverge; the largest counts are on the
+  100%-invested arms.
+
+`verify_v34_arms.py`, which compares the port with ARM D alone on the 0.01 grid,
+passes 92 of 92 on all four arms of nifty100 and midcap150
+(`diagnostics/verify_v34_arms.txt`). So on the certified universes the port and
+the open-valued reference agree for every arm; what fails for v1 and v3 is the
+control that licenses ARM D as a baseline.
+
+check_all now runs nt_verify for v2 and v4 on both certified universes. v1 and v3
+are not wired, so the runner does not stay red on this logged failure. Every
+Nautilus figure for v1 and v3, and for the NOT VERIFIED cells above, is
+unverified by nt_verify.
+
 ## GATE 9 runs on all 8 universes since 2026-09-25; nt_verify fails on 4 of the 6 uncertified
 
 **GATE 9 was extended to every registered universe on 2026-09-25**
@@ -746,6 +885,11 @@ carrying this channel -- see the classification below, where 3 of the 7 carry it
 and two of those three finish behind.
 
 ### DIVERGENCE ACROSS THE WHOLE GRID, MEASURED RATHER THAN PREDICTED
+
+> *Superseded 2026-09-26 for its figures: this grid is tax off and was run on
+> 2026-09-22, before the 2026-09-24 numerics rebuild. The current grid, tax on, on
+> the current numerics, is in "The tradeable profile on all 32 cells, tax on" near
+> the top of this file. The mechanism described here is unchanged.*
 
 All 32 cells were run. `data diff` counts how many of the six data artefacts --
 `daily_decisions`, `daily_holdings`, `daily_ranking`, `daily_skipped`,

@@ -5,7 +5,12 @@ Runs the port, compares it against the reference engine on three levels, and
 prints what matches, what does not, and by how much. Nothing here is hardcoded:
 every number is produced by the run it describes.
 
-Run: ./venv/bin/python nautilus/nt_verify.py --universe=nifty100 [--rebal=3]
+Run: ./venv/bin/python nautilus/nt_verify.py --universe=nifty100 [--arm=v3] [--rebal=3]
+
+--arm=NAME verifies that arm (default v2): the port runs with the arm's mode and
+sizing, both reference re-runs (ARM A and ARM D) and the 0.01-grid proof take the
+same, and the reference files are the arm's own audit trail, named by
+audit_step.artefact_tag. Added 2026-09-26; before that every run verified v2.
 
 --rebal=N at a non-default cadence REPORTS the port-vs-vectorised gap at that
 cadence and exits 0. It does not gate: the share-level verdict below is the
@@ -44,6 +49,24 @@ U = nt_run.UNIVERSES[UNIVERSE]
 M = U["metrics"]
 TAG = U["tag"]
 REBAL = next((int(a.split("=", 1)[1]) for a in sys.argv if a.startswith("--rebal=")), None)
+
+from arms.registry import ARMS as _ARMS
+_ARM_NAME = next((a.split("=", 1)[1] for a in sys.argv if a.startswith("--arm=")), "v2")
+if _ARM_NAME not in _ARMS:
+    raise SystemExit(f"unknown arm {_ARM_NAME!r}; known: {', '.join(_ARMS)}")
+ARM = _ARMS[_ARM_NAME]
+_ARM_KW = {"mode": ARM.mode, "sizing": ARM.sizing}
+
+
+def _ref_tag():
+    """The arm's audit-trail tag at the default cadence and profile, tax off.
+
+    v2 is the unsuffixed TAG the reference files have always used; the other arms
+    are suffixed by the writer's own rule."""
+    sys.path.insert(0, str(ROOT / "results"))
+    import audit_step
+    from universes.registry import REGISTRY
+    return audit_step.artefact_tag(REGISTRY[UNIVERSE], ARM)
 
 
 def compare(a_all, b_all, dates):
@@ -172,11 +195,12 @@ def tick_proof():
         # This is a control run, not a result. Its own summary would land in the
         # middle of the report and read like the port's real numbers.
         with contextlib.redirect_stdout(io.StringIO()):
-            strat = nt_run.run(str(config.BT_START_DATE.date()), U["end"], quiet=True, universe=UNIVERSE)
+            strat = nt_run.run(str(config.BT_START_DATE.date()), U["end"], quiet=True,
+                               universe=UNIVERSE, **_ARM_KW)
         dates, port = port_holdings(strat)
         panel = nt_attribution.load_panel(U["cache"])
         armd = arm(panel, dates, size_at_close=False,
-                   value_at_open=True, tick_round=True)
+                   value_at_open=True, tick_round=True, **_ARM_KW)
         return compare(port, armd, dates), len(dates), \
             classify_divergence(port, armd, dates)
     finally:
@@ -221,7 +245,9 @@ def main():
     import cadence as _cd
     if REBAL is not None and REBAL != _cd.DEFAULT:
         return cadence_gap(REBAL)
-    strat = nt_run.run(str(config.BT_START_DATE.date()), U["end"], universe=UNIVERSE)
+    strat = nt_run.run(str(config.BT_START_DATE.date()), U["end"], universe=UNIVERSE,
+                       **_ARM_KW)
+    TAG = _ref_tag()
 
     eq = pd.DataFrame(strat.daily_equity)
     eq["date"] = pd.to_datetime(eq["date"])
@@ -258,11 +284,12 @@ def main():
     # applied -- portfolio valued at the execution day's OPEN, prices on the 0.05
     # tick grid. Comparing against the close-valued reference alone charges the port
     # for a difference it is designed to have, so both baselines are reported.
-    arm_d = arm(panel, dates, size_at_close=False, value_at_open=True, tick_round=True)
+    arm_d = arm(panel, dates, size_at_close=False, value_at_open=True, tick_round=True,
+                **_ARM_KW)
     # ARM A is the reference's own configuration. Its holdings must reproduce
     # daily_holdings_{TAG}.csv, and that is checked below rather than assumed -- it is
     # what licenses ARM D as a baseline at all.
-    arm_a = arm(panel, dates, size_at_close=False)
+    arm_a = arm(panel, dates, size_at_close=False, **_ARM_KW)
 
     ref_stats = compare(port, ref, dates)
     d_stats = compare(port, arm_d, dates)
@@ -274,7 +301,7 @@ def main():
     n = len(dates)
     mism, sym_mism, qty_only, worst = ref_stats
     print("\n" + "=" * 72)
-    print(f" NAUTILUS PORT -- VERIFICATION AGAINST THE REFERENCE ENGINE  [{TAG} universe]")
+    print(f" NAUTILUS PORT -- VERIFICATION AGAINST THE REFERENCE ENGINE  [{UNIVERSE} universe, arm {ARM.name}]")
     print("=" * 72)
     if not idx_ok:
         print("\n  *** DATE INDEX MISMATCH -- the two series do not cover the same days ***")
@@ -413,7 +440,7 @@ def main():
         print("  symbol, or a different symbol set -- on a 0.01 grid where tick")
         print("  quantization cannot be the cause. Something else is wrong.")
         print("  Do not trade this.")
-    print(f"\n  RESULT: {'PASS' if rc == 0 else 'FAIL'} -- universe {TAG}, "
+    print(f"\n  RESULT: {'PASS' if rc == 0 else 'FAIL'} -- universe {UNIVERSE}, arm {ARM.name}, "
           f"0.01-grid reconciliation {t_n - t_stats[0]} of {t_n} identical, "
           f"{t_quant} quantization, {t_other} unexplained.")
     print("=" * 72)
