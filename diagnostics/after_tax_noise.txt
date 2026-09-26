@@ -1,0 +1,36 @@
+AFTER-TAX EDGE UNDER PRICE NOISE -- experiments/AFTER_TAX_PREREG.txt
+==============================================================================
+v2 tax-on headline minus the investable taxed buy & hold headline, CAGR points.
+sigma 0.0001 (0.01%), noise seeds 101 to 1010, n=10.
+RULE (verbatim): An after-tax edge is supported for a universe only if at least 9 of 10 draws beat the investable buy & hold, and the mean gap exceeds one sd of the gaps. Anything else is reported as not supported.
+
+midcap150
+  identity baseline (not a draw): v2 24.1551  bh 23.5541  gap +0.6010
+  seed  101: v2  28.4209  bh  23.5541  gap  +4.8668
+  seed  202: v2  25.2350  bh  23.5540  gap  +1.6810
+  seed  303: v2  22.3017  bh  23.5524  gap  -1.2507
+  seed  404: v2  23.9954  bh  23.5542  gap  +0.4413
+  seed  505: v2  26.3878  bh  23.5536  gap  +2.8342
+  seed  606: v2  27.7322  bh  23.5542  gap  +4.1780
+  seed  707: v2  24.7013  bh  23.5540  gap  +1.1472
+  seed  808: v2  24.6259  bh  23.5540  gap  +1.0719
+  seed  909: v2  24.6762  bh  23.5542  gap  +1.1219
+  seed 1010: v2  22.5873  bh  23.5539  gap  -0.9666
+  gaps: mean +1.5125  sd 1.9872 (ddof=1)  min -1.2507  max +4.8668  draws above zero 8 of 10
+  verdict: NOT SUPPORTED (8 of 10 draws beat the investable buy & hold, needed 9; mean gap +1.5125 does not exceed one sd 1.9872)
+
+nifty500
+  identity baseline (not a draw): v2 26.3168  bh 24.4295  gap +1.8873
+  seed  101: v2  23.7485  bh  24.4295  gap  -0.6810
+  seed  202: v2  24.0003  bh  24.4295  gap  -0.4292
+  seed  303: v2  22.8851  bh  24.4295  gap  -1.5443
+  seed  404: v2  26.3004  bh  24.4296  gap  +1.8708
+  seed  505: v2  26.1309  bh  24.4294  gap  +1.7016
+  seed  606: v2  24.3685  bh  24.4296  gap  -0.0611
+  seed  707: v2  23.9294  bh  24.4316  gap  -0.5022
+  seed  808: v2  22.9821  bh  24.4251  gap  -1.4429
+  seed  909: v2  23.0336  bh  24.4319  gap  -1.3983
+  seed 1010: v2  24.1888  bh  24.4294  gap  -0.2407
+  gaps: mean -0.2727  sd 1.2035 (ddof=1)  min -1.5443  max +1.8708  draws above zero 2 of 10
+  verdict: NOT SUPPORTED (2 of 10 draws beat the investable buy & hold, needed 9; mean gap -0.2727 does not exceed one sd 1.2035)
+

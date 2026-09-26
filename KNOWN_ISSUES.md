@@ -122,6 +122,13 @@ unchanged; what changed is what happens at the window's end.
 - **Effect:** tax-off figures are identical. Tax-on headline CAGR moved by 0.00
   to -0.57 points across the 32 cells (README, "Republished 2026-09-25").
   `tax_acceptance_check.py` condition 4 pins all of this to hand-worked numbers.
+- **After-tax edge under price noise, measured 2026-09-25:** nifty500 +1.89 and
+  midcap150 +0.61 (v2 tax-on headline minus the investable buy & hold headline)
+  are single draws. Under the pre-registered after-tax price-noise test
+  (`experiments/AFTER_TAX_PREREG.txt`, n=10, sigma 0.01%, seeds 101 to 1010),
+  neither after-tax edge is supported: midcap150 beat the investable buy & hold in
+  8 of 10 draws (mean gap +1.51, sd 1.99), nifty500 in 2 of 10 (mean gap -0.27,
+  sd 1.20). Report: `diagnostics/after_tax_noise.txt`.
 
 **Decided by the owner, 2026-09-25.**
 1. **No pro-rating of the partial year's exemption.** FY2026-27 gets the full
