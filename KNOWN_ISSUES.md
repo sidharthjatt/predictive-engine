@@ -25,13 +25,53 @@ currently wrong.
 
 ---
 
+## The two largest port gaps are tick-grid forks at a cash-short skip, not engine defects -- 2026-09-26
+
+nt_verify reports the Nautilus port ending 5.75% below the research engine on nifty500
+v3 and 3.44% below on smallcap250 v1. Both were traced to one rebalance each; neither
+is a defect in the engine or in the port.
+
+**nifty500 v3, 2020-07-20.** The engine buys TTML, SWANCORP, BAYERCROP, INDIACEM, then
+HAL (204 at 471.21) and skips BRITANNIA as cash-short with Rs 1,762 left. The port,
+whose book was 0.33% above the engine's at the previous close, sizes the same four
+buys about 0.5% larger (TTML 27,803 against 27,668), cannot fund HAL (Rs 96,126), skips
+it and buys BRITANNIA (11). HAL rises to 662.01 by the engine's sale on 2020-08-17; the
+port is 5.40% behind on 2020-08-13 and ends 5.75% behind.
+
+**smallcap250 v1, 2021-01-07.** The engine skips KAJARIACER as cash-short by Rs 51
+(needs Rs 298,942, has Rs 298,891) and buys AFFLE. The port, 0.36% ahead, can fund
+KAJARIACER, buys it and cannot fund AFFLE. The books hold different names until
+2021-05-06; the port ends 3.44% behind.
+
+**The evidence that this is the tick grid.** `nt_attribution.run` with the engine's
+sizing and open valuation, run twice with only `tick_round` changed:
+
+| cell, decision date | tick_round=True (ARM D) | tick_round=False (ARM A) |
+|---|---|---|
+| nifty500 v3, 2020-08-14 | BRITANNIA 11, no HAL -- as the port | HAL 204, no BRITANNIA -- as the engine |
+| smallcap250 v1, 2021-02-04 | KAJARIACER 419, no AFFLE -- as the port | AFFLE 251, no KAJARIACER -- as the engine |
+
+The port fills on the NSE 0.05 grid and the research engine does not round prices,
+a documented difference (README, "The execution layer"). On the 100%-invested arms a
+buy is funded whole or skipped, so a book that differs by a fraction of a percent can
+fund a different name, and that name's later return becomes the whole gap. The other
+14 NOT VERIFIED cells were not traced; the same mechanism is the likely cause.
+
+**A data defect seen on the way, not the cause.** HAL on 2020-08-13 (nifty500 farm,
+dhan/BSE): close 600.91, adj_close 650.38, no corporate action. adj_close lies inside
+the day's range, so canonical_price keeps it and derives an adjusted open of 599.61;
+the engine values HAL at 650.38 for that one day. The adjusted and raw series agree
+the next day. Not fixed; it moves one day's valuation, and the engine's sale on
+2020-08-17 is at the raw open.
+
 ## results/noise_parallel.py: layout measured, no measurement taken -- 2026-09-26
 
 The harness runs each noise draw as its own process, fits the ten seeds in a fixed
 number of loky workers per draw (each fit one thread, as in the old harness), runs all
 four arms under research and tradeable, tax on, on each draw's panel, and writes one
-result file per draw atomically. It has taken no measurement; any test run with it
-needs a pre-registration first.
+result file per draw atomically. It is the harness of
+`experiments/FOUR_ARM_NOISE_PREREG.txt` (committed 2026-09-26, before any draw), run
+stage by stage with `scripts/run_noise_stage.sh`.
 
 Timed on midcap150 seed 101 with nothing else running, memory summed over each draw's
 process tree (loky workers included) every 2 s:
@@ -98,7 +138,7 @@ Every check below was v2-only, or v1 and v2 only, before 2026-09-26.
 | GATE 7 LTCG | all four, 8 universes | each arm's lots named exactly; it took the first file in sort order before |
 | `tax_report.py`, `bh_lots_after_tax.py` | every selected arm | four ledger files, TAX_TURNOVER and BH_LOTS per arm; reconcile() to the paisa on all 32 |
 | `verify_v34_arms.py` | all four, nifty100 and midcap150 | re-run on current data, 92 of 92 each; wired into check_all |
-| `nautilus/nt_verify.py` | `--arm`; check_all runs all four on the certified two | 16 of 32 verified, see the entry below |
+| `nautilus/nt_verify.py` | `--arm`; check_all gates all 16 cells that verify | 16 of 32 verified, see the entry below |
 
 **Not extended, with the reason:**
 
@@ -189,7 +229,7 @@ values at the open, the control passes on all 32 cells, and the verdicts are:
 
 **16 of 32 VERIFIED, 0 INCONCLUSIVE, 16 NOT VERIFIED.** v1 verifies on 4 universes,
 v2 on 5, v3 on 2, v4 on 5; all four arms verify on nifty100 and midcap150, and
-check_all runs all four there. The port never picks a different symbol set from ARM D
+check_all gates all 16 verified cells (`check_all.NT_VERIFY_UNGATED` lists the rest). The port never picks a different symbol set from ARM D
 in any cell. The 16 failures are quantity differences on the 0.01 grid that are not
 one-share quantization -- up to 63 of 92 rebalances on nifty500 v3. Not investigated;
 the largest counts are on the 100%-invested arms, where a single cash-short skip that

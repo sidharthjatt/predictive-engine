@@ -490,7 +490,8 @@ see the note under the table above):
 | v3 provol, 100% invested | 2 of 8: nifty100, midcap150 | 6 |
 | v4 provol, breadth-scaled | 5 of 8: nifty100, midcap150, nifty50, midcap100, smallcap250 | 3 |
 
-All four arms verify on nifty100 and midcap150, and check_all gates all four there.
+All four arms verify on nifty100 and midcap150. check_all gates every verified cell,
+16 in all, since 2026-09-26; the 16 that do not verify are listed in `check_all.py`.
 The port picks the same names as the reference on every rebalance of all 32 cells;
 the 16 failures are share-count differences that nt_verify cannot explain as
 quantization, on the 0.01 tick grid. Not investigated; see `KNOWN_ISSUES.md`. Every
