@@ -1,0 +1,47 @@
+Counted 2026-09-27 by ./venv/bin/python results/ratio_clean_check.py --count, BEFORE
+the rule was applied to any panel. experiments/DATA_CLEANING_SPEC.txt.
+
+ratio cleaning (experiments/DATA_CLEANING_SPEC.txt): TOL 0.001, MAX_LEN 5, backtest window 2019-01-01 to 2026-05-29
+
+inside the backtest window (event counted by its first session, rows by their own date)
+universe | files | rows in window | ev1 | ev2 | ev3 | ev4 | ev5 | events | rows1 | rows2 | rows3 | rows4 | rows5 | rows | share | symbols
+nifty100 | 99 | 170,489 | 518 | 55 | 7 | 2 | 1 | 583 | 518 | 110 | 21 | 8 | 5 | 662 | 0.39% | 97
+midcap150 | 148 | 237,576 | 979 | 71 | 12 | 1 | 1 | 1064 | 979 | 142 | 36 | 4 | 5 | 1166 | 0.49% | 145
+nifty50 | 50 | 88,476 | 273 | 26 | 6 | 2 | 1 | 308 | 273 | 52 | 18 | 8 | 5 | 356 | 0.40% | 50
+midcap50 | 49 | 83,484 | 336 | 19 | 7 | 1 | 0 | 363 | 336 | 38 | 21 | 4 | 0 | 399 | 0.48% | 49
+midcap100 | 98 | 162,624 | 681 | 47 | 9 | 1 | 1 | 739 | 681 | 94 | 27 | 4 | 5 | 811 | 0.50% | 96
+nifty200 | 197 | 333,113 | 1199 | 102 | 16 | 3 | 2 | 1322 | 1199 | 204 | 48 | 12 | 10 | 1473 | 0.44% | 193
+smallcap250 | 248 | 361,500 | 1658 | 120 | 20 | 2 | 0 | 1800 | 1658 | 240 | 60 | 8 | 0 | 1966 | 0.54% | 234
+nifty500 | 495 | 769,565 | 3155 | 246 | 39 | 5 | 2 | 3447 | 3155 | 492 | 117 | 20 | 10 | 3794 | 0.49% | 476
+
+all history
+universe | ev1 | ev2 | ev3 | ev4 | ev5 | events | rows1 | rows2 | rows3 | rows4 | rows5 | rows
+nifty100 | 1815 | 193 | 27 | 4 | 3 | 2042 | 1815 | 386 | 81 | 16 | 15 | 2313
+midcap150 | 2586 | 223 | 53 | 2 | 5 | 2869 | 2586 | 446 | 159 | 8 | 25 | 3224
+nifty50 | 976 | 102 | 20 | 3 | 3 | 1104 | 976 | 204 | 60 | 12 | 15 | 1267
+midcap50 | 813 | 74 | 24 | 2 | 1 | 914 | 813 | 148 | 72 | 8 | 5 | 1046
+midcap100 | 1712 | 143 | 43 | 2 | 4 | 1904 | 1712 | 286 | 129 | 8 | 20 | 2155
+nifty200 | 3527 | 336 | 70 | 6 | 7 | 3946 | 3527 | 672 | 210 | 24 | 35 | 4468
+smallcap250 | 3942 | 301 | 57 | 3 | 2 | 4305 | 3942 | 602 | 171 | 12 | 10 | 4737
+nifty500 | 8343 | 717 | 137 | 9 | 10 | 9216 | 8343 | 1434 | 411 | 36 | 50 | 10274
+
+distinct symbol-days changed inside the window, across universes: 3,794 on 476 symbols
+RESULT: COUNT ONLY -- the check was not run (--count)
+
+Extra, nifty500 only, same session (not produced by the script above):
+nifty500 event rows whose cleaned adj_close is outside the raw [low,high]: 5 in window: 0
+p distribution: share p==1: 0.9983 min 0.975636050021561 max 1.4990272373540854
+largest in-window first-session moves |r/p-1|:
+  29.76 % INDUSINDBK 2020-03-26 2 1.0
+  28.46 % YESBANK 2020-03-16 3 1.0
+  25.75 % ZEEL 2021-09-14 2 1.0
+  25.02 % BANDHANBNK 2020-03-26 3 1.0
+  24.83 % RPOWER 2019-02-04 4 1.0
+  24.66 % SAMMAANCAP 2019-09-30 2 1.0
+  24.11 % ZEEL 2024-01-23 1 1.0
+  22.45 % IDEA 2020-02-19 2 1.0
+  21.67 % IEX 2025-07-24 1 1.0
+  21.04 % CHOLAFIN 2020-03-23 1 1.0
+  20.81 % MFSL 2020-03-23 1 1.0
+  20.71 % M&MFIN 2020-03-23 1 1.0
+in-window events: 3447 >1%: 2578 >5%: 759 >10%: 104 0.1-1%: 869
