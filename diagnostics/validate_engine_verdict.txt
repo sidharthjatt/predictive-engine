@@ -5,19 +5,19 @@
   own FINAL_val_*.csv are untouched and still describe engine_core.backtest.
 
   test                                         midcap150    nifty100
-  T1 baseline structure (REDEFINED)                 PASS        PASS
-  T2 seed robustness                                FAIL        PASS
+  T1 baseline structure (REDEFINED)                 FAIL        FAIL
+  T2 seed robustness                                PASS        PASS
   T3 sub-period                                     FAIL        FAIL
-  T4 param sensitivity                              FAIL        FAIL
+  T4 param sensitivity                              PASS        PASS
 
-  mean book / trades                          8.03 / 850  8.02 / 773
-  Sharpe equal -> invvol                      1.54->1.54  1.21->1.26
+  mean book / trades                          7.91 / 824  7.88 / 767
+  Sharpe equal -> invvol                      1.72->1.77  1.34->1.37
 
   THE LIVE UNIVERSES ARE THE ONES THAT DESCRIBE WHAT SHIPS:
-    midcap150 1 of 4 passed
+    midcap150 2 of 4 passed
     nifty100 2 of 4 passed
 
-  FAILED on midcap150: T2 seed robustness, T3 sub-period, T4 param sensitivity
-  FAILED on nifty100: T3 sub-period, T4 param sensitivity
-  RESULT: FAIL -- 5 test-universe pair(s) failed of 8 asserted.
+  FAILED on midcap150: T1 baseline structure (REDEFINED), T3 sub-period
+  FAILED on nifty100: T1 baseline structure (REDEFINED), T3 sub-period
+  RESULT: FAIL -- 4 test-universe pair(s) failed of 8 asserted.
 ========================================================================================================

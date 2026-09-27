@@ -180,6 +180,10 @@ DELEGATES = (
     ("results/leakage_check2_trading_purge.py", [], False, None),
     ("results/validate_topn.py",              [], False, None),
     ("results/check_a_close_values.py",       [], False, None),
+    # Re-derives the cleaned prices from the raw files and fails if a reverting
+    # adj_close/close event of five sessions or fewer is left inside the
+    # backtest window. experiments/DATA_CLEANING_SPEC.txt. About 60 s.
+    ("results/ratio_clean_check.py",          [], False, None),
     ("results/check_b_exec_timing.py",        [], False, None),
     ("nautilus/verify_next_open_execution.py", [], False, None),
     ("tax_acceptance_check.py",               [], False, None),
@@ -195,19 +199,21 @@ DELEGATES = (
     # defaults to the first REGISTERED universe, which is not a statement about
     # what ships; naming each tag is.
     # EVERY (UNIVERSE, ARM) CELL THAT VERIFIES, SINCE 2026-09-26. nt_verify takes
-    # --arm, and with ARM A valued at the open 16 of 32 cells verify
-    # (diagnostics/nt_verify_all_arms_20260926.txt). They are listed here by name
-    # so a cell cannot join or leave the gate without an edit that shows in a
-    # diff. The 16 in NT_VERIFY_UNGATED fail on 0.01-grid share counts (see
-    # KNOWN_ISSUES.md) and are not run.
+    # --arm. On the cleaned prices of 2026-09-27, 20 of 32 cells verify
+    # (diagnostics/nt_verify_all_arms_20260927.txt); on 2026-09-26, before the
+    # cleaning, 16 did. They are listed here by name so a cell cannot join or
+    # leave the gate without an edit that shows in a diff. The 12 in
+    # NT_VERIFY_UNGATED fail on 0.01-grid share counts (see KNOWN_ISSUES.md) and
+    # are not run.
     *[("nautilus/nt_verify.py", [f"--universe={t}"] + ([] if a == "v2" else [f"--arm={a}"]),
        False, None)
       for t, a in (("nifty100", "v1"), ("nifty100", "v2"), ("nifty100", "v3"), ("nifty100", "v4"),
-                   ("midcap150", "v1"), ("midcap150", "v2"), ("midcap150", "v3"), ("midcap150", "v4"),
-                   ("nifty50", "v1"), ("nifty50", "v2"), ("nifty50", "v4"),
-                   ("midcap50", "v2"),
-                   ("midcap100", "v1"), ("midcap100", "v4"),
-                   ("smallcap250", "v2"), ("smallcap250", "v4"))],
+                   ("midcap150", "v2"), ("midcap150", "v4"),
+                   ("nifty50", "v1"), ("nifty50", "v2"), ("nifty50", "v3"), ("nifty50", "v4"),
+                   ("midcap50", "v1"), ("midcap50", "v2"),
+                   ("nifty200", "v1"), ("nifty200", "v2"),
+                   ("smallcap250", "v1"), ("smallcap250", "v2"), ("smallcap250", "v3"), ("smallcap250", "v4"),
+                   ("nifty500", "v1"), ("nifty500", "v2"))],
 
     # SLOW. validate_engine.py iterates the certified universes inside one run,
     # so it is wired ONCE and must not be given a tag. The other two do not, so
@@ -232,15 +238,18 @@ DELEGATES = (
      "it exits 0 whatever it finds"),
 )
 
-# nt_verify cells that do NOT verify, 2026-09-26, and so are not in DELEGATES.
-# Listed so the ungated set is stated, not implied. The two largest (nifty500 v3,
-# smallcap250 v1) are tick-grid forks at a cash-short skip; see KNOWN_ISSUES.md.
+# nt_verify cells that do NOT verify on the cleaned prices, 2026-09-27, and so are
+# not in DELEGATES. Listed so the ungated set is stated, not implied. midcap150 v1
+# and v3 and midcap100 v1 and v4 verified before the cleaning and were gated; they
+# left the gate on 2026-09-27 without being traced, and do not return to it until
+# the Pass E tick-rounding trace shows the cause (owner, 2026-09-27). See
+# KNOWN_ISSUES.md.
 NT_VERIFY_UNGATED = (
-    ("nifty50", "v3"), ("midcap50", "v1"), ("midcap50", "v3"), ("midcap50", "v4"),
-    ("midcap100", "v2"), ("midcap100", "v3"),
-    ("nifty200", "v1"), ("nifty200", "v2"), ("nifty200", "v3"), ("nifty200", "v4"),
-    ("smallcap250", "v1"), ("smallcap250", "v3"),
-    ("nifty500", "v1"), ("nifty500", "v2"), ("nifty500", "v3"), ("nifty500", "v4"),
+    ("midcap150", "v1"), ("midcap150", "v3"),
+    ("midcap50", "v3"), ("midcap50", "v4"),
+    ("midcap100", "v1"), ("midcap100", "v2"), ("midcap100", "v3"), ("midcap100", "v4"),
+    ("nifty200", "v3"), ("nifty200", "v4"),
+    ("nifty500", "v3"), ("nifty500", "v4"),
 )
 
 # RETIRED, AND NOT IN THE TABLE ABOVE. results/leakage_check2_purge.py audits the
@@ -305,7 +314,8 @@ def _needs(label):
     every = _gated()
     if label == "results/leakage_check2_trading_purge.py":
         return [u.raw_cache for u in every]
-    if label == "results/leakage_check1_causality.py":
+    if label in ("results/leakage_check1_causality.py",
+                 "results/ratio_clean_check.py"):
         return [u.data_dir for u in every]
     if label == "results/validate_topn.py":
         return [u.score_cache for u in two] + [u.metrics_dir / "v34_comparison.csv" for u in two]

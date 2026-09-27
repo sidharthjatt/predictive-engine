@@ -89,9 +89,46 @@ ARMS = [(a.name, a.mode, a.sizing) for a in ARM_REGISTRY.values()]
 # output. registry.CERTIFIED states the order once.
 UNIVERSES = [u.tag for u in certified()]
 
+# CELLS WHERE A ONE-SHARE DIVERGENCE IS TOLERATED, BY NAME, SINCE 2026-09-27.
+# On the prices cleaned under experiments/DATA_CLEANING_SPEC.txt these three
+# differ from the reference on 3, 2 and 4 positions, every one of them by exactly
+# one share, and on no symbol set. That is the quote-mid rounding mechanism
+# nautilus/nt_gate_diagnose.py documents: the port values the book at the mid of
+# two independently tick-rounded quotes, so where invest_val * weight / price sits
+# near an integer the two sides floor differently. Measured effect on final
+# equity: Rs +17.69, -5.82 and +15.82 (diagnostics/gate_divergence.txt). On the
+# uncleaned prices all three were identical on 92 of 92.
+#
+# THIS IS A GATE LOOSENED AFTER SEEING RESULTS, accepted by the owner as
+# provisional on 2026-09-27. A listed cell passes only if every divergence is
+# exactly one share on the same symbol set. Anything larger still fails, and every
+# cell not listed still needs 92 of 92. The list is closed: a new cell that
+# diverges fails the gate and is not added here.
+ONE_SHARE_TOLERATED = {("midcap150", "v1"), ("midcap150", "v2"), ("midcap150", "v3")}
+
+
+def one_share_only(port, ref, dates):
+    """(True, n) if every diverging rebalance has the same symbols and every
+    differing position differs by exactly one share; n is the position count."""
+    n = 0
+    for d in dates:
+        a, b = port.get(d, {}), ref.get(d, {})
+        if a == b:
+            continue
+        if set(a) != set(b):
+            return False, n
+        for s in a:
+            if a[s] != b[s]:
+                if abs(a[s] - b[s]) != 1:
+                    return False, n
+                n += 1
+    return True, n
+
 
 def verify_arm(universe, arm, mode, sizing):
-    """Return (n_rebalances, n_identical, observed_port, observed_ref, detail).
+    """Return (n_rebalances, n_identical, observed_port, observed_ref, detail, one).
+
+    `one` is one_share_only()'s (flag, positions) for the run.
 
     WHAT REPLACED THE GLOBAL ASSERT, AND WHY IT IS STRONGER. This used to set
     nt_strategy.SIZING and nt_attribution.SIZING and assert both had taken the
@@ -140,7 +177,7 @@ def verify_arm(universe, arm, mode, sizing):
             f"{who} applied mode {got['mode']!r}, expected {mode!r}"
     obs_port = f"{port_applied['mode']}/{port_applied['sizing']}"
     obs_ref = f"{ref_a['mode']}/{ref_a['sizing']}"
-    return n, n - mism, obs_port, obs_ref, detail
+    return n, n - mism, obs_port, obs_ref, detail, one_share_only(port, ref, dates)
 
 
 def main():
@@ -161,11 +198,13 @@ def main():
         print(f"    {'arm':<5}{'intended':<16}{'port applied':<17}"
               f"{'reference applied':<20}{'result':<16}verdict")
         for arm, mode, sizing in ARMS:
-            n, ok, ps, rs, detail = verify_arm(u, arm, mode, sizing)
+            n, ok, ps, rs, detail, (one, n_one) = verify_arm(u, arm, mode, sizing)
             intended = f"{mode}/{sizing}"
             agree = (ps == intended == rs)
             verdict = "VERIFIED" if (ok == n and agree) else "NOT VERIFIED"
-            if verdict != "VERIFIED":
+            if verdict != "VERIFIED" and agree and one and (u, arm) in ONE_SHARE_TOLERATED:
+                verdict = f"ONE SHARE ({n_one} positions, tolerated)"
+            elif verdict != "VERIFIED":
                 failures.append((u, arm, intended, n, ok, ps, rs, detail))
             print(f"    {arm:<5}{intended:<16}{ps:<17}{rs:<20}"
                   f"{f'{ok} of {n}':<16}{verdict}")
@@ -188,7 +227,8 @@ def main():
                     print(f"      {s:<14}{a:>10}{b:>12}{mark}")
         print("\n  Per the spec, NO performance number is reported for a failing arm.")
         sys.exit(1)
-    print(" GATE PASSED -- every arm VERIFIED on every universe run")
+    print(" GATE PASSED -- every arm VERIFIED on every universe run, except the cells"
+          " in ONE_SHARE_TOLERATED marked above")
     print("=" * 100)
 
 

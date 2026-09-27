@@ -352,7 +352,8 @@ def panel_code_key():
     code would have been read as the output of the new. Covered: the functions
     that build and score the panel, the feature functions and their constants,
     results/numerics.py, the seed list, HORIZON and the purge constants, the
-    trading calendar and the LightGBM version. Nothing else, so an edit to the
+    trading calendar and the LightGBM version. results/ratio_clean.py, the
+    adj_close/close cleaning, since 2026-09-27. Nothing else, so an edit to the
     backtest code does not force a 75-minute rebuild.
     """
     import hashlib
@@ -361,6 +362,7 @@ def panel_code_key():
     import engine_core as ec
     import features_v2 as fv
     import numerics
+    import ratio_clean
     from build_scores_step import SEEDS
     h = hashlib.sha256()
     for fn in (ec.canonical_price, ec._load_calendar, ec._check_calendar,
@@ -369,6 +371,7 @@ def panel_code_key():
                fv.cross_sectional_normalize):
         h.update(_code_tokens(inspect.getsource(fn)).encode())
     h.update(_code_tokens(Path(numerics.__file__).read_text()).encode())
+    h.update(_code_tokens(Path(ratio_clean.__file__).read_text()).encode())
     h.update(_data_lines(ec.TRADING_CALENDAR))
     h.update(repr((list(SEEDS), ec.HORIZON, ec.PURGE, ec.PURGE_EMBARGO,
                    list(fv.FEATS_V2), fv.EXTREME_RET_HI, fv.EXTREME_RET_LO,

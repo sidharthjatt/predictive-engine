@@ -1,0 +1,20 @@
+Records superseded on 2026-09-27 by the adj_close/close ratio cleaning
+(experiments/DATA_CLEANING_SPEC.txt). Each was computed on the prices before the
+cleaning. None is deleted or edited; the current figures are in README, "Republished
+2026-09-27 on cleaned prices", and in the files named on the right.
+
+superseded                                        current
+diagnostics/four_arm_noise.txt                    none: stage 1 not re-run on cleaned data
+diagnostics/four_arm_noise_runs.csv               none
+diagnostics/after_tax_noise.txt                   none: AFTER_TAX_PREREG not re-run
+diagnostics/after_tax_noise_runs.csv              none
+diagnostics/price_noise.txt                       none: not re-run
+diagnostics/price_noise_runs.csv                  none
+diagnostics/tax_on_all_arms_uncleaned_20260927.csv    diagnostics/tax_on_all_arms.csv
+diagnostics/tradeable_tax_all_arms_uncleaned_20260927.csv  diagnostics/tradeable_tax_all_arms.csv
+diagnostics/cells_uncleaned_20260927.csv          diagnostics/cells_cleaned_20260927.csv
+diagnostics/nt_verify_all_arms_20260926.txt       diagnostics/nt_verify_all_arms_20260927.txt
+
+The pre-registrations (experiments/AFTER_TAX_PREREG.txt,
+experiments/FOUR_ARM_NOISE_PREREG.txt) are unchanged. Their verdicts stand as
+measurements of the uncleaned data only.

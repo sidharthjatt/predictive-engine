@@ -12,39 +12,39 @@
       has no cap, so its book floats in [TOP_N, BUFFER] = [8, 16] by
       design. A book pinned at TOP_N would mean the buffer had stopped working.
       structural target : mean book in [8, 16]  and  400-1400 trades
-      got               : mean book 8.03 (in range), 850 trades (in band)
-      reference         : equal-rupee CAGR 40.0%, Sharpe 1.54 | inverse-vol CAGR 36.85%, Sharpe 1.54
+      got               : mean book 7.91 (OUT OF RANGE), 824 trades (in band)
+      reference         : equal-rupee CAGR 43.18%, Sharpe 1.72 | inverse-vol CAGR 41.86%, Sharpe 1.77
       CAGR is not checked -- it moves +/-0.5% per refit. Structure is.
-      -> PASS
+      -> FAIL -- selection or buffer logic is not behaving as specified
 
   T2. SEED ROBUSTNESS -- does inverse-vol still win on OTHER score seeds?
       seed set 1/3 -- scoring (refits the model, slow) ...
-        equal 1.55 -> invvol 1.46 (delta -0.0913 exact) | MaxDD -43.3% -> -41.2%
+        equal 1.69 -> invvol 1.80 (delta +0.1137 exact) | MaxDD -41.1% -> -36.7%
       seed set 2/3 -- scoring (refits the model, slow) ...
-        equal 1.55 -> invvol 1.47 (delta -0.0836 exact) | MaxDD -42.7% -> -42.4%
+        equal 1.81 -> invvol 1.87 (delta +0.0591 exact) | MaxDD -34.3% -> -34.0%
       seed set 3/3 -- scoring (refits the model, slow) ...
-        equal 1.53 -> invvol 1.47 (delta -0.0616 exact) | MaxDD -43.7% -> -43.9%
-      -> improved on 0/3 seed sets (smallest margin -0.0913 Sharpe). FAIL -- seed-dependent
+        equal 1.74 -> invvol 1.76 (delta +0.0205 exact) | MaxDD -36.4% -> -35.7%
+      -> improved on 3/3 seed sets (smallest margin +0.0205 Sharpe). PASS
 
   T3. SUB-PERIOD SPLIT -- does it work in BOTH halves independently?
-      2019-2022: equal 1.45 -> invvol 1.35 (delta -0.1007 exact) | buy&hold 1.19
-      2023-2026: equal 0.86 -> invvol 1.16 (delta +0.3029 exact) | buy&hold 1.56
-      -> FAIL -- only works in one sub-period   (smallest margin -0.1007 Sharpe)
+      2019-2022: equal 1.63 -> invvol 1.42 (delta -0.2038 exact) | buy&hold 1.21
+      2023-2026: equal 1.29 -> invvol 1.49 (delta +0.2021 exact) | buy&hold 1.57
+      -> FAIL -- only works in one sub-period   (smallest margin -0.2038 Sharpe)
 
   T4. PARAMETER SENSITIVITY -- does the vol window matter?
-      vol_win= 40: CAGR  36.85%  Sharpe  1.54  MaxDD  -39.20%   margin vs equal-rupee -0.0042
-      vol_win= 60: CAGR  36.85%  Sharpe  1.54  MaxDD  -40.84%   margin vs equal-rupee -0.0043
-      vol_win= 90: CAGR  38.97%  Sharpe  1.62  MaxDD  -38.30%   margin vs equal-rupee +0.0752
-      vol_win=120: CAGR  36.69%  Sharpe  1.53  MaxDD  -38.72%   margin vs equal-rupee -0.0099
-      reference: equal-rupee Sharpe 1.543998 (exact)
-      -> all four beat equal-rupee? FAIL -- depends on the exact window   (smallest margin -0.0099 Sharpe)
+      vol_win= 40: CAGR  42.19%  Sharpe  1.80  MaxDD  -34.38%   margin vs equal-rupee +0.0771
+      vol_win= 60: CAGR  41.86%  Sharpe  1.77  MaxDD  -40.76%   margin vs equal-rupee +0.0556
+      vol_win= 90: CAGR  44.47%  Sharpe  1.85  MaxDD  -33.52%   margin vs equal-rupee +0.1352
+      vol_win=120: CAGR  45.37%  Sharpe  1.88  MaxDD  -32.83%   margin vs equal-rupee +0.1638
+      reference: equal-rupee Sharpe 1.718168 (exact)
+      -> all four beat equal-rupee? PASS   (smallest margin +0.0556 Sharpe)
 
   ----------------------------------------------------------------------------------------------------
-    T1 baseline structure (REDEFINED)          PASS
-    T2 seed robustness                         FAIL
+    T1 baseline structure (REDEFINED)          FAIL
+    T2 seed robustness                         PASS
     T3 sub-period                              FAIL
-    T4 param sensitivity                       FAIL
-                                               1 of 4 tests passed
+    T4 param sensitivity                       PASS
+                                               2 of 4 tests passed
   ----------------------------------------------------------------------------------------------------
 
   saved -> metrics/v2val_summary.csv, v2val_periods.csv, v2val_volwin.csv, v2val_seeds.csv

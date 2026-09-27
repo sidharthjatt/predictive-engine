@@ -54,6 +54,7 @@ from features_v2 import (FEATS_V2, add_stock_features,
                          add_market_relative_features, cross_sectional_normalize)
 from config import read_table  # the one CSV/parquet reader: config.read_table
 from numerics import rolling_std  # platform-identical variance: results/numerics.py
+import ratio_clean  # reverting adj_close/close events: experiments/DATA_CLEANING_SPEC.txt
 
 # The point-in-time membership history, or None. This is the ONE place it is held,
 # so `engine_core.MEMBERSHIP` is what every consumer reads -- test_exposure included.
@@ -199,7 +200,7 @@ M = config.METRICS_DIR
 PRICE_COLS = ["date", "open", "high", "low", "close", "adj_close", "volume"]
 
 
-def canonical_price(raw):
+def canonical_price(raw, exempt=None):
     """Return (df, n_fallback) with adj_close as the price column.
 
     `raw` needs open/high/low/close/adj_close. The returned frame carries the same
@@ -207,6 +208,11 @@ def canonical_price(raw):
     that same basis -- so every downstream consumer inherits the switch without
     knowing it happened. adj_close is dropped: keeping it would leave two columns
     claiming to be the adjusted price, one of them the unrepaired original.
+
+    `exempt` is a boolean array over raw's rows, or None. True rows skip the
+    [low, high] fallback: build_panel passes ratio_clean's event rows, whose
+    adj_close is close times the previous session's ratio by construction
+    (experiments/DATA_CLEANING_SPEC.txt, rule 6). None changes nothing.
     """
     d = raw.copy()
     a, lo, hi = d["adj_close"], d["low"], d["high"]
@@ -214,6 +220,8 @@ def canonical_price(raw):
     # adj_close belongs to the same session as the bar it is filed under. Scaling
     # first would make the comparison circular and always pass.
     bad = (a <= 0) | (a < lo) | (a > hi)
+    if exempt is not None:
+        bad = bad & ~pd.Series(exempt, index=d.index)
     price = a.where(~bad, d["close"])
     # close > 0 on every row of every universe (checked: 0 non-positive closes in
     # 1,546,394 rows), so this division cannot produce an inf through the fallback.
@@ -355,6 +363,7 @@ def build_panel(horizon, data_dir, pin_scorable=None):
     _removed = _check_calendar(_cal, _pre, tag=str(Path(_src).name))
     _dropped = 0
     _fallback = {}
+    _cleaned = {}
     for f in sorted(Path(_src).glob("*.csv")):
         raw = config.read_price_csv(f).sort_values("date")
         # THE LOAD BOUNDARY. adj_close is selected here and resolved into `close`
@@ -362,7 +371,13 @@ def build_panel(horizon, data_dir, pin_scorable=None):
         # px/op pivot every consumer builds from it -- is on the adjusted basis.
         # This is the ONLY place the choice is made.
         raw = raw[PRICE_COLS].dropna()
-        raw, _nfb = canonical_price(raw)
+        # Reverting adj_close/close events take the previous session's ratio
+        # here, before canonical_price applies the ratio to the whole bar. The
+        # raw file is not touched. experiments/DATA_CLEANING_SPEC.txt.
+        raw, _exempt, _events = ratio_clean.clean(raw, _cal)
+        if _events:
+            _cleaned[f.stem] = int(_exempt.sum())
+        raw, _nfb = canonical_price(raw, exempt=_exempt)
         if _nfb:
             _fallback[f.stem] = _nfb
         # Market-holiday rows are removed BEFORE any feature is computed, so a
@@ -396,6 +411,9 @@ def build_panel(horizon, data_dir, pin_scorable=None):
     print(f"    canonical price: adj_close on {len(p) - _tfb:,} rows, "
           f"close fallback on {_tfb:,} "
           f"({', '.join(f'{k} {v}' for k, v in sorted(_fallback.items())) or 'none'})")
+    print(f"    ratio cleaning: {sum(_cleaned.values()):,} rows on {len(_cleaned)} "
+          f"symbols take the previous session's adj_close/close ratio "
+          f"(experiments/DATA_CLEANING_SPEC.txt)")
     p = add_market_relative_features(p)
 
     # PRICES ARE NO LONGER FILTERED BY FEATURE AVAILABILITY.
