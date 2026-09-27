@@ -25,7 +25,124 @@ currently wrong.
 
 ---
 
-## adj_close and close disagree for one or two sessions on about 0.4% of rows -- FOUND 2026-09-27, NOT CLEANED
+## adj_close/close ratio cleaning applied, every cell republished -- 2026-09-27
+
+**The rule** is `experiments/DATA_CLEANING_SPEC.txt`, committed before the rule was
+applied or counted. A ratio move that returns within 0.1% of the previous session's
+ratio within five sessions takes the previous ratio on every session of the event;
+canonical_price applies it to the raw open, high, low and close. A move that does
+not return is a lasting shift and is left alone. `results/ratio_clean.py` holds the
+rule; `engine_core.build_panel` calls it immediately before `canonical_price`, the
+only call site. The raw files are unchanged and `check_data.py` passes on them.
+`config.panel_code_key` hashes `results/ratio_clean.py`, and all eight panels were
+rebuilt. `results/ratio_clean_check.py` is a check_all delegate: it re-derives the
+cleaned prices from the raw files and fails if any reverting event of five sessions
+or fewer starts inside the backtest window. With the cleaning switched off it fails
+on nifty50 alone.
+
+**What it changed** (`diagnostics/ratio_clean_counts.txt`, counted before applying):
+0.39% to 0.54% of each universe's rows in the window, 3,794 distinct symbol-days on
+476 symbols. Events by length, nifty500 in the window: 3,155 of one session, 246 of
+two, 39 of three, 5 of four, 2 of five. The previous ratio is exactly 1 on 99.8% of
+events, so a cleaned row is almost always the raw bar. Each rebuilt panel printed the
+same row count the pre-count gave.
+
+**What it did to the results.** Old against new for every cell, both profiles:
+`diagnostics/cells_old_vs_new_20260927.csv` (`results/cell_table.py`,
+`results/cell_compare.py`; the old table is `diagnostics/cells_uncleaned_20260927.csv`,
+read from the metrics as they stood before the rebuild). Research, tax on, headline:
+the CAGR rose in 24 cells and fell in 8, by 3.57 points on average in either direction
+(-5.00 midcap100 v1 to +12.28 nifty200 v3). The gap against the investable buy & hold
+changed sign in 7 cells under both profiles: nifty50 v1 and v3, nifty100 v1, midcap50
+v1 and v3 from negative to positive; nifty500 v2 (+1.89 to -1.33) and midcap100 v2
+(+0.01 to -2.29) from positive to negative. The investable buy & hold's CAGR moved by
+at most 0.0006 points (it buys at the first open and is valued at the last close,
+neither cleaned); the daily-rebalanced reference fell 0.22 to 0.62 points in every
+universe, because a jump that reverts adds a rebalancing gain to a daily-rebalanced
+basket and those jumps are gone.
+
+**Daily holdings overlap, old against new, research tax off:** mean 0.60 over the 32
+cells (0.55 to 0.65). A sigma 0.01% price-noise draw gave 0.66 on nifty100 in the
+2026-09-20 record. Measured by the holdings it chooses, the cleaning is a perturbation
+of about the size of one noise draw, and the cleaned figures should be read as one
+draw each.
+
+**The rule is not causal.** Whether session t is cleaned depends on up to five later
+sessions. It is a repair of vendor data, meant to recover the price a live book would
+have traded at; it is not computable on the day. leakage_check1_causality recomputes
+features from the raw close and neither covers nor is affected by the cleaning.
+
+**It interacts with the price-noise harnesses.** `price_noise_measure.perturb_farm`
+and `noise_parallel` perturb adj_close before build_panel, so a perturbation larger
+than 0.1% that happens to revert within five sessions is now cleaned away. At sigma
+0.01% a single perturbation is below the tolerance; at 0.5% it is not. No noise draw
+was run on the cleaned data. `noise_parallel.PUBLISHED_RESEARCH` and
+`PUBLISHED_TRADEABLE` point at `diagnostics/tax_on_all_arms.csv` and
+`tradeable_tax_all_arms.csv`, which now hold cleaned figures, so stages 2 and 3 of
+`experiments/FOUR_ARM_NOISE_PREREG.txt` would fail their baseline check as written.
+The uncleaned versions are `*_uncleaned_20260927.csv`.
+
+**Gates that changed:**
+- **nt_verify, all 32 cells** (`diagnostics/nt_verify_all_arms_20260927.txt`): 20
+  verified, 12 not, against 16 and 16 before. Newly verified: nifty50 v3, midcap50 v1,
+  nifty200 v1 and v2, smallcap250 v1 and v3, nifty500 v1 and v2. Newly NOT VERIFIED:
+  midcap150 v1 and v3, midcap100 v1 and v4. check_all's gated list was changed to the
+  20 that verify, the rule it was built on on 2026-09-26. **The four that left the
+  gate are open and untraced**; two are on certified midcap150. Owner ruling,
+  2026-09-27: the next pass runs the Pass E tick-rounding trace on all four and says,
+  per cell, whether the failing rebalances come from the same selection flip under
+  grid rounding or from something else. None goes back into the gate until that is
+  shown.
+- **verify_v34_arms: A GATE LOOSENED AFTER SEEING RESULTS, 2026-09-27, accepted by
+  the owner as provisional the same day.** On the cleaned prices nifty100 is 92 of
+  92 on all four arms and midcap150 v4 92 of 92; midcap150 v1, v2 and v3 are 89, 90
+  and 88 of 92. Before the cleaning all eight were 92 of 92. Evidence,
+  `nautilus/nt_gate_diagnose.py` (`diagnostics/gate_divergence.txt`; v1's equity
+  effect from the same file's `equity_effect`, printed, not written):
+
+  | cell | rebalances diverging | positions | share difference | rupee size of the differing positions | final equity, port minus reference | CAGR effect |
+  |---|--:|--:|---|--:|--:|--:|
+  | midcap150 v1 | 3 | 3 | +1 each | Rs 105.96 | Rs +17.69 | +0.000025 points |
+  | midcap150 v2 | 2 | 2 | -1 each | Rs 52.56 | Rs -5.82 | -0.000016 points |
+  | midcap150 v3 | 4 | 4 | +1 each | Rs 177.45 | Rs +15.82 | +0.000021 points |
+
+  Same symbol set on every rebalance; this is the quote-mid rounding mechanism that
+  file documents. `verify_v34_arms.ONE_SHARE_TOLERATED` names exactly these three
+  cells, and a listed cell passes only if every divergence is exactly one share.
+  **The list is closed:** any other cell that diverges fails the gate and is not
+  added to it.
+- **TOP_N trial** (`diagnostics/topn_verdict.txt`, rule fixed in
+  `experiments/TOPN_SPEC.txt`): the verdict moved from "the universes disagree"
+  (TOP_N=8 held on nifty100, not on midcap150) to "the incumbent is contradicted on
+  both live universes". On nifty100 the 2019-2022 sub-period now fails (dSharpe
+  -0.02); on midcap150 the 2023-2026 one still fails (-0.44). The verdict itself says
+  this does not promote TOP_N=12; nothing in config changed.
+- **The refit validations (check_all --slow), run cold on 2026-09-27** (no /tmp
+  cache existed). validate_engine: FAIL, 4 of 8 test-universe pairs (T1 baseline
+  structure and T3 sub-period on both certified universes), against 5 of 8 on its last
+  record (T3 and T4 on both, T2 on midcap150); T2 and T4 now pass, T1 now fails.
+  validate_sizing: FAIL, 2 of 4 tests on each of nifty100 and midcap150; its last
+  records (`validate_sizing_n100.txt`, `validate_sizing_mid.txt`) date from 2026-09-20,
+  before the numerics fix and the data repoint, so this is not a clean before/after.
+  validate_breadth_live: midcap150 still PASS on all three gated criteria; **nifty100
+  moved from PASS to FAIL** on T2 sub-period stability (Sharpe improved in 1 of 2
+  halves, 2 of 2 before). None of these is in the plain check_all that gates commits;
+  all were already skips there.
+- GATE 6 (with --since on the tax-on run): all 32 cells, taxed equity equals FY_EQUITY
+  to a paisa. GATE 7: all 32 agree.
+- Unchanged: check_b (32 of 32 cells, 0 fills at a close, 0 off the calendar),
+  leakage_check1_causality and leakage_check2_trading_purge (records byte-identical),
+  leakage_check4_corpactions (record byte-identical; it reads the raw close), GATE 7.
+
+**Superseded, not deleted:** stage 1 of the four-arm noise test and the
+AFTER_TAX_PREREG verdicts (both on uncleaned data), every README figure outside the
+2026-09-27 section, `diagnostics/nt_verify_all_arms_20260926.txt`, and the two
+`*_uncleaned_20260927.csv` files. `diagnostics/SUPERSEDED_20260927.txt` lists them.
+
+## adj_close and close disagree for one or two sessions on about 0.4% of rows -- FOUND 2026-09-27, CLEANED 2026-09-27
+
+> *Cleaned 2026-09-27 under a different rule from the one proposed below: up to five
+> sessions, not two. See the entry above.*
 
 A read-only scan of every universe's farm (every session where adj_close/close moves
 more than 1% from the previous session) found 14,852 distinct symbol-days on 469
@@ -59,7 +176,10 @@ the raw files unchanged.
 `results/leakage_check4_corpactions.py` still states that the panel uses close and
 ignores adj_close. That predates `canonical_price` and is wrong; logged, not changed.
 
-## Four-arm noise test, stage 1 of 3 -- 2026-09-27
+## Four-arm noise test, stage 1 of 3 -- 2026-09-27 -- SUPERSEDED 2026-09-27, UNCLEANED DATA
+
+> *Superseded 2026-09-27: measured on the prices before the adj_close/close
+> cleaning. The records are kept as written. Stages 2 and 3 were not run.*
 
 `experiments/FOUR_ARM_NOISE_PREREG.txt`, stage 1 (nifty50, midcap100, midcap50,
 nifty100): all four baselines passed, 40 of 40 draws, 7.0 hours at 2 x 5. Under the
@@ -141,6 +261,10 @@ rebuild times of 2026-09-24.
 
 ## The tradeable profile on all 32 cells, tax on, 2026-09-26 -- UNGATED
 
+> *Superseded 2026-09-27 for its figures (uncleaned prices). On the cleaned prices
+> the cap binds in 10 of 32 cells, one of them v2 (nifty500 v2, 1 capped fill), and
+> changes the CAGR in 7 (`diagnostics/tradeable_tax_all_arms.csv`); see README.*
+
 `run.py --universe all --arm all --tax on --profile tradeable`, cadence 20, on the
 current numerics; the comparison is `diagnostics/tradeable_tax_all_arms.csv`
 (`results/tradeable_tax_grid.py`). The profile is UNGATED (`profiles.UNGATED_NOTICE`):
@@ -208,6 +332,9 @@ Every check below was v2-only, or v1 and v2 only, before 2026-09-26.
   condition.
 
 ## nt_verify on every arm, 2026-09-26: 16 of 32 verified; ARM A's valuation was stale -- FIXED
+
+> *Superseded 2026-09-27 for its counts: on the cleaned prices 20 of 32 verify. See
+> the ratio cleaning entry at the top.*
 
 `nautilus/nt_verify.py` takes `--arm` since 2026-09-26; until then it verified v2
 only. Full output of the current run: `diagnostics/nt_verify_all_arms_20260926.txt`.
@@ -385,7 +512,8 @@ unchanged; what changed is what happens at the window's end.
 - **Effect:** tax-off figures are identical. Tax-on headline CAGR moved by 0.00
   to -0.57 points across the 32 cells (README, "Republished 2026-09-25").
   `tax_acceptance_check.py` condition 4 pins all of this to hand-worked numbers.
-- **After-tax edge under price noise, measured 2026-09-25:** nifty500 +1.89 and
+- **After-tax edge under price noise, measured 2026-09-25 (superseded 2026-09-27,
+  uncleaned prices):** nifty500 +1.89 and
   midcap150 +0.61 (v2 tax-on headline minus the investable buy & hold headline)
   are single draws. Under the pre-registered after-tax price-noise test
   (`experiments/AFTER_TAX_PREREG.txt`, n=10, sigma 0.01%, seeds 101 to 1010),

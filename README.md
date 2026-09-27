@@ -75,27 +75,192 @@ pipeline trades on a price it could not have seen.
 
 ### Read these first
 
-- **One name carries midcap150's edge.** midcap150 v2 beats its own buy & hold by
-  +3.32 CAGR points, and removing one stock, TATAELXSI, cuts that to +0.07
-  (tax off, reference buy & hold, measured 2026-09-25; see "The edge is
-  concentrated" below).
-- **Most cells are one draw.** Only nifty100 v2 and midcap150 v2 with tax off have
-  a measured spread (n=10, under a 0.01% price perturbation). Every other figure
-  is a single run (n=1) with no error bar, and figures of this kind have moved by
-  up to 5.9 CAGR points under changes too small to be strategy changes.
+- **The prices were cleaned on 2026-09-27 and every cell was republished.** The
+  current figures are in "Republished 2026-09-27 on cleaned prices" below. Every
+  other figure in this file, in every section, was computed on the uncleaned
+  prices and is superseded by that date; they are left as written. The cleaning
+  moved the tax-on CAGR of the 32 research cells by 3.57 points on average in
+  either direction (range -5.00 to +12.28) and changed the sign of the gap against
+  the investable buy & hold in 7 of them.
+- **Every current figure is one draw (n=1).** No noise draw has been made on the
+  cleaned prices. The n=10 spreads further down were measured on the uncleaned
+  prices. Figures of this kind have moved by more than 12 CAGR points under
+  changes that are not strategy changes (the cleaning touched 0.4% to 0.5% of
+  rows).
+- **One name carried midcap150's edge on the uncleaned prices.** midcap150 v2 beat
+  its own buy & hold by +3.32 CAGR points, and removing TATAELXSI cut that to
+  +0.07 (tax off, reference buy & hold, measured 2026-09-25). Not re-measured on
+  the cleaned prices.
 - **The investable buy & hold pays no tax in the headline** because it never
   sells. That is what holding and never trading earns. The "sold on the last day"
   column prices the alternative: everything sold on 2026-05-29, with sell charges
   and capital-gains tax.
-- **No universe has a supported after-tax edge over the investable buy & hold**
-  (see the pre-registered test below the buy & hold table).
-- **About 0.4% of price rows carry a one- or two-session adj_close/close mismatch**
-  that is not a corporate action (found 2026-09-27, not yet cleaned). Every figure
-  here is computed on those rows; see `KNOWN_ISSUES.md`.
+- **No after-tax edge over the investable buy & hold has been tested on the cleaned
+  prices.** The pre-registered tests that found none supported
+  (`experiments/AFTER_TAX_PREREG.txt`, and stage 1 of
+  `experiments/FOUR_ARM_NOISE_PREREG.txt`) were run on the uncleaned prices and
+  are superseded; see `KNOWN_ISSUES.md`.
+- **The cleaning, 2026-09-27.** On about 0.4% of rows adj_close/close moved for one
+  to five sessions and came back, which no corporate action does. Those sessions
+  now take the previous session's ratio (`experiments/DATA_CLEANING_SPEC.txt`).
+  The rule reads up to five later sessions to decide, so it is a data repair and
+  not something a live book could compute on the day.
 - **The survivorship bias is permanent.** Every universe is today's index members
   backfilled to 2019 (see "What is wrong with these results").
 
-### Republished 2026-09-25: tax off and tax on, every universe and arm
+### Republished 2026-09-27 on cleaned prices: every universe, arm and profile
+
+Window 2019-01-01 to 2026-05-29, 1,836 trading days, from Rs 10,00,000, all figures
+after costs, cadence 20. All eight panels were rebuilt with the adj_close/close
+cleaning of `experiments/DATA_CLEANING_SPEC.txt`: a ratio move that returns within
+0.1% of the previous session's ratio within five sessions takes the previous ratio
+(0.39% to 0.54% of each universe's rows in the window; counts in
+`diagnostics/ratio_clean_counts.txt`). The raw files are unchanged. Run folders:
+`runs/20260927T092012_all_all_r20` (research, tax off),
+`runs/20260927T122131_all_all_r20` (research, tax on),
+`runs/20260927T123500_all_all_r20` (tradeable, tax off),
+`runs/20260927T125003_all_all_r20` (tradeable, tax on). Every figure here is one run
+(n=1). No noise draw has been made on the cleaned data, so no cell has an error bar;
+the n=10 spreads published earlier were measured on the uncleaned data.
+
+Tax on, headline and sold on the last day, are as defined in the 2026-09-25 section
+below; no tax rule changed.
+
+`research` profile:
+
+| universe | arm | tax off: CAGR% | MaxDD% | Sharpe | tax on, headline: CAGR% | MaxDD% | Sharpe | tax on, sold on the last day: CAGR% | n |
+|---|---|---:|---:|---:|---:|---:|---:|---:|---|
+| nifty50 | v1 | 23.20 | -29.50 | 1.27 | 20.16 | -29.47 | 1.11 | 20.47 | n=1 |
+| nifty50 | v2 | 15.31 | -15.11 | 1.29 | 13.15 | -16.65 | 1.10 | 13.37 | n=1 |
+| nifty50 | v3 | 27.18 | -33.76 | 1.30 | 23.25 | -33.76 | 1.13 | 23.45 | n=1 |
+| nifty50 | v4 | 18.29 | -16.83 | 1.30 | 15.80 | -16.80 | 1.13 | 15.95 | n=1 |
+| nifty100 | v1 | 28.01 | -33.02 | 1.37 | 23.70 | -33.02 | 1.17 | 23.75 | n=1 |
+| nifty100 | v2 | 20.44 | -19.78 | 1.60 | 17.24 | -20.31 | 1.34 | 17.39 | n=1 |
+| nifty100 | v3 | 30.36 | -39.06 | 1.26 | 26.15 | -39.04 | 1.10 | 26.18 | n=1 |
+| nifty100 | v4 | 21.61 | -20.99 | 1.43 | 18.37 | -21.52 | 1.22 | 18.50 | n=1 |
+| nifty200 | v1 | 47.04 | -34.58 | 1.93 | 40.42 | -34.57 | 1.67 | 40.56 | n=1 |
+| nifty200 | v2 | 32.25 | -16.77 | 2.11 | 27.64 | -16.74 | 1.79 | 27.81 | n=1 |
+| nifty200 | v3 | 49.40 | -46.72 | 1.78 | 41.88 | -46.97 | 1.53 | 41.91 | n=1 |
+| nifty200 | v4 | 36.41 | -24.97 | 1.99 | 31.15 | -25.40 | 1.70 | 31.24 | n=1 |
+| nifty500 | v1 | 34.36 | -47.08 | 1.44 | 29.61 | -47.09 | 1.25 | 29.78 | n=1 |
+| nifty500 | v2 | 27.29 | -29.77 | 1.88 | 23.10 | -29.77 | 1.56 | 23.25 | n=1 |
+| nifty500 | v3 | 44.21 | -62.84 | 1.56 | 36.90 | -63.14 | 1.33 | 37.01 | n=1 |
+| nifty500 | v4 | 31.30 | -39.00 | 1.85 | 26.43 | -39.04 | 1.54 | 26.50 | n=1 |
+| midcap50 | v1 | 34.47 | -35.73 | 1.59 | 29.12 | -35.78 | 1.36 | 29.32 | n=1 |
+| midcap50 | v2 | 22.80 | -28.35 | 1.62 | 19.40 | -29.42 | 1.37 | 19.54 | n=1 |
+| midcap50 | v3 | 34.80 | -41.20 | 1.47 | 29.93 | -41.19 | 1.28 | 30.27 | n=1 |
+| midcap50 | v4 | 23.63 | -29.22 | 1.52 | 20.21 | -29.18 | 1.29 | 20.38 | n=1 |
+| midcap100 | v1 | 32.64 | -35.36 | 1.45 | 27.32 | -35.36 | 1.23 | 27.60 | n=1 |
+| midcap100 | v2 | 26.26 | -22.60 | 1.69 | 22.19 | -22.56 | 1.43 | 22.33 | n=1 |
+| midcap100 | v3 | 32.33 | -48.17 | 1.29 | 26.55 | -48.29 | 1.08 | 26.76 | n=1 |
+| midcap100 | v4 | 26.13 | -31.29 | 1.48 | 22.14 | -31.30 | 1.26 | 22.28 | n=1 |
+| midcap150 | v1 | 41.86 | -40.76 | 1.77 | 33.89 | -40.76 | 1.46 | 34.10 | n=1 |
+| midcap150 | v2 | 28.46 | -24.95 | 1.88 | 24.04 | -24.95 | 1.57 | 24.17 | n=1 |
+| midcap150 | v3 | 43.70 | -41.12 | 1.65 | 37.09 | -41.12 | 1.42 | 37.31 | n=1 |
+| midcap150 | v4 | 32.69 | -21.21 | 1.86 | 27.92 | -21.21 | 1.58 | 28.04 | n=1 |
+| smallcap250 | v1 | 50.21 | -35.96 | 2.02 | 42.29 | -35.91 | 1.73 | 42.36 | n=1 |
+| smallcap250 | v2 | 28.69 | -24.43 | 2.03 | 24.21 | -24.35 | 1.68 | 24.24 | n=1 |
+| smallcap250 | v3 | 49.05 | -36.49 | 1.82 | 41.55 | -36.52 | 1.59 | 41.86 | n=1 |
+| smallcap250 | v4 | 30.74 | -30.97 | 1.89 | 25.87 | -31.01 | 1.58 | 25.88 | n=1 |
+
+Buy & hold, the same for every arm of a universe (definitions as in the 2026-09-25
+section). The investable buy & hold's CAGR moved by at most 0.0006 points: it buys at
+the first session's open and is valued at the last session's close, and neither
+session was cleaned. The reference index fell by 0.22 to 0.62 points in every
+universe. It rebalances daily, and a price that jumps and reverts adds a small
+rebalancing gain to a daily-rebalanced basket each time; the cleaning removed those.
+
+| universe | buy & hold, reference (untaxed, daily-rebalanced index): CAGR% | MaxDD% | buy & hold, investable (held lots), taxed, headline: CAGR% | MaxDD% | held lots, sold on the last day: CAGR% | v2 tax on headline minus investable headline | v2 sold on the last day minus held lots sold on the last day |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| nifty50 | 20.45 | -37.31 | 19.62 | -35.65 | 18.35 | -6.47 | -4.97 |
+| nifty100 | 23.90 | -37.40 | 23.38 | -34.52 | 21.97 | -6.14 | -4.59 |
+| nifty200 | 25.12 | -38.03 | 23.69 | -35.54 | 22.27 | +3.95 | +5.54 |
+| nifty500 | 25.60 | -41.56 | 24.43 | -35.99 | 22.91 | -1.33 | +0.33 |
+| midcap50 | 23.73 | -37.92 | 25.97 | -37.91 | 24.51 | -6.57 | -4.97 |
+| midcap100 | 26.25 | -38.89 | 24.48 | -38.41 | 23.04 | -2.29 | -0.72 |
+| midcap150 | 24.95 | -37.67 | 23.55 | -35.32 | 22.16 | +0.48 | +2.01 |
+| smallcap250 | 26.56 | -48.94 | 26.60 | -44.91 | 24.95 | -2.39 | -0.70 |
+
+All four arms against the investable taxed buy & hold, tax-on headline minus investable
+headline, CAGR points (`diagnostics/tax_on_all_arms.csv`, full precision):
+
+| universe | investable buy & hold | v1 gap | v2 gap | v3 gap | v4 gap |
+|---|---:|---:|---:|---:|---:|
+| nifty50 | 19.62 | +0.54 | -6.47 | +3.63 | -3.82 |
+| nifty100 | 23.38 | +0.32 | -6.14 | +2.77 | -5.01 |
+| nifty200 | 23.69 | +16.74 | +3.95 | +18.19 | +7.46 |
+| nifty500 | 24.43 | +5.18 | -1.33 | +12.47 | +2.00 |
+| midcap50 | 25.97 | +3.14 | -6.57 | +3.95 | -5.76 |
+| midcap100 | 24.48 | +2.85 | -2.29 | +2.07 | -2.34 |
+| midcap150 | 23.55 | +10.34 | +0.48 | +13.53 | +4.37 |
+| smallcap250 | 26.60 | +15.69 | -2.39 | +14.95 | -0.73 |
+
+`tradeable` profile (participation cap). The cap binds in 10 of 32 cells
+(`diagnostics/tradeable_tax_all_arms.csv`) and changes the CAGR in the seven below; in
+the other 25 the tradeable figures equal the research ones exactly. All 64 (cell, profile) rows are in
+`diagnostics/cells_cleaned_20260927.csv`. The profile is UNGATED
+(`profiles.UNGATED_NOTICE`).
+
+| universe | arm | research, tax off | tradeable, tax off | research, tax on | tradeable, tax on | tradeable, sold on the last day | gap, research | gap, tradeable |
+|---|---|---:|---:|---:|---:|---:|---:|---:|
+| nifty500 | v1 | 34.36 | 33.54 | 29.61 | 28.63 | 28.80 | +5.18 | +4.20 |
+| nifty500 | v2 | 27.29 | 27.26 | 23.10 | 23.07 | 23.21 | -1.33 | -1.36 |
+| nifty500 | v3 | 44.21 | 44.17 | 36.90 | 36.87 | 36.98 | +12.47 | +12.44 |
+| midcap100 | v1 | 32.64 | 31.70 | 27.32 | 27.75 | 28.03 | +2.85 | +3.28 |
+| midcap100 | v3 | 32.33 | 32.32 | 26.55 | 26.50 | 26.71 | +2.07 | +2.02 |
+| smallcap250 | v1 | 50.21 | 49.40 | 42.29 | 41.33 | 41.40 | +15.69 | +14.73 |
+| smallcap250 | v3 | 49.05 | 47.06 | 41.55 | 39.68 | 39.98 | +14.95 | +13.08 |
+
+**Old against new, research profile, tax on headline** (old: 2026-09-25/26 on the
+uncleaned prices; `diagnostics/cells_old_vs_new_20260927.csv` has every column for
+both profiles). The tax-on CAGR rose in 24 cells and fell in 8, by 3.57 points on
+average in either direction (range -5.00 to +12.28). The gap against the investable
+buy & hold changed sign in 7 cells under both profiles: five from negative to
+positive (nifty50 v1 and v3, nifty100 v1, midcap50 v1 and v3) and two from positive
+to negative (nifty500 v2 and midcap100 v2, the two v2 edges that were positive).
+Moves this size are the scale of the single-draw instability recorded elsewhere in
+this file; they do not say the cleaning made any arm better or worse as a strategy.
+
+| universe | arm | tax-on CAGR old | new | change | gap old | gap new | sign changed |
+|---|---|---:|---:|---:|---:|---:|---|
+| nifty50 | v1 | 15.11 | 20.16 | +5.05 | -4.51 | +0.54 | **yes** |
+| nifty50 | v2 | 11.41 | 13.15 | +1.74 | -8.21 | -6.47 | no |
+| nifty50 | v3 | 18.65 | 23.25 | +4.59 | -0.97 | +3.63 | **yes** |
+| nifty50 | v4 | 13.21 | 15.80 | +2.58 | -6.41 | -3.82 | no |
+| nifty100 | v1 | 21.53 | 23.70 | +2.17 | -1.85 | +0.32 | **yes** |
+| nifty100 | v2 | 16.43 | 17.24 | +0.81 | -6.95 | -6.14 | no |
+| nifty100 | v3 | 23.68 | 26.15 | +2.47 | +0.30 | +2.77 | no |
+| nifty100 | v4 | 17.46 | 18.37 | +0.91 | -5.92 | -5.01 | no |
+| nifty200 | v1 | 32.35 | 40.42 | +8.07 | +8.66 | +16.74 | no |
+| nifty200 | v2 | 24.06 | 27.64 | +3.58 | +0.37 | +3.95 | no |
+| nifty200 | v3 | 29.60 | 41.88 | +12.28 | +5.92 | +18.19 | no |
+| nifty200 | v4 | 24.57 | 31.15 | +6.58 | +0.88 | +7.46 | no |
+| nifty500 | v1 | 33.53 | 29.61 | -3.93 | +9.11 | +5.18 | no |
+| nifty500 | v2 | 26.32 | 23.10 | -3.21 | +1.89 | -1.33 | **yes** |
+| nifty500 | v3 | 36.89 | 36.90 | +0.01 | +12.46 | +12.47 | no |
+| nifty500 | v4 | 28.31 | 26.43 | -1.88 | +3.88 | +2.00 | no |
+| midcap50 | v1 | 25.21 | 29.12 | +3.91 | -0.76 | +3.14 | **yes** |
+| midcap50 | v2 | 17.81 | 19.40 | +1.60 | -8.17 | -6.57 | no |
+| midcap50 | v3 | 22.06 | 29.93 | +7.87 | -3.91 | +3.95 | **yes** |
+| midcap50 | v4 | 16.38 | 20.21 | +3.83 | -9.59 | -5.76 | no |
+| midcap100 | v1 | 32.32 | 27.32 | -5.00 | +7.84 | +2.85 | no |
+| midcap100 | v2 | 24.49 | 22.19 | -2.30 | +0.01 | -2.29 | **yes** |
+| midcap100 | v3 | 30.90 | 26.55 | -4.35 | +6.42 | +2.07 | no |
+| midcap100 | v4 | 19.36 | 22.14 | +2.78 | -5.11 | -2.34 | no |
+| midcap150 | v1 | 30.95 | 33.89 | +2.94 | +7.40 | +10.34 | no |
+| midcap150 | v2 | 24.16 | 24.04 | -0.12 | +0.60 | +0.48 | no |
+| midcap150 | v3 | 30.49 | 37.09 | +6.60 | +6.94 | +13.53 | no |
+| midcap150 | v4 | 29.00 | 27.92 | -1.08 | +5.44 | +4.37 | no |
+| smallcap250 | v1 | 41.06 | 42.29 | +1.23 | +14.46 | +15.69 | no |
+| smallcap250 | v2 | 21.05 | 24.21 | +3.16 | -5.55 | -2.39 | no |
+| smallcap250 | v3 | 39.37 | 41.55 | +2.18 | +12.77 | +14.95 | no |
+
+### SUPERSEDED 2026-09-27, computed on the uncleaned prices -- Republished 2026-09-25: tax off and tax on, every universe and arm
+
+> *Superseded 2026-09-27: every figure in this section, including the after-tax
+> noise verdict and the four-arm gap table, was computed on prices before the
+> adj_close/close cleaning. The current figures are in the section above. Nothing
+> below is changed.*
 
 Window 2019-01-01 to 2026-05-29, 1,836 trading days, from Rs 10,00,000, all
 figures after costs, cadence 20, `research` profile. Run folders
@@ -172,7 +337,9 @@ last-day against last-day.
 | midcap150 | 25.46 | -37.73 | 23.55 | -35.88 | 22.16 | +0.61 | +2.08 |
 | smallcap250 | 27.15 | -48.65 | 26.60 | -44.98 | 24.95 | -5.55 | -3.86 |
 
-nifty500 +1.89 and midcap150 +0.61 are single draws. Under the pre-registered
+*Superseded 2026-09-27 (uncleaned prices): on the cleaned prices nifty500 v2's gap is
+-1.33 and midcap150 v2's +0.48; neither has been noise-tested.* nifty500 +1.89 and
+midcap150 +0.61 are single draws. Under the pre-registered
 after-tax price-noise test (`experiments/AFTER_TAX_PREREG.txt`, n=10, sigma 0.01%,
 seeds 101 to 1010), neither after-tax edge is supported: midcap150 beat the
 investable buy & hold in 8 of 10 draws (mean gap +1.51, sd 1.99), nifty500 in 2 of
