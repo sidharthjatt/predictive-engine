@@ -19,15 +19,15 @@ THIS APPROACH works at market level and never blocks an individual stock:
 PROTOCOL: no threshold is tuned. Target vol is the median realised vol, which is
 parameter-free. Crash periods are reported separately, to show whether the method
 actually protected capital or merely cut returns.
+
+The experiment's own main(), which read a fixed /tmp/v5_expanding.csv from a
+retired universe and wrote into results/metrics/, was removed on 2026-09-27;
+nothing called it. What remains is backtest_exposure, the engine every arm runs.
 """
 import sys, warnings
 from pathlib import Path
 import numpy as np
 import pandas as pd
-import matplotlib
-matplotlib.use("Agg")
-import matplotlib.pyplot as plt
-from matplotlib.ticker import PercentFormatter
 warnings.filterwarnings("ignore")
 
 sys.path.append(str(Path(__file__).resolve().parents[1]))
@@ -807,128 +807,3 @@ def backtest_exposure(px, op, sc, dates, pc, mom20, port_vol=None,
                            "trades": n_trades})
     return (pd.Series(eq, index=dates), cum_tc, n_trades,
             np.mean(expo_log) if expo_log else 1.0)
-
-
-def main():
-    print("=" * 100)
-    print("CRASH PROTECTION via MARKET-LEVEL EXPOSURE SCALING")
-    print("=" * 100)
-    print("  Don't block individual stocks (that killed the edge). Scale TOTAL")
-    print("  exposure down when the whole market is weak.\n")
-
-    cache = Path("/tmp/v5_expanding.csv")
-    if not cache.exists():
-        print("  ERROR: /tmp/v5_expanding.csv missing. Rebuild scores first.")
-        return
-    p = read_table(cache, parse_dates=["date"])
-    px = p.pivot_table(index="date", columns="symbol", values="close").ffill()
-    op = p.pivot_table(index="date", columns="symbol", values="open").ffill()
-    sc = p.pivot_table(index="date", columns="symbol", values="score")
-    bd = px.index[(px.index >= BT_START_DATE) & (px.index <= BT_END_DATE)]
-    pc = precompute(px)
-    mom20 = px / px.shift(20) - 1
-
-    idx = (1 + px.pct_change().mean(axis=1).fillna(0)).cumprod()
-    port_vol = rolling_std(idx.pct_change(), VOL_WIN) * np.sqrt(252)
-    target_vol = port_vol.loc[bd].median()
-    print(f"  Vol-target = median realized vol = {target_vol*100:.1f}% (no tuning)\n")
-
-    variants = [("Baseline (always 100% invested)", "none"),
-                ("Breadth scaling", "breadth"),
-                ("Vol-targeting", "voltgt"),
-                ("Breadth + Vol (both)", "both")]
-
-    rows, curves = [], {}
-    for lab, mode in variants:
-        # RESEARCH-ONLY, DECLARED. This caller passes no vol20, so it could not
-        # apply a participation cap even if one were selected; research_only()
-        # makes that a statement rather than an accident, and STOPS the run if
-        # --profile ever reaches here. See profiles.research_only.
-        eq, tc, ntr, avg_expo = backtest_exposure(
-            px, op, sc, bd, pc, mom20, port_vol, mode=mode, target_vol=target_vol, participation_cap=_prof.research_only(__name__))
-        m = metrics(eq, lab, tc, ntr)
-        m["AvgExposure"] = round(avg_expo * 100, 0)
-        rows.append(m); curves[lab] = eq
-        print(f"  {lab:<38} CAGR {m['CAGR%']:>6.2f}%  Sharpe {m['Sharpe']:>5.2f}  "
-              f"MaxDD {m['MaxDD%']:>7.2f}%  Calmar {m['Calmar']:>5.2f}  "
-              f"avg-invested {avg_expo*100:>3.0f}%")
-
-    bh = START_CAPITAL * (1 + px.pct_change().loc[bd].mean(axis=1).fillna(0)).cumprod()
-    mbh = metrics(bh, "Equal-weight buy & hold"); mbh["AvgExposure"] = 100
-    rows.append(mbh); curves["Equal-weight buy & hold"] = bh
-    print(f"  {'Equal-weight buy & hold':<38} CAGR {mbh['CAGR%']:>6.2f}%  "
-          f"Sharpe {mbh['Sharpe']:>5.2f}  MaxDD {mbh['MaxDD%']:>7.2f}%  Calmar {mbh['Calmar']:>5.2f}")
-    pd.DataFrame(rows).to_csv(M / "exposure_compare.csv", index=False)
-
-    print("\n" + "=" * 100)
-    print("CRASH PERIODS -- did exposure scaling protect? (return % in window)")
-    print("=" * 100)
-    crashes = [("COVID (Feb-Apr 2020)", "2020-02-01", "2020-04-30"),
-               ("2022 selloff (H1)", "2022-01-01", "2022-06-30"),
-               ("2025 H2 weakness", "2025-07-01", "2025-12-31"),
-               ("2026 drawdown", "2026-01-01", "2026-06-30")]
-    crows = []
-    for cname, s, e in crashes:
-        s, e = pd.Timestamp(s), pd.Timestamp(e)
-        row = {"Period": cname}
-        for lab, eq in curves.items():
-            mm = (eq.index >= s) & (eq.index <= e)
-            if mm.sum() >= 3:
-                row[lab] = round((eq[mm].iloc[-1] / eq[mm].iloc[0] - 1) * 100, 1)
-        crows.append(row)
-    cr = pd.DataFrame(crows).set_index("Period").T
-    print(cr.to_string())
-    cr.to_csv(M / "exposure_crashes.csv")
-
-    fig, ax = plt.subplots(2, 1, figsize=(14, 10), height_ratios=[2, 1])
-    cols = {"Baseline (always 100% invested)": "#1f77b4", "Breadth scaling": "#ff7f0e",
-            "Vol-targeting": "#9467bd", "Breadth + Vol (both)": "#d62728",
-            "Equal-weight buy & hold": "#2ca02c"}
-    rdf = pd.DataFrame(rows)
-    for lab, eq in curves.items():
-        cum = (eq / eq.iloc[0] - 1) * 100
-        rr = rdf[rdf.Config == lab].iloc[0]
-        ls = "--" if "buy & hold" in lab else "-"
-        ax[0].plot(eq.index, cum, lw=2.1, ls=ls, color=cols[lab], alpha=.9,
-                   label=f"{lab}  (CAGR {rr['CAGR%']}%, Sharpe {rr['Sharpe']}, MaxDD {rr['MaxDD%']}%)")
-    ax[0].axhline(0, color="k", lw=.7, alpha=.5)
-    ax[0].set_ylabel("Cumulative return (%)")
-    ax[0].yaxis.set_major_formatter(PercentFormatter(decimals=0))
-    ax[0].set_title("Market-level exposure scaling for crash protection\n"
-                    "Scales total exposure down in weak markets -- does NOT block individual stocks",
-                    fontsize=12)
-    ax[0].legend(loc="upper left", fontsize=8.5)
-    ax[0].grid(alpha=.3)
-    for lab, eq in curves.items():
-        dd = (eq / eq.cummax() - 1) * 100
-        ls = "--" if "buy & hold" in lab else "-"
-        ax[1].plot(eq.index, dd, lw=1.4, color=cols[lab], alpha=.85, ls=ls)
-    ax[1].set_ylabel("Drawdown (%)")
-    ax[1].yaxis.set_major_formatter(PercentFormatter(decimals=0))
-    ax[1].grid(alpha=.3)
-    plt.tight_layout()
-    plt.savefig(M / "chart_exposure.png", dpi=140, bbox_inches="tight")
-    print("\n  saved -> chart_exposure.png")
-
-    print("\n" + "=" * 100)
-    print("VERDICT")
-    print("=" * 100)
-    base = rdf[rdf.Config.str.startswith("Baseline")].iloc[0]
-    print(f"  Baseline : CAGR {base['CAGR%']}%  Sharpe {base['Sharpe']}  MaxDD {base['MaxDD%']}%")
-    for lab, _ in variants[1:]:
-        v = rdf[rdf.Config == lab].iloc[0]
-        d_cagr = v["CAGR%"] - base["CAGR%"]
-        d_dd = v["MaxDD%"] - base["MaxDD%"]
-        d_sh = v["Sharpe"] - base["Sharpe"]
-        verdict = ("PROTECTS (less DD, Sharpe held)" if (d_dd > 3 and d_sh >= -0.05)
-                   else "just cuts return" if (d_cagr < -2 and d_dd < 3) else "marginal")
-        print(f"  {lab:<24}: dCAGR {d_cagr:+5.1f}  dMaxDD {d_dd:+5.1f}pts  dSharpe {d_sh:+.2f}  -> {verdict}")
-    print("\n  Point of exposure scaling is NOT more return -- it's shallower drawdown")
-    print("  in crashes without wrecking Sharpe. That matters for real money (less")
-    print("  chance you panic-sell at the bottom). If it only cuts return with no DD")
-    print("  benefit, drop it.")
-    print("\nSaved -> exposure_compare.csv, exposure_crashes.csv, chart_exposure.png")
-
-
-if __name__ == "__main__":
-    main()

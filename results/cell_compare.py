@@ -8,8 +8,12 @@ their difference, plus sign_change_on and sign_change_last_day, True where the g
 against the investable taxed buy & hold has a different sign old and new.
 """
 import sys
+from pathlib import Path
 
 import pandas as pd
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from config import read_table  # noqa: E402  the one CSV/parquet reader
 
 KEY = ["universe", "arm", "profile"]
 COLS = ["cagr_off", "cagr_on", "cagr_last_day", "bh_reference", "bh_investable",
@@ -36,7 +40,7 @@ def main(argv):
     if len(argv) != 3:
         print(__doc__)
         return 2
-    d = compare(pd.read_csv(argv[0]), pd.read_csv(argv[1]))
+    d = compare(read_table(argv[0]), read_table(argv[1]))
     d.to_csv(argv[2], index=False)
     print(f"wrote {argv[2]}: {len(d)} cells, gap sign changes: "
           f"headline {int(d.sign_change_on.sum())}, last day {int(d.sign_change_last_day.sum())}")

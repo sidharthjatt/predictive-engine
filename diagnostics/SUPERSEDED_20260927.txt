@@ -18,3 +18,9 @@ diagnostics/nt_verify_all_arms_20260926.txt       diagnostics/nt_verify_all_arms
 The pre-registrations (experiments/AFTER_TAX_PREREG.txt,
 experiments/FOUR_ARM_NOISE_PREREG.txt) are unchanged. Their verdicts stand as
 measurements of the uncleaned data only.
+
+Moved aside, not deleted (2026-09-27, pass G): the 44 stage-1 draw files of the
+four-arm noise test, from noise_runs/four_arm/draws/ to
+noise_runs/four_arm/draws_uncleaned_20260927/. noise_runs/ is not tracked. They
+carry no panel_code or source_digest, so results/noise_parallel.py now treats them
+as stale in any case; the move keeps a new run's draws directory empty.

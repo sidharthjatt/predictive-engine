@@ -229,9 +229,8 @@ def run(uni, cfg, W):
     import engine_core as _ec
     from universes.registry import REGISTRY as _REG
     _ec.set_tradeability(_REG[uni])
-    raw = read_table(config.require_cache(cfg["raw"],
-                                           what=f"{uni} raw panel"),
-                      parse_dates=["date"])
+    raw_path = config.require_cache(cfg["raw"], what=f"{uni} raw panel")
+    raw = read_table(raw_path, parse_dates=["date"])
     got, want = set(raw["symbol"].unique()), cfg["syms"]()
     if got != want:
         raise SystemExit(f"{uni}: raw panel universe mismatch")
@@ -250,8 +249,15 @@ def run(uni, cfg, W):
     W("")
 
     print(f"  [{uni}] re-scoring with the corrected purge...", flush=True)
-    new_sp = score_corrected(raw, f"/tmp/PURGEFIX_{uni}_scores.csv",
-                             f"/tmp/PURGEFIX_{uni}_scored_full.csv")
+    # KEYED ON CODE AND PANEL CONTENT since 2026-09-27; the names carried the
+    # universe only, so scores fit on an earlier panel were read back as current.
+    from seed_cache_key import seed_cache_key
+    key = seed_cache_key(code_files=[ROOT / "results" / "engine_core.py",
+                                     ROOT / "results" / "purge_fix_measure.py",
+                                     ROOT / "config.py"],
+                         panel_path=raw_path, parts=(uni, EMBARGO))
+    new_sp = score_corrected(raw, f"/tmp/PURGEFIX_{uni}_{key}_scores.csv",
+                             f"/tmp/PURGEFIX_{uni}_{key}_scored_full.csv")
 
     cur, bd = arms_from_scores(cur_sp, cfg)
     new, _ = arms_from_scores(new_sp, cfg)

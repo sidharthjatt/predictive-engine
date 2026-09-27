@@ -184,6 +184,9 @@ DELEGATES = (
     # adj_close/close event of five sessions or fewer is left inside the
     # backtest window. experiments/DATA_CLEANING_SPEC.txt. About 60 s.
     ("results/ratio_clean_check.py",          [], False, None),
+    # A cache or noise record from other code or other data must be refused.
+    # Writes only into a temporary directory. A few seconds.
+    ("cache_key_test.py",                     [], False, None),
     ("results/check_b_exec_timing.py",        [], False, None),
     ("nautilus/verify_next_open_execution.py", [], False, None),
     ("tax_acceptance_check.py",               [], False, None),
@@ -241,9 +244,10 @@ DELEGATES = (
 # nt_verify cells that do NOT verify on the cleaned prices, 2026-09-27, and so are
 # not in DELEGATES. Listed so the ungated set is stated, not implied. midcap150 v1
 # and v3 and midcap100 v1 and v4 verified before the cleaning and were gated; they
-# left the gate on 2026-09-27 without being traced, and do not return to it until
-# the Pass E tick-rounding trace shows the cause (owner, 2026-09-27). See
-# KNOWN_ISSUES.md.
+# left the gate on 2026-09-27. They were traced the same day (pass G,
+# nautilus/nt_mid_trace.py): share-count differences from the port's quote-mid
+# valuation rounding, no selection flip on the 0.01 grid. They stay out until the
+# owner rules. See KNOWN_ISSUES.md.
 NT_VERIFY_UNGATED = (
     ("midcap150", "v1"), ("midcap150", "v3"),
     ("midcap50", "v3"), ("midcap50", "v4"),
@@ -364,8 +368,6 @@ KNOWN_UNIMPORTABLE = {
     "results/audit_leakage.py":
         "imports `engine_v2`, a module that does not exist in this repository "
         "-- a dead script left from before the engine was renamed",
-    "results/stability_test.py":
-        "imports `engine_v2`, same as audit_leakage.py -- dead script",
 }
 
 
@@ -1336,13 +1338,12 @@ def main(argv=None):
     # recorded as named skips, not as passes: validate_sizing is 1,134 LightGBM
     # fits per universe, which its own cost block measures at ~22.7 min.
     #
-    # WHAT IT ACTUALLY COSTS DEPENDS ON /tmp, AND THAT IS NOT A GUARANTEE. The
-    # 2026-09-22 --slow run finished both universes in 0.0 and 0.1 min because
-    # /tmp/VALSIZE_{universe}_seed{0,1,2}.csv were already on disk from
-    # 2026-09-21. Those caches are keyed by universe and seed ONLY -- no code
-    # hash, no panel hash -- so they are reused whatever the engine now does,
-    # and they do not survive a reboot. A cold --slow run is the ~45 min; a warm
-    # one asserts against fits it did not perform and cannot tell you which.
+    # WHAT IT COSTS DEPENDS ON /tmp. The refit caches of validate_engine,
+    # validate_sizing and validate_breadth_live carry seed_cache_key in their
+    # names (code, raw panel content, universe, seeds; validate_breadth_live
+    # since 2026-09-27), so a warm run reuses only fits made on the current code
+    # and panel. They do not survive a reboot. A cold --slow run measured about
+    # 2 h 40 min on 2026-09-27.
     ap.add_argument("--slow", action="store_true",
                     help="also run the delegates that refit the model "
                          "(validate_engine, validate_sizing, validate_breadth_live)")

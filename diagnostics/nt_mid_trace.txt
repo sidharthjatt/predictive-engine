@@ -1,0 +1,109 @@
+nt_mid_trace -- ./venv/bin/python nautilus/nt_mid_trace.py midcap150:v1 midcap150:v3 midcap100:v1 midcap100:v4
+
+midcap150 v1
+  0.01 grid: 3 failing rebalance(s) of 92; 0 with a different set of names; 3 differing position(s), largest 1 share(s), port higher on 3, lower on 0
+  mid-valued reference equals the port on 3 of 3 failing rebalance(s), 92 of 92 overall
+    2021-01-06  shares JSL +1  mid-valued reference = port: True
+    2021-08-02  shares IDEA +1  mid-valued reference = port: True
+    2023-03-10  shares SUZLON +1  mid-valued reference = port: True
+  0.05 grid: 0 rebalance(s) where the port holds other names than the engine
+
+midcap150 v3
+  0.01 grid: 4 failing rebalance(s) of 92; 0 with a different set of names; 4 differing position(s), largest 1 share(s), port higher on 4, lower on 0
+  mid-valued reference equals the port on 4 of 4 failing rebalance(s), 92 of 92 overall
+    2019-06-27  shares MAHABANK +1  mid-valued reference = port: True
+    2021-01-06  shares JSL +1  mid-valued reference = port: True
+    2022-12-14  shares SJVN +1  mid-valued reference = port: True
+    2023-01-11  shares SJVN +1  mid-valued reference = port: True
+  0.05 grid: 1 rebalance(s) where the port holds other names than the engine
+    2023-03-10  port ['DIXON'] engine []  reproduced by tick_round=True: True
+
+midcap100 v1
+  0.01 grid: 58 failing rebalance(s) of 92; 0 with a different set of names; 102 differing position(s), largest 16 share(s), port higher on 102, lower on 0
+  mid-valued reference equals the port on 58 of 58 failing rebalance(s), 92 of 92 overall
+    2020-03-19  shares IDEA +1  mid-valued reference = port: True
+    2020-07-17  shares SUZLON +2  mid-valued reference = port: True
+    2020-08-14  shares SUZLON +2  mid-valued reference = port: True
+    2020-09-11  shares SUZLON +2  mid-valued reference = port: True
+    2020-11-09  shares SUZLON +2  mid-valued reference = port: True
+    2021-01-06  shares SUZLON +1  mid-valued reference = port: True
+    2021-04-06  shares SUZLON +1  mid-valued reference = port: True
+    2021-05-06  shares SUZLON +1  mid-valued reference = port: True
+    2021-07-02  shares KPITTECH +1  mid-valued reference = port: True
+    2021-08-02  shares IDEA +1  mid-valued reference = port: True
+    2021-10-28  shares SUZLON +1  mid-valued reference = port: True
+    2021-11-29  shares OIL +1  mid-valued reference = port: True
+    2021-12-27  shares OIL +1  mid-valued reference = port: True
+    2022-01-24  shares ATGL +1, OIL +1  mid-valued reference = port: True
+    2022-02-22  shares ATGL +1  mid-valued reference = port: True
+    2022-03-24  shares ATGL +1  mid-valued reference = port: True
+    2022-08-18  shares OIL +1, SUZLON +4  mid-valued reference = port: True
+    2022-09-16  shares OIL +1  mid-valued reference = port: True
+    2022-12-14  shares KALYANKJIL +1  mid-valued reference = port: True
+    2023-01-11  shares IDEA +5  mid-valued reference = port: True
+    2023-02-09  shares KALYANKJIL +1  mid-valued reference = port: True
+    2023-03-10  shares KALYANKJIL +1, SUZLON +2  mid-valued reference = port: True
+    2023-04-12  shares KALYANKJIL +1  mid-valued reference = port: True
+    2023-05-12  shares HUDCO +1, SUZLON +3  mid-valued reference = port: True
+    2023-06-09  shares RADICO +1  mid-valued reference = port: True
+    2023-07-10  shares RADICO +1  mid-valued reference = port: True
+    2023-08-07  shares APLAPOLLO +1, RADICO +1  mid-valued reference = port: True
+    2023-09-05  shares APLAPOLLO +1, EXIDEIND +1, RADICO +1  mid-valued reference = port: True
+    2023-10-05  shares APLAPOLLO +1, EXIDEIND +1, RADICO +1  mid-valued reference = port: True
+    2023-11-03  shares IDFCFIRSTB +1  mid-valued reference = port: True
+    2023-12-04  shares POLICYBZR +1, SUZLON +1  mid-valued reference = port: True
+    2024-01-02  shares SUZLON +1  mid-valued reference = port: True
+    2024-01-31  shares SUZLON +1  mid-valued reference = port: True
+    2024-02-28  shares IDEA +5, SUZLON +1  mid-valued reference = port: True
+    2024-03-28  shares HUDCO +1, NATIONALUM +1, SUZLON +1  mid-valued reference = port: True
+    2024-04-30  shares HUDCO +1, SUZLON +1  mid-valued reference = port: True
+    2024-05-29  shares HUDCO +1, IDEA +5, SUZLON +1  mid-valued reference = port: True
+    2024-06-27  shares HUDCO +1  mid-valued reference = port: True
+    2024-07-26  shares HUDCO +1, TATAINVEST +1  mid-valued reference = port: True
+    2024-08-26  shares 360ONE +1, HUDCO +1, TATAINVEST +1  mid-valued reference = port: True
+    2024-09-23  shares 360ONE +1, HUDCO +1, SUZLON +1, TATAINVEST +1  mid-valued reference = port: True
+    2024-10-22  shares 360ONE +1, HUDCO +1, IDEA +9, TATAINVEST +1  mid-valued reference = port: True
+    2024-11-21  shares NYKAA +1, TATAINVEST +1  mid-valued reference = port: True
+    2024-12-19  shares TATAINVEST +1  mid-valued reference = port: True
+    2025-01-17  shares NATIONALUM +1, TATAINVEST +1  mid-valued reference = port: True
+    2025-04-17  shares IREDA +1  mid-valued reference = port: True
+    2025-05-19  shares GODFRYPHLP +1  mid-valued reference = port: True
+    2025-06-16  shares GMRAIRPORT +2, GODFRYPHLP +1, HINDPETRO +1, INDUSTOWER +1  mid-valued reference = port: True
+    2025-07-14  shares GMRAIRPORT +2, GODFRYPHLP +1, HINDPETRO +1  mid-valued reference = port: True
+    2025-08-11  shares CONCOR +1, FEDERALBNK +1, NMDC +2  mid-valued reference = port: True
+    2025-09-10  shares BHEL +1, IDEA +16, LTF +1  mid-valued reference = port: True
+    2025-10-09  shares RADICO +1  mid-valued reference = port: True
+    2025-11-10  shares FORTIS +1, RADICO +1  mid-valued reference = port: True
+    2025-12-08  shares FORTIS +1, RADICO +1  mid-valued reference = port: True
+    2026-01-06  shares HUDCO +1, PREMIERENE +1, RADICO +1, SWIGGY +1  mid-valued reference = port: True
+    2026-02-04  shares HUDCO +1, PREMIERENE +1, RADICO +1  mid-valued reference = port: True
+    2026-03-05  shares HUDCO +1, RADICO +1  mid-valued reference = port: True
+    2026-04-07  shares RADICO +1  mid-valued reference = port: True
+  0.05 grid: 1 rebalance(s) where the port holds other names than the engine
+    2026-05-07  port ['BANKINDIA'] engine ['ABCAPITAL']  reproduced by tick_round=True: True
+
+midcap100 v4
+  0.01 grid: 20 failing rebalance(s) of 92; 0 with a different set of names; 24 differing position(s), largest 2 share(s), port higher on 22, lower on 2
+  mid-valued reference equals the port on 20 of 20 failing rebalance(s), 92 of 92 overall
+    2020-09-11  shares IDEA +1  mid-valued reference = port: True
+    2023-01-11  shares GODFRYPHLP +1  mid-valued reference = port: True
+    2023-02-09  shares GODFRYPHLP +1  mid-valued reference = port: True
+    2023-03-10  shares GODFRYPHLP +1  mid-valued reference = port: True
+    2023-04-12  shares GODFRYPHLP +1  mid-valued reference = port: True
+    2023-05-12  shares GODFRYPHLP +1  mid-valued reference = port: True
+    2023-06-09  shares ATGL -1, GODFRYPHLP +1  mid-valued reference = port: True
+    2023-07-10  shares ATGL -1, IDFCFIRSTB +1  mid-valued reference = port: True
+    2023-08-07  shares RVNL +1  mid-valued reference = port: True
+    2023-09-05  shares RVNL +1  mid-valued reference = port: True
+    2023-12-04  shares SUZLON +1  mid-valued reference = port: True
+    2024-01-02  shares SUZLON +1  mid-valued reference = port: True
+    2024-01-31  shares SUZLON +1  mid-valued reference = port: True
+    2024-02-28  shares IDEA +1, SUZLON +1  mid-valued reference = port: True
+    2024-03-28  shares SUZLON +1  mid-valued reference = port: True
+    2024-04-30  shares SUZLON +1  mid-valued reference = port: True
+    2024-05-29  shares IDEA +2, SUZLON +1  mid-valued reference = port: True
+    2024-10-22  shares IDEA +1  mid-valued reference = port: True
+    2025-09-10  shares IDEA +1  mid-valued reference = port: True
+    2026-05-07  shares BANKINDIA +1  mid-valued reference = port: True
+  0.05 grid: 0 rebalance(s) where the port holds other names than the engine
+

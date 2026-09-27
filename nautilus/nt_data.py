@@ -441,7 +441,12 @@ def load_universe(cache_path, start, end, symbols=None, slippage: float = 0.0):
 
 if __name__ == "__main__":
     # Smoke test: 3 stocks, one month. Verifies parsing, tick snapping and ordering.
-    cache = Path("results/metrics/v5_expanding_cache.csv")
+    # Reads the first certified universe's score panel through config.require_cache,
+    # which refuses a panel built from other code or other data.
+    import config
+    from universes.registry import certified
+    _u = certified()[0]
+    cache = config.require_cache(_u.score_cache, what=f"{_u.tag} score panel")
     px, _ = load_panel(cache)
     syms = sorted(px.columns)[:3]
     print(f"Smoke test on {syms}, Jan 2020\n")

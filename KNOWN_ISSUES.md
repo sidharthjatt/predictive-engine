@@ -25,6 +25,77 @@ currently wrong.
 
 ---
 
+## Caches keyed on code and panel content, and the four nt_verify cells traced -- 2026-09-27 (pass G)
+
+**Every reusable cache or record now names or records its key, and a mismatch is a
+miss.** The key is code plus panel content:
+- `/tmp/VALBREADTH_*` (validate_breadth_live) and `/tmp/PURGEFIX_*` (purge_fix_measure)
+  carry `seed_cache_key` in their names, as `/tmp/V2VAL_*` and `/tmp/VALSIZE_*` already
+  did. Until now the first was keyed by universe and seed index and the second by
+  universe alone.
+- Noise draw JSONs (`results/noise_parallel.py`) and the rows of
+  `diagnostics/price_noise_runs.csv` and `diagnostics/after_tax_noise_runs.csv` carry
+  `config.run_key(u)`: `panel_code_key()` and the unperturbed farm's source digest. A
+  record whose key differs, or that has none, is reported as STALE and re-run. It is
+  never skipped as done, never read as a passing baseline and never merged. Every
+  record written before this change has no key, so all of them are stale now: 22
+  rows in each runs CSV and the 44 stage-1 draw files.
+  `price_noise_measure.append_run` now rewrites the whole file, because appending
+  rows with new columns under the old header would misalign them.
+- Legacy readers of fixed /tmp names: `results/stability_test.py` (could not import)
+  and `results/test_feature_pruning.py` were deleted; nothing called them.
+  `test_exposure.main()`, which read `/tmp/v5_expanding.csv` and wrote into the
+  retired `results/metrics/`, was removed; the module's `backtest_exposure` is
+  unchanged. `nautilus/nt_data.py`'s smoke test reads the first certified universe's
+  score panel through `config.require_cache`.
+- `cache_key_test.py` is a check_all delegate: each harness is handed one current and
+  several stale records in a temporary directory and must reuse only the current one.
+  With the pre-change reuse rule patched back in, it fails 6 of its 11 cases.
+- Readers that compare against historical records without reusing them as inputs
+  (`pinned_mask_test.py`, `v34_provenance.py`, `noise_parallel verify`) were left alone.
+- `results/noise_parallel.py` changed, so its hash no longer matches the one fixed in
+  `experiments/FOUR_ARM_NOISE_PREREG.txt`, which was already superseded.
+
+**The four cells that left the nt_verify gate, traced** (`nautilus/nt_mid_trace.py`,
+`diagnostics/nt_mid_trace.txt`). On the 0.01 grid nt_verify reconciles on, none of the
+85 failing rebalances in the four cells holds a different set of names. Every one
+differs in share counts only: midcap150 v1 3 rebalances, 3 positions, 1 share each;
+midcap150 v3 4, 4, 1 share each; midcap100 v1 58, 102 positions, up to 16 shares (IDEA,
+about Rs 10 a share); midcap100 v4 20, 24, up to 2. The reference re-run with its book
+valued at the port's quote mid (the mid of the two tick-rounded quotes, as the port
+values it) reproduces the port's holdings on 92 of 92 rebalances in all four cells.
+So the failures are the quote-mid valuation rounding documented in
+`nautilus/nt_gate_diagnose.py`, spread over more shares and symbols than nt_verify's
+one-share, one-symbol, port-lower signature allows. They are not selection flips. On
+the production 0.05 grid, midcap150 v3 holds different names from the engine on one
+rebalance (2023-03-10, the port funds DIXON) and midcap100 v1 on one (2026-05-07,
+BANKINDIA against ABCAPITAL). The reference with tick_round=True reproduces the
+port's names at both: the Pass E grid-rounding flip. **The four stay out of the gate
+until the owner rules.**
+
+**Cleaning after perturbation, counted** (owner ruling: the next noise test perturbs
+after cleaning). One sigma 0.01% farm per universe, seed 101, with the cleaner run on
+the perturbed farm, against the cleaner on the raw farm, rows in the window:
+nifty500 3,794 against 3,576 (233 no longer cleaned, 15 newly cleaned); smallcap250
+1,966 against 1,784 (191 and 9); nifty50 356 against 357 (0 and 1). Cleaning after the
+perturbation would make the data differ between draws by more than the noise does.
+
+**Selection margin** (`results/selection_margin.py`,
+`diagnostics/selection_margin_uncleaned_20260927.csv` and `_cleaned_`). At every
+rebalance, the score of rank 8 minus rank 9 is a median 0.62% (smallcap250) to 1.46%
+(nifty50) of the day's score range on the uncleaned data, and under 1% of it on 37%
+to 67% of rebalances. The boundary is thin on every universe. It does not predict which
+cells moved most under the cleaning (Spearman -0.19 against the absolute tax-on move,
+p 0.29, 32 cells). The gap between the weakest held name and the strongest name not
+held does correlate (-0.41 against the move, +0.55 against holdings overlap), but only
+because v1 and v3 have smaller gaps and moved more; within any one arm the
+correlation is gone (arm-demeaned -0.12, p 0.51).
+
+**Owner rulings, 2026-09-27.** validate_breadth_live (nifty100 now FAIL on T2
+sub-period) and validate_engine (4 of 8 pairs FAIL): recorded and left, no threshold
+changes. TOP_N: no action. The leakage_check4 docstring was corrected (it said the
+panel ignores adj_close).
+
 ## adj_close/close ratio cleaning applied, every cell republished -- 2026-09-27
 
 **The rule** is `experiments/DATA_CLEANING_SPEC.txt`, committed before the rule was
@@ -88,7 +159,9 @@ The uncleaned versions are `*_uncleaned_20260927.csv`.
   nifty200 v1 and v2, smallcap250 v1 and v3, nifty500 v1 and v2. Newly NOT VERIFIED:
   midcap150 v1 and v3, midcap100 v1 and v4. check_all's gated list was changed to the
   20 that verify, the rule it was built on on 2026-09-26. **The four that left the
-  gate are open and untraced**; two are on certified midcap150. Owner ruling,
+  gate were traced on 2026-09-27 (pass G, entry above): share-count differences from
+  the port's quote-mid valuation rounding, no selection flip on the 0.01 grid; they
+  stay out of the gate until the owner rules**; two are on certified midcap150. Owner ruling,
   2026-09-27: the next pass runs the Pass E tick-rounding trace on all four and says,
   per cell, whether the failing rebalances come from the same selection flip under
   grid rounding or from something else. None goes back into the gate until that is
@@ -734,9 +807,10 @@ on those days. No cadence-20 result differs: the four affected days (31 March
 - **`heldout_prereg_run.py` does not support `--profile tradeable`.** It runs past
   BT_END_DATE, where `profiles.cap_kwargs()` computes no median volume, so it was
   not moved onto that helper. It raises TypeError under tradeable, which is loud.
-- **Dead /tmp paths from a retired universe (deleted 2026-09-11) remain** in engine_core.main(),
-  test_exposure's `__main__`, nt_data.py, nt_attribution.py,
-  test_feature_pruning.py and stability_test.py. None has a caller that can run.
+- **Dead /tmp paths from a retired universe (deleted 2026-09-11)** -- removed
+  2026-09-27: test_feature_pruning.py and stability_test.py were deleted,
+  test_exposure's `main()` was removed and nt_data.py's smoke test reads through
+  `config.require_cache`. engine_core.main() and nt_attribution.py no longer had any.
 - **Transitive dependencies are not pinned by requirements.txt.**
   installed_versions.txt records them; install with
   `-c installed_versions.txt` to reproduce the venv exactly.

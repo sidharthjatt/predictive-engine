@@ -125,9 +125,28 @@ def load_runs():
     return read_table(RUNS) if RUNS.exists() else pd.DataFrame()
 
 
+def current_runs():
+    """Recorded rows whose panel_code and source_digest are current, per tag.
+
+    Rows from other code or other data, including every row from before
+    2026-09-27 (they carry neither field), are stale: not reused, not reported.
+    """
+    df = load_runs()
+    if not len(df):
+        return df
+    keys = {t: config.run_key(REGISTRY[t]) for t in df["tag"].unique() if t in REGISTRY}
+    ok = df.apply(lambda r: r["tag"] in keys and config.run_key_matches(r, keys[r["tag"]]),
+                  axis=1)
+    if (~ok).any():
+        print(f"  {int((~ok).sum())} recorded row(s) in {RUNS.name} are STALE "
+              f"(other panel_code or source_digest) and are not used", flush=True)
+    return df[ok]
+
+
 def measure(tag, work):
     u = REGISTRY[tag]
-    done = load_runs()
+    key = config.run_key(u)
+    done = current_runs()
     have = set()
     if len(done):
         have = {int(s) for s in done[done["tag"] == tag]["noise_seed"]}
@@ -157,7 +176,7 @@ def measure(tag, work):
                "bound_crossings": cross,
                "minutes": round((time.time() - t0) / 60, 2),
                "run_date": time.strftime("%Y-%m-%d %H:%M"),
-               "script_sha256": _fingerprint(), "perturb_sha256": _pn_fp()}
+               "script_sha256": _fingerprint(), "perturb_sha256": _pn_fp(), **key}
         df = load_runs()
         df = pd.concat([df, pd.DataFrame([rec])], ignore_index=True)
         # naming: axis-free -- the pre-registered record of one measurement,
@@ -183,7 +202,7 @@ def verdict(gaps):
 
 
 def write_report():
-    df = load_runs()
+    df = current_runs()
     L = ["AFTER-TAX EDGE UNDER PRICE NOISE -- experiments/AFTER_TAX_PREREG.txt",
          "=" * 78,
          f"v2 tax-on headline minus the investable taxed buy & hold headline, CAGR points.",

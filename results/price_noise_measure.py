@@ -384,14 +384,35 @@ def load_runs():
     return pd.DataFrame()
 
 
+def current_runs():
+    """The recorded rows whose panel_code and source_digest are current, per tag.
+
+    Rows written from other code or other data, including every row from before
+    2026-09-27 (they carry neither field), are stale: never reused and never
+    reported. Their count is printed.
+    """
+    df = load_runs()
+    if not len(df):
+        return df
+    keys = {t: config.run_key(REGISTRY[t]) for t in df["tag"].unique() if t in REGISTRY}
+    ok = df.apply(lambda r: r["tag"] in keys and config.run_key_matches(r, keys[r["tag"]]),
+                  axis=1)
+    if (~ok).any():
+        print(f"  {int((~ok).sum())} recorded row(s) in {RUNS_CSV.name} are STALE "
+              f"(other panel_code or source_digest) and are not used", flush=True)
+    return df[ok]
+
+
 def append_run(rec):
     DIAG.mkdir(exist_ok=True)
-    df = pd.DataFrame([rec])
-    hdr = not RUNS_CSV.exists()
+    # THE WHOLE FILE IS REWRITTEN, not appended to. Rows gained panel_code and
+    # source_digest on 2026-09-27, and an append under the old header would
+    # write them into the wrong columns.
+    df = pd.concat([load_runs(), pd.DataFrame([rec])], ignore_index=True)
     # naming: axis-free -- the per-run record is keyed by (universe, sigma,
     # seed) INSIDE the file; one grid appends to one file across universes, so
     # the name varies over no axis this project spells into a filename
-    df.to_csv(RUNS_CSV, mode="a", header=hdr, index=False)
+    df.to_csv(RUNS_CSV, index=False)
 
 
 def measure(tag, work, levels=None, seeds=None):
@@ -408,17 +429,24 @@ def measure(tag, work, levels=None, seeds=None):
     u = REGISTRY[tag]
     pub = published_v2(u)
     src = u.prepare_data_dir()
+    key = config.run_key(u)
     done = set()
-    prev = load_runs()
+    prev = current_runs()
     if len(prev):
         for _, r in prev[prev["tag"] == tag].iterrows():
             done.add((float(r["sigma"]), int(r["noise_seed"])))
 
+    # The baseline holdings are cached with the key they were computed under,
+    # and a file without it, or with another one, is recomputed.
     base_held = None
     base_path = Path(work) / f"holdings_{tag}_base.json"
     if base_path.exists():
-        base_held = {k: frozenset(v)
-                     for k, v in json.loads(base_path.read_text()).items()}
+        rec = json.loads(base_path.read_text())
+        if isinstance(rec, dict) and rec.get("key") == key:
+            base_held = {k: frozenset(v) for k, v in rec["held"].items()}
+        else:
+            print(f"  STALE {base_path.name}: not the current panel_code or "
+                  f"source_digest; recomputing the baseline", flush=True)
 
     jobs = [(0.0, 0)] + [(s, ns) for s in levels for ns in seeds]
     for sigma, ns in jobs:
@@ -439,8 +467,8 @@ def measure(tag, work, levels=None, seeds=None):
             # --work so a resumed grid can still compute the overlap column
             # without re-running sigma 0. Scratch, keyed by universe in the
             # filename, and it varies over no published axis.
-            base_path.write_text(json.dumps({k: sorted(v)
-                                             for k, v in held.items()}))
+            base_path.write_text(json.dumps(
+                {"key": key, "held": {k: sorted(v) for k, v in held.items()}}))
             # THE IDENTITY GATE, ASSERTED. A baseline that does not reproduce the
             # published row means the harness is not running the shipped arm, and
             # every spread measured after it would be a spread around the wrong
@@ -474,7 +502,7 @@ def measure(tag, work, levels=None, seeds=None):
                     # cannot be established after the fact, only argued about.
                     "script_sha256": script_fingerprint(),
                     "git_commit": git_commit(),
-                    "pid": os.getpid()})
+                    "pid": os.getpid(), **key})
         if (sigma, ns) not in done:
             append_run(rec)
         print(f"  sigma={sigma} seed={ns}  CAGR {rec['CAGR%']}  "
@@ -489,7 +517,7 @@ def _stats(g, col):
 
 
 def write_report():
-    df = load_runs()
+    df = current_runs()
     if not len(df):
         raise SystemExit("no runs recorded yet")
     L = []

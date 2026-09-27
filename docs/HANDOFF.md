@@ -111,8 +111,8 @@ executes unless a person runs it by hand.
     leakage_check2_purge    leakage_check4_corpactions
     purge_fix_measure       purge_mode_probe        rebal_cadence_sweep
     repair_membership       save_ewma_comparison    seed_noise_measure
-    seed_noise_report       shuffle_test            stability_test
-    tax_util                test_feature_pruning    test_survivorship
+    seed_noise_report       shuffle_test            tax_util
+    test_survivorship
     validate_breadth_live   validate_engine         validate_topn
 
 **THE DEPENDENCY RUNS ONE WAY, and that is what makes the distinction safe to

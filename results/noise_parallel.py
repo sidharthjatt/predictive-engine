@@ -176,6 +176,7 @@ def one_draw(tag, seed, sigma, work, loky):
     u = REGISTRY[tag]
     t0 = time.time()
     src = u.prepare_data_dir()
+    key = config.run_key(u)
     wd = Path(work) / draw_name(tag, seed)
     shutil.rmtree(wd, ignore_errors=True)
     try:
@@ -233,7 +234,8 @@ def one_draw(tag, seed, sigma, work, loky):
             "minutes_panel": round((t_panel - t_perturb) / 60, 3),
             "minutes_arms": round((t_end - t_panel) / 60, 3),
             "loky_workers": loky, "run_date": time.strftime("%Y-%m-%d %H:%M"),
-            "script_sha256": _SCRIPT_SHA, "perturb_sha256": script_fingerprint()}
+            "script_sha256": _SCRIPT_SHA, "perturb_sha256": script_fingerprint(),
+            **key}
 
 
 def write_atomic(path, text):
@@ -249,6 +251,35 @@ def write_atomic(path, text):
 
 def result_path(out, tag, seed):
     return Path(out) / "draws" / f"{draw_name(tag, seed)}.json"
+
+
+_KEYS = {}
+
+
+def current_key(tag):
+    """config.run_key for `tag`, computed once per process."""
+    if tag not in _KEYS:
+        import config
+        from universes.registry import REGISTRY
+        _KEYS[tag] = config.run_key(REGISTRY[tag])
+    return _KEYS[tag]
+
+
+def draw_state(out, tag, seed):
+    """"missing", "current" or "stale" for one draw file.
+
+    STALE MEANS THE FILE WAS WRITTEN FROM OTHER CODE OR OTHER DATA: its
+    panel_code or source_digest differs from the current config.run_key, or it
+    predates those fields. A stale draw is reported and re-run, never reused.
+    Until 2026-09-27 a file's existence was enough, so stage 1's draws on the
+    uncleaned prices would have been read back after the cleaning as current.
+    """
+    import config
+    f = result_path(out, tag, seed)
+    if not f.exists():
+        return "missing"
+    rec = json.loads(f.read_text())
+    return "current" if config.run_key_matches(rec, current_key(tag)) else "stale"
 
 
 def baseline_check(res):
@@ -279,10 +310,13 @@ def cmd_one(a):
 
 
 def _baseline_state(out, tag):
-    """None if no baseline result yet, else True/False for pass/fail."""
-    f = result_path(out, tag, 0)
-    if not f.exists():
+    """None if no current baseline result yet, else True/False for pass/fail.
+
+    A stale baseline file counts as none: its verdict describes other code or data.
+    """
+    if draw_state(out, tag, 0) != "current":
         return None
+    f = result_path(out, tag, 0)
     return bool(json.loads(f.read_text()).get("baseline", {}).get("ok", False))
 
 
@@ -340,9 +374,13 @@ def cmd_run(a):
         if a.baseline:
             seeds = [0] + seeds
         for s in seeds:
-            if result_path(out, tag, s).exists():
-                print(f"  skip {draw_name(tag, s)} (result file present)", flush=True)
+            st = draw_state(out, tag, s)
+            if st == "current":
+                print(f"  skip {draw_name(tag, s)} (current result file present)", flush=True)
                 continue
+            if st == "stale":
+                print(f"  STALE {draw_name(tag, s)}: its panel_code or source_digest is "
+                      f"not the current one; re-running it", flush=True)
             jobs.append((tag, s))
     running, peak, failed, done = {}, {}, [], []
     peak_all, t_start = 0, time.time()
@@ -416,9 +454,15 @@ def cmd_run(a):
 
 
 def load_draws(out):
+    """Every current draw under `out`. Stale draws are named and left out."""
+    import config
     res = []
     for f in sorted((Path(out) / "draws").glob("*.json")):
         d = json.loads(f.read_text())
+        if not config.run_key_matches(d, current_key(d["tag"])):
+            print(f"  STALE {f.name}: not the current panel_code or source_digest; "
+                  f"left out", flush=True)
+            continue
         d["peak_rss_bytes"] = _peak_rss(Path(out) / "logs" / f"{f.stem}.time")
         mem = Path(out) / "logs" / f"{f.stem}.mem"
         d["peak_tree_rss_bytes"] = (json.loads(mem.read_text())["peak_tree_rss_bytes"]
@@ -498,7 +542,7 @@ def cmd_stage(a):
     rc = cmd_run(args)
     print(f"\n  STAGE {a.n}: finished draws per universe (baseline + 10 seeds = 11)")
     for tag in STAGES[a.n]:
-        n = sum(result_path(out, tag, sd).exists() for sd in (0,) + NOISE_SEEDS)
+        n = sum(draw_state(out, tag, sd) == "current" for sd in (0,) + NOISE_SEEDS)
         b = _baseline_state(out, tag)
         bl = "no baseline yet" if b is None else ("baseline PASSED" if b else "baseline FAILED")
         print(f"    {tag:<12} {n:>2} of 11   {bl}")

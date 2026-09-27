@@ -379,6 +379,30 @@ def panel_code_key():
     return "sha256:" + h.hexdigest()
 
 
+# THE KEY A NOISE DRAW RECORDS, 2026-09-27. A draw is a rebuild of u's panel
+# from a perturbed copy of u's farm, so it is fully determined by the code that
+# builds panels (panel_code_key) and the unperturbed farm's bytes (source_key_for),
+# plus the draw's own sigma and seed, which the record already carries. Every
+# draw file and runs-CSV row stores both; a harness reuses a record only when both
+# equal the current values, and reports and re-runs any record that does not.
+RUN_KEY_FIELDS = ("panel_code", "source_digest")
+
+
+def run_key(u):
+    """{"panel_code": ..., "source_digest": ...} for universe u as it is now."""
+    return {"panel_code": panel_code_key(),
+            "source_digest": source_key_for(u)["digest"]}
+
+
+def run_key_matches(rec, key):
+    """True only if record `rec` (a dict or a row) carries exactly `key`.
+
+    A record written before these fields existed has none of them and does not
+    match: it is stale, not current by default.
+    """
+    return all(str(rec.get(k, "")) == key[k] for k in RUN_KEY_FIELDS)
+
+
 def write_cache_source(cache_path, u, key):
     """Record `key` beside a cache. Called by whoever writes the cache.
 

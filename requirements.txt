@@ -64,9 +64,8 @@ numpy==2.2.6
 # and pandas needs a parquet engine for both.
 pyarrow==25.0.1
 
-# scipy is imported directly by results/diagnose_alpha.py and
-# results/test_feature_pruning.py, neither on the pipeline path, and is a hard
-# dependency of lightgbm. The two files this comment used to cite,
+# scipy is imported directly by results/diagnose_alpha.py, which is not on the
+# pipeline path, and is a hard dependency of lightgbm. The two files this comment used to cite,
 # diagnose_decay.py and reality_check.py, do not exist.
 scipy==1.18.1
 

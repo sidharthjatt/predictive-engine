@@ -44,8 +44,12 @@ CACHES ARE NAMESPACED AND THERE IS NO FALLBACK
     On the retired universe it was written for that is sound -- same raw panel,
     same seeds. Carried here unchanged it would silently score that universe's
     panel and print a verdict for the wrong universe with no error at all. The caches here are
-    /tmp/VALBREADTH_{universe}_seed{i}.csv and NOTHING ELSE IS READ. No cache
-    written by another script is used, including /tmp/VALSIZE_* -- see the spec.
+    /tmp/VALBREADTH_{universe}_seed{i}_{key}.csv and NOTHING ELSE IS READ. No
+    cache written by another script is used, including /tmp/VALSIZE_* -- see the
+    spec. The key is seed_cache_key over engine_core.py, this file, config.py, the
+    raw panel's content, the universe and the seeds (since 2026-09-27; until then
+    the name carried the universe and the seed-set index only, so a cache written
+    against an earlier panel was read back as current).
 
 Reads the panels. Writes the /tmp seed caches, three CSVs into the universe's
 metrics folder, and one report into diagnostics/.
@@ -88,6 +92,20 @@ BT_START_DATE, BT_END_DATE = config.BT_START_DATE, config.BT_END_DATE
 # "Nifty 100"/"MidCap150" spelling this file has always written into
 # breadth_live_params.json and printed.
 from universes.registry import certified
+from seed_cache_key import seed_cache_key
+
+
+def _t1_cache(u, si, seeds, raw_path):
+    """The T1 seed cache for one seed set, keyed on code, panel content and seeds."""
+    key = seed_cache_key(
+        code_files=[ROOT / "results" / "engine_core.py",
+                    ROOT / "results" / "validate_breadth_live.py",
+                    ROOT / "config.py"],
+        panel_path=raw_path,
+        parts=(u, sorted(seeds)))
+    return Path(f"/tmp/VALBREADTH_{u}_seed{si}_{key}.csv")
+
+
 UNIVERSES = {
     u.tag: {"score_perm": u.score_cache,
             "raw_perm": u.raw_cache,
@@ -215,8 +233,8 @@ def main():
         n_months = len(read_table(raw_path, usecols=["date"], parse_dates=["date"])
                        .query("date.dt.year >= 2016")["date"].dt.to_period("M")
                        .unique())
-        cached = sum(Path(f"/tmp/VALBREADTH_{u}_seed{i}.csv").exists()
-                     for i in range(len(SEED_SETS)))
+        cached = sum(_t1_cache(u, i, s, raw_path).exists()
+                     for i, s in enumerate(SEED_SETS))
         W("\n" + "=" * 104)
         W(" COST -- nothing has been run")
         W("=" * 104)
@@ -239,7 +257,7 @@ def main():
     raw = read_table(raw_path, parse_dates=["date"])
     t1_rows = []
     for si, seeds in enumerate(SEED_SETS):
-        cache = Path(f"/tmp/VALBREADTH_{u}_seed{si}.csv")
+        cache = _t1_cache(u, si, seeds, raw_path)
         if cache.exists():
             ps = read_table(cache, parse_dates=["date"])
             W(f"    seed set {si+1}/{len(SEED_SETS)} {seeds} from cache {cache.name}")

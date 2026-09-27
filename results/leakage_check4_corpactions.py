@@ -5,10 +5,20 @@ Splits and bonuses. NOT a leakage check -- a data-correctness check, reported
 separately, because it is the other way a backtest produces returns that are not
 real, and it can push CAGR in EITHER direction.
 
-STATED FROM SOURCE, BEFORE MEASURING
-    engine_core.build_panel:180 selects ["date","open","high","low","close",
-    "volume"]. The raw CSVs also carry adj_close. THE PANEL USES close AND
-    IGNORES adj_close.
+WHAT THE PANEL USES (corrected 2026-09-27)
+    This paragraph used to say the panel uses close and ignores adj_close. That
+    stopped being true when engine_core.canonical_price was added: build_panel
+    reads open, high, low, close, adj_close and volume, takes adj_close as the
+    price wherever it lies inside the raw day's [low, high] (close otherwise), and
+    scales open, high and low by the same ratio. Since 2026-09-27 a reverting
+    adj_close/close excursion of up to five sessions is first replaced by the
+    previous session's ratio (results/ratio_clean.py,
+    experiments/DATA_CLEANING_SPEC.txt).
+
+    THIS SCRIPT READS THE RAW FILES, NOT THE PANEL. Its close-to-close returns
+    (part 2) are raw close returns, which are not the returns the engine trades
+    on; its close against adj_close comparison (part 1) is a comparison of the two
+    raw columns. Neither passes through canonical_price or the cleaning.
 
 MEASURED HERE
     1. how often close and adj_close differ, and by how much
