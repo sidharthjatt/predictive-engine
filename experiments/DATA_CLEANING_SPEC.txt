@@ -1,0 +1,121 @@
+DATA CLEANING SPEC -- REVERTING adj_close / close RATIO EVENTS
+================================================================================
+Written 2026-09-27, before the rule is implemented, before any count of the rows it
+changes, and before any result is computed on cleaned data. The rule itself was
+fixed by the owner on 2026-09-27 (pass F); this file writes it down and settles the
+details the owner's wording leaves open. Nothing here was chosen by looking at a
+count or a result.
+
+WHY
+    KNOWN_ISSUES.md, "adj_close and close disagree for one or two sessions on about
+    0.4% of rows" (found 2026-09-27). On those rows adj_close / close moves away
+    from its previous value and comes back within a few sessions. A split, bonus or
+    dividend back-adjusts every earlier date and leaves a lasting step in the
+    ratio, so a move that reverts is not a corporate action. canonical_price keeps
+    adj_close on those rows (it lies inside the raw [low, high]) and scales the
+    raw open, high and low by the same ratio, so the engine trades, values, builds
+    features and labels at those prices.
+
+
+THE RULE
+--------------------------------------------------------------------------------
+1. Clean rows are derived from the raw files. The raw files are never modified.
+   data/RAW_DATA_SHA256.txt and check_data.py are unchanged and must still pass.
+
+2. For each symbol, take the rows build_panel already selects:
+   PRICE_COLS, dropna, sorted by date. The sessions of that symbol are its rows
+   whose date is in data/nse_trading_calendar.csv, in date order. Rows on other
+   dates (the phantom holidays build_panel drops after canonical_price) are not
+   sessions: they are left unchanged, take no part in any event, and are dropped
+   later exactly as today.
+
+3. r(t) = adj_close(t) / close(t), from the raw columns.
+
+4. A session whose raw row canonical_price already sends to its close fallback
+   (adj_close <= 0, below the raw low or above the raw high) keeps that treatment.
+   It is never part of an event, and an event cannot span it: the scan restarts
+   after it with no previous ratio.
+
+5. Scan the sessions in order, holding p, the previous session's ratio. At
+   session t, the ratio MOVES if |r(t) / p - 1| > 0.001.
+   If it moves, look for the first k in 1..5 with
+       |r(t + k) / p - 1| <= 0.001.
+   - Found: sessions t .. t+k-1 are a REVERTING RATIO EVENT of length k. On each of
+     them the ratio used is p. The scan continues at t+k with p = r(t+k).
+   - Not found within five sessions: a LASTING SHIFT. Left as it is. The scan
+     continues at t+1 with p = r(t).
+   If it does not move, p = r(t) and the scan continues at t+1.
+
+   "Within 0.1% of that previous value" is read as relative: |r / p - 1| <= 0.001.
+   The same 0.001 decides whether the ratio moved, so a move is anything the return
+   test could tell apart from p.
+
+6. Applying p: on every session of an event,
+       adj_close = close * p
+   and canonical_price then sets close = raw close * p and scales the raw open,
+   high and low by the same p, exactly as it does for every other row. Such a row
+   is exempt from canonical_price's [low, high] fallback: p is the ratio accepted
+   on the session before the event, and the fallback would replace it with 1,
+   which the rule does not say.
+
+7. End of history: a move within the last five sessions of a symbol that has not
+   returned by its last session is not confirmed as an event and is left as it is.
+
+8. The rule is applied to the whole history of every file, not only the backtest
+   window, because features and training labels read the years before 2019.
+
+
+WHERE IT RUNS
+--------------------------------------------------------------------------------
+    One new module, results/ratio_clean.py, holds the scan and the replacement.
+    engine_core.build_panel calls it on each file's frame immediately before
+    canonical_price. That is the only call site in the pipeline. Everything
+    downstream (features, targets, fills, valuation, both buy & hold lines, the
+    Nautilus port through the score panel) reads the cleaned prices through
+    canonical_price as it does today. No other code path changes.
+
+    The step is deterministic: no random draw, no parameter besides the 0.001
+    tolerance and the five-session limit above, output depends only on the raw
+    file and the calendar.
+
+    config.panel_code_key hashes results/ratio_clean.py, so any change to the
+    cleaning code rebuilds every panel.
+
+    build_panel prints the number of rows the rule changed on every build,
+    including zero, beside the canonical-price fallback count.
+
+
+CHECKS
+--------------------------------------------------------------------------------
+    - check_data.py still passes on the raw files.
+    - A new check_all delegate re-derives the cleaned data for every universe and
+      runs the same scan over the cleaned ratio. It fails if any reverting ratio
+      event of five sessions or fewer starts inside the backtest window
+      (config.BT_START_DATE to config.BT_END_DATE).
+
+
+WHAT THE RULE LOOKS AT, STATED SO NOBODY HAS TO WORK IT OUT
+--------------------------------------------------------------------------------
+    The rule is not causal. Whether session t is part of an event depends on up to
+    five later sessions. It is a repair of vendor data, not a signal: a live book
+    on day t would have traded at the exchange's real price, which is what the
+    rule tries to recover. leakage_check1_causality recomputes features from the
+    raw close and does not pass through the cleaning, so it neither tests nor is
+    affected by this. The report says so.
+
+    The price-noise harnesses perturb adj_close before build_panel. With the
+    cleaning in place, a perturbation larger than 0.1% that happens to revert
+    would be cleaned away. No noise draw is run in this pass and no noise
+    pre-registration is written; the interaction is recorded for the owner.
+
+
+WHAT IS REPUBLISHED
+--------------------------------------------------------------------------------
+    All eight panels rebuilt. All 32 cells (8 universes x 4 arms), cadence 20,
+    research and tradeable profiles, tax off and tax on (headline and sold on the
+    last day), both buy & hold lines. Every old figure stays in place, marked
+    superseded on 2026-09-27 because it was computed on the uncleaned data. The
+    stage-1 four-arm noise results and the AFTER_TAX_PREREG verdicts are marked the
+    same way and not deleted.
+
+    No strategy rule, tax rule or existing pre-registration changes.
