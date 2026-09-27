@@ -1,0 +1,124 @@
+AFTER-TAX EDGE UNDER PRICE NOISE, ON THE CLEANED PRICES -- PRE-REGISTRATION
+================================================================================
+Written 2026-09-27, before any draw of this measurement. The scope, the
+implementation, the accept rule and the statements in this file were ruled by the
+owner on 2026-09-27 on the pass G draft. The harness
+(results/noise_parallel.py, sha256 prefix e54b844c0d551a88) and the stage script
+(scripts/run_noise_stage.sh) were committed before this file, in b72d6b9. No
+draw has been computed when this file is committed.
+
+It supersedes nothing that is still current: experiments/FOUR_ARM_NOISE_PREREG.txt
+and experiments/AFTER_TAX_PREREG.txt were measured on the uncleaned prices and were
+superseded on 2026-09-27. None of their verdicts is carried over, including the
+two v2 verdicts the four-arm registration treated as already decided.
+
+QUESTION
+
+    On the prices cleaned under experiments/DATA_CLEANING_SPEC.txt, does any arm's
+    after-tax edge over the investable taxed buy & hold survive price noise too
+    small to see, under both execution profiles?
+
+CELLS
+
+    32 cells are tested: arms v1, v2, v3, v4 (arms/registry.py: v1 none/invvol,
+    v2 breadth/invvol, v3 none/provol, v4 breadth/provol) on all eight universes,
+    nifty50, midcap50, midcap100, nifty100, midcap150, smallcap250, nifty200,
+    nifty500. Every cell gets a verdict. The rule applies to all 32, not only to
+    cells whose sigma-0 gap is positive.
+
+    Cadence 20. Window 2019-01-01 to 2026-05-29. Tax on, headline: the in-loop
+    capital-gains ledger, the last partial financial year settled on the final
+    session, nothing sold at the end. Each arm against the investable taxed buy &
+    hold, results/bh_held.held_lots, eq_headline, built on the same perturbed
+    panel; it takes no cap and is the same under both profiles.
+
+    Research profile: no participation cap. Tradeable profile: the cap of
+    profiles.PROFILES["tradeable"] (1.00 x the prior-20-session median volume),
+    volume read from the universe's own farm (volume is not perturbed). THE
+    TRADEABLE PROFILE IS UNGATED: nothing replays what the port does under it
+    (profiles.UNGATED_NOTICE).
+
+    A SINGLE SUPPORTED CELL ON ITS OWN IS NOT TO BE READ AS AN EDGE. 32 cells are
+    tested; some will pass by chance.
+
+ONE DRAW
+
+    1. Each raw constituent file is cleaned with results/ratio_clean.clean on
+       exactly the rows engine_core.build_panel cleans (PRICE_COLS, dropna, sorted
+       by date, calendar sessions).
+    2. Then adj_close' = cleaned adj_close * (1 + eps), eps ~ Normal(0, 0.0001),
+       for every (symbol, date): one numpy Generator per noise seed, one draw per
+       row of each file in file order, files in sorted order
+       (noise_parallel.perturb_cleaned_farm). The perturbation comes after the
+       cleaning. Each file carries a clean_exempt column marking the cleaned rows.
+    3. The panel is rebuilt with engine_core.build_panel(clean=False): no second
+       cleaning; clean_exempt is canonical_price's exemption for those rows. The
+       production 10-seed monthly ensemble is refitted, in 5 loky worker processes,
+       each fit single-threaded.
+    4. On that panel: the four arms under both profiles and the investable buy &
+       hold.
+
+    At sigma 0 steps 1 to 3 reproduce the published panel exactly (checked
+    2026-09-27 on midcap50 and nifty500: DataFrame equality with build_panel on the
+    raw farm).
+
+    sigma 0.01%, n = 10, seeds 101, 202, 303, 404, 505, 606, 707, 808, 909, 1010.
+
+    gap = CAGR% of the arm minus CAGR% of the investable taxed buy & hold, both at
+    full precision, (end / start) ** (365.25 / calendar days) - 1. sd is the
+    sample standard deviation of the ten gaps (ddof = 1).
+
+BASELINE AND STOP RULES
+
+    Each universe runs one sigma-0 baseline before any of its draws. It must
+    reproduce diagnostics/tax_on_all_arms.csv (research, arm_cagr),
+    diagnostics/tradeable_tax_all_arms.csv (tradeable, tradeable_cagr) and the
+    investable buy & hold (bh_cagr), all the 2026-09-27 cleaned figures, within
+    0.0001 points. If it fails, that universe stops and none of its draws count;
+    the other universes continue. A universe's draws do not start until its
+    baseline has passed.
+
+    A universe's measurement is void if any of its eleven records carries a
+    harness hash other than the committed one.
+
+    Every record carries config.panel_code_key() and the farm's source digest. A
+    record whose key differs from the current one is stale: it is re-run, never
+    reused. Re-running a stage with the same seeds and unchanged code resumes it;
+    that is not a second attempt. The measurement's directory is
+    noise_runs/cleaned/ and starts empty.
+
+    Order of work: stage 1 (nifty50, midcap50, midcap100, nifty100), then stage 2
+    (midcap150, smallcap250, nifty200), then stage 3 (nifty500), two draws at a
+    time with five loky workers each (scripts/run_noise_stage.sh N). Within a
+    stage, the next job is the first in list order whose baseline condition is
+    met. The stages run one after another without a stop unless a baseline fails
+    or a rule above is met.
+
+ACCEPT RULE, FIXED NOW (owner, 2026-09-27)
+
+    For each cell and profile, an after-tax edge is supported only if at least 9
+    of 10 draws have a gap strictly above zero and the mean gap exceeds one sample
+    sd (ddof=1) of the gaps. A cell is supported only if it passes under both
+    research and tradeable. Anything else is not supported.
+
+    A verdict needs the universe's passing baseline and all ten draws.
+
+NT_VERIFY LABEL
+
+    Every cell also carries its nt_verify result on the cleaned prices,
+    2026-09-27 (diagnostics/nt_verify_all_arms_20260927.txt; the 12 NOT VERIFIED
+    cells are noise_parallel.NOT_VERIFIED). A supported cell that is NOT VERIFIED
+    is reported as "SUPPORTED, NOT PORT-VERIFIED". The label does not change the
+    verdict.
+
+REPORTED
+
+    diagnostics/cleaned_noise.txt: per universe the baseline result, per cell and
+    profile the ten gaps, mean, sd, min, max and draws above zero, and per cell the
+    verdict with its nt_verify label. diagnostics/cleaned_noise_runs.csv: one row
+    per (draw, arm, profile). Nothing else is decided from this measurement.
+
+RUN TIME, Mac mini M4, 16 GB, 2 x 5
+
+    stage 1 about 7.0 h, stage 2 about 11 h, stage 3 about 10 h; about 28 h in all
+    (per-universe estimates in the pass G report).
