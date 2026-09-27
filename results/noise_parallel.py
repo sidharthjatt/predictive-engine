@@ -6,13 +6,15 @@ noise_parallel.py -- price-noise draws in parallel, all four arms, both profiles
     ./venv/bin/python results/noise_parallel.py merge  --out /path/to/outdir
     ./venv/bin/python results/noise_parallel.py verify --out /path/to/outdir
     ./venv/bin/python results/noise_parallel.py one --universe midcap150 --seed 101 --loky 10 --out DIR
-    ./venv/bin/python results/noise_parallel.py stage 1 --out noise_runs/four_arm
-    ./venv/bin/python results/noise_parallel.py analyse --out noise_runs/four_arm
+    ./venv/bin/python results/noise_parallel.py stage 1 --out noise_runs/cleaned
+    ./venv/bin/python results/noise_parallel.py analyse --out noise_runs/cleaned
 
-THE HARNESS OF experiments/FOUR_ARM_NOISE_PREREG.txt. `stage` and `analyse`
-implement that pre-registration and nothing else; read it for the accept rule.
-It does not touch results/after_tax_noise.py, which remains the harness of the
-earlier v2 measurement (experiments/AFTER_TAX_PREREG.txt).
+THE HARNESS OF experiments/CLEANED_NOISE_PREREG.txt, since 2026-09-27. `stage`
+and `analyse` implement that pre-registration and nothing else; read it for the
+accept rule. Until 2026-09-27 this was the harness of
+experiments/FOUR_ARM_NOISE_PREREG.txt, measured on the uncleaned prices and
+superseded; its records (diagnostics/four_arm_noise*.{txt,csv}) are not written
+by this version. results/after_tax_noise.py is not touched.
 
 STAGES, BASELINES AND THE ORDER OF WORK
     `stage N` runs the universes of STAGES[N] in that order, each as a sigma-0
@@ -26,9 +28,9 @@ STAGES, BASELINES AND THE ORDER OF WORK
     draw with a result file is skipped.
 
 ANALYSE merges the draws, checks each universe (baseline passed, ten draws, one
-harness hash, and on midcap150 and nifty500 v2 and the buy & hold equal to
-diagnostics/after_tax_noise_runs.csv), applies RULE to every cell and profile,
-and writes diagnostics/four_arm_noise.txt and diagnostics/four_arm_noise_runs.csv.
+harness hash), applies RULE to every cell and profile, labels each cell with its
+nt_verify result, and writes diagnostics/cleaned_noise.txt and
+diagnostics/cleaned_noise_runs.csv.
 
 ONE PROCESS PER DRAW, EACH WITH A FIXED NUMBER OF LOKY WORKERS
     `run` starts up to --workers child processes, one per (universe, seed), each
@@ -54,10 +56,11 @@ ONE PROCESS PER DRAW, EACH WITH A FIXED NUMBER OF LOKY WORKERS
     (see cmd_run).
 
 PER DRAW
-    1. perturb every constituent's adj_close with price_noise_measure.perturb_farm,
-       unchanged, into the draw's own scratch folder <work>/<tag>_s<seed>/.
-    2. rebuild the raw panel and refit the production 10-seed monthly ensemble, as
-       results/after_tax_noise.one_run does.
+    1. clean every constituent file, then perturb its adj_close, with
+       perturb_cleaned_farm below, into the draw's own scratch folder
+       <work>/<tag>_s<seed>/. The perturbation comes after the cleaning.
+    2. rebuild the raw panel with build_panel(clean=False), so the farm is not
+       cleaned a second time, and refit the production 10-seed monthly ensemble.
     3. on that one panel: the four arms of arms.registry, tax on, headline (nothing
        sold at the end, the last partial year settled), cadence 20, under the
        research profile (no cap) and the tradeable profile (profiles.PROFILES cap,
@@ -68,9 +71,8 @@ PER DRAW
        same directory, then os.replace. A draw with a result file is never re-run;
        a restart skips it.
 
-    The panel construction for v2 under research is the same code path as
-    after_tax_noise.one_run, so v2 and the buy & hold must reproduce
-    diagnostics/after_tax_noise_runs.csv exactly; `verify` checks that.
+    `verify` compared v2 with diagnostics/after_tax_noise_runs.csv, which was
+    measured on the uncleaned prices; it is retired and exits 2.
 
 MERGE writes <out>/noise_parallel_runs.csv, one row per (draw, arm, profile), from
 the per-draw files, sorted. It reads only finished result files.
@@ -104,8 +106,8 @@ PROFILES = ("research", "tradeable")
 PYTHON = str(ROOT / "venv" / "bin" / "python")
 DEFAULT_WORK = "/tmp/noise_parallel"
 
-# FIXED BY experiments/FOUR_ARM_NOISE_PREREG.txt.
-STAGES = {1: ("nifty50", "midcap100", "midcap50", "nifty100"),
+# FIXED BY experiments/CLEANED_NOISE_PREREG.txt.
+STAGES = {1: ("nifty50", "midcap50", "midcap100", "nifty100"),
           2: ("midcap150", "smallcap250", "nifty200"),
           3: ("nifty500",)}
 NOISE_SEEDS = (101, 202, 303, 404, 505, 606, 707, 808, 909, 1010)
@@ -114,23 +116,23 @@ STAGE_WORKERS, STAGE_LOKY = 2, 5
 BASELINE_TOL = 0.0001
 PUBLISHED_RESEARCH = ROOT / "diagnostics" / "tax_on_all_arms.csv"
 PUBLISHED_TRADEABLE = ROOT / "diagnostics" / "tradeable_tax_all_arms.csv"
-PRIOR_V2 = ROOT / "diagnostics" / "after_tax_noise_runs.csv"
-PRIOR_V2_UNIVERSES = ("midcap150", "nifty500")
-# nt_verify NOT VERIFIED cells as of 2026-09-26 (check_all.NT_VERIFY_UNGATED),
-# copied so the flag is fixed with the pre-registration.
+# nt_verify NOT VERIFIED cells on the cleaned prices, 2026-09-27
+# (check_all.NT_VERIFY_UNGATED, diagnostics/nt_verify_all_arms_20260927.txt),
+# copied so the label is fixed with the pre-registration. A supported cell in this
+# set is reported as "supported, not port-verified".
 NOT_VERIFIED = {
-    ("nifty50", "v3"), ("midcap50", "v1"), ("midcap50", "v3"), ("midcap50", "v4"),
-    ("midcap100", "v2"), ("midcap100", "v3"),
-    ("nifty200", "v1"), ("nifty200", "v2"), ("nifty200", "v3"), ("nifty200", "v4"),
-    ("smallcap250", "v1"), ("smallcap250", "v3"),
-    ("nifty500", "v1"), ("nifty500", "v2"), ("nifty500", "v3"), ("nifty500", "v4"),
+    ("midcap150", "v1"), ("midcap150", "v3"),
+    ("midcap50", "v3"), ("midcap50", "v4"),
+    ("midcap100", "v1"), ("midcap100", "v2"), ("midcap100", "v3"), ("midcap100", "v4"),
+    ("nifty200", "v3"), ("nifty200", "v4"),
+    ("nifty500", "v3"), ("nifty500", "v4"),
 }
 RULE = ("For each cell and profile, an after-tax edge is supported only if at least 9 "
         "of 10 draws have a gap strictly above zero and the mean gap exceeds one sample "
         "sd (ddof=1) of the gaps. A cell is reported as supported only if it passes "
         "under both research and tradeable. Anything else is not supported.")
-REPORT = ROOT / "diagnostics" / "four_arm_noise.txt"
-RUNS_CSV = ROOT / "diagnostics" / "four_arm_noise_runs.csv"
+REPORT = ROOT / "diagnostics" / "cleaned_noise.txt"
+RUNS_CSV = ROOT / "diagnostics" / "cleaned_noise_runs.csv"
 
 
 def cagr(eq):
@@ -170,7 +172,7 @@ def one_draw(tag, seed, sigma, work, loky):
     from numerics import rolling_std
     from test_exposure import backtest_exposure
     from universes.registry import REGISTRY
-    from price_noise_measure import SEEDS, perturb_farm, script_fingerprint
+    from price_noise_measure import SEEDS
 
     _loky_pool(ec, loky)
     u = REGISTRY[tag]
@@ -180,9 +182,9 @@ def one_draw(tag, seed, sigma, work, loky):
     wd = Path(work) / draw_name(tag, seed)
     shutil.rmtree(wd, ignore_errors=True)
     try:
-        rows, cross = perturb_farm(src, wd / "farm", sigma, seed)
+        rows, cross = perturb_cleaned_farm(src, wd / "farm", sigma, seed)
         t_perturb = time.time()
-        raw = build_panel(HORIZON, data_dir=wd / "farm")
+        raw = build_panel(HORIZON, data_dir=wd / "farm", clean=False)
         keep = ["date", "symbol", "open", "close", "year", "y_rank", "scorable"] + FEATS_V2
         p = score_monthly(raw[keep], SEEDS, purge_mode=u.purge_mode)
         del raw
@@ -234,8 +236,60 @@ def one_draw(tag, seed, sigma, work, loky):
             "minutes_panel": round((t_panel - t_perturb) / 60, 3),
             "minutes_arms": round((t_end - t_panel) / 60, 3),
             "loky_workers": loky, "run_date": time.strftime("%Y-%m-%d %H:%M"),
-            "script_sha256": _SCRIPT_SHA, "perturb_sha256": script_fingerprint(),
+            "script_sha256": _SCRIPT_SHA, "perturb_sha256": _SCRIPT_SHA,
             **key}
+
+
+def perturb_cleaned_farm(src, dst, sigma, noise_seed):
+    """Clean every price CSV, then perturb it, and write the farm. -> (rows, crossings).
+
+    The order of experiments/CLEANED_NOISE_PREREG.txt: each file is cleaned with
+    results/ratio_clean.clean on exactly the rows engine_core.build_panel would
+    clean (PRICE_COLS, dropna, sorted by date, calendar sessions), and only then
+    is adj_close multiplied by (1 + eps), eps ~ Normal(0, sigma). The generator is
+    price_noise_measure.perturb_farm's: one numpy Generator per noise seed, one
+    draw per row of each file in file order, files in sorted order.
+
+    Each file gains a boolean `clean_exempt` column marking the cleaned rows, and
+    the panel is built with build_panel(clean=False), which reads it as
+    canonical_price's exemption and does not clean a second time. At sigma 0 the
+    panel equals the published one; the baseline gate checks the figures.
+
+    `crossings` counts rows whose perturbed adj_close leaves the raw [low, high]
+    and is not exempt, so canonical_price will fall back to close there.
+    """
+    import numpy as np
+    import config
+    import ratio_clean
+    from engine_core import PRICE_COLS, _load_calendar
+    from config import read_table
+    cal = _load_calendar()
+    dst = Path(dst)
+    dst.mkdir(parents=True, exist_ok=True)
+    rng = np.random.default_rng(noise_seed)
+    n_rows = n_cross = 0
+    for f in sorted(Path(src).glob("*.csv")):
+        df = read_table(f)
+        d = config.read_price_csv(f).sort_values("date")[PRICE_COLS].dropna()
+        cleaned, exempt, _ev = ratio_clean.clean(d, cal)
+        ex = np.zeros(len(df), dtype=bool)
+        if exempt.any():
+            rows = d.index[exempt]
+            df.loc[rows, "adj_close"] = cleaned.loc[rows, "adj_close"]
+            ex[df.index.get_indexer(rows)] = True
+        if sigma > 0:
+            a = df["adj_close"].to_numpy(dtype=float)
+            a = a * (1.0 + rng.normal(0.0, sigma, size=len(df)))
+            lo = df["low"].to_numpy(dtype=float)
+            hi = df["high"].to_numpy(dtype=float)
+            n_cross += int(np.sum(((a <= 0) | (a < lo) | (a > hi)) & ~ex))
+            df["adj_close"] = a
+        df["clean_exempt"] = ex
+        n_rows += len(df)
+        # naming: axis-free -- a scratch copy of the farm under --work, deleted
+        # after the draw; an input to one measurement, never an artefact
+        df.to_csv(dst / f.name, index=False)
+    return n_rows, n_cross
 
 
 def write_atomic(path, text):
@@ -499,35 +553,10 @@ def cmd_merge(a):
 
 
 def cmd_verify(a):
-    """v2 research and the buy & hold must equal the recorded pre-registered draws."""
-    import pandas as pd
-    from config import read_table
-    ref = read_table(ROOT / "diagnostics" / "after_tax_noise_runs.csv")
-    bad, checked = [], 0
-    for d in load_draws(a.out):
-        r = ref[(ref["tag"] == d["tag"]) & (ref["noise_seed"] == d["noise_seed"])]
-        if not len(r):
-            continue
-        r = r.iloc[0]
-        v2 = d["arms"]["v2@research"]["cagr"]
-        # The recorded CSV rounds CAGR to 6 decimals, so "full precision" is
-        # equality after the same rounding, plus the unrounded final equity and
-        # tax, which the CSV records to the paisa.
-        same = (round(v2, 6) == float(r["v2_cagr"])
-                and round(d["bh_cagr"], 6) == float(r["bh_cagr"])
-                and round(d["arms"]["v2@research"]["final_equity"], 2) == float(r["v2_final_equity"])
-                and round(d["arms"]["v2@research"]["tax"], 2) == float(r["v2_tax"])
-                and d["rows"] == int(r["rows"]) and d["bound_crossings"] == int(r["bound_crossings"]))
-        checked += 1
-        line = (f"  {d['tag']:<10} seed {d['noise_seed']:>4}: v2 {v2:.6f} vs {r['v2_cagr']:.6f}  "
-                f"bh {d['bh_cagr']:.6f} vs {r['bh_cagr']:.6f}  "
-                f"final {d['arms']['v2@research']['final_equity']:.2f} vs {r['v2_final_equity']:.2f}  "
-                f"{'MATCH' if same else 'DIFFERS'}")
-        print(line)
-        if not same:
-            bad.append(f"{d['tag']} seed {d['noise_seed']}")
-    print(f"  {checked} draw(s) checked, {len(bad)} differ" + (f": {', '.join(bad)}" if bad else ""))
-    return 1 if bad or not checked else 0
+    """Retired 2026-09-27: it compared v2 with a record measured on the uncleaned prices."""
+    print("  verify is retired: diagnostics/after_tax_noise_runs.csv was measured on the "
+          "uncleaned prices (experiments/CLEANED_NOISE_PREREG.txt)")
+    return 2
 
 
 def cmd_stage(a):
@@ -549,19 +578,6 @@ def cmd_stage(a):
     return rc
 
 
-def _prior_v2_matches(d, ref):
-    """v2 research and the buy & hold equal the earlier measurement's row, or None if no row."""
-    r = ref[(ref["tag"] == d["tag"]) & (ref["noise_seed"] == d["noise_seed"])]
-    if not len(r):
-        return None
-    r = r.iloc[0]
-    v = d["arms"]["v2@research"]
-    return (round(v["cagr"], 6) == float(r["v2_cagr"])
-            and round(d["bh_cagr"], 6) == float(r["bh_cagr"])
-            and round(v["final_equity"], 2) == float(r["v2_final_equity"])
-            and round(v["tax"], 2) == float(r["v2_tax"]))
-
-
 def verdict(gaps):
     """RULE for one cell and profile. -> (supported, above, mean, sd)."""
     import numpy as np
@@ -573,11 +589,9 @@ def verdict(gaps):
 
 
 def cmd_analyse(a):
-    """Apply experiments/FOUR_ARM_NOISE_PREREG.txt to every finished universe."""
+    """Apply experiments/CLEANED_NOISE_PREREG.txt to every finished universe."""
     import pandas as pd
-    from config import read_table
     draws = load_draws(a.out)
-    ref = read_table(PRIOR_V2)
     order = [t for n in sorted(STAGES) for t in STAGES[n]]
     rows = []
     for d in draws:
@@ -601,14 +615,17 @@ def cmd_analyse(a):
     write_atomic(RUNS_CSV, df.to_csv(index=False))
 
     by = {(d["tag"], d["noise_seed"]): d for d in draws}
-    L = ["FOUR-ARM AFTER-TAX EDGE UNDER PRICE NOISE -- experiments/FOUR_ARM_NOISE_PREREG.txt",
+    L = ["AFTER-TAX EDGE UNDER PRICE NOISE, CLEANED PRICES -- experiments/CLEANED_NOISE_PREREG.txt",
          "=" * 86,
          "Arm tax-on headline CAGR minus the investable taxed buy & hold headline CAGR, points,",
          f"on the same perturbed panel. sigma {SIGMA} (0.01%), seeds {NOISE_SEEDS[0]} to "
          f"{NOISE_SEEDS[-1]}, n=10, research and tradeable profiles.",
          f"RULE (verbatim): {RULE}",
          "32 cells are tested: 4 arms x 8 universes. Every cell is reported, under both profiles.",
-         "[NOT VERIFIED] marks a cell whose nt_verify result was NOT VERIFIED on 2026-09-26.", ""]
+         "A single supported cell on its own is not to be read as an edge.",
+         "The tradeable profile is UNGATED: nothing replays what the port does under it.",
+         "nt_verify: the result on the cleaned prices, 2026-09-27. A supported cell that is NOT",
+         "VERIFIED there is reported as SUPPORTED, NOT PORT-VERIFIED.", ""]
     supported, decided = [], 0
     for tag in order:
         base = by.get((tag, 0))
@@ -632,17 +649,8 @@ def cmd_analyse(a):
             L += [f"  VOID: draws carry harness hash(es) {sorted(shas)}, the committed harness "
                   f"is {_SCRIPT_SHA}", ""]
             continue
-        if tag in PRIOR_V2_UNIVERSES:
-            m = [_prior_v2_matches(by[(tag, s)], ref) for s in (0,) + NOISE_SEEDS]
-            if not all(m):
-                L += ["  VOID: v2 or the buy & hold differs from "
-                      "diagnostics/after_tax_noise_runs.csv on seed(s) "
-                      + ", ".join(str(s) for s, ok in zip((0,) + NOISE_SEEDS, m) if not ok), ""]
-                continue
-            L.append("  v2 and the buy & hold equal diagnostics/after_tax_noise_runs.csv on the "
-                     "baseline and all ten seeds")
         for arm in ARM_NAMES:
-            flag = "  [NOT VERIFIED]" if (tag, arm) in NOT_VERIFIED else ""
+            ntv = "NOT VERIFIED" if (tag, arm) in NOT_VERIFIED else "VERIFIED"
             res = {}
             for prof in PROFILES:
                 gaps = [by[(tag, s)]["arms"][f"{arm}@{prof}"]["cagr"] - by[(tag, s)]["bh_cagr"]
@@ -653,21 +661,20 @@ def cmd_analyse(a):
                 L.append(f"  {arm} {prof:<9} mean {mean:+.4f}  sd {sd:.4f}  min {min(gaps):+.4f}  "
                          f"max {max(gaps):+.4f}  draws above zero {above} of 10  -> "
                          f"{'passes' if ok else 'fails'}")
-            if arm == "v2" and tag in PRIOR_V2_UNIVERSES:
-                L.append(f"  {arm} VERDICT: not decided again -- the verdict under "
-                         f"experiments/AFTER_TAX_PREREG.txt stands (NOT SUPPORTED){flag}")
-                continue
             decided += 1
             cell_ok = res["research"] and res["tradeable"]
             if cell_ok:
-                supported.append(f"{tag} {arm}")
-            L.append(f"  {arm} VERDICT: {'SUPPORTED' if cell_ok else 'NOT SUPPORTED'} "
+                supported.append(f"{tag} {arm}" + ("" if ntv == "VERIFIED" else " (not port-verified)"))
+            label = ("NOT SUPPORTED" if not cell_ok else
+                     "SUPPORTED" if ntv == "VERIFIED" else "SUPPORTED, NOT PORT-VERIFIED")
+            L.append(f"  {arm} VERDICT: {label} "
                      f"(research {'passes' if res['research'] else 'fails'}, tradeable "
-                     f"{'passes' if res['tradeable'] else 'fails'})"
-                     + (" -- one of 32 cells tested" if cell_ok else "") + flag)
+                     f"{'passes' if res['tradeable'] else 'fails'}; nt_verify {ntv})"
+                     + (" -- one of 32 cells tested" if cell_ok else ""))
         L.append("")
     L.append(f"SUMMARY: {decided} cell(s) decided so far, of 32 tested; supported: "
-             + (", ".join(supported) + " (32 cells were tested)" if supported else "none"))
+             + (", ".join(supported) + " (32 cells were tested; a single supported cell "
+                "on its own is not to be read as an edge)" if supported else "none"))
     text = "\n".join(L) + "\n"
     # naming: axis-free -- the pre-registered report, see RUNS_CSV above
     write_atomic(REPORT, text)

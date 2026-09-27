@@ -329,7 +329,7 @@ def _check_calendar(cal, panel, tag=""):
     return removed
 
 
-def build_panel(horizon, data_dir, pin_scorable=None):
+def build_panel(horizon, data_dir, pin_scorable=None, clean=True):
     """Build the full feature panel from one universe's raw stock CSVs.
 
     `data_dir` IS REQUIRED, AND THAT IS THE POINT. It used to default to None and
@@ -342,6 +342,14 @@ def build_panel(horizon, data_dir, pin_scorable=None):
 
     (This previously lived in engine_v2.py and was nearly lost when that file was
     deleted. It is permanent here now.)
+
+    `clean` runs results/ratio_clean.py on each file before canonical_price
+    (experiments/DATA_CLEANING_SPEC.txt). It is True for every published panel.
+    False exists for one caller: a noise draw whose farm was cleaned and then
+    perturbed before it got here, which must not be cleaned a second time
+    (experiments/CLEANED_NOISE_PREREG.txt). Such a farm carries a boolean
+    `clean_exempt` column marking the cleaned rows, and with clean=False it is
+    passed to canonical_price as the exemption the cleaning would have given.
     """
     if data_dir is None:
         raise ValueError(
@@ -370,13 +378,19 @@ def build_panel(horizon, data_dir, pin_scorable=None):
         # by canonical_price immediately, so the panel below -- and therefore every
         # px/op pivot every consumer builds from it -- is on the adjusted basis.
         # This is the ONLY place the choice is made.
-        raw = raw[PRICE_COLS].dropna()
+        _pre = (not clean) and ("clean_exempt" in raw.columns)
+        raw = (raw[PRICE_COLS + ["clean_exempt"]].dropna(subset=PRICE_COLS) if _pre
+               else raw[PRICE_COLS].dropna())
         # Reverting adj_close/close events take the previous session's ratio
         # here, before canonical_price applies the ratio to the whole bar. The
         # raw file is not touched. experiments/DATA_CLEANING_SPEC.txt.
-        raw, _exempt, _events = ratio_clean.clean(raw, _cal)
-        if _events:
-            _cleaned[f.stem] = int(_exempt.sum())
+        if clean:
+            raw, _exempt, _events = ratio_clean.clean(raw, _cal)
+            if _events:
+                _cleaned[f.stem] = int(_exempt.sum())
+        else:
+            _exempt = (raw.pop("clean_exempt").astype(bool).to_numpy() if _pre
+                       else None)
         raw, _nfb = canonical_price(raw, exempt=_exempt)
         if _nfb:
             _fallback[f.stem] = _nfb
@@ -411,9 +425,13 @@ def build_panel(horizon, data_dir, pin_scorable=None):
     print(f"    canonical price: adj_close on {len(p) - _tfb:,} rows, "
           f"close fallback on {_tfb:,} "
           f"({', '.join(f'{k} {v}' for k, v in sorted(_fallback.items())) or 'none'})")
-    print(f"    ratio cleaning: {sum(_cleaned.values()):,} rows on {len(_cleaned)} "
-          f"symbols take the previous session's adj_close/close ratio "
-          f"(experiments/DATA_CLEANING_SPEC.txt)")
+    if clean:
+        print(f"    ratio cleaning: {sum(_cleaned.values()):,} rows on {len(_cleaned)} "
+              f"symbols take the previous session's adj_close/close ratio "
+              f"(experiments/DATA_CLEANING_SPEC.txt)")
+    else:
+        print("    ratio cleaning: OFF for this build (clean=False); the farm is "
+              "expected to be cleaned already")
     p = add_market_relative_features(p)
 
     # PRICES ARE NO LONGER FILTERED BY FEATURE AVAILABILITY.

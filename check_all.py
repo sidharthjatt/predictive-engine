@@ -187,6 +187,9 @@ DELEGATES = (
     # A cache or noise record from other code or other data must be refused.
     # Writes only into a temporary directory. A few seconds.
     ("cache_key_test.py",                     [], False, None),
+    # results/noise_parallel.py's scheduler, baseline gate, resume, stale key,
+    # void and verdicts on synthetic draws. Nothing is fitted. A few seconds.
+    ("noise_harness_test.py",                 [], False, None),
     ("results/check_b_exec_timing.py",        [], False, None),
     ("nautilus/verify_next_open_execution.py", [], False, None),
     ("tax_acceptance_check.py",               [], False, None),
