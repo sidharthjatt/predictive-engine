@@ -25,6 +25,32 @@ currently wrong.
 
 ---
 
+## The after-tax noise test on the cleaned prices -- MEASURED 2026-09-29
+
+`experiments/CLEANED_NOISE_PREREG.txt` (committed in d4ea256 before any draw; harness
+e54b844c0d551a88, b72d6b9). 88 of 88 draws, all eight baselines passed, no draw failed,
+no universe void: stage 1 6.97 h, stage 2 11.75 h, stage 3 10.32 h. Report
+`diagnostics/cleaned_noise.txt`, records `diagnostics/cleaned_noise_runs.csv`.
+
+Under the registered rule 15 of 32 cells are supported under both profiles; research
+and tradeable agree on every cell. Supported and port-verified: nifty50 v3, midcap150 v4,
+smallcap250 v1, smallcap250 v3, nifty200 v1, nifty500 v1, nifty500 v2. Supported, not
+port-verified: midcap100 v1 and v3, midcap150 v1 and v3, nifty200 v3 and v4, nifty500
+v3 and v4. Not supported: every cell of nifty100 and midcap50, and 9 others. No v2
+cell outside nifty500 is supported.
+
+Observed, not tested and not part of the verdict:
+- nifty500's unperturbed run sits below every one of its draws on all four arms (v1
+  sigma-0 gap +5.18, draws +7.45 to +13.94; v2 -1.33, draws -0.19 to +4.95). v2 is
+  supported there although its sigma-0 gap is negative.
+- On nifty200, midcap150 and smallcap250 the sigma-0 gap of v1 and v3 sits above the
+  mean of the draws (nifty200 v1 +16.74 against +8.68), except smallcap250 v3 (+14.95
+  against +15.39).
+- Three supported cells pass with exactly 9 of 10 draws above zero: nifty50 v3,
+  nifty200 v4, nifty500 v2.
+- The supported cells are concentrated in v1 and v3 (100% invested) on the larger
+  universes; those arms are also the ones that moved most under the cleaning.
+
 ## Caches keyed on code and panel content, and the four nt_verify cells traced -- 2026-09-27 (pass G)
 
 **Every reusable cache or record now names or records its key, and a mismatch is a

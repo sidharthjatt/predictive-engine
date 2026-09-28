@@ -95,11 +95,15 @@ pipeline trades on a price it could not have seen.
   sells. That is what holding and never trading earns. The "sold on the last day"
   column prices the alternative: everything sold on 2026-05-29, with sell charges
   and capital-gains tax.
-- **No after-tax edge over the investable buy & hold has been tested on the cleaned
-  prices.** The pre-registered tests that found none supported
-  (`experiments/AFTER_TAX_PREREG.txt`, and stage 1 of
-  `experiments/FOUR_ARM_NOISE_PREREG.txt`) were run on the uncleaned prices and
-  are superseded; see `KNOWN_ISSUES.md`.
+- **The after-tax noise test on the cleaned prices, 2026-09-29**
+  (`experiments/CLEANED_NOISE_PREREG.txt`, 32 cells, sigma 0.01%, n=10, research
+  and tradeable): 15 of 32 cells pass the registered rule under both profiles.
+  7 of them also verify in nt_verify: nifty50 v3, midcap150 v4, smallcap250 v1
+  and v3, nifty200 v1, nifty500 v1 and v2. The other 8 are supported, not
+  port-verified. 32 cells were tested, so a single supported cell on its own is
+  not to be read as an edge, and the tradeable profile is ungated. Report:
+  `diagnostics/cleaned_noise.txt`. The earlier tests on the uncleaned prices are
+  superseded.
 - **The cleaning, 2026-09-27.** On about 0.4% of rows adj_close/close moved for one
   to five sessions and came back, which no corporate action does. Those sessions
   now take the previous session's ratio (`experiments/DATA_CLEANING_SPEC.txt`).
