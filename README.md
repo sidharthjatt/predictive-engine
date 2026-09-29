@@ -77,9 +77,9 @@ the itemised Zerodha delivery rates in `results/qbeast_in_charges.py`; the charg
 section of `data/reference/TAX_AND_CHARGES.docx` is out of date, and its tax rules are
 the ones the code uses.
 
-`./venv/bin/python check_all.py` runs the repository's checks. It needs a git
-checkout (`platform_identity_check.py` calls `git ls-files`), and most of its
-delegates skip until the runs they check have been made.
+`./venv/bin/python check_all.py` runs the repository's checks. Outside a git checkout
+`platform_identity_check.py` is reported as a named skip, and most delegates skip
+until the runs they check have been made.
 
 ## Current results, 2026-09-29
 

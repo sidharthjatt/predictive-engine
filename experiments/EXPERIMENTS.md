@@ -322,12 +322,10 @@ states rather than its *level*, any monotone map should do as well, and the
 concave one deploys more capital.
 
 **The accept rule.** No standalone prereg survives. The rule stated in
-`rejected_experiments_REPORT.txt` for the whole early block, verbatim:
+`rejected_experiments_REPORT.txt` for the whole early block (translated to English on
+2026-09-29 from the original Hinglish):
 
 > Accept rule fixed in advance: better Sharpe on both universes + both halves pass.
->
-> *(Accept rule fixed in advance: Sharpe better on both universes + both halves
-> pass.)*
 
 `HANDOFF_SUMMARY.txt` records the exposure family's rule with the drawdown clause:
 "Sharpe must not fall in either universe, both sub-periods must pass, drawdown

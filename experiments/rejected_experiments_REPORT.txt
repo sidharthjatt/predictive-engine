@@ -20,6 +20,9 @@ new panel to see whether any now passes is exactly the multiple-testing failure
 that pre-registration exists to prevent. Any re-test would need its own
 pre-registration, written before the numbers are seen, and would have to carry
 the full trial count.
+TRANSLATED 2026-09-29: the two lines under the title below and the breadth-delta
+line were written in Hinglish and are now in English; the meaning is unchanged. The
+history was rewritten on that date to carry the English wording throughout.
 ================================================================================
 
 REJECTED EXPERIMENTS -- FULL RECORD
