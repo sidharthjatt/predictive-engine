@@ -79,13 +79,14 @@ class CostReconciliationError(RuntimeError):
     """A cost figure does not reconcile. The message names the check, day and gap."""
 
 
-def charge_breakdown(fill_price, qty, side):
+def charge_breakdown(fill_price, qty, side, numpy_round=True):
     """{charge: rupees} for one fill, as test_exposure.calc_tc computes the total."""
     # NUMPY SCALARS, AS IN THE ENGINE: its prices come out of a pandas row as
     # numpy float64, and round() on one can land a half-paisa the other way from
     # round() on a Python float (1607.585 -> 1607.58 against 1607.59). Rounding the
     # way the engine does is what makes the charge and the gain match it.
-    fill_price, qty = np.float64(fill_price), int(qty)
+    # bh_held.held_lots prices in Python floats, so the buy & hold passes False.
+    fill_price, qty = (np.float64(fill_price) if numpy_round else float(fill_price)), int(qty)
     if fill_price <= 0 or qty <= 0:
         return {k: 0.0 for k, _ in CHARGES} | {"total": 0.0}
     bd = compute_leg_charges(Broker.ZERODHA, Segment.EQUITY, Product.DELIVERY,
@@ -285,31 +286,56 @@ def _pct(x, base):
     return f"{x / base * 100:8.2f}%" if base > 0 else "     n/a"
 
 
-def bh_costs(px, op, bd, start_capital):
-    """Charges, slippage and tax of the investable buy & hold (bh_held.held_lots)."""
+def bh_costs(px, op, bd, start_capital, tax_on):
+    """Charges, slippage and tax of the investable buy & hold (bh_held.held_lots),
+    held to the end and sold on the last day, recomputed fill by fill and reconciled
+    against held_lots to the paisa. Raises CostReconciliationError on a gap."""
     import bh_held
     r = bh_held.held_lots(px, op, bd)
-    o0 = op.loc[bd[0]]
-    ch = {k: 0.0 for k, _ in CHARGES}
-    slip = 0.0
-    for s, (q, pr) in r["shares"].items():
-        b = charge_breakdown(pr, q, "BUY")
+    det, d0, dN = r["detail"], bd[0], bd[-1]
+    o0, oN = op.loc[d0], op.loc[dN]
+    buy = {k: 0.0 for k, _ in CHARGES}
+    sell = {k: 0.0 for k, _ in CHARGES}
+    cash, buy_slip, sell_slip, proceeds, gain = float(start_capital), 0.0, 0.0, 0.0, 0.0
+    for sym, (q, pr) in r["shares"].items():
+        ref = float(o0[sym])
+        b_ = charge_breakdown(pr, q, "BUY", numpy_round=False)
         for k, _ in CHARGES:
-            ch[k] += b[k]
-        slip += (pr - float(o0[s])) * q
-    det = r["detail"]
-    eq = r["eq_headline"]
-    last = r["eq_last_day"]
-    sell_slip = 0.0
-    oN = op.loc[bd[-1]]
-    for s, (q, _bp) in r["shares"].items():
-        ref = float(oN.get(s, np.nan))
-        if np.isnan(ref) or ref <= 0:
-            ref = float(px.loc[bd[-1], s])
-        sell_slip += ref * SLIPPAGE * q
-    return {"eq": eq, "charges": ch, "slippage": slip, "names": det["names"],
-            "last_day": {"final": float(last.iloc[-1]), "sell_charges": float(det["sell_tc"]),
-                         "sell_slippage": sell_slip, "tax": float(det["tax"])}}
+            buy[k] += b_[k]
+        cash -= q * pr + b_["total"]
+        buy_slip += (pr - ref) * q
+        # the last-day sale, as held_lots prices it: the last open, or the close
+        ref_n = float(oN.get(sym, np.nan))
+        if np.isnan(ref_n) or ref_n <= 0:
+            ref_n = float(px.loc[dN, sym])
+        sp = ref_n * (1 - SLIPPAGE)
+        s_ = charge_breakdown(sp, q, "SELL", numpy_round=False)
+        for k, _ in CHARGES:
+            sell[k] += s_[k]
+        sell_slip += (ref_n - sp) * q
+        proceeds += q * sp
+        gain += q * (round(sp, 2) - round(pr, 2))
+    bucket = dict.fromkeys(T.BUCKETS, 0.0)
+    bucket[("long_" if (dN - d0).days >= T.LTCG_HOLD_DAYS else "short_") + T.regime_of(dN)] = gain
+    tx = T.tax_for_fy(T.financial_year(dN), bucket)
+    held_final = cash + float((px.loc[bd, list(r["shares"])].ffill().iloc[-1]
+                               * np.array([q for q, _ in r["shares"].values()], dtype=float)).sum())
+    sold_final = cash + proceeds - sum(sell.values()) - tx["total_tax"]
+    for got, want, what, day in (
+            (cash, det["residual_cash"], "cash left after the buys", d0),
+            (held_final, float(r["eq_headline"].iloc[-1]), "equity held to the end", dN),
+            (sum(sell.values()), float(det["sell_tc"]), "last-day sell charges", dN),
+            (tx["total_tax"], float(det["tax"]), "tax on the last-day sale", dN),
+            (sold_final, float(r["eq_last_day"].iloc[-1]), "equity sold on the last day", dN)):
+        if abs(got - want) >= PAISA:
+            _fail("buy & hold", day, got - want, f"{what} does not reconcile with bh_held.held_lots")
+    return {"names": det["names"], "buy_charges": buy, "buy_slippage": buy_slip,
+            "held_final": held_final, "sell_charges": sell, "sell_slippage": sell_slip,
+            "tax": tx["total_tax"] if tax_on else 0.0, "stcg_tax": tx["stcg_tax"] if tax_on else 0.0,
+            "ltcg_tax": tx["ltcg_tax"] if tax_on else 0.0,
+            "exemption_used": min(max(tx["ltcg_net"], 0.0), tx["exemption"]) if tax_on else 0.0,
+            "sold_final": sold_final if tax_on else sold_final + tx["total_tax"],
+            "tax_if_on": tx["total_tax"]}
 
 
 def summary_block(label, profile, tax_on, rebal, start_capital, equity, fills, years, days, bh,
@@ -372,23 +398,33 @@ def summary_block(label, profile, tax_on, rebal, start_capital, equity, fills, y
             _fail("totals", None, got - want, f"per-year {what} does not sum to the summary total")
     L.append("  Tax is shown in the year it left cash; COST_TAX_YEARS gives the year each amount was "
              "levied on.")
-    # buy & hold
+    # buy & hold, held to the end and sold on the last day
     if bh is not None:
-        bc = sum(bh["charges"].values())
-        bfin = float(bh["eq"].iloc[-1])
-        bgross = bfin - start_capital + bc + bh["slippage"]
-        ld = bh["last_day"]
-        L += ["", f"  investable buy & hold ({bh['names']} names bought at the first open, held to the end)",
-              f"  {'':<34}{'Rs':>16}{'of capital':>12}{'of gross':>11}"]
-        L.append(f"  {'gross profit':<34}{bgross:>16,.2f}")
-        for nm, x in (("charges (all on the first day)", bc), ("slippage (all on the first day)", bh["slippage"]),
-                      ("tax", 0.0), ("all costs", bc + bh["slippage"])):
-            L.append(f"  {nm:<34}{x:>16,.2f}{_pct(x, start_capital):>12}{_pct(x, bgross):>11}")
-        L.append(f"  tax is nil because the headline buy & hold never sells. Sold on the last day it would pay"
-                 f" charges Rs {ld['sell_charges']:,.2f}, slippage Rs {ld['sell_slippage']:,.2f} and tax "
-                 f"Rs {ld['tax']:,.2f}, ending at Rs {ld['final']:,.2f}.")
-        L.append(f"  arm against buy & hold, all costs: Rs {charges + slip + tax:,.2f} against "
-                 f"Rs {bc + bh['slippage']:,.2f}")
+        bc, bs = sum(bh["buy_charges"].values()), bh["buy_slippage"]
+        sc_, ss = sum(bh["sell_charges"].values()), bh["sell_slippage"]
+        held_costs = bc + bs
+        sold_costs = bc + bs + sc_ + ss + bh["tax"]
+        g_held = bh["held_final"] - start_capital + held_costs
+        g_sold = bh["sold_final"] - start_capital + sold_costs
+        L += ["", f"  investable buy & hold ({bh['names']} names bought at the first open)",
+              f"  {'':<34}{'held to the end':>18}{'sold on the last day':>22}",
+              f"  {'final equity':<34}{bh['held_final']:>18,.2f}{bh['sold_final']:>22,.2f}",
+              f"  {'gross profit':<34}{g_held:>18,.2f}{g_sold:>22,.2f}"]
+        for nm, x, y in (("charges", bc, bc + sc_), ("slippage", bs, bs + ss),
+                         ("tax, total", 0.0, bh["tax"]), ("  short-term", 0.0, bh["stcg_tax"]),
+                         ("  long-term", 0.0, bh["ltcg_tax"]),
+                         ("  LTCG exemption used (not a cost)", 0.0, bh["exemption_used"]),
+                         ("all costs", held_costs, sold_costs)):
+            L.append(f"  {nm:<34}{x:>18,.2f}{y:>22,.2f}")
+        L.append(f"  {'all costs, % of gross profit':<34}{_pct(held_costs, g_held):>18}"
+                 f"{_pct(sold_costs, g_sold):>22}")
+        L.append("  Held to the end is the headline buy & hold: it never sells, so it pays no tax "
+                 "under either setting.")
+        if not tax_on:
+            L.append(f"  Tax is off, so the last-day sale pays none here; with tax on it would pay "
+                     f"Rs {bh['tax_if_on']:,.2f}.")
+        L += ["", f"  all costs: arm Rs {charges + slip + tax:,.2f}; buy & hold held Rs {held_costs:,.2f}, "
+                  f"sold on the last day Rs {sold_costs:,.2f}"]
     # zeros, stated
     L += ["", "  zero components and why:"]
     if tot["brokerage"] == 0:
@@ -407,7 +443,8 @@ def summary_block(label, profile, tax_on, rebal, start_capital, equity, fills, y
     L += ["", "  what the tax model leaves out (data/reference/TAX_AND_CHARGES.docx, section 5):"]
     L += [f"    - {x}" for x in TAX_LEAVES_OUT]
     L += ["", f"  reconciled to the paisa: cash on {len(days):,} days, slippage and charges on "
-              f"{len(fills):,} fills, tax on {len(years)} financial years, and the totals above.",
+              f"{len(fills):,} fills, tax on {len(years)} financial years, the totals above, and "
+              f"the buy & hold held and sold.",
           "=" * 90]
     return L
 
@@ -427,7 +464,7 @@ def write(u, arm, tag, audit, equity, engine_tc, px, op, bd, start_capital, prof
     lo = lo[["date", "symbol", "qty", "buy_date", "buy_price", "sell_price", "days_held", "term",
              "regime", "fy", "gain"]]
     lo["fy"] = lo["fy"].map(T.fy_label)
-    bh = bh_costs(px, op, bd, start_capital)
+    bh = bh_costs(px, op, bd, start_capital, tax_on)
     lines = summary_block(f"{u.tag} {getattr(arm, 'name', arm)}", profile, tax_on, rebal,
                           start_capital, equity, fills, years, days, bh,
                           cap_cuts=sum(1 for r in audit["skipped"] if r.get("reason") == "participation cap"))

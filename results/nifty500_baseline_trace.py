@@ -3,6 +3,7 @@ different names, and why. Read-only; writes diagnostics/nifty500_baseline_trace.
 
     ./venv/bin/python results/nifty500_baseline_trace.py [--universe=nifty500]
         [--end=2019-12-31] [--seeds=101,202,...] [--loky=10] [--causal=101]
+        [--run=runs/<research tax-on run folder>]
 
 In experiments/CLEANED_NOISE_PREREG.txt nifty500's unperturbed run sits below all ten
 of its draws on every arm. This rebuilds each draw's panel exactly as
@@ -54,7 +55,7 @@ WORK = Path("/tmp/nifty500_baseline_trace")
 
 def args(argv):
     a = dict(universe="nifty500", end="2019-12-31", seeds=",".join(map(str, NP.NOISE_SEEDS)),
-             loky="10", causal="")
+             loky="10", causal="", run="runs/20260927T122131_all_all_r20")
     for x in argv:
         k, _, v = x.lstrip("-").partition("=")
         a[k] = v
@@ -166,6 +167,12 @@ def feature_delta(raw0, rawd, date, syms):
 def main(argv):
     a = args(argv)
     tag, end, loky = a["universe"], a["end"], int(a["loky"])
+    # THE PUBLISHED RUN THE SIGMA-0 RECONSTRUCTION IS CHECKED AGAINST, checked
+    # before any panel is built rather than after an hour of fitting.
+    run_dir = ROOT / a["run"]
+    if not (run_dir / f"results_{tag}" / "metrics").is_dir():
+        raise SystemExit(f"nifty500_baseline_trace: run folder {run_dir} has no results_{tag}/metrics.\n"
+                         f"  Pass the research tax-on run to check against: --run=runs/<folder>")
     seeds = [int(s) for s in a["seeds"].split(",") if s]
     import engine_core as ec
     from features_v2 import FEATS_V2
@@ -185,7 +192,7 @@ def main(argv):
     bt0 = backtests(raw0, s0, tag, end)
     L.append(f"sigma 0 panel and scores: {(time.time() - t0) / 60:.1f} min")
     # The reconstruction must reproduce the published run's names to --end.
-    run = ROOT / "runs" / "20260927T122131_all_all_r20" / f"results_{tag}" / "metrics"
+    run = run_dir / f"results_{tag}" / "metrics"
     for arm in bt0:
         t = f"{tag}_tax" if arm == "v2" else f"{tag}_{arm}_tax"
         ph = read_table(run / f"daily_holdings_{t}.csv", parse_dates=["date"])

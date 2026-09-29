@@ -59,7 +59,8 @@ any of this to the paisa.
   - the totals.
 - `run.py` prints each arm's summary at the end of `run.log`.
 - `cost_reconcile_check.py`, a check_all delegate, reconciles all 32 cells under
-  both profiles with tax off and on: 128 combinations, about 4 minutes.
+  both profiles with tax off and on, and each universe's buy & hold: 144
+  combinations, about 4 minutes.
 - Six deliberate corruptions each raise at the right check: a fill price, a charge,
   a reference price, a closing cash, a tax amount with the cash kept consistent,
   and a dropped fill.
@@ -82,19 +83,46 @@ nifty50 v3.
   data for every file those calls read: 8 membership files and 4,759 price files.
 
 **`runs/20260927T122131_all_all_r20` has been moved out of the tree.** It is the
-research tax-on run both pass I scripts read by default. Until it is back,
-`survivorship_attribution.py` needs `--run=<folder>`, and the trace's sigma-0 check
-cannot run. Their recorded outputs are unchanged.
+research tax-on run both pass I scripts read by default. Their recorded outputs are
+unchanged. Without it:
+- `survivorship_attribution.py` and `results/nifty500_baseline_trace.py` exit at once
+  with a message asking for `--run=runs/<folder>`, instead of failing part-way;
+- the trace checks the folder before it builds any panel.
 
-**Found and left unchanged, because they are existing outputs and inputs:**
-- `DAILY_LOG_*.txt`'s header still says "Capital gains tax is NOT modelled anywhere
-  in this system" (`results/make_daily_log.py:85`). Tax has been modelled since
-  2026-09-17.
+**The daily log's tax sentence, corrected.** The header of `DAILY_LOG_*.txt` said
+"Capital gains tax is NOT modelled anywhere in this system". It now says tax is
+deducted once a year on the assessment day and shown in section B's cash line.
+- All 139 daily logs in `results_*/metrics` were regenerated from their trails.
+- In every one, that sentence is the only line that changed. No other output was
+  regenerated.
+- Run folders written before this keep the old sentence.
+
+**The buy & hold's costs in the summary.** The block now shows the investable buy &
+hold two ways:
+- **held to the end**, the headline, which never sells and pays no tax under either
+  setting;
+- **sold on the last day**, with sell charges, sell slippage and tax (short, long, and
+  exemption used). These are the two lines added on 2026-09-25.
+
+`bh_costs` recomputes both fill by fill and reconciles each against
+`bh_held.held_lots` to the paisa: the cash left after the buys, the held final equity,
+the sell charges, the tax, and the sold final equity. `cost_reconcile_check.py` runs
+that for every universe with tax off and on: 144 of 144 combinations reconcile. On a
+tax-off run the last-day sale pays no tax, and the block says what it would pay with
+tax on.
+
+**Charges come from the code, not the reference document.** They are the itemised
+Zerodha delivery rates in `results/qbeast_in_charges.py`. The charges section of
+`data/reference/TAX_AND_CHARGES.docx` is out of date and is left as a reference copy;
+its tax rules are the ones used.
+
+**Found and left unchanged, because it is an input:**
 - The charges section of `data/reference/TAX_AND_CHARGES.docx` describes a flat
   0.11% `COST_PCT`, a 4.5% cash yield and "DP charges are not modelled". The code
   charges itemised Zerodha delivery rates, including the DP charge, and idle cash
   earns 0. The document's tax sections match the code, and the summary quotes its
-  list of what the tax model leaves out.
+  list of what the tax model leaves out. The document stays untouched, as a
+  reference copy.
 
 ## Pass I, 2026-09-29: survivorship attribution, nt_verify, live orders, disk
 

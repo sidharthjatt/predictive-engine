@@ -194,8 +194,8 @@ DELEGATES = (
     ("nautilus/verify_next_open_execution.py", [], False, None),
     ("tax_acceptance_check.py",               [], False, None),
     # Charges, slippage and tax reconciled to the paisa (results/cost_report.py) on
-    # every universe and arm, both profiles, tax off and on: 128 combinations,
-    # nothing written. About 3 minutes.
+    # every universe and arm, both profiles, tax off and on, and the buy & hold:
+    # 144 combinations, nothing written. About 4 minutes.
     ("cost_reconcile_check.py",               [], False, None),
     ("transitional_asserts_check.py",         [], False, None),
 

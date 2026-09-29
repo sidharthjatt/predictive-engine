@@ -5,7 +5,8 @@
 A check_all delegate. For each registered universe, each arm, the research and
 tradeable profiles, and tax off and on, at the default cadence: run the backtest
 with the cost trail and apply results/cost_report.reconcile -- cash every day,
-slippage and charges every fill, tax every financial year, and the totals. Writes
+slippage and charges every fill, tax every financial year, and the totals; and
+the investable buy & hold, held and sold on the last day, per universe. Writes
 nothing. Exits 1 at the end if any combination failed, naming each with the check,
 the first day and the gap; 0 if all reconcile.
 """
@@ -63,6 +64,15 @@ def main(argv):
         op = p.pivot_table(index="date", columns="symbol", values="open").ffill()
         sc = p.pivot_table(index="date", columns="symbol", values="score")
         panel = (px, op, sc, u.trading_days(px.index), precompute(px), px / px.shift(20) - 1)
+        for tax_on in (False, True):
+            what = f"{tag} buy & hold tax {'on' if tax_on else 'off'}"
+            try:
+                cost_report.bh_costs(px, op, panel[3], float(START_CAPITAL), tax_on)
+                print(f"  PASS  {what}", flush=True)
+            except cost_report.CostReconciliationError as e:
+                failed.append(f"{what}: {e}")
+                print(f"  FAIL  {what:<36} {e}", flush=True)
+            n += 1
         for arm in arm_reg.ARMS.values():
             for profile in profiles.PROFILES:
                 for tax_on in (False, True):

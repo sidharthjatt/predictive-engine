@@ -82,7 +82,8 @@ LEGEND_TEMPLATE = """\
  TXNFEE     Actual Zerodha delivery-equity charges for the trade: brokerage, STT,
             stamp duty, exchange transaction charge, SEBI turnover fee and GST.
             These are transaction-level costs and taxes debited on the contract note.
-            Capital gains tax is NOT modelled anywhere in this system.
+            Capital-gains tax is not one of them: with tax on it is deducted once a
+            year, on the assessment day, and shown in section B's cash line.
 
  SECTION B  This is the proof that the arithmetic is correct. Three checks run daily:
               CASH    opening cash + yield + sale proceeds - purchases - fees = closing cash

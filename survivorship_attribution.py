@@ -359,6 +359,9 @@ def main(argv):
         else:
             cells.append(tuple(a.split(":")))
     cells = cells or SUPPORTED
+    if not run.is_dir():
+        raise SystemExit(f"survivorship_attribution: run folder {run} is not on disk.\n"
+                         f"  Pass the research tax-on run to attribute: --run=runs/<folder>")
     check_tags(sorted({u for u, _ in cells}))
     rows, cov_rows, pit_rows, bh_cache = [], [], {}, {}
     for u, arm in cells:

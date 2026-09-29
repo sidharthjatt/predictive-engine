@@ -72,7 +72,10 @@ gross profit, per financial year, and against the buy & hold. The same block is 
   is off.
 
 Every figure is reconciled to the paisa against the run's cash and the tax rules
-(`results/cost_report.py`); a run whose costs do not reconcile fails.
+(`results/cost_report.py`); a run whose costs do not reconcile fails. Charges come from
+the itemised Zerodha delivery rates in `results/qbeast_in_charges.py`; the charges
+section of `data/reference/TAX_AND_CHARGES.docx` is out of date, and its tax rules are
+the ones the code uses.
 
 `./venv/bin/python check_all.py` runs the repository's checks. It needs a git
 checkout (`platform_identity_check.py` calls `git ls-files`), and most of its
