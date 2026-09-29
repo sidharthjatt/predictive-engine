@@ -23,11 +23,11 @@ right, and do not quote them without re-running the measurement.
   run is ever on disk. Before this check it held mid alone (985 fills, 124
   midcap symbols) -- stale for 58 and 74 since the 2026-08-15 verification loop.
 
-  58: copied orders/fills/positions -> scratchpad
+  58: copied orders/fills/positions -> a temporary copy
 
-  74: copied orders/fills/positions -> scratchpad
+  74: copied orders/fills/positions -> a temporary copy
 
-  mid: copied orders/fills/positions -> scratchpad
+  mid: copied orders/fills/positions -> a temporary copy
 
 ====================================================================================================
  1. ROW COUNTS AND ORDER STATUS

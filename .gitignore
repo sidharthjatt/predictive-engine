@@ -113,8 +113,7 @@ data/reference/*.docx
 #                                      EXPERIMENTS.md, all five preregs,
 #                                      sizing_test.py, and the two REPORT.txt
 #                                      files restored from backup on 2026-08-22
-#   data/reference/*.csv               nse_press_release_manifest.csv,
-#                                      nse_symbol_renames.csv,
+#   data/reference/*.csv               nse_symbol_renames.csv,
 #                                      nse_circulars_2019_2026.csv (9.4 MB)
 #                                      -- .csv only. data/reference/*.docx is
 #                                      ignored, see the section above it.
@@ -128,7 +127,6 @@ data/reference/*.docx
 #   run_*_log.txt, run_log.txt         pipeline run logs; three of them are the
 #                                      cited evidence for the EWMA experiment
 #                                      (run_all_ewma_log.txt, ewma2, fresh)
-#   nautilus/run_full_log.txt
 #
 # A PRE-COMMIT SIZE GUARD, if you want one later:
 #   git config --local core.hooksPath .githooks

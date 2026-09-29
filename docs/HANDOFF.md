@@ -101,11 +101,11 @@ imports them. Changing one changes a run.
     libs     engine_core  test_exposure  v34_common  features_v2
              arm_sources  survivorship   tradability  qbeast_in_charges
 
-**MEASUREMENT TOOLS AND PROBES (26).** **The pipeline never runs any of these.**
+**MEASUREMENT TOOLS AND PROBES (25).** **The pipeline never runs any of these.**
 Every one is cited as evidence in a tracked document, so none is dead — but none
 executes unless a person runs it by hand.
 
-    attribution_v2          audit_leakage           calendar_coverage_probe
+    attribution_v2          calendar_coverage_probe
     check_a_close_values    check_b_exec_timing     diagnose_alpha
     drawdown_exit_measure   extract_membership      leakage_check1_causality
     leakage_check2_purge    leakage_check4_corpactions
