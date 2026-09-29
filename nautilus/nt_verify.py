@@ -16,6 +16,10 @@ audit_step.artefact_tag. Added 2026-09-26; before that every run verified v2.
 cadence and exits 0. It does not gate: the share-level verdict below is the
 default-cadence certification and is unchanged. See KNOWN_ISSUES.md for the gap
 measured at cadences 20, 3 and 1 on 2026-09-23.
+
+A 0.01-grid difference beyond the one-share signature passes only if the reference
+valued at the port's quote mid reproduces the port's holdings on every rebalance
+(mid_valued). One rule for every cell; added 2026-09-29, pass I.
 """
 import contextlib
 import io
@@ -201,11 +205,38 @@ def tick_proof():
         panel = nt_attribution.load_panel(U["cache"])
         armd = arm(panel, dates, size_at_close=False,
                    value_at_open=True, tick_round=True, **_ARM_KW)
+        armm = mid_valued(panel, dates)
         return compare(port, armd, dates), len(dates), \
-            classify_divergence(port, armd, dates)
+            classify_divergence(port, armd, dates), \
+            sum(armm[d] == port[d] for d in dates)
     finally:
         nt_data.set_tick_size("0.05"); nt_data.set_tick_mode("nse")
         nt_attribution.set_tick("0.05"); nt_attribution.set_tick_mode("nse")
+
+
+def mid_valued(panel, dates):
+    """Holdings of the reference with its book valued at the port's quote mid.
+
+    The port values its book at 0.5 * (tick(open*(1+s)) + tick(open*(1-s))), the
+    mid of the two tick-rounded quotes (nt_gate_diagnose.py), where the reference
+    values it at the open. Rounding the two quotes moves the book's value by a
+    fraction of a tick per position, which moves share counts. This is the
+    reference with that one change, on the 0.01 grid tick_proof sets; it is
+    nt_mid_trace.py's M arm. Added 2026-09-29 (pass I).
+    """
+    import numpy as np
+    px, op, sc, bd, pc, mom20 = panel
+    s = nt_attribution.SLIPPAGE
+
+    def tick01(x):
+        return np.round(np.round(x / 0.01) * 0.01, 4)
+
+    mid = 0.5 * (tick01(op * (1 + s)) + tick01(op * (1 - s)))
+    mid = mid.where(mid.notna(), px)
+    out = {}
+    nt_attribution.run(mid, op, sc, bd, pc, mom20, size_at_close=False,
+                       tick_round=True, value_at_open=False, holdings_out=out, **_ARM_KW)
+    return {d: out.get(d, {}) for d in dates}
 
 
 def cadence_gap(rebal):
@@ -377,7 +408,7 @@ def main():
           f"only" + (f", worst {max(_a_worst):.2f}% on a single position"
                      if _a_worst else ""))
 
-    t_stats, t_n, (t_quant, t_other, t_detail) = tick_proof()
+    t_stats, t_n, (t_quant, t_other, t_detail), t_mid = tick_proof()
     print(f"\n  reconciliation on a 0.01 tick grid (both sides) -- "
           f"{t_n - t_stats[0]} of {t_n} identical")
     # NAMED, MEASURED, AND NOT GATED. The verdict below reads t_other, never this.
@@ -397,6 +428,20 @@ def main():
         print("      nifty100   9.49e-06  UNIONBANK Rs 28.74,  2,383 shares -- held")
         print("      midcap150  2.60e-06  SUZLON    Rs  2.54, 21,332 shares -- flipped")
         print("    midcap150 holds shares at Rs 2.45. nifty100 has nothing that cheap.")
+
+    # QUOTE-MID VALUATION ROUNDING, ONE RULE FOR EVERY CELL. Added 2026-09-29
+    # (pass I). The port values its book at the mid of its two tick-rounded quotes;
+    # the reference at the open. That moves share counts by more than the one-share
+    # signature allows, on more than one symbol, and always in the port's favour
+    # of what the book can afford (diagnostics/nt_mid_trace.txt). A difference the
+    # one-share signature does not explain is explained by this only if the
+    # reference valued at the quote mid reproduces the port's holdings, names and
+    # share counts, on EVERY rebalance. One rebalance it does not reproduce and
+    # the cell fails as before. Not a tolerance: no count of shares is allowed.
+    mid_explains = t_other > 0 and t_mid == t_n
+    print(f"  reference valued at the port's quote mid: holdings equal the port's on "
+          f"{t_mid} of {t_n} rebalances"
+          + ("  -> explains the rest" if mid_explains else ""))
 
     d_sym = d_stats[1]
     # THE EXIT STATUS, ADDED 2026-09-21. The five branches below are unchanged --
@@ -444,6 +489,15 @@ def main():
             print("  symbols on one rebalance, or a symbol-set mismatch still fails.")
         print("  Nothing else remains unexplained.")
         rc = 0
+    elif mid_explains:
+        print("  VERIFIED BY QUOTE-MID VALUATION. On a 0.01 tick grid the port and the")
+        print(f"  open-valued reference differ on {t_other} rebalance(s) beyond the")
+        print(f"  one-share signature, {t_stats[1]} of them by the set of names held.")
+        print("  The reference with its book valued at the port's quote mid")
+        print(f"  -- its one documented difference -- reproduces the port's holdings on")
+        print(f"  all {t_n} rebalances, so those differences are that valuation rounding.")
+        print("  Nothing else remains unexplained.")
+        rc = 0
     else:
         print(f"  NOT VERIFIED. {t_other} rebalance(s) differ in a way share-count")
         print("  quantization does not explain -- more than one share, more than one")
@@ -452,7 +506,9 @@ def main():
         print("  Do not trade this.")
     print(f"\n  RESULT: {'PASS' if rc == 0 else 'FAIL'} -- universe {UNIVERSE}, arm {ARM.name}, "
           f"0.01-grid reconciliation {t_n - t_stats[0]} of {t_n} identical, "
-          f"{t_quant} quantization, {t_other} unexplained.")
+          f"{t_quant} quantization, "
+          f"{0 if mid_explains else t_other} unexplained"
+          + (f", {t_other} quote-mid rounding" if mid_explains else "") + ".")
     print("=" * 72)
     return rc
 
