@@ -1,0 +1,305 @@
+nifty500 baseline trace -- ./venv/bin/python results/nifty500_baseline_trace.py --end=2019-03-31 --loky=10 --causal=101
+universe nifty500; scores fitted to 2019-03-31; research profile, tax on, cadence 20
+
+sigma 0: 5,578 of 772,378 close-to-close returns in the window are exactly zero (0.72%); clean_exempt rows 10,274 in 479 files
+sigma 0 panel and scores: 0.8 min
+  sigma-0 reconstruction, v1: names equal the published run's on every day to 2019-03-31: True
+  sigma-0 reconstruction, v2: names equal the published run's on every day to 2019-03-31: True
+  sigma-0 reconstruction, v3: names equal the published run's on every day to 2019-03-31: True
+  sigma-0 reconstruction, v4: names equal the published run's on every day to 2019-03-31: True
+
+seed 101: feature change against sigma 0 over the window (mean change / cross-sectional sd, share of rows changed by more than 0.01 sd)
+    mom_20 -0.0009 3.2%; mom_120 -0.0008 2.8%; mom_12_1 -0.0002 0.6%; rev_5 +0.0005 3.1%
+    rev_1 +0.0002 18.0%; vol_20 -0.0004 3.7%; vol_ratio -0.0003 14.3%; idio_vol_60 -0.0003 2.0%
+    beta_60 +0.0002 2.5%; downside_vol_60 -0.0001 37.7%; amihud_20 -0.0003 3.0%; turnover_z -0.0004 1.4%
+    vol_price_div -0.0000 5.1%; trend_consistency_20 -0.0009 81.7%; path_smooth_60 -0.0013 7.0%; dist_high_252 -0.0003 0.5%
+    rsi_14 -0.0006 5.2%
+    up-day sign of the return differs from sigma 0 on 4,092 of 772,378 returns (0.53%); 2,770 of them are exactly zero at sigma 0. Raw 20-day up-day share differs on 8.9% of rows, mean change +0.00362
+  v1: first differs 2019-01-02 (decided 2019-01-01); sigma 0 only ['DEEPAKFERT', 'POLYMED', 'SCHNEIDER', 'SONATSOFTW'], draw only ['AARTIIND', 'ATUL', 'JPPOWER', 'PHOENIXLTD']
+      ranks sigma 0 {'DEEPAKFERT': 4, 'POLYMED': 7, 'SCHNEIDER': 6, 'SONATSOFTW': 8, 'AARTIIND': None, 'ATUL': 13, 'JPPOWER': 22, 'PHOENIXLTD': 9}  draw {'DEEPAKFERT': 11, 'POLYMED': 18, 'SCHNEIDER': 10, 'SONATSOFTW': 24, 'AARTIIND': 7, 'ATUL': 8, 'JPPOWER': 4, 'PHOENIXLTD': 5}
+      scores sigma 0 DEEPAKFERT 0.570488, POLYMED 0.560972, SCHNEIDER 0.562812, SONATSOFTW 0.559293, AARTIIND 0.529662, ATUL 0.553272, JPPOWER 0.540800, PHOENIXLTD 0.558531  draw DEEPAKFERT 0.560649, POLYMED 0.552554, SCHNEIDER 0.563606, SONATSOFTW 0.547189, AARTIIND 0.567221, ATUL 0.566949, JPPOWER 0.571378, PHOENIXLTD 0.571196
+      exact score tie: sigma 0 False, draw False; clean_exempt row in the swapped names' last 380 days: ['POLYMED', 'SCHNEIDER', 'SONATSOFTW', 'JPPOWER']
+      largest feature moves (sd): trend_consistency_20 DEEPAKFERT -0.093,POLYMED -0.093,SCHNEIDER -0.104,SONATSOFTW -0.104,AARTIIND -0.072,ATUL -0.072,JPPOWER +1.993,PHOENIXLTD -0.125; downside_vol_60 DEEPAKFERT -0.012,POLYMED +0.009,SCHNEIDER +0.035,SONATSOFTW -0.012,AARTIIND -0.018,ATUL -0.016,JPPOWER +1.113,PHOENIXLTD -0.021; vol_price_div DEEPAKFERT +0.020,POLYMED +0.008,SCHNEIDER +0.020,SONATSOFTW +0.020,AARTIIND +0.020,ATUL +0.020,JPPOWER -0.994,PHOENIXLTD +0.020
+  v2: first differs 2019-01-02 (decided 2019-01-01); sigma 0 only ['DEEPAKFERT', 'POLYMED', 'SCHNEIDER', 'SONATSOFTW'], draw only ['AARTIIND', 'ATUL', 'JPPOWER', 'PHOENIXLTD']
+      ranks sigma 0 {'DEEPAKFERT': 4, 'POLYMED': 7, 'SCHNEIDER': 6, 'SONATSOFTW': 8, 'AARTIIND': None, 'ATUL': 13, 'JPPOWER': 22, 'PHOENIXLTD': 9}  draw {'DEEPAKFERT': 11, 'POLYMED': 18, 'SCHNEIDER': 10, 'SONATSOFTW': 24, 'AARTIIND': 7, 'ATUL': 8, 'JPPOWER': 4, 'PHOENIXLTD': 5}
+      scores sigma 0 DEEPAKFERT 0.570488, POLYMED 0.560972, SCHNEIDER 0.562812, SONATSOFTW 0.559293, AARTIIND 0.529662, ATUL 0.553272, JPPOWER 0.540800, PHOENIXLTD 0.558531  draw DEEPAKFERT 0.560649, POLYMED 0.552554, SCHNEIDER 0.563606, SONATSOFTW 0.547189, AARTIIND 0.567221, ATUL 0.566949, JPPOWER 0.571378, PHOENIXLTD 0.571196
+      exact score tie: sigma 0 False, draw False; clean_exempt row in the swapped names' last 380 days: ['POLYMED', 'SCHNEIDER', 'SONATSOFTW', 'JPPOWER']
+      largest feature moves (sd): trend_consistency_20 DEEPAKFERT -0.093,POLYMED -0.093,SCHNEIDER -0.104,SONATSOFTW -0.104,AARTIIND -0.072,ATUL -0.072,JPPOWER +1.993,PHOENIXLTD -0.125; downside_vol_60 DEEPAKFERT -0.012,POLYMED +0.009,SCHNEIDER +0.035,SONATSOFTW -0.012,AARTIIND -0.018,ATUL -0.016,JPPOWER +1.113,PHOENIXLTD -0.021; vol_price_div DEEPAKFERT +0.020,POLYMED +0.008,SCHNEIDER +0.020,SONATSOFTW +0.020,AARTIIND +0.020,ATUL +0.020,JPPOWER -0.994,PHOENIXLTD +0.020
+  v3: first differs 2019-01-02 (decided 2019-01-01); sigma 0 only ['DEEPAKFERT', 'POLYMED', 'SCHNEIDER', 'SONATSOFTW'], draw only ['AARTIIND', 'ATUL', 'JPPOWER', 'PHOENIXLTD']
+      ranks sigma 0 {'DEEPAKFERT': 4, 'POLYMED': 7, 'SCHNEIDER': 6, 'SONATSOFTW': 8, 'AARTIIND': None, 'ATUL': 13, 'JPPOWER': 22, 'PHOENIXLTD': 9}  draw {'DEEPAKFERT': 11, 'POLYMED': 18, 'SCHNEIDER': 10, 'SONATSOFTW': 24, 'AARTIIND': 7, 'ATUL': 8, 'JPPOWER': 4, 'PHOENIXLTD': 5}
+      scores sigma 0 DEEPAKFERT 0.570488, POLYMED 0.560972, SCHNEIDER 0.562812, SONATSOFTW 0.559293, AARTIIND 0.529662, ATUL 0.553272, JPPOWER 0.540800, PHOENIXLTD 0.558531  draw DEEPAKFERT 0.560649, POLYMED 0.552554, SCHNEIDER 0.563606, SONATSOFTW 0.547189, AARTIIND 0.567221, ATUL 0.566949, JPPOWER 0.571378, PHOENIXLTD 0.571196
+      exact score tie: sigma 0 False, draw False; clean_exempt row in the swapped names' last 380 days: ['POLYMED', 'SCHNEIDER', 'SONATSOFTW', 'JPPOWER']
+      largest feature moves (sd): trend_consistency_20 DEEPAKFERT -0.093,POLYMED -0.093,SCHNEIDER -0.104,SONATSOFTW -0.104,AARTIIND -0.072,ATUL -0.072,JPPOWER +1.993,PHOENIXLTD -0.125; downside_vol_60 DEEPAKFERT -0.012,POLYMED +0.009,SCHNEIDER +0.035,SONATSOFTW -0.012,AARTIIND -0.018,ATUL -0.016,JPPOWER +1.113,PHOENIXLTD -0.021; vol_price_div DEEPAKFERT +0.020,POLYMED +0.008,SCHNEIDER +0.020,SONATSOFTW +0.020,AARTIIND +0.020,ATUL +0.020,JPPOWER -0.994,PHOENIXLTD +0.020
+  v4: first differs 2019-01-02 (decided 2019-01-01); sigma 0 only ['DEEPAKFERT', 'POLYMED', 'SCHNEIDER', 'SONATSOFTW'], draw only ['AARTIIND', 'ATUL', 'JPPOWER', 'PHOENIXLTD']
+      ranks sigma 0 {'DEEPAKFERT': 4, 'POLYMED': 7, 'SCHNEIDER': 6, 'SONATSOFTW': 8, 'AARTIIND': None, 'ATUL': 13, 'JPPOWER': 22, 'PHOENIXLTD': 9}  draw {'DEEPAKFERT': 11, 'POLYMED': 18, 'SCHNEIDER': 10, 'SONATSOFTW': 24, 'AARTIIND': 7, 'ATUL': 8, 'JPPOWER': 4, 'PHOENIXLTD': 5}
+      scores sigma 0 DEEPAKFERT 0.570488, POLYMED 0.560972, SCHNEIDER 0.562812, SONATSOFTW 0.559293, AARTIIND 0.529662, ATUL 0.553272, JPPOWER 0.540800, PHOENIXLTD 0.558531  draw DEEPAKFERT 0.560649, POLYMED 0.552554, SCHNEIDER 0.563606, SONATSOFTW 0.547189, AARTIIND 0.567221, ATUL 0.566949, JPPOWER 0.571378, PHOENIXLTD 0.571196
+      exact score tie: sigma 0 False, draw False; clean_exempt row in the swapped names' last 380 days: ['POLYMED', 'SCHNEIDER', 'SONATSOFTW', 'JPPOWER']
+      largest feature moves (sd): trend_consistency_20 DEEPAKFERT -0.093,POLYMED -0.093,SCHNEIDER -0.104,SONATSOFTW -0.104,AARTIIND -0.072,ATUL -0.072,JPPOWER +1.993,PHOENIXLTD -0.125; downside_vol_60 DEEPAKFERT -0.012,POLYMED +0.009,SCHNEIDER +0.035,SONATSOFTW -0.012,AARTIIND -0.018,ATUL -0.016,JPPOWER +1.113,PHOENIXLTD -0.021; vol_price_div DEEPAKFERT +0.020,POLYMED +0.008,SCHNEIDER +0.020,SONATSOFTW +0.020,AARTIIND +0.020,ATUL +0.020,JPPOWER -0.994,PHOENIXLTD +0.020
+  causal test, seed 101: sigma-0 panel with the draw's trend_consistency_20 only
+    v1: first differs from sigma 0 2019-01-02 (draw: 2019-01-02); sigma 0 only ['SONATSOFTW'], mixed only ['PHOENIXLTD']
+    v2: first differs from sigma 0 2019-01-02 (draw: 2019-01-02); sigma 0 only ['SONATSOFTW'], mixed only ['PHOENIXLTD']
+    v3: first differs from sigma 0 2019-01-02 (draw: 2019-01-02); sigma 0 only ['SONATSOFTW'], mixed only ['PHOENIXLTD']
+    v4: first differs from sigma 0 2019-01-02 (draw: 2019-01-02); sigma 0 only ['SONATSOFTW'], mixed only ['PHOENIXLTD']
+  seed 101: 1.0 min
+
+seed 202: feature change against sigma 0 over the window (mean change / cross-sectional sd, share of rows changed by more than 0.01 sd)
+    mom_20 -0.0008 2.8%; mom_120 -0.0007 2.5%; mom_12_1 -0.0001 0.5%; rev_5 +0.0004 2.9%
+    rev_1 +0.0002 17.8%; vol_20 -0.0003 3.6%; vol_ratio -0.0002 13.8%; idio_vol_60 -0.0003 1.8%
+    beta_60 +0.0001 2.4%; downside_vol_60 -0.0001 37.3%; amihud_20 -0.0003 2.8%; turnover_z -0.0002 1.2%
+    vol_price_div -0.0000 5.1%; trend_consistency_20 -0.0009 80.2%; path_smooth_60 -0.0013 6.0%; dist_high_252 -0.0003 0.7%
+    rsi_14 -0.0006 5.4%
+    up-day sign of the return differs from sigma 0 on 4,017 of 772,378 returns (0.52%); 2,774 of them are exactly zero at sigma 0. Raw 20-day up-day share differs on 8.8% of rows, mean change +0.00354
+  v1: first differs 2019-01-02 (decided 2019-01-01); sigma 0 only ['GILLETTE', 'POLYMED', 'SONATSOFTW'], draw only ['ATUL', 'JPPOWER', 'PHOENIXLTD']
+      ranks sigma 0 {'GILLETTE': 5, 'POLYMED': 7, 'SONATSOFTW': 8, 'ATUL': 13, 'JPPOWER': 22, 'PHOENIXLTD': 9}  draw {'GILLETTE': 17, 'POLYMED': 15, 'SONATSOFTW': 23, 'ATUL': 7, 'JPPOWER': 3, 'PHOENIXLTD': 4}
+      scores sigma 0 GILLETTE 0.564157, POLYMED 0.560972, SONATSOFTW 0.559293, ATUL 0.553272, JPPOWER 0.540800, PHOENIXLTD 0.558531  draw GILLETTE 0.549025, POLYMED 0.552308, SONATSOFTW 0.545235, ATUL 0.566955, JPPOWER 0.590527, PHOENIXLTD 0.583670
+      exact score tie: sigma 0 False, draw False; clean_exempt row in the swapped names' last 380 days: ['POLYMED', 'SONATSOFTW', 'JPPOWER']
+      largest feature moves (sd): trend_consistency_20 GILLETTE -0.092,POLYMED -0.105,SONATSOFTW -0.119,ATUL -0.078,JPPOWER +1.456,PHOENIXLTD +0.384; downside_vol_60 GILLETTE -0.012,POLYMED +0.015,SONATSOFTW -0.006,ATUL -0.013,JPPOWER +1.301,PHOENIXLTD -0.025; vol_price_div GILLETTE -0.005,POLYMED -0.005,SONATSOFTW +0.009,ATUL +0.009,JPPOWER +1.008,PHOENIXLTD +0.009
+  v2: first differs 2019-01-02 (decided 2019-01-01); sigma 0 only ['GILLETTE', 'POLYMED', 'SONATSOFTW'], draw only ['ATUL', 'JPPOWER', 'PHOENIXLTD']
+      ranks sigma 0 {'GILLETTE': 5, 'POLYMED': 7, 'SONATSOFTW': 8, 'ATUL': 13, 'JPPOWER': 22, 'PHOENIXLTD': 9}  draw {'GILLETTE': 17, 'POLYMED': 15, 'SONATSOFTW': 23, 'ATUL': 7, 'JPPOWER': 3, 'PHOENIXLTD': 4}
+      scores sigma 0 GILLETTE 0.564157, POLYMED 0.560972, SONATSOFTW 0.559293, ATUL 0.553272, JPPOWER 0.540800, PHOENIXLTD 0.558531  draw GILLETTE 0.549025, POLYMED 0.552308, SONATSOFTW 0.545235, ATUL 0.566955, JPPOWER 0.590527, PHOENIXLTD 0.583670
+      exact score tie: sigma 0 False, draw False; clean_exempt row in the swapped names' last 380 days: ['POLYMED', 'SONATSOFTW', 'JPPOWER']
+      largest feature moves (sd): trend_consistency_20 GILLETTE -0.092,POLYMED -0.105,SONATSOFTW -0.119,ATUL -0.078,JPPOWER +1.456,PHOENIXLTD +0.384; downside_vol_60 GILLETTE -0.012,POLYMED +0.015,SONATSOFTW -0.006,ATUL -0.013,JPPOWER +1.301,PHOENIXLTD -0.025; vol_price_div GILLETTE -0.005,POLYMED -0.005,SONATSOFTW +0.009,ATUL +0.009,JPPOWER +1.008,PHOENIXLTD +0.009
+  v3: first differs 2019-01-02 (decided 2019-01-01); sigma 0 only ['GILLETTE', 'POLYMED', 'SONATSOFTW'], draw only ['ATUL', 'JPPOWER', 'PHOENIXLTD']
+      ranks sigma 0 {'GILLETTE': 5, 'POLYMED': 7, 'SONATSOFTW': 8, 'ATUL': 13, 'JPPOWER': 22, 'PHOENIXLTD': 9}  draw {'GILLETTE': 17, 'POLYMED': 15, 'SONATSOFTW': 23, 'ATUL': 7, 'JPPOWER': 3, 'PHOENIXLTD': 4}
+      scores sigma 0 GILLETTE 0.564157, POLYMED 0.560972, SONATSOFTW 0.559293, ATUL 0.553272, JPPOWER 0.540800, PHOENIXLTD 0.558531  draw GILLETTE 0.549025, POLYMED 0.552308, SONATSOFTW 0.545235, ATUL 0.566955, JPPOWER 0.590527, PHOENIXLTD 0.583670
+      exact score tie: sigma 0 False, draw False; clean_exempt row in the swapped names' last 380 days: ['POLYMED', 'SONATSOFTW', 'JPPOWER']
+      largest feature moves (sd): trend_consistency_20 GILLETTE -0.092,POLYMED -0.105,SONATSOFTW -0.119,ATUL -0.078,JPPOWER +1.456,PHOENIXLTD +0.384; downside_vol_60 GILLETTE -0.012,POLYMED +0.015,SONATSOFTW -0.006,ATUL -0.013,JPPOWER +1.301,PHOENIXLTD -0.025; vol_price_div GILLETTE -0.005,POLYMED -0.005,SONATSOFTW +0.009,ATUL +0.009,JPPOWER +1.008,PHOENIXLTD +0.009
+  v4: first differs 2019-01-02 (decided 2019-01-01); sigma 0 only ['GILLETTE', 'POLYMED', 'SONATSOFTW'], draw only ['ATUL', 'JPPOWER', 'PHOENIXLTD']
+      ranks sigma 0 {'GILLETTE': 5, 'POLYMED': 7, 'SONATSOFTW': 8, 'ATUL': 13, 'JPPOWER': 22, 'PHOENIXLTD': 9}  draw {'GILLETTE': 17, 'POLYMED': 15, 'SONATSOFTW': 23, 'ATUL': 7, 'JPPOWER': 3, 'PHOENIXLTD': 4}
+      scores sigma 0 GILLETTE 0.564157, POLYMED 0.560972, SONATSOFTW 0.559293, ATUL 0.553272, JPPOWER 0.540800, PHOENIXLTD 0.558531  draw GILLETTE 0.549025, POLYMED 0.552308, SONATSOFTW 0.545235, ATUL 0.566955, JPPOWER 0.590527, PHOENIXLTD 0.583670
+      exact score tie: sigma 0 False, draw False; clean_exempt row in the swapped names' last 380 days: ['POLYMED', 'SONATSOFTW', 'JPPOWER']
+      largest feature moves (sd): trend_consistency_20 GILLETTE -0.092,POLYMED -0.105,SONATSOFTW -0.119,ATUL -0.078,JPPOWER +1.456,PHOENIXLTD +0.384; downside_vol_60 GILLETTE -0.012,POLYMED +0.015,SONATSOFTW -0.006,ATUL -0.013,JPPOWER +1.301,PHOENIXLTD -0.025; vol_price_div GILLETTE -0.005,POLYMED -0.005,SONATSOFTW +0.009,ATUL +0.009,JPPOWER +1.008,PHOENIXLTD +0.009
+  seed 202: 14.5 min
+
+seed 303: feature change against sigma 0 over the window (mean change / cross-sectional sd, share of rows changed by more than 0.01 sd)
+    mom_20 -0.0007 2.8%; mom_120 -0.0006 2.1%; mom_12_1 -0.0001 1.0%; rev_5 +0.0004 2.8%
+    rev_1 +0.0002 17.7%; vol_20 -0.0002 3.5%; vol_ratio -0.0002 14.0%; idio_vol_60 -0.0002 1.5%
+    beta_60 +0.0001 2.3%; downside_vol_60 -0.0001 37.8%; amihud_20 -0.0004 3.2%; turnover_z -0.0002 1.0%
+    vol_price_div -0.0000 5.3%; trend_consistency_20 -0.0008 79.6%; path_smooth_60 -0.0011 5.0%; dist_high_252 -0.0002 0.6%
+    rsi_14 -0.0005 4.9%
+    up-day sign of the return differs from sigma 0 on 3,989 of 772,378 returns (0.52%); 2,712 of them are exactly zero at sigma 0. Raw 20-day up-day share differs on 8.7% of rows, mean change +0.00346
+  v1: first differs 2019-01-02 (decided 2019-01-01); sigma 0 only ['DEEPAKFERT', 'GILLETTE', 'POLYMED', 'SCHNEIDER', 'SONATSOFTW'], draw only ['AARTIIND', 'ATUL', 'HEG', 'JPPOWER', 'PHOENIXLTD']
+      ranks sigma 0 {'DEEPAKFERT': 4, 'GILLETTE': 5, 'POLYMED': 7, 'SCHNEIDER': 6, 'SONATSOFTW': 8, 'AARTIIND': None, 'ATUL': 13, 'HEG': None, 'JPPOWER': 22, 'PHOENIXLTD': 9}  draw {'DEEPAKFERT': 11, 'GILLETTE': 13, 'POLYMED': 14, 'SCHNEIDER': 10, 'SONATSOFTW': 25, 'AARTIIND': 5, 'ATUL': 6, 'HEG': 8, 'JPPOWER': 7, 'PHOENIXLTD': 3}
+      scores sigma 0 DEEPAKFERT 0.570488, GILLETTE 0.564157, POLYMED 0.560972, SCHNEIDER 0.562812, SONATSOFTW 0.559293, AARTIIND 0.529662, ATUL 0.553272, HEG 0.534934, JPPOWER 0.540800, PHOENIXLTD 0.558531  draw DEEPAKFERT 0.561787, GILLETTE 0.559345, POLYMED 0.557241, SCHNEIDER 0.562513, SONATSOFTW 0.546099, AARTIIND 0.566349, ATUL 0.565599, HEG 0.563653, JPPOWER 0.565064, PHOENIXLTD 0.584514
+      exact score tie: sigma 0 False, draw False; clean_exempt row in the swapped names' last 380 days: ['POLYMED', 'SCHNEIDER', 'SONATSOFTW', 'HEG', 'JPPOWER']
+      largest feature moves (sd): trend_consistency_20 DEEPAKFERT -0.089,GILLETTE -0.605,POLYMED -0.089,SCHNEIDER -0.098,SONATSOFTW -0.098,AARTIIND -0.070,ATUL -0.070,HEG +0.000,JPPOWER +1.995,PHOENIXLTD -0.117; downside_vol_60 DEEPAKFERT -0.011,GILLETTE -0.021,POLYMED +0.013,SCHNEIDER +0.043,SONATSOFTW -0.006,AARTIIND -0.019,ATUL -0.021,HEG -0.013,JPPOWER +1.215,PHOENIXLTD -0.018; vol_price_div DEEPAKFERT +0.014,GILLETTE +0.002,POLYMED +0.002,SCHNEIDER +0.014,SONATSOFTW +0.014,AARTIIND +0.014,ATUL +0.014,HEG +0.002,JPPOWER +1.015,PHOENIXLTD +0.014
+  v2: first differs 2019-01-02 (decided 2019-01-01); sigma 0 only ['DEEPAKFERT', 'GILLETTE', 'POLYMED', 'SCHNEIDER', 'SONATSOFTW'], draw only ['AARTIIND', 'ATUL', 'HEG', 'JPPOWER', 'PHOENIXLTD']
+      ranks sigma 0 {'DEEPAKFERT': 4, 'GILLETTE': 5, 'POLYMED': 7, 'SCHNEIDER': 6, 'SONATSOFTW': 8, 'AARTIIND': None, 'ATUL': 13, 'HEG': None, 'JPPOWER': 22, 'PHOENIXLTD': 9}  draw {'DEEPAKFERT': 11, 'GILLETTE': 13, 'POLYMED': 14, 'SCHNEIDER': 10, 'SONATSOFTW': 25, 'AARTIIND': 5, 'ATUL': 6, 'HEG': 8, 'JPPOWER': 7, 'PHOENIXLTD': 3}
+      scores sigma 0 DEEPAKFERT 0.570488, GILLETTE 0.564157, POLYMED 0.560972, SCHNEIDER 0.562812, SONATSOFTW 0.559293, AARTIIND 0.529662, ATUL 0.553272, HEG 0.534934, JPPOWER 0.540800, PHOENIXLTD 0.558531  draw DEEPAKFERT 0.561787, GILLETTE 0.559345, POLYMED 0.557241, SCHNEIDER 0.562513, SONATSOFTW 0.546099, AARTIIND 0.566349, ATUL 0.565599, HEG 0.563653, JPPOWER 0.565064, PHOENIXLTD 0.584514
+      exact score tie: sigma 0 False, draw False; clean_exempt row in the swapped names' last 380 days: ['POLYMED', 'SCHNEIDER', 'SONATSOFTW', 'HEG', 'JPPOWER']
+      largest feature moves (sd): trend_consistency_20 DEEPAKFERT -0.089,GILLETTE -0.605,POLYMED -0.089,SCHNEIDER -0.098,SONATSOFTW -0.098,AARTIIND -0.070,ATUL -0.070,HEG +0.000,JPPOWER +1.995,PHOENIXLTD -0.117; downside_vol_60 DEEPAKFERT -0.011,GILLETTE -0.021,POLYMED +0.013,SCHNEIDER +0.043,SONATSOFTW -0.006,AARTIIND -0.019,ATUL -0.021,HEG -0.013,JPPOWER +1.215,PHOENIXLTD -0.018; vol_price_div DEEPAKFERT +0.014,GILLETTE +0.002,POLYMED +0.002,SCHNEIDER +0.014,SONATSOFTW +0.014,AARTIIND +0.014,ATUL +0.014,HEG +0.002,JPPOWER +1.015,PHOENIXLTD +0.014
+  v3: first differs 2019-01-02 (decided 2019-01-01); sigma 0 only ['DEEPAKFERT', 'GILLETTE', 'POLYMED', 'SCHNEIDER', 'SONATSOFTW'], draw only ['AARTIIND', 'ATUL', 'HEG', 'JPPOWER', 'PHOENIXLTD']
+      ranks sigma 0 {'DEEPAKFERT': 4, 'GILLETTE': 5, 'POLYMED': 7, 'SCHNEIDER': 6, 'SONATSOFTW': 8, 'AARTIIND': None, 'ATUL': 13, 'HEG': None, 'JPPOWER': 22, 'PHOENIXLTD': 9}  draw {'DEEPAKFERT': 11, 'GILLETTE': 13, 'POLYMED': 14, 'SCHNEIDER': 10, 'SONATSOFTW': 25, 'AARTIIND': 5, 'ATUL': 6, 'HEG': 8, 'JPPOWER': 7, 'PHOENIXLTD': 3}
+      scores sigma 0 DEEPAKFERT 0.570488, GILLETTE 0.564157, POLYMED 0.560972, SCHNEIDER 0.562812, SONATSOFTW 0.559293, AARTIIND 0.529662, ATUL 0.553272, HEG 0.534934, JPPOWER 0.540800, PHOENIXLTD 0.558531  draw DEEPAKFERT 0.561787, GILLETTE 0.559345, POLYMED 0.557241, SCHNEIDER 0.562513, SONATSOFTW 0.546099, AARTIIND 0.566349, ATUL 0.565599, HEG 0.563653, JPPOWER 0.565064, PHOENIXLTD 0.584514
+      exact score tie: sigma 0 False, draw False; clean_exempt row in the swapped names' last 380 days: ['POLYMED', 'SCHNEIDER', 'SONATSOFTW', 'HEG', 'JPPOWER']
+      largest feature moves (sd): trend_consistency_20 DEEPAKFERT -0.089,GILLETTE -0.605,POLYMED -0.089,SCHNEIDER -0.098,SONATSOFTW -0.098,AARTIIND -0.070,ATUL -0.070,HEG +0.000,JPPOWER +1.995,PHOENIXLTD -0.117; downside_vol_60 DEEPAKFERT -0.011,GILLETTE -0.021,POLYMED +0.013,SCHNEIDER +0.043,SONATSOFTW -0.006,AARTIIND -0.019,ATUL -0.021,HEG -0.013,JPPOWER +1.215,PHOENIXLTD -0.018; vol_price_div DEEPAKFERT +0.014,GILLETTE +0.002,POLYMED +0.002,SCHNEIDER +0.014,SONATSOFTW +0.014,AARTIIND +0.014,ATUL +0.014,HEG +0.002,JPPOWER +1.015,PHOENIXLTD +0.014
+  v4: first differs 2019-01-02 (decided 2019-01-01); sigma 0 only ['DEEPAKFERT', 'GILLETTE', 'POLYMED', 'SCHNEIDER', 'SONATSOFTW'], draw only ['AARTIIND', 'ATUL', 'HEG', 'JPPOWER', 'PHOENIXLTD']
+      ranks sigma 0 {'DEEPAKFERT': 4, 'GILLETTE': 5, 'POLYMED': 7, 'SCHNEIDER': 6, 'SONATSOFTW': 8, 'AARTIIND': None, 'ATUL': 13, 'HEG': None, 'JPPOWER': 22, 'PHOENIXLTD': 9}  draw {'DEEPAKFERT': 11, 'GILLETTE': 13, 'POLYMED': 14, 'SCHNEIDER': 10, 'SONATSOFTW': 25, 'AARTIIND': 5, 'ATUL': 6, 'HEG': 8, 'JPPOWER': 7, 'PHOENIXLTD': 3}
+      scores sigma 0 DEEPAKFERT 0.570488, GILLETTE 0.564157, POLYMED 0.560972, SCHNEIDER 0.562812, SONATSOFTW 0.559293, AARTIIND 0.529662, ATUL 0.553272, HEG 0.534934, JPPOWER 0.540800, PHOENIXLTD 0.558531  draw DEEPAKFERT 0.561787, GILLETTE 0.559345, POLYMED 0.557241, SCHNEIDER 0.562513, SONATSOFTW 0.546099, AARTIIND 0.566349, ATUL 0.565599, HEG 0.563653, JPPOWER 0.565064, PHOENIXLTD 0.584514
+      exact score tie: sigma 0 False, draw False; clean_exempt row in the swapped names' last 380 days: ['POLYMED', 'SCHNEIDER', 'SONATSOFTW', 'HEG', 'JPPOWER']
+      largest feature moves (sd): trend_consistency_20 DEEPAKFERT -0.089,GILLETTE -0.605,POLYMED -0.089,SCHNEIDER -0.098,SONATSOFTW -0.098,AARTIIND -0.070,ATUL -0.070,HEG +0.000,JPPOWER +1.995,PHOENIXLTD -0.117; downside_vol_60 DEEPAKFERT -0.011,GILLETTE -0.021,POLYMED +0.013,SCHNEIDER +0.043,SONATSOFTW -0.006,AARTIIND -0.019,ATUL -0.021,HEG -0.013,JPPOWER +1.215,PHOENIXLTD -0.018; vol_price_div DEEPAKFERT +0.014,GILLETTE +0.002,POLYMED +0.002,SCHNEIDER +0.014,SONATSOFTW +0.014,AARTIIND +0.014,ATUL +0.014,HEG +0.002,JPPOWER +1.015,PHOENIXLTD +0.014
+  seed 303: 14.8 min
+
+seed 404: feature change against sigma 0 over the window (mean change / cross-sectional sd, share of rows changed by more than 0.01 sd)
+    mom_20 -0.0008 3.2%; mom_120 -0.0008 3.1%; mom_12_1 -0.0001 0.8%; rev_5 +0.0004 3.1%
+    rev_1 +0.0002 18.0%; vol_20 -0.0002 3.5%; vol_ratio -0.0002 14.2%; idio_vol_60 -0.0002 1.9%
+    beta_60 +0.0001 2.5%; downside_vol_60 -0.0002 37.4%; amihud_20 -0.0002 2.6%; turnover_z -0.0003 1.2%
+    vol_price_div -0.0000 5.0%; trend_consistency_20 -0.0010 81.3%; path_smooth_60 -0.0013 6.7%; dist_high_252 -0.0003 0.5%
+    rsi_14 -0.0006 5.2%
+    up-day sign of the return differs from sigma 0 on 4,124 of 772,378 returns (0.53%); 2,862 of them are exactly zero at sigma 0. Raw 20-day up-day share differs on 8.9% of rows, mean change +0.00370
+  v1: first differs 2019-01-02 (decided 2019-01-01); sigma 0 only ['GILLETTE', 'POLYMED', 'SONATSOFTW'], draw only ['AARTIIND', 'JPPOWER', 'PHOENIXLTD']
+      ranks sigma 0 {'GILLETTE': 5, 'POLYMED': 7, 'SONATSOFTW': 8, 'AARTIIND': None, 'JPPOWER': 22, 'PHOENIXLTD': 9}  draw {'GILLETTE': 9, 'POLYMED': 14, 'SONATSOFTW': 21, 'AARTIIND': 8, 'JPPOWER': 4, 'PHOENIXLTD': 3}
+      scores sigma 0 GILLETTE 0.564157, POLYMED 0.560972, SONATSOFTW 0.559293, AARTIIND 0.529662, JPPOWER 0.540800, PHOENIXLTD 0.558531  draw GILLETTE 0.562013, POLYMED 0.553169, SONATSOFTW 0.546103, AARTIIND 0.564857, JPPOWER 0.595294, PHOENIXLTD 0.596014
+      exact score tie: sigma 0 False, draw False; clean_exempt row in the swapped names' last 380 days: ['POLYMED', 'SONATSOFTW', 'JPPOWER']
+      largest feature moves (sd): trend_consistency_20 GILLETTE -0.621,POLYMED -0.105,SONATSOFTW -0.110,AARTIIND -0.615,JPPOWER +1.972,PHOENIXLTD -0.122; vol_price_div GILLETTE -0.005,POLYMED -0.005,SONATSOFTW +0.009,AARTIIND +0.009,JPPOWER -1.004,PHOENIXLTD +0.009; downside_vol_60 GILLETTE -0.006,POLYMED +0.017,SONATSOFTW -0.015,AARTIIND -0.015,JPPOWER +0.983,PHOENIXLTD -0.005
+  v2: first differs 2019-01-02 (decided 2019-01-01); sigma 0 only ['GILLETTE', 'POLYMED', 'SONATSOFTW'], draw only ['AARTIIND', 'JPPOWER', 'PHOENIXLTD']
+      ranks sigma 0 {'GILLETTE': 5, 'POLYMED': 7, 'SONATSOFTW': 8, 'AARTIIND': None, 'JPPOWER': 22, 'PHOENIXLTD': 9}  draw {'GILLETTE': 9, 'POLYMED': 14, 'SONATSOFTW': 21, 'AARTIIND': 8, 'JPPOWER': 4, 'PHOENIXLTD': 3}
+      scores sigma 0 GILLETTE 0.564157, POLYMED 0.560972, SONATSOFTW 0.559293, AARTIIND 0.529662, JPPOWER 0.540800, PHOENIXLTD 0.558531  draw GILLETTE 0.562013, POLYMED 0.553169, SONATSOFTW 0.546103, AARTIIND 0.564857, JPPOWER 0.595294, PHOENIXLTD 0.596014
+      exact score tie: sigma 0 False, draw False; clean_exempt row in the swapped names' last 380 days: ['POLYMED', 'SONATSOFTW', 'JPPOWER']
+      largest feature moves (sd): trend_consistency_20 GILLETTE -0.621,POLYMED -0.105,SONATSOFTW -0.110,AARTIIND -0.615,JPPOWER +1.972,PHOENIXLTD -0.122; vol_price_div GILLETTE -0.005,POLYMED -0.005,SONATSOFTW +0.009,AARTIIND +0.009,JPPOWER -1.004,PHOENIXLTD +0.009; downside_vol_60 GILLETTE -0.006,POLYMED +0.017,SONATSOFTW -0.015,AARTIIND -0.015,JPPOWER +0.983,PHOENIXLTD -0.005
+  v3: first differs 2019-01-02 (decided 2019-01-01); sigma 0 only ['GILLETTE', 'POLYMED', 'SONATSOFTW'], draw only ['AARTIIND', 'JPPOWER', 'PHOENIXLTD']
+      ranks sigma 0 {'GILLETTE': 5, 'POLYMED': 7, 'SONATSOFTW': 8, 'AARTIIND': None, 'JPPOWER': 22, 'PHOENIXLTD': 9}  draw {'GILLETTE': 9, 'POLYMED': 14, 'SONATSOFTW': 21, 'AARTIIND': 8, 'JPPOWER': 4, 'PHOENIXLTD': 3}
+      scores sigma 0 GILLETTE 0.564157, POLYMED 0.560972, SONATSOFTW 0.559293, AARTIIND 0.529662, JPPOWER 0.540800, PHOENIXLTD 0.558531  draw GILLETTE 0.562013, POLYMED 0.553169, SONATSOFTW 0.546103, AARTIIND 0.564857, JPPOWER 0.595294, PHOENIXLTD 0.596014
+      exact score tie: sigma 0 False, draw False; clean_exempt row in the swapped names' last 380 days: ['POLYMED', 'SONATSOFTW', 'JPPOWER']
+      largest feature moves (sd): trend_consistency_20 GILLETTE -0.621,POLYMED -0.105,SONATSOFTW -0.110,AARTIIND -0.615,JPPOWER +1.972,PHOENIXLTD -0.122; vol_price_div GILLETTE -0.005,POLYMED -0.005,SONATSOFTW +0.009,AARTIIND +0.009,JPPOWER -1.004,PHOENIXLTD +0.009; downside_vol_60 GILLETTE -0.006,POLYMED +0.017,SONATSOFTW -0.015,AARTIIND -0.015,JPPOWER +0.983,PHOENIXLTD -0.005
+  v4: first differs 2019-01-02 (decided 2019-01-01); sigma 0 only ['GILLETTE', 'POLYMED', 'SONATSOFTW'], draw only ['AARTIIND', 'JPPOWER', 'PHOENIXLTD']
+      ranks sigma 0 {'GILLETTE': 5, 'POLYMED': 7, 'SONATSOFTW': 8, 'AARTIIND': None, 'JPPOWER': 22, 'PHOENIXLTD': 9}  draw {'GILLETTE': 9, 'POLYMED': 14, 'SONATSOFTW': 21, 'AARTIIND': 8, 'JPPOWER': 4, 'PHOENIXLTD': 3}
+      scores sigma 0 GILLETTE 0.564157, POLYMED 0.560972, SONATSOFTW 0.559293, AARTIIND 0.529662, JPPOWER 0.540800, PHOENIXLTD 0.558531  draw GILLETTE 0.562013, POLYMED 0.553169, SONATSOFTW 0.546103, AARTIIND 0.564857, JPPOWER 0.595294, PHOENIXLTD 0.596014
+      exact score tie: sigma 0 False, draw False; clean_exempt row in the swapped names' last 380 days: ['POLYMED', 'SONATSOFTW', 'JPPOWER']
+      largest feature moves (sd): trend_consistency_20 GILLETTE -0.621,POLYMED -0.105,SONATSOFTW -0.110,AARTIIND -0.615,JPPOWER +1.972,PHOENIXLTD -0.122; vol_price_div GILLETTE -0.005,POLYMED -0.005,SONATSOFTW +0.009,AARTIIND +0.009,JPPOWER -1.004,PHOENIXLTD +0.009; downside_vol_60 GILLETTE -0.006,POLYMED +0.017,SONATSOFTW -0.015,AARTIIND -0.015,JPPOWER +0.983,PHOENIXLTD -0.005
+  seed 404: 15.1 min
+
+seed 505: feature change against sigma 0 over the window (mean change / cross-sectional sd, share of rows changed by more than 0.01 sd)
+    mom_20 -0.0008 3.4%; mom_120 -0.0007 2.7%; mom_12_1 -0.0001 0.7%; rev_5 +0.0004 3.0%
+    rev_1 +0.0002 18.0%; vol_20 -0.0003 3.6%; vol_ratio -0.0002 13.7%; idio_vol_60 -0.0003 1.9%
+    beta_60 +0.0001 2.6%; downside_vol_60 -0.0002 37.5%; amihud_20 -0.0002 2.3%; turnover_z -0.0003 1.1%
+    vol_price_div -0.0000 5.8%; trend_consistency_20 -0.0009 84.2%; path_smooth_60 -0.0012 6.6%; dist_high_252 -0.0002 0.7%
+    rsi_14 -0.0006 5.4%
+    up-day sign of the return differs from sigma 0 on 4,105 of 772,378 returns (0.53%); 2,773 of them are exactly zero at sigma 0. Raw 20-day up-day share differs on 9.0% of rows, mean change +0.00366
+  v1: first differs 2019-01-02 (decided 2019-01-01); sigma 0 only ['DEEPAKFERT', 'POLYMED', 'SCHNEIDER', 'SONATSOFTW'], draw only ['HEG', 'JPPOWER', 'PHOENIXLTD', 'TARIL']
+      ranks sigma 0 {'DEEPAKFERT': 4, 'POLYMED': 7, 'SCHNEIDER': 6, 'SONATSOFTW': 8, 'HEG': None, 'JPPOWER': 22, 'PHOENIXLTD': 9, 'TARIL': 20}  draw {'DEEPAKFERT': 9, 'POLYMED': 14, 'SCHNEIDER': 12, 'SONATSOFTW': 24, 'HEG': 7, 'JPPOWER': 5, 'PHOENIXLTD': 4, 'TARIL': 8}
+      scores sigma 0 DEEPAKFERT 0.570488, POLYMED 0.560972, SCHNEIDER 0.562812, SONATSOFTW 0.559293, HEG 0.534934, JPPOWER 0.540800, PHOENIXLTD 0.558531, TARIL 0.542507  draw DEEPAKFERT 0.563669, POLYMED 0.557792, SCHNEIDER 0.561496, SONATSOFTW 0.544835, HEG 0.568329, JPPOWER 0.575647, PHOENIXLTD 0.576456, TARIL 0.566892
+      exact score tie: sigma 0 False, draw False; clean_exempt row in the swapped names' last 380 days: ['POLYMED', 'SCHNEIDER', 'SONATSOFTW', 'HEG', 'JPPOWER']
+      largest feature moves (sd): trend_consistency_20 DEEPAKFERT -0.111,POLYMED -0.111,SCHNEIDER -0.116,SONATSOFTW -0.116,HEG +0.000,JPPOWER +1.963,PHOENIXLTD -0.127,TARIL +0.931; vol_price_div DEEPAKFERT -0.001,POLYMED -0.018,SCHNEIDER -0.001,SONATSOFTW -0.001,HEG -0.018,JPPOWER +0.995,PHOENIXLTD -0.001,TARIL -0.018; downside_vol_60 DEEPAKFERT -0.006,POLYMED -0.018,SCHNEIDER -0.018,SONATSOFTW -0.003,HEG -0.020,JPPOWER +0.981,PHOENIXLTD -0.020,TARIL +0.092
+  v2: first differs 2019-01-02 (decided 2019-01-01); sigma 0 only ['DEEPAKFERT', 'POLYMED', 'SCHNEIDER', 'SONATSOFTW'], draw only ['HEG', 'JPPOWER', 'PHOENIXLTD', 'TARIL']
+      ranks sigma 0 {'DEEPAKFERT': 4, 'POLYMED': 7, 'SCHNEIDER': 6, 'SONATSOFTW': 8, 'HEG': None, 'JPPOWER': 22, 'PHOENIXLTD': 9, 'TARIL': 20}  draw {'DEEPAKFERT': 9, 'POLYMED': 14, 'SCHNEIDER': 12, 'SONATSOFTW': 24, 'HEG': 7, 'JPPOWER': 5, 'PHOENIXLTD': 4, 'TARIL': 8}
+      scores sigma 0 DEEPAKFERT 0.570488, POLYMED 0.560972, SCHNEIDER 0.562812, SONATSOFTW 0.559293, HEG 0.534934, JPPOWER 0.540800, PHOENIXLTD 0.558531, TARIL 0.542507  draw DEEPAKFERT 0.563669, POLYMED 0.557792, SCHNEIDER 0.561496, SONATSOFTW 0.544835, HEG 0.568329, JPPOWER 0.575647, PHOENIXLTD 0.576456, TARIL 0.566892
+      exact score tie: sigma 0 False, draw False; clean_exempt row in the swapped names' last 380 days: ['POLYMED', 'SCHNEIDER', 'SONATSOFTW', 'HEG', 'JPPOWER']
+      largest feature moves (sd): trend_consistency_20 DEEPAKFERT -0.111,POLYMED -0.111,SCHNEIDER -0.116,SONATSOFTW -0.116,HEG +0.000,JPPOWER +1.963,PHOENIXLTD -0.127,TARIL +0.931; vol_price_div DEEPAKFERT -0.001,POLYMED -0.018,SCHNEIDER -0.001,SONATSOFTW -0.001,HEG -0.018,JPPOWER +0.995,PHOENIXLTD -0.001,TARIL -0.018; downside_vol_60 DEEPAKFERT -0.006,POLYMED -0.018,SCHNEIDER -0.018,SONATSOFTW -0.003,HEG -0.020,JPPOWER +0.981,PHOENIXLTD -0.020,TARIL +0.092
+  v3: first differs 2019-01-02 (decided 2019-01-01); sigma 0 only ['DEEPAKFERT', 'POLYMED', 'SCHNEIDER', 'SONATSOFTW'], draw only ['HEG', 'JPPOWER', 'PHOENIXLTD', 'TARIL']
+      ranks sigma 0 {'DEEPAKFERT': 4, 'POLYMED': 7, 'SCHNEIDER': 6, 'SONATSOFTW': 8, 'HEG': None, 'JPPOWER': 22, 'PHOENIXLTD': 9, 'TARIL': 20}  draw {'DEEPAKFERT': 9, 'POLYMED': 14, 'SCHNEIDER': 12, 'SONATSOFTW': 24, 'HEG': 7, 'JPPOWER': 5, 'PHOENIXLTD': 4, 'TARIL': 8}
+      scores sigma 0 DEEPAKFERT 0.570488, POLYMED 0.560972, SCHNEIDER 0.562812, SONATSOFTW 0.559293, HEG 0.534934, JPPOWER 0.540800, PHOENIXLTD 0.558531, TARIL 0.542507  draw DEEPAKFERT 0.563669, POLYMED 0.557792, SCHNEIDER 0.561496, SONATSOFTW 0.544835, HEG 0.568329, JPPOWER 0.575647, PHOENIXLTD 0.576456, TARIL 0.566892
+      exact score tie: sigma 0 False, draw False; clean_exempt row in the swapped names' last 380 days: ['POLYMED', 'SCHNEIDER', 'SONATSOFTW', 'HEG', 'JPPOWER']
+      largest feature moves (sd): trend_consistency_20 DEEPAKFERT -0.111,POLYMED -0.111,SCHNEIDER -0.116,SONATSOFTW -0.116,HEG +0.000,JPPOWER +1.963,PHOENIXLTD -0.127,TARIL +0.931; vol_price_div DEEPAKFERT -0.001,POLYMED -0.018,SCHNEIDER -0.001,SONATSOFTW -0.001,HEG -0.018,JPPOWER +0.995,PHOENIXLTD -0.001,TARIL -0.018; downside_vol_60 DEEPAKFERT -0.006,POLYMED -0.018,SCHNEIDER -0.018,SONATSOFTW -0.003,HEG -0.020,JPPOWER +0.981,PHOENIXLTD -0.020,TARIL +0.092
+  v4: first differs 2019-01-02 (decided 2019-01-01); sigma 0 only ['DEEPAKFERT', 'POLYMED', 'SCHNEIDER', 'SONATSOFTW'], draw only ['HEG', 'JPPOWER', 'PHOENIXLTD', 'TARIL']
+      ranks sigma 0 {'DEEPAKFERT': 4, 'POLYMED': 7, 'SCHNEIDER': 6, 'SONATSOFTW': 8, 'HEG': None, 'JPPOWER': 22, 'PHOENIXLTD': 9, 'TARIL': 20}  draw {'DEEPAKFERT': 9, 'POLYMED': 14, 'SCHNEIDER': 12, 'SONATSOFTW': 24, 'HEG': 7, 'JPPOWER': 5, 'PHOENIXLTD': 4, 'TARIL': 8}
+      scores sigma 0 DEEPAKFERT 0.570488, POLYMED 0.560972, SCHNEIDER 0.562812, SONATSOFTW 0.559293, HEG 0.534934, JPPOWER 0.540800, PHOENIXLTD 0.558531, TARIL 0.542507  draw DEEPAKFERT 0.563669, POLYMED 0.557792, SCHNEIDER 0.561496, SONATSOFTW 0.544835, HEG 0.568329, JPPOWER 0.575647, PHOENIXLTD 0.576456, TARIL 0.566892
+      exact score tie: sigma 0 False, draw False; clean_exempt row in the swapped names' last 380 days: ['POLYMED', 'SCHNEIDER', 'SONATSOFTW', 'HEG', 'JPPOWER']
+      largest feature moves (sd): trend_consistency_20 DEEPAKFERT -0.111,POLYMED -0.111,SCHNEIDER -0.116,SONATSOFTW -0.116,HEG +0.000,JPPOWER +1.963,PHOENIXLTD -0.127,TARIL +0.931; vol_price_div DEEPAKFERT -0.001,POLYMED -0.018,SCHNEIDER -0.001,SONATSOFTW -0.001,HEG -0.018,JPPOWER +0.995,PHOENIXLTD -0.001,TARIL -0.018; downside_vol_60 DEEPAKFERT -0.006,POLYMED -0.018,SCHNEIDER -0.018,SONATSOFTW -0.003,HEG -0.020,JPPOWER +0.981,PHOENIXLTD -0.020,TARIL +0.092
+  seed 505: 15.6 min
+
+seed 606: feature change against sigma 0 over the window (mean change / cross-sectional sd, share of rows changed by more than 0.01 sd)
+    mom_20 -0.0009 3.3%; mom_120 -0.0008 2.8%; mom_12_1 -0.0002 0.7%; rev_5 +0.0004 3.1%
+    rev_1 +0.0002 17.7%; vol_20 -0.0003 3.5%; vol_ratio -0.0003 13.8%; idio_vol_60 -0.0003 1.8%
+    beta_60 +0.0002 2.4%; downside_vol_60 -0.0001 36.7%; amihud_20 -0.0002 2.7%; turnover_z -0.0003 1.2%
+    vol_price_div -0.0000 5.3%; trend_consistency_20 -0.0008 78.9%; path_smooth_60 -0.0013 6.6%; dist_high_252 -0.0002 0.6%
+    rsi_14 -0.0006 5.1%
+    up-day sign of the return differs from sigma 0 on 4,137 of 772,378 returns (0.54%); 2,820 of them are exactly zero at sigma 0. Raw 20-day up-day share differs on 9.1% of rows, mean change +0.00359
+  v1: first differs 2019-01-02 (decided 2019-01-01); sigma 0 only ['POLYMED', 'SONATSOFTW'], draw only ['PHOENIXLTD', 'TIINDIA']
+      ranks sigma 0 {'POLYMED': 7, 'SONATSOFTW': 8, 'PHOENIXLTD': 9, 'TIINDIA': 10}  draw {'POLYMED': 15, 'SONATSOFTW': 19, 'PHOENIXLTD': 4, 'TIINDIA': 7}
+      scores sigma 0 POLYMED 0.560972, SONATSOFTW 0.559293, PHOENIXLTD 0.558531, TIINDIA 0.555824  draw POLYMED 0.554490, SONATSOFTW 0.549887, PHOENIXLTD 0.574896, TIINDIA 0.567310
+      exact score tie: sigma 0 False, draw False; clean_exempt row in the swapped names' last 380 days: ['POLYMED', 'SONATSOFTW', 'TIINDIA']
+      largest feature moves (sd): trend_consistency_20 POLYMED -0.093,SONATSOFTW -0.099,PHOENIXLTD -0.112,TIINDIA +0.436; amihud_20 POLYMED +0.030,SONATSOFTW +0.003,PHOENIXLTD +0.000,TIINDIA -0.002; downside_vol_60 POLYMED +0.008,SONATSOFTW -0.007,PHOENIXLTD -0.028,TIINDIA -0.001
+  v2: first differs 2019-01-02 (decided 2019-01-01); sigma 0 only ['POLYMED', 'SONATSOFTW'], draw only ['PHOENIXLTD', 'TIINDIA']
+      ranks sigma 0 {'POLYMED': 7, 'SONATSOFTW': 8, 'PHOENIXLTD': 9, 'TIINDIA': 10}  draw {'POLYMED': 15, 'SONATSOFTW': 19, 'PHOENIXLTD': 4, 'TIINDIA': 7}
+      scores sigma 0 POLYMED 0.560972, SONATSOFTW 0.559293, PHOENIXLTD 0.558531, TIINDIA 0.555824  draw POLYMED 0.554490, SONATSOFTW 0.549887, PHOENIXLTD 0.574896, TIINDIA 0.567310
+      exact score tie: sigma 0 False, draw False; clean_exempt row in the swapped names' last 380 days: ['POLYMED', 'SONATSOFTW', 'TIINDIA']
+      largest feature moves (sd): trend_consistency_20 POLYMED -0.093,SONATSOFTW -0.099,PHOENIXLTD -0.112,TIINDIA +0.436; amihud_20 POLYMED +0.030,SONATSOFTW +0.003,PHOENIXLTD +0.000,TIINDIA -0.002; downside_vol_60 POLYMED +0.008,SONATSOFTW -0.007,PHOENIXLTD -0.028,TIINDIA -0.001
+  v3: first differs 2019-01-02 (decided 2019-01-01); sigma 0 only ['POLYMED', 'SONATSOFTW'], draw only ['PHOENIXLTD', 'TIINDIA']
+      ranks sigma 0 {'POLYMED': 7, 'SONATSOFTW': 8, 'PHOENIXLTD': 9, 'TIINDIA': 10}  draw {'POLYMED': 15, 'SONATSOFTW': 19, 'PHOENIXLTD': 4, 'TIINDIA': 7}
+      scores sigma 0 POLYMED 0.560972, SONATSOFTW 0.559293, PHOENIXLTD 0.558531, TIINDIA 0.555824  draw POLYMED 0.554490, SONATSOFTW 0.549887, PHOENIXLTD 0.574896, TIINDIA 0.567310
+      exact score tie: sigma 0 False, draw False; clean_exempt row in the swapped names' last 380 days: ['POLYMED', 'SONATSOFTW', 'TIINDIA']
+      largest feature moves (sd): trend_consistency_20 POLYMED -0.093,SONATSOFTW -0.099,PHOENIXLTD -0.112,TIINDIA +0.436; amihud_20 POLYMED +0.030,SONATSOFTW +0.003,PHOENIXLTD +0.000,TIINDIA -0.002; downside_vol_60 POLYMED +0.008,SONATSOFTW -0.007,PHOENIXLTD -0.028,TIINDIA -0.001
+  v4: first differs 2019-01-02 (decided 2019-01-01); sigma 0 only ['POLYMED', 'SONATSOFTW'], draw only ['PHOENIXLTD', 'TIINDIA']
+      ranks sigma 0 {'POLYMED': 7, 'SONATSOFTW': 8, 'PHOENIXLTD': 9, 'TIINDIA': 10}  draw {'POLYMED': 15, 'SONATSOFTW': 19, 'PHOENIXLTD': 4, 'TIINDIA': 7}
+      scores sigma 0 POLYMED 0.560972, SONATSOFTW 0.559293, PHOENIXLTD 0.558531, TIINDIA 0.555824  draw POLYMED 0.554490, SONATSOFTW 0.549887, PHOENIXLTD 0.574896, TIINDIA 0.567310
+      exact score tie: sigma 0 False, draw False; clean_exempt row in the swapped names' last 380 days: ['POLYMED', 'SONATSOFTW', 'TIINDIA']
+      largest feature moves (sd): trend_consistency_20 POLYMED -0.093,SONATSOFTW -0.099,PHOENIXLTD -0.112,TIINDIA +0.436; amihud_20 POLYMED +0.030,SONATSOFTW +0.003,PHOENIXLTD +0.000,TIINDIA -0.002; downside_vol_60 POLYMED +0.008,SONATSOFTW -0.007,PHOENIXLTD -0.028,TIINDIA -0.001
+  seed 606: 13.2 min
+
+seed 707: feature change against sigma 0 over the window (mean change / cross-sectional sd, share of rows changed by more than 0.01 sd)
+    mom_20 -0.0009 3.5%; mom_120 -0.0006 2.9%; mom_12_1 -0.0000 1.1%; rev_5 +0.0006 3.3%
+    rev_1 +0.0003 18.0%; vol_20 -0.0003 3.8%; vol_ratio -0.0003 14.3%; idio_vol_60 -0.0002 1.8%
+    beta_60 +0.0002 2.3%; downside_vol_60 -0.0002 37.1%; amihud_20 -0.0001 2.3%; turnover_z -0.0004 1.5%
+    vol_price_div -0.0000 5.0%; trend_consistency_20 -0.0009 79.5%; path_smooth_60 -0.0013 6.9%; dist_high_252 -0.0003 0.6%
+    rsi_14 -0.0006 5.5%
+    up-day sign of the return differs from sigma 0 on 4,028 of 772,378 returns (0.52%); 2,754 of them are exactly zero at sigma 0. Raw 20-day up-day share differs on 8.8% of rows, mean change +0.00353
+  v1: first differs 2019-01-02 (decided 2019-01-01); sigma 0 only ['DEEPAKFERT', 'GILLETTE', 'POLYMED', 'SONATSOFTW'], draw only ['ATUL', 'JPPOWER', 'PHOENIXLTD', 'TIINDIA']
+      ranks sigma 0 {'DEEPAKFERT': 4, 'GILLETTE': 5, 'POLYMED': 7, 'SONATSOFTW': 8, 'ATUL': 13, 'JPPOWER': 22, 'PHOENIXLTD': 9, 'TIINDIA': 10}  draw {'DEEPAKFERT': 9, 'GILLETTE': 13, 'POLYMED': 14, 'SONATSOFTW': 20, 'ATUL': 5, 'JPPOWER': 8, 'PHOENIXLTD': 4, 'TIINDIA': 7}
+      scores sigma 0 DEEPAKFERT 0.570488, GILLETTE 0.564157, POLYMED 0.560972, SONATSOFTW 0.559293, ATUL 0.553272, JPPOWER 0.540800, PHOENIXLTD 0.558531, TIINDIA 0.555824  draw DEEPAKFERT 0.560955, GILLETTE 0.555118, POLYMED 0.554908, SONATSOFTW 0.548000, ATUL 0.565233, JPPOWER 0.560966, PHOENIXLTD 0.575258, TIINDIA 0.562760
+      exact score tie: sigma 0 False, draw False; clean_exempt row in the swapped names' last 380 days: ['POLYMED', 'SONATSOFTW', 'JPPOWER', 'TIINDIA']
+      largest feature moves (sd): trend_consistency_20 DEEPAKFERT -0.119,GILLETTE -0.635,POLYMED -0.119,SONATSOFTW -0.131,ATUL -0.093,JPPOWER +1.972,PHOENIXLTD +0.372,TIINDIA +0.423; downside_vol_60 DEEPAKFERT -0.018,GILLETTE -0.035,POLYMED -0.017,SONATSOFTW -0.005,ATUL +0.008,JPPOWER +1.305,PHOENIXLTD -0.022,TIINDIA +0.001; vol_price_div DEEPAKFERT +0.014,GILLETTE +0.002,POLYMED +0.002,SONATSOFTW +0.014,ATUL +0.014,JPPOWER -0.999,PHOENIXLTD +0.014,TIINDIA +0.002
+  v2: first differs 2019-01-02 (decided 2019-01-01); sigma 0 only ['DEEPAKFERT', 'GILLETTE', 'POLYMED', 'SONATSOFTW'], draw only ['ATUL', 'JPPOWER', 'PHOENIXLTD', 'TIINDIA']
+      ranks sigma 0 {'DEEPAKFERT': 4, 'GILLETTE': 5, 'POLYMED': 7, 'SONATSOFTW': 8, 'ATUL': 13, 'JPPOWER': 22, 'PHOENIXLTD': 9, 'TIINDIA': 10}  draw {'DEEPAKFERT': 9, 'GILLETTE': 13, 'POLYMED': 14, 'SONATSOFTW': 20, 'ATUL': 5, 'JPPOWER': 8, 'PHOENIXLTD': 4, 'TIINDIA': 7}
+      scores sigma 0 DEEPAKFERT 0.570488, GILLETTE 0.564157, POLYMED 0.560972, SONATSOFTW 0.559293, ATUL 0.553272, JPPOWER 0.540800, PHOENIXLTD 0.558531, TIINDIA 0.555824  draw DEEPAKFERT 0.560955, GILLETTE 0.555118, POLYMED 0.554908, SONATSOFTW 0.548000, ATUL 0.565233, JPPOWER 0.560966, PHOENIXLTD 0.575258, TIINDIA 0.562760
+      exact score tie: sigma 0 False, draw False; clean_exempt row in the swapped names' last 380 days: ['POLYMED', 'SONATSOFTW', 'JPPOWER', 'TIINDIA']
+      largest feature moves (sd): trend_consistency_20 DEEPAKFERT -0.119,GILLETTE -0.635,POLYMED -0.119,SONATSOFTW -0.131,ATUL -0.093,JPPOWER +1.972,PHOENIXLTD +0.372,TIINDIA +0.423; downside_vol_60 DEEPAKFERT -0.018,GILLETTE -0.035,POLYMED -0.017,SONATSOFTW -0.005,ATUL +0.008,JPPOWER +1.305,PHOENIXLTD -0.022,TIINDIA +0.001; vol_price_div DEEPAKFERT +0.014,GILLETTE +0.002,POLYMED +0.002,SONATSOFTW +0.014,ATUL +0.014,JPPOWER -0.999,PHOENIXLTD +0.014,TIINDIA +0.002
+  v3: first differs 2019-01-02 (decided 2019-01-01); sigma 0 only ['DEEPAKFERT', 'GILLETTE', 'POLYMED', 'SONATSOFTW'], draw only ['ATUL', 'JPPOWER', 'PHOENIXLTD', 'TIINDIA']
+      ranks sigma 0 {'DEEPAKFERT': 4, 'GILLETTE': 5, 'POLYMED': 7, 'SONATSOFTW': 8, 'ATUL': 13, 'JPPOWER': 22, 'PHOENIXLTD': 9, 'TIINDIA': 10}  draw {'DEEPAKFERT': 9, 'GILLETTE': 13, 'POLYMED': 14, 'SONATSOFTW': 20, 'ATUL': 5, 'JPPOWER': 8, 'PHOENIXLTD': 4, 'TIINDIA': 7}
+      scores sigma 0 DEEPAKFERT 0.570488, GILLETTE 0.564157, POLYMED 0.560972, SONATSOFTW 0.559293, ATUL 0.553272, JPPOWER 0.540800, PHOENIXLTD 0.558531, TIINDIA 0.555824  draw DEEPAKFERT 0.560955, GILLETTE 0.555118, POLYMED 0.554908, SONATSOFTW 0.548000, ATUL 0.565233, JPPOWER 0.560966, PHOENIXLTD 0.575258, TIINDIA 0.562760
+      exact score tie: sigma 0 False, draw False; clean_exempt row in the swapped names' last 380 days: ['POLYMED', 'SONATSOFTW', 'JPPOWER', 'TIINDIA']
+      largest feature moves (sd): trend_consistency_20 DEEPAKFERT -0.119,GILLETTE -0.635,POLYMED -0.119,SONATSOFTW -0.131,ATUL -0.093,JPPOWER +1.972,PHOENIXLTD +0.372,TIINDIA +0.423; downside_vol_60 DEEPAKFERT -0.018,GILLETTE -0.035,POLYMED -0.017,SONATSOFTW -0.005,ATUL +0.008,JPPOWER +1.305,PHOENIXLTD -0.022,TIINDIA +0.001; vol_price_div DEEPAKFERT +0.014,GILLETTE +0.002,POLYMED +0.002,SONATSOFTW +0.014,ATUL +0.014,JPPOWER -0.999,PHOENIXLTD +0.014,TIINDIA +0.002
+  v4: first differs 2019-01-02 (decided 2019-01-01); sigma 0 only ['DEEPAKFERT', 'GILLETTE', 'POLYMED', 'SONATSOFTW'], draw only ['ATUL', 'JPPOWER', 'PHOENIXLTD', 'TIINDIA']
+      ranks sigma 0 {'DEEPAKFERT': 4, 'GILLETTE': 5, 'POLYMED': 7, 'SONATSOFTW': 8, 'ATUL': 13, 'JPPOWER': 22, 'PHOENIXLTD': 9, 'TIINDIA': 10}  draw {'DEEPAKFERT': 9, 'GILLETTE': 13, 'POLYMED': 14, 'SONATSOFTW': 20, 'ATUL': 5, 'JPPOWER': 8, 'PHOENIXLTD': 4, 'TIINDIA': 7}
+      scores sigma 0 DEEPAKFERT 0.570488, GILLETTE 0.564157, POLYMED 0.560972, SONATSOFTW 0.559293, ATUL 0.553272, JPPOWER 0.540800, PHOENIXLTD 0.558531, TIINDIA 0.555824  draw DEEPAKFERT 0.560955, GILLETTE 0.555118, POLYMED 0.554908, SONATSOFTW 0.548000, ATUL 0.565233, JPPOWER 0.560966, PHOENIXLTD 0.575258, TIINDIA 0.562760
+      exact score tie: sigma 0 False, draw False; clean_exempt row in the swapped names' last 380 days: ['POLYMED', 'SONATSOFTW', 'JPPOWER', 'TIINDIA']
+      largest feature moves (sd): trend_consistency_20 DEEPAKFERT -0.119,GILLETTE -0.635,POLYMED -0.119,SONATSOFTW -0.131,ATUL -0.093,JPPOWER +1.972,PHOENIXLTD +0.372,TIINDIA +0.423; downside_vol_60 DEEPAKFERT -0.018,GILLETTE -0.035,POLYMED -0.017,SONATSOFTW -0.005,ATUL +0.008,JPPOWER +1.305,PHOENIXLTD -0.022,TIINDIA +0.001; vol_price_div DEEPAKFERT +0.014,GILLETTE +0.002,POLYMED +0.002,SONATSOFTW +0.014,ATUL +0.014,JPPOWER -0.999,PHOENIXLTD +0.014,TIINDIA +0.002
+  seed 707: 14.1 min
+
+seed 808: feature change against sigma 0 over the window (mean change / cross-sectional sd, share of rows changed by more than 0.01 sd)
+    mom_20 -0.0007 2.7%; mom_120 -0.0005 1.9%; mom_12_1 -0.0000 0.7%; rev_5 +0.0004 2.8%
+    rev_1 +0.0002 17.5%; vol_20 -0.0001 3.3%; vol_ratio -0.0001 13.7%; idio_vol_60 -0.0002 1.6%
+    beta_60 +0.0002 2.2%; downside_vol_60 -0.0001 37.1%; amihud_20 -0.0001 1.8%; turnover_z -0.0002 0.8%
+    vol_price_div -0.0000 5.0%; trend_consistency_20 -0.0009 80.8%; path_smooth_60 -0.0011 5.3%; dist_high_252 -0.0003 0.5%
+    rsi_14 -0.0006 5.4%
+    up-day sign of the return differs from sigma 0 on 4,043 of 772,378 returns (0.52%); 2,784 of them are exactly zero at sigma 0. Raw 20-day up-day share differs on 8.7% of rows, mean change +0.00359
+  v1: first differs 2019-01-02 (decided 2019-01-01); sigma 0 only ['GILLETTE', 'POLYMED', 'SONATSOFTW'], draw only ['JPPOWER', 'PHOENIXLTD', 'TIINDIA']
+      ranks sigma 0 {'GILLETTE': 5, 'POLYMED': 7, 'SONATSOFTW': 8, 'JPPOWER': 22, 'PHOENIXLTD': 9, 'TIINDIA': 10}  draw {'GILLETTE': 9, 'POLYMED': 15, 'SONATSOFTW': 18, 'JPPOWER': 6, 'PHOENIXLTD': 4, 'TIINDIA': 5}
+      scores sigma 0 GILLETTE 0.564157, POLYMED 0.560972, SONATSOFTW 0.559293, JPPOWER 0.540800, PHOENIXLTD 0.558531, TIINDIA 0.555824  draw GILLETTE 0.562315, POLYMED 0.551212, SONATSOFTW 0.549243, JPPOWER 0.569856, PHOENIXLTD 0.572968, TIINDIA 0.572256
+      exact score tie: sigma 0 False, draw False; clean_exempt row in the swapped names' last 380 days: ['POLYMED', 'SONATSOFTW', 'JPPOWER', 'TIINDIA']
+      largest feature moves (sd): downside_vol_60 GILLETTE -0.016,POLYMED +0.020,SONATSOFTW -0.003,JPPOWER +1.375,PHOENIXLTD -0.017,TIINDIA +0.011; vol_price_div GILLETTE +0.008,POLYMED +0.008,SONATSOFTW +0.020,JPPOWER -0.994,PHOENIXLTD +0.020,TIINDIA +0.008; trend_consistency_20 GILLETTE -0.073,POLYMED -0.082,SONATSOFTW -0.091,JPPOWER +0.950,PHOENIXLTD -0.108,TIINDIA +0.452
+  v2: first differs 2019-01-02 (decided 2019-01-01); sigma 0 only ['GILLETTE', 'POLYMED', 'SONATSOFTW'], draw only ['JPPOWER', 'PHOENIXLTD', 'TIINDIA']
+      ranks sigma 0 {'GILLETTE': 5, 'POLYMED': 7, 'SONATSOFTW': 8, 'JPPOWER': 22, 'PHOENIXLTD': 9, 'TIINDIA': 10}  draw {'GILLETTE': 9, 'POLYMED': 15, 'SONATSOFTW': 18, 'JPPOWER': 6, 'PHOENIXLTD': 4, 'TIINDIA': 5}
+      scores sigma 0 GILLETTE 0.564157, POLYMED 0.560972, SONATSOFTW 0.559293, JPPOWER 0.540800, PHOENIXLTD 0.558531, TIINDIA 0.555824  draw GILLETTE 0.562315, POLYMED 0.551212, SONATSOFTW 0.549243, JPPOWER 0.569856, PHOENIXLTD 0.572968, TIINDIA 0.572256
+      exact score tie: sigma 0 False, draw False; clean_exempt row in the swapped names' last 380 days: ['POLYMED', 'SONATSOFTW', 'JPPOWER', 'TIINDIA']
+      largest feature moves (sd): downside_vol_60 GILLETTE -0.016,POLYMED +0.020,SONATSOFTW -0.003,JPPOWER +1.375,PHOENIXLTD -0.017,TIINDIA +0.011; vol_price_div GILLETTE +0.008,POLYMED +0.008,SONATSOFTW +0.020,JPPOWER -0.994,PHOENIXLTD +0.020,TIINDIA +0.008; trend_consistency_20 GILLETTE -0.073,POLYMED -0.082,SONATSOFTW -0.091,JPPOWER +0.950,PHOENIXLTD -0.108,TIINDIA +0.452
+  v3: first differs 2019-01-02 (decided 2019-01-01); sigma 0 only ['GILLETTE', 'POLYMED', 'SONATSOFTW'], draw only ['JPPOWER', 'PHOENIXLTD', 'TIINDIA']
+      ranks sigma 0 {'GILLETTE': 5, 'POLYMED': 7, 'SONATSOFTW': 8, 'JPPOWER': 22, 'PHOENIXLTD': 9, 'TIINDIA': 10}  draw {'GILLETTE': 9, 'POLYMED': 15, 'SONATSOFTW': 18, 'JPPOWER': 6, 'PHOENIXLTD': 4, 'TIINDIA': 5}
+      scores sigma 0 GILLETTE 0.564157, POLYMED 0.560972, SONATSOFTW 0.559293, JPPOWER 0.540800, PHOENIXLTD 0.558531, TIINDIA 0.555824  draw GILLETTE 0.562315, POLYMED 0.551212, SONATSOFTW 0.549243, JPPOWER 0.569856, PHOENIXLTD 0.572968, TIINDIA 0.572256
+      exact score tie: sigma 0 False, draw False; clean_exempt row in the swapped names' last 380 days: ['POLYMED', 'SONATSOFTW', 'JPPOWER', 'TIINDIA']
+      largest feature moves (sd): downside_vol_60 GILLETTE -0.016,POLYMED +0.020,SONATSOFTW -0.003,JPPOWER +1.375,PHOENIXLTD -0.017,TIINDIA +0.011; vol_price_div GILLETTE +0.008,POLYMED +0.008,SONATSOFTW +0.020,JPPOWER -0.994,PHOENIXLTD +0.020,TIINDIA +0.008; trend_consistency_20 GILLETTE -0.073,POLYMED -0.082,SONATSOFTW -0.091,JPPOWER +0.950,PHOENIXLTD -0.108,TIINDIA +0.452
+  v4: first differs 2019-01-02 (decided 2019-01-01); sigma 0 only ['GILLETTE', 'POLYMED', 'SONATSOFTW'], draw only ['JPPOWER', 'PHOENIXLTD', 'TIINDIA']
+      ranks sigma 0 {'GILLETTE': 5, 'POLYMED': 7, 'SONATSOFTW': 8, 'JPPOWER': 22, 'PHOENIXLTD': 9, 'TIINDIA': 10}  draw {'GILLETTE': 9, 'POLYMED': 15, 'SONATSOFTW': 18, 'JPPOWER': 6, 'PHOENIXLTD': 4, 'TIINDIA': 5}
+      scores sigma 0 GILLETTE 0.564157, POLYMED 0.560972, SONATSOFTW 0.559293, JPPOWER 0.540800, PHOENIXLTD 0.558531, TIINDIA 0.555824  draw GILLETTE 0.562315, POLYMED 0.551212, SONATSOFTW 0.549243, JPPOWER 0.569856, PHOENIXLTD 0.572968, TIINDIA 0.572256
+      exact score tie: sigma 0 False, draw False; clean_exempt row in the swapped names' last 380 days: ['POLYMED', 'SONATSOFTW', 'JPPOWER', 'TIINDIA']
+      largest feature moves (sd): downside_vol_60 GILLETTE -0.016,POLYMED +0.020,SONATSOFTW -0.003,JPPOWER +1.375,PHOENIXLTD -0.017,TIINDIA +0.011; vol_price_div GILLETTE +0.008,POLYMED +0.008,SONATSOFTW +0.020,JPPOWER -0.994,PHOENIXLTD +0.020,TIINDIA +0.008; trend_consistency_20 GILLETTE -0.073,POLYMED -0.082,SONATSOFTW -0.091,JPPOWER +0.950,PHOENIXLTD -0.108,TIINDIA +0.452
+  seed 808: 14.0 min
+
+seed 909: feature change against sigma 0 over the window (mean change / cross-sectional sd, share of rows changed by more than 0.01 sd)
+    mom_20 -0.0008 2.9%; mom_120 -0.0006 2.4%; mom_12_1 -0.0001 0.8%; rev_5 +0.0005 3.0%
+    rev_1 +0.0002 17.9%; vol_20 -0.0002 3.5%; vol_ratio -0.0002 13.9%; idio_vol_60 -0.0002 1.9%
+    beta_60 +0.0002 2.4%; downside_vol_60 -0.0001 36.6%; amihud_20 -0.0002 2.3%; turnover_z -0.0003 1.2%
+    vol_price_div -0.0000 5.0%; trend_consistency_20 -0.0010 78.8%; path_smooth_60 -0.0014 6.3%; dist_high_252 -0.0003 0.5%
+    rsi_14 -0.0006 5.3%
+    up-day sign of the return differs from sigma 0 on 4,103 of 772,378 returns (0.53%); 2,781 of them are exactly zero at sigma 0. Raw 20-day up-day share differs on 8.9% of rows, mean change +0.00350
+  v1: first differs 2019-01-02 (decided 2019-01-01); sigma 0 only ['GILLETTE', 'POLYMED', 'SONATSOFTW'], draw only ['AARTIIND', 'JPPOWER', 'PHOENIXLTD']
+      ranks sigma 0 {'GILLETTE': 5, 'POLYMED': 7, 'SONATSOFTW': 8, 'AARTIIND': None, 'JPPOWER': 22, 'PHOENIXLTD': 9}  draw {'GILLETTE': None, 'POLYMED': 14, 'SONATSOFTW': 15, 'AARTIIND': 7, 'JPPOWER': 4, 'PHOENIXLTD': 6}
+      scores sigma 0 GILLETTE 0.564157, POLYMED 0.560972, SONATSOFTW 0.559293, AARTIIND 0.529662, JPPOWER 0.540800, PHOENIXLTD 0.558531  draw GILLETTE 0.531076, POLYMED 0.551552, SONATSOFTW 0.550564, AARTIIND 0.565896, JPPOWER 0.573702, PHOENIXLTD 0.569164
+      exact score tie: sigma 0 False, draw False; clean_exempt row in the swapped names' last 380 days: ['POLYMED', 'SONATSOFTW', 'JPPOWER']
+      largest feature moves (sd): trend_consistency_20 GILLETTE -0.083,POLYMED -0.097,SONATSOFTW -0.112,AARTIIND -0.068,JPPOWER +1.996,PHOENIXLTD -0.141; downside_vol_60 GILLETTE -0.020,POLYMED -0.014,SONATSOFTW -0.012,AARTIIND -0.017,JPPOWER +1.112,PHOENIXLTD -0.011; vol_price_div GILLETTE -0.005,POLYMED -0.005,SONATSOFTW +0.009,AARTIIND +0.009,JPPOWER -1.004,PHOENIXLTD +0.009
+  v2: first differs 2019-01-02 (decided 2019-01-01); sigma 0 only ['GILLETTE', 'POLYMED', 'SONATSOFTW'], draw only ['AARTIIND', 'JPPOWER', 'PHOENIXLTD']
+      ranks sigma 0 {'GILLETTE': 5, 'POLYMED': 7, 'SONATSOFTW': 8, 'AARTIIND': None, 'JPPOWER': 22, 'PHOENIXLTD': 9}  draw {'GILLETTE': None, 'POLYMED': 14, 'SONATSOFTW': 15, 'AARTIIND': 7, 'JPPOWER': 4, 'PHOENIXLTD': 6}
+      scores sigma 0 GILLETTE 0.564157, POLYMED 0.560972, SONATSOFTW 0.559293, AARTIIND 0.529662, JPPOWER 0.540800, PHOENIXLTD 0.558531  draw GILLETTE 0.531076, POLYMED 0.551552, SONATSOFTW 0.550564, AARTIIND 0.565896, JPPOWER 0.573702, PHOENIXLTD 0.569164
+      exact score tie: sigma 0 False, draw False; clean_exempt row in the swapped names' last 380 days: ['POLYMED', 'SONATSOFTW', 'JPPOWER']
+      largest feature moves (sd): trend_consistency_20 GILLETTE -0.083,POLYMED -0.097,SONATSOFTW -0.112,AARTIIND -0.068,JPPOWER +1.996,PHOENIXLTD -0.141; downside_vol_60 GILLETTE -0.020,POLYMED -0.014,SONATSOFTW -0.012,AARTIIND -0.017,JPPOWER +1.112,PHOENIXLTD -0.011; vol_price_div GILLETTE -0.005,POLYMED -0.005,SONATSOFTW +0.009,AARTIIND +0.009,JPPOWER -1.004,PHOENIXLTD +0.009
+  v3: first differs 2019-01-02 (decided 2019-01-01); sigma 0 only ['GILLETTE', 'POLYMED', 'SONATSOFTW'], draw only ['AARTIIND', 'JPPOWER', 'PHOENIXLTD']
+      ranks sigma 0 {'GILLETTE': 5, 'POLYMED': 7, 'SONATSOFTW': 8, 'AARTIIND': None, 'JPPOWER': 22, 'PHOENIXLTD': 9}  draw {'GILLETTE': None, 'POLYMED': 14, 'SONATSOFTW': 15, 'AARTIIND': 7, 'JPPOWER': 4, 'PHOENIXLTD': 6}
+      scores sigma 0 GILLETTE 0.564157, POLYMED 0.560972, SONATSOFTW 0.559293, AARTIIND 0.529662, JPPOWER 0.540800, PHOENIXLTD 0.558531  draw GILLETTE 0.531076, POLYMED 0.551552, SONATSOFTW 0.550564, AARTIIND 0.565896, JPPOWER 0.573702, PHOENIXLTD 0.569164
+      exact score tie: sigma 0 False, draw False; clean_exempt row in the swapped names' last 380 days: ['POLYMED', 'SONATSOFTW', 'JPPOWER']
+      largest feature moves (sd): trend_consistency_20 GILLETTE -0.083,POLYMED -0.097,SONATSOFTW -0.112,AARTIIND -0.068,JPPOWER +1.996,PHOENIXLTD -0.141; downside_vol_60 GILLETTE -0.020,POLYMED -0.014,SONATSOFTW -0.012,AARTIIND -0.017,JPPOWER +1.112,PHOENIXLTD -0.011; vol_price_div GILLETTE -0.005,POLYMED -0.005,SONATSOFTW +0.009,AARTIIND +0.009,JPPOWER -1.004,PHOENIXLTD +0.009
+  v4: first differs 2019-01-02 (decided 2019-01-01); sigma 0 only ['GILLETTE', 'POLYMED', 'SONATSOFTW'], draw only ['AARTIIND', 'JPPOWER', 'PHOENIXLTD']
+      ranks sigma 0 {'GILLETTE': 5, 'POLYMED': 7, 'SONATSOFTW': 8, 'AARTIIND': None, 'JPPOWER': 22, 'PHOENIXLTD': 9}  draw {'GILLETTE': None, 'POLYMED': 14, 'SONATSOFTW': 15, 'AARTIIND': 7, 'JPPOWER': 4, 'PHOENIXLTD': 6}
+      scores sigma 0 GILLETTE 0.564157, POLYMED 0.560972, SONATSOFTW 0.559293, AARTIIND 0.529662, JPPOWER 0.540800, PHOENIXLTD 0.558531  draw GILLETTE 0.531076, POLYMED 0.551552, SONATSOFTW 0.550564, AARTIIND 0.565896, JPPOWER 0.573702, PHOENIXLTD 0.569164
+      exact score tie: sigma 0 False, draw False; clean_exempt row in the swapped names' last 380 days: ['POLYMED', 'SONATSOFTW', 'JPPOWER']
+      largest feature moves (sd): trend_consistency_20 GILLETTE -0.083,POLYMED -0.097,SONATSOFTW -0.112,AARTIIND -0.068,JPPOWER +1.996,PHOENIXLTD -0.141; downside_vol_60 GILLETTE -0.020,POLYMED -0.014,SONATSOFTW -0.012,AARTIIND -0.017,JPPOWER +1.112,PHOENIXLTD -0.011; vol_price_div GILLETTE -0.005,POLYMED -0.005,SONATSOFTW +0.009,AARTIIND +0.009,JPPOWER -1.004,PHOENIXLTD +0.009
+  seed 909: 14.2 min
+
+seed 1010: feature change against sigma 0 over the window (mean change / cross-sectional sd, share of rows changed by more than 0.01 sd)
+    mom_20 -0.0008 3.4%; mom_120 -0.0008 3.0%; mom_12_1 -0.0002 1.1%; rev_5 +0.0005 3.1%
+    rev_1 +0.0002 17.8%; vol_20 -0.0002 3.5%; vol_ratio -0.0001 13.6%; idio_vol_60 -0.0003 1.9%
+    beta_60 +0.0002 2.3%; downside_vol_60 -0.0002 37.3%; amihud_20 -0.0005 3.4%; turnover_z -0.0002 1.0%
+    vol_price_div -0.0001 5.2%; trend_consistency_20 -0.0010 79.2%; path_smooth_60 -0.0013 6.3%; dist_high_252 -0.0003 0.6%
+    rsi_14 -0.0006 5.3%
+    up-day sign of the return differs from sigma 0 on 4,048 of 772,378 returns (0.52%); 2,776 of them are exactly zero at sigma 0. Raw 20-day up-day share differs on 8.8% of rows, mean change +0.00349
+  v1: first differs 2019-01-02 (decided 2019-01-01); sigma 0 only ['DEEPAKFERT', 'GILLETTE', 'POLYMED', 'SONATSOFTW'], draw only ['AARTIIND', 'JPPOWER', 'PHOENIXLTD', 'TIINDIA']
+      ranks sigma 0 {'DEEPAKFERT': 4, 'GILLETTE': 5, 'POLYMED': 7, 'SONATSOFTW': 8, 'AARTIIND': None, 'JPPOWER': 22, 'PHOENIXLTD': 9, 'TIINDIA': 10}  draw {'DEEPAKFERT': 9, 'GILLETTE': 12, 'POLYMED': 13, 'SONATSOFTW': 18, 'AARTIIND': 8, 'JPPOWER': 5, 'PHOENIXLTD': 4, 'TIINDIA': 7}
+      scores sigma 0 DEEPAKFERT 0.570488, GILLETTE 0.564157, POLYMED 0.560972, SONATSOFTW 0.559293, AARTIIND 0.529662, JPPOWER 0.540800, PHOENIXLTD 0.558531, TIINDIA 0.555824  draw DEEPAKFERT 0.562220, GILLETTE 0.557482, POLYMED 0.553594, SONATSOFTW 0.548740, AARTIIND 0.562428, JPPOWER 0.571124, PHOENIXLTD 0.573220, TIINDIA 0.565130
+      exact score tie: sigma 0 False, draw False; clean_exempt row in the swapped names' last 380 days: ['POLYMED', 'SONATSOFTW', 'JPPOWER', 'TIINDIA']
+      largest feature moves (sd): downside_vol_60 DEEPAKFERT -0.017,GILLETTE -0.026,POLYMED +0.009,SONATSOFTW -0.013,AARTIIND -0.028,JPPOWER +1.372,PHOENIXLTD -0.028,TIINDIA +0.014; vol_price_div DEEPAKFERT +0.014,GILLETTE +0.002,POLYMED +0.002,SONATSOFTW +0.014,AARTIIND +0.014,JPPOWER -0.999,PHOENIXLTD +0.014,TIINDIA +0.002; trend_consistency_20 DEEPAKFERT -0.096,GILLETTE -0.083,POLYMED -0.096,SONATSOFTW -0.110,AARTIIND -0.069,JPPOWER +0.936,PHOENIXLTD +0.392,TIINDIA +0.447
+  v2: first differs 2019-01-02 (decided 2019-01-01); sigma 0 only ['DEEPAKFERT', 'GILLETTE', 'POLYMED', 'SONATSOFTW'], draw only ['AARTIIND', 'JPPOWER', 'PHOENIXLTD', 'TIINDIA']
+      ranks sigma 0 {'DEEPAKFERT': 4, 'GILLETTE': 5, 'POLYMED': 7, 'SONATSOFTW': 8, 'AARTIIND': None, 'JPPOWER': 22, 'PHOENIXLTD': 9, 'TIINDIA': 10}  draw {'DEEPAKFERT': 9, 'GILLETTE': 12, 'POLYMED': 13, 'SONATSOFTW': 18, 'AARTIIND': 8, 'JPPOWER': 5, 'PHOENIXLTD': 4, 'TIINDIA': 7}
+      scores sigma 0 DEEPAKFERT 0.570488, GILLETTE 0.564157, POLYMED 0.560972, SONATSOFTW 0.559293, AARTIIND 0.529662, JPPOWER 0.540800, PHOENIXLTD 0.558531, TIINDIA 0.555824  draw DEEPAKFERT 0.562220, GILLETTE 0.557482, POLYMED 0.553594, SONATSOFTW 0.548740, AARTIIND 0.562428, JPPOWER 0.571124, PHOENIXLTD 0.573220, TIINDIA 0.565130
+      exact score tie: sigma 0 False, draw False; clean_exempt row in the swapped names' last 380 days: ['POLYMED', 'SONATSOFTW', 'JPPOWER', 'TIINDIA']
+      largest feature moves (sd): downside_vol_60 DEEPAKFERT -0.017,GILLETTE -0.026,POLYMED +0.009,SONATSOFTW -0.013,AARTIIND -0.028,JPPOWER +1.372,PHOENIXLTD -0.028,TIINDIA +0.014; vol_price_div DEEPAKFERT +0.014,GILLETTE +0.002,POLYMED +0.002,SONATSOFTW +0.014,AARTIIND +0.014,JPPOWER -0.999,PHOENIXLTD +0.014,TIINDIA +0.002; trend_consistency_20 DEEPAKFERT -0.096,GILLETTE -0.083,POLYMED -0.096,SONATSOFTW -0.110,AARTIIND -0.069,JPPOWER +0.936,PHOENIXLTD +0.392,TIINDIA +0.447
+  v3: first differs 2019-01-02 (decided 2019-01-01); sigma 0 only ['DEEPAKFERT', 'GILLETTE', 'POLYMED', 'SONATSOFTW'], draw only ['AARTIIND', 'JPPOWER', 'PHOENIXLTD', 'TIINDIA']
+      ranks sigma 0 {'DEEPAKFERT': 4, 'GILLETTE': 5, 'POLYMED': 7, 'SONATSOFTW': 8, 'AARTIIND': None, 'JPPOWER': 22, 'PHOENIXLTD': 9, 'TIINDIA': 10}  draw {'DEEPAKFERT': 9, 'GILLETTE': 12, 'POLYMED': 13, 'SONATSOFTW': 18, 'AARTIIND': 8, 'JPPOWER': 5, 'PHOENIXLTD': 4, 'TIINDIA': 7}
+      scores sigma 0 DEEPAKFERT 0.570488, GILLETTE 0.564157, POLYMED 0.560972, SONATSOFTW 0.559293, AARTIIND 0.529662, JPPOWER 0.540800, PHOENIXLTD 0.558531, TIINDIA 0.555824  draw DEEPAKFERT 0.562220, GILLETTE 0.557482, POLYMED 0.553594, SONATSOFTW 0.548740, AARTIIND 0.562428, JPPOWER 0.571124, PHOENIXLTD 0.573220, TIINDIA 0.565130
+      exact score tie: sigma 0 False, draw False; clean_exempt row in the swapped names' last 380 days: ['POLYMED', 'SONATSOFTW', 'JPPOWER', 'TIINDIA']
+      largest feature moves (sd): downside_vol_60 DEEPAKFERT -0.017,GILLETTE -0.026,POLYMED +0.009,SONATSOFTW -0.013,AARTIIND -0.028,JPPOWER +1.372,PHOENIXLTD -0.028,TIINDIA +0.014; vol_price_div DEEPAKFERT +0.014,GILLETTE +0.002,POLYMED +0.002,SONATSOFTW +0.014,AARTIIND +0.014,JPPOWER -0.999,PHOENIXLTD +0.014,TIINDIA +0.002; trend_consistency_20 DEEPAKFERT -0.096,GILLETTE -0.083,POLYMED -0.096,SONATSOFTW -0.110,AARTIIND -0.069,JPPOWER +0.936,PHOENIXLTD +0.392,TIINDIA +0.447
+  v4: first differs 2019-01-02 (decided 2019-01-01); sigma 0 only ['DEEPAKFERT', 'GILLETTE', 'POLYMED', 'SONATSOFTW'], draw only ['AARTIIND', 'JPPOWER', 'PHOENIXLTD', 'TIINDIA']
+      ranks sigma 0 {'DEEPAKFERT': 4, 'GILLETTE': 5, 'POLYMED': 7, 'SONATSOFTW': 8, 'AARTIIND': None, 'JPPOWER': 22, 'PHOENIXLTD': 9, 'TIINDIA': 10}  draw {'DEEPAKFERT': 9, 'GILLETTE': 12, 'POLYMED': 13, 'SONATSOFTW': 18, 'AARTIIND': 8, 'JPPOWER': 5, 'PHOENIXLTD': 4, 'TIINDIA': 7}
+      scores sigma 0 DEEPAKFERT 0.570488, GILLETTE 0.564157, POLYMED 0.560972, SONATSOFTW 0.559293, AARTIIND 0.529662, JPPOWER 0.540800, PHOENIXLTD 0.558531, TIINDIA 0.555824  draw DEEPAKFERT 0.562220, GILLETTE 0.557482, POLYMED 0.553594, SONATSOFTW 0.548740, AARTIIND 0.562428, JPPOWER 0.571124, PHOENIXLTD 0.573220, TIINDIA 0.565130
+      exact score tie: sigma 0 False, draw False; clean_exempt row in the swapped names' last 380 days: ['POLYMED', 'SONATSOFTW', 'JPPOWER', 'TIINDIA']
+      largest feature moves (sd): downside_vol_60 DEEPAKFERT -0.017,GILLETTE -0.026,POLYMED +0.009,SONATSOFTW -0.013,AARTIIND -0.028,JPPOWER +1.372,PHOENIXLTD -0.028,TIINDIA +0.014; vol_price_div DEEPAKFERT +0.014,GILLETTE +0.002,POLYMED +0.002,SONATSOFTW +0.014,AARTIIND +0.014,JPPOWER -0.999,PHOENIXLTD +0.014,TIINDIA +0.002; trend_consistency_20 DEEPAKFERT -0.096,GILLETTE -0.083,POLYMED -0.096,SONATSOFTW -0.110,AARTIIND -0.069,JPPOWER +0.936,PHOENIXLTD +0.392,TIINDIA +0.447
+  seed 1010: 14.2 min
+
