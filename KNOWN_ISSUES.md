@@ -387,6 +387,12 @@ own spec:
 - `results/price_noise_measure.py`, jackknife, pinned mask, drawdown exit, shuffle,
   seed noise.
 
+Decision, owner, 2026-09-29: the gates stay as they are. The correctness gates
+(nt_verify, the cost reconciliation, execution timing, GATE 6 to 8) cover all four
+arms on all eight universes. The validation tests compare one rule against another
+(inverse-vol against equal weight, breadth against full exposure, v1 against v2) and
+are pairwise by design, so they are not extended to v3 and v4.
+
 ### Validation of sizing and breadth, as of 2026-09-27
 
 Three suites, run as slow `check_all.py` delegates on nifty100 and midcap150 only
