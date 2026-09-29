@@ -851,6 +851,18 @@ scripts that were merged, not renamed; no file of the new-tag spelling ever exis
 - requirements.txt pins direct dependencies only. Install with
   `-c installed_versions.txt` to reproduce the venv exactly.
 
+### Two merged pull request refs on GitHub still hold the old history
+
+On 2026-09-29 the history was rewritten to remove a non-English comment and one other
+line, and to translate a non-English passage in `experiments/rejected_experiments_REPORT.txt`
+and its quote in `experiments/EXPERIMENTS.md` into English; `main`, `v1.0` and `v1.1`
+were force-pushed. GitHub keeps a read-only ref for each merged pull request,
+`refs/pull/1/head` (b417907) and `refs/pull/2/head` (ee06823). They point at commits
+from before the rewrite and still hold the old wording. A push cannot delete them;
+only GitHub support can. The owner accepted leaving them. `main` and both tags on
+GitHub, and every object in the local repository, are clean. The pre-rewrite history
+is kept outside the repository, in a git bundle the owner holds.
+
 ### Small stale comments and one leaking check
 
 - `tax_acceptance_check.py` creates two temporary directories per run
