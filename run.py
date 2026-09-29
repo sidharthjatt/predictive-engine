@@ -47,6 +47,9 @@ import re
 import sys
 from pathlib import Path
 
+import python_floor  # before any third-party import
+python_floor.require("run.py")
+
 ROOT = Path(__file__).resolve().parent
 for _p in (str(ROOT), str(ROOT / "results"), str(ROOT / "nautilus")):
     if _p not in sys.path:

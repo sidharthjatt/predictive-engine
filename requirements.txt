@@ -1,3 +1,8 @@
+# REQUIRES PYTHON 3.12 OR NEWER. These pins were resolved on Python 3.12.13; on
+# 3.11 pip installs nothing (scipy==1.18.1 and nautilus_trader==1.229.0 need 3.12).
+#     python3.12 -m venv venv
+#     ./venv/bin/python -m pip install -r requirements.txt -c installed_versions.txt
+# run.py and check_all.py stop at start-up on an older Python (python_floor.py).
 # ===========================================================================
 # requirements.txt -- cross-sectional equity ranking engine for Indian markets
 #

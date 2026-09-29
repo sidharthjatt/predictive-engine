@@ -123,6 +123,10 @@ import sys
 import time
 import warnings
 from pathlib import Path
+
+import python_floor  # before any third-party import
+python_floor.require("check_all.py")
+
 from config import read_table  # the one CSV/parquet reader: config.read_table
 
 ROOT = Path(__file__).resolve().parent

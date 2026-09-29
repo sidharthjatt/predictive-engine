@@ -30,12 +30,17 @@ with evidence attached.
 ## How to run
 
 You need this tree, the price data (not in the repository; ask the owner, see "The
-price data") and Python 3.12.13.
+price data") and Python 3.12 or newer. The pinned requirements were resolved on
+Python 3.12.13, and that is the version every published result was produced on. On
+Python 3.11 pip installs nothing: `scipy==1.18.1` and `nautilus_trader==1.229.0`
+need 3.12. `run.py` and `check_all.py` stop at start-up with a message naming the
+version if they are started on an older Python.
 
 ```
 # 1. put the price data at data/raw/Final_Without_Survivorship_Data/ and check it
 python3 check_data.py
-# 2. build the environment
+# 2. build the environment with Python 3.12
+python3.12 --version          # must print 3.12.x; 3.12.13 reproduces the results
 python3.12 -m venv venv
 ./venv/bin/python -m pip install -r requirements.txt -c installed_versions.txt
 # 3. run one combination
