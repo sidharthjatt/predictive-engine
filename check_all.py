@@ -355,19 +355,12 @@ NAMING_UNDECLARED_BASELINE = 111
 # red means nothing at all -- but the cure for that is a declaration with a
 # reason, not a lowered bar.
 #
-# NONE OF THESE THREE IS THE DEFECT CLASS. Two are dead scripts importing a module
-# this repository does not contain, and one wants an optional dependency. They are
-# declared so that the next failure -- which will be the defect class -- is
-# visible the moment it appears. results/save_ewma_comparison.py left the list on
-# 2026-09-23: it "refused at import" because it did its work at import, which is
-# the defect class, not an exception to it; its work is in main() now.
-KNOWN_UNIMPORTABLE = {
-    "diagnostics/membership/analyse.py":
-        "needs pdfplumber, an optional dependency not in requirements.txt",
-    "results/audit_leakage.py":
-        "imports `engine_v2`, a module that does not exist in this repository "
-        "-- a dead script left from before the engine was renamed",
-}
+# EMPTY SINCE 2026-09-29. The two entries it held, diagnostics/membership/analyse.py
+# (needed pdfplumber) and results/audit_leakage.py (imported the missing engine_v2),
+# were deleted as dead code. results/save_ewma_comparison.py left the list on
+# 2026-09-23. A module that fails to import is now a gate-1 failure unless it is
+# added here with its reason.
+KNOWN_UNIMPORTABLE = {}
 
 
 # THE SEVEN, BY NUMBER, so the verdict can subtract rather than be told a total.
@@ -741,6 +734,14 @@ def gate_delegates(res, slow):
                 res.delegate(label, "PASS",
                              f"{n} undeclared writes "
                              f"(baseline {NAMING_UNDECLARED_BASELINE})")
+            continue
+        if r.returncode == 3 and name == "platform_identity_check.py":
+            # A NAMED SKIP, NOT A PASS: outside a git checkout with no tracked-file
+            # manifest the tracked .py files cannot be listed. The reason is the
+            # delegate's last line.
+            why = [l for l in r.stdout.splitlines() if l.strip()][-1:] or ["no reason given"]
+            res.delegate(label, "SKIP", why[0], "cannot list tracked files")
+            skipped += 1
             continue
         if r.returncode != 0:
             tail = [l for l in (r.stdout + r.stderr).splitlines() if l.strip()][-3:]

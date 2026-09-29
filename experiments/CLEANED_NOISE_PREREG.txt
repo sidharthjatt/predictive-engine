@@ -122,3 +122,21 @@ RUN TIME, Mac mini M4, 16 GB, 2 x 5
 
     stage 1 about 7.0 h, stage 2 about 11 h, stage 3 about 10 h; about 28 h in all
     (per-universe estimates in the pass G report).
+
+ADDENDUM, 2026-09-29 (pass K). Nothing above is changed; nothing is re-ruled.
+
+    The noise draws are biased. At sigma 0, 0.72% of close-to-close returns are
+    exactly zero (nifty500, 2019 onward), from tick size, illiquidity and circuit
+    locks. Every draw gives each of them a random sign, so the up-day share behind
+    trend_consistency_20 rises on 8.7% to 9.1% of rows in every draw, and
+    downside_vol_60 and rev_1 shift the same way. The draws therefore move each
+    universe's results in one direction rather than scattering them around the
+    published run: the sigma-0 gap lies outside all ten draws in 15 of 32 research
+    cells. Measured in pass I: results/nifty500_baseline_trace.py,
+    diagnostics/nifty500_baseline_trace.txt, KNOWN_ISSUES.md "The noise draws and
+    the published run".
+
+    The registered verdicts stand unchanged: 15 of 32 cells supported under both
+    profiles, now all 15 port-verified. Read every supported cell with this bias
+    and with the survivorship caveat (the universes are today's members applied
+    back to 2019; diagnostics/survivorship_attribution.txt).

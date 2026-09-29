@@ -225,12 +225,12 @@ after costs, cadence 20. All eight panels were rebuilt with the adj_close/close
 cleaning of `experiments/DATA_CLEANING_SPEC.txt`: a ratio move that returns within
 0.1% of the previous session's ratio within five sessions takes the previous ratio
 (0.39% to 0.54% of each universe's rows in the window; counts in
-`diagnostics/ratio_clean_counts.txt`). The raw files are unchanged. Run folders:
-`runs/20260927T092012_all_all_r20` (research, tax off),
-`runs/20260927T122131_all_all_r20` (research, tax on),
-`runs/20260927T123500_all_all_r20` (tradeable, tax off),
-`runs/20260927T125003_all_all_r20` (tradeable, tax on). Every figure here is one run
-(n=1). No noise draw has been made on the cleaned data, so no cell has an error bar;
+`diagnostics/ratio_clean_counts.txt`). The raw files are unchanged. They were produced
+by four runs of 2026-09-27 (research and tradeable, tax off and on) whose run folders
+are no longer kept; every figure is in `diagnostics/cells_cleaned_20260927.csv`,
+`diagnostics/tax_on_all_arms.csv` and `diagnostics/tradeable_tax_all_arms.csv`, and
+`run.py` reproduces any cell. Every figure here is one run (n=1). The noise test on the
+cleaned prices is in "Current results" above; the tables here carry no error bar;
 the n=10 spreads published earlier were measured on the uncleaned data.
 
 Tax on, headline and sold on the last day, are as defined in the 2026-09-25 section
@@ -987,10 +987,11 @@ Each folder holds one CSV per constituent, named by NSE symbol (`ABB.csv`), and 
 for the published index. A universe's constituents are whatever CSVs are in its
 folder, so an extra or missing file changes that universe and every figure on it.
 For one universe only, copy just its folder; for the published figures, all eight.
-Other folders the owner's copy may have under `data/raw/` are not read by anything:
-on the owner's machine these are `EQUITY/` (780 MB), `Final_With_Survivorship_Data/`
-(1,337 MB), `MidCap150/` (99 MB), `nifty100_benchmark/` (81 MB) and
-`Survivorship_Bias/` (1 MB), earlier vendor pulls kept for the record.
+Other folders the owner's copy may have under `data/raw/` are not read by the
+pipeline: `Final_With_Survivorship_Data/` (1,337 MB), `MidCap150/` (99 MB),
+`nifty100_benchmark/` (81 MB) and `Survivorship_Bias/` (1 MB), earlier vendor pulls.
+`survivorship_attribution.py` alone reads `Survivorship_Bias/` and the price files of
+`Final_With_Survivorship_Data/`; neither is in the checksum manifest.
 
 **Check your copy before running anything:**
 

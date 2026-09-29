@@ -1,0 +1,78 @@
+CASH OVERDRAFT ON TAX DAYS -- results/overdraft_measure.py
+========================================================================================
+Tax on, cadence 20, every universe and arm, research and tradeable. Read-only: the
+published figures are the engine's; the second CAGR is a variant in which the tax is
+paid by selling a pro-rata slice of every holding at the assessment day's open
+(usual slippage and charges), with any gain on that sale taxed in the next financial
+year. Rows: diagnostics/overdraft_on_tax_day.csv.
+
+cells with cash below zero on at least one day: 40 of 64
+deepest overdraft: Rs -593,269.09 (nifty200 v3 research, 2025-04-01)
+longest run below zero: 53 sessions in one cell (days_negative counts every session below zero over the window)
+CAGR change, paying by selling: -0.6614 to +1.2568 points (mean -0.0406 over the overdrawn cells)
+
+cell                          deepest Rs          on  days  published  by selling   change       sold Rs
+midcap150 v1 research         -92,363.91  2022-03-31    24    33.8903     35.1472  +1.2568    532,360.03
+midcap150 v1 tradeable        -92,363.91  2022-03-31    24    33.8903     35.1472  +1.2568    532,360.03
+midcap150 v2 research               0.00                 0    24.0387     24.0387  +0.0000          0.00
+midcap150 v2 tradeable              0.00                 0    24.0387     24.0387  +0.0000          0.00
+midcap150 v3 research        -198,263.44  2021-03-31    20    37.0866     36.8407  -0.2459    707,508.43
+midcap150 v3 tradeable       -198,263.44  2021-03-31    20    37.0866     36.8407  -0.2459    707,508.43
+midcap150 v4 research               0.00                 0    27.9228     27.9228  +0.0000          0.00
+midcap150 v4 tradeable              0.00                 0    27.9228     27.9228  +0.0000          0.00
+nifty100 v1 research          -33,485.97  2022-03-31    16    23.6979     23.6095  -0.0885     34,026.54
+nifty100 v1 tradeable         -33,485.97  2022-03-31    16    23.6979     23.6095  -0.0885     34,026.54
+nifty100 v2 research                0.00                 0    17.2384     17.2384  +0.0000          0.00
+nifty100 v2 tradeable               0.00                 0    17.2384     17.2384  +0.0000          0.00
+nifty100 v3 research          -45,325.43  2022-03-31    23    26.1513     25.7618  -0.3895    118,561.75
+nifty100 v3 tradeable         -45,325.43  2022-03-31    23    26.1513     25.7618  -0.3895    118,561.75
+nifty100 v4 research                0.00                 0    18.3660     18.3660  +0.0000          0.00
+nifty100 v4 tradeable               0.00                 0    18.3660     18.3660  +0.0000          0.00
+nifty50 v1 research           -80,163.69  2021-03-31     4    20.1572     20.1141  -0.0432     85,641.64
+nifty50 v1 tradeable          -80,163.69  2021-03-31     4    20.1572     20.1141  -0.0432     85,641.64
+nifty50 v2 research                 0.00                 0    13.1484     13.1484  +0.0000          0.00
+nifty50 v2 tradeable                0.00                 0    13.1484     13.1484  +0.0000          0.00
+nifty50 v3 research           -63,575.08  2021-03-31     4    23.2452     23.1150  -0.1302    142,089.41
+nifty50 v3 tradeable          -63,575.08  2021-03-31     4    23.2452     23.1150  -0.1302    142,089.41
+nifty50 v4 research                 0.00                 0    15.7956     15.7956  +0.0000          0.00
+nifty50 v4 tradeable                0.00                 0    15.7956     15.7956  +0.0000          0.00
+midcap50 v1 research         -184,081.87  2021-03-31    35    29.1153     29.4000  +0.2847    665,670.31
+midcap50 v1 tradeable        -184,081.87  2021-03-31    35    29.1153     29.4000  +0.2847    665,670.31
+midcap50 v2 research          -46,749.16  2021-03-31     4    19.4014     19.3526  -0.0488     49,160.75
+midcap50 v2 tradeable         -46,749.16  2021-03-31     4    19.4014     19.3526  -0.0488     49,160.75
+midcap50 v3 research         -138,578.03  2021-03-31    27    29.9287     29.7166  -0.2121    524,857.05
+midcap50 v3 tradeable        -138,578.03  2021-03-31    27    29.9287     29.7166  -0.2121    524,857.05
+midcap50 v4 research          -42,897.71  2021-03-31     4    20.2122     20.1235  -0.0887     48,503.44
+midcap50 v4 tradeable         -42,897.71  2021-03-31     4    20.2122     20.1235  -0.0887     48,503.44
+midcap100 v1 research        -289,501.51  2025-04-01    19    27.3236     27.5573  +0.2337    742,220.45
+midcap100 v1 tradeable       -294,813.43  2025-04-01    15    27.7543     28.0384  +0.2841    584,503.47
+midcap100 v2 research               0.00                 0    22.1895     22.1895  +0.0000          0.00
+midcap100 v2 tradeable              0.00                 0    22.1895     22.1895  +0.0000          0.00
+midcap100 v3 research        -290,760.41  2025-04-01    42    26.5471     26.4164  -0.1307    819,353.34
+midcap100 v3 tradeable       -291,907.04  2025-04-01    42    26.4993     26.3868  -0.1125    813,907.77
+midcap100 v4 research               0.00                 0    22.1396     22.1396  +0.0000          0.00
+midcap100 v4 tradeable              0.00                 0    22.1396     22.1396  +0.0000          0.00
+nifty200 v1 research         -103,644.30  2021-03-31    31    40.4241     40.1105  -0.3136    205,416.06
+nifty200 v1 tradeable        -103,644.30  2021-03-31    31    40.4241     40.1105  -0.3136    205,416.06
+nifty200 v2 research                0.00                 0    27.6371     27.5574  -0.0797    126,815.74
+nifty200 v2 tradeable               0.00                 0    27.6371     27.5574  -0.0797    126,815.74
+nifty200 v3 research         -593,269.09  2025-04-01    38    41.8795     41.7574  -0.1221  1,304,519.43
+nifty200 v3 tradeable        -593,269.09  2025-04-01    38    41.8795     41.7574  -0.1221  1,304,519.43
+nifty200 v4 research                0.00                 0    31.1497     31.1473  -0.0024      5,046.72
+nifty200 v4 tradeable               0.00                 0    31.1497     31.1473  -0.0024      5,046.72
+smallcap250 v1 research      -540,054.74  2026-04-01    31    42.2879     41.6265  -0.6614  1,027,599.14
+smallcap250 v1 tradeable     -518,058.63  2026-04-01    31    41.3286     40.7004  -0.6283    990,065.63
+smallcap250 v2 research       -17,182.35  2021-03-31     4    24.2087     24.1990  -0.0096     20,737.56
+smallcap250 v2 tradeable      -17,182.35  2021-03-31     4    24.2087     24.1990  -0.0096     20,737.56
+smallcap250 v3 research      -133,644.89  2021-03-31    11    41.5498     41.4383  -0.1115    443,668.48
+smallcap250 v3 tradeable     -145,891.11  2022-03-31    20    39.6797     39.5896  -0.0900    552,262.55
+smallcap250 v4 research       -47,923.50  2021-03-31     4    25.8722     25.8405  -0.0318     52,772.51
+smallcap250 v4 tradeable      -47,923.50  2021-03-31     4    25.8722     25.8405  -0.0318     52,772.51
+nifty500 v1 research         -137,590.58  2022-03-31    38    29.6092     29.2162  -0.3931    719,019.12
+nifty500 v1 tradeable        -128,994.24  2022-03-31    38    28.6314     28.4410  -0.1903    695,076.07
+nifty500 v2 research                0.00                 0    23.1038     23.1038  +0.0000          0.00
+nifty500 v2 tradeable               0.00                 0    23.0663     23.0663  +0.0000          0.00
+nifty500 v3 research         -169,619.27  2022-03-31    53    36.8997     37.1726  +0.2729  1,145,935.00
+nifty500 v3 tradeable        -169,612.99  2022-03-31    53    36.8710     37.1403  +0.2693  1,143,794.88
+nifty500 v4 research                0.00                 0    26.4259     26.4259  +0.0000          0.00
+nifty500 v4 tradeable               0.00                 0    26.4259     26.4259  +0.0000          0.00
