@@ -46,6 +46,7 @@ import numpy as np
 import pandas as pd
 
 import noise_parallel as NP
+from config import read_table  # the one CSV/parquet reader: config.read_table
 
 OUT = ROOT / "diagnostics" / "nifty500_baseline_trace.txt"
 WORK = Path("/tmp/nifty500_baseline_trace")
@@ -72,7 +73,7 @@ def panel(tag, sigma, seed, work):
         NP.perturb_cleaned_farm(src, wd / "farm", sigma, seed)
         exempt = {}
         for f in sorted((wd / "farm").glob("*.csv")):
-            d = pd.read_csv(f, usecols=["date", "clean_exempt"])
+            d = read_table(f, usecols=["date", "clean_exempt"])
             d = d[d["clean_exempt"]]
             if len(d):
                 exempt[f.stem] = set(pd.to_datetime(d["date"], dayfirst=True))
@@ -82,6 +83,7 @@ def panel(tag, sigma, seed, work):
     return raw, exempt
 
 
+# naming: delegated -- `cache` is built by main() under WORK and names universe, seed and end
 def score(raw, tag, end, cache=None):
     """Scores to `end`; read from `cache` (a parquet path under WORK) when it exists,
     so a failure after the fit does not cost the fit again."""
@@ -160,6 +162,7 @@ def feature_delta(raw0, rawd, date, syms):
     return out
 
 
+# naming: axis-free -- one diagnosis of named draws, research profile, tax on, cadence 20
 def main(argv):
     a = args(argv)
     tag, end, loky = a["universe"], a["end"], int(a["loky"])
@@ -185,7 +188,7 @@ def main(argv):
     run = ROOT / "runs" / "20260927T122131_all_all_r20" / f"results_{tag}" / "metrics"
     for arm in bt0:
         t = f"{tag}_tax" if arm == "v2" else f"{tag}_{arm}_tax"
-        ph = pd.read_csv(run / f"daily_holdings_{t}.csv", parse_dates=["date"])
+        ph = read_table(run / f"daily_holdings_{t}.csv", parse_dates=["date"])
         ph = ph[ph["date"] <= pd.Timestamp(end)].groupby("date")["symbol"].apply(frozenset)
         same = all(ph.get(d, frozenset()) == bt0[arm][0].get(d, frozenset())
                    for d in ph.index.union(bt0[arm][0].index))

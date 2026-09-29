@@ -102,7 +102,7 @@ def _names(cell):
 def membership(u):
     """-> (row dates, rows with changes, {symbol: [(date, +1 inclusion | -1 exclusion)]},
     unrecorded scheduled reviews as dates, coherent flag per row)."""
-    df = pd.read_csv(MEMBERSHIP / f"{MEMBERSHIP_FILE[u]}_membership.csv", encoding="utf-8-sig")
+    df = read_table(MEMBERSHIP / f"{MEMBERSHIP_FILE[u]}_membership.csv", encoding="utf-8-sig")
     df["effective_date"] = pd.to_datetime(df["effective_date"])
     df = df.sort_values("effective_date").reset_index(drop=True)
     snaps = [_names(x) for x in df["symbols"]]
@@ -289,7 +289,7 @@ def _price_files():
 
 
 def _has_rows_in(f, lo, hi):
-    d = pd.to_datetime(pd.read_csv(f, usecols=[0]).iloc[:, 0], errors="coerce", dayfirst=True)
+    d = pd.to_datetime(read_table(f, usecols=[0]).iloc[:, 0], errors="coerce", dayfirst=True)
     return bool(((d >= lo) & (d <= hi)).any())
 
 
@@ -349,6 +349,7 @@ def attribute(u, arm, run, lenient, bh_cache):
                 arm_cagr=round(cagr(total), 4), bh_cagr=round(cagr(beq), 4))
 
 
+# naming: axis-free -- fixed diagnostics of one named run folder; the cells are rows inside
 def main(argv):
     run = RUN
     cells = []
