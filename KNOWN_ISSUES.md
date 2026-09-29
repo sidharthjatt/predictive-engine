@@ -25,6 +25,225 @@ currently wrong.
 
 ---
 
+## Pass I, 2026-09-29: survivorship attribution, nt_verify, live orders, disk
+
+### Survivorship attribution of the 15 supported cells -- ESTIMATE, NOT A BACKTEST
+
+`survivorship_attribution.py`, report `diagnostics/survivorship_attribution.txt`, rows
+`diagnostics/survivorship_attribution.csv`. Over the research tax-on sigma-0 run
+(`runs/20260927T122131_all_all_r20`), every position-day of each arm and of its
+investable buy & hold is classified with the supplier's membership files
+(`data/raw/Survivorship_Bias/*_membership.csv`) as (a) member, (b) not a member,
+(c) the files cannot say. Position-day profit reproduces the day's change in equity
+exactly on every non-tax day in all 15 cells; tax is allocated to groups by realised
+gain in each financial year and matches the run's tax paid.
+
+**The files' symbols column is not point-in-time.** It is today's list edited
+backwards: the Nifty 50 rows for 2018 and 2019 list JIOFIN (listed 2023), TRENT, BEL,
+INDIGO and MAXHEALTH (joined 2024-2025). All eight files fail `survivorship.validate`.
+Only the inclusion and exclusion events are used. They miss scheduled reviews: none
+of the files records the 2024-09 or 2025-03 reconstitution, and the six universes
+with a supported cell miss 6 to 9 of the 15 reviews in the window.
+
+Results, strict reading ((c) wherever the files cannot say):
+- 46% to 79% of each arm's profit, and 38% to 74% of each buy & hold's, is on
+  position-days the files cannot classify.
+- Group (b) carries 2% to 23% of the arms' profit and 4% to 15% of the buy & holds'.
+- The gap recomputed with group (b) removed from both moves by -3.3 to +1.0 points.
+  Every cell stays positive except nifty500 v2, which was negative already.
+
+Lenient reading (no event missing; a bound, not a result): (b) carries 10% to 66% of
+the arms' profit and 13% to 32% of the buy & holds'. The gap moves by -11.9 to
++0.7 points, and nifty500 v1 (+5.18 to -6.04), v2 (-1.33 to -6.76) and v4 (+2.00 to
+-4.53) end below zero. nifty500 v3 falls from +12.47 to +0.56.
+
+**A run restricted to point-in-time members is not possible with these files.** The
+missing reviews leave membership unknown for long stretches. 3 (nifty50) to 96
+(smallcap250) names that left an index during the window have no price file in any
+supplier folder, although some may be renames outside the 15 validated ones
+(AMARAJABAT, GET&D). No such run was made. This supersedes the 2026-09-16 note that
+nifty100 has no point-in-time data: the supplier's `Nifty100_membership.csv` exists,
+with the same defects.
+
+### The noise draws and the published run
+
+**What was run.** `results/nifty500_baseline_trace.py`, report
+`diagnostics/nifty500_baseline_trace.txt`, rows `.csv`. It rebuilds every nifty500
+draw of `experiments/CLEANED_NOISE_PREREG.txt` exactly as the harness does, and
+scores it to 2019-03-31 with the production ensemble. It then compares the names held
+each day with the sigma-0 run. The sigma-0 reconstruction reproduces the published
+run's names on every day, on all four arms.
+
+**Where they first differ.**
+- All 10 draws, on all 4 arms, first hold different names on 2019-01-02, from the
+  first decision on 2019-01-01.
+- The swap is nearly the same in every draw:
+  - POLYMED and SONATSOFTW leave in 10 of 10, GILLETTE in 7 and DEEPAKFERT in 5.
+  - PHOENIXLTD enters in 10 of 10, JPPOWER in 9, AARTIIND in 5, and ATUL and
+    TIINDIA in 4 each.
+- The same names moving the same way under ten independent seeds is a systematic
+  difference, not noise.
+
+**Why.** Of the three causes the owner named, two are ruled out:
+- **Exact ties in scores broken by symbol order: no.** No swapped name has an
+  exact score tie on either side, in any draw.
+- **The `clean_exempt` rows: no.** They sit in the feature windows of names that
+  leave and names that enter alike, and they are treated the same at sigma 0 and in
+  every draw.
+
+It is something else: **exact zero returns.**
+- At sigma 0, 0.72% of close-to-close returns in the window are exactly zero,
+  5,578 of 772,378. They come from tick size, illiquidity and circuit locks.
+- Every draw gives each of them a random sign. The up-day sign changes on 0.52% to
+  0.54% of returns, and two thirds of those were exactly zero at sigma 0.
+- The raw 20-day up-day share behind `trend_consistency_20` changes on 8.7% to
+  9.1% of rows. It always moves up, by +0.0035 on average, because a zero return is
+  never "up" at sigma 0.
+- `downside_vol_60` (`r < 0`) and `rev_1` shift the same way.
+- The names most affected are low-priced ones with many flat days. JPPOWER, at
+  about Rs 3 where one 0.05 tick is 1.7%, moves +2.0 cross-sectional sd on
+  `trend_consistency_20`.
+
+**The causal test.** The sigma-0 panel was rescored with only seed 101's
+`trend_consistency_20` swapped in. The first rebalance changes: PHOENIXLTD enters
+and SONATSOFTW leaves, one of the draw's four swaps. That feature carries part of
+the divergence, and the other sign-based features carry the rest.
+
+**The same effect on every universe.**
+- In `diagnostics/cleaned_noise_runs.csv` the sigma-0 gap lies outside the range
+  of all ten draws in 15 of 32 research cells. About 6 would be expected if sigma 0
+  behaved like an eleventh draw.
+- It is below every draw on nifty500 v1, v2 and v4 and on midcap100 v3, and above
+  every draw on the other 11.
+- The draws do not scatter noise around the published run. They move it in one
+  direction per universe, and the direction depends on how that universe's model
+  uses the shifted features.
+
+**Which figure a live run should be expected to resemble.**
+- **The published (sigma-0) one, in construction.** Live prices have exact zero
+  returns, as sigma 0 has. They will not carry the upward shift in up-day share
+  that every draw carries.
+- **The draw means are not a better estimate.** That holds for nifty500 in
+  particular: its draws sit above the published run because of the shift, not
+  because the published run was unlucky.
+- **The draw spread still measures sensitivity.** Changing the sign of about 0.5%
+  of returns spreads a cell's CAGR over 1.8 to 12.4 points across its ten draws
+  (median 5.3), and puts the farthest draw 1.1 to 12.3 points from the published
+  figure. A live run's result should be expected to lie at least that far from the
+  published figure, in either direction.
+- **This qualifies the noise test's rule.** The rule counts draws above zero, and
+  its draws are biased in the same direction on every universe. The verdicts stand
+  as registered; this is recorded, not re-ruled.
+
+### nt_verify: quote-mid valuation rule, all 32 cells verify
+
+`nautilus/nt_verify.py` now passes a cell whose 0.01-grid differences go beyond the
+one-share signature only if the reference valued at the port's quote mid
+(`mid_valued`, the M arm of `nautilus/nt_mid_trace.py`) reproduces the port's
+holdings, names and share counts, on every rebalance. It is one rule for every cell,
+with no tolerance on share counts. Record: `diagnostics/nt_verify_all_arms_20260929.txt`.
+
+- **32 of 32 cells verify** (20 on 2026-09-27).
+  - The 12 that were ungated pass under the new rule, on 1 to 58 rebalances each
+    (midcap100 v1 58, nifty200 v3 45, midcap100 v4 20, midcap50 v3 14). None of them
+    differs in the names held.
+  - In all 32 cells the mid-valued reference equals the port on 92 of 92 rebalances.
+- `check_all.py` gates all 32, and `NT_VERIFY_UNGATED` is empty.
+- **Pass H labels that change:** the 8 cells reported "supported, not port-verified"
+  are now port-verified. They are midcap100 v1 and v3, midcap150 v1 and v3, nifty200
+  v3 and v4, and nifty500 v3 and v4. All 15 supported cells are now port-verified.
+- **No verdict changes.** `diagnostics/cleaned_noise.txt` keeps the labels fixed at
+  registration, and `results/noise_parallel.NOT_VERIFIED` is left as registered.
+
+### Live orders: not possible as the code stands
+
+Given data ending on a date D, the system can score every name on D. It cannot
+produce the orders for the open of D+1:
+- the rebalance branch never runs on the window's last day (`test_exposure.py:625`,
+  `i < len(dates) - 1`);
+- buy quantities are sized from D+1's open;
+- rebalance days are counted from 2019-01-01, so D is usually not one;
+- the book always starts as a simulated Rs 10,00,000 in 2019, with no input for real
+  holdings, cash or tax lots;
+- nothing writes a "trade next" file;
+- the calendar and data stop at 2026-06-08, and new data forces a full score rebuild,
+  because the cache key covers every source byte.
+
+What it would take, none of it built:
+1. A data and calendar append path.
+2. An end-date override.
+3. A "decide on D" mode that emits the target instead of dropping it.
+4. Seeding from real holdings, cash and lots.
+5. An order writer: sells and buys, sized at D's close with headroom, with the
+   participation cap from volume through D.
+6. Pre-trade checks: corporate actions on D+1, current membership, T+1 cash.
+7. A broker link.
+
+Items 1 to 5 are a few days of work, and 7 is one to two weeks.
+
+### Fresh-copy test and the one run command
+
+**Setup.**
+- A new directory outside the repository, holding only the 112 tracked `.py` files,
+  this pass's two new scripts, `data/` and `requirements.txt`.
+- A new venv built from `requirements.txt` alone, without `-c installed_versions.txt`,
+  in 2 minutes. It matches `installed_versions.txt` except for two transitive packages:
+  fonttools 4.66.0 against 4.65.0, and pytz 2026.4 against 2026.3.post1.
+
+**Two steps needed something that was not in the copy.**
+1. `check_all.py` exits 1 on one delegate. `platform_identity_check.py` runs
+   `git ls-files` and fails outside a git checkout. All the other delegates skip,
+   named, for want of run artefacts, as documented.
+2. Runs record `"commit": null, "note": "git unavailable"` in their params files.
+
+**Five combinations** (universe, arm, cadence, tax, profile) were run in the copy and
+in the repository, and every output file was compared:
+
+| combination | CAGR% | run before |
+|---|---:|---|
+| midcap50 v2 20 off research | 22.80 | yes |
+| nifty50 v3 20 on tradeable | 23.25 | yes |
+| midcap100 v4 20 on research | 22.14 | yes |
+| midcap50 v1 15 on tradeable | 29.49 | no |
+| nifty50 v4 30 off research | 16.42 | no |
+
+- In each combination the CSVs, the daily logs and the charts are byte-identical
+  between the copy and the repository: 24 to 31 files.
+- The three published combinations reproduce their published CAGR.
+- The six files that differ are the four Nautilus report CSVs and the two params
+  files. The Nautilus reports are equal once their random identifier columns are
+  dropped and rows sorted. The params files differ only in the git provenance above.
+
+**The one command** for any combination is `run.py`, now documented at the top of
+README.md. Each run writes one folder under `runs/`, holding:
+- `run.log`;
+- the daily log;
+- the daily CSVs;
+- the charts.
+
+It was tested on the five combinations above. With the score panel already built, a
+repeat run takes 24 to 43 seconds.
+
+### Disk left by the passes, inventoried and not deleted
+
+About 15.5 GB outside `venv/` and `data/raw`:
+- **In the repository, about 11 GB.**
+  - `runs/`, 5.9 GB. Nothing reads it back.
+  - `cache/`, 3.7 GB. The 2.1 GB of legacy `raw_panel_*.csv` and
+    `v_*_expanding.csv` beside the parquet panels are read by nothing.
+  - `results_*/metrics`, 980 MB. It is read, but about 472 files predate the
+    2026-09-27 republish.
+  - `pre_repoint_baseline/` (71 MB), `superseded_tradeable_20260917/`,
+    `noise_runs/four_arm/`, `runs/mid`, `runs/n50`, `runs/n100` and nine
+    `nautilus/reports/*@r*` folders are read by nothing.
+- **In /tmp, 380 MB.** 18 seed caches, `VALSIZE_*`, `V2VAL_*` and `VALBREADTH_*`,
+  none of which current code can reuse: their keys are stale or absent.
+- **In `$TMPDIR`, 424 MB.** joblib memmaps and `tax_acceptance_check` temp folders.
+- **The Desktop is empty.**
+
+Ten idle loky resource-tracker processes from runs two days old are still alive.
+The owner moves what can go.
+
 ## The after-tax noise test on the cleaned prices -- MEASURED 2026-09-29
 
 `experiments/CLEANED_NOISE_PREREG.txt` (committed in d4ea256 before any draw; harness

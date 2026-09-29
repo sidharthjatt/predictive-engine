@@ -27,6 +27,92 @@ with evidence attached.
 
 ---
 
+## How to run
+
+You need this tree, the price data (not in the repository; ask the owner, see "The
+price data") and Python 3.12.13.
+
+```
+# 1. put the price data at data/raw/Final_Without_Survivorship_Data/ and check it
+python3 check_data.py
+# 2. build the environment
+python3.12 -m venv venv
+./venv/bin/python -m pip install -r requirements.txt -c installed_versions.txt
+# 3. run one combination
+./venv/bin/python run.py --universe midcap50 --arm v2
+```
+
+`run.py` runs any combination: `--universe` (nifty50, nifty100, nifty200, nifty500,
+midcap50, midcap100, midcap150, smallcap250), `--arm` (v1 to v4), `--rebal <days>`
+(default 20), `--tax on|off` (default off) and `--profile research|tradeable`
+(default research). For example:
+
+```
+./venv/bin/python run.py --universe nifty50 --arm v4 --rebal 30 --tax on --profile tradeable
+```
+
+Each run writes one folder, `runs/<timestamp>_<universe>_<arm>_r<cadence>/`, holding
+`run.log`, the day-by-day log (`DAILY_LOG_*.txt`), the CSVs (daily holdings, trades,
+decisions, rankings, the equity curve) and the charts (`chart_*.png`). The first run
+of a universe builds its score panel: about 6 minutes for midcap50, 75 for nifty500.
+Later runs of that universe reuse it and take under a minute. Use `./venv/bin/python`,
+not `python3`.
+
+`./venv/bin/python check_all.py` runs the repository's checks. It needs a git
+checkout (`platform_identity_check.py` calls `git ls-files`), and most of its
+delegates skip until the runs they check have been made.
+
+## Current results, 2026-09-29
+
+After tax, over 2019-01-01 to 2026-05-29, on the cleaned prices. The pre-registered
+noise test (`experiments/CLEANED_NOISE_PREREG.txt`, n=10 draws per cell at sigma
+0.01%) found an after-tax edge over the investable buy & hold in 15 of 32 cells under
+both profiles. All 15 now verify in nt_verify. Gap = arm CAGR minus investable buy &
+hold CAGR, points, research profile.
+
+| cell | published run (sigma 0) | draws: mean | min | max | draws above 0 |
+|---|---:|---:|---:|---:|---:|
+| nifty50 v3 | +3.63 | +1.58 | -0.14 | +2.65 | 9 of 10 |
+| nifty200 v1 | +16.74 | +8.68 | +6.05 | +11.34 | 10 of 10 |
+| nifty200 v3 | +18.19 | +9.25 | +5.90 | +15.59 | 10 of 10 |
+| nifty200 v4 | +7.46 | +2.28 | -0.45 | +5.40 | 9 of 10 |
+| nifty500 v1 | +5.18 | +12.00 | +7.45 | +13.94 | 10 of 10 |
+| nifty500 v2 | -1.33 | +2.75 | -0.19 | +4.95 | 9 of 10 |
+| nifty500 v3 | +12.47 | +18.27 | +12.32 | +24.40 | 10 of 10 |
+| nifty500 v4 | +2.00 | +6.91 | +3.22 | +9.93 | 10 of 10 |
+| midcap100 v1 | +2.85 | +3.49 | +0.64 | +6.61 | 10 of 10 |
+| midcap100 v3 | +2.07 | +5.19 | +3.21 | +7.54 | 10 of 10 |
+| midcap150 v1 | +10.34 | +8.39 | +2.11 | +11.91 | 10 of 10 |
+| midcap150 v3 | +13.53 | +8.16 | +3.10 | +13.08 | 10 of 10 |
+| midcap150 v4 | +4.37 | +3.22 | +1.04 | +6.17 | 10 of 10 |
+| smallcap250 v1 | +15.69 | +9.38 | +5.52 | +12.99 | 10 of 10 |
+| smallcap250 v3 | +14.95 | +15.39 | +9.17 | +21.52 | 10 of 10 |
+
+Read these with the caveats below:
+
+- **32 cells were tested.** A single supported cell on its own is not an edge.
+- **Every figure depends on the exact price path.** In 15 of 32 cells the published
+  run lies outside the range of all ten draws (nifty500: below every draw on three
+  arms; nifty200: above every draw on all four). The cause is that the noise gives
+  a sign to every exactly-zero return, which moves the up-day and downside
+  features the same way in every draw. A live run is computed like the published
+  run, not like a draw, but should be expected to differ from it by as much as
+  the draws do. See "The noise draws and the published run" in KNOWN_ISSUES.md.
+- **Survivorship.** The universes are today's index members applied back to 2019.
+  The supplier's point-in-time membership files cannot say whether a name was a
+  member for most of the position-days these arms held: 46% to 79% of each arm's
+  profit comes from position-days the files cannot classify. Removing only the
+  profit the files mark as held while not a member changes the gaps by -3.3 to
+  +1.0 points; reading every unknown day as the files' events imply (which
+  assumes no event is missing) changes them by -11.9 to +0.7 points, and leaves
+  nifty500 v1 and v4 below zero. These are estimates, not backtests
+  (`diagnostics/survivorship_attribution.txt`). The files are not good enough to
+  run the strategy on point-in-time members: each of the six universes with a supported
+  cell misses 6 to 9 of the 15 scheduled reviews in the window, and 3 to 96 names
+  that left an index during the window have no price file.
+- **The tradeable profile is ungated**, and a live run is not possible yet: see
+  "Live orders" in KNOWN_ISSUES.md.
+
 ## What it does
 
 Every twenty trading days the model ranks the universe. The top eight names are
@@ -98,9 +184,10 @@ pipeline trades on a price it could not have seen.
 - **The after-tax noise test on the cleaned prices, 2026-09-29**
   (`experiments/CLEANED_NOISE_PREREG.txt`, 32 cells, sigma 0.01%, n=10, research
   and tradeable): 15 of 32 cells pass the registered rule under both profiles.
-  7 of them also verify in nt_verify: nifty50 v3, midcap150 v4, smallcap250 v1
-  and v3, nifty200 v1, nifty500 v1 and v2. The other 8 are supported, not
-  port-verified. 32 cells were tested, so a single supported cell on its own is
+  7 of them verified in nt_verify at registration: nifty50 v3, midcap150 v4,
+  smallcap250 v1 and v3, nifty200 v1, nifty500 v1 and v2. The other 8 verify
+  since nt_verify's quote-mid valuation rule of 2026-09-29, which passes all 32
+  cells. 32 cells were tested, so a single supported cell on its own is
   not to be read as an edge, and the tradeable profile is ungated. Report:
   `diagnostics/cleaned_noise.txt`. The earlier tests on the uncleaned prices are
   superseded.
