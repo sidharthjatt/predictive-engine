@@ -25,6 +25,77 @@ currently wrong.
 
 ---
 
+## Pass J, 2026-09-29: charges, slippage and tax reported in every run
+
+**What existed before this pass.** Every run already had these costs somewhere:
+- **Charges:** each fill's total, rounded, in `daily_trades_<tag>.csv` (`tc`), and
+  the run total in `v34_comparison*.csv` (`TC_Rs`).
+- **Slippage:** an estimate per trade in `DAILY_LOG_<tag>.txt`. The log also has a
+  per-day cash identity, computed on the rounded trade values with a tolerance.
+- **Tax, tax-on runs only:** `FY_TAX_STATEMENT`, `HOLDING_PERIOD_LOTS`,
+  `TAX_TURNOVER` and `BH_LOTS`.
+
+Nothing broke charges down by type, gave slippage in rupees per fill, or reconciled
+any of this to the paisa.
+
+**The slippage model today.** Both profiles use `slippage.py`'s flat rate:
+- a BUY fills at the reference price times 1.0015, a SELL at 0.9985;
+- the reference price is the execution day's open from the score panel (the
+  adjusted basis), or for the optional last-day sale the close where the open is
+  missing;
+- the size-sensitive term, `slippage.impact`, is used by no production caller;
+- the tradeable profile adds only the participation cap, which changes quantities,
+  not the rate.
+
+**What was added.**
+- `backtest_exposure` records every fill and every day's cash at full precision
+  when its audit dict carries a `costs` key. Only `audit_step` passes one, and the
+  record feeds nothing back.
+- `results/cost_report.py` turns that record into `COSTS`, `COST_LOTS`,
+  `COST_TAX_YEARS` and `COST_SUMMARY` per artefact tag, and reconciles it:
+  - cash every day;
+  - slippage and the itemised charges every fill, against the trades row;
+  - tax every financial year, by replaying `tax_util.Ledger` on the fills;
+  - the totals.
+- `run.py` prints each arm's summary at the end of `run.log`.
+- `cost_reconcile_check.py`, a check_all delegate, reconciles all 32 cells under
+  both profiles with tax off and on: 128 combinations, about 4 minutes.
+- Six deliberate corruptions each raise at the right check: a fill price, a charge,
+  a reference price, a closing cash, a tax amount with the cash kept consistent,
+  and a dropped fill.
+
+On the five pass I combinations, every existing output file is byte-identical to
+the runs made before this pass. The exceptions are the Nautilus reports' random ID
+columns and the git commit recorded in the params files, as before.
+
+**Rounding must follow the engine.** The engine's prices are numpy floats. `round()`
+on 1607.585 gives 1607.58 there and 1607.59 on a Python float. The report rounds
+the way the engine does; rounding the other way first showed as a 9-paisa tax gap on
+nifty50 v3.
+
+**v1.0 fails one delegate, fixed here.**
+- `survivorship_attribution.py` and `results/nifty500_baseline_trace.py`, committed in
+  pass I, called `pd.read_csv` directly four times. `platform_identity_check.py`
+  fails on that, but it scans only tracked files, and the two scripts were untracked
+  when pass I's final check_all ran. So the tree tagged v1.0 fails that delegate.
+- The four calls now go through `config.read_table`. Both readers return identical
+  data for every file those calls read: 8 membership files and 4,759 price files.
+
+**`runs/20260927T122131_all_all_r20` has been moved out of the tree.** It is the
+research tax-on run both pass I scripts read by default. Until it is back,
+`survivorship_attribution.py` needs `--run=<folder>`, and the trace's sigma-0 check
+cannot run. Their recorded outputs are unchanged.
+
+**Found and left unchanged, because they are existing outputs and inputs:**
+- `DAILY_LOG_*.txt`'s header still says "Capital gains tax is NOT modelled anywhere
+  in this system" (`results/make_daily_log.py:85`). Tax has been modelled since
+  2026-09-17.
+- The charges section of `data/reference/TAX_AND_CHARGES.docx` describes a flat
+  0.11% `COST_PCT`, a 4.5% cash yield and "DP charges are not modelled". The code
+  charges itemised Zerodha delivery rates, including the DP charge, and idle cash
+  earns 0. The document's tax sections match the code, and the summary quotes its
+  list of what the tax model leaves out.
+
 ## Pass I, 2026-09-29: survivorship attribution, nt_verify, live orders, disk
 
 ### Survivorship attribution of the 15 supported cells -- ESTIMATE, NOT A BACKTEST

@@ -193,6 +193,10 @@ DELEGATES = (
     ("results/check_b_exec_timing.py",        [], False, None),
     ("nautilus/verify_next_open_execution.py", [], False, None),
     ("tax_acceptance_check.py",               [], False, None),
+    # Charges, slippage and tax reconciled to the paisa (results/cost_report.py) on
+    # every universe and arm, both profiles, tax off and on: 128 combinations,
+    # nothing written. About 3 minutes.
+    ("cost_reconcile_check.py",               [], False, None),
     ("transitional_asserts_check.py",         [], False, None),
 
     # THE PORT AGAINST THE REFERENCE FOR EVERY ARM, on the certified universes.
@@ -321,6 +325,8 @@ def _needs(label):
         return [u.score_cache for u in every] + [
             ROOT / "nautilus" / "reports" / u.tag / a / "fills.csv"
             for u in every for a in _A]
+    if label == "cost_reconcile_check.py":
+        return [u.score_cache for u in _R.values()]
     if label == "verify_v34_arms.py":
         return [u.score_cache for u in two]
     if label.startswith("nautilus/nt_verify.py --universe="):

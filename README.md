@@ -58,6 +58,22 @@ of a universe builds its score panel: about 6 minutes for midcap50, 75 for nifty
 Later runs of that universe reuse it and take under a minute. Use `./venv/bin/python`,
 not `python3`.
 
+**Where the costs are.** The end of every `run.log` is a cost summary for each arm:
+charges by type, slippage and tax, in rupees, as a percent of starting capital and of
+gross profit, per financial year, and against the buy & hold. The same block is in
+`COST_SUMMARY_<tag>.txt` beside three CSVs, all in the run folder under
+`results_<universe>/metrics/`:
+- `COSTS_<tag>.csv`: every fill, with reference price, fill price, slippage in
+  rupees, and each charge (STT, exchange fee, SEBI fee, stamp duty, DP charge, GST).
+- `COST_LOTS_<tag>.csv`: every lot sold, with buy date, days held, short or long
+  term, old or new regime, and the taxable gain.
+- `COST_TAX_YEARS_<tag>.csv`: every financial year's buckets, netting, exemption,
+  tax at each rate, and the day it was deducted. The tax columns are zero when tax
+  is off.
+
+Every figure is reconciled to the paisa against the run's cash and the tax rules
+(`results/cost_report.py`); a run whose costs do not reconcile fails.
+
 `./venv/bin/python check_all.py` runs the repository's checks. It needs a git
 checkout (`platform_identity_check.py` calls `git ls-files`), and most of its
 delegates skip until the runs they check have been made.

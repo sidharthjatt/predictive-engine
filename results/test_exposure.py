@@ -315,12 +315,25 @@ def backtest_exposure(px, op, sc, dates, pc, mom20, port_vol=None,
     # never touches the axis.
     ledger = _tax_util.Ledger(dates) if tax_enabled else None
     cum_tax = 0.0
+    # THE COST TRAIL (results/cost_report.py). Filled only when the caller's audit
+    # dict carries a "costs" key, with every fill and every day's cash at full
+    # precision. It records what the loop already computed and feeds nothing back,
+    # so a run without the key, and every figure of a run with it, is unchanged.
+    _costs = audit.get("costs") if audit is not None else None
+
+    def _cost_fill(dt_, side, sym, q_, ref, fill, tc_, kind):
+        if _costs is not None:
+            _costs["fills"].append({"date": dt_, "side": side, "symbol": sym, "qty": int(q_),
+                                    "reference_price": float(ref), "fill_price": float(fill),
+                                    "charges": float(tc_), "kind": kind})
 
     cash_daily = (1 + CASH_YIELD) ** (1 / 252) - 1
 
     for i, dt in enumerate(dates):
         prices, opens = px.loc[dt], op.loc[dt]
+        _cash_open = cash
         cash *= (1 + cash_daily)
+        _cash_int, _tax_pre, _tax_post = cash - _cash_open, 0.0, 0.0
 
         # TOUCH POINT 6 -- THE ANNUAL TAX LUMP SUM, section 3(9) of the tax
         # reference: each financial year is assessed EXACTLY ONCE, on the first
@@ -342,6 +355,7 @@ def backtest_exposure(px, op, sc, dates, pc, mom20, port_vol=None,
             if _due:
                 cash -= _due
                 cum_tax += _due
+                _tax_pre = _due
                 if audit is not None:
                     audit["skipped"].append({"date": dt, "side": "TAX", "symbol": "",
                         "reason": f"capital-gains tax assessed, Rs {_due:,.2f}",
@@ -393,9 +407,11 @@ def backtest_exposure(px, op, sc, dates, pc, mom20, port_vol=None,
                         q = _lim
                 if q < 1:
                     continue
+                _ref = pr
                 pr, _pend = _fill_price("SELL", s, dt, pr, q)
                 tc = calc_tc(pr, q, "SELL")
                 cash += q * pr - tc; cum_tc += tc; n_trades += 1
+                _cost_fill(dt, "SELL", s, q, _ref, pr, tc, "forced exit")
                 _commit_impact(_pend)
                 if ledger is not None:
                     ledger.sell(s, q, round(pr, 2), dt)
@@ -446,9 +462,11 @@ def backtest_exposure(px, op, sc, dates, pc, mom20, port_vol=None,
                             q = _lim
                     if q < 1:
                         continue
+                    _ref = pr
                     pr, _pend = _fill_price("SELL", s, dt, pr, q)
                     tc = calc_tc(pr, q, "SELL")
                     cash += q * pr - tc; cum_tc += tc; n_trades += 1
+                    _cost_fill(dt, "SELL", s, q, _ref, pr, tc, "rebalance")
                     _commit_impact(_pend)
                     if ledger is not None:
                         ledger.sell(s, q, round(pr, 2), dt)
@@ -587,6 +605,7 @@ def backtest_exposure(px, op, sc, dates, pc, mom20, port_vol=None,
                                 "detail": f"need Rs {q*pr+tc:,.0f}, have Rs {cash:,.0f}"})
                         continue
                     cash -= q * pr + tc; cum_tc += tc; n_trades += 1
+                    _cost_fill(dt, "BUY", s, q, _raw_buy, pr, tc, "rebalance")
                     _commit_impact(_pend)
                     if ledger is not None:
                         ledger.buy(s, q, round(pr, 2), dt)
@@ -610,6 +629,7 @@ def backtest_exposure(px, op, sc, dates, pc, mom20, port_vol=None,
                 pr, _pend = _fill_price("SELL", s, dt, raw, q)
                 tc = calc_tc(pr, q, "SELL")
                 cash += q * pr - tc; cum_tc += tc; n_trades += 1
+                _cost_fill(dt, "SELL", s, q, raw, pr, tc, "last-day sale")
                 _commit_impact(_pend)
                 if ledger is not None:
                     ledger.sell(s, q, round(pr, 2), dt)
@@ -758,6 +778,7 @@ def backtest_exposure(px, op, sc, dates, pc, mom20, port_vol=None,
             if _due:
                 cash -= _due
                 cum_tax += _due
+                _tax_post = _due
                 if audit is not None:
                     _end = (ledger.end is not None and pd.Timestamp(dt) == ledger.end
                             and ledger.settled_at_end)
@@ -771,6 +792,10 @@ def backtest_exposure(px, op, sc, dates, pc, mom20, port_vol=None,
         mtm = sum(q * prices[s] for s, q in shares.items()
                   if not np.isnan(prices.get(s, np.nan)))
         pv = mtm + cash
+        if _costs is not None:
+            _costs["days"].append({"date": dt, "cash_open": _cash_open, "interest": _cash_int,
+                                   "tax_before_fills": _tax_pre, "tax_after_fills": _tax_post,
+                                   "cash_close": cash})
         eq.append(pv)
 
         if audit is not None:

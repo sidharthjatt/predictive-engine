@@ -909,6 +909,19 @@ def _execute(plan, args, state):
                 [(u.tag, a.name) for u, a in plan["arm_runs"]]):
             print(_line)
         print("!" * 90, flush=True)
+    # THE COST SUMMARY OF EVERY ARM THIS RUN AUDITED, LAST, so the run log ends
+    # with charges, slippage and tax. Written by results/cost_report.py inside the
+    # audit step, which has already reconciled every figure in it; printed only
+    # when this run wrote it, so a summary from an earlier run is never shown.
+    import audit_step as _as
+    for u, a in plan["arm_runs"]:
+        f = Path(u.metrics_dir) / f"COST_SUMMARY_{_as.artefact_tag(u, a)}.txt"
+        if f.exists() and f.stat().st_mtime >= t_start:
+            print()
+            print(f.read_text(), end="", flush=True)
+        else:
+            print(f"\n  no cost summary for {u.tag}/{a.name}: its audit step did not run in this "
+                  f"invocation", flush=True)
     return 0
 
 

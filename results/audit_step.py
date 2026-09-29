@@ -228,7 +228,10 @@ def run(u, arm=None):
     _arm = arm_reg.ARMS["v2"] if arm is None else (
         arm if hasattr(arm, "name") else arm_reg.ARMS[arm])
     audit = {"holdings": [], "summary": [], "trades": [],
-             "ranking": [], "decisions": [], "skipped": []}
+             "ranking": [], "decisions": [], "skipped": [],
+             # THE COST TRAIL for results/cost_report.py: every fill and every
+             # day's cash at full precision. Recording only; the curve is unchanged.
+             "costs": {"fills": [], "days": []}}
     # THE CAP AND THE DATA IT NEEDS, TOGETHER. This step passed
     # participation_cap() alone until 2026-09-15. backtest_exposure applies the cap
     # only where vol20 supplies a prior-20-session median, so a tradeable audit
@@ -300,6 +303,14 @@ def run(u, arm=None):
     print(f"  avg stocks held: {s['n_stocks'].mean():.1f} | "
           f"avg cash {s['cash_pct'].mean():.1f}% | final Rs {s['total'].iloc[-1]:,.0f}")
     print(f"\n  saved -> daily_holdings_{tag}.csv / daily_summary_{tag}.csv / daily_trades_{tag}.csv")
+
+    # CHARGES, SLIPPAGE AND TAX, reconciled to the paisa, for every run this step
+    # audits. Raises cost_report.CostReconciliationError, naming the check, the
+    # first day and the gap, and so fails the run, if any figure does not reconcile.
+    import cost_report
+    from test_exposure import START_CAPITAL
+    cost_report.write(u, _arm, tag, audit, eq, tc, px, op, bd, float(START_CAPITAL),
+                      _prof.selected(), bool(_tax_axis.selected()), cadence.selected())
 
     print(f"\n  --- SAMPLE: latest day ({s['date'].iloc[-1].date()}) ---")
     last = h[h["date"] == h["date"].max()]
