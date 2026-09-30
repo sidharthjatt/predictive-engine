@@ -30,6 +30,7 @@ sys.path.insert(0, str(ROOT)); sys.path.insert(0, str(ROOT / "results"))
 
 import numpy as np                                                  # noqa: E402
 import config                                                       # noqa: E402
+from paths import list_dir
 import engine_core as ec                                            # noqa: E402
 import ratio_clean as rc                                            # noqa: E402
 from universes.registry import gated                                # noqa: E402
@@ -48,7 +49,7 @@ def universe(u, cal, check):
          "ev_all": [0] * (rc.MAX_LEN + 1), "rows_all": [0] * (rc.MAX_LEN + 1),
          "ev_win": [0] * (rc.MAX_LEN + 1), "rows_win": [0] * (rc.MAX_LEN + 1),
          "sym_win": set(), "left": [], "keys": set()}
-    for f in sorted(Path(u.prepare_data_dir()).glob("*.csv")):
+    for f in list_dir(u.prepare_data_dir(), "*.csv"):
         d = load(f)
         n["files"] += 1
         dt = d["date"]

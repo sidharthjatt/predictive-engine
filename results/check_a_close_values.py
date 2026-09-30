@@ -30,6 +30,7 @@ sys.path.insert(0, str(ROOT)); sys.path.insert(0, str(ROOT / "results"))
 import numpy as np
 import pandas as pd
 import config
+from paths import list_dir
 from features_v2 import EXTREME_RET_HI, EXTREME_RET_LO
 from universes.registry import REGISTRY, certified
 
@@ -45,7 +46,7 @@ TOL = 1e-9
 
 def run(uni, ddir, mdir, label, W):
     rows = []
-    for f in sorted(Path(ddir).glob("*.csv")):
+    for f in list_dir(ddir, "*.csv"):
         x = config.read_price_csv(f)
         need = ["date", "open", "high", "low", "close", "adj_close"]
         if any(c not in x.columns for c in need):

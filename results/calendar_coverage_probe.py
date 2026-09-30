@@ -74,6 +74,7 @@ sys.path.insert(0, str(ROOT)); sys.path.insert(0, str(ROOT / "results"))
 import pandas as pd
 
 import config
+from paths import list_dir
 from universes.registry import REGISTRY, certified
 from config import read_table  # the one CSV/parquet reader: config.read_table
 
@@ -106,7 +107,7 @@ def sha256(path):
 def load_universe(src):
     """Per-file sets of dates carrying a non-null close."""
     m = {}
-    for f in sorted(Path(src).glob("*.csv")):
+    for f in list_dir(src, "*.csv"):
         d = config.read_price_csv(f)[["date", "close"]].dropna()
         m[f.stem] = set(d["date"])
     return m

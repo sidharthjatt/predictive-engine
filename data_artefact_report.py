@@ -18,6 +18,7 @@ ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "results"))
 import config
+from paths import list_dir
 from features_v2 import EXTREME_RET_HI, EXTREME_RET_LO
 
 BT_START = pd.Timestamp("2019-01-01")
@@ -32,7 +33,7 @@ UNIV = {u.tag: (u.data_dir, u.score_cache) for u in REGISTRY.values()}
 
 def flagged(data_dir):
     rows = []
-    for f in sorted(Path(data_dir).glob("*.csv")):
+    for f in list_dir(data_dir, "*.csv"):
         s = config.read_price_csv(f)[["date", "close"]].dropna().sort_values("date")
         r = s.set_index("date")["close"].pct_change()
         bad = r[(r > EXTREME_RET_HI) | (r < EXTREME_RET_LO)]

@@ -49,6 +49,7 @@ warnings.filterwarnings("ignore")
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "results"))
 import config
+from paths import list_dir
 import survivorship as sv
 from features_v2 import (FEATS_V2, add_stock_features,
                          add_market_relative_features, cross_sectional_normalize)
@@ -362,7 +363,7 @@ def build_panel(horizon, data_dir, pin_scorable=None, clean=True):
     _src = data_dir
     _cal = _load_calendar()
     _raw = []
-    for f in sorted(Path(_src).glob("*.csv")):
+    for f in list_dir(_src, "*.csv"):
         d0 = config.read_price_csv(f)[["date", "close"]].dropna()
         _raw.append(pd.DataFrame({"date": d0["date"], "symbol": f.stem}))
     _pre = pd.concat(_raw, ignore_index=True)
@@ -372,7 +373,7 @@ def build_panel(horizon, data_dir, pin_scorable=None, clean=True):
     _dropped = 0
     _fallback = {}
     _cleaned = {}
-    for f in sorted(Path(_src).glob("*.csv")):
+    for f in list_dir(_src, "*.csv"):
         raw = config.read_price_csv(f).sort_values("date")
         # THE LOAD BOUNDARY. adj_close is selected here and resolved into `close`
         # by canonical_price immediately, so the panel below -- and therefore every

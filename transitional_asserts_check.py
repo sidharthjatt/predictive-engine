@@ -36,6 +36,7 @@ Run it directly, or read its exit code.
 import ast
 import sys
 from pathlib import Path
+from paths import list_dir
 
 ROOT = Path(__file__).resolve().parent
 MARKER = "TRANSITIONAL-ASSERT"
@@ -97,7 +98,7 @@ def scan():
     for d in (ROOT / "results", ROOT / "nautilus"):
         if not d.is_dir():
             continue
-        for p in sorted(d.glob("*.py")):
+        for p in list_dir(d, "*.py"):
             src = p.read_text()
             if not _takes_universe(src, p):
                 continue

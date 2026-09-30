@@ -69,6 +69,7 @@ if str(ROOT) not in sys.path:
 # uses them. Its absence is a broken checkout, not a universe removal, so it is
 # imported unconditionally and fails loudly.
 import config
+from paths import list_dir
 
 HORIZON = 20          # engine_core.HORIZON; repeated here only to name the caches
 
@@ -109,7 +110,7 @@ def _constituents(raw_dir, index_name):
     THE INDEX FILE IS NOT A CONSTITUENT, and after step 7 this is the one place
     that says so. Both predecessors carried this expression and a paragraph
     explaining why it cannot be a bare glob, and the paragraph is the part worth
-    keeping: engine_core.build_panel does Path(_src).glob("*.csv") over whatever
+    keeping: engine_core.build_panel reads every CSV in whatever
     directory it is handed, and an earlier make_final_chart_fair.py swept
     NIFTY100.csv in as a 100th "stock" -- so the published index was averaged
     together with its own members and the resulting line was labelled the
@@ -121,7 +122,7 @@ def _constituents(raw_dir, index_name):
     does not exist simply produces nothing. See the module docstring on why that is a broken
     checkout rather than a universe removal.
     """
-    files = sorted(raw_dir.glob("*.csv"))
+    files = list_dir(raw_dir, "*.csv")
     if not files:
         return ()
     if index_name is None:
@@ -503,7 +504,7 @@ class Universe:
         self.data_dir.mkdir(parents=True, exist_ok=True)
         wanted = set(self.symbol_list)
 
-        for entry in self.data_dir.glob("*.csv"):       # drop anything stale
+        for entry in list_dir(self.data_dir, "*.csv"):       # drop anything stale
             if entry.stem not in wanted:
                 entry.unlink()
 
@@ -542,10 +543,10 @@ class Universe:
             except OSError:
                 shutil.copy2(target, entry)
 
-        present = tuple(sorted(f.stem for f in self.data_dir.glob("*.csv")))
+        present = tuple(sorted(f.stem for f in list_dir(self.data_dir, "*.csv")))
         assert present == self.symbol_list, \
             f"{self.tag}: constituents directory does not match symbol_list"
-        assert not any(f.is_symlink() for f in self.data_dir.glob("*.csv")), \
+        assert not any(f.is_symlink() for f in list_dir(self.data_dir, "*.csv")), \
             f"{self.tag}: a symlink survived in the constituent farm"
         # NORMALISED, so the index cannot re-enter under a different spelling of
         # its own name. See normalise_stem().

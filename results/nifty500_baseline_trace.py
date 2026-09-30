@@ -47,6 +47,7 @@ import numpy as np
 import pandas as pd
 
 import noise_parallel as NP
+from paths import list_dir
 from config import read_table  # the one CSV/parquet reader: config.read_table
 
 OUT = ROOT / "diagnostics" / "nifty500_baseline_trace.txt"
@@ -73,7 +74,7 @@ def panel(tag, sigma, seed, work):
     try:
         NP.perturb_cleaned_farm(src, wd / "farm", sigma, seed)
         exempt = {}
-        for f in sorted((wd / "farm").glob("*.csv")):
+        for f in list_dir(wd / "farm", "*.csv"):
             d = read_table(f, usecols=["date", "clean_exempt"])
             d = d[d["clean_exempt"]]
             if len(d):

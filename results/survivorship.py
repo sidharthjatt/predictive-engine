@@ -109,6 +109,7 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+from paths import list_dir
 
 # ---------------------------------------------------------------------------
 # switches
@@ -429,7 +430,7 @@ def validate(path, index_name: str = "nifty100", price_dir=None,
 
     # --- 7. price coverage (a disclosure, not an error) --------------------
     if price_dir is not None:
-        files = {p.stem.upper() for p in Path(price_dir).glob("*.csv")}
+        files = {p.stem.upper() for p in list_dir(price_dir, "*.csv")}
         have = all_syms & files
         missing_px = all_syms - files
         res.stats["symbols with a price file"] = f"{len(have)} of {len(all_syms)}"
@@ -528,7 +529,7 @@ class Membership:
     def coverage_table(self, price_dir) -> pd.DataFrame:
         """Per reconstitution date: members in force, members with price data,
         and the coverage percentage. Report this with any pit-mode result."""
-        files = {p.stem.upper() for p in Path(price_dir).glob("*.csv")}
+        files = {p.stem.upper() for p in list_dir(price_dir, "*.csv")}
         rows = []
         for d, L in zip(self.dates, self.lists):
             have = len(L & files)

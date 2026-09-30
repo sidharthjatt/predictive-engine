@@ -59,6 +59,7 @@ import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import config
+from paths import list_dir
 
 from nautilus_trader.model.currencies import INR
 from nautilus_trader.model.data import (Bar, BarType, BookOrder,
@@ -147,7 +148,7 @@ def set_volume_source(raw_dir, symbols=None):
     import config as _cfg
     _VOLUME = {}
     raw_dir = Path(raw_dir)
-    for f in sorted(raw_dir.glob("*.csv")):
+    for f in list_dir(raw_dir, "*.csv"):
         if symbols is not None and f.stem not in symbols:
             continue
         try:

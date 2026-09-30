@@ -856,8 +856,9 @@ def check_inputs(label, script, tag):
         want = f if not _sfx else f.with_name(f.stem + _sfx + f.suffix)
         if want.exists():
             return True
-        _found.append((f, want, sorted(
-            q.name for q in want.parent.glob(f.stem + "*" + f.suffix))[:6]))
+        from paths import list_dir
+        _found.append((f, want, [
+            q.name for q in list_dir(want.parent, f.stem + "*" + f.suffix)][:6]))
         return False
 
     import universes.registry as _ur

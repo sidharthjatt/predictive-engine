@@ -21,6 +21,8 @@ __pycache__/
 *.pyc
 *.pyo
 .DS_Store
+# macOS AppleDouble twins, written beside every file on an exFAT or FAT drive.
+._*
 .idea/
 *.iml
 

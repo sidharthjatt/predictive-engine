@@ -64,6 +64,7 @@ import numpy as np
 import pandas as pd
 
 import config
+from paths import list_dir
 from config import read_table
 from test_exposure import START_CAPITAL
 from universes.registry import REGISTRY, check_tags
@@ -283,7 +284,7 @@ def _price_files():
     if _PRICE_FILES is None:
         _PRICE_FILES = {}
         for top in ("Final_Without_Survivorship_Data", "Final_With_Survivorship_Data"):
-            for f in (ROOT / "data" / "raw" / top).glob("*/*.csv"):
+            for f in list_dir(ROOT / "data" / "raw" / top, "*/*.csv"):
                 _PRICE_FILES.setdefault(RENAMES.get(f.stem, f.stem), []).append(f)
     return _PRICE_FILES
 

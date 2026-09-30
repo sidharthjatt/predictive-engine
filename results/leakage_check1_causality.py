@@ -28,6 +28,7 @@ sys.path.insert(0, str(ROOT)); sys.path.insert(0, str(ROOT / "results"))
 import numpy as np
 import pandas as pd
 import config
+from paths import list_dir
 from features_v2 import FEATS_V2, add_stock_features, add_market_relative_features
 from universes.registry import REGISTRY, gated
 
@@ -46,7 +47,7 @@ UNIVERSES = {u.tag: (u.data_dir, LABELS[u.tag])
 
 def load_raw(d):
     frames = []
-    for f in sorted(Path(d).glob("*.csv")):
+    for f in list_dir(d, "*.csv"):
         x = config.read_price_csv(f)[["date", "open", "high", "low", "close",
                                       "volume"]].dropna().sort_values("date")
         x["symbol"] = f.stem

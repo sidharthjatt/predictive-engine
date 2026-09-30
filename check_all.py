@@ -128,6 +128,7 @@ import python_floor  # before any third-party import
 python_floor.require("check_all.py")
 
 from config import read_table  # the one CSV/parquet reader: config.read_table
+from paths import list_dir
 
 ROOT = Path(__file__).resolve().parent
 if str(ROOT) not in sys.path:
@@ -452,7 +453,7 @@ def gate_imports(res):
     run by hand, so the failure waited two weeks for a person.
     """
     mods = []
-    for p in sorted(ROOT.rglob("*.py")):
+    for p in list_dir(ROOT, "*.py", recursive=True):
         if any(x in SKIP_DIRS for x in p.parts): continue
         if any(x.startswith(SKIP_PREFIX) for x in p.parts): continue
         if p.resolve() == Path(__file__).resolve(): continue
@@ -646,7 +647,7 @@ def gate_outputs(res, rows, since, sel):
             if u is None: continue
             d = Path(u.metrics_dir)
             if not d.exists(): continue
-            moved += [f for f in d.rglob("*")
+            moved += [f for f in list_dir(d, recursive=True)
                       if f.is_file() and f.stat().st_mtime >= since]
         checked += 1
         if not moved:
@@ -1237,7 +1238,7 @@ def gate_data_source(res, sel):
         M = Path(u.metrics_dir)
         if not M.exists():
             continue
-        for f in sorted(M.glob("v34_params*.json")):
+        for f in list_dir(M, "v34_params*.json"):
             checked += 1
             nm = name(f)
             try:

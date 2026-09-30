@@ -34,6 +34,39 @@ NAUTILUS_DIR = ROOT / "nautilus"
 DIAGNOSTICS_DIR = ROOT / "diagnostics"
 
 
+# ------------------------------------------------------------ listing a folder
+# EVERY DIRECTORY LISTING IN THE REPOSITORY GOES THROUGH list_dir().
+#
+# On macOS, a file written to an exFAT or FAT drive gets a "._<name>" twin
+# holding its extended attributes, and macOS attaches com.apple.provenance to
+# every new file, so this cannot be prevented from Python. With the project on
+# such a drive, the constituents farms built during a run held ._360ONE.csv
+# beside 360ONE.csv, a bare glob("*.csv") counted the twin as a symbol, and
+# prepare_data_dir() failed with "constituents directory does not match
+# symbol_list" -- for a different universe on each run, since each run makes
+# new twins. .DS_Store is Finder's equivalent on any drive.
+#
+# This module imports nothing from the repository at import time, so the
+# registry and config can use list_dir() while they are themselves loading.
+def is_os_metadata(name):
+    """True for a macOS metadata file: an AppleDouble "._" twin or .DS_Store."""
+    return name.startswith("._") or name == ".DS_Store"
+
+
+def list_dir(directory, pattern="*", recursive=False):
+    """Entries of `directory` matching `pattern`, sorted, without macOS metadata.
+
+    glob(pattern), or rglob(pattern) when recursive. Files and directories are
+    both returned; callers that want one kind filter with is_file()/is_dir(). An
+    entry is dropped if any part of its path below `directory` is metadata. A
+    missing directory yields [], as Path.glob does.
+    """
+    d = Path(directory)
+    found = d.rglob(pattern) if recursive else d.glob(pattern)
+    return sorted(p for p in found
+                  if not any(is_os_metadata(x) for x in p.relative_to(d).parts))
+
+
 # --------------------------------------------------------------- score panels
 def score_cache(u):
     """The score panel, cache/<tag>/v_<tag>_expanding.csv. Written by build_scores."""
@@ -112,15 +145,16 @@ DEFAULT_REBAL = 20
 # results/metrics IS STILL LISTED, but no longer as any universe's output: it is
 # the shared, non-universe artefact directory (stability_*, feature docs). See
 # engine_core.refuse_universe_artefact().
-def _artefact_dirs():
+#
+# A FUNCTION, NOT A CONSTANT COMPUTED AT IMPORT. Computing it at import made this
+# module import the registry, so the registry could not import this module.
+def artefact_dirs():
     from universes.registry import REGISTRY
     per_universe = tuple(
         str(u.metrics_dir.relative_to(ROOT)) for u in REGISTRY.values())
     return per_universe + ("results/metrics", "runs",
                            "nautilus/reports", "nautilus/data")
 
-
-ARTEFACT_DIRS = _artefact_dirs()
 
 
 def run_folder_name(uni_tags, arm_names, rebal, when=None):

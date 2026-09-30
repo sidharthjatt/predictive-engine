@@ -57,6 +57,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
+from paths import list_dir
 
 SKIP_DIRS = {"venv", ".git", "__pycache__", "node_modules"}
 SKIP_PREFIX = ("forensic_snapshot_",)
@@ -118,7 +119,7 @@ def parse_directive(text, line):
 
 
 def _iter_py():
-    for p in sorted(ROOT.rglob("*.py")):
+    for p in list_dir(ROOT, "*.py", recursive=True):
         rel = p.relative_to(ROOT)
         if set(rel.parts) & SKIP_DIRS or rel.name in SELF:
             continue

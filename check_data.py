@@ -31,13 +31,11 @@ extra-file test).
 import hashlib
 import sys
 from pathlib import Path
+from paths import list_dir
 
 ROOT = Path(__file__).resolve().parent
 MANIFEST = ROOT / "data" / "RAW_DATA_SHA256.txt"
 COVERED = ROOT / "data" / "raw" / "Final_Without_Survivorship_Data"
-IGNORED_NAMES = {".DS_Store"}
-
-
 def sha256(path):
     h = hashlib.sha256()
     with open(path, "rb") as fh:
@@ -50,8 +48,8 @@ def on_disk():
     """Every file under COVERED, as repository-relative POSIX paths, sorted."""
     if not COVERED.is_dir():
         return []
-    return sorted(p.relative_to(ROOT).as_posix() for p in COVERED.rglob("*")
-                  if p.is_file() and p.name not in IGNORED_NAMES)
+    return sorted(p.relative_to(ROOT).as_posix() for p in list_dir(COVERED, recursive=True)
+                  if p.is_file())
 
 
 def read_manifest():
@@ -91,8 +89,8 @@ def not_covered():
     """(folder, bytes) for every folder under data/raw/ this check does not cover."""
     raw = ROOT / "data" / "raw"
     out = []
-    for d in sorted(p for p in raw.iterdir() if p.is_dir() and p != COVERED):
-        out.append((d.name, sum(f.stat().st_size for f in d.rglob("*") if f.is_file())))
+    for d in (p for p in list_dir(raw) if p.is_dir() and p != COVERED):
+        out.append((d.name, sum(f.stat().st_size for f in list_dir(d, recursive=True) if f.is_file())))
     return out
 
 

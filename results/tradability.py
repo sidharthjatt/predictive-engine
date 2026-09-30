@@ -42,6 +42,7 @@ READ-ONLY AGAINST THE RAW DATA. Nothing here changes a price.
 from pathlib import Path
 
 import config
+from paths import list_dir
 
 MIN_GAP = 2          # a gap of this many missing sessions or more is guarded
 WAIT = 0             # further sessions blocked after the resumption session
@@ -67,7 +68,7 @@ def _rows(data_dir, cal):
     "a raw row exists" would hide a real gap.
     """
     out = {}
-    for f in sorted(Path(data_dir).glob("*.csv")):
+    for f in list_dir(data_dir, "*.csv"):
         d = config.read_price_csv(f)
         if "date" not in d.columns:
             continue
@@ -116,7 +117,7 @@ def resumption_report(data_dir, cal, lo=None, hi=None,
     guard above already makes the symbol untradeable across the hole.
     """
     hits = []
-    for f in sorted(Path(data_dir).glob("*.csv")):
+    for f in list_dir(data_dir, "*.csv"):
         d = config.read_price_csv(f)
         if "close" not in d.columns:
             continue
@@ -149,7 +150,7 @@ def median_volume(data_dir, cal, lo=None, hi=None, win=20):
     """
     import pandas as pd
     out = {}
-    for f in sorted(Path(data_dir).glob("*.csv")):
+    for f in list_dir(data_dir, "*.csv"):
         d = config.read_price_csv(f)
         if "volume" not in d.columns:
             continue

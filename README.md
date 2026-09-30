@@ -36,6 +36,10 @@ Python 3.11 pip installs nothing: `scipy==1.18.1` and `nautilus_trader==1.229.0`
 need 3.12. `run.py` and `check_all.py` stop at start-up with a message naming the
 version if they are started on an older Python.
 
+Create the venv on the internal disk, not on an exFAT or FAT drive: macOS writes a
+`._` twin beside every file there, and matplotlib fails at import when those sit in
+its style folder.
+
 ```
 # 1. put the price data at data/raw/Final_Without_Survivorship_Data/ and check it
 python3 check_data.py

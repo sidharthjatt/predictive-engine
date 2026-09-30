@@ -131,6 +131,7 @@ ROOT = Path(__file__).resolve().parents[1]
 for _p in (str(ROOT), str(ROOT / "results")):
     if _p not in sys.path:
         sys.path.insert(0, _p)
+from paths import list_dir
 
 import numpy as np                                            # noqa: E402
 import pandas as pd                                           # noqa: E402
@@ -306,7 +307,7 @@ def perturb_farm(src, dst, sigma, noise_seed):
     dst.mkdir(parents=True, exist_ok=True)
     rng = np.random.default_rng(noise_seed)
     n_rows = n_cross = 0
-    for f in sorted(Path(src).glob("*.csv")):
+    for f in list_dir(src, "*.csv"):
         df = read_table(f)
         if sigma > 0:
             a = df["adj_close"].to_numpy(dtype=float)

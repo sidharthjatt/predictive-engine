@@ -37,6 +37,7 @@ import sys
 import time
 from pathlib import Path
 from config import read_table  # the one CSV/parquet reader: config.read_table
+from paths import list_dir
 
 ULP = 2.3e-16          # one unit in the last place, relative
 
@@ -444,7 +445,7 @@ def main(argv=None):
         known = {a.universe}
 
     written, notwritten, unclassified = [], [], []
-    for bp in sorted(B.iterdir()):
+    for bp in list_dir(B):
         if bp.is_dir():
             continue
         lp = L / bp.name

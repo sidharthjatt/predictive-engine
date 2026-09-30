@@ -45,6 +45,7 @@ sys.path.insert(0, str(ROOT)); sys.path.insert(0, str(ROOT / "results"))
 import numpy as np
 import pandas as pd
 import config
+from paths import list_dir
 from features_v2 import EXTREME_RET_HI, EXTREME_RET_LO
 from universes.registry import REGISTRY, certified
 
@@ -61,7 +62,7 @@ UNIVERSES = {u.tag: (u.data_dir, LABELS[u.tag])
 def run(uni, d, label, W):
     rows = []
     n_files = n_with_adj = 0
-    for f in sorted(Path(d).glob("*.csv")):
+    for f in list_dir(d, "*.csv"):
         n_files += 1
         x = config.read_price_csv(f)
         if "adj_close" not in x.columns:

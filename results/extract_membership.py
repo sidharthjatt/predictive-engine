@@ -81,6 +81,7 @@ from pathlib import Path
 import pandas as pd
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # repo root, for config
 from config import read_table  # the one CSV/parquet reader: config.read_table
+from paths import list_dir
 
 UA = {"User-Agent": "Mozilla/5.0 (research; index membership reconstruction)"}
 
@@ -175,7 +176,7 @@ def parse_section(sec):
 
 def cmd_parse(pdfdir, index_name, out_csv=None):
     rows = []
-    files = sorted(Path(pdfdir).glob("*.pdf"))
+    files = list_dir(pdfdir, "*.pdf")
     if not files:
         sys.exit(f"no PDFs in {pdfdir}")
     for f in files:

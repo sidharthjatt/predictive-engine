@@ -111,6 +111,7 @@ sys.path.insert(0, str(ROOT / "results"))
 sys.path.insert(0, str(ROOT / "nautilus"))
 
 import config                                    # noqa: E402
+from paths import list_dir
 import nt_data                                   # noqa: E402
 import nt_run                                    # noqa: E402
 import nt_attribution                            # noqa: E402
@@ -244,7 +245,7 @@ def coverage(out):
     cands = sorted(
         p.relative_to(ROOT).as_posix()
         for d in (ROOT, ROOT / "nautilus", ROOT / "results")
-        for p in d.glob("*.py")
+        for p in list_dir(d, "*.py")
         if re.search(r"check|verify|gate|valid|acceptance", p.name)
         and p.name not in ("check_all.py", "nt_gate_diagnose.py"))
 

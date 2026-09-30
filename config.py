@@ -15,6 +15,7 @@ from pathlib import Path
 # Imported at module level, not beside its first user further down, because
 # BT_START_DATE / BT_END_DATE below are Timestamps and are needed at import time.
 import pandas as _pd
+from paths import list_dir
 
 # ---------------------------------------------------------------------------
 # Project root -- every path below is relative to this
@@ -308,7 +309,7 @@ def source_key_for(u):
     if u.raw_data_dir is None:
         raise CacheSourceError(
             f"{u.tag}: a universe with no raw_data_dir has no panel to key.")
-    return source_key(sorted(Path(u.prepare_data_dir()).glob("*.csv")))
+    return source_key(list_dir(u.prepare_data_dir(), "*.csv"))
 
 
 def _code_tokens(src):
@@ -530,7 +531,7 @@ def data_fingerprint(data_dir, raw_data_dir):
     from seed_cache_key import source_key
     import os
     d = Path(data_dir)
-    files = sorted(d.glob("*.csv"))
+    files = list_dir(d, "*.csv")
     # WHERE THE FARM'S FILES COME FROM. Until 2026-09-24 the farm held symlinks
     # and this followed them. It now holds hard links or copies (see
     # Universe.prepare_data_dir), so each entry is checked against the file of

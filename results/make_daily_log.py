@@ -24,6 +24,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import survivorship as sv
 import config
+from paths import list_dir
 
 W = 118
 
@@ -192,7 +193,7 @@ def raw_row_index(u):
         src = Path(u.prepare_data_dir())
     except Exception:
         return None, None
-    for f in sorted(src.glob("*.csv")):
+    for f in list_dir(src, "*.csv"):
         try:
             d = config.read_price_csv(f)
         except Exception:

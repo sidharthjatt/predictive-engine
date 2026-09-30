@@ -376,7 +376,7 @@ def _universe_artefacts_in_shared_metrics():
     d = Path(config.METRICS_DIR)
     if not d.is_dir():
         return []
-    return [f.name for f in d.iterdir()
+    return [f.name for f in paths.list_dir(d)
             if f.is_file() and _UNIVERSE_ARTEFACT.search(f.name)]
 
 
@@ -573,11 +573,11 @@ def collect_run_folder(plan, args, t_start, dest):
     arm = [a.name for a in plan["arms"]]
     reb = args.rebal if args.rebal is not None else paths.DEFAULT_REBAL
     copied, failed = 0, []
-    for d in paths.ARTEFACT_DIRS:
+    for d in paths.artefact_dirs():
         base = ROOT / d
         if not base.is_dir():
             continue
-        for f in base.rglob("*"):
+        for f in paths.list_dir(base, recursive=True):
             if not f.is_file() or f.stat().st_mtime < t_start:
                 continue
             # DO NOT RECURSE INTO RUN FOLDERS. runs/ is an artefact dir, and a
@@ -807,7 +807,7 @@ def _execute(plan, args, state):
     for u, a in plan["arm_runs"]:
         d = paths.run_dir(u, a, args.rebal)
         d.mkdir(parents=True, exist_ok=True)
-        for f in d.iterdir():
+        for f in paths.list_dir(d):
             if f.is_file():
                 f.unlink()
         # naming: axis-free -- d is paths.run_dir(u, arm, rebal), which carries every axis

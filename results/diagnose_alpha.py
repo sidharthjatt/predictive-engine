@@ -29,6 +29,7 @@ warnings.filterwarnings("ignore")
 
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 import config
+from paths import list_dir
 from numerics import rolling_std  # platform-identical variance: results/numerics.py
 
 UNIVERSE_DIR = config.RAW_DATA_DIR / "nifty50"
@@ -69,7 +70,7 @@ def build_stock_frame(path):
 
 def build_panel():
     frames = []
-    for f in sorted(UNIVERSE_DIR.glob("*.csv")):
+    for f in list_dir(UNIVERSE_DIR, "*.csv"):
         d = build_stock_frame(f)
         d["symbol"] = f.stem
         frames.append(d)

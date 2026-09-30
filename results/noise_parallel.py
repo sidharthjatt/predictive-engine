@@ -96,6 +96,7 @@ ROOT = Path(__file__).resolve().parents[1]
 for _p in (ROOT, ROOT / "results"):
     if str(_p) not in sys.path:
         sys.path.insert(0, str(_p))
+from paths import list_dir
 
 _SCRIPT_SHA = hashlib.sha256(Path(__file__).read_bytes()).hexdigest()[:16]
 
@@ -268,7 +269,7 @@ def perturb_cleaned_farm(src, dst, sigma, noise_seed):
     dst.mkdir(parents=True, exist_ok=True)
     rng = np.random.default_rng(noise_seed)
     n_rows = n_cross = 0
-    for f in sorted(Path(src).glob("*.csv")):
+    for f in list_dir(src, "*.csv"):
         df = read_table(f)
         d = config.read_price_csv(f).sort_values("date")[PRICE_COLS].dropna()
         cleaned, exempt, _ev = ratio_clean.clean(d, cal)
@@ -511,7 +512,7 @@ def load_draws(out):
     """Every current draw under `out`. Stale draws are named and left out."""
     import config
     res = []
-    for f in sorted((Path(out) / "draws").glob("*.json")):
+    for f in list_dir(Path(out) / "draws", "*.json"):
         d = json.loads(f.read_text())
         if not config.run_key_matches(d, current_key(d["tag"])):
             print(f"  STALE {f.name}: not the current panel_code or source_digest; "

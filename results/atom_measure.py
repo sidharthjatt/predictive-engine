@@ -110,6 +110,7 @@ sys.path.insert(0, str(_ROOT))
 sys.path.insert(0, str(_ROOT / "results"))
 
 import config                                     # noqa: E402
+from paths import list_dir
 import engine_core as _ec                         # noqa: E402
 from engine_core import build_panel, HORIZON       # noqa: E402
 from features_v2 import FEATS_V2                  # noqa: E402
@@ -150,7 +151,7 @@ def perturbed_farm(u, sigma, seed):
     dst = WORK / f"{u.tag}_s{sigma}_n{seed}"
     dst.mkdir(parents=True, exist_ok=True)
     rng = np.random.default_rng(seed)
-    for f in sorted(src.glob("*.csv")):
+    for f in list_dir(src, "*.csv"):
         df = read_table(f)
         a = df["adj_close"].to_numpy(dtype=float)
         df["adj_close"] = a * (1.0 + rng.normal(0.0, sigma, size=len(df)))
