@@ -7,8 +7,10 @@ divergent pair of the four: 204 code lines differed ignoring whitespace.
 
 WHAT REACHED THE PNG, AND IS THEREFORE REGISTRY DATA, NOT A LITERAL HERE:
 the output stem, the render dpi, the drawdown-panel legend font size, the
-index-window end date, and whether the equal-weight line is labelled NOT
-investable in the legend. universes/registry.py carries them as chart_text.
+index-window end date. universes/registry.py carries them as chart_text. The
+subtitle, the drawdown labels and the buy&hold legend are built here, once, for
+every universe, since 2026-09-30; they were per-universe registry text and had
+gone stale in different ways on different rows.
 
 WHAT IS DERIVED RATHER THAN STORED: every label built from the tag or the index
 name -- "<tag> buy&hold (equal-weight universe)", "<index> (cap-weighted index)".
@@ -337,9 +339,9 @@ def main(u):
         print( "    over the UNION date index, so every day a midcap did not trade voided its")
         print( "    next 60 windows and those rows were dropped. Coverage was 35.7% and 42.1%")
         print( "    against 93.8-100% for the other 15 features, only 65 of 148 names were ever")
-        print( "    scored, breadth read 0.202 against 0.550 on a retired universe, and deployment collapsed")
+        print( "    scored, breadth read 0.202, and deployment collapsed")
         print( "    to about 20%. Both features are now computed on each symbol's own trading")
-        print( "    index; coverage is 97.0% and 98.5%. The first MidCap150 result (CAGR 9.06%)")
+        print( "    index. The first MidCap150 result (CAGR 9.06%)")
         print( "    was an artefact of that bug and must not be quoted.")
         _px = read_table(score_panel_path(), parse_dates=["date"]) \
                 .pivot_table(index="date", columns="symbol", values="close").ffill()
@@ -401,13 +403,21 @@ def main(u):
     print(f"    {n_late} of {n_all} constituents have NO data at 2019-01-01 "
           f"(listed later): {', '.join(late[:8])}{' ...' if n_late > 8 else ''}")
     print(f"    {alive} of {n_all} existed on 2019-01-01.")
-    # FROM THE ROW, NOT FROM HERE. These six lines used to be literal, written
-    # for a midcap universe, and printed under every heading: nifty50's first run
-    # said "midcap churn is far higher than large-cap churn" on a Nifty 50
-    # chart. Churn is a property OF A UNIVERSE, so the sentence belongs to the
-    # universe. u.churn_note has no default, so a new row cannot omit it and
-    # quietly inherit somebody else's index.
-    for _line in u.churn_note.split("\n"):
+    # ONE PARAGRAPH FOR EVERY UNIVERSE, SINCE 2026-09-30. This was a per-universe
+    # registry field, churn_note. midcap150's and nifty100's said "midcaps that
+    # FELL OUT of the index" and quoted "about 10 points of CAGR" from a
+    # measurement nothing in the repository records; the other six said
+    # "NOTHING HAS BEEN MEASURED", which survivorship_attribution.py has since
+    # made untrue. What is true of all eight is stated once, from the window.
+    _y0, _y1 = config.BT_START_DATE.year, config.BT_END_DATE.year
+    for _line in (
+            f"Names that left the index or delisted between {_y0} and {_y1} are absent",
+            "from this file entirely: the universe is today's members backfilled. They",
+            "may have done better or worse than the names that stayed, so the sign of",
+            "this bias is not known from this data. diagnostics/survivorship_attribution.txt",
+            "estimates how much of a run's profit came from names held while not index",
+            "members. The equal-weight buy&hold line is a portfolio nobody could have",
+            "held, and is NOT achievable."):
         print(f"    {_line}")
     # THE SUBTITLE IS PER-UNIVERSE PROSE AND IT REACHES THE PNG, so it lives in the
     # registry as a callable and this step only supplies the values. The previous
@@ -417,15 +427,41 @@ def main(u):
     # log. gate_compare's UNCLASSIFIED branch is what caught it.
     _vals = {"n_all": n_all, "n_late": n_late, "alive": alive,
              "inv": inv, "index_name": u.index_name}
-    if _CT["diagnostics"]:
-        _vals.update(n_panel=n_panel, per_day_median=int(per_day.median()))
     # WHICH ARMS ARE INVESTED HOW MUCH IS SAID PER CHART, from the arms on it.
     # The subtitle said "v2 holds X% invested" on every chart, including a
     # v4-only chart where X was v2's exposure. 2026-09-23.
     def _sub(arms):
         held = ", ".join(f"{n} holds {d[3]:.0f}% invested" for n, d in arms.items())
-        return (_window_label(eq) + "\n" + _CT["subtitle"](dict(_vals, held=held))
+        return (_window_label(eq) + "\n" + _subtitle(dict(_vals, held=held))
                 + sv.describe_state())
+
+    # ONE SUBTITLE FOR EVERY UNIVERSE, from the registry and this run's axes.
+    # The eight per-universe versions it replaces claimed a direction for the
+    # survivorship bias ("inflated"), quoted "about 10 CAGR points" from an
+    # unrecorded measurement, said no liquidity study existed where one does
+    # (diagnostics/liquidity_participation.txt covers all eight), and printed
+    # "research ... flat 0.15% slippage" on tradeable and taxed charts.
+    def _subtitle(v):
+        import textwrap
+        val = ("Validation on record for this universe: validation_status in "
+               "v2FINAL_params.json."
+               if isinstance(u.validation_status, dict) else
+               "No seed, sub-period, shuffle or top-N validation has been run on "
+               "this universe (validation_status in v2FINAL_params.json).")
+        paras = [
+            f"{u.label}, index excluded by name  |  {v['held']} on average  |  "
+            f"{naming.cost_basis()}",
+            f"Benchmarks: {v['index_name']} is the published CAP-WEIGHTED index "
+            f"(investable, and NOT survivorship-biased). Equal-weight buy&hold is "
+            f"the universe, and is NOT investable.",
+            f"SURVIVORSHIP: these {v['n_all']} are TODAY'S index members backfilled "
+            f"to {config.BT_START_DATE.year}, and {v['n_late']} of them did not exist "
+            f"at the start. Names that left during the window are absent entirely, "
+            f"so the sign of the bias is not known. Do not read that buy&hold as "
+            f"achievable.",
+            val + " Slippage has no market-impact model; fill sizes against "
+            "volume are in diagnostics/liquidity_participation.txt."]
+        return "".join(textwrap.fill(p, 175) + "\n" for p in paras)
     # ONE LINE PER SELECTED ARM, in published order, each with its own colour.
     # v2 and v1 keep the exact colours and label shapes they have always had, so
     # the default chart is unchanged.
@@ -441,7 +477,7 @@ def main(u):
           f"  [{_d[1][2]} trades, Rs {_d[1][1]:,.0f}]")
          for _n, _d in _arms.items()] + [
          (f"{tag} buy&hold (equal-weight universe"
-          f"{', NOT investable' if _CT['bh_not_investable'] else ''})  [inv 100%]", eq["buyhold"],
+          f", NOT investable)  [inv 100%]", eq["buyhold"],
           "#3a9d3a", "-", f"CAGR {cagr(eq['buyhold']):.2f}%  (buy once, hold: no TC)"),
          (f"{u.index_name} (cap-weighted index)  [inv 100%]", index, "#000000", "--",
           f"CAGR {cagr(index):.2f}%  (index level, not a portfolio: no TC)"),
@@ -456,7 +492,7 @@ def main(u):
         ax[0].legend(loc="upper left", fontsize=8.5); ax[0].grid(alpha=.3)
         for lab, s_, c, ls, _ in series:
             ax[1].plot(s_.index, dd(s_), lw=1.4, color=c, ls=ls,
-                       label=_CT["dd_label"](lab, dd(s_).min()))
+                       label=f"{lab.split('  [')[0]} (max {dd(s_).min():.1f}%)")
         ax[1].set_ylabel("Drawdown (%)")
         ax[1].yaxis.set_major_formatter(PercentFormatter(decimals=0))
         ax[1].legend(loc="lower left", fontsize=_CT["legend_fontsize"]); ax[1].grid(alpha=.3)

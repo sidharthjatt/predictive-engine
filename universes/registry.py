@@ -291,22 +291,6 @@ class Universe:
     # not measured against. Re-measure and restamp, or set None; do not edit them.
     liquidity_note: Optional[str]
 
-    # WHAT THIS UNIVERSE'S SURVIVORSHIP COSTS, IN ITS OWN WORDS. Added
-    # 2026-09-18, and it is a FIELD rather than a shared paragraph because the
-    # shared one was written for a midcap universe and printed on every chart:
-    # nifty50's run said "midcaps that FELL OUT of the index ... midcap churn is far
-    # higher than large-cap churn" under a Nifty 50 heading. nifty100's says it too,
-    # and always has.
-    #
-    # CONSOLE OUTPUT, NOT THE PNG. The subtitle that reaches the image is
-    # chart_text["subtitle"]; this is the block make_chart prints above it,
-    # which is what a reader sees in a run log and in a pipeline transcript. It
-    # reaches no file on disk today, which is why moving it moves no artefact.
-    #
-    # NO DEFAULT, like the four fields promoted on 2026-09-18: a universe that
-    # does not say what its own churn does cannot be constructed.
-    churn_note: str
-
     # ------------------------------------------------------------------
     # WHAT THE ENGINE REPORTS FOR THIS UNIVERSE
     # ------------------------------------------------------------------
@@ -440,7 +424,7 @@ class Universe:
         # the set of CSVs the farm links and build_panel scores. A typed count
         # said "49 constituents" on a run that scored 48.
         n = str(len(self.symbol_list))
-        for f in ("label", "survivorship", "churn_note", "validation_status",
+        for f in ("label", "survivorship", "validation_status",
                   "engine_text", "chart_text", "engine_params_static"):
             object.__setattr__(self, f, _fill_count(getattr(self, f), n))
 
@@ -632,16 +616,6 @@ _MIDCAP150 = Universe(
         display_name="MIDCAP150",
         chart_colours=("#e377c2", "#17becf", "#8fd08f", "#7f7f7f",
                        "#1b9e77", "#e6ab02"),
-        # VERBATIM, THE TEXT make_chart PRINTED FOR EVERY UNIVERSE. This one was
-        # written for midcap150 and is correct for midcap150; it moved here
-        # unchanged, and midcap150's console output is byte-identical across the move.
-        churn_note=(
-            "More important than the late listers: midcaps that FELL OUT of the index\n"
-            "or delisted between 2019 and 2026 are absent from this file entirely, and\n"
-            "midcap churn is far higher than large-cap churn. The equal-weight buy&hold\n"
-            "line is therefore an upper bound on a portfolio nobody could have held.\n"
-            "Measured on the Nifty100 equivalent, this bias was worth about 10 points\n"
-            "of CAGR. The buy&hold number below is NOT achievable."),
         liquidity_note=(
             "midcap150 [re-measured 2026-09-20]: 12 of 998 fills with a "
             "prior-20-session median exceed 10% (n=1,006 fills), the largest "
@@ -683,14 +657,8 @@ _MIDCAP150 = Universe(
                          "feature pruning", "100-share sizing"],
         },
         engine_text={
-            "banner": "ENGINE v2 FINAL -- cross-sectional ranking + inverse-vol "
-                      "+ breadth scaling",
             "panel_what": "MidCap150 score panel",
             "bh_label": "Equal-weight buy & hold (MidCap150)",
-            "chart_title": ("FINAL v2 strategy: ranking + inverse-vol + "
-                            "breadth-scaled exposure\n"
-                            "Breadth cuts exposure in weak markets -> ~half the "
-                            "drawdown, higher Sharpe\n"),
             "assert_index_absent": False,
         },
         chart_text={
@@ -710,48 +678,10 @@ _MIDCAP150 = Universe(
             "dpi": 140,
             "legend_fontsize": 8,
             "rule_width": 94,
-            # midcap150's chart says the equal-weight line is NOT investable in the
-            # legend itself; nifty100's says it only in the prose below the chart.
-            # Both statements are true of both universes -- which is an argument
-            # for unifying them, in a commit that declares the artefact change.
-            "bh_not_investable": True,
             # THE IC / EXTREME-RETURN DIAGNOSTIC BLOCK, midcap150 only. Console output,
             # no artefact, but it re-reads the score panel, so running it for nifty100
             # would be new work rather than new formatting.
             "diagnostics": True,
-            # THE DRAWDOWN-PANEL LEGEND LABEL, and it reaches the PNG. The two
-            # originals differed in three ways on ONE continuation line: the split
-            # token ("[" vs "  ["), the word "max", and the precision (.0f vs .1f).
-            # A keyword survey of render parameters missed it because the line it
-            # sits on contains no render keyword -- the grep matched the ax[1].plot
-            # call and never reached its argument. Checksum found it; grep did not.
-            "dd_label": lambda lab, mn: f"{lab.split('[')[0].strip()} ({mn:.0f}%)",
-            # THE CHART SUBTITLE REACHES THE PNG, and the two universes' subtitles
-            # are different prose that reads different values -- midcap150's quotes the
-            # panel-density figures that only its diagnostics block computes.
-            # A CALLABLE, like _symbols and _prepare above, so make_chart.py stays
-            # free of per-universe text. `v` is the values the step computed.
-            "subtitle": lambda v: (
-                f"MidCap150 panel density: {v['n_panel']} of {v['n_all']} names "
-                f"scored, median {v['per_day_median']} priced per day.\n"
-                f"MidCap150 universe ({v['n_all']} constituents, index excluded)  |  "
-                f"{v['held']} on average  |  ALL NUMBERS AFTER TC "
-                f"(Zerodha + 0.15% slippage)\n"
-                f"Benchmarks: {v['index_name']} is the published CAP-WEIGHTED index "
-                f"(investable). Equal-weight buy&hold is the universe, and is NOT "
-                f"investable.\n"
-                f"SURVIVORSHIP: {v['n_late']} of {v['n_all']} names did not exist at "
-                f"2019-01-01, and midcaps that left the index or delisted 2019-2026 "
-                f"are absent from this file altogether.\n"
-                f"Midcap churn far exceeds large-cap churn; the same bias measured "
-                f"about 10 CAGR points on Nifty100. Do not read buy&hold as "
-                f"achievable.\n"
-                "LIQUIDITY AND MARKET-IMPACT FIGURES ARE NOT AVAILABLE FOR THIS "
-                "WINDOW: the depth and participation studies were run on the old "
-                "1,842-day window\n"
-                "ending 2026-06-08 and have not been re-run. Every number here is a "
-                "research backtest with a flat 0.15% slippage and no market-impact "
-                "model.\n"),
         },
     )
 
@@ -779,21 +709,6 @@ _NIFTY100 = Universe(
         display_name="NIFTY 100",
         chart_colours=("#c0392b", "#2e6da4", "#3a9d3a", "#000000",
                        "#7f3f98", "#d95f02"),
-        # THE MIDCAP PARAGRAPH, KEPT VERBATIM ON A LARGE-CAP UNIVERSE, AND THAT
-        # IS A GATE AND NOT AN ENDORSEMENT. nifty100 has printed this text since the
-        # shared block existed; it is wrong here in the same way it was wrong on
-        # nifty50 -- the Nifty 100 is not a midcap index and "midcap churn is far
-        # higher than large-cap churn" is an argument about a different
-        # universe. Correcting it changes what a reader sees in every nifty100 run
-        # transcript, which is its own change with its own before/after. The
-        # commit that moved this text was gated on nifty100's output not moving.
-        churn_note=(
-            "More important than the late listers: midcaps that FELL OUT of the index\n"
-            "or delisted between 2019 and 2026 are absent from this file entirely, and\n"
-            "midcap churn is far higher than large-cap churn. The equal-weight buy&hold\n"
-            "line is therefore an upper bound on a portfolio nobody could have held.\n"
-            "Measured on the Nifty100 equivalent, this bias was worth about 10 points\n"
-            "of CAGR. The buy&hold number below is NOT achievable."),
         liquidity_note=(
             "nifty100 [re-measured 2026-09-20]: 3 of 932 fills with a "
             "prior-20-session median exceed 10% (n=940 fills), and ZERO do on the "
@@ -810,8 +725,8 @@ _NIFTY100 = Universe(
         # for midcap150's eight results. The seed-robustness and sub-period validations
         # on record were run elsewhere and are not claimed here.
         validation_status=("not measured on this universe. The seed-robustness "
-                           "and sub-period validations on record were run on the "
-                           "a retired universe and on midcap150 and are not "
+                           "and sub-period validations on record were run on "
+                           "midcap150, not on these {n} names, and are not "
                            "claimed here."),
         engine_params_keys=(
             "universe", "model", "sizing", "exposure", "top_n", "buffer",
@@ -822,12 +737,8 @@ _NIFTY100 = Universe(
             "universe": "Nifty 100 ({n} constituents, NIFTY100.csv excluded by name)",
         },
         engine_text={
-            "banner": "ENGINE v2 FINAL -- Nifty 100 universe ({n} names, index "
-                      "excluded by name)",
             "panel_what": "Nifty 100 score panel",
             "bh_label": "Equal-weight buy & hold (Nifty 100, {n} names)",
-            "chart_title": ("Nifty 100 universe -- ranking + inverse-vol + "
-                            "breadth-scaled exposure\n"),
             "assert_index_absent": True,
         },
         chart_text={
@@ -842,40 +753,7 @@ _NIFTY100 = Universe(
             "dpi": 150,
             "legend_fontsize": 8.5,
             "rule_width": 100,
-            "bh_not_investable": False,
             "diagnostics": False,
-            "dd_label": lambda lab, mn: f"{lab.split('  [')[0]} (max {mn:.1f}%)",
-            "subtitle": lambda v: (
-                f"Nifty 100 universe ({v['n_all']} constituents, index excluded "
-                f"by name)  |  {v['held']} on average  |  ALL "
-                f"NUMBERS AFTER TC (Zerodha + 0.15% slippage)\n"
-                # DERIVED, NOT SPELLED OUT. This read "NIFTY100" until
-                # 2026-09-18, which was the file's name before the repoint;
-                # index_name is "NIFTY 100" now and the subtitle went on
-                # printing the old spelling onto the PNG. midcap150's row already
-                # derived it. A hardcoded name is a second place for the same
-                # fact to live, and it is the copy that nothing checks.
-                f"Benchmarks: {v['index_name']} is the published CAP-WEIGHTED "
-                f"index (investable, and NOT survivorship-biased). Equal-weight "
-                f"buy&hold is the universe, and is NOT investable.\n"
-                f"SURVIVORSHIP: these {v['n_all']} are TODAY'S index members "
-                f"backfilled to 2019. Names dropped or delisted from the Nifty 100 "
-                f"during the window are absent entirely,\nso both the strategy and "
-                f"its equal-weight buy&hold are inflated. Do not read that buy&hold "
-                f"as achievable.\n"
-                # THE STUDY IS NOT MISSING, IT IS ABOUT A PANEL THAT IS GONE.
-                # This used to say the figures were "not available for this
-                # window" and name the old 1,842-day window ending
-                # 2026-06-08, which described the kite extraction rather
-                # than anything in this checkout. The measurement exists and
-                # is recorded in liquidity_note; what it does not do is
-                # describe these prices. See PANEL_MIGRATION.md.
-                "LIQUIDITY AND MARKET-IMPACT FIGURES DO NOT DESCRIBE THIS PANEL: "
-                "the depth and participation studies were measured on the kite "
-                "extraction that\n"
-                "was superseded on 2026-09-18, and have not been repeated on "
-                "this one. Every number here is a research backtest with a flat "
-                "0.15% slippage and no market-impact model.\n"),
         },
     )
 
@@ -959,27 +837,6 @@ _NIFTY50 = Universe(
         # readable band does. NOTHING CHECKS ANY OF THIS -- see KNOWN_ISSUES.md.
         chart_colours=("#7f4b70", "#4176fc", "#34c2a5", "#932d41",
                        "#1551e7", "#046e59"),
-        # nifty50's OWN CHURN, not the midcap paragraph it inherited on its first
-        # run. The Nifty 50 is the most stable index of the eight: its members
-        # are the largest listed companies in the country and they leave it
-        # rarely. That makes the survivorship bias SMALLER here than anywhere
-        # else in this repository -- and it does not make it zero, which is the
-        # part worth saying out loud on a chart whose buy&hold line looks
-        # achievable.
-        #
-        # NO NUMBER IS CLAIMED FOR THE SIZE OF THE BIAS. midcap150's paragraph quotes
-        # "about 10 points of CAGR" from the Nifty100 measurement; nothing
-        # equivalent has been measured for the Nifty 50, and borrowing a midcap
-        # or large-cap figure would be inventing one.
-        churn_note=(
-            "More important than the late listers: companies that LEFT the Nifty\n"
-            "50 between 2019 and 2026, by falling out of the index or being taken\n"
-            "over, are absent from this file entirely. Nifty 50 turnover is the\n"
-            "lowest of any universe here, so this bias is smaller than on the\n"
-            "midcap panels -- but it is not zero, and it runs one way: the names\n"
-            "that left are the ones that did worst. NOTHING HAS BEEN MEASURED FOR\n"
-            "THIS UNIVERSE. The equal-weight buy&hold line is an upper bound on a\n"
-            "portfolio nobody could have held, and is NOT achievable."),
         # NOT MEASURED. None is the declaration, not a hole -- no depth or
         # participation study has been run on this panel, and the combined chart
         # drops the note rather than printing an empty one.
@@ -1004,12 +861,8 @@ _NIFTY50 = Universe(
                         "by name)",
         },
         engine_text={
-            "banner": "ENGINE v2 FINAL -- Nifty 50 universe ({n} names, index "
-                      "excluded by name)",
             "panel_what": "Nifty 50 score panel",
             "bh_label": "Equal-weight buy & hold (Nifty 50, {n} names)",
-            "chart_title": ("Nifty 50 universe -- ranking + inverse-vol + "
-                            "breadth-scaled exposure\n"),
             "assert_index_absent": True,
         },
         chart_text={
@@ -1021,29 +874,7 @@ _NIFTY50 = Universe(
             "dpi": 150,
             "legend_fontsize": 8.5,
             "rule_width": 100,
-            "bh_not_investable": False,
             "diagnostics": False,
-            "dd_label": lambda lab, mn: f"{lab.split('  [')[0]} (max {mn:.1f}%)",
-            "subtitle": lambda v: (
-                f"Nifty 50 universe ({v['n_all']} constituents, index excluded "
-                f"by name)  |  {v['held']} on average  |  ALL "
-                f"NUMBERS AFTER TC (Zerodha + 0.15% slippage)\n"
-                # DERIVED, for the reason given on nifty100's row. This was
-                # correct when written and that is exactly the problem: so was
-                # nifty100's.
-                f"Benchmarks: {v['index_name']} is the published CAP-WEIGHTED "
-                f"index (investable, and NOT survivorship-biased). Equal-weight "
-                f"buy&hold is the universe, and is NOT investable.\n"
-                f"SURVIVORSHIP: these {v['n_all']} are TODAY'S index members "
-                f"backfilled to 2019. Names dropped or delisted from the Nifty "
-                f"50 during the window are absent entirely,\nso both the "
-                f"strategy and its equal-weight buy&hold are inflated. Do not "
-                f"read that buy&hold as achievable.\n"
-                "NOTHING ON THIS UNIVERSE HAS BEEN VALIDATED. No seed, "
-                "sub-period, shuffle or top-N test has been run on these {n} "
-                "names, and no liquidity or\nmarket-impact study exists for "
-                "this panel. Every number here is a research backtest with a "
-                "flat 0.15% slippage and no market-impact model.\n"),
         },
     )
 
@@ -1134,25 +965,6 @@ _MIDCAP50 = Universe(
         # those are decisions rather than searches.
         chart_colours=("#100fdc", "#5c2c49", "#721e16", "#6f0d64",
                        "#5a8e9e", "#46acfb"),
-        # midcap50's OWN CHURN. The MidCap 50 is the most volatile membership of
-        # the eight -- a 50-name midcap index turns over faster than either the
-        # Nifty 50 or the MidCap 150, because a name leaves on the way UP into
-        # large-cap as readily as on the way down. That runs the bias BOTH WAYS
-        # here, unlike nifty50 where it runs one way, and it is why no direction
-        # is claimed below.
-        #
-        # NO NUMBER IS CLAIMED FOR THE SIZE OF THE BIAS, by the same rule
-        # nifty50's row follows: nothing has been measured on this panel and
-        # borrowing the Nifty100 figure would be inventing one.
-        churn_note=(
-            "More important than the late listers: companies that LEFT the Nifty\n"
-            "MidCap 50 between 2019 and 2026 are absent from this file entirely.\n"
-            "A 50-name midcap index turns over faster than any other universe\n"
-            "here, and it loses names in BOTH directions -- promoted upward into\n"
-            "the large-cap indices, and dropped downward -- so the sign of this\n"
-            "bias is not known, let alone its size. NOTHING HAS BEEN MEASURED FOR\n"
-            "THIS UNIVERSE. The equal-weight buy&hold line is a portfolio nobody\n"
-            "could have held, and is NOT achievable."),
         # NOT MEASURED. None is the declaration, not a hole.
         liquidity_note=None,
         # NOT MEASURED, and a STRING rather than a dict, by the rule nifty100 and
@@ -1174,12 +986,8 @@ _MIDCAP50 = Universe(
                         "'NIFTY MIDCAP 50.csv' excluded by name)",
         },
         engine_text={
-            "banner": "ENGINE v2 FINAL -- Nifty MidCap 50 universe ({n} names, "
-                      "index excluded by name)",
             "panel_what": "Nifty MidCap 50 score panel",
             "bh_label": "Equal-weight buy & hold (Nifty MidCap 50, {n} names)",
-            "chart_title": ("Nifty MidCap 50 universe -- ranking + inverse-vol + "
-                            "breadth-scaled exposure\n"),
             "assert_index_absent": True,
         },
         chart_text={
@@ -1190,32 +998,7 @@ _MIDCAP50 = Universe(
             "dpi": 150,
             "legend_fontsize": 8.5,
             "rule_width": 100,
-            "bh_not_investable": False,
             "diagnostics": False,
-            "dd_label": lambda lab, mn: f"{lab.split('  [')[0]} (max {mn:.1f}%)",
-            "subtitle": lambda v: (
-                f"Nifty MidCap 50 universe ({v['n_all']} constituents, index "
-                f"excluded by name)  |  {v['held']} on average"
-                f"  |  ALL NUMBERS AFTER TC (Zerodha + 0.15% slippage)\n"
-                f"Benchmarks: {v['index_name']} is the published CAP-WEIGHTED "
-                f"index (investable, and NOT survivorship-biased). Equal-weight "
-                f"buy&hold is the universe, and is NOT investable.\n"
-                f"SURVIVORSHIP: these {v['n_all']} are TODAY'S index members "
-                f"backfilled to 2019, and 8 of them did not exist at the start. "
-                f"Names dropped from the MidCap 50\nduring the window are absent "
-                f"entirely -- in BOTH directions, promoted and demoted -- so the "
-                f"sign of the bias is not known. Do not read that buy&hold as "
-                f"achievable.\n"
-                # THE TRAILING NEWLINE IS LOAD-BEARING. make_chart.py:396 builds
-                # the subtitle as _window_label + subtitle + sv.describe_state(),
-                # concatenated with no separator, so a subtitle that does not end
-                # in a newline runs into SURVIVORSHIP_MODE on the rendered chart.
-                # This read "...on these 49 names.SURVIVORSHIP_MODE=static" on
-                # midcap50's first render. midcap150's and nifty50's rows both end
-                # in "\n"; this one did not.
-                "NOTHING ON THIS UNIVERSE HAS BEEN VALIDATED. No seed, "
-                "sub-period, shuffle or top-N work has been run on these {n} "
-                "names.\n"),
         },
 )
 
@@ -1298,24 +1081,6 @@ _MIDCAP100 = Universe(
         # not binding produces a number, not a ceiling.
         chart_colours=("#5c804c", "#d89094", "#a05464", "#fc606c",
                        "#2c503c", "#9c2000"),
-        # midcap100's OWN CHURN. A 100-name midcap index sits between the
-        # MidCap 50 and the MidCap 150 in turnover, and like both it loses names
-        # in BOTH directions -- promoted up into the large-cap indices and
-        # demoted down into smallcap. No direction is claimed.
-        #
-        # NO NUMBER IS CLAIMED FOR THE SIZE OF THE BIAS, by the rule every row
-        # above follows: nothing has been measured on this panel, and the
-        # 21.4% late-lister rate is a COMPOSITION figure, not a correction.
-        churn_note=(
-            "More important than the late listers: companies that LEFT the Nifty\n"
-            "MidCap 100 between 2019 and 2026 are absent from this file entirely.\n"
-            "The index loses names in BOTH directions -- promoted upward into the\n"
-            "large-cap indices, and demoted downward into smallcap -- so the sign\n"
-            "of this bias is not known, let alone its size. NOTHING HAS BEEN\n"
-            "MEASURED FOR THIS UNIVERSE. Its 21.4% late-lister rate is a statement\n"
-            "about composition, NOT a correction to apply. The equal-weight\n"
-            "buy&hold line is a portfolio nobody could have held, and is NOT\n"
-            "achievable."),
         # NOT MEASURED. None is the declaration, not a hole.
         liquidity_note=None,
         # NOT MEASURED, and a STRING rather than a dict, by the rule nifty100,
@@ -1336,12 +1101,8 @@ _MIDCAP100 = Universe(
                         "'NIFTY MIDCAP 100.csv' excluded by name)",
         },
         engine_text={
-            "banner": "ENGINE v2 FINAL -- Nifty MidCap 100 universe ({n} names, "
-                      "index excluded by name)",
             "panel_what": "Nifty MidCap 100 score panel",
             "bh_label": "Equal-weight buy & hold (Nifty MidCap 100, {n} names)",
-            "chart_title": ("Nifty MidCap 100 universe -- ranking + inverse-vol + "
-                            "breadth-scaled exposure\n"),
             "assert_index_absent": True,
         },
         chart_text={
@@ -1352,27 +1113,7 @@ _MIDCAP100 = Universe(
             "dpi": 150,
             "legend_fontsize": 8.5,
             "rule_width": 100,
-            "bh_not_investable": False,
             "diagnostics": False,
-            "dd_label": lambda lab, mn: f"{lab.split('  [')[0]} (max {mn:.1f}%)",
-            "subtitle": lambda v: (
-                f"Nifty MidCap 100 universe ({v['n_all']} constituents, index "
-                f"excluded by name)  |  {v['held']} on average"
-                f"  |  ALL NUMBERS AFTER TC (Zerodha + 0.15% slippage)\n"
-                f"Benchmarks: {v['index_name']} is the published CAP-WEIGHTED "
-                f"index (investable, and NOT survivorship-biased). Equal-weight "
-                f"buy&hold is the universe, and is NOT investable.\n"
-                f"SURVIVORSHIP: these {v['n_all']} are TODAY'S index members "
-                f"backfilled to 2019, and 21 of them did not exist at the start "
-                f"-- 21.4%.\nNames "
-                f"dropped from the MidCap 100 during the window are absent "
-                f"entirely, in BOTH directions, so the sign of the bias is not "
-                f"known. Do not read that buy&hold as achievable.\n"
-                # THE TRAILING NEWLINE IS LOAD-BEARING -- see midcap50's row for
-                # what it looked like when it was missing.
-                "NOTHING ON THIS UNIVERSE HAS BEEN VALIDATED. No seed, "
-                "sub-period, shuffle or top-N work has been run on these {n} "
-                "names.\n"),
         },
 )
 
@@ -1445,22 +1186,6 @@ _NIFTY200 = Universe(
         # nifty100/v3 under deutan). The band was not left.
         chart_colours=("#886884", "#6c18a4", "#80a0a4", "#9870c8",
                        "#d8a85c", "#4080a0"),
-        # nifty200's OWN CHURN. A 200-name large-and-mid index turns over more
-        # slowly than any midcap set here -- a name leaves mainly by falling out
-        # of the top 200 by capitalisation -- but it still loses names in both
-        # directions and no direction is claimed.
-        #
-        # NO NUMBER IS CLAIMED FOR THE SIZE OF THE BIAS, by the rule every row
-        # above follows. The 16.2% is COMPOSITION, not a correction.
-        churn_note=(
-            "More important than the late listers: companies that LEFT the Nifty\n"
-            "200 between 2019 and 2026 are absent from this file entirely. A\n"
-            "200-name index turns over more slowly than the midcap sets here, but\n"
-            "it still loses names in BOTH directions, so the sign of this bias is\n"
-            "not known, let alone its size. NOTHING HAS BEEN MEASURED FOR THIS\n"
-            "UNIVERSE. Its 16.2% late-lister rate is a statement about composition,\n"
-            "NOT a correction to apply. The equal-weight buy&hold line is a\n"
-            "portfolio nobody could have held, and is NOT achievable."),
         liquidity_note=None,
         validation_status=("not measured on this universe. No seed-robustness, "
                            "sub-period, shuffle or top-N work has been run here, "
@@ -1476,12 +1201,8 @@ _NIFTY200 = Universe(
                         "'NIFTY 200.csv' excluded by name)",
         },
         engine_text={
-            "banner": "ENGINE v2 FINAL -- Nifty 200 universe ({n} names, "
-                      "index excluded by name)",
             "panel_what": "Nifty 200 score panel",
             "bh_label": "Equal-weight buy & hold (Nifty 200, {n} names)",
-            "chart_title": ("Nifty 200 universe -- ranking + inverse-vol + "
-                            "breadth-scaled exposure\n"),
             "assert_index_absent": True,
         },
         chart_text={
@@ -1490,25 +1211,7 @@ _NIFTY200 = Universe(
             "dpi": 150,
             "legend_fontsize": 8.5,
             "rule_width": 100,
-            "bh_not_investable": False,
             "diagnostics": False,
-            "dd_label": lambda lab, mn: f"{lab.split('  [')[0]} (max {mn:.1f}%)",
-            "subtitle": lambda v: (
-                f"Nifty 200 universe ({v['n_all']} constituents, index excluded "
-                f"by name)  |  {v['held']} on average"
-                f"  |  ALL NUMBERS AFTER TC (Zerodha + 0.15% slippage)\n"
-                f"Benchmarks: {v['index_name']} is the published CAP-WEIGHTED "
-                f"index (investable, and NOT survivorship-biased). Equal-weight "
-                f"buy&hold is the universe, and is NOT investable.\n"
-                f"SURVIVORSHIP: these {v['n_all']} are TODAY'S index members "
-                f"backfilled to 2019, and 32 of them did not exist at the start "
-                f"-- 16.2%. Names dropped from the\nNifty 200 during the window "
-                f"are absent entirely, in BOTH directions, so the sign of the "
-                f"bias is not known. Do not read that buy&hold as achievable.\n"
-                # THE TRAILING NEWLINE IS LOAD-BEARING -- see midcap50's row.
-                "NOTHING ON THIS UNIVERSE HAS BEEN VALIDATED. No seed, "
-                "sub-period, shuffle or top-N work has been run on these {n} "
-                "names.\n"),
         },
 )
 
@@ -1584,21 +1287,6 @@ _SMALLCAP250 = Universe(
         # nifty100/v3 under deutan). The band was not left.
         chart_colours=("#fc8cc4", "#5464d0", "#4890fc", "#487030",
                        "#c00074", "#3ca464"),
-        # smallcap250's OWN CHURN, AND IT IS THE MOST CHURNING SET HERE. A
-        # smallcap index loses names upward into midcap, downward out of the
-        # 250, and by delisting outright -- three exits rather than two. No
-        # direction is claimed and no number is claimed for the size of the
-        # bias, by the rule every row above follows.
-        churn_note=(
-            "More important than the late listers: companies that LEFT the Nifty\n"
-            "SmallCap 250 between 2019 and 2026 are absent from this file\n"
-            "entirely. A smallcap index loses names THREE ways -- promoted upward\n"
-            "into midcap, dropped out of the 250, and delisted outright -- so the\n"
-            "sign of this bias is not known, let alone its size. NOTHING HAS BEEN\n"
-            "MEASURED FOR THIS UNIVERSE. Its 36.3% late-lister rate is the highest\n"
-            "of the seven and is a statement about composition, NOT a correction\n"
-            "to apply. The equal-weight buy&hold line is a portfolio nobody could\n"
-            "have held, and is NOT achievable."),
         liquidity_note=None,
         validation_status=("not measured on this universe. No seed-robustness, "
                            "sub-period, shuffle or top-N work has been run here, "
@@ -1614,12 +1302,8 @@ _SMALLCAP250 = Universe(
                         "'NIFTY SMLCAP 250.csv' excluded by name)",
         },
         engine_text={
-            "banner": "ENGINE v2 FINAL -- Nifty SmallCap 250 universe ({n} "
-                      "names, index excluded by name)",
             "panel_what": "Nifty SmallCap 250 score panel",
             "bh_label": "Equal-weight buy & hold (Nifty SmallCap 250, {n} names)",
-            "chart_title": ("Nifty SmallCap 250 universe -- ranking + "
-                            "inverse-vol + breadth-scaled exposure\n"),
             "assert_index_absent": True,
         },
         chart_text={
@@ -1628,27 +1312,7 @@ _SMALLCAP250 = Universe(
             "dpi": 150,
             "legend_fontsize": 8.5,
             "rule_width": 100,
-            "bh_not_investable": False,
             "diagnostics": False,
-            "dd_label": lambda lab, mn: f"{lab.split('  [')[0]} (max {mn:.1f}%)",
-            "subtitle": lambda v: (
-                f"Nifty SmallCap 250 universe ({v['n_all']} constituents, index "
-                f"excluded by name)  |  {v['held']} on average"
-                f"  |  ALL NUMBERS AFTER TC (Zerodha + 0.15% slippage)\n"
-                f"Benchmarks: {v['index_name']} is the published CAP-WEIGHTED "
-                f"index (investable, and NOT survivorship-biased). Equal-weight "
-                f"buy&hold is the universe, and is NOT investable.\n"
-                f"SURVIVORSHIP: these {v['n_all']} are TODAY'S index members "
-                f"backfilled to 2019, and 90 of them -- MORE THAN A THIRD, "
-                f"36.3%, the highest of any universe\nhere -- did not exist at "
-                f"the start. Names dropped from the SmallCap 250 during the "
-                f"window are absent entirely, in BOTH directions, so the sign "
-                f"of the bias is not known. Do not read that buy&hold as "
-                f"achievable.\n"
-                # THE TRAILING NEWLINE IS LOAD-BEARING -- see midcap50's row.
-                "NOTHING ON THIS UNIVERSE HAS BEEN VALIDATED. No seed, "
-                "sub-period, shuffle or top-N work has been run on these {n} "
-                "names.\n"),
         },
 )
 
@@ -1718,20 +1382,6 @@ _NIFTY500 = Universe(
         # shipping (3.26, nifty100/v1 vs nifty100/v3 under deutan).
         chart_colours=("#fc6834", "#30505c", "#2c5850", "#682c84",
                        "#70a890", "#84508c"),
-        # nifty500's OWN CHURN. The widest index here, and the one that loses
-        # names most slowly at the top and fastest at the bottom -- a name
-        # leaves the 500 by falling out of it entirely, which is a longer fall
-        # than leaving the 200 or the 100. No direction is claimed.
-        churn_note=(
-            "More important than the late listers: companies that LEFT the Nifty\n"
-            "500 between 2019 and 2026 are absent from this file entirely. This is\n"
-            "the widest index wired here, so a name leaves it only by dropping out\n"
-            "of the top 500 altogether or delisting -- but it still loses names in\n"
-            "BOTH directions and the sign of this bias is not known, let alone its\n"
-            "size. NOTHING HAS BEEN MEASURED FOR THIS UNIVERSE. Its 27.7%\n"
-            "late-lister rate is a statement about composition, NOT a correction\n"
-            "to apply. The equal-weight buy&hold line is a portfolio nobody could\n"
-            "have held, and is NOT achievable."),
         liquidity_note=None,
         validation_status=("not measured on this universe. No seed-robustness, "
                            "sub-period, shuffle or top-N work has been run here, "
@@ -1748,12 +1398,8 @@ _NIFTY500 = Universe(
                         "supplier's spelling)",
         },
         engine_text={
-            "banner": "ENGINE v2 FINAL -- Nifty 500 universe ({n} names, "
-                      "index excluded by name)",
             "panel_what": "Nifty 500 score panel",
             "bh_label": "Equal-weight buy & hold (Nifty 500, {n} names)",
-            "chart_title": ("Nifty 500 universe -- ranking + inverse-vol + "
-                            "breadth-scaled exposure\n"),
             "assert_index_absent": True,
         },
         chart_text={
@@ -1762,26 +1408,7 @@ _NIFTY500 = Universe(
             "dpi": 150,
             "legend_fontsize": 8.5,
             "rule_width": 100,
-            "bh_not_investable": False,
             "diagnostics": False,
-            "dd_label": lambda lab, mn: f"{lab.split('  [')[0]} (max {mn:.1f}%)",
-            "subtitle": lambda v: (
-                f"Nifty 500 universe ({v['n_all']} constituents, index excluded "
-                f"by name)  |  {v['held']} on average"
-                f"  |  ALL NUMBERS AFTER TC (Zerodha + 0.15% slippage)\n"
-                f"Benchmarks: {v['index_name']} is the published CAP-WEIGHTED "
-                f"index (investable, and NOT survivorship-biased). Equal-weight "
-                f"buy&hold is the universe, and is NOT investable.\n"
-                f"SURVIVORSHIP: these {v['n_all']} are TODAY'S index members "
-                f"backfilled to 2019, and 137 of them did not exist at the "
-                f"start -- 27.7%. Names dropped from the\nNifty 500 during the "
-                f"window are absent entirely, in BOTH directions, so the sign "
-                f"of the bias is not known. Do not read that buy&hold as "
-                f"achievable.\n"
-                # THE TRAILING NEWLINE IS LOAD-BEARING -- see midcap50's row.
-                "NOTHING ON THIS UNIVERSE HAS BEEN VALIDATED. No seed, "
-                "sub-period, shuffle or top-N work has been run on these {n} "
-                "names.\n"),
         },
 )
 

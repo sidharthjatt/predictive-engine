@@ -87,7 +87,8 @@ LEGEND_TEMPLATE = """\
             year, on the assessment day, and shown in section B's cash line.
 
  SECTION B  This is the proof that the arithmetic is correct. Three checks run daily:
-              CASH    opening cash + yield + sale proceeds - purchases - fees = closing cash
+              CASH    opening cash + yield + sale proceeds - purchases - fees
+                      - capital-gains tax (on an assessment day, tax on only) = closing cash
               EQUITY  cash + market value of holdings = total portfolio value
               SHARES  for every symbol: opening quantity +/- today's trade = closing quantity
             Each check is marked OK or *** FAIL ***. A full tally appears at the end of the file.
@@ -98,11 +99,17 @@ LEGEND_TEMPLATE = """\
 {exposure_para}
 {sizing_para}
  SKIPS      An order that was created but did not fill is listed under the day it should
-            have filled, with the reason and the actual numbers. Four reasons exist:
+            have filled, with the reason and the actual numbers. The reasons:
               no open price (NaN/<=0)  the symbol had no usable open price that morning
               qty < 1 after sizing     the target was smaller than one share
               cash short (before TC)   the funding defect below
               cash short (incl TC)     the same, once transaction costs are added
+              participation cap        cut or refused by the tradeable profile's volume cap
+              untradeable              no raw price row, or a forced exit before a gap
+              impact                   no prior-20-session median to price impact against
+            Two further entries are not skipped orders: the capital-gains tax assessed on
+            an assessment day (tax on), and the sale of every holding on the last day
+            when a run asks for it.
  FUNDING    invest value is a share of the WHOLE portfolio, but new positions are paid for
             out of CASH ALONE, and a name already held is never resized. So whenever a
             buffer name is holding capital the book is over-committed by construction and

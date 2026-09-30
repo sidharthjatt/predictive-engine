@@ -169,7 +169,7 @@ def main(u):
         an = arm.name
         print("="*96)
         print(f" {an} AFTER TAX vs BUY & HOLD AFTER TAX   (bh_lots: equal-rupee once, "
-              "no rebalance, realise at end)")
+              "no rebalance, held to the end)")
         print("="*96)
         engine_core.set_tradeability(u)
         p=read_table(config.require_cache(u.score_cache,what=tag),parse_dates=["date"])
@@ -276,7 +276,7 @@ def main(u):
         else:
             print(f"\n  EDGE  {an} - bh_lots   before tax {e_pre:+.2f} pts      after tax {e_post:+.2f} pts"
                   f"      swing {e_post-e_pre:+.2f}      sold on the last day {e_last:+.2f} pts")
-        print(f"  EDGE  {an} - bh published (the +0.89/+0.43 baseline) {e_pub:+.2f} pts"
+        print(f"  EDGE  {an} - bh published {e_pub:+.2f} pts"
               f"   [costless daily-rebalanced index, untaxable -- reference only]")
 
         # ------------------------------------------------------------------

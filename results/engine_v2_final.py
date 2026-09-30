@@ -9,9 +9,10 @@ normalised, and some of that divergence REACHED PUBLISHED ARTEFACTS.
 
 EVERYTHING THAT DIVERGED IS NOW REGISTRY DATA, NOT CODE. universes/registry.py
 carries, per universe: validation_status, engine_params_keys (the exact ordered
-key list for v2FINAL_params.json), engine_params_static, and engine_text (banner,
-panel description, buy&hold label, chart title, and whether the index-absent
-assertion applies). The merge is therefore artefact-neutral by construction, and
+key list for v2FINAL_params.json), engine_params_static, and engine_text (the
+panel description, the buy&hold label, and whether the index-absent assertion
+applies). The banner, chart title, verdict and selectivity note are built from
+the label and the run since 2026-09-30. The merge is therefore artefact-neutral by construction, and
 the gate proves it rather than the author asserting it.
 
 NOTHING HERE IS UNIFIED. midcap150's params carry "validated" and "rejected" and no
@@ -139,10 +140,12 @@ def main(u):
     tag = u.tag
     M = Path(u.metrics_dir)
     _T = u.engine_text
+    # ONE BANNER, FROM THE LABEL. It was registry text followed by this fixed
+    # line, so midcap150, whose registry banner was the fixed line, printed it
+    # twice.
     print("=" * 100)
-    print(_T["banner"])
-    print("=" * 100)
-    print("ENGINE v2 FINAL -- cross-sectional ranking + inverse-vol + breadth scaling")
+    print(f"ENGINE v2 FINAL -- {u.label}: cross-sectional ranking + inverse-vol + "
+          f"breadth scaling")
     print("=" * 100)
     print(f"  SURVIVORSHIP: {sv.describe_state()}")
 
@@ -211,8 +214,13 @@ def main(u):
                                             mode="none", target_vol=tv,
                                             audit=base_audit, rebal=_reb,
                                             tax_enabled=_taxon, **_capkw)
+    # AN AUDIT DICT FOR v2 TOO, SO THE VERDICT CAN STATE THE TAX v2 PAID. It
+    # only appends to lists; the arithmetic is the same with or without it.
+    fin_audit = {k: [] for k in
+                 ("holdings", "summary", "trades", "ranking", "decisions", "skipped")}
     fin_eq, tcf, nf, expo = backtest_exposure(px, op, sc, bd, pc, mom20, port_vol,
                                               mode="breadth", target_vol=tv,
+                                              audit=fin_audit,
                                               rebal=_reb, tax_enabled=_taxon,
                                               **_capkw)
     bh = START_CAPITAL * (1 + px.pct_change().loc[bd].mean(axis=1).fillna(0)).cumprod()
@@ -352,12 +360,12 @@ def main(u):
     ax[0].axhline(0, color="k", lw=.7, alpha=.5)
     ax[0].set_ylabel("Cumulative return (%)")
     ax[0].yaxis.set_major_formatter(PercentFormatter(decimals=0))
-    # THE TITLE REACHES chart_v2FINAL.png, so it is per-universe data rather than
-    # a literal here: midcap150's two lines and nifty100's one are different published
-    # artefacts, and unifying them would move a byte for a reason unrelated to
-    # this merge.
+    # ONE TITLE FOR EVERY UNIVERSE, since 2026-09-30. It was registry text, and
+    # midcap150's carried a fixed performance claim ("~half the drawdown,
+    # higher Sharpe") that no longer matched its own numbers.
     ax[0].set_title(naming.run_label(u.label, ["v1", "v2"]) + "\n"
-                    + _T["chart_title"] + sv.describe_state(), fontsize=10)
+                    + f"{u.label} -- ranking + inverse-vol + breadth-scaled exposure\n"
+                    + sv.describe_state(), fontsize=10)
     ax[0].legend(loc="upper left", fontsize=9)
     ax[0].grid(alpha=.3)
     for s, c, ls, lab in [(fin_eq, "#d62728", "-", "v2 FINAL"),
@@ -403,9 +411,17 @@ def main(u):
     # used to print. run_v34 reports its own writes; a step reporting another
     # step's output was how the wrong five names came to be printed.
 
+    # THE VERDICT AND THE SELECTIVITY NOTE ARE COMPUTED FROM THIS RUN. Until
+    # 2026-09-30 both carried fixed text: "no capital gains tax is modelled" on
+    # every run, tax on included; nifty100's before- and after-tax edge (+0.46,
+    # -1.59) in every universe's verdict; and a TOP_N comparison against two
+    # retired universes of 58 and 74 names. Every figure below now comes from
+    # this universe, cadence, profile and tax setting, or from the registry.
     print("\n" + "=" * 100)
     print("VERDICT")
     print("=" * 100)
+    print(f"  {u.label}: v2 against the equal-weight buy & hold, cadence {_reb}, "
+          f"profile {_prof.selected()}, tax {'on' if _taxon else 'off'}")
     print(f"  v2 FINAL   : CAGR {mfin['CAGR%']:>6.2f}%  Sharpe {mfin['Sharpe']:>5.2f}  "
           f"MaxDD {mfin['MaxDD%']:>7.2f}%  Calmar {mfin['Calmar']}")
     print(f"  Buy & hold : CAGR {mbh['CAGR%']:>6.2f}%  Sharpe {mbh['Sharpe']:>5.2f}  "
@@ -414,6 +430,14 @@ def main(u):
     d_dd = mfin["MaxDD%"] - mbh["MaxDD%"]
     d_cagr = mfin["CAGR%"] - mbh["CAGR%"]
     sh_word = "ahead of" if d_sh > 0 else "behind"
+    if _taxon:
+        tax_line = (f"  Capital-gains tax was charged in this run: v2 paid Rs "
+                    f"{fin_audit['tax']['cum_tax']:,.2f} and v1 Rs "
+                    f"{base_audit['tax']['cum_tax']:,.2f},\n  and every figure "
+                    f"above is after it. The buy & hold never sells, so it pays none.")
+    else:
+        tax_line = ("  Tax was not charged in this run (tax off): every figure above is "
+                    "before capital-gains\n  tax. --tax on charges it.")
     print(f"""
   Versus equal-weight buy & hold over the same period:
     Sharpe   {mfin['Sharpe']:>6.2f} vs {mbh['Sharpe']:>6.2f}   ({d_sh:+.2f})  -- {sh_word} buy & hold
@@ -423,40 +447,30 @@ def main(u):
   The strategy holds {expo*100:.0f}% invested on average, so raw CAGR is not the
   right comparison on its own -- return per deployed rupee and drawdown are.
   Idle cash earns {CASH_YIELD*100:g}%, so none of the return above comes from interest.
-  EVERY FIGURE ABOVE IS BEFORE TAX. Against a held-lots buy & hold taxed by the
-  same rule, nifty100's edge is +0.46 before tax and -1.59 after -- a -2.05 swing,
-  the turnover cost of 478 annual short-term realisations against one deferred
-  long-term one. See KNOWN_ISSUES.md and ./venv/bin/python bh_lots_after_tax.py.
+{tax_line}
 
-{_T.get("bh_caveat", "")}  Standing caveats: no capital gains tax is modelled, survivorship bias inflates
-  both lines, and the edge is not statistically significant. The honest next step
-  for a real product is a less-efficient universe (mid/small caps) or new data
-  (fundamentals), not more tuning here.
+  Standing caveat: the universe is today's {len(u.symbol_list)} index members backfilled to
+  {BT_START_DATE.date()}, so both lines carry survivorship bias of unknown sign. See
+  diagnostics/survivorship_attribution.txt for what has been estimated.
 """)
 
-    n_names = int(p["symbol"].nunique())
-    equal_sel = TOP_N * n_names / 58.0
+    from universes.registry import REGISTRY as _REG
+    n_names = len(u.symbol_list)
     print("=" * 100)
     print("SELECTIVITY -- AN OBSERVATION, NOT A CHANGE")
     print("=" * 100)
+    print(f"\n  TOP_N is {TOP_N} for every universe. The share of each registered "
+          f"universe that it buys:\n")
+    for _v in sorted(_REG.values(), key=lambda v: (len(v.symbol_list), v.tag)):
+        _n = len(_v.symbol_list)
+        print(f"    {_v.tag:<12} {_n:>4} names  -> top {TOP_N/_n*100:>4.1f}%"
+              + ("   <- this run" if _v.tag == tag else ""))
     print(f"""
-  TOP_N is {TOP_N}, unchanged from the two retired universes. Against this universe that is
-  a different bet:
-
-      58 names  -> top {TOP_N/58*100:.1f}%
-      74 names  -> top {TOP_N/74*100:.1f}%
-     {n_names} names  -> top {TOP_N/n_names*100:.1f}%
-
-  For the same selectivity as the retired 58-name setup, TOP_N would have to be about
-  {equal_sel:.0f} ({TOP_N}/58 of {n_names}). Under the Fundamental Law, IR is roughly
-  IC x sqrt(breadth), and breadth is one of only two levers that can move IR --
-  every portfolio-construction experiment on this project has failed precisely
-  because it moved neither term. Holding {n_names} candidates but still buying {TOP_N} of
-  them takes the wider universe's breadth and then throws most of it away.
-
-  This run deliberately does NOT act on that. TOP_N stays at {TOP_N} so this first
-  pass is untuned and directly comparable to the retired universes. Changing it is a
-  separate pre-registered experiment, and choosing it after seeing these numbers
+  Under the Fundamental Law, IR is roughly IC x sqrt(breadth). Holding {n_names}
+  candidates and buying {TOP_N} of them uses {TOP_N/n_names*100:.1f}% of this universe's names; the
+  larger the universe, the smaller that share.
+  This run does NOT act on that: TOP_N is fixed across universes, and changing it
+  is a separate pre-registered experiment. Choosing it after seeing these numbers
   would be fitting the parameter to the result.
 """)
     # WHAT WAS WRITTEN, NOT WHAT IS USUALLY WRITTEN. Under the default axes this

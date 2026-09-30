@@ -325,8 +325,8 @@ def _one_arm(u, arm, M, px, op, sc, bd, pc, mom20, port_vol,
     # and sixteen of them were pinned by SHA-256 in the retired-universe manifest.
     bh = M / f"BH_LOTS_{tag}.csv"
     if not bh.exists():
-        print(f"      TAX_TURNOVER not written: {bh.name} is absent -- STEP 17e-h "
-              f"did not run for {u.tag} {an}")
+        print(f"      TAX_TURNOVER not written: {bh.name} is absent -- the "
+              f"bh_lots step (bh_lots_after_tax.py) did not run for {u.tag} {an}")
         return
     rows_bh = list(csv.DictReader(open(bh, newline="")))
     fy_close = float(read_table(wrote[1])["close_equity"].iloc[-1])

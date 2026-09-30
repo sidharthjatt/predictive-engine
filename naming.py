@@ -84,6 +84,20 @@ def name(stem, ext, axes=AXES):
     return f"{stem}{tail(axes)}{ext}"
 
 
+def cost_basis():
+    """What a run's figures are net of, from the selected profile and tax.
+
+    One phrase for chart subtitles, so a --profile tradeable or --tax on chart
+    does not carry the research, before-tax wording every chart used to print.
+    """
+    from slippage import SLIPPAGE
+    cap = _profiles.participation_cap()
+    s = f"ALL NUMBERS AFTER Zerodha charges and a flat {SLIPPAGE*100:g}% slippage"
+    if cap is not None:
+        s += f", with fills capped at {cap*100:g}% of prior-20-session median volume"
+    return s + (", and AFTER capital-gains tax" if _tax.selected() else ", BEFORE tax")
+
+
 def run_label(universe, arms):
     """The line every chart title starts with: universe, arm(s), cadence, tax, profile.
 

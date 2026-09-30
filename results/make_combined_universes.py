@@ -564,15 +564,20 @@ def _subtitle(UNIV):
     unsel = [t for t in REGISTRY if t not in {u["tag"] for u in UNIV}]
     has_index = [u for u in UNIV if u["index"] is not None]
 
+    # THE ARMS AND THE COST BASIS ARE READ FROM THE FIGURE AND THE RUN, since
+    # 2026-09-30. line1 said "v1, v2" on the arm-selection chart too, which can
+    # carry v3 and v4, and line2 said "Zerodha + 0.15% slippage" on taxed and
+    # tradeable charts.
+    arms = sorted({a for u in UNIV for a in u["arms"]})
     line1 = (_joined([u["display"] for u in UNIV])
-             + " -- v1, v2, own-universe equal-weight buy&hold, and the "
+             + f" -- {', '.join(arms)}, own-universe equal-weight buy&hold, and the "
              + ("published cap-weighted index for each"
                 if len(has_index) == n else
                 "published cap-weighted index where the universe has one")
              + "\n")
 
-    line2 = ("ALL STRATEGY NUMBERS AFTER TC (Zerodha + 0.15% slippage); before-TC "
-             "also shown in the legend.")
+    line2 = ("ALL STRATEGY NUMBERS " + naming.cost_basis()[len("ALL NUMBERS "):]
+             + "; before-TC also shown in the legend.")
     if unsel:
         # A COUNT, NOT A LIST, SINCE 2026-09-18. This named every registered
         # universe not on the figure, so the PUBLISHED PAIR CHART's caption grew
@@ -598,8 +603,8 @@ def _subtitle(UNIV):
     line3 += ("The equal-weight buy&hold is neither investable nor achievable: "
               f"{word} universes are\n"
               "today's index members backfilled, so names dropped or delisted during "
-              "the window are absent entirely and both strategy and buy&hold are "
-              "inflated.\n")
+              "the window are absent entirely and the sign of the bias is not "
+              "known.\n")
 
     # LIQUIDITY BELONGS HERE MOST OF ALL.
     #   Each universe's individual chart carries its own liquidity line, but this
