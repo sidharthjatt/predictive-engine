@@ -120,6 +120,7 @@ WHAT GATE 4 IS, AND WHAT IT IS NOT -- READ THIS BEFORE TRUSTING IT
 """
 import argparse
 import ast
+import contextlib
 import importlib
 import subprocess
 import sys
@@ -413,8 +414,9 @@ class Result:
         # with the headline, because a headline read on its own must not be able
         # to omit them.
         self.not_asserted = []
-        # GATE 4 steps whose universe no run after --since selected.
-        self.gate4_not_selected = 0
+        # Per gate, the steps (gate 4) or universe/arm pairs (gates 6, 7) that
+        # no run after --since selected: skipped, never passed.
+        self.not_selected = {}
 
     def fail(self, gate, what, detail=""):
         self.failures.append((gate, what, detail))
@@ -641,9 +643,8 @@ def gate_outputs(res, rows, since, sel):
         res.skip(4, "GATE 4  SKIPPED -- needs --since <epoch>, i.e. a run to "
                  "check against. Not counted as passed.", "need --since")
         return
-    import run as _run
     when = datetime.datetime.fromtimestamp(since).strftime("%Y-%m-%d %H:%M:%S")
-    runs = _run.runs_finished_since(since)
+    runs = _runs_since(since)
     if not runs:
         res.skip(4, f"GATE 4  SKIPPED -- no run folder under runs/ finished at or "
                  f"after --since {since:.0f} ({when}), so which steps ran is "
@@ -699,7 +700,7 @@ def gate_outputs(res, rows, since, sel):
     for t in sorted(not_selected):
         res.note(f"    not selected by this run: {t} -- "
                  f"{', '.join(not_selected[t])}")
-    res.gate4_not_selected = n_skip
+    res.not_selected[4] = n_skip
     res.note(f"GATE 4  {checked} steps checked against --since, "
              f"{n_skip} not selected by this run (skipped, not passed), "
              f"{unverifiable} not checkable (no declared span)")
@@ -851,23 +852,129 @@ def gate_delegates(res, slow):
 # GATE 6 -- the tax axis CHARGES tax, it does not merely rename files
 # ---------------------------------------------------------------------------
 
-def _tax_ledger(u, M, arm="v2", stems=("FY_EQUITY", "FY_TAX_STATEMENT")):
-    """Paths of `stems` for u's `arm` at default cadence and profile under
-    tax=on, named by the writers' own composers. Every arm since 2026-09-26."""
+def _runs_since(since, _cache={}):
+    """run.runs_finished_since(since), read once per check_all invocation."""
+    if since not in _cache:
+        import run as _run
+        _cache[since] = _run.runs_finished_since(since)
+    return _cache[since]
+
+
+@contextlib.contextmanager
+def _run_axes(rec=None, tax_on=True):
+    """Select a run's cadence, profile and arms, and tax on or off, for the
+    duration of the block, so the writers' own composers name what that run
+    wrote. rec=None selects the defaults (cadence 20, research, all four arms)."""
     import cadence as _cd
     import profiles as _pf
     import tax as _tx
+    import arms.registry as _ar
+    saved = (_cd._SELECTED, _pf.selected(), _tx.selected(), _ar._SELECTED)
+    try:
+        _cd.set_selection(rec["cadence"] if rec else None)
+        _pf.set_selection(rec["profile"] if rec else None)
+        _ar.set_selection(rec["arms"] if rec else None)
+        _tx.set_selection(tax_on)
+        yield
+    finally:
+        _cd.set_selection(saved[0]); _pf.set_selection(saved[1])
+        _tx.set_selection(saved[2]); _ar._SELECTED = saved[3]
+
+
+def _tax_ledger(u, M, arm="v2", stems=("FY_EQUITY", "FY_TAX_STATEMENT"), rec=None):
+    """Paths of `stems` for u's `arm` under tax=on, named by the writers' own
+    composers: at the axes run record `rec` selected, or at the default cadence
+    and profile when rec is None. Every arm since 2026-09-26."""
     sys.path.insert(0, str(ROOT / "results"))
     import audit_step
     import tax_report
     from arms.registry import ARMS
-    saved = (_cd._SELECTED, _pf.selected(), _tx.selected())
-    try:
-        _cd.set_selection(None); _pf.set_selection(None); _tx.set_selection(True)
+    with _run_axes(rec):
         tag = audit_step.artefact_tag(u, ARMS[getattr(arm, "name", arm)])
         return tuple(M / tax_report.artefact_name(s, tag) for s in stems)
-    finally:
-        _cd.set_selection(saved[0]); _pf.set_selection(saved[1]); _tx.set_selection(saved[2])
+
+
+def _v34_equity_pair(M, rec):
+    """(taxed, untaxed) v34_equity paths at rec's axes, composed as
+    v34_common.write_v34 composes them: arm subset, cadence, profile, tax."""
+    import cadence as _cd
+    import profiles as _pf
+    import tax as _tx
+    import arms.registry as _ar
+    out = []
+    for on in (True, False):
+        with _run_axes(rec, tax_on=on):
+            out.append(M / (f"v34_equity{_ar.selection_suffix()}{_cd.suffix()}"
+                            f"{_pf.suffix()}{_tx.suffix()}.csv"))
+    return tuple(out)
+
+
+def _tax_targets(res, gate, since):
+    """The (run, universe, arm) triples that runs finishing after --since wrote
+    tax artefacts for, or None after recording why the gate skips.
+
+    A pair no tax=on run selected is "not selected by this run": listed per
+    universe and counted in res.not_selected[gate], never passed. The same
+    reading of RUN.txt as gate 4; see gate_outputs.
+    """
+    import datetime
+    from universes.registry import REGISTRY
+    from arms.registry import ARMS
+    runs = _runs_since(since)
+    if not runs:
+        when = datetime.datetime.fromtimestamp(since).strftime("%Y-%m-%d %H:%M:%S")
+        res.skip(gate, f"GATE {gate}  SKIPPED -- no run folder under runs/ finished "
+                 f"at or after --since {since:.0f} ({when}), so which tax "
+                 f"artefacts a run wrote is unknown. Not counted as passed.",
+                 "no run folder for --since")
+        return None
+    targets, seen = [], set()
+    for r in runs:
+        if r["tax"] != "on":
+            res.note(f"GATE {gate}  run {r['folder'].name}: tax off, so it wrote "
+                     f"no tax artefacts")
+            continue
+        res.note(f"GATE {gate}  run {r['folder'].name}: universes "
+                 f"{', '.join(r['universes'])}; arms {', '.join(r['arms'])}; "
+                 f"cadence {r['cadence']}; profile {r['profile']}; tax on")
+        for t in r["universes"]:
+            for a in r["arms"]:
+                key = (t, a, r["cadence"], r["profile"])
+                if t in REGISTRY and a in ARMS and key not in seen:
+                    seen.add(key)
+                    targets.append((r, t, ARMS[a]))
+    chosen = {(t, a.name) for _r, t, a in targets}
+    skipped = {}
+    for t in sorted(REGISTRY):
+        rest = [a for a in ARMS if (t, a) not in chosen]
+        if rest:
+            skipped[t] = rest
+    for t, rest in skipped.items():
+        res.note(f"    not selected by this run: {t} -- {', '.join(rest)}")
+    res.not_selected[gate] = sum(len(v) for v in skipped.values())
+    if not targets:
+        res.skip(gate, f"GATE {gate}  SKIPPED -- no run after --since had tax on, "
+                 f"so none wrote tax artefacts. Not counted as passed.",
+                 "no tax=on run after --since")
+        return None
+    return targets
+
+
+def _written_by_run(res, gate, what, files, rec, since):
+    """Fail and return False unless every file exists and moved after --since."""
+    missing = [p.name for p in files if not p.exists()]
+    if missing:
+        res.fail(f"GATE {gate}", what,
+                 f"{rec['folder'].name} selected it with tax on, but there is no "
+                 f"{', '.join(missing)}")
+        return False
+    old = [p.name for p in files if p.stat().st_mtime < since]
+    if old:
+        res.fail(f"GATE {gate}", what,
+                 f"{rec['folder'].name} selected it with tax on, but "
+                 f"{', '.join(old)} was not rewritten after --since")
+        return False
+    return True
 
 
 def gate_tax(res, since, sel):
@@ -953,21 +1060,26 @@ def gate_tax(res, since, sel):
     except Exception as e:
         res.fail("GATE 6 tax", "registry", f"{type(e).__name__}: {e}")
         return
-    tags = sorted(REGISTRY) if sel in (None, "all") else [t.strip() for t in sel.split(",")]
+    # WHAT THE RUN SELECTED, SINCE 2026-09-30. This checked every universe and
+    # arm with tax artefacts on disk, at the default cadence and profile, under
+    # the four-arm names. After `run.py --universe nifty50 --arm v2 --tax on` it
+    # therefore checked files older runs had left and missed the one this run
+    # wrote, v34_equity_v2_tax.csv. It now checks the (universe, arm) pairs that
+    # runs finishing after --since selected with tax on, at their cadence and
+    # profile, and fails if one of them did not write its files.
+    #
     # EVERY ARM, SINCE 2026-09-26. This checked v2's column and v2's ledger only;
     # tax_report now writes a ledger per arm, and each is held to the same two
-    # identities against that arm's own column of v34_equity_tax.csv.
-    from arms.registry import ARMS as _ARMS
-    checked = 0
-    for t, arm in [(t, a) for t in tags for a in _ARMS.values()]:
-        u = REGISTRY.get(t)
-        if u is None:
-            continue
+    # identities against that arm's own column of the taxed v34_equity.
+    targets = _tax_targets(res, 6, since)
+    if targets is None:
+        return
+    for rec, t, arm in targets:
+        u = REGISTRY[t]
         col_name = arm.equity_column
         tn = f"{t}/{arm.name}"
         M = Path(u.metrics_dir)
-        taxed = M / "v34_equity_tax.csv"
-        plain = M / "v34_equity.csv"
+        taxed, plain = _v34_equity_pair(M, rec)
         # THE LEDGER IS NAMED EXACTLY, FOR THE CADENCE THIS GATE CHECKS. taxed is
         # the default-cadence, research, four-arm curve, so its ledger is v2's at
         # the same axes, named by the writer's own rule (audit_step.artefact_tag +
@@ -975,10 +1087,9 @@ def gate_tax(res, since, sel):
         # until 2026-09-23, and FY_EQUITY_<tag>_r10_tax.csv sorts before
         # FY_EQUITY_<tag>_tax.csv: one cadence-10 tax run made the gate compare
         # the cadence-10 ledger with the cadence-20 curve and fail by Rs 329,753.
-        fy, stmt = _tax_ledger(u, M, arm)
-        if not taxed.exists() or not fy.exists() or not stmt.exists():
+        fy, stmt = _tax_ledger(u, M, arm, rec=rec)
+        if not _written_by_run(res, 6, tn, (taxed, fy, stmt), rec, since):
             continue
-        checked += 1
 
         def col(path, name):
             with open(path, newline="") as fh:
@@ -987,7 +1098,7 @@ def gate_tax(res, since, sel):
 
         trows, tlast = col(taxed, None)
         if col_name not in tlast:
-            res.fail("GATE 6 tax", f"{tn} v34_equity_tax.csv",
+            res.fail("GATE 6 tax", f"{tn} {taxed.name}",
                      f"no {col_name} column to check")
             continue
         t_final = float(tlast[col_name])
@@ -999,14 +1110,15 @@ def gate_tax(res, since, sel):
         # (i) EXACT, to a paisa.
         if abs(t_final - fy_final) > 0.01:
             res.fail("GATE 6 tax", f"{tn} taxed equity vs FY_EQUITY",
-                     f"v34_equity_tax {arm.name} final Rs {t_final:,.2f} against "
+                     f"{taxed.stem} {arm.name} final Rs {t_final:,.2f} against "
                      f"FY_EQUITY close_equity Rs {fy_final:,.2f} -- two paths "
                      f"through the same engine disagree by Rs "
                      f"{abs(t_final-fy_final):,.2f}")
             continue
 
         if not plain.exists():
-            res.note(f"GATE 6  {tn}: no untaxed v34_equity.csv to compare against")
+            res.note(f"GATE 6  {tn}: no untaxed {plain.name} to compare against, "
+                     f"so only the FY_EQUITY identity was checked")
             continue
         with open(plain, newline="") as fh:
             prows = list(csv.DictReader(fh))
@@ -1039,17 +1151,13 @@ def gate_tax(res, since, sel):
                  f"{gap:,.2f} >= assessed Rs {assessed:,.2f} "
                  f"(compounding Rs {gap-assessed:,.2f}; statement total Rs "
                  f"{total:,.2f}, unassessed Rs {unassessed:,.2f})")
-    if checked == 0:
-        res.skip(6, "GATE 6  SKIPPED -- no tax artefacts on disk (a tax=off "
-                 "run writes none). Not counted as passed.",
-                 "no tax artefacts on disk")
 
 
 # ---------------------------------------------------------------------------
 # GATE 7 -- the LTCG ceiling, watched rather than assumed
 # ---------------------------------------------------------------------------
 
-def gate_ltcg(res, sel):
+def gate_ltcg(res, sel, since=None):
     """HOLDING_PERIOD's claim about the long-term branch must match its lots.
 
     THIS GATE EXISTS BECAUSE ITS ABSENCE WAS MEASURED. tax_util.max_holding_days
@@ -1092,22 +1200,36 @@ def gate_ltcg(res, sel):
         res.fail("GATE 7 ltcg", "import", f"{type(e).__name__}: {e}")
         return
 
-    tags = sorted(REGISTRY) if sel in (None, "all") else [t.strip() for t in sel.split(",")]
+    # WITH --since, ONLY WHAT THE RUN WROTE, SINCE 2026-09-30. Without it this
+    # reads every universe's lots on disk at the default axes, which is right
+    # for a check of the tree. After a run it read lots older runs had left and
+    # never the ones a non-default run wrote. With --since the (universe, arm)
+    # pairs come from the runs that finished after it, as in gate 6.
+    #
     # EVERY ARM, EACH FILE NAMED EXACTLY, SINCE 2026-09-26. This took the first
     # HOLDING_PERIOD_LOTS_*_tax.csv in sort order, which was v2's research file
     # only by the accident of "_tax" sorting before "_tradeable_tax" and "_v1_tax".
-    # Each arm's research, default-cadence lots are now named by the writer's rule
-    # (_tax_ledger) and checked.
+    # Each arm's lots are now named by the writer's rule (_tax_ledger) and checked.
     from arms.registry import ARMS as _ARMS
+    if since is None:
+        tags = sorted(REGISTRY) if sel in (None, "all") else [t.strip() for t in sel.split(",")]
+        items = [(None, t, a) for t in tags for a in _ARMS.values()]
+    else:
+        items = _tax_targets(res, 7, since)
+        if items is None:
+            return
     checked, stale = 0, []
-    for t0, arm in [(t, a) for t in tags for a in _ARMS.values()]:
+    for rec, t0, arm in items:
         u = REGISTRY.get(t0)
         if u is None:
             continue
         t = f"{t0}/{arm.name}"
         lp, onf = _tax_ledger(u, Path(u.metrics_dir), arm,
-                              ("HOLDING_PERIOD_LOTS", "HOLDING_PERIOD"))
-        if not lp.exists():
+                              ("HOLDING_PERIOD_LOTS", "HOLDING_PERIOD"), rec=rec)
+        if rec is not None:
+            if not _written_by_run(res, 7, t, (lp,), rec, since):
+                continue
+        elif not lp.exists():
             continue
         try:
             lots = read_table(lp)
@@ -1169,7 +1291,7 @@ def gate_ltcg(res, sel):
             except Exception:
                 pass
 
-    if checked == 0:
+    if checked == 0 and since is None:
         res.skip(7, "GATE 7  SKIPPED -- no HOLDING_PERIOD_LOTS artefacts on "
                  "disk (a tax=off run writes none). Not counted as passed.",
                  "no HOLDING_PERIOD_LOTS artefacts on disk")
@@ -1376,22 +1498,26 @@ def _print_not_asserted(res):
         print(f"          {label:<{w}}  {short}")
 
 
-def _print_gate4_not_selected(res):
-    if res.gate4_not_selected:
-        print(f"        GATE 4 SKIPPED {res.gate4_not_selected} STEPS not selected "
-              f"by this run; they are not counted as passed.")
+def _print_not_selected(res):
+    unit = {4: "steps"}
+    for g, n in sorted(res.not_selected.items()):
+        if n:
+            print(f"        GATE {g} SKIPPED {n} {unit.get(g, 'universe/arm pairs')} "
+                  f"not selected by this run; they are not counted as passed.")
 
 
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--since", type=float, default=None,
                     help="epoch seconds; gate 4 checks that steps wrote after it")
-    # WHICH UNIVERSES TO CHECK in gates 6, 7 and 8. Gate 4 no longer reads it:
-    # it takes the selection from the run folders that finished after --since,
-    # because a bare --since after a subset run failed every unselected step.
+    # WHICH UNIVERSES TO CHECK in gate 8, and in gate 7 without --since. Gates
+    # 4, 6 and 7 with --since take the selection from the run folders that
+    # finished after it, because a bare --since after a subset run checked, and
+    # failed, what that run never selected.
     ap.add_argument("--universe", default="all",
-                    help="comma-separated tags for gates 6-8, or 'all'; gate 4 "
-                         "reads the run's own selection from runs/")
+                    help="comma-separated tags for gate 8 and for gate 7 without "
+                         "--since, or 'all'; with --since, gates 4, 6 and 7 read "
+                         "the run's own selection from runs/")
     # THE REFIT DELEGATES ARE OFF BY DEFAULT. Without this flag they are
     # recorded as named skips, not as passes: validate_sizing is 1,134 LightGBM
     # fits per universe, which its own cost block measures at ~22.7 min.
@@ -1418,7 +1544,7 @@ def main(argv=None):
     gate_outputs(res, rows, args.since, args.universe)
     gate_delegates(res, args.slow)
     gate_tax(res, args.since, args.universe)
-    gate_ltcg(res, args.universe)
+    gate_ltcg(res, args.universe, args.since)
     gate_data_source(res, args.universe)
 
     print()
@@ -1459,7 +1585,7 @@ def main(argv=None):
         print(f"RESULT: PASS ({len(ok)} of {n} asserted, "
               f"{len(res.skipped)} skipped: {'; '.join(parts)})")
         print(f"        ASSERTED: {', '.join('GATE %d' % g for g in ok)}")
-        _print_gate4_not_selected(res)
+        _print_not_selected(res)
         _print_not_asserted(res)
         print("        A SKIPPED GATE IS NOT A PASSED GATE. Exit code is 0 "
               "because a skip is legitimate,")
@@ -1469,7 +1595,7 @@ def main(argv=None):
               "see the docstring).")
     else:
         print(f"RESULT: PASS -- all {n} gates asserted, none skipped")
-        _print_gate4_not_selected(res)
+        _print_not_selected(res)
         _print_not_asserted(res)
     return 0
 
