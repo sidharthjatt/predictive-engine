@@ -260,6 +260,11 @@ def main(u):
         _w=_top[0][1]/_t
         _yrs=(bd[-1]-bd[0]).days/365.25
         _impact=(1+res[L_BH_PRE]/100)*((1-_w)**(1/_yrs)-1)*100
+        # WHAT A NAME AT THE LIMIT WOULD MOVE THIS BASKET BY, the run's own yardstick.
+        # The withheld reason quoted a fixed "effect size of 2.05", nifty100's swing
+        # at 3f0ef05, on every universe and run. This run's own swing is the
+        # withheld TAX_COST_OF_TURNOVER, so it cannot be the yardstick either.
+        _lim_impact=(1+res[L_BH_PRE]/100)*((1-CONC_LIMIT)**(1/_yrs)-1)*100
         print(f"\n  bh_lots concentration: top name {_top[0][0]} = {_w*100:.1f}% of terminal "
               f"value, top 3 = {sum(v for _,v in _top[:3])/_t*100:.1f}%")
         print(f"      dropping that one name would move the benchmark CAGR by "
@@ -268,9 +273,10 @@ def main(u):
             print(f"\n  EDGE  ** WITHHELD **  top-name weight {_w*100:.1f}% exceeds the "
                   f"{CONC_LIMIT*100:.2f}% limit by {_w/CONC_LIMIT:.1f}x.")
             print(f"        This basket cannot resolve the effect it is being asked to")
-            print(f"        measure: one name moves it {abs(_impact):.2f} pts, against an effect")
-            print(f"        size of 2.05. The universe is SURVIVORSHIP_MODE=static -- today's")
-            print(f"        members backfilled -- so {_top[0][0]} is in this basket because of the")
+            print(f"        measure: one name moves it {abs(_impact):.2f} pts, where a name at the")
+            print(f"        limit would move it {abs(_lim_impact):.2f}. The universe is")
+            print(f"        SURVIVORSHIP_MODE=static -- today's members backfilled -- so")
+            print(f"        {_top[0][0]} is in this basket because of the")
             print(f"        run it had. Any edge printed here would be that one name's history.")
             print(f"        Limit basis: {CONC_LIMIT_BASIS}.")
         else:
@@ -292,7 +298,8 @@ def main(u):
         _reason = ("" if not _withheld else
                    f"top-name weight {_w*100:.1f}% exceeds the {CONC_LIMIT*100:.2f}% "
                    f"limit by {_w/CONC_LIMIT:.1f}x; {_top[0][0]} alone moves the "
-                   f"benchmark {_impact:+.2f} pts against an effect size of 2.05, "
+                   f"benchmark {_impact:+.2f} pts, where a name at the limit would move "
+                   f"it {_lim_impact:+.2f} pts, "
                    f"and the universe is SURVIVORSHIP_MODE=static so that name is "
                    f"in the basket because of the run it had")
         _lines = [

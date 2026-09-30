@@ -214,13 +214,8 @@ def main(u):
                                             mode="none", target_vol=tv,
                                             audit=base_audit, rebal=_reb,
                                             tax_enabled=_taxon, **_capkw)
-    # AN AUDIT DICT FOR v2 TOO, SO THE VERDICT CAN STATE THE TAX v2 PAID. It
-    # only appends to lists; the arithmetic is the same with or without it.
-    fin_audit = {k: [] for k in
-                 ("holdings", "summary", "trades", "ranking", "decisions", "skipped")}
     fin_eq, tcf, nf, expo = backtest_exposure(px, op, sc, bd, pc, mom20, port_vol,
                                               mode="breadth", target_vol=tv,
-                                              audit=fin_audit,
                                               rebal=_reb, tax_enabled=_taxon,
                                               **_capkw)
     bh = START_CAPITAL * (1 + px.pct_change().loc[bd].mean(axis=1).fillna(0)).cumprod()
@@ -388,6 +383,7 @@ def main(u):
     # same dates, same seeds -- which is what the spec requires.
     # Nothing above this line is altered; v2FINAL_* keeps its names and columns.
     import v34_common
+    _arm_audits = {}
     v34_comp, v34_subs, _ = v34_common.run_v34(
         M, u.label, tag, px, op, sc, bd, pc, mom20, port_vol, tv,
         backtest_exposure,
@@ -397,7 +393,7 @@ def main(u):
         {"TOP_N": TOP_N, "BUFFER": BUFFER, "REBAL": REBAL, "VOL_WIN": VOL_WIN,
          "START_CAPITAL": START_CAPITAL, "CASH_YIELD": CASH_YIELD,
          "SLIPPAGE": 0.0015},
-        v1_audit=base_audit)
+        v1_audit=base_audit, audits_out=_arm_audits)
     print("\n" + "=" * 100)
     print(f" V3/V4 FOUR-ARM MEASUREMENT -- {u.label}")
     print("=" * 100)
@@ -417,40 +413,59 @@ def main(u):
     # -1.59) in every universe's verdict; and a TOP_N comparison against two
     # retired universes of 58 and 74 names. Every figure below now comes from
     # this universe, cadence, profile and tax setting, or from the registry.
+    #
+    # THE VERDICT COVERS THE ARMS THE RUN SELECTED. It reported v2 on every run,
+    # because this step always computes v1 and v2, so `--arm v1,v3` printed a v2
+    # verdict. Each selected arm's row is in v34_comp, which run_v34 built from
+    # the same curves this step published, and its audit holds the tax it paid.
+    import bh_held
+    _sel = arm_reg.selected()
+    _rows = v34_comp.set_index("Config")
+    _bhm = _rows.loc["buy & hold equal-weight"]
     print("\n" + "=" * 100)
     print("VERDICT")
     print("=" * 100)
-    print(f"  {u.label}: v2 against the equal-weight buy & hold, cadence {_reb}, "
-          f"profile {_prof.selected()}, tax {'on' if _taxon else 'off'}")
-    print(f"  v2 FINAL   : CAGR {mfin['CAGR%']:>6.2f}%  Sharpe {mfin['Sharpe']:>5.2f}  "
-          f"MaxDD {mfin['MaxDD%']:>7.2f}%  Calmar {mfin['Calmar']}")
-    print(f"  Buy & hold : CAGR {mbh['CAGR%']:>6.2f}%  Sharpe {mbh['Sharpe']:>5.2f}  "
-          f"MaxDD {mbh['MaxDD%']:>7.2f}%  Calmar {mbh['Calmar']}")
-    d_sh = mfin["Sharpe"] - mbh["Sharpe"]
-    d_dd = mfin["MaxDD%"] - mbh["MaxDD%"]
-    d_cagr = mfin["CAGR%"] - mbh["CAGR%"]
-    sh_word = "ahead of" if d_sh > 0 else "behind"
+    print(f"  {u.label}: {', '.join(a.name for a in _sel)} against the equal-weight buy & hold, "
+          f"cadence {_reb}, profile {_prof.selected()}, tax {'on' if _taxon else 'off'}")
+
+    def _line(name, m):
+        print(f"  {name:<11}: CAGR {m['CAGR%']:>6.2f}%  Sharpe {m['Sharpe']:>5.2f}  "
+              f"MaxDD {m['MaxDD%']:>7.2f}%  Calmar {m['Calmar']:.2f}")
+    for a in _sel:
+        _line(a.name, _rows.loc[a.label])
+    _line("Buy & hold", _bhm)
+    print("\n  Versus equal-weight buy & hold over the same period:")
+    for a in _sel:
+        m = _rows.loc[a.label]
+        d_sh = m["Sharpe"] - _bhm["Sharpe"]
+        print(f"    {a.name:<4} Sharpe {m['Sharpe']:>7.2f} vs {_bhm['Sharpe']:>6.2f}   ({d_sh:+.2f})  -- "
+              f"{'ahead of' if d_sh > 0 else 'behind'} buy & hold")
+        print(f"    {'':<4} MaxDD  {m['MaxDD%']:>7.2f}% vs {_bhm['MaxDD%']:>6.2f}%   "
+              f"({m['MaxDD%'] - _bhm['MaxDD%']:+.2f} pts)")
+        print(f"    {'':<4} CAGR   {m['CAGR%']:>7.2f}% vs {_bhm['CAGR%']:>6.2f}%   "
+              f"({m['CAGR%'] - _bhm['CAGR%']:+.2f} pts)")
+    _dep = [(a.name, float(_rows.loc[a.label, "Deployed%"])) for a in _sel]
+    print(f"\n  Average invested: {', '.join(f'{n} {d:.0f}%' for n, d in _dep)}.")
+    if any(d < 100 for _, d in _dep):
+        print("  Where an arm holds cash, raw CAGR is not the right comparison on its own --\n"
+              "  return per deployed rupee and drawdown are.")
+    print(f"  Idle cash earns {CASH_YIELD*100:g}%, so none of the return above comes from interest.")
     if _taxon:
-        tax_line = (f"  Capital-gains tax was charged in this run: v2 paid Rs "
-                    f"{fin_audit['tax']['cum_tax']:,.2f} and v1 Rs "
-                    f"{base_audit['tax']['cum_tax']:,.2f},\n  and every figure "
-                    f"above is after it. The buy & hold never sells, so it pays none.")
+        _paid = [f"{a.name} Rs {_arm_audits[a.name]['tax']['cum_tax']:,.2f}" for a in _sel]
+        # THE LAST-DAY FIGURE IS bh_held.held_lots', the one COST_SUMMARY and
+        # BH_LOTS report for the buy & hold sold on the last day.
+        _bh_tax = bh_held.held_lots(px, op, bd)["detail"]["tax"]
+        print(f"  Capital-gains tax was charged in this run and every figure above is after it.\n"
+              f"  Tax paid: {', '.join(_paid)}.\n"
+              f"  The buy & hold never sells, so it pays none. Sold on the last day, the investable\n"
+              f"  buy & hold (whole shares of every name bought at the first open) would pay\n"
+              f"  Rs {_bh_tax:,.2f}.")
     else:
-        tax_line = ("  Tax was not charged in this run (tax off): every figure above is "
-                    "before capital-gains\n  tax. --tax on charges it.")
+        print("  Tax was not charged in this run (tax off): every figure above is before "
+              "capital-gains\n  tax. --tax on charges it.")
     print(f"""
-  Versus equal-weight buy & hold over the same period:
-    Sharpe   {mfin['Sharpe']:>6.2f} vs {mbh['Sharpe']:>6.2f}   ({d_sh:+.2f})  -- {sh_word} buy & hold
-    MaxDD    {mfin['MaxDD%']:>6.2f}% vs {mbh['MaxDD%']:>6.2f}%   ({d_dd:+.2f} pts)
-    CAGR     {mfin['CAGR%']:>6.2f}% vs {mbh['CAGR%']:>6.2f}%   ({d_cagr:+.2f} pts)
-
-  The strategy holds {expo*100:.0f}% invested on average, so raw CAGR is not the
-  right comparison on its own -- return per deployed rupee and drawdown are.
-  Idle cash earns {CASH_YIELD*100:g}%, so none of the return above comes from interest.
-{tax_line}
-
   Standing caveat: the universe is today's {len(u.symbol_list)} index members backfilled to
-  {BT_START_DATE.date()}, so both lines carry survivorship bias of unknown sign. See
+  {BT_START_DATE.date()}, so every line above carries survivorship bias of unknown sign. See
   diagnostics/survivorship_attribution.txt for what has been estimated.
 """)
 

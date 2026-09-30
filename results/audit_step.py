@@ -69,6 +69,16 @@ def panel_path(u):
     return config.require_cache(u.score_cache, what=f"{u.tag} score panel")
 
 
+def prices(u):
+    """(close, open, score, trading days) from the score panel, as run() replays them.
+    make_daily_log reads the buy & hold's prices through this too."""
+    p = read_table(panel_path(u), parse_dates=["date"])
+    px = p.pivot_table(index="date", columns="symbol", values="close").ffill()
+    op = p.pivot_table(index="date", columns="symbol", values="open").ffill()
+    sc = p.pivot_table(index="date", columns="symbol", values="score")
+    return px, op, sc, u.trading_days(px.index)
+
+
 def artefact_tag(u, arm):
     """The filename tag for one (universe, arm, cadence) -- THE ONE DEFINITION.
 
@@ -214,13 +224,9 @@ def run(u, arm=None):
     # not a fault.
     import engine_core as _ec
     _ec.set_tradeability(u)
-    p = read_table(panel_path(u), parse_dates=["date"])
-    px = p.pivot_table(index="date", columns="symbol", values="close").ffill()
-    op = p.pivot_table(index="date", columns="symbol", values="open").ffill()
-    sc = p.pivot_table(index="date", columns="symbol", values="score")
+    px, op, sc, bd = prices(u)
     pc = precompute(px)
     mom20 = px / px.shift(20) - 1
-    bd = u.trading_days(px.index)
 
     # THE ARM'S OWN PARAMETERS, not a hardcoded breadth/invvol pair. The default
     # is v2, which is the arm this step has always run, so mode and sizing below

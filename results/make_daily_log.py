@@ -329,8 +329,10 @@ def _replay_fills(led, g, d):
         led.buy(o["symbol"], int(o["qty"]), float(o["price"]), d)
 
 
-def build(mdir, tag, arm, raw_idx=None, cal_sorted=None):
+def build(mdir, tag, arm, bh, raw_idx=None, cal_sorted=None):
     """One forensic log for one already-written audit trail, named by `tag`.
+
+    `bh` is cost_report.bh_costs' result for the universe, for the totals block.
 
     THIS USED TO REFUSE UNLESS THE RUN WAS v2 AT THE DEFAULT CADENCE, because it
     reconstructed the unsuffixed daily_*_{universe}.csv names itself rather than
@@ -778,6 +780,20 @@ def build(mdir, tag, arm, raw_idx=None, cal_sorted=None):
     L += [f"   VERDICT: {'every day reconciles.' if allok else 'some days failed -- see above.'}",
           "=" * W]
 
+    # THE COST TOTALS END THE LOG. Every figure comes from results/cost_report.py,
+    # and daily_log_totals raises, failing the run, if any differs from
+    # COST_SUMMARY_<tag>.txt. Final equity is the engine's curve at full
+    # precision, the value cost_report was given; daily_summary's total is rounded
+    # to the paisa and would move gross profit.
+    import cost_report
+    import tax as _tax_axis
+    from test_exposure import START_CAPITAL as _cap
+    if ref_curve is None:
+        raise cost_report.CostReconciliationError(
+            f"{tag}: no engine curve on disk for {arm.name}, so the cost totals have no final equity")
+    L += cost_report.daily_log_totals(M, tag, arm.name, float(ref_curve.loc[all_days[-1]]), bh,
+                                      float(_cap), bool(_tax_axis.selected()), W)
+
     out = M / f"DAILY_LOG_{tag}.txt"
     out.write_text("\n".join(L))
     print(f"  {tag}: {n:,} days, {len(L):,} lines -> {out.name}")
@@ -831,6 +847,13 @@ def main():
         # ONCE PER UNIVERSE, not once per arm: this reads every raw CSV in the
         # universe, and all four arms share the same answer.
         raw_idx, cal_sorted = raw_row_index(u)
+        # THE BUY & HOLD'S COSTS, ALSO ONCE PER UNIVERSE: every arm's log shows the
+        # same basket. cost_report.bh_costs is the call write() makes for
+        # COST_SUMMARY, on the prices audit_step replays.
+        import cost_report
+        import tax as _tax_axis
+        from test_exposure import START_CAPITAL as _cap
+        bh = None
         for _arm in _ar.selected():
             tag = audit_step.artefact_tag(u, _arm)
             gone = missing_trail(mdir, tag)
@@ -842,7 +865,10 @@ def main():
                       f"({', '.join(g + '_' + tag + '.csv' for g in gone)}). "
                       f"{u.label} has no {_arm.name} trail.")
                 continue
-            build(mdir, tag, _arm, raw_idx, cal_sorted)
+            if bh is None:
+                px, op, _, bd = audit_step.prices(u)
+                bh = cost_report.bh_costs(px, op, bd, float(_cap), bool(_tax_axis.selected()))
+            build(mdir, tag, _arm, bh, raw_idx, cal_sorted)
 
     SEL = set(selected_tags())
     for _t in REGISTRY:

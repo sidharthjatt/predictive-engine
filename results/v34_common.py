@@ -183,8 +183,11 @@ def _git_state():
 # selection_suffix() + cadence.suffix() + profiles.suffix().
 def run_v34(M, universe_label, universe_tag, px, op, sc, bd, pc, mom20, port_vol,
             tv, backtest_exposure, v1_eq, v1_tc, v1_n, v2_eq, v2_tc, v2_n, v2_expo,
-            start_capital, halves, consts, v1_audit=None):
-    """Run v3 and v4, assemble all four arms plus buy & hold, write the outputs."""
+            start_capital, halves, consts, v1_audit=None, audits_out=None):
+    """Run v3 and v4, assemble all four arms plus buy & hold, write the outputs.
+
+    `audits_out`, when a dict, receives {arm name: audit} for the selected arms, so
+    the engine's verdict can state the tax each one paid."""
     def _blank():
         return {k: [] for k in ("holdings", "summary", "trades",
                                 "ranking", "decisions", "skipped")}
@@ -265,6 +268,8 @@ def run_v34(M, universe_label, universe_tag, px, op, sc, bd, pc, mom20, port_vol
         ("v4", "v4 provol, breadth-scaled", "v4_provol_breadth", v4_eq, v4_tc, v4_n, v4_expo * 100,  a4),
     ]
     ARM_ON = [a for a in ARM_DEF if a[0] in sel]
+    if audits_out is not None:
+        audits_out.update({nm: au for nm, _, _, _, _, _, _, au in ARM_ON})
 
     curves = [(lab, eq, dep) for _, lab, _, eq, _, _, dep, _ in ARM_ON] \
         + [("buy & hold equal-weight", bh, 100.0)]

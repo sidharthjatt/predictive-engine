@@ -338,18 +338,44 @@ def bh_costs(px, op, bd, start_capital, tax_on):
             "tax_if_on": tx["total_tax"]}
 
 
-def summary_block(label, profile, tax_on, rebal, start_capital, equity, fills, years, days, bh,
-                  cap_cuts=0):
-    """The text block, as a list of lines."""
-    final = float(equity.iloc[-1])
+def strategy_totals(start_capital, final, fills, years):
+    """The run's cost totals: the figures the summary block and the daily log print."""
     tot = {k: float(fills[k].sum()) if len(fills) else 0.0 for k, _ in CHARGES}
     charges = sum(tot.values())
     slip = float(fills["slippage_rs"].sum()) if len(fills) else 0.0
     stcg = float(years["stcg_tax"].sum())
     ltcg = float(years["ltcg_tax"].sum())
     tax = stcg + ltcg
-    exu = float(years["exemption_used"].sum())
-    gross = final - start_capital + charges + slip + tax
+    return {"final": final, "gross": final - start_capital + charges + slip + tax,
+            "by_type": tot, "charges": charges, "slippage": slip, "tax": tax,
+            "stcg": stcg, "ltcg": ltcg, "exemption_used": float(years["exemption_used"].sum()),
+            "all_costs": charges + slip + tax}
+
+
+def bh_totals(bh, start_capital):
+    """{"held": ..., "sold": ...}: bh_costs' figures in strategy_totals' shape, for the
+    buy & hold held to the end and sold on the last day."""
+    bc, bs = sum(bh["buy_charges"].values()), bh["buy_slippage"]
+    sc_, ss = sum(bh["sell_charges"].values()), bh["sell_slippage"]
+    held_costs = bc + bs
+    sold_costs = bc + bs + sc_ + ss + bh["tax"]
+    held = {"final": bh["held_final"], "gross": bh["held_final"] - start_capital + held_costs,
+            "by_type": dict(bh["buy_charges"]), "charges": bc, "slippage": bs, "tax": 0.0,
+            "stcg": 0.0, "ltcg": 0.0, "exemption_used": 0.0, "all_costs": held_costs}
+    sold = {"final": bh["sold_final"], "gross": bh["sold_final"] - start_capital + sold_costs,
+            "by_type": {k: bh["buy_charges"][k] + bh["sell_charges"][k] for k, _ in CHARGES},
+            "charges": bc + sc_, "slippage": bs + ss, "tax": bh["tax"], "stcg": bh["stcg_tax"],
+            "ltcg": bh["ltcg_tax"], "exemption_used": bh["exemption_used"],
+            "all_costs": sold_costs}
+    return {"held": held, "sold": sold}
+
+
+def summary_block(label, profile, tax_on, rebal, start_capital, equity, fills, years, days, bh,
+                  cap_cuts=0):
+    """The text block, as a list of lines."""
+    S = strategy_totals(start_capital, float(equity.iloc[-1]), fills, years)
+    final, gross, tot, charges = S["final"], S["gross"], S["by_type"], S["charges"]
+    slip, stcg, ltcg, tax, exu = S["slippage"], S["stcg"], S["ltcg"], S["tax"], S["exemption_used"]
     L = ["=" * 90, f" COSTS -- {label}   cadence {rebal}, profile {profile}, tax {'on' if tax_on else 'off'}",
          "=" * 90,
          f"  starting capital Rs {start_capital:,.2f}   final equity Rs {final:,.2f}",
@@ -400,17 +426,14 @@ def summary_block(label, profile, tax_on, rebal, start_capital, equity, fills, y
              "levied on.")
     # buy & hold, held to the end and sold on the last day
     if bh is not None:
-        bc, bs = sum(bh["buy_charges"].values()), bh["buy_slippage"]
-        sc_, ss = sum(bh["sell_charges"].values()), bh["sell_slippage"]
-        held_costs = bc + bs
-        sold_costs = bc + bs + sc_ + ss + bh["tax"]
-        g_held = bh["held_final"] - start_capital + held_costs
-        g_sold = bh["sold_final"] - start_capital + sold_costs
+        B = bh_totals(bh, start_capital)
+        bc, bs, held_costs, g_held = (B["held"][k] for k in ("charges", "slippage", "all_costs", "gross"))
+        sold_costs, g_sold = B["sold"]["all_costs"], B["sold"]["gross"]
         L += ["", f"  investable buy & hold ({bh['names']} names bought at the first open)",
               f"  {'':<34}{'held to the end':>18}{'sold on the last day':>22}",
               f"  {'final equity':<34}{bh['held_final']:>18,.2f}{bh['sold_final']:>22,.2f}",
               f"  {'gross profit':<34}{g_held:>18,.2f}{g_sold:>22,.2f}"]
-        for nm, x, y in (("charges", bc, bc + sc_), ("slippage", bs, bs + ss),
+        for nm, x, y in (("charges", bc, B["sold"]["charges"]), ("slippage", bs, B["sold"]["slippage"]),
                          ("tax, total", 0.0, bh["tax"]), ("  short-term", 0.0, bh["stcg_tax"]),
                          ("  long-term", 0.0, bh["ltcg_tax"]),
                          ("  LTCG exemption used (not a cost)", 0.0, bh["exemption_used"]),
@@ -446,6 +469,127 @@ def summary_block(label, profile, tax_on, rebal, start_capital, equity, fills, y
               f"{len(fills):,} fills, tax on {len(years)} financial years, the totals above, and "
               f"the buy & hold held and sold.",
           "=" * 90]
+    return L
+
+
+# ---------------------------------------------------------------------------
+# THE DAILY LOG'S TOTALS BLOCK
+# ---------------------------------------------------------------------------
+# make_daily_log calls daily_log_totals once per log. The strategy's figures are
+# strategy_totals over the COSTS_ and COST_TAX_YEARS_ files write() saved, and
+# the buy & hold's are bh_totals over bh_costs, so no figure is computed a second
+# way. Every figure COST_SUMMARY_<tag>.txt also prints is then compared with it,
+# as printed, and any difference fails the run.
+BOOK_TITLES = {"held": "buy & hold, held to the end",
+               "sold": "buy & hold, sold on the last day"}
+
+
+def read_run_costs(M, tag):
+    """(fills, years) as write() saved them for `tag`, in the frames strategy_totals reads."""
+    M = Path(M)
+    from config import read_table
+    # `tag` is audit_step.artefact_tag(u, arm), passed in by make_daily_log
+    fills = read_table(M / f"COSTS_{tag}.csv", parse_dates=["date"]).rename(columns={"stt": "stt_ctt"})
+    # `tag` is audit_step.artefact_tag(u, arm), passed in by make_daily_log
+    years = read_table(M / f"COST_TAX_YEARS_{tag}.csv")
+    return fills, years
+
+
+def _book_figures(book, T_):
+    out = {f"{book}/{k}": T_[k] for k in ("final", "gross", "charges", "slippage", "tax", "stcg",
+                                          "ltcg", "exemption_used", "all_costs")}
+    out.update({f"{book}/{k}": T_["by_type"][k] for k, _ in CHARGES})
+    return out
+
+
+def summary_figures(text):
+    """{"<book>/<figure>": "1,234.56"} for every rupee figure the summary block prints
+    in its totals: the strategy table and the buy & hold table, as printed."""
+    import re
+    lines = text.splitlines()
+    out = {}
+    m = re.search(r"final equity Rs ([-\d,.]+)", text)
+    out["strategy/final"] = m.group(1)
+    out["strategy/gross"] = re.search(r"gross profit Rs ([-\d,.]+) =", text).group(1)
+    names = {"charges, total": "charges", "charges": "charges", "slippage": "slippage",
+             "tax, total": "tax", "short-term": "stcg", "long-term": "ltcg",
+             "LTCG exemption used (not a cost)": "exemption_used", "all costs": "all_costs",
+             "final equity": "final", "gross profit": "gross"}
+    names.update({nm: k for k, nm in CHARGES})
+    i = next(j for j, x in enumerate(lines) if x.rstrip().endswith("of gross"))
+    for x in lines[i + 1:]:
+        if not x.strip():
+            break
+        out[f"strategy/{names[x[2:36].strip()]}"] = x[36:52].strip()
+    i = next((j for j, x in enumerate(lines) if x.rstrip().endswith("sold on the last day")
+              and "held to the end" in x), None)
+    if i is not None:
+        for x in lines[i + 1:]:
+            if x.startswith("  all costs, % of gross profit"):
+                break
+            k = names[x[2:36].strip()]
+            out[f"held/{k}"] = x[36:54].strip()
+            out[f"sold/{k}"] = x[54:76].strip()
+    m = re.search(r"with tax on it would pay Rs ([-\d,.]+)\.", text)
+    if m:
+        out["sold/tax_if_on"] = m.group(1)
+    return out
+
+
+def daily_log_totals(M, tag, arm_name, final, bh, start_capital, tax_on, width):
+    """The totals block that ends DAILY_LOG_<tag>.txt, as a list of lines.
+
+    `final` is the arm's final equity from the engine's curve and `bh` is bh_costs'
+    result for the universe. Raises CostReconciliationError if any figure differs
+    from COST_SUMMARY_<tag>.txt."""
+    M = Path(M)
+    fills, years = read_run_costs(M, tag)
+    books = {"strategy": strategy_totals(start_capital, final, fills, years),
+             **bh_totals(bh, start_capital)}
+    mine = {}
+    for b, T_ in books.items():
+        mine.update(_book_figures(b, T_))
+    mine["sold/tax_if_on"] = bh["tax_if_on"]
+    # `tag` is audit_step.artefact_tag(u, arm), passed in by make_daily_log
+    summ = M / f"COST_SUMMARY_{tag}.txt"
+    if not summ.exists():
+        _fail("daily log", None, 0.0, f"{summ.name} is absent, so the totals cannot be checked")
+    theirs = summary_figures(summ.read_text())
+    for k, v in theirs.items():
+        got = f"{mine[k]:,.2f}"
+        if got != v:
+            _fail("daily log", None, float(got.replace(",", "")) - float(v.replace(",", "")),
+                  f"the daily log's {k.replace('/', ' ')} is Rs {got}, {summ.name} prints Rs {v}")
+    L = ["", "=" * width,
+         " COST TOTALS -- charges, slippage and capital-gains tax over the whole run",
+         "=" * width,
+         f"   starting capital Rs {start_capital:,.2f}.   gross profit = final equity - starting capital"
+         f" + charges + slippage + tax",
+         f"   From results/cost_report.py: the strategy from COSTS_{tag}.csv and COST_TAX_YEARS_{tag}.csv,",
+         "   the buy & hold from bh_costs."]
+    for b, T_ in books.items():
+        title = f"strategy ({arm_name})" if b == "strategy" else BOOK_TITLES[b]
+        L += ["", f"   {title}   final equity Rs {T_['final']:,.2f}   gross profit Rs {T_['gross']:,.2f}",
+              f"   {'':<34}{'Rs':>16}{'of capital':>12}{'of gross':>11}"]
+
+        def row(name, x, ind=2):
+            L.append(f"   {' ' * ind}{name:<{34 - ind}}{x:>16,.2f}{_pct(x, start_capital):>12}"
+                     f"{_pct(x, T_['gross']):>11}")
+        row("charges, total", T_["charges"], 0)
+        for k, nm in CHARGES:
+            row(nm, T_["by_type"][k])
+        row("slippage", T_["slippage"], 0)
+        row("tax, total", T_["tax"], 0)
+        row("short-term", T_["stcg"])
+        row("long-term", T_["ltcg"])
+        row("LTCG exemption used (not a cost)", T_["exemption_used"])
+        row("all costs", T_["all_costs"], 0)
+    L += ["", "   Held to the end, the buy & hold never sells, so it pays no tax under either setting."]
+    if not tax_on:
+        L += ["   Tax is off for this run, so every tax figure above is zero.",
+              f"   Sold on the last day with tax on, the buy & hold would pay Rs {bh['tax_if_on']:,.2f}."]
+    L += [f"   checked against {summ.name}: all {len(theirs)} figures it prints agree to the paisa",
+          "=" * width]
     return L
 
 
