@@ -600,8 +600,14 @@ def collect_run_folder(plan, args, t_start, dest):
                 failed.append(f"{f.relative_to(ROOT)}: {e}")
     import profiles as _pf
     import tax as _tax
+    import time as _time
     dest.mkdir(parents=True, exist_ok=True)
+    # started/finished are epoch seconds. check_all.py --since reads them to find
+    # the runs that finished after --since and what they selected; see
+    # read_run_record(). Folders written before 2026-09-30 lack both lines.
     (dest / "RUN.txt").write_text(
+        f"started   : {t_start:.3f}\n"
+        f"finished  : {_time.time():.3f}\n"
         f"universes : {', '.join(uni)}\n"
         f"arms      : {', '.join(arm)}\n"
         f"cadence   : {reb}\n"
@@ -635,6 +641,58 @@ class _Tee:
 
     def __getattr__(self, name):
         return getattr(self._s, name)
+
+
+def read_run_record(folder):
+    """What a run folder's RUN.txt says the run selected, or None if it has none.
+
+    Returns a dict: folder, universes (list of tags), arms (list), cadence,
+    profile, tax, pipeline_steps and arm_runs (counts), started and finished
+    (epoch seconds). A folder written before RUN.txt carried started/finished
+    takes started from its name's timestamp and finished from run.log's mtime.
+    """
+    import datetime
+    folder = Path(folder)
+    txt = folder / "RUN.txt"
+    if not txt.is_file():
+        return None
+    kv = {}
+    for line in txt.read_text().splitlines():
+        if " : " in line:
+            k, v = line.split(" : ", 1)
+            kv[k.strip()] = v.strip()
+    m = re.match(r"(\d+) pipeline, (\d+) arm runs", kv.get("steps", ""))
+    if not m or "universes" not in kv:
+        return None
+    try:
+        started = float(kv["started"])
+    except (KeyError, ValueError):
+        started = datetime.datetime.strptime(
+            folder.name.split("_", 1)[0], "%Y%m%dT%H%M%S").timestamp()
+    try:
+        finished = float(kv["finished"])
+    except (KeyError, ValueError):
+        log = folder / "run.log"
+        finished = (log if log.is_file() else txt).stat().st_mtime
+    split = lambda v: [x.strip() for x in v.split(",") if x.strip()]
+    return {"folder": folder, "universes": split(kv["universes"]),
+            "arms": split(kv.get("arms", "")), "cadence": kv.get("cadence"),
+            "profile": kv.get("profile"), "tax": kv.get("tax"),
+            "pipeline_steps": int(m.group(1)), "arm_runs": int(m.group(2)),
+            "started": started, "finished": finished}
+
+
+def runs_finished_since(since):
+    """read_run_record() for every run folder under runs/ that finished at or
+    after `since`, oldest first. A failed run writes no run folder, so it is not
+    among them."""
+    base = ROOT / "runs"
+    out = []
+    for d in paths.list_dir(base, "20*_r*"):
+        rec = read_run_record(d) if d.is_dir() else None
+        if rec is not None and rec["finished"] >= since:
+            out.append(rec)
+    return sorted(out, key=lambda r: (r["started"], r["folder"].name))
 
 
 def execute(plan, args):

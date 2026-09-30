@@ -42,6 +42,9 @@ WHAT THIS DOES ABOUT IT
                          block that CALLS something -- by AST, not by grep.
     GATE 4  OUTPUTS      with --since: every step's declared span contains a file
                          whose mtime moved. "Ran, wrote nothing, exited 0" fails.
+                         Only steps of universes that a run finishing after
+                         --since selected (its runs/*/RUN.txt); the rest are
+                         "not selected by this run" and skipped.
     GATE 6  TAX          with --since: under tax=on the numbers must MOVE, by
                          what the ledger says. The string-only acceptance check
                          cannot tell a renaming axis from a charging one, and for
@@ -410,6 +413,8 @@ class Result:
         # with the headline, because a headline read on its own must not be able
         # to omit them.
         self.not_asserted = []
+        # GATE 4 steps whose universe no run after --since selected.
+        self.gate4_not_selected = 0
 
     def fail(self, gate, what, detail=""):
         self.failures.append((gate, what, detail))
@@ -614,7 +619,18 @@ def gate_outputs(res, rows, since, sel):
     See the module docstring for what this is and is not. The span comes from the
     row itself -- field 3 for a per-universe step, row_span() for a step that
     declares one -- so there is no second table to go stale.
+
+    WHICH STEPS RAN IS READ FROM THE RUN FOLDERS, NOT ASSUMED. Until 2026-09-30
+    this checked every universe unless --universe narrowed it, so after
+    `run.py --universe nifty100,midcap150` a bare --since failed 36 steps of the
+    six universes that run never selected, each "ran, exited 0, and left no
+    file". Now the selection comes from RUN.txt of every run folder that
+    finished at or after --since (run.read_run_record). A step of a universe no
+    such run selected is "not selected by this run" and counted as skipped, not
+    passed. If no run folder finished after --since, gate 4 skips rather than
+    assume a full run. --universe no longer narrows this gate.
     """
+    import datetime
     if not rows:
         res.skip(4, "GATE 4  NOT CHECKED -- no pipeline table",
                  "no pipeline table")
@@ -625,17 +641,43 @@ def gate_outputs(res, rows, since, sel):
         res.skip(4, "GATE 4  SKIPPED -- needs --since <epoch>, i.e. a run to "
                  "check against. Not counted as passed.", "need --since")
         return
-    checked = unverifiable = 0
+    import run as _run
+    when = datetime.datetime.fromtimestamp(since).strftime("%Y-%m-%d %H:%M:%S")
+    runs = _run.runs_finished_since(since)
+    if not runs:
+        res.skip(4, f"GATE 4  SKIPPED -- no run folder under runs/ finished at or "
+                 f"after --since {since:.0f} ({when}), so which steps ran is "
+                 f"unknown. Not counted as passed.", "no run folder for --since")
+        return
+    want = set()
+    for r in runs:
+        res.note(f"GATE 4  run {r['folder'].name}: universes "
+                 f"{', '.join(r['universes'])}; arms {', '.join(r['arms'])}; "
+                 f"cadence {r['cadence']}; profile {r['profile']}; tax {r['tax']}; "
+                 f"{r['pipeline_steps']} pipeline steps")
+        if r["started"] < since - 1:
+            res.note(f"    it started before --since, so a step it finished "
+                     f"before --since cannot show a moved file")
+        if r["pipeline_steps"]:
+            want |= set(r["universes"])
+    if not want:
+        res.skip(4, "GATE 4  SKIPPED -- the run(s) after --since ran no pipeline "
+                 "step (--steps arms). Not counted as passed.",
+                 "no pipeline step selected")
+        return
+    checked = unverifiable = n_skip = 0
+    not_selected = {}
     for row in rows:
         label, script = row[0], row[1]
         tag = row[2] if len(row) > 2 else None
         span = run_all.row_span(row) if len(row) > 3 else ()
-        tags = (tag,) if tag else tuple(span)
-        if sel != "all":
-            want = {t.strip() for t in sel.split(",")}
-            tags = tuple(t for t in tags if t in want)
-            if not tags and (tag or span):
-                continue                       # not part of this run's selection
+        declared = (tag,) if tag else tuple(span)
+        tags = tuple(t for t in declared if t in want)
+        if declared and not tags:
+            n_skip += 1
+            for t in declared:
+                not_selected.setdefault(t, []).append(label)
+            continue
         if not tags:
             unverifiable += 1
             res.note(f"    {label} {script}: declares no universe and no span -- "
@@ -654,7 +696,12 @@ def gate_outputs(res, rows, since, sel):
             res.fail("GATE 4 outputs", f"{label} {script}",
                      f"ran, exited 0, and left no file with a moved mtime under "
                      f"{', '.join(str(REGISTRY[t].metrics_dir.name) for t in tags if t in REGISTRY)}")
+    for t in sorted(not_selected):
+        res.note(f"    not selected by this run: {t} -- "
+                 f"{', '.join(not_selected[t])}")
+    res.gate4_not_selected = n_skip
     res.note(f"GATE 4  {checked} steps checked against --since, "
+             f"{n_skip} not selected by this run (skipped, not passed), "
              f"{unverifiable} not checkable (no declared span)")
 
 
@@ -1329,16 +1376,22 @@ def _print_not_asserted(res):
         print(f"          {label:<{w}}  {short}")
 
 
+def _print_gate4_not_selected(res):
+    if res.gate4_not_selected:
+        print(f"        GATE 4 SKIPPED {res.gate4_not_selected} STEPS not selected "
+              f"by this run; they are not counted as passed.")
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--since", type=float, default=None,
                     help="epoch seconds; gate 4 checks that steps wrote after it")
-    # WHICH UNIVERSES THE RUN SELECTED. Without it gate 4 would demand that every
-    # registered universe's steps wrote, and fail a `--universe nifty50` run for
-    # midcap150 not moving -- which is the run doing exactly what it was asked.
-    # A checker that fails correct behaviour teaches people to ignore it.
+    # WHICH UNIVERSES TO CHECK in gates 6, 7 and 8. Gate 4 no longer reads it:
+    # it takes the selection from the run folders that finished after --since,
+    # because a bare --since after a subset run failed every unselected step.
     ap.add_argument("--universe", default="all",
-                    help="comma-separated tags the run selected, or 'all'")
+                    help="comma-separated tags for gates 6-8, or 'all'; gate 4 "
+                         "reads the run's own selection from runs/")
     # THE REFIT DELEGATES ARE OFF BY DEFAULT. Without this flag they are
     # recorded as named skips, not as passes: validate_sizing is 1,134 LightGBM
     # fits per universe, which its own cost block measures at ~22.7 min.
@@ -1406,6 +1459,7 @@ def main(argv=None):
         print(f"RESULT: PASS ({len(ok)} of {n} asserted, "
               f"{len(res.skipped)} skipped: {'; '.join(parts)})")
         print(f"        ASSERTED: {', '.join('GATE %d' % g for g in ok)}")
+        _print_gate4_not_selected(res)
         _print_not_asserted(res)
         print("        A SKIPPED GATE IS NOT A PASSED GATE. Exit code is 0 "
               "because a skip is legitimate,")
@@ -1415,6 +1469,7 @@ def main(argv=None):
               "see the docstring).")
     else:
         print(f"RESULT: PASS -- all {n} gates asserted, none skipped")
+        _print_gate4_not_selected(res)
         _print_not_asserted(res)
     return 0
 
