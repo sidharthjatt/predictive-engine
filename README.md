@@ -29,16 +29,21 @@ with evidence attached.
 
 ## How to run
 
-You need this tree, the price data (not in the repository; ask the owner, see "The
-price data") and Python 3.12 or newer. The pinned requirements were resolved on
+You need this tree, the price data and Python 3.12 or newer. The `data` folder's
+price files are not in git: a clone has an empty `data/raw/`, and you must copy the
+data folder in from a machine that has it (ask the owner, see "The price data").
+`run.py` stops before the first step, naming the universe and the folder it looked
+in, if a selected universe has no price files. The pinned requirements were resolved on
 Python 3.12.13, and that is the version every published result was produced on. On
 Python 3.11 pip installs nothing: `scipy==1.18.1` and `nautilus_trader==1.229.0`
 need 3.12. `run.py` and `check_all.py` stop at start-up with a message naming the
 version if they are started on an older Python.
 
-Create the venv on the internal disk, not on an exFAT or FAT drive: macOS writes a
-`._` twin beside every file there, and matplotlib fails at import when those sit in
-its style folder.
+Create the venv on the internal disk, not on an external exFAT or FAT drive: macOS
+writes a `._` twin beside every file there, and those files break installed packages
+(matplotlib fails at import when they sit in its style folder). `run.py` stops at
+start-up if its venv is on such a drive or has `._` files in site-packages. The
+repository folder itself may be on an external drive; `run.py` notes it and runs.
 
 ```
 # 1. put the price data at data/raw/Final_Without_Survivorship_Data/ and check it

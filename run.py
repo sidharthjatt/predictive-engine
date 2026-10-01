@@ -51,6 +51,8 @@ import python_floor  # before any third-party import
 python_floor.require("run.py")
 
 ROOT = Path(__file__).resolve().parent
+import environment_check  # also before any third-party import
+environment_check.require("run.py", ROOT)
 for _p in (str(ROOT), str(ROOT / "results"), str(ROOT / "nautilus")):
     if _p not in sys.path:
         sys.path.insert(0, _p)
@@ -537,7 +539,27 @@ def main(argv=None):
         print_plan(plan, args, show_paths=args.dry_run)
         return 0
 
+    require_price_data(plan)
     return execute(plan, args)
+
+
+def require_price_data(plan):
+    """Stop before STEP 10a, with one message, if a selected universe has no price files.
+
+    The price data is not in git. On a fresh clone data/raw/ holds only .gitkeep,
+    the registry finds no constituents, and the first step to read prices failed
+    with a pandas traceback. Checked here, before execute() writes a run folder
+    or a cache."""
+    missing = [u for u in plan["universes"]
+               if not paths.list_dir(u.raw_data_dir or u.data_dir, "*.csv")]
+    if missing:
+        raise SystemExit(
+            "REFUSING TO START -- no price data for "
+            + ", ".join(u.tag for u in missing) + ".\n"
+            + "".join(f"  {u.tag}: no price files in {u.raw_data_dir or u.data_dir}\n"
+                      for u in missing)
+            + f"  The price data is not in git. Copy the data folder into {ROOT / 'data'}\n"
+              "  from a machine that has it, then run again. Nothing has run.")
 
 
 def run_folder(plan, args):

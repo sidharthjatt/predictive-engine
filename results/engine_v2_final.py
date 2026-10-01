@@ -140,6 +140,11 @@ def main(u):
     tag = u.tag
     M = Path(u.metrics_dir)
     _T = u.engine_text
+    # ONE UNIVERSE'S WRITES PER CALL. run.py calls main() once per universe in one
+    # process, and module_state restores globals a step reassigns, not a list it
+    # appends to. So nifty100's "Saved ->" line listed midcap150's
+    # daily_trades_v1_midcap150.csv, written by the call before it.
+    _WROTE.clear()
     # ONE BANNER, FROM THE LABEL. It was registry text followed by this fixed
     # line, so midcap150, whose registry banner was the fixed line, printed it
     # twice.
@@ -476,8 +481,14 @@ def main(u):
     print("=" * 100)
     print(f"\n  TOP_N is {TOP_N} for every universe. The share of each registered "
           f"universe that it buys:\n")
-    for _v in sorted(_REG.values(), key=lambda v: (len(v.symbol_list), v.tag)):
+    # A UNIVERSE WITH NO PRICE FILES ON DISK HAS NO NAMES, so it is listed last
+    # and said so. A data folder copied for some universes only divided by zero
+    # here and failed the step.
+    for _v in sorted(_REG.values(), key=lambda v: (not v.symbol_list, len(v.symbol_list), v.tag)):
         _n = len(_v.symbol_list)
+        if not _n:
+            print(f"    {_v.tag:<12}    - names  -> no price data on disk")
+            continue
         print(f"    {_v.tag:<12} {_n:>4} names  -> top {TOP_N/_n*100:>4.1f}%"
               + ("   <- this run" if _v.tag == tag else ""))
     print(f"""
