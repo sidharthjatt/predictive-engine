@@ -250,6 +250,7 @@ def main():
     for tag, (_, mins) in zip(UNIVERSES, results):
         print(f"  {tag:<12} {N_SUBSETS} subsets x {len(SETTINGS)} settings x 4 arms: {mins} min")
     df = pd.DataFrame(rows)
+    # naming: axis-free -- renders the band table to a string in memory; no file
     text = "\n".join(HEADER) + "\n" + df.to_csv(index=False, float_format="%.6f")
     out = arm_reg.BAND_FILE
     tmp = out.with_name(f".{out.name}.tmp.{os.getpid()}")
