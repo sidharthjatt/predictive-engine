@@ -109,8 +109,7 @@ LEGEND_TEMPLATE = """\
               impact                   no prior-20-session median to price impact against
             Two further entries are not skipped orders: the capital-gains tax assessed on
             an assessment day (tax on), and the sale of every holding on the last day
-            when a run asks for it. A stop arm adds a third: "drawdown exit", on the
-            close that triggered the exit.
+            when a run asks for it.{stop_skip}
  FUNDING    invest value is a share of the WHOLE portfolio, but new positions are paid for
             out of CASH ALONE, and a name already held is never resized. So whenever a
             buffer name is holding capital the book is over-committed by construction and
@@ -183,7 +182,13 @@ def legend_for(arm):
     # THE CADENCE IS READ, NOT TYPED. "every 20 trading days" was a literal, so a
     # --rebal 200 log contradicted its own header, which said 10 rebalances.
     import cadence as _cd
+    # ONLY A STOP ARM'S LEGEND NAMES ITS EXTRA ENTRY, so a core arm's log is
+    # byte-identical to the one written before the stop arms existed.
+    stop_skip = ("" if arm.stop is None else
+                 ' A stop arm adds a third: "drawdown exit", on the\n'
+                 '            close that triggered the exit.')
     return LEGEND_TEMPLATE.format(exposure_para=exposure_para, sizing_para=sizing_para,
+                                  stop_skip=stop_skip,
                                   top=TOP_N, top1=TOP_N + 1, buffer=BUFFER,
                                   rebal=_cd.selected())
 
