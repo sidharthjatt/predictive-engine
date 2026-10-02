@@ -360,8 +360,9 @@ def _needs(label):
 # naming_declare_check reports a KNOWN, PRE-EXISTING count of undeclared write
 # calls and exits 1 for it. That number was 111 before this checker existed and
 # is not this checker's business to fix; what IS its business is that the number
-# does not GROW unnoticed. Declared here, checked below, and a mismatch in
-# either direction is reported.
+# does not GROW unnoticed. The check below ignores the script's exit code and
+# fails only when the count rises above this baseline. A fall is not reported
+# and does not lower the baseline; known-defect markers do not count either.
 NAMING_UNDECLARED_BASELINE = 111
 
 # MODULES KNOWN NOT TO IMPORT, EACH WITH ITS REASON. An unlisted failure is a

@@ -320,6 +320,14 @@ def preflight(args, plan):
     unknown_a = [a.name for a in plan["arms"] if a.name not in ALL_ARMS]
     if unknown_a:
         bad.append(f"arm(s) {sorted(unknown_a)} -- registry defines {sorted(ALL_ARMS)}")
+    # A SEALED STOP ARM IS REFUSED HERE, before any step runs, not halfway through.
+    import arms.registry as _ar
+    for a in plan["arms"]:
+        if a.name in _ar.STOP_ARMS:
+            try:
+                a.kwargs
+            except _ar.StopSealed as e:
+                bad.append(f"arm {a.name}: {e}")
 
     if args.rebal is not None:
         try:

@@ -43,7 +43,9 @@ from test_exposure import backtest_exposure
 import nt_attribution
 
 QUIET = "--quiet" in sys.argv
-STOP = DrawdownStop(threshold=0.20, cooldown_cycles=1, reentry_breadth=0.50)
+# 0.15, NOT THE REGISTERED 0.20, which is sealed. The synthetic crashes are 25%, so
+# every case triggers as it would at 0.20.
+STOP = DrawdownStop(threshold=0.15, cooldown_cycles=1, reentry_breadth=0.50)
 REBAL = 5
 SYMS = [f"S{k:02d}" for k in range(12)]
 WARM = pd.bdate_range("2020-08-03", "2020-12-31")

@@ -31,9 +31,11 @@ THE STOP ARMS, v5 AND v6 (2026-10-02, experiments/DRAWDOWN_STOP_PREREG.txt).
     v34_stop_* files. They join the core set only if the measurement accepts them.
 
     THE STOP IS SEALED until the band file of the pre-registration is committed:
-    Arm.kwargs raises for a stop arm, so no engine, port or audit can run one at
-    the registered threshold before then. The only way past the seal is the test
-    fixture below, which replaces the threshold and is never a result.
+    Arm.kwargs raises for a stop arm, and results/drawdown_stop.StopState refuses
+    the registered threshold however it was passed, so no engine, port or audit
+    can run one at that threshold before then. Two things pass the seal: the test
+    fixture below, which replaces the threshold and is never a result, and the
+    band writer, results/drawdown_stop_band.py, which writes only the band.
 """
 import os
 import subprocess
@@ -80,6 +82,9 @@ def fixture_threshold():
     t = float(raw)
     if not 0.0 < t <= 1.0:
         raise ValueError(f"{FIXTURE_ENV}={raw!r}: a fixture threshold must be in (0, 1]")
+    if t == REGISTERED_STOP.threshold:
+        raise StopSealed(f"{FIXTURE_ENV}={raw!r} is the registered threshold; a fixture "
+                         "cannot be used to run the registered stop")
     return t
 
 
@@ -92,12 +97,52 @@ def stop_sealed():
     return r.returncode != 0
 
 
+# THE ONE EXCEPTION TO THE SEAL: the band writer of the pre-registration, which
+# must run v5 and v6 at the registered threshold to compute the band and writes
+# nothing but the band. It opens the seal for its own process by calling
+# open_seal_for_band_writer(), which refuses any other caller.
+BAND_WRITER = _ROOT / "results" / "drawdown_stop_band.py"
+_band_writer_open = False
+
+
+def open_seal_for_band_writer():
+    import inspect
+    global _band_writer_open
+    caller = Path(inspect.stack()[1].filename).resolve()
+    if caller != BAND_WRITER.resolve():
+        raise StopSealed(f"only {BAND_WRITER.relative_to(_ROOT)} may open the seal; "
+                         f"called from {caller}")
+    if not stop_sealed():
+        raise StopSealed(f"{BAND_FILE.relative_to(_ROOT)} is already tracked; the band "
+                         "is computed once and is not rewritten")
+    _band_writer_open = True
+
+
+def require_unsealed(stop):
+    """Refuse to run the registered stop while it is sealed.
+
+    Called by results/drawdown_stop.StopState for every stop any loop runs -- the
+    engine, the reference copy and the port -- so the seal holds however the stop
+    was obtained, not only through Arm.kwargs. A fixture threshold passes; the
+    registered threshold passes only in the band writer or once BAND_FILE is tracked.
+    """
+    if _band_writer_open or stop.threshold != REGISTERED_STOP.threshold:
+        return
+    if stop_sealed():
+        raise StopSealed(
+            "the drawdown stop is sealed: no run at the registered threshold before "
+            f"{BAND_FILE.relative_to(_ROOT)} is committed "
+            "(experiments/DRAWDOWN_STOP_PREREG.txt, SEALING)")
+
+
 def stop_in_force(stop):
     """The DrawdownStop a run uses: the fixture's threshold if set, else the
     registered stop, which is refused while sealed."""
     t = fixture_threshold()
     if t is not None:
         return replace(stop, threshold=t)
+    if _band_writer_open:
+        return stop
     if stop_sealed():
         raise StopSealed(
             "the drawdown stop is sealed: no v5 or v6 run at the registered "

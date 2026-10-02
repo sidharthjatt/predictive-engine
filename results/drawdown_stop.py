@@ -42,6 +42,15 @@ IN, LIQUIDATING, OUT, REENTERED = "IN", "LIQUIDATING", "OUT", "REENTERED"
 
 class StopState:
     def __init__(self, stop, rebal, n_days):
+        # THE SEAL, checked here so that no loop can run the registered stop before
+        # the band file is committed, however it was handed the stop.
+        import sys as _sys
+        from pathlib import Path as _P
+        _root = str(_P(__file__).resolve().parents[1])
+        if _root not in _sys.path:
+            _sys.path.insert(0, _root)
+        from arms.registry import require_unsealed
+        require_unsealed(stop)
         self.stop = stop
         self.rebal = int(rebal)
         self.n_days = int(n_days)

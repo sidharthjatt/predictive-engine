@@ -569,9 +569,24 @@ class PredictiveEngineStrategy(Strategy):
         self.stop_events.extend(st.rows(day, equity))
 
     def _stop_breadth(self):
-        """Breadth as this port's mode="breadth" computes it; 1.0 with no momentum."""
-        mom = self._momentum()
-        return (sum(1 for v in mom.values() if v > 0) / len(mom)) if mom else 1.0
+        """The stop's re-entry breadth, EXACTLY AS THE ENGINE'S v2 COMPUTES IT.
+
+        experiments/DRAWDOWN_STOP_PREREG.txt registers breadth as v2 computes it in
+        the engine: (mom20.loc[dt].dropna() > 0).mean() on a forward-filled panel, so
+        a name with no bar today still counts at its last close. _momentum() above
+        drops such a name, which is this port's own breadth for v2 and v4 and is left
+        as it is. 1.0 when no name has momentum, as in the engine.
+        """
+        i_now = len(self.dates) - 1
+        n = pos = 0
+        for sym in self.series:
+            a = self._close_at(sym, i_now)
+            b = self._close_at(sym, i_now - MOM_WIN)
+            if a is None or b is None or b <= 0:
+                continue
+            n += 1
+            pos += (a / b - 1.0) > 0
+        return pos / n if n else 1.0
 
     # ---------------------------------------------------------- rebalance
     def _momentum(self):

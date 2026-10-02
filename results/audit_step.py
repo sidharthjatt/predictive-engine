@@ -296,15 +296,24 @@ def run(u, arm=None):
     # The naming rule lives in artefact_tag() above, so make_daily_log reads the
     # same files this writes instead of reconstructing the rule and drifting.
     tag = artefact_tag(u, _arm)
-    h = pd.DataFrame(audit["holdings"]); s = pd.DataFrame(audit["summary"])
-    t = pd.DataFrame(audit["trades"])
+    # AN EMPTY TABLE KEEPS ITS HEADER. pd.DataFrame([]) has no columns and writes a
+    # one-byte file that no reader can parse: a run with no skipped order (nifty500
+    # v2 at cadence 30) failed in make_daily_log on exactly that. A non-empty table
+    # is built exactly as before, so its file is unchanged.
+    def _frame(rows, cols):
+        return pd.DataFrame(rows) if rows else pd.DataFrame(columns=cols)
+    h = _frame(audit["holdings"], ["date", "symbol", "qty", "price", "value", "weight_pct"])
+    s = pd.DataFrame(audit["summary"])
+    t = _frame(audit["trades"], ["date", "action", "symbol", "qty", "price", "value", "tc"])
     h.to_csv(M / f"daily_holdings_{tag}.csv", index=False)
     s.to_csv(M / f"daily_summary_{tag}.csv", index=False)
     t.to_csv(M / f"daily_trades_{tag}.csv", index=False)
-    rkdf = pd.DataFrame(audit["ranking"]); dcdf = pd.DataFrame(audit["decisions"])
+    rkdf = _frame(audit["ranking"], ["decided_on", "rank", "symbol", "score", "vol60",
+                                     "target_wt_pct", "held_before", "action"])
+    dcdf = pd.DataFrame(audit["decisions"])
     rkdf.to_csv(M / f"daily_ranking_{tag}.csv", index=False)
     dcdf.to_csv(M / f"daily_decisions_{tag}.csv", index=False)
-    skdf = pd.DataFrame(audit["skipped"])
+    skdf = _frame(audit["skipped"], ["date", "side", "symbol", "reason", "detail"])
     skdf.to_csv(M / f"daily_skipped_{tag}.csv", index=False)
     # A STOP ARM'S EXITS, COOLDOWNS, WAITS AND RE-ENTRIES, one row per event.
     if _arm.stop is not None:
