@@ -1,0 +1,212 @@
+DRAWDOWN STOP ON THE FULLY INVESTED ARMS (v5, v6) -- PRE-REGISTRATION
+================================================================================
+Written 2026-10-02, before any fit of the noise band and before v5 or v6 exist
+in code. The scope, the band design and the accept rule were ruled by the owner
+on 2026-10-02. The seed store (results/seed_band_fit.py, sha256 prefix
+e05d6702080959bd, and scripts/run_seed_band_fit.sh) was committed before this
+file, in 9677934. No stop-arm figure at any threshold has been computed when this
+file is committed.
+
+The design of v5 and v6 (where the stop lives, the arm registry, file names,
+edge cases, logs) is the one approved on 2026-10-02 and is not repeated here.
+--arm all stays v1 to v4. v5 and v6 are selected by name and write companion
+v34_stop_* files. They join "all" only if this measurement accepts them.
+
+RULE
+
+    v5 = v1 plus the stop. v6 = v3 plus the stop.
+    Exit when the arm's close equity (holdings plus cash) is 20% or more below its
+    running peak; sell everything at the next open through the normal fill,
+    slippage, charge and tax path. Stay in cash for at least one rebalance cycle,
+    counted from the day the book is flat. Cash earns 0%. Re-enter at the first
+    rebalance day after that with breadth of 0.50 or more, computed as v2 computes
+    it, by buying the normal v1 or v3 portfolio for that day. The peak resets at
+    the re-entry fill.
+    The three numbers 20%, one cycle and 0.50 are fixed and are not tuned.
+
+PRIOR LOOKS
+
+    Experiments 33 to 35 (experiments/DRAWDOWN_EXIT_SPEC.txt) tested drawdown
+    exits on v2, at thresholds 10% to 25%. The 20% threshold never fired on v2.
+    The v1 and v3 drawdown episodes below were listed from the published equity
+    curves before this file was written. Those curves
+    (results_<u>/metrics/v34_equity.csv) were regenerated at 62b4e6d from the
+    cached score panels and are byte-identical, by sha256, to the files the list
+    was taken from. This is a new rule on new arms, counted as new looks:
+    2 arms x 24 judged cells.
+
+CELLS
+
+    Judged: nifty50, midcap50, midcap100, nifty100, midcap150, smallcap250, each
+    under research and tradeable, tax off and tax on, cadence 20. 24 cells.
+    Reported only, never judged: nifty200 and nifty500, 8 cells.
+    Window 2019-01-01 to 2026-05-29.
+
+COMPARISONS
+
+    v5 against v1 and v6 against v3, on max drawdown, CAGR, Sharpe and Calmar.
+    Each stop arm against the equal-weight buy and hold, reported only.
+
+NOISE BAND
+
+    For each judged universe, 20 seeds are fitted once on the published raw panel:
+    the 10 production seeds (7, 42, 99, 1, 2, 3, 11, 22, 33, 101, from
+    results/build_scores_step.py) followed by 1000 to 1009. None of the
+    production seeds is in 1000 to 1009; seed_band_fit.py asserts it. Every
+    seed's scores are stored.
+
+    The mean of the 10 production seeds must reproduce the cached score panel bit
+    for bit on every scored row, with NaN in the same places, or nothing is stored
+    for that universe and the band is not computed. Stage 1 is midcap50 alone; a
+    failure there stops the whole band.
+
+    50 distinct subsets of 10 seeds are drawn from the 20, with numpy generator
+    seed 20261002. For each subset, cell and metric, d = stop arm minus parent.
+    The band is
+
+        2 x sqrt(2) x sd(d), ddof=1.
+
+    THE FACTOR sqrt(2). Ten seeds drawn from a fixed pool of 20 vary less than ten
+    independent seeds. Across subsets, the variance of the subset mean is
+    (S^2/n)(1 - n/N), where S^2 is the pool's sample variance and E[S^2] is the
+    true seed variance. With n = 10 and N = 20 that is half the variance of an
+    independent 10-seed mean, so sd(d) is multiplied by sqrt(2).
+
+    Checked by simulation before this file was committed: 20,000 pools of 20 iid
+    standard normal seeds, 50 distinct 10-seed subsets per pool, generator seed
+    20261002. The mean over pools of sd(subset means)^2 was 0.050051 against a
+    true independent 10-seed variance of 0.100000. Times 2 gives 0.100102, an
+    error of +0.10% (Monte Carlo standard error 0.27%). Times 19/10, the factor in
+    the earlier draft, gives 0.095097, an error of -4.90%.
+
+    The factor is exact for the ensemble score itself, which is a plain average of
+    seeds. For CAGR, Sharpe, Calmar and max drawdown it is approximate, because
+    those pass through ranking, and max drawdown is the least linear of them. The
+    factor is fixed here and is not revisited.
+
+SEALING
+
+    Only the per-cell, per-metric band is written. No per-subset value, mean
+    difference or stop-arm metric is written or printed until the band file is
+    committed. No stop-arm figure at the 0.20 threshold on the published panel is
+    produced before that commit. The collision gate runs at a forced threshold of
+    0.01 on one universe, outside the measurement, and reports only that v5
+    differs from v1 and v6 from v3, with the event count.
+
+ACCEPT -- separately for v5 and v6, all four required
+
+    The 32-cell thresholds scaled by 24/32 = 0.75, each rounded in the stricter
+    direction:
+        criterion 1, 24 of 32 x 0.75 = 18.0 -> at least 18 of 24
+        criterion 2, 20 of 32 x 0.75 = 15.0 -> at least 15 of 24
+        criterion 3,  8 of 32 x 0.75 =  6.0 -> at most 6 of 24
+        criterion 4,  5 of 8  x 6/8  = 3.75 -> rounded up, at least 4 of 6
+
+    1. Max drawdown is shallower than the parent's by more than the band in at
+       least 18 of 24 cells, and deeper by more than the band in none.
+    2. Calmar is higher than the parent's by more than the band in at least 15 of
+       24 cells.
+    3. CAGR is lower than the parent's by more than the band in at most 6 of 24
+       cells.
+    4. In at least 4 of the 6 judged universes, the stop arm exits in at least
+       two separate episodes of the parent's curve. Episodes are defined on the
+       parent's research, tax-off, cadence-20 equity curve: an episode runs from
+       an all-time high to the next all-time high and counts if it falls 20% or
+       more below that high. Two exits with no new parent all-time high between
+       them are in the same episode.
+       If criterion 4 fails, the verdict is ONE EPISODE, UNJUDGEABLE, whatever
+       criteria 1 to 3 say.
+
+    REJECT if any of 1 to 3 fails. UNJUDGEABLE if 4 fails.
+
+REPORTED, NOT JUDGED
+
+    nifty200 and nifty500. The stop arms against the buy and hold. Sub-periods
+    2019-2022 and 2023-2026. Exits, re-entries and days in cash. The true
+    drawdown from the all-time peak: the peak reset limits the loss per episode,
+    not overall, as experiment 35 recorded.
+
+PARENT EPISODES OF 20% OR MORE, LISTED BEFORE ANY RUN
+
+    From results_<u>/metrics/v34_equity.csv (research, tax off, cadence 20).
+    Each row: peak date, trough date, depth, recovery date (new all-time high).
+
+    judged
+    nifty50     v1  2020-02-14  2020-03-24  -29.5%  2020-06-04
+                v1  2024-09-27  2026-03-30  -23.2%  not recovered by 2026-05-29
+                v3  2020-01-17  2020-03-24  -33.8%  2020-08-07
+    midcap50    v1  2020-02-07  2020-03-24  -35.7%  2020-07-03
+                v3  2020-02-07  2020-04-03  -41.2%  2020-08-04
+                v3  2024-09-23  2025-02-28  -22.5%  2025-11-03
+    midcap100   v1  2020-02-20  2020-03-24  -35.4%  2020-06-23
+                v1  2022-12-05  2023-02-27  -21.1%  2023-07-19
+                v1  2024-12-16  2025-02-18  -20.8%  2025-09-18
+                v1  2025-10-01  2026-03-23  -20.6%  not recovered by 2026-05-29
+                v3  2019-04-16  2020-03-24  -48.2%  2020-12-11
+                v3  2022-12-14  2023-03-28  -24.0%  2023-08-31
+                v3  2024-10-16  2025-02-28  -28.0%  not recovered by 2026-05-29
+    nifty100    v1  2020-02-20  2020-03-24  -33.0%  2020-09-18
+                v1  2022-12-02  2023-02-27  -22.2%  2023-06-07
+                v3  2020-02-20  2020-03-24  -39.1%  2020-08-20
+                v3  2022-12-02  2023-02-27  -31.5%  2023-07-05
+    midcap150   v1  2019-01-11  2020-03-24  -40.8%  2020-09-14
+                v1  2022-04-08  2022-06-20  -21.2%  2022-08-30
+                v3  2019-01-11  2020-03-25  -41.1%  2020-06-05
+                v3  2022-04-08  2022-06-20  -20.9%  2022-08-30
+                v3  2024-12-16  2025-04-07  -28.8%  2026-02-26
+    smallcap250 v1  2019-04-03  2019-08-05  -20.3%  2020-01-17
+                v1  2020-02-20  2020-03-25  -36.0%  2020-06-22
+                v3  2019-04-16  2019-08-05  -26.7%  2020-01-15
+                v3  2020-02-20  2020-03-25  -36.5%  2020-06-18
+                v3  2022-01-17  2022-02-24  -20.2%  2022-04-04
+
+    reported only
+    nifty200    v1  2020-02-10  2020-03-24  -34.6%  2020-06-23
+                v1  2022-09-22  2023-03-28  -21.5%  2023-06-15
+                v1  2024-12-17  2025-03-04  -23.8%  2025-10-16
+                v3  2019-03-20  2019-08-07  -30.3%  2020-01-23
+                v3  2020-01-24  2020-03-24  -46.7%  2020-10-30
+                v3  2022-09-22  2023-03-28  -27.0%  2023-07-28
+                v3  2024-12-16  2025-03-04  -26.8%  2025-09-22
+    nifty500    v1  2019-04-16  2020-03-25  -47.1%  2021-02-02
+                v1  2022-04-08  2022-06-20  -22.7%  2022-09-14
+                v1  2024-12-06  2025-03-03  -28.6%  not recovered by 2026-05-29
+                v3  2019-04-01  2020-03-25  -62.8%  2021-02-04
+                v3  2022-01-17  2022-02-24  -20.2%  2022-04-06
+                v3  2022-04-06  2022-06-20  -28.0%  2022-11-11
+                v3  2024-12-09  2025-03-03  -28.7%  not recovered by 2026-05-29
+
+    Parent episodes in the judged universes: v1 has two or more in 5 of 6
+    (all but midcap50), v3 in 5 of 6 (all but nifty50).
+
+STATED LIMITS
+
+    The band captures model-seed variation only, not price noise, so it may be
+    narrower than the real spread. A narrower band makes criteria 1 to 3 easier
+    to pass than under the 32-cell design.
+
+    The v1 second episodes in the judged universes are shallow: 20.3% to 22.2%
+    deep (smallcap250 20.3%, midcap100 20.6%, 20.8% and 21.1%, midcap150 21.2%,
+    nifty100 22.2%). An exit at 20% in such an episode saves little and pays
+    costs and tax. Counting only episodes of 22% or deeper, v1 has two or more in
+    2 of 6 judged universes and v3 in 5 of 6, so criterion 4 is fragile for v5.
+
+    The 24 cells are not independent: the universes nest, and the four profile
+    and tax settings reuse the same trades.
+
+    The window holds one crash.
+
+    Liquidating the whole book in one session is the worst case for the fill
+    model.
+
+ORDER OF WORK
+
+    1. midcap50: fit 20 seeds, store them, reproduction check on every scored row.
+       A failure stops the band.
+    2. nifty50, midcap100, nifty100, midcap150, smallcap250, the same, in that
+       order. A failed check stops the run.
+    3. v5 and v6 implemented and committed, with the v1 to v4 byte-identity
+       proof, the null-stop gate and the 0.01 collision gate.
+    4. The sealed band computed from the stores and committed.
+    5. The published-panel runs of v5 and v6 over all 32 cells; the 24 judged
+       cells judged by the rule above.
