@@ -200,7 +200,7 @@ def run(tag, rebal, ctx, sizing="invvol", mode="breadth", arm="v2", audit=None):
     # makes that a statement rather than an accident, and STOPS the run if
     # --profile ever reaches here. See profiles.research_only.
     eq, tc, n, expo = backtest_exposure(px, op, sc, bd, pc, mom20, port_vol,
-                                        mode=mode, target_vol=tv, sizing=sizing,
+                                        drawdown_stop=None, mode=mode, target_vol=tv, sizing=sizing,
                                         audit=audit, participation_cap=_prof.research_only(__name__))
     m = metrics(eq, f"{arm} REBAL={rebal}", tc, n)
     r = eq.pct_change().dropna()

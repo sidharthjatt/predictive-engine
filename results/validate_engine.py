@@ -123,7 +123,7 @@ def arm(px, op, sc, dates, pc, mom20, sizing, audit=None):
     # makes that a statement rather than an accident, and STOPS the run if
     # --profile ever reaches here. See profiles.research_only.
     return backtest_exposure(px, op, sc, dates, pc, mom20, port_vol=None,
-                             mode="none", sizing=sizing, audit=audit, participation_cap=_prof.research_only(__name__))
+                             drawdown_stop=None, mode="none", sizing=sizing, audit=audit, participation_cap=_prof.research_only(__name__))
 
 
 def mean_book(audit):

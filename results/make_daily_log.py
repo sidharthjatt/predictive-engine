@@ -109,7 +109,8 @@ LEGEND_TEMPLATE = """\
               impact                   no prior-20-session median to price impact against
             Two further entries are not skipped orders: the capital-gains tax assessed on
             an assessment day (tax on), and the sale of every holding on the last day
-            when a run asks for it.
+            when a run asks for it. A stop arm adds a third: "drawdown exit", on the
+            close that triggered the exit.
  FUNDING    invest value is a share of the WHOLE portfolio, but new positions are paid for
             out of CASH ALONE, and a name already held is never resized. So whenever a
             buffer name is holding capital the book is over-committed by construction and
@@ -144,9 +145,29 @@ SIZING_PROSE = {
 }
 
 
+def arm_reg_fixture():
+    """The drawdown stop's test-fixture threshold, or None."""
+    import arms.registry as _ar
+    return _ar.fixture_threshold()
+
+
 def legend_for(arm):
     """LEGEND_TEMPLATE with the arm-dependent paragraphs resolved."""
-    if arm.mode == "breadth":
+    if arm.stop is not None:
+        _st = arm.kwargs["drawdown_stop"]
+        exposure_para = (
+            f" EXPOSURE   This arm is {arm.parent} plus a DRAWDOWN STOP. While invested it is 100%\n"
+            f"            invested, exactly as {arm.parent}. When close equity falls {_st.threshold:.0%} or more\n"
+            f"            below its running peak, every holding is sold at the next open through the\n"
+            f"            normal sell path (cap, slippage, charges, tax). From the day the book is\n"
+            f"            flat it stays in cash for {_st.cooldown_cycles} rebalance cycle(s); then, on each rebalance\n"
+            f"            day, it re-enters with the normal {arm.parent} order once breadth is {_st.reentry_breadth:.2f}\n"
+            f"            or more, and the peak resets at the re-entry close. Section [A] shows each\n"
+            f"            exit and section [D] each cooldown, wait and re-entry day.")
+        if arm_reg_fixture() is not None:
+            exposure_para += ("\n            THIS LOG WAS PRODUCED UNDER A TEST FIXTURE THRESHOLD "
+                              f"({_st.threshold:.2%}). IT IS A\n            TEST OF THE WIRING, NOT A RESULT.")
+    elif arm.mode == "breadth":
         exposure_para = (
             " EXPOSURE   Breadth is the fraction of stocks with positive 20-day momentum. That same\n"
             "            fraction of the portfolio is invested; the remainder stays in cash. There is\n"
@@ -365,6 +386,25 @@ def build(mdir, tag, arm, bh, raw_idx=None, cal_sorted=None):
     # would be a second copy of that resolution -- the thing this import avoids.
     ref_name = f"engine curve [{arm.equity_column}]"
 
+    # THE DRAWDOWN STOP'S OWN RECORD, for a stop arm: its events, and the lots and
+    # tax years that give each exit's realised gains and the bill they fall in.
+    stop_ev_by_day, exit_trigger, exit_lots, exit_years = {}, {}, None, None
+    if arm.stop is not None:
+        _f = M / f"daily_stop_events_{tag}.csv"
+        _ev = (read_table(_f, parse_dates=["date"]) if _f.exists()
+               else pd.DataFrame(columns=["date", "event"]))
+        stop_ev_by_day = {d: g for d, g in _ev.groupby("date")}
+        _trig = None
+        for _, e in _ev.iterrows():
+            if e["event"] == "trigger":
+                _trig = e
+            elif e["event"] == "exit fills":
+                exit_trigger[e["date"]] = _trig
+        _f = M / f"COST_LOTS_{tag}.csv"
+        exit_lots = read_table(_f, parse_dates=["date"]) if _f.exists() else None
+        _f = M / f"COST_TAX_YEARS_{tag}.csv"
+        exit_years = read_table(_f) if _f.exists() else None
+
     sg = s.set_index("date")
     hg = {d: g for d, g in h.groupby("date")}
     tg = {d: g for d, g in t.groupby("date")}
@@ -490,6 +530,13 @@ def build(mdir, tag, arm, bh, raw_idx=None, cal_sorted=None):
         # ---------------- [A] EXECUTION ----------------
         L.append("")
         src = prev_dec(d)
+        _exit = exit_trigger.get(d)
+        if is_exe and _exit is not None:
+            src = all_days[dn - 2]
+            L.append(f"  >>> DRAWDOWN EXIT -- triggered at the CLOSE of "
+                     f"{pd.Timestamp(_exit['date']).date()}: peak Rs {_exit['peak']:,.2f} on "
+                     f"{pd.Timestamp(_exit['peak_date']).date()}, equity Rs "
+                     f"{_exit['equity']:,.2f}, drawdown {_exit['drawdown_pct']:+.2f}%")
         if is_exe:
             L.append(f"  >>> [A] ORDER EXECUTION      created at the CLOSE of "
                      f"{src.date() if src is not None else '?'}, filled at TODAY's OPEN")
@@ -515,6 +562,8 @@ def build(mdir, tag, arm, bh, raw_idx=None, cal_sorted=None):
                     rt = roundtrip.get((d, o["symbol"]))
                     wtxt = (f'rank {why[0]} -- fell out of the buffer ({BUFFER})' if why[0]
                             else "fell out of the buffer")
+                    if _exit is not None:
+                        wtxt = "drawdown exit -- every holding is sold"
                     if rt:
                         L.append(f'          -> {wtxt}  |  entered {rt["buy_date"].date()} at '
                                  f'{rt["buy_px"]:,.2f}, held {rt["days"]} days  |  '
@@ -530,6 +579,25 @@ def build(mdir, tag, arm, bh, raw_idx=None, cal_sorted=None):
             L.append(f'      fees    BUY Rs {b["tc"].sum():,.2f}   +   '
                      f'SELL Rs {sl["tc"].sum():,.2f}   =   Rs {g["tc"].sum():,.2f}'
                      f'   |   slippage cost Rs {slip_total:,.0f}')
+            if _exit is not None:
+                L.append(f'      exit    proceeds Rs {sl["value"].sum():,.2f}   charges Rs '
+                         f'{sl["tc"].sum():,.2f}   slippage Rs {slip_total:,.2f}')
+                if exit_lots is not None and len(exit_lots):
+                    _lt = exit_lots[exit_lots["date"] == d]
+                    _st_g = float(_lt.loc[_lt["term"] == "short", "gain"].sum())
+                    _lt_g = float(_lt.loc[_lt["term"] == "long", "gain"].sum())
+                    L.append(f'      gains   realised by these sales: short-term Rs {_st_g:,.2f}, '
+                             f'long-term Rs {_lt_g:,.2f}')
+                    _fy = _lt["fy"].iloc[0] if len(_lt) else None
+                    _y = (exit_years[exit_years["fy"] == _fy]
+                          if exit_years is not None and _fy is not None else None)
+                    if _y is not None and len(_y) and str(_y["tax"].iloc[0]) == "on":
+                        _due = _y["deducted_on"].iloc[0]
+                        L.append(f'      tax     on these gains is part of {_fy}\'s bill, Rs '
+                                 f'{float(_y["total_tax"].iloc[0]):,.2f}, due on '
+                                 f'{pd.Timestamp(_due).date() if pd.notna(_due) else "the backtest end"}')
+                    else:
+                        L.append("      tax     not charged in this run (tax off)")
         elif is_dec:
             L.append("  >>> [A] ORDER EXECUTION      none -- an order is created today and "
                      "fills tomorrow")
@@ -659,6 +727,12 @@ def build(mdir, tag, arm, bh, raw_idx=None, cal_sorted=None):
                          f'with positive 20-day momentum  =  {x["breadth"]:.4f}')
                 L.append(f'      exposure      : {x["exposure"]*100:.2f}%  '
                          f'(equal to breadth -- no threshold)')
+            elif arm.stop is not None:
+                L.append(f'      breadth       : {int(x["breadth_pos"])}/{int(x["breadth_total"])} stocks '
+                         f'with positive 20-day momentum  =  {x["breadth"]:.4f}   '
+                         f'[USED ONLY BY THE STOP, TO DECIDE RE-ENTRY]')
+                L.append(f'      exposure      : {x["exposure"]*100:.2f}%  '
+                         f'(100% while invested; the stop decides when it is out)')
             else:
                 L.append(f'      breadth       : {int(x["breadth_pos"])}/{int(x["breadth_total"])} stocks '
                          f'with positive 20-day momentum  =  {x["breadth"]:.4f}   '
@@ -724,6 +798,21 @@ def build(mdir, tag, arm, bh, raw_idx=None, cal_sorted=None):
             L.append("      -> the order is pending and fills at the next trading day's OPEN")
             last_dec = d
 
+        # ---------------- [D] DRAWDOWN STOP ----------------
+        _sev = stop_ev_by_day.get(d)
+        if _sev is not None:
+            L.append("")
+            L.append("  >>> [D] DRAWDOWN STOP")
+            for _, e in _sev.iterrows():
+                _dd = "" if pd.isna(e["drawdown_pct"]) else f'  drawdown {e["drawdown_pct"]:+.2f}%'
+                _pk = "" if pd.isna(e["peak"]) else f'  peak Rs {e["peak"]:,.2f}'
+                L.append(f'      {e["event"].upper():<28} {e["detail"]}')
+                L.append(f'      {"":<28} state {e["state"]}{_pk}  equity Rs '
+                         f'{e["equity"]:,.2f}{_dd}')
+            if is_dec and "superseded" in dg.columns and pd.notna(dg.loc[d].get("superseded")):
+                L.append("      the rebalance order above is superseded by the drawdown exit "
+                         "and is not sent")
+
         prev_cash, prev_tc, prev_qty = cash, float(r["cum_tc"]), qty_now
 
     # ---------------- FINAL VERIFICATION ----------------
@@ -772,6 +861,15 @@ def build(mdir, tag, arm, bh, raw_idx=None, cal_sorted=None):
             L.append(f"     - {_rsn:<26}: {_n:,}")
     else:
         L.append("     - none")
+    if arm.stop is not None:
+        _all_ev = (pd.concat(stop_ev_by_day.values()) if stop_ev_by_day
+                   else pd.DataFrame(columns=["event", "drawdown_pct"]))
+        _tr = _all_ev[_all_ev["event"] == "trigger"]
+        L.append(f"   drawdown exits              : {len(_tr):,}"
+                 + (f"   deepest trigger {_tr['drawdown_pct'].min():+.2f}%" if len(_tr) else ""))
+        L.append(f"   re-entries                  : "
+                 f"{int((_all_ev['event'] == 're-entry filled').sum()):,}")
+        L.append(f"   days with no holding        : {int((s['n_stocks'] == 0).sum()):,}")
     L += [
           f"   final equity                : Rs {s['total'].iloc[-1]:,.2f}",
           ""]

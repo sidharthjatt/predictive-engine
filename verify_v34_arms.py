@@ -147,7 +147,7 @@ def verify_arm(universe, arm, mode, sizing):
         with contextlib.redirect_stdout(io.StringIO()):
             strat = nt_run.run(str(config.BT_START_DATE.date()), U["end"],
                                quiet=True, universe=universe,
-                               sizing=sizing, mode=mode)
+                               sizing=sizing, mode=mode, drawdown_stop=None)
             dates, port = nt_verify.port_holdings(strat)
             panel = nt_attribution.load_panel(U["cache"])
             ref_applied = {"sizing": None, "mode": None}

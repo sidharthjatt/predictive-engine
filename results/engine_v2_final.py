@@ -217,10 +217,12 @@ def main(u):
     _capkw = _prof.cap_kwargs(u)
     base_eq, tcb, nb, _ = backtest_exposure(px, op, sc, bd, pc, mom20, port_vol,
                                             mode="none", target_vol=tv,
+                                            drawdown_stop=None,
                                             audit=base_audit, rebal=_reb,
                                             tax_enabled=_taxon, **_capkw)
     fin_eq, tcf, nf, expo = backtest_exposure(px, op, sc, bd, pc, mom20, port_vol,
                                               mode="breadth", target_vol=tv,
+                                              drawdown_stop=None,
                                               rebal=_reb, tax_enabled=_taxon,
                                               **_capkw)
     bh = START_CAPITAL * (1 + px.pct_change().loc[bd].mean(axis=1).fillna(0)).cumprod()
@@ -455,6 +457,30 @@ def main(u):
         print("  Where an arm holds cash, raw CAGR is not the right comparison on its own --\n"
               "  return per deployed rupee and drawdown are.")
     print(f"  Idle cash earns {CASH_YIELD*100:g}%, so none of the return above comes from interest.")
+    # THE STOP ARMS' EXITS AND RE-ENTRIES, from the audit of the run above.
+    for a in [x for x in _sel if x.stop is not None]:
+        _ev = pd.DataFrame(_arm_audits[a.name].get("stop_events", []))
+        _st = a.kwargs["drawdown_stop"]
+        print(f"\n  {a.name} drawdown stop (parent {a.parent}): exit at "
+              f"{_st.threshold:.0%} below the running peak, cooldown "
+              f"{_st.cooldown_cycles} cycle(s), re-entry at breadth >= "
+              f"{_st.reentry_breadth:.2f}"
+              + ("  [TEST FIXTURE THRESHOLD, NOT A RESULT]"
+                 if arm_reg.fixture_threshold() is not None else ""))
+        if _ev.empty:
+            print("    no exit")
+            continue
+        _key = _ev[_ev["event"].isin(["trigger", "flat", "re-entry order",
+                                      "re-entry filled", "trigger on the last session"])]
+        print(f"    exits {int((_ev['event'] == 'trigger').sum())}, re-entries "
+              f"{int((_ev['event'] == 're-entry filled').sum())}")
+        print(f"    {'date':<11} {'event':<28} {'peak':>14} {'equity':>14} {'drawdown':>9} "
+              f"{'breadth':>8}")
+        for _, r in _key.iterrows():
+            _dd = "" if pd.isna(r["drawdown_pct"]) else f"{r['drawdown_pct']:+.2f}%"
+            _br = "" if pd.isna(r["breadth"]) else f"{r['breadth']:.4f}"
+            print(f"    {str(pd.Timestamp(r['date']).date()):<11} {r['event']:<28} "
+                  f"{r['peak']:>14,.2f} {r['equity']:>14,.2f} {_dd:>9} {_br:>8}")
     if _taxon:
         _paid = [f"{a.name} Rs {_arm_audits[a.name]['tax']['cum_tax']:,.2f}" for a in _sel]
         # THE LAST-DAY FIGURE IS bh_held.held_lots', the one COST_SUMMARY and

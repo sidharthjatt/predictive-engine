@@ -299,7 +299,7 @@ def _one_arm(u, arm, M, px, op, sc, bd, pc, mom20, port_vol,
     audit = {k: [] for k in
              ("holdings", "summary", "trades", "ranking", "decisions", "skipped")}
     eq, _tc, _ntr, _expo = backtest_exposure(
-        px, op, sc, bd, pc, mom20, port_vol, mode=arm.mode, sizing=arm.sizing,
+        px, op, sc, bd, pc, mom20, port_vol, **arm.kwargs,
         target_vol=port_vol.loc[bd].median(), rebal=cadence.selected(),
         audit=audit, tax_enabled=True, **profiles.cap_kwargs(u))
 

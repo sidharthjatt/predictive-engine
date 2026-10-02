@@ -370,9 +370,18 @@ def bh_totals(bh, start_capital):
     return {"held": held, "sold": sold}
 
 
+def exit_costs(fills):
+    """Charges plus slippage on the drawdown stop's sales (fill kind "drawdown exit")."""
+    if not len(fills):
+        return 0.0
+    f = fills[fills["kind"] == "drawdown exit"]
+    return float(f["charges_total"].sum() + f["slippage_rs"].sum()) if len(f) else 0.0
+
+
 def summary_block(label, profile, tax_on, rebal, start_capital, equity, fills, years, days, bh,
-                  cap_cuts=0):
-    """The text block, as a list of lines."""
+                  cap_cuts=0, stop_arm=False):
+    """The text block, as a list of lines. `stop_arm` adds the "of which drawdown
+    exits" row; it is False for the core arms, whose block is unchanged."""
     S = strategy_totals(start_capital, float(equity.iloc[-1]), fills, years)
     final, gross, tot, charges = S["final"], S["gross"], S["by_type"], S["charges"]
     slip, stcg, ltcg, tax, exu = S["slippage"], S["stcg"], S["ltcg"], S["tax"], S["exemption_used"]
@@ -394,6 +403,8 @@ def summary_block(label, profile, tax_on, rebal, start_capital, equity, fills, y
     row("long-term", ltcg)
     row("LTCG exemption used (not a cost)", exu)
     row("all costs", charges + slip + tax, 0)
+    if stop_arm:
+        row("of which drawdown exits", exit_costs(fills))
     # per financial year, on a cash basis: a cost belongs to the year it left cash,
     # so each year's gross profit is its change in equity plus what it paid
     L += ["", "  per financial year, as paid (Rs; last column % of the year's gross profit)",
@@ -463,6 +474,9 @@ def summary_block(label, profile, tax_on, rebal, start_capital, equity, fills, y
                  f"prior-20-session median volume; it changes quantities, not the slippage rate.")
     if not tax_on:
         L.append("    TAX IS OFF for this run: every tax figure is zero because of the tax setting, not the gains.")
+    if stop_arm:
+        L.append("    of which drawdown exits: the charges and slippage of the stop's sales. Their tax is "
+                 "not separable; it is part of each year's bill above.")
     L += ["", "  what the tax model leaves out (data/reference/TAX_AND_CHARGES.docx, section 5):"]
     L += [f"    - {x}" for x in TAX_LEAVES_OUT]
     L += ["", f"  reconciled to the paisa: cash on {len(days):,} days, slippage and charges on "
@@ -514,7 +528,8 @@ def summary_figures(text):
     names = {"charges, total": "charges", "charges": "charges", "slippage": "slippage",
              "tax, total": "tax", "short-term": "stcg", "long-term": "ltcg",
              "LTCG exemption used (not a cost)": "exemption_used", "all costs": "all_costs",
-             "final equity": "final", "gross profit": "gross"}
+             "final equity": "final", "gross profit": "gross",
+             "of which drawdown exits": "exit_costs"}
     names.update({nm: k for k, nm in CHARGES})
     i = next(j for j, x in enumerate(lines) if x.rstrip().endswith("of gross"))
     for x in lines[i + 1:]:
@@ -550,6 +565,10 @@ def daily_log_totals(M, tag, arm_name, final, bh, start_capital, tax_on, width):
     for b, T_ in books.items():
         mine.update(_book_figures(b, T_))
     mine["sold/tax_if_on"] = bh["tax_if_on"]
+    import arms.registry as _ar
+    _stop_arm = _ar.get(arm_name).stop is not None
+    if _stop_arm:
+        mine["strategy/exit_costs"] = exit_costs(fills)
     # `tag` is audit_step.artefact_tag(u, arm), passed in by make_daily_log
     summ = M / f"COST_SUMMARY_{tag}.txt"
     if not summ.exists():
@@ -584,6 +603,8 @@ def daily_log_totals(M, tag, arm_name, final, bh, start_capital, tax_on, width):
         row("long-term", T_["ltcg"])
         row("LTCG exemption used (not a cost)", T_["exemption_used"])
         row("all costs", T_["all_costs"], 0)
+        if b == "strategy" and _stop_arm:
+            row("of which drawdown exits", mine["strategy/exit_costs"])
     L += ["", "   Held to the end, the buy & hold never sells, so it pays no tax under either setting."]
     if not tax_on:
         L += ["   Tax is off for this run, so every tax figure above is zero.",
@@ -611,7 +632,8 @@ def write(u, arm, tag, audit, equity, engine_tc, px, op, bd, start_capital, prof
     bh = bh_costs(px, op, bd, start_capital, tax_on)
     lines = summary_block(f"{u.tag} {getattr(arm, 'name', arm)}", profile, tax_on, rebal,
                           start_capital, equity, fills, years, days, bh,
-                          cap_cuts=sum(1 for r in audit["skipped"] if r.get("reason") == "participation cap"))
+                          cap_cuts=sum(1 for r in audit["skipped"] if r.get("reason") == "participation cap"),
+                          stop_arm=getattr(arm, "stop", None) is not None)
     # naming: arm,cadence,profile,tax via artefact_tag -- `tag` is audit_step.artefact_tag(u, arm)
     out.to_csv(M / f"COSTS_{tag}.csv", index=False)
     # naming: arm,cadence,profile,tax via artefact_tag -- `tag` is audit_step.artefact_tag(u, arm)

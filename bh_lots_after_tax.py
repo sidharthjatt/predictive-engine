@@ -180,8 +180,8 @@ def main(u):
         idx=(1+px.pct_change().mean(axis=1).fillna(0)).cumprod()
         pv=rolling_std(idx.pct_change(), VOL_WIN)*np.sqrt(252)
         bd=px.index[(px.index>=config.BT_START_DATE)&(px.index<=config.BT_END_DATE)]
-        kw=dict(mode=arm.mode,sizing=arm.sizing,target_vol=pv.loc[bd].median(),rebal=cadence.selected(),
-                **profiles.cap_kwargs(u))
+        kw=dict(target_vol=pv.loc[bd].median(),rebal=cadence.selected(),
+                **arm.kwargs,**profiles.cap_kwargs(u))
         v2_off,_,_,_=backtest_exposure(px,op,sc,bd,pc,mom20,pv,audit=None,tax_enabled=False,**kw)
         a={k:[] for k in ("holdings","summary","trades","ranking","decisions","skipped")}
         v2_on ,_,_,_=backtest_exposure(px,op,sc,bd,pc,mom20,pv,audit=a,tax_enabled=True,**kw)

@@ -173,7 +173,10 @@ def run_folder_name(uni_tags, arm_names, rebal, when=None):
     import datetime
     ts = (when or datetime.datetime.now()).strftime("%Y%m%dT%H%M%S")
     u = "all" if len(uni_tags) >= 4 else "-".join(uni_tags)
-    a = "all" if len(arm_names) >= 4 else "-".join(arm_names)
+    # "all" only for exactly the core four; any selection with a stop arm in it,
+    # or a core subset, is spelled out.
+    from arms.registry import ARMS as _CORE
+    a = "all" if set(arm_names) == set(_CORE) else "-".join(arm_names)
     return f"{ts}_{u or 'none'}_{a or 'none'}_r{int(rebal)}"
 
 

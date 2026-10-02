@@ -102,7 +102,7 @@ def run(drop=(), top_n=8):
     # apply a participation cap even if one were selected; research_only()
     # makes that a statement rather than an accident, and STOPS the run if
     # --profile ever reaches here. See profiles.research_only.
-    eq, tc, n, _ = backtest_exposure(px, op, sc, bd, pc, m20, pv, mode="breadth",
+    eq, tc, n, _ = backtest_exposure(px, op, sc, bd, pc, m20, pv, drawdown_stop=None, mode="breadth",
                                      target_vol=pv.loc[bd].median(), participation_cap=_prof.research_only(__name__))
     bh = 1_000_000 * (1 + px.pct_change().loc[bd].mean(axis=1).fillna(0)).cumprod()
     m = metrics(eq, "s", tc, n); mb = metrics(bh, "b")

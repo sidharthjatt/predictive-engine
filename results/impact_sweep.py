@@ -69,7 +69,7 @@ def cell(px, op, sc, bd, pc, mom20, v20, cap, k):
                            "decisions", "skipped")}
     iout = {}
     eq, tc, ntr, _ = backtest_exposure(
-        px, op, sc, bd, pc, mom20, mode=MODE, sizing=SIZING,
+        px, op, sc, bd, pc, mom20, drawdown_stop=None, mode=MODE, sizing=SIZING,
         participation_cap=cap, vol20=(None if cap is None and k is None else v20),
         impact_k=k, audit=aud, impact_out=iout)
     m = engine_core.metrics(eq, "cell", tc, ntr)

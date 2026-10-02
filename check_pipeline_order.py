@@ -167,6 +167,18 @@ ALLOWED_UNRESOLVED = {
     (None, "{f}_{tag}.csv"): (
         "make_daily_log.load(M, tag) -- the filename stem is a parameter too; "
         "same declined capability"),
+    # A stop arm's daily log reads its stop events (audit_step) and its lots and
+    # tax years (cost_report), all written by STEP 10c for the same tag before
+    # STEP 15 runs. Inside build(mdir, tag, ...), where both are parameters.
+    (None, "daily_stop_events_{tag}.csv"): (
+        "make_daily_log.build(mdir, tag) -- metrics dir and tag are function "
+        "parameters; same declined capability as load(M, tag)"),
+    (None, "COST_LOTS_{tag}.csv"): (
+        "make_daily_log.build(mdir, tag) -- metrics dir and tag are function "
+        "parameters; same declined capability as load(M, tag)"),
+    (None, "COST_TAX_YEARS_{tag}.csv"): (
+        "make_daily_log.build(mdir, tag) -- metrics dir and tag are function "
+        "parameters; same declined capability as load(M, tag)"),
 }
 
 def _mod2dir():

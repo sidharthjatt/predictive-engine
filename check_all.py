@@ -183,6 +183,13 @@ DELEGATES = (
     ("check_plan_order.py",                   [], False, None),
     ("naming_declare_check.py",               [], False, None),
     ("platform_identity_check.py",            [], False, None),
+    # No call site may pass an arm's mode and sizing and drop its drawdown stop:
+    # v5 and v6 share v1's and v3's mode and sizing. Static; a second.
+    ("stop_callsite_check.py",                [], False, None),
+    # The drawdown stop's edge cases on a synthetic panel, engine and reference
+    # copy: exit on a rebalance day, capped and unopened exit sales, the tax
+    # assessment day, the last two days, a re-entry with no fill, low breadth.
+    ("drawdown_stop_test.py",                 ["--quiet"], False, None),
 
     # Cheap, and each already carries an exit status.
     ("results/leakage_check1_causality.py",   [], False, None),

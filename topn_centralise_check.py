@@ -101,7 +101,7 @@ def run(uni, perm):
         # makes that a statement rather than an accident, and STOPS the run if
         # --profile ever reaches here. See profiles.research_only.
         eq, tc, n, _ = backtest_exposure(px, op, sc, bd, pc, mom20, port_vol,
-                                         mode=mode, target_vol=tv, sizing=sizing, participation_cap=_prof.research_only(__name__))
+                                         drawdown_stop=None, mode=mode, target_vol=tv, sizing=sizing, participation_cap=_prof.research_only(__name__))
         s = pd.Series(eq, index=bd[:len(eq)]) if not isinstance(eq, pd.Series) else eq
         # Hash the exact float bytes of the curve, not a formatted rendering.
         h = hashlib.sha256(np.asarray(s.values, dtype=np.float64).tobytes()).hexdigest()

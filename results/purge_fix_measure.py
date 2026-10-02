@@ -174,7 +174,7 @@ def arms_from_scores(sp, cfg):
         # makes that a statement rather than an accident, and STOPS the run if
         # --profile ever reaches here. See profiles.research_only.
         eq, tc, n, expo = backtest_exposure(px, op, sc, bd, pc, mom20, pv,
-                                            mode=mode, target_vol=tv,
+                                            drawdown_stop=None, mode=mode, target_vol=tv,
                                             sizing=sizing, participation_cap=_prof.research_only(__name__))
         m = metrics(eq, tag, tc, n)
         yearly = {}

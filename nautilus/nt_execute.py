@@ -72,8 +72,8 @@ def main():
             # halves of a run still cannot disagree about what is possible.
             U = nt_run.UNIVERSES[u.tag]
             strat = nt_run.run(str(config.BT_START_DATE.date()), U["end"],
-                               universe=u.tag, sizing=a.sizing, mode=a.mode,
-                               rebal=reb, reports_root=nt_run.PIPELINE_REPORTS)
+                               universe=u.tag, rebal=reb,
+                               reports_root=nt_run.PIPELINE_REPORTS, **a.kwargs)
             ran.append((u.tag, a.name, strat.rebalances))
 
     print("\n" + "=" * 96)

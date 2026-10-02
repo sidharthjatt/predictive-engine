@@ -140,7 +140,7 @@ def run_pair(universe, arm, mode, sizing):
         with contextlib.redirect_stdout(io.StringIO()):
             strat = nt_run.run(str(config.BT_START_DATE.date()), U["end"],
                                quiet=True, universe=universe,
-                               sizing=sizing, mode=mode)
+                               sizing=sizing, mode=mode, drawdown_stop=None)
             dates, port = nt_verify.port_holdings(strat)
             panel = nt_attribution.load_panel(U["cache"])
             ref = nt_verify.arm(panel, dates, size_at_close=False,
@@ -204,12 +204,12 @@ def equity_effect(out, universe, arm, mode, sizing):
         with contextlib.redirect_stdout(io.StringIO()):
             strat = nt_run.run(str(config.BT_START_DATE.date()), U["end"],
                                quiet=True, universe=universe,
-                               sizing=sizing, mode=mode)
+                               sizing=sizing, mode=mode, drawdown_stop=None)
             pe = pd.DataFrame(strat.daily_equity).set_index("date")["equity"]
             panel = nt_attribution.load_panel(U["cache"])
             re_ = nt_attribution.run(*panel, size_at_close=False,
                                      value_at_open=True, tick_round=True,
-                                     sizing=sizing, mode=mode)[0]
+                                     sizing=sizing, mode=mode, drawdown_stop=None)[0]
     finally:
         nt_data.set_tick_size("0.05"); nt_data.set_tick_mode("nse")
         nt_attribution.set_tick("0.05"); nt_attribution.set_tick_mode("nse")

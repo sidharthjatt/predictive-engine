@@ -65,6 +65,13 @@ midcap50, midcap100, midcap150, smallcap250), `--arm` (v1 to v4), `--rebal <days
 ./venv/bin/python run.py --universe nifty50 --arm v4 --rebal 30 --tax on --profile tradeable
 ```
 
+Two more arms exist and are not part of `--arm all`: v5 (v1 plus a drawdown stop)
+and v6 (v3 plus the stop), defined in `experiments/DRAWDOWN_STOP_PREREG.txt`. They
+are selected by name and write companion `v34_stop_*` files. Until the noise band
+of that pre-registration is committed, they refuse to run at the registered 20%
+threshold. Setting `DRAWDOWN_STOP_FIXTURE=0.01` runs them at a test threshold to
+check the wiring; such a run is never a result.
+
 Each run writes one folder, `runs/<timestamp>_<universe>_<arm>_r<cadence>/`, holding
 `run.log`, the day-by-day log (`DAILY_LOG_*.txt`), the CSVs (daily holdings, trades,
 decisions, rankings, the equity curve) and the charts (`chart_*.png`). The first run

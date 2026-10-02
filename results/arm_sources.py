@@ -55,7 +55,10 @@ def _axes(*, for_arm_subset=False):
     import profiles as _pf
     import tax as _tax
     sfx = cadence.suffix() + _pf.suffix() + _tax.suffix()
-    return (arm_reg.selection_suffix() + sfx) if for_arm_subset else sfx
+    # THE CORE PART OF THE SELECTION names the v34 files: a stop arm in the
+    # selection goes to v34_stop_* and does not rename them.
+    core = [n for n in arm_reg.selected_names() if n in arm_reg.ARMS]
+    return (arm_reg.selection_suffix(core) + sfx) if for_arm_subset else sfx
 
 
 def describe(path, n=None, unit="rows"):
@@ -111,6 +114,15 @@ def equity_path_and_series(M, tag, arm_name):
     """
     from config import read_table  # lazy: this module is imported without the repo root on sys.path
     M = Path(M)
+    # A STOP ARM'S CURVE IS IN THE COMPANION FILE, and only there.
+    if arm_name in arm_reg.STOP_ARMS:
+        g = M / f"v34_stop_equity{arm_reg.stop_selection_suffix()}{_axes()}.csv"
+        if g.exists():
+            df = read_table(g, parse_dates=["date"]).set_index("date")
+            col = arm_reg.STOP_ARMS[arm_name].equity_column
+            if col in df.columns:
+                return g, df[col]
+        return None, None
     # ONE NAME PER CHAIN. Not a candidate list -- a candidate list IS the fallback.
     f = M / f"v2FINAL_equity{_axes()}.csv"
     if f.exists():
@@ -167,7 +179,7 @@ def available(M, tag, names=None):
     want = arm_reg.selected_names() if names is None else [
         a.name if hasattr(a, "name") else a for a in names]
     out = []
-    for n in arm_reg.ARMS:
+    for n in arm_reg.ALL_ARMS:
         if n not in want:
             continue
         _, s = equity_path_and_series(M, tag, n)
@@ -176,12 +188,20 @@ def available(M, tag, names=None):
     return out
 
 
-def deployed_pct(arm_name, breadth_inv):
+def deployed_pct(arm_name, breadth_inv, summary=None):
     """Average deployed capital for an arm, in percent.
 
     The breadth-scaled arms (v2, v4) deploy `breadth_inv`; the always-invested
     ones (v1, v3) deploy 100. v2 and v4 share a number because breadth is
     mean(mom20 > 0) and does not depend on the sizing rule -- the two arms differ
     in how they split the money, not in how much of it they put to work.
+
+    A STOP ARM (v5, v6) IS MEASURED, not assumed: the share of days on which it
+    held any stock, from its daily_summary frame passed as `summary`.
     """
-    return breadth_inv if arm_reg.ARMS[arm_name].mode == "breadth" else 100
+    a = arm_reg.get(arm_name)
+    if a.stop is not None:
+        if summary is None:
+            raise ValueError(f"{arm_name}: a stop arm's deployed share needs its daily summary")
+        return int(round(100 * float((summary["n_stocks"] > 0).mean())))
+    return breadth_inv if a.mode == "breadth" else 100

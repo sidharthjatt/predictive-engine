@@ -149,7 +149,7 @@ def run_mode(parts, dd, mode, const_expo=None):
     # makes that a statement rather than an accident, and STOPS the run if
     # --profile ever reaches here. See profiles.research_only.
     eq, tc, ntr, expo = backtest_exposure(px, op, sc, dd, pc, mom20, port_vol,
-                                          mode=mode, target_vol=target_vol,
+                                          drawdown_stop=None, mode=mode, target_vol=target_vol,
                                           const_expo=const_expo, participation_cap=_prof.research_only(__name__))
     return metrics(eq, mode, tc, ntr), float(expo)
 

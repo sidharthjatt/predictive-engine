@@ -120,7 +120,7 @@ def run_arm(sizing, mode, px, op, sc, bd, pc, mom20, port_vol, tv):
     # makes that a statement rather than an accident, and STOPS the run if
     # --profile ever reaches here. See profiles.research_only.
     eq, tc, ntr, expo = backtest_exposure(px, op, sc, bd, pc, mom20, port_vol,
-                                          mode=mode, target_vol=tv, sizing=sizing, participation_cap=_prof.research_only(__name__))
+                                          drawdown_stop=None, mode=mode, target_vol=tv, sizing=sizing, participation_cap=_prof.research_only(__name__))
     m = metrics(eq, "arm", tc, ntr)
     return {"CAGR%": float(m["CAGR%"]), "Sharpe": float(m["Sharpe"]),
             "MaxDD%": float(m["MaxDD%"]), "AnnVol%": ann_vol_pct(eq),

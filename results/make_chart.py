@@ -285,7 +285,9 @@ def main(u):
     # from them, and they are also v2's and v1's own entries below.
     # ARMS is {name: (curve, before_tc tuple, colour, deployed%)}.
     ARMS_ON = {}
-    for _n in ("v2", "v1", "v3", "v4"):
+    # THE STOP ARMS' DAYS IN CASH, shaded on the chart: {arm: [(first, last), ...]}.
+    CASH_SPANS = {}
+    for _n in ("v2", "v1", "v3", "v4", "v5", "v6"):
         if _n not in set(arm_reg.selected_names()):
             continue
         if _n == "v2":
@@ -307,9 +309,25 @@ def main(u):
             print(f"    {_n}: {arm_sources.describe(_src, len(_e), 'sessions')}")
             print(f"    {_n}: {arm_sources.describe(_lg)}")
             _b = before_tc(_e, _lg)
-            _c = {"v3": "#1b9e77", "v4": "#e6ab02"}[_n]
-        ARMS_ON[_n] = (_e, _b, _c, arm_sources.deployed_pct(_n, inv))
-    _AD = {"v1": "inv-vol", "v2": "breadth", "v3": "provol", "v4": "provol-breadth"}
+            _c = {"v3": "#1b9e77", "v4": "#e6ab02", "v5": "#08306b", "v6": "#00441b"}[_n]
+        _summ = None
+        if arm_reg.get(_n).stop is not None:
+            import audit_step as _as
+            _summ = read_table(M / f"daily_summary_{_as.artefact_tag(u, _n)}.csv",
+                               parse_dates=["date"])
+            _out = (_summ["n_stocks"] == 0).to_numpy()
+            _spans, _start = [], None
+            for _k, _o in enumerate(_out):
+                if _o and _start is None:
+                    _start = _k
+                if (not _o or _k == len(_out) - 1) and _start is not None:
+                    _end = _k if _o else _k - 1
+                    _spans.append((_summ["date"].iloc[_start], _summ["date"].iloc[_end]))
+                    _start = None
+            CASH_SPANS[_n] = _spans
+        ARMS_ON[_n] = (_e, _b, _c, arm_sources.deployed_pct(_n, inv, _summ))
+    _AD = {"v1": "inv-vol", "v2": "breadth", "v3": "provol", "v4": "provol-breadth",
+           "v5": "inv-vol + stop", "v6": "provol + stop"}
     print("\n  HEADLINE NUMBERS")
     print(f"    {'series':<42} {'before TC':>10} {'after TC':>9} "
           f"{'Sharpe':>7} {'MaxDD%':>8} {'inv%':>5}")
@@ -485,6 +503,9 @@ def main(u):
         fig, ax = plt.subplots(2, 1, figsize=(16, 11), height_ratios=[2, 1])
         for lab, s_, c, ls, extra in series:
             ax[0].plot(s_.index, cum(s_), lw=2.0, color=c, ls=ls, label=f"{lab}  {extra}")
+        for _n in _arms:
+            for _a, _b in CASH_SPANS.get(_n, []):
+                ax[0].axvspan(_a, _b, color=_arms[_n][2], alpha=.08, lw=0)
         ax[0].axhline(0, color="k", lw=.6, alpha=.5)
         ax[0].set_ylabel("Cumulative return (%)")
         ax[0].yaxis.set_major_formatter(PercentFormatter(decimals=0))

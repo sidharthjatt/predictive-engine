@@ -248,7 +248,7 @@ def universe_series(u, W):
              ("holdings", "summary", "trades", "ranking", "decisions", "skipped")}
     eq, tc, n_tr, expo = backtest_exposure(
         px, op, sc, bd_ext, pc, mom20, port_vol,
-        mode="breadth", target_vol=tv, rebal=cadence.selected(),
+        drawdown_stop=None, mode="breadth", target_vol=tv, rebal=cadence.selected(),
         participation_cap=profiles.participation_cap(), audit=audit)
 
     # ------------------------------------------------------------------

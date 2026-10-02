@@ -54,12 +54,25 @@ M = U["metrics"]
 TAG = U["tag"]
 REBAL = next((int(a.split("=", 1)[1]) for a in sys.argv if a.startswith("--rebal=")), None)
 
-from arms.registry import ARMS as _ARMS
+from arms.registry import ALL_ARMS as _ARMS
 _ARM_NAME = next((a.split("=", 1)[1] for a in sys.argv if a.startswith("--arm=")), "v2")
 if _ARM_NAME not in _ARMS:
     raise SystemExit(f"unknown arm {_ARM_NAME!r}; known: {', '.join(_ARMS)}")
 ARM = _ARMS[_ARM_NAME]
-_ARM_KW = {"mode": ARM.mode, "sizing": ARM.sizing}
+# THE ARM'S OWN KWARGS: mode and sizing, and for v5/v6 the drawdown stop, which
+# the port and the reference copy then both run. Sealed for a stop arm unless the
+# test fixture is set (arms.registry.FIXTURE_ENV).
+_ARM_KW = ARM.kwargs
+
+# THE STOP'S DATES, compared exactly: these events on these days, on both sides.
+STOP_KEY_EVENTS = ("trigger", "exit fills", "flat", "re-entry order", "re-entry filled",
+                   "peak reset", "trigger on the last session")
+
+
+def stop_dates(rows):
+    """{(date, event)} for the stop's key events."""
+    return {(pd.Timestamp(r["date"]).normalize(), r["event"]) for r in rows
+            if r["event"] in STOP_KEY_EVENTS}
 
 
 def _ref_tag():
@@ -117,7 +130,9 @@ def port_holdings(strat):
     rebalance: the run itself reports 93.
     """
     dates = [pd.Timestamp(d["decided_on"]) for d in strat.decisions]
-    hp = pd.DataFrame(strat.holdings_log)
+    # COLUMNS GIVEN, because a stop arm can take every decision from an empty book,
+    # and then holdings_log has no rows at all.
+    hp = pd.DataFrame(strat.holdings_log, columns=["date", "symbol", "qty"])
     hp["date"] = pd.to_datetime(hp["date"])
     port = {d: {} for d in dates}
     for _, r in hp.iterrows():
@@ -504,6 +519,32 @@ def main():
         print("  symbol, or a different symbol set -- on a 0.01 grid where tick")
         print("  quantization cannot be the cause. Something else is wrong.")
         print("  Do not trade this.")
+    # THE STOP ARM'S EXITS AND RE-ENTRIES, port against the engine's own record.
+    if ARM.stop is not None:
+        _sf = M / f"daily_stop_events_{TAG}.csv"
+        eng_ev = (read_table(_sf, parse_dates=["date"]).to_dict("records")
+                  if _sf.exists() else [])
+        p_set, e_set = stop_dates(strat.stop_events), stop_dates(eng_ev)
+        a_ev = []
+        nt_attribution.run(*panel, size_at_close=False, value_at_open=True,
+                           stop_events_out=a_ev, **_ARM_KW)
+        a_set = stop_dates(a_ev)
+        _common = eq.index.intersection(ref_eq.index)
+        _gap = float(((eq.loc[_common] / ref_eq.loc[_common]) - 1).abs().max() * 100)
+        print(f"\n  DRAWDOWN STOP -- {len(e_set)} key events in {_sf.name}")
+        print(f"    port vs engine        : {len(p_set & e_set)} shared, "
+              f"{len(p_set - e_set)} port only, {len(e_set - p_set)} engine only")
+        print(f"    ARM A vs engine       : {len(a_set & e_set)} shared, "
+              f"{len(a_set - e_set)} ARM A only, {len(e_set - a_set)} engine only")
+        for d, e in sorted(p_set ^ e_set)[:20]:
+            print(f"      differs: {d.date()} {e}  ({'port' if (d, e) in p_set else 'engine'} only)")
+        print(f"    daily equity, port vs engine: largest gap {_gap:.4f}% over "
+              f"{len(_common)} days (reported, not gated, as for every arm)")
+        print(f"    exits {sum(1 for _, e in e_set if e == 'trigger')}, re-entries "
+              f"{sum(1 for _, e in e_set if e == 're-entry filled')}")
+        if not e_set or p_set != e_set:
+            print("  NOT VERIFIED. The port's exit and re-entry dates are not the engine's.")
+            rc = 1
     print(f"\n  RESULT: {'PASS' if rc == 0 else 'FAIL'} -- universe {UNIVERSE}, arm {ARM.name}, "
           f"0.01-grid reconciliation {t_n - t_stats[0]} of {t_n} identical, "
           f"{t_quant} quantization, "

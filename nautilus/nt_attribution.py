@@ -159,13 +159,18 @@ DEFAULT_MODE = "breadth"
 def run(px, op, sc, dates, pc, mom20, size_at_close: bool, tick_round: bool = False,
         value_at_open: bool = False, holdings_out=None,
         sizing: str = DEFAULT_SIZING, mode: str = DEFAULT_MODE, applied_out=None,
-        rebal: int = None):
+        rebal: int = None, drawdown_stop=None, stop_events_out=None):
     """`holdings_out`, when a dict is passed, is filled with
     {rebalance_date: {symbol: qty}} -- the holdings standing at each decision, which
     is the same quantity the port records in strat.holdings_log and the same one
     the reference engine's daily_holdings file reports. It is an out-parameter
     rather than an extra return value so existing three-value callers keep
-    working."""
+    working.
+
+    `drawdown_stop` runs the stop of v5/v6 through results/drawdown_stop.py, the
+    state machine the engine and the port also run; `stop_events_out`, a list,
+    receives its events. Both None for the core arms, which then run the loop
+    exactly as before."""
     # THE CADENCE, AS AN ARGUMENT. REBAL stays the module DEFAULT and is never
     # reassigned: module_state.py records that rebal_cadence_sweep.py:172 writes
     # test_exposure.REBAL and never restores it, and that every later step then
@@ -185,9 +190,17 @@ def run(px, op, sc, dates, pc, mom20, size_at_close: bool, tick_round: bool = Fa
         raise ValueError(f"mode must be 'breadth' or 'none', got {mode!r}")
     shares, cash = {}, float(START_CAPITAL)
     eq, pending, n_trades, cum_tc = [], None, 0, 0.0
+    _stop = drawdown_stop
+    if _stop is not None:
+        from drawdown_stop import StopState
+        _st = StopState(_stop, _reb, len(dates))
+        _EXIT = ({"_exposure": 0.0}, set())
 
     for i, dt in enumerate(dates):
         prices, opens = px.loc[dt], op.loc[dt]
+        if _stop is not None:
+            _st.begin_day()
+            _held_before = dict(shares)
 
         if pending is not None:
             plan, keep = pending
@@ -244,8 +257,18 @@ def run(px, op, sc, dates, pc, mom20, size_at_close: bool, tick_round: bool = Fa
                         cash -= q * pr + tc; cum_tc += tc; n_trades += 1
                         shares[s] = shares.get(s, 0) + q
             pending = None
+            if _stop is not None and (_st.exit_pending or _st.reentry_pending):
+                _st.after_fills(i, shares, _held_before,
+                                lambda k: pd.Timestamp(dates[k]).date())
 
-        if i % _reb == 0 and i < len(dates) - 1:
+        _grid = i % _reb == 0 and i < len(dates) - 1
+        _reentry = False
+        if _grid and _stop is not None and _st.state != "IN":
+            def _breadth():
+                _m = mom20.loc[dt].dropna()
+                return float((_m > 0).mean()) if len(_m) else 1.0
+            _grid = _reentry = _st.grid_allows_order(i, _breadth)
+        if _grid:
             m = mom20.loc[dt].dropna()
             expo = float((m > 0).mean()) if len(m) else 1.0
             expo = 1.0 if mode == "none" else max(0.0, min(1.0, expo))
@@ -291,9 +314,17 @@ def run(px, op, sc, dates, pc, mom20, size_at_close: bool, tick_round: bool = Fa
                 else:
                     w["_exposure"] = expo
                     pending = (w, keep)
+            if _reentry:
+                _st.after_reentry_order(pending is not None)
 
         mtm = sum(q * prices[s] for s, q in shares.items()
                   if not np.isnan(prices.get(s, np.nan)))
+        if _stop is not None:
+            if _st.at_close(i, dt, cash + mtm, pending is not None, bool(shares),
+                            i == len(dates) - 1) == "exit":
+                pending = _EXIT
+            if stop_events_out is not None:
+                stop_events_out.extend(_st.rows(dt, cash + mtm))
         eq.append(cash + mtm)
 
     return pd.Series(eq, index=dates), n_trades, cum_tc

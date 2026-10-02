@@ -177,13 +177,23 @@ def _reference_curve(M, arm_name):
     # and reported MATCH. It could not fail.
     import tax as _tax_axis
     _cad = cadence.suffix() + _prof.suffix() + _tax_axis.suffix()
+    # A STOP ARM'S CURVE IS IN THE COMPANION FILE, and only there.
+    if arm_name in _ar.STOP_ARMS:
+        g = M / f"v34_stop_equity{_ar.stop_selection_suffix()}{_cad}.csv"
+        if g.exists():
+            df = read_table(g, parse_dates=["date"]).set_index("date")
+            col = _ar.STOP_ARMS[arm_name].equity_column
+            if col in df.columns:
+                return df[col]
+        return None
     f = M / f"v2FINAL_equity{_cad}.csv"
     if f.exists():
         df = read_table(f, parse_dates=["date"]).set_index("date")
         s = _ar.equity_series(df, arm_name)
         if s is not None:
             return s
-    for name in (f"v34_equity{_ar.selection_suffix()}{_cad}.csv",
+    _core = [n for n in _ar.selected_names() if n in _ar.ARMS]
+    for name in (f"v34_equity{_ar.selection_suffix(_core)}{_cad}.csv",
                  f"v34_equity{_cad}.csv"):
         g = M / name
         if g.exists():
@@ -232,7 +242,7 @@ def run(u, arm=None):
     # is v2, which is the arm this step has always run, so mode and sizing below
     # are the same two values it always passed.
     _arm = arm_reg.ARMS["v2"] if arm is None else (
-        arm if hasattr(arm, "name") else arm_reg.ARMS[arm])
+        arm if hasattr(arm, "name") else arm_reg.get(arm))
     audit = {"holdings": [], "summary": [], "trades": [],
              "ranking": [], "decisions": [], "skipped": [],
              # THE COST TRAIL for results/cost_report.py: every fill and every
@@ -256,7 +266,7 @@ def run(u, arm=None):
     # from the taxed curve by the whole tax effect and refuse to write the trail.
     import tax as _tax_axis
     eq, tc, ntr, expo = backtest_exposure(
-        px, op, sc, bd, pc, mom20, mode=_arm.mode, sizing=_arm.sizing, audit=audit,
+        px, op, sc, bd, pc, mom20, audit=audit, **_arm.kwargs,
         value_at_open=True, tax_enabled=_tax_axis.selected(),
         # THE RUN'S CADENCE. A trail built at 20 while the engine ran at 40 would
         # fail the reconciliation below -- which is the check working, but the fix
@@ -296,6 +306,15 @@ def run(u, arm=None):
     dcdf.to_csv(M / f"daily_decisions_{tag}.csv", index=False)
     skdf = pd.DataFrame(audit["skipped"])
     skdf.to_csv(M / f"daily_skipped_{tag}.csv", index=False)
+    # A STOP ARM'S EXITS, COOLDOWNS, WAITS AND RE-ENTRIES, one row per event.
+    if _arm.stop is not None:
+        stdf = pd.DataFrame(audit.get("stop_events", []),
+                            columns=["date", "event", "state", "peak", "peak_date",
+                                     "equity", "drawdown_pct", "breadth", "detail"])
+        stdf.to_csv(M / f"daily_stop_events_{tag}.csv", index=False)
+        print(f"  stop events: {len(stdf)} "
+              f"({int((stdf['event'] == 'trigger').sum())} exits, "
+              f"{int((stdf['event'] == 're-entry filled').sum())} re-entries)")
     if len(skdf):
         print(f"  SKIPPED orders: {len(skdf)}")
         print(skdf["reason"].value_counts().to_string().replace("\n", "\n    "))

@@ -169,7 +169,7 @@ def run_arm(top_n, px, op, sc, dates, pc, mom20, port_vol, tv, label):
     # makes that a statement rather than an accident, and STOPS the run if
     # --profile ever reaches here. See profiles.research_only.
     eq, tc, ntr, expo = backtest_exposure(px, op, sc, dates, pc, mom20, port_vol,
-                                          mode="breadth", target_vol=tv,
+                                          drawdown_stop=None, mode="breadth", target_vol=tv,
                                           audit=audit, participation_cap=_prof.research_only(__name__))
     # backtest_exposure returns the MEAN exposure already, as a scalar.
     dep = float(expo) * 100

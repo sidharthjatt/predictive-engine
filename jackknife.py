@@ -122,7 +122,7 @@ def curves(drop=()):
     # makes that a statement rather than an accident, and STOPS the run if
     # --profile ever reaches here. See profiles.research_only.
     eq, tc, n, _ = backtest_exposure(px, op, sc, bd, pc, mom20, pv,
-                                     mode="breadth", target_vol=pv.loc[bd].median(),
+                                     drawdown_stop=None, mode="breadth", target_vol=pv.loc[bd].median(),
                                      participation_cap=_prof.research_only(__name__))
     bh = 1_000_000 * (1 + px.pct_change().loc[bd].mean(axis=1).fillna(0)).cumprod()
     return eq, bh, tc, n

@@ -40,7 +40,7 @@ def tick01(x):
 
 def trace(u, a):
     arm = ARMS[a]
-    kw = {"mode": arm.mode, "sizing": arm.sizing}
+    kw = arm.kwargs
     U = nt_run.UNIVERSES[u]
     nt_data.set_tick_size("0.01"); nt_data.set_tick_mode("fixed")
     nt_attribution.set_tick("0.01"); nt_attribution.set_tick_mode("fixed")
@@ -88,7 +88,7 @@ def trace(u, a):
 
 
 def grid05(u, a):
-    kw = {"mode": ARMS[a].mode, "sizing": ARMS[a].sizing}
+    kw = ARMS[a].kwargs
     U = nt_run.UNIVERSES[u]
     with contextlib.redirect_stdout(io.StringIO()):
         strat = nt_run.run(str(config.BT_START_DATE.date()), U["end"], quiet=True, universe=u, **kw)

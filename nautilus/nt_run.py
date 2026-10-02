@@ -93,7 +93,7 @@ FEE_MODEL = QbeastIndianFeeModel(
 )
 
 
-def reports_segment(mode, sizing, rebal=None):
+def reports_segment(mode, sizing, rebal=None, drawdown_stop=None):
     """The leaf directory identifying one (arm, cadence, profile) combination.
 
     A NAMED FUNCTION SO IT CAN BE MEASURED. This was eleven lines inline inside
@@ -129,7 +129,9 @@ def reports_segment(mode, sizing, rebal=None):
     # the git log of this function; NOTHING DOWNSTREAM OF IT READS THE PROFILE
     # (nt_strategy sizes with no participation cap), so `@tradeable` records
     # which profile the run SELECTED, not which one it APPLIED.
-    return path_segment(mode, sizing) + naming.path_tail(rebal)
+    # A STOP ARM GETS ITS OWN LEAF. v5 has v1's mode and sizing, so without the
+    # stop in the segment its reports would overwrite v1's.
+    return path_segment(mode, sizing, drawdown_stop) + naming.path_tail(rebal)
 
 
 # WHERE A RUN'S REPORTS GO. ONLY THE PIPELINE WRITES nautilus/reports/.
@@ -149,7 +151,8 @@ TOOL_REPORTS = Path(__file__).resolve().parent / "tool_reports"
 # filenames beneath it are bare literals.
 def run(trading_start, trading_end, symbols=None, quiet=True,
         universe=None,
-        sizing="invvol", mode="breadth", rebal=None, reports_root=None):
+        sizing="invvol", mode="breadth", rebal=None, reports_root=None,
+        drawdown_stop=None):
     warm_start = (pd.Timestamp(trading_start) - pd.Timedelta(days=WARMUP_DAYS)).strftime("%Y-%m-%d")
     print(f"data from {warm_start} (warm-up) | trading {trading_start} to {trading_end}")
 
@@ -194,7 +197,7 @@ def run(trading_start, trading_end, symbols=None, quiet=True,
     # sizing/mode default to what every caller relied on when these were module
     # globals, so an existing call site behaves exactly as before.
     strat.configure(scores, instruments, trading_start, sizing=sizing, mode=mode,
-                    rebal=rebal)
+                    rebal=rebal, drawdown_stop=drawdown_stop)
     eng.add_strategy(strat)
 
     eng.run()
@@ -216,7 +219,7 @@ def run(trading_start, trading_end, symbols=None, quiet=True,
     # arms.registry, so the directory and the arm cannot drift apart, and a
     # combination that is not one of the four named arms gets "{mode}-{sizing}"
     # rather than being folded into one that is.
-    _seg = reports_segment(mode, sizing, rebal)
+    _seg = reports_segment(mode, sizing, rebal, drawdown_stop)
     out = (TOOL_REPORTS if reports_root is None else Path(reports_root)) / universe / _seg
     out.mkdir(parents=True, exist_ok=True)
     # THREE REPORTS, AND TWO OF THEM ARE ABOUT ORDERS. The distinction is the

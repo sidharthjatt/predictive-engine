@@ -41,9 +41,9 @@ def cell(u, arm, panel, profile, tax_on):
     try:
         audit = {k: [] for k in KEYS}
         audit["costs"] = {"fills": [], "days": []}
-        _eq, tc, _n, _ = backtest_exposure(px, op, sc, bd, pc, mom20, mode=arm.mode,
-                                           sizing=arm.sizing, audit=audit, value_at_open=True,
-                                           tax_enabled=tax_on, **profiles.cap_kwargs(u))
+        _eq, tc, _n, _ = backtest_exposure(px, op, sc, bd, pc, mom20, audit=audit,
+                                           value_at_open=True, tax_enabled=tax_on,
+                                           **arm.kwargs, **profiles.cap_kwargs(u))
     finally:
         profiles.set_selection(None)
     tx = audit.get("tax")

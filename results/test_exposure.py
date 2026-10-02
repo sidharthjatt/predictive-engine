@@ -136,9 +136,33 @@ def backtest_exposure(px, op, sc, dates, pc, mom20, port_vol=None,
                       const_expo=None, value_at_open=True, rebal=None,
                       funding="cash", participation_cap=_CAP_REQUIRED, vol20=_VOL20_REQUIRED,
                       tax_enabled=False, impact_k=None, impact_out=None,
-                      end_sale=False):
+                      end_sale=False, drawdown_stop=None):
     """audit=None reproduces the original code path exactly: no overhead, and the
     official numbers are unchanged.
+
+    drawdown_stop -- THE STOP OF v5 AND v6 (experiments/DRAWDOWN_STOP_PREREG.txt).
+        None, the default, runs none of the code below that reads it, so v1 to v4
+        are exactly what they were. An object with `threshold`, `cooldown_cycles`
+        and `reentry_breadth` (arms.registry.DrawdownStop) runs this state machine
+        on top of the arm's normal rebalancing:
+          IN           the running peak of close equity is updated each day. At a
+                       close at or below (1 - threshold) x peak, an order to sell
+                       everything is placed for the next open and the state is
+                       LIQUIDATING. A rebalance order placed at the same close is
+                       superseded. A trigger at the last close sells nothing.
+          LIQUIDATING  the exit goes through the ordinary sell branch, so the cap,
+                       a missing open, slippage, charges and the tax ledger apply
+                       exactly as to any sale. Whatever is left is offered again at
+                       each next open until the book is flat.
+          OUT          from the day the book is flat. For cooldown_cycles x rebal
+                       trading days no order is placed. After that, on each
+                       rebalance-grid day, breadth is computed exactly as
+                       mode="breadth" computes it; at reentry_breadth or more the
+                       arm's normal order is placed, below it the arm stays in cash.
+          re-entry     if at least one buy fills, the peak resets to that day's
+                       close and the state is IN. If none fills, the state stays OUT.
+        Every transition is written to audit["stop_events"] when an audit dict is
+        passed.
 
     end_sale -- SELL EVERYTHING ON THE LAST SESSION (2026-09-25). False, the
         default and the headline: positions still held at the end are marked to
@@ -329,7 +353,18 @@ def backtest_exposure(px, op, sc, dates, pc, mom20, port_vol=None,
 
     cash_daily = (1 + CASH_YIELD) ** (1 / 252) - 1
 
+    # THE DRAWDOWN STOP (results/drawdown_stop.py). Nothing here exists when
+    # drawdown_stop is None.
+    _stop = drawdown_stop
+    if _stop is not None:
+        from drawdown_stop import StopState
+        _st = StopState(_stop, _rebal, len(dates))
+        _stop_log = audit.setdefault("stop_events", []) if audit is not None else None
+        _EXIT_ORDER = ({"_exposure": 0.0}, set())   # sell every holding, buy nothing
+
     for i, dt in enumerate(dates):
+        if _stop is not None:
+            _st.begin_day()
         prices, opens = px.loc[dt], op.loc[dt]
         _cash_open = cash
         cash *= (1 + cash_daily)
@@ -432,6 +467,12 @@ def backtest_exposure(px, op, sc, dates, pc, mom20, port_vol=None,
 
         if pending is not None:
             targets, keep = pending
+            # The fill kind of this morning's sells: "rebalance" unless the order
+            # is a drawdown exit.
+            _sell_kind = ("drawdown exit" if _stop is not None and _st.exit_pending
+                          else "rebalance")
+            if _stop is not None:
+                _held_before = dict(shares)
             for s in list(shares.keys()):
                 if s not in keep:
                     pr = opens.get(s, np.nan)
@@ -466,7 +507,7 @@ def backtest_exposure(px, op, sc, dates, pc, mom20, port_vol=None,
                     pr, _pend = _fill_price("SELL", s, dt, pr, q)
                     tc = calc_tc(pr, q, "SELL")
                     cash += q * pr - tc; cum_tc += tc; n_trades += 1
-                    _cost_fill(dt, "SELL", s, q, _ref, pr, tc, "rebalance")
+                    _cost_fill(dt, "SELL", s, q, _ref, pr, tc, _sell_kind)
                     _commit_impact(_pend)
                     if ledger is not None:
                         ledger.sell(s, q, round(pr, 2), dt)
@@ -615,6 +656,9 @@ def backtest_exposure(px, op, sc, dates, pc, mom20, port_vol=None,
                             "tc": round(tc, 2)})
                     shares[s] = shares.get(s, 0) + q
             pending = None
+            if _stop is not None and (_st.exit_pending or _st.reentry_pending):
+                _st.after_fills(i, shares, _held_before,
+                                lambda k: pd.Timestamp(dates[k]).date())
 
         # THE LAST-DAY SALE -- see end_sale in the docstring. After the day's
         # ordinary fills and before the end-of-window tax settlement below.
@@ -642,7 +686,18 @@ def backtest_exposure(px, op, sc, dates, pc, mom20, port_vol=None,
                         "detail": "end_sale=True: full liquidation on the final session"})
                 del shares[s]
 
-        if i % _rebal == 0 and i < len(dates) - 1:
+        _grid = i % _rebal == 0 and i < len(dates) - 1
+        _reentry_check = False
+        if _grid and _stop is not None and _st.state != "IN":
+            # NO NORMAL REBALANCE WHILE THE STOP HOLDS THE ARM OUT. Breadth, when
+            # the stop asks for it, is computed exactly as mode="breadth" does.
+            def _breadth():
+                _m = mom20.loc[dt].dropna()
+                return float((_m > 0).mean()) if len(_m) else 1.0
+            _grid = _reentry_check = _st.grid_allows_order(i, _breadth)
+            if not _grid:
+                expo_log.append(0.0)
+        if _grid:
             if mode == "none":
                 expo = 1.0
             elif mode == "breadth":
@@ -770,6 +825,9 @@ def backtest_exposure(px, op, sc, dates, pc, mom20, port_vol=None,
                             "target_wt_pct": round(w.get(sym, 0.0)*100, 2) if sym in top else 0.0,
                             "held_before": sym in held, "action": act})
 
+            if _reentry_check:
+                _st.after_reentry_order(pending is not None)
+
         # TOUCH POINT 6, SECOND HALF -- a year assessed on a day still inside
         # that year (31 March) is charged AFTER the day's fills, so a sell that
         # day is taxed with its own year. See tax_util.Ledger.due_on.
@@ -792,6 +850,23 @@ def backtest_exposure(px, op, sc, dates, pc, mom20, port_vol=None,
         mtm = sum(q * prices[s] for s, q in shares.items()
                   if not np.isnan(prices.get(s, np.nan)))
         pv = mtm + cash
+        if _stop is not None:
+            _act = _st.at_close(i, dt, pv, pending is not None, bool(shares),
+                                i == len(dates) - 1)
+            if _act == "exit":
+                if pending is not None and pending is not _EXIT_ORDER \
+                        and audit is not None and audit["decisions"]:
+                    audit["decisions"][-1]["superseded"] = "drawdown exit"
+                if audit is not None and _st.events and _st.events[-1][0] == "trigger":
+                    audit["skipped"].append({"date": dt, "side": "STOP", "symbol": "",
+                        "reason": "drawdown exit",
+                        "detail": f"close equity Rs {pv:,.2f} is {_st.drawdown(pv):+.2%} "
+                                  f"from the peak of Rs {_st.peak:,.2f} on "
+                                  f"{pd.Timestamp(_st.peak_date).date()}; every holding "
+                                  f"is sold at the next open"})
+                pending = _EXIT_ORDER
+            if _stop_log is not None:
+                _stop_log.extend(_st.rows(dt, pv))
         if _costs is not None:
             _costs["days"].append({"date": dt, "cash_open": _cash_open, "interest": _cash_int,
                                    "tax_before_fills": _tax_pre, "tax_after_fills": _tax_post,

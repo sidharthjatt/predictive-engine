@@ -59,7 +59,7 @@ for _p in (str(ROOT), str(ROOT / "results"), str(ROOT / "nautilus")):
 
 import paths                                        # noqa: E402
 from universes.registry import REGISTRY             # noqa: E402
-from arms.registry import ARMS, SHIPPING as SHIPPING_ARMS                      # noqa: E402
+from arms.registry import ARMS, ALL_ARMS, SHIPPING as SHIPPING_ARMS            # noqa: E402
 
 # ---------------------------------------------------------------------------
 # THE INVOCATION CONTRACT
@@ -209,20 +209,23 @@ def resolve_arms(name):
 
     A REPEATED NAME IS NOT AN ERROR, it is the same set. Deduplication happens
     through ARMS iteration below, so an arm cannot appear twice in one table.
+
+    "all" IS THE CORE FOUR. The stop arms v5 and v6 (arms.registry.STOP_ARMS) are
+    selected by name only, until experiments/DRAWDOWN_STOP_PREREG.txt accepts them.
     """
     if name in ("all", None):
         return list(ARMS.values())
     want = [t.strip() for t in str(name).split(",") if t.strip()]
     if not want:
         raise SystemExit("--arm was empty; give an arm name, a comma-separated "
-                         f"list, or 'all'. known: {', '.join(ARMS)}")
-    unknown = [t for t in want if t not in ARMS]
+                         f"list, or 'all'. known: {', '.join(ALL_ARMS)}")
+    unknown = [t for t in want if t not in ALL_ARMS]
     if unknown:
         # Every unknown name at once, not one per run.
         raise SystemExit(f"unknown arm(s) {', '.join(repr(t) for t in unknown)}; "
-                         f"known: {', '.join(ARMS)}")
+                         f"known: {', '.join(ALL_ARMS)}")
     sel = set(want)
-    return [a for n, a in ARMS.items() if n in sel]
+    return [a for n, a in ALL_ARMS.items() if n in sel]
 
 
 def pipeline_steps(unis):
@@ -314,9 +317,9 @@ def preflight(args, plan):
         bad.append(f"universe(s) {sorted(unknown_u)} -- registry defines "
                    f"{sorted(REGISTRY)}")
 
-    unknown_a = [a.name for a in plan["arms"] if a.name not in ARMS]
+    unknown_a = [a.name for a in plan["arms"] if a.name not in ALL_ARMS]
     if unknown_a:
-        bad.append(f"arm(s) {sorted(unknown_a)} -- registry defines {sorted(ARMS)}")
+        bad.append(f"arm(s) {sorted(unknown_a)} -- registry defines {sorted(ALL_ARMS)}")
 
     if args.rebal is not None:
         try:
@@ -478,7 +481,7 @@ def main(argv=None):
                          "'all' (default). known: " + ", ".join(REGISTRY))
     ap.add_argument("--arm", default="all",
                     help="arm name, a comma-separated subset (e.g. v1,v3), or "
-                         "'all' (default). known: " + ", ".join(ARMS))
+                         "'all' (default, the core four). known: " + ", ".join(ALL_ARMS))
     ap.add_argument("--steps", default="all", choices=("all", "pipeline", "arms"),
                     help="which kinds of step to run (default all)")
     ap.add_argument("--rebal", type=int, default=None,

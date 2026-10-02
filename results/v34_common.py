@@ -178,160 +178,15 @@ def _git_state():
                      "working tree clean; the commit describes this run exactly")}
 
 
-# naming: arm,cadence,profile via SFX -- every artefact this step writes is
-# named `<stem>{SFX}.<ext>` with SFX composed at v34_common.py:300 from
-# selection_suffix() + cadence.suffix() + profiles.suffix().
-def run_v34(M, universe_label, universe_tag, px, op, sc, bd, pc, mom20, port_vol,
-            tv, backtest_exposure, v1_eq, v1_tc, v1_n, v2_eq, v2_tc, v2_n, v2_expo,
-            start_capital, halves, consts, v1_audit=None, audits_out=None):
-    """Run v3 and v4, assemble all four arms plus buy & hold, write the outputs.
-
-    `audits_out`, when a dict, receives {arm name: audit} for the selected arms, so
-    the engine's verdict can state the tax each one paid."""
-    def _blank():
-        return {k: [] for k in ("holdings", "summary", "trades",
-                                "ranking", "decisions", "skipped")}
-
-    # v2 is re-run purely to obtain its audit for the two diagnostic columns. This
-    # is safe: passing an audit dict was verified to leave the equity curve, the
-    # transaction cost and the trade count bit-identical, so the reported v2 row
-    # still comes from the caller's original curve, not from this run.
-    import arms.registry as arm_reg
-    sel = set(arm_reg.selected_names())
-
-    # GATED ON v2 BEING SELECTED, like v3 and v4 below. Its only purpose is v2's
-    # MeanNamesHeld / CashShortSkips columns; with v2 deselected there is no v2
-    # row to carry them and this is a whole backtest run for a discarded result.
-    # THE RUN'S CADENCE, AS AN ARGUMENT. Default 20, which is what these calls
-    # resolved to when they passed nothing, so the default path is unchanged.
-    import cadence
-    _reb = cadence.selected()
-    # THE TAX SELECTION, READ ONCE AND PASSED AS AN ARGUMENT -- exactly as _reb
-    # above and participation_cap below. backtest_exposure's tax_enabled is a
-    # PARAMETER by design (test_exposure.py:203 gives the reason: same as rebal
-    # and participation_cap), so it stays one; what was missing was any caller on
-    # the PUBLISHED path passing it.
-    #
-    # UNTIL 2026-09-18 NO SUCH CALLER EXISTED. tax_enabled defaulted to False at
-    # every one of the 31 call sites except tax_report.py's and
-    # bh_lots_after_tax.py's, so `--tax on` moved filenames and nothing else: 36
-    # of 40 suffixed artefacts were BYTE-IDENTICAL to their untaxed twins and the
-    # other 4 differed only in a header label. The axis renamed; it did not charge.
-    import tax as _tax_axis
-    _taxon = _tax_axis.selected()
-    # THE PROFILE'S CAP, RESOLVED ONCE AND PASSED AS AN ARGUMENT.
-    # profiles.py records why this is not a global on test_exposure: cadence.py
-    # documents rebal_cadence_sweep.py setting test_exposure.REBAL and never
-    # restoring it, so every later in-process step silently used the wrong cadence.
-    # None under profile="research", so `q` is untouched and the published history
-    # is exact.
-    import profiles as _prof
-    from universes.registry import REGISTRY as _REG
-    _capkw = _prof.cap_kwargs(_REG[universe_tag])
-    a2 = _blank()
-    if "v2" in sel:
-        backtest_exposure(px, op, sc, bd, pc, mom20, port_vol, mode="breadth",
-                          target_vol=tv, sizing="invvol", audit=a2, rebal=_reb,
-                          tax_enabled=_taxon, **_capkw)
-
-    # --- the two new arms, same panel and dates as v1/v2 ---
-    # COMPUTED ONLY IF SELECTED. A run that asked for v1 and v3 has no use for
-    # v4's curve, and running it would put a number in the process that must then
-    # be filtered out of four separate artefacts -- the kind of thing that leaks.
-    # ARM_SEL is read at CALL time, not at import, so run.py setting it after this
-    # module is imported still takes effect.
-    a3, a4 = _blank(), _blank()
-    v3_eq = v3_tc = v3_n = None
-    v4_eq = v4_tc = v4_n = None
-    v4_expo = 0.0
-    if "v3" in sel:
-        v3_eq, v3_tc, v3_n, _ = backtest_exposure(px, op, sc, bd, pc, mom20, port_vol,
-                                                  mode="none", target_vol=tv,
-                                                  sizing="provol", audit=a3,
-                                                  rebal=_reb, tax_enabled=_taxon,
-                                                  **_capkw)
-    if "v4" in sel:
-        v4_eq, v4_tc, v4_n, v4_expo = backtest_exposure(px, op, sc, bd, pc, mom20,
-                                                        port_vol, mode="breadth",
-                                                        target_vol=tv, sizing="provol",
-                                                        audit=a4, rebal=_reb,
-                                                        tax_enabled=_taxon, **_capkw)
-    bh = start_capital * (1 + px.pct_change().loc[bd].mean(axis=1).fillna(0)).cumprod()
-
-    # ONE TABLE DRIVES CURVES, AUDITS, ROWS AND THE EQUITY COLUMNS, so an arm
-    # cannot be filtered out of one of them and left in another. Order is ARMS
-    # order, which is the order the four-arm table has always been written in.
-    ARM_DEF = [
-        ("v1", "v1 invvol, 100% invested",  "v1_invvol_none",    v1_eq, v1_tc, v1_n, 100.0,          v1_audit),
-        ("v2", "v2 invvol, breadth-scaled", "v2_invvol_breadth", v2_eq, v2_tc, v2_n, v2_expo * 100,  a2),
-        ("v3", "v3 provol, 100% invested",  "v3_provol_none",    v3_eq, v3_tc, v3_n, 100.0,          a3),
-        ("v4", "v4 provol, breadth-scaled", "v4_provol_breadth", v4_eq, v4_tc, v4_n, v4_expo * 100,  a4),
-    ]
-    ARM_ON = [a for a in ARM_DEF if a[0] in sel]
-    if audits_out is not None:
-        audits_out.update({nm: au for nm, _, _, _, _, _, _, au in ARM_ON})
-
-    curves = [(lab, eq, dep) for _, lab, _, eq, _, _, dep, _ in ARM_ON] \
-        + [("buy & hold equal-weight", bh, 100.0)]
-
-    audits = {lab: au for _, lab, _, _, _, _, _, au in ARM_ON if au is not None}
-
-    rows = [arm_row(eq, lab, tc, n, dep)
-            for _, lab, _, eq, tc, n, dep, _ in ARM_ON] \
-        + [arm_row(bh, "buy & hold equal-weight", 0, 0, 100.0)]
-    for r in rows:
-        if r["Config"] in audits:
-            mh, nsk = held_and_skips(audits[r["Config"]])
-            r["MeanNamesHeld"] = round(mh, 2)
-            r["CashShortSkips"] = nsk
-        else:
-            # buy & hold holds the whole universe every day: not-applicable,
-            # not unmeasured. Written as an empty cell so pandas does not
-            # coerce the column to float and render it as NaN.
-            r["MeanNamesHeld"] = ""
-            r["CashShortSkips"] = ""
-    # THE CANONICAL v34_* FILES ARE WRITTEN ONLY ON A FULL FOUR-ARM SELECTION.
-    # SFX is "" then, so those paths and their contents are exactly what they have
-    # always been. A subset writes v34_comparison_v1_v3.csv and friends beside
-    # them and leaves the canonical files untouched.
-    #
-    # THIS IS NOT TIDINESS, IT PROTECTS SEVEN GATES. purge_fix_measure,
-    # seed_noise_measure, seed_noise_report, shuffle_test, validate_topn,
-    # rebal_cadence_sweep and drawdown_exit_measure all read v34_comparison.csv,
-    # and six of them assert their own control run against its v2 ROW. A two-arm
-    # subset overwriting that file would leave every one of them comparing against
-    # a table that no longer holds their reference -- and they would discover it
-    # later, in a different script, as a missing row rather than as this run's
-    # doing. The universe work set the same precedent: a narrower selection writes
-    # its own file rather than silently rewriting the published one.
-    # BOTH AXES IN THE NAME. The arm suffix says which arms are in the table; the
-    # cadence suffix says which cadence produced them. Both are empty at the
-    # default, so the canonical v34_* filenames are unchanged.
-    # THE PROFILE JOINS THE FILENAME TOO -- and this is the "companion file"
-    # decision. Adding tradeable ROWS to v34_comparison.csv would put them in front
-    # of the seven identity gates that read it: several do .set_index("Config") and
-    # .max() over the non-buy&hold rows, so extra arms would change what they
-    # compute without any of them erroring. A suffixed companion leaves the file
-    # those gates read untouched and puts both profiles one directory listing apart.
-    # Empty for profile="research", so the published names are unchanged.
-    import profiles
-    import tax as _tax
-    # THE TAX AXIS JOINS THE NAME (2026-09-17), on the same default-is-unsuffixed
-    # rule as the three before it: empty at tax=off, so every published
-    # v34_* filename is byte-identical to what it has always been, and a tax run
-    # writes a companion rather than overwriting the gated file. Measured, not
-    # assumed -- naming.CARRIES records what this expression was probed to carry.
-    SFX = (arm_reg.selection_suffix() + cadence.suffix() + profiles.suffix()
-           + _tax.suffix())
-    # THE PATHS THIS CALL WRITES, IN ORDER. Read only by the report line below, so
-    # that what is printed is derived from what was written rather than restated.
-    _wrote = []
-
-    comp = pd.DataFrame(rows)
+# naming: arm,cadence,profile via SFX -- the caller composes SFX from
+# selection_suffix() + cadence.suffix() + profiles.suffix() + tax suffix.
+def _write_core(M, SFX, comp, subs, ARM_ON, bd, bh, curves, universe_label,
+                universe_tag, consts, _reb, _wrote, arm_reg, cadence, profiles):
+    """The canonical v34_* files and chart_v34, exactly as run_v34 wrote them
+    inline before the stop arms existed."""
     comp.to_csv(M / f"v34_comparison{SFX}.csv", index=False)
     _wrote.append(M / f"v34_comparison{SFX}.csv")
 
-    subs = sub_rows(curves, halves, audits)
     subs.to_csv(M / f"v34_subperiods{SFX}.csv", index=False)
     _wrote.append(M / f"v34_subperiods{SFX}.csv")
 
@@ -437,6 +292,249 @@ def run_v34(M, universe_label, universe_tag, px, op, sc, bd, pc, mom20, port_vol
     plt.savefig(M / f"chart_v34{SFX}.png", dpi=150, bbox_inches="tight", metadata={"Title": ax[0].get_title().split("\n")[0]})
     _wrote.append(M / f"chart_v34{SFX}.png")
 
+
+# naming: arm,cadence,profile via SFX -- every artefact here is `v34_stop_<stem>{SFX}`,
+# SFX composed from stop_selection_suffix() + cadence, profile and tax suffixes.
+def _write_stop(M, stop_rows, stop_curves, stop_audits, bd, bh, halves,
+                universe_label, universe_tag, consts, _reb, _wrote, arm_reg, cadence,
+                profiles, _tax):
+    """The companion v34_stop_* files: the selected stop arms and the buy & hold."""
+    SFX = (arm_reg.stop_selection_suffix() + cadence.suffix() + profiles.suffix()
+            + _tax.suffix())
+    rows = stop_rows + [arm_row(bh, "buy & hold equal-weight", 0, 0, 100.0)]
+    rows[-1]["MeanNamesHeld"], rows[-1]["CashShortSkips"] = "", ""
+    pd.DataFrame(rows).to_csv(M / f"v34_stop_comparison{SFX}.csv", index=False)
+    _wrote.append(M / f"v34_stop_comparison{SFX}.csv")
+    curves = [(a.label, eq, dep) for a, eq, dep in stop_curves] \
+        + [("buy & hold equal-weight", bh, 100.0)]
+    sub_rows(curves, halves, stop_audits).to_csv(M / f"v34_stop_subperiods{SFX}.csv",
+                                                 index=False)
+    _wrote.append(M / f"v34_stop_subperiods{SFX}.csv")
+    eq_cols = {"date": bd}
+    for a, eq, _ in stop_curves:
+        eq_cols[a.equity_column] = eq.values
+    eq_cols["buyhold"] = bh.values
+    pd.DataFrame(eq_cols).to_csv(M / f"v34_stop_equity{SFX}.csv", index=False)
+    _wrote.append(M / f"v34_stop_equity{SFX}.csv")
+    _stop = {a.name: a.kwargs["drawdown_stop"] for a, _, _ in stop_curves}
+    (M / f"v34_stop_params{SFX}.json").write_text(json.dumps({
+        "universe": universe_label,
+        "universe_tag": universe_tag,
+        "window_start": str(bd[0].date()),
+        "window_end": str(bd[-1].date()),
+        "trading_days": int(len(bd)),
+        "arms": {a.name: f"{a.sizing} + mode={a.mode} + drawdown stop, parent {a.parent}"
+                 for a, _, _ in stop_curves},
+        "drawdown_stop": {n: {"threshold": st.threshold,
+                              "cooldown_cycles": st.cooldown_cycles,
+                              "reentry_breadth": st.reentry_breadth}
+                          for n, st in _stop.items()},
+        # A FIXTURE RUN SAYS SO IN ITS OWN RECORD. It tests the wiring and is never
+        # a result (arms.registry.FIXTURE_ENV).
+        "test_fixture": arm_reg.fixture_threshold() is not None,
+        "reference": "equal-weight buy & hold of the same universe, same panel",
+        "constants": {**consts, "REBAL": _reb},
+        "git_state": _git_state(),
+        "data_source": _config.data_fingerprint(
+            _uni_registry.REGISTRY[universe_tag].prepare_data_dir(),
+            _uni_registry.REGISTRY[universe_tag].raw_data_dir),
+        "run_date": str(pd.Timestamp.today().date()),
+        "spec": "experiments/DRAWDOWN_STOP_PREREG.txt",
+        **({"gate_status": profiles.gate_status()}
+           if profiles.gate_status() else {}),
+    }, indent=2))
+    _wrote.append(M / f"v34_stop_params{SFX}.json")
+
+
+# naming: arm,cadence,profile via SFX -- every artefact this step writes is
+# named `<stem>{SFX}.<ext>` with SFX composed at v34_common.py:300 from
+# selection_suffix() + cadence.suffix() + profiles.suffix().
+def run_v34(M, universe_label, universe_tag, px, op, sc, bd, pc, mom20, port_vol,
+            tv, backtest_exposure, v1_eq, v1_tc, v1_n, v2_eq, v2_tc, v2_n, v2_expo,
+            start_capital, halves, consts, v1_audit=None, audits_out=None):
+    """Run v3 and v4, assemble all four arms plus buy & hold, write the outputs.
+
+    `audits_out`, when a dict, receives {arm name: audit} for the selected arms, so
+    the engine's verdict can state the tax each one paid."""
+    def _blank():
+        return {k: [] for k in ("holdings", "summary", "trades",
+                                "ranking", "decisions", "skipped")}
+
+    # v2 is re-run purely to obtain its audit for the two diagnostic columns. This
+    # is safe: passing an audit dict was verified to leave the equity curve, the
+    # transaction cost and the trade count bit-identical, so the reported v2 row
+    # still comes from the caller's original curve, not from this run.
+    import arms.registry as arm_reg
+    sel = set(arm_reg.selected_names())
+
+    # GATED ON v2 BEING SELECTED, like v3 and v4 below. Its only purpose is v2's
+    # MeanNamesHeld / CashShortSkips columns; with v2 deselected there is no v2
+    # row to carry them and this is a whole backtest run for a discarded result.
+    # THE RUN'S CADENCE, AS AN ARGUMENT. Default 20, which is what these calls
+    # resolved to when they passed nothing, so the default path is unchanged.
+    import cadence
+    _reb = cadence.selected()
+    # THE TAX SELECTION, READ ONCE AND PASSED AS AN ARGUMENT -- exactly as _reb
+    # above and participation_cap below. backtest_exposure's tax_enabled is a
+    # PARAMETER by design (test_exposure.py:203 gives the reason: same as rebal
+    # and participation_cap), so it stays one; what was missing was any caller on
+    # the PUBLISHED path passing it.
+    #
+    # UNTIL 2026-09-18 NO SUCH CALLER EXISTED. tax_enabled defaulted to False at
+    # every one of the 31 call sites except tax_report.py's and
+    # bh_lots_after_tax.py's, so `--tax on` moved filenames and nothing else: 36
+    # of 40 suffixed artefacts were BYTE-IDENTICAL to their untaxed twins and the
+    # other 4 differed only in a header label. The axis renamed; it did not charge.
+    import tax as _tax_axis
+    _taxon = _tax_axis.selected()
+    # THE PROFILE'S CAP, RESOLVED ONCE AND PASSED AS AN ARGUMENT.
+    # profiles.py records why this is not a global on test_exposure: cadence.py
+    # documents rebal_cadence_sweep.py setting test_exposure.REBAL and never
+    # restoring it, so every later in-process step silently used the wrong cadence.
+    # None under profile="research", so `q` is untouched and the published history
+    # is exact.
+    import profiles as _prof
+    from universes.registry import REGISTRY as _REG
+    _capkw = _prof.cap_kwargs(_REG[universe_tag])
+    a2 = _blank()
+    if "v2" in sel:
+        backtest_exposure(px, op, sc, bd, pc, mom20, port_vol, mode="breadth",
+                          target_vol=tv, sizing="invvol", drawdown_stop=None,
+                          audit=a2, rebal=_reb,
+                          tax_enabled=_taxon, **_capkw)
+
+    # --- the two new arms, same panel and dates as v1/v2 ---
+    # COMPUTED ONLY IF SELECTED. A run that asked for v1 and v3 has no use for
+    # v4's curve, and running it would put a number in the process that must then
+    # be filtered out of four separate artefacts -- the kind of thing that leaks.
+    # ARM_SEL is read at CALL time, not at import, so run.py setting it after this
+    # module is imported still takes effect.
+    a3, a4 = _blank(), _blank()
+    v3_eq = v3_tc = v3_n = None
+    v4_eq = v4_tc = v4_n = None
+    v4_expo = 0.0
+    if "v3" in sel:
+        v3_eq, v3_tc, v3_n, _ = backtest_exposure(px, op, sc, bd, pc, mom20, port_vol,
+                                                  mode="none", target_vol=tv,
+                                                  sizing="provol", drawdown_stop=None,
+                                                  audit=a3,
+                                                  rebal=_reb, tax_enabled=_taxon,
+                                                  **_capkw)
+    if "v4" in sel:
+        v4_eq, v4_tc, v4_n, v4_expo = backtest_exposure(px, op, sc, bd, pc, mom20,
+                                                        port_vol, mode="breadth",
+                                                        target_vol=tv, sizing="provol",
+                                                        drawdown_stop=None,
+                                                        audit=a4, rebal=_reb,
+                                                        tax_enabled=_taxon, **_capkw)
+    bh = start_capital * (1 + px.pct_change().loc[bd].mean(axis=1).fillna(0)).cumprod()
+
+    # ONE TABLE DRIVES CURVES, AUDITS, ROWS AND THE EQUITY COLUMNS, so an arm
+    # cannot be filtered out of one of them and left in another. Order is ARMS
+    # order, which is the order the four-arm table has always been written in.
+    ARM_DEF = [
+        ("v1", "v1 invvol, 100% invested",  "v1_invvol_none",    v1_eq, v1_tc, v1_n, 100.0,          v1_audit),
+        ("v2", "v2 invvol, breadth-scaled", "v2_invvol_breadth", v2_eq, v2_tc, v2_n, v2_expo * 100,  a2),
+        ("v3", "v3 provol, 100% invested",  "v3_provol_none",    v3_eq, v3_tc, v3_n, 100.0,          a3),
+        ("v4", "v4 provol, breadth-scaled", "v4_provol_breadth", v4_eq, v4_tc, v4_n, v4_expo * 100,  a4),
+    ]
+    ARM_ON = [a for a in ARM_DEF if a[0] in sel]
+    if audits_out is not None:
+        audits_out.update({nm: au for nm, _, _, _, _, _, _, au in ARM_ON})
+
+    curves = [(lab, eq, dep) for _, lab, _, eq, _, _, dep, _ in ARM_ON] \
+        + [("buy & hold equal-weight", bh, 100.0)]
+
+    audits = {lab: au for _, lab, _, _, _, _, _, au in ARM_ON if au is not None}
+
+    rows = [arm_row(eq, lab, tc, n, dep)
+            for _, lab, _, eq, tc, n, dep, _ in ARM_ON] \
+        + [arm_row(bh, "buy & hold equal-weight", 0, 0, 100.0)]
+    for r in rows:
+        if r["Config"] in audits:
+            mh, nsk = held_and_skips(audits[r["Config"]])
+            r["MeanNamesHeld"] = round(mh, 2)
+            r["CashShortSkips"] = nsk
+        else:
+            # buy & hold holds the whole universe every day: not-applicable,
+            # not unmeasured. Written as an empty cell so pandas does not
+            # coerce the column to float and render it as NaN.
+            r["MeanNamesHeld"] = ""
+            r["CashShortSkips"] = ""
+    # THE CANONICAL v34_* FILES ARE WRITTEN ONLY ON A FULL FOUR-ARM SELECTION.
+    # SFX is "" then, so those paths and their contents are exactly what they have
+    # always been. A subset writes v34_comparison_v1_v3.csv and friends beside
+    # them and leaves the canonical files untouched.
+    #
+    # THIS IS NOT TIDINESS, IT PROTECTS SEVEN GATES. purge_fix_measure,
+    # seed_noise_measure, seed_noise_report, shuffle_test, validate_topn,
+    # rebal_cadence_sweep and drawdown_exit_measure all read v34_comparison.csv,
+    # and six of them assert their own control run against its v2 ROW. A two-arm
+    # subset overwriting that file would leave every one of them comparing against
+    # a table that no longer holds their reference -- and they would discover it
+    # later, in a different script, as a missing row rather than as this run's
+    # doing. The universe work set the same precedent: a narrower selection writes
+    # its own file rather than silently rewriting the published one.
+    # BOTH AXES IN THE NAME. The arm suffix says which arms are in the table; the
+    # cadence suffix says which cadence produced them. Both are empty at the
+    # default, so the canonical v34_* filenames are unchanged.
+    # THE PROFILE JOINS THE FILENAME TOO -- and this is the "companion file"
+    # decision. Adding tradeable ROWS to v34_comparison.csv would put them in front
+    # of the seven identity gates that read it: several do .set_index("Config") and
+    # .max() over the non-buy&hold rows, so extra arms would change what they
+    # compute without any of them erroring. A suffixed companion leaves the file
+    # those gates read untouched and puts both profiles one directory listing apart.
+    # Empty for profile="research", so the published names are unchanged.
+    import profiles
+    import tax as _tax
+    # THE TAX AXIS JOINS THE NAME (2026-09-17), on the same default-is-unsuffixed
+    # rule as the three before it: empty at tax=off, so every published
+    # v34_* filename is byte-identical to what it has always been, and a tax run
+    # writes a companion rather than overwriting the gated file. Measured, not
+    # assumed -- naming.CARRIES records what this expression was probed to carry.
+    # THE CORE PART OF THE SELECTION NAMES THE CORE FILES. A stop arm never enters
+    # v34_comparison.csv: it is written to the companion v34_stop_* files below, so
+    # a run of v1..v4 plus v5 still writes the canonical files with v1..v4 only.
+    SFX = (arm_reg.selection_suffix([n for n, *_ in ARM_ON]) + cadence.suffix()
+           + profiles.suffix() + _tax.suffix())
+    # THE PATHS THIS CALL WRITES, IN ORDER. Read only by the report line below, so
+    # that what is printed is derived from what was written rather than restated.
+    _wrote = []
+
+    comp = pd.DataFrame(rows)
+    subs = sub_rows(curves, halves, audits)
+    # A SELECTION OF STOP ARMS ONLY HAS NO CORE TABLE TO WRITE.
+    if ARM_ON:
+        _write_core(M, SFX, comp, subs, ARM_ON, bd, bh, curves, universe_label,
+                    universe_tag, consts, _reb, _wrote, arm_reg, cadence, profiles)
+
+    # --- THE STOP ARMS, v5 AND v6, when selected by name ---
+    # Same panel, same dates, same cap and tax as the core arms; the stop comes in
+    # through Arm.kwargs, which refuses while the stop is sealed unless the
+    # DRAWDOWN_STOP_FIXTURE test threshold is set. Written to companion files so
+    # nothing a core-arm gate reads can change.
+    stop_rows, stop_curves, stop_audits = [], [], {}
+    for _a in arm_reg.selected_stop():
+        _au = _blank()
+        _au["costs"] = {"fills": [], "days": []}
+        _eq, _tc, _n, _expo = backtest_exposure(px, op, sc, bd, pc, mom20, port_vol,
+                                                target_vol=tv, audit=_au, rebal=_reb,
+                                                tax_enabled=_taxon, **_a.kwargs,
+                                                **_capkw)
+        _r = arm_row(_eq, _a.label, _tc, _n, _expo * 100)
+        _mh, _nsk = held_and_skips(_au)
+        _r["MeanNamesHeld"], _r["CashShortSkips"] = round(_mh, 2), _nsk
+        stop_rows.append(_r)
+        stop_curves.append((_a, _eq, _expo * 100))
+        stop_audits[_a.label] = _au
+        if audits_out is not None:
+            audits_out[_a.name] = _au
+    if stop_rows:
+        _write_stop(M, stop_rows, stop_curves, stop_audits, bd, bh, halves,
+                    universe_label, universe_tag, consts, _reb, _wrote, arm_reg,
+                    cadence, profiles, _tax)
+        comp = pd.concat([comp, pd.DataFrame(stop_rows)], ignore_index=True)
+
     # THIS STEP REPORTS ITS OWN WRITES, AND IT IS THE ONLY THING THAT CAN. SFX is
     # composed above from THREE axes -- arm selection, cadence, profile -- so no
     # caller can name these files from anything it holds. engine_v2_final used to
@@ -520,14 +618,16 @@ def run_arm(u, arm, rebal=None, out_dir=None):
     import tax as _tax_axis
     eq, tc, ntr, expo = backtest_exposure(
         px, op, sc, bd, pc, mom20, port_vol,
-        mode=arm.mode, target_vol=tv, sizing=arm.sizing, audit=audit,
+        target_vol=tv, audit=audit, **arm.kwargs,
         tax_enabled=_tax_axis.selected(),
         # EVERY universe is valued at the open. The two that opted out of this
         # correction were two retired universes, and they are gone.
         value_at_open=True, rebal=rebal, **_capkw)
 
     bh = START_CAPITAL * (1 + px.pct_change().loc[bd].mean(axis=1).fillna(0)).cumprod()
-    dep = 100.0 if arm.mode == "none" else expo * 100
+    # A stop arm is not always invested: its share is the mean target exposure over
+    # the rebalance grid, 0 on the days the stop holds it in cash, as for v2 and v4.
+    dep = 100.0 if arm.mode == "none" and arm.stop is None else expo * 100
     rows = [arm_row(eq, arm.label, tc, ntr, dep),
             arm_row(bh, "buy & hold equal-weight", 0, 0, 100.0)]
     mh, nsk = held_and_skips(audit)
@@ -545,7 +645,7 @@ def run_arm(u, arm, rebal=None, out_dir=None):
         import bh_held
         eq_l, tc_l, ntr_l, _ = backtest_exposure(
             px, op, sc, bd, pc, mom20, port_vol,
-            mode=arm.mode, target_vol=tv, sizing=arm.sizing, audit=None,
+            target_vol=tv, audit=None, **arm.kwargs,
             tax_enabled=True, end_sale=True,
             value_at_open=True, rebal=rebal, **_capkw)
         hb = bh_held.held_lots(px, op, bd)

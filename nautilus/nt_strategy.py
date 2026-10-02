@@ -169,11 +169,14 @@ class PredictiveEngineStrategy(Strategy):
         self.daily_holdings = []      # one row per (trading day, held symbol)
         self.fills = []               # every fill, for reconciliation
         self.holdings_log = []        # holdings at each rebalance, for reconciliation
+        self.dd_stop = None           # set by configure(); the drawdown stop of v5/v6.
+                                      # Not `stop`: Strategy.stop() is nautilus's own method.
+        self.stop_events = []         # mirrors daily_stop_events_*.csv
 
     # ---------------------------------------------------------------- setup
     def configure(self, scores: pd.DataFrame, instruments, trading_start: str,
                   sizing: str = DEFAULT_SIZING, mode: str = DEFAULT_MODE,
-                  rebal: int = None):
+                  rebal: int = None, drawdown_stop=None):
         """Called before the engine runs. Keeps __init__ free of heavy objects.
 
         `sizing` and `mode` default to the values every existing caller relied on
@@ -198,6 +201,15 @@ class PredictiveEngineStrategy(Strategy):
                                for d, g in self.scores.groupby("date")}
         self.instruments = list(instruments)
         self.trading_start = pd.Timestamp(trading_start)
+        # THE DRAWDOWN STOP, the same state machine the engine runs
+        # (results/drawdown_stop.py). None for the core arms: nothing below runs.
+        self.dd_stop = None
+        if drawdown_stop is not None:
+            from drawdown_stop import StopState
+            _days = sorted(d for d in self._scores_by_day if d >= self.trading_start)
+            self._stop_days = _days
+            self.dd_stop = StopState(drawdown_stop, self.rebal, len(_days))
+            self._held_at_exit = {}
 
     def on_start(self):
         for inst in self.instruments:
@@ -526,13 +538,44 @@ class PredictiveEngineStrategy(Strategy):
         self._record_daily_holdings(day)
 
         self.day_index += 1
-        if self.day_index % self.rebal != 0:
+        if self.dd_stop is None:
+            if self.day_index % self.rebal != 0:
+                return
+            self.rebalance(day)
             return
-        self.rebalance(day)
+        self._stop_day(day, last=False)
+
+    def _stop_day(self, day, last):
+        """One trading day's close for a stop arm, in the engine's sequence."""
+        st, i = self.dd_stop, self.day_index
+        st.begin_day()
+        if st.exit_pending or st.reentry_pending:
+            st.after_fills(i, self._held(), self._held_at_exit,
+                           lambda k: self._stop_days[k].date())
+        placed = False
+        if not last and i % self.rebal == 0:
+            if st.state == "IN":
+                placed = bool(self.rebalance(day))
+            elif st.grid_allows_order(i, self._stop_breadth):
+                placed = bool(self.rebalance(day))
+                st.after_reentry_order(placed)
+        equity = self.daily_equity[-1]["equity"]
+        held_now = self._held()
+        act = st.at_close(i, day, equity, placed, bool(held_now), last)
+        if act == "exit":
+            if placed and self.decisions:
+                self.decisions[-1]["superseded"] = "drawdown exit"
+            self._plan_exit()
+        self.stop_events.extend(st.rows(day, equity))
+
+    def _stop_breadth(self):
+        """Breadth as this port's mode="breadth" computes it; 1.0 with no momentum."""
+        mom = self._momentum()
+        return (sum(1 for v in mom.values() if v > 0) / len(mom)) if mom else 1.0
 
     # ---------------------------------------------------------- rebalance
-    def rebalance(self, day):
-        # --- breadth over the stocks that actually have enough history ---
+    def _momentum(self):
+        """{symbol: 20-day momentum} over the stocks with enough history today."""
         # Momentum is measured across union dates, exactly as px.shift(20) does.
         i_now = len(self.dates) - 1
         mom = {}
@@ -545,8 +588,34 @@ class PredictiveEngineStrategy(Strategy):
             if self.series[sym].get(self.dates[i_now]) is None:
                 continue
             mom[sym] = a / b - 1.0
+        return mom
+
+    def _held(self):
+        held = {}
+        for inst in self.instruments:
+            q = self.portfolio.net_position(inst.id)
+            if q and float(q) > 0:
+                held[inst.id.symbol.value] = int(float(q))
+        return held
+
+    def _plan_exit(self):
+        """An order to sell every holding at the next open, and nothing else."""
+        held = self._held()
+        self._held_at_exit = held
+        self._plan.clear()
+        self._queue.clear()
+        for sy, q in held.items():
+            if self._inst(sy) is not None:
+                self._plan[sy] = (OrderSide.SELL, q, 0.0, 0.0)
+        self._exposure = 0.0
+
+    def rebalance(self, day):
+        """Plan the next open's orders. -> True when an order was planned."""
+        # --- breadth over the stocks that actually have enough history ---
+        i_now = len(self.dates) - 1
+        mom = self._momentum()
         if not mom:
-            return
+            return False
         n_pos = sum(1 for v in mom.values() if v > 0)
         breadth = n_pos / len(mom)
         # THE `if not mom: return` GUARD ABOVE IS DELIBERATELY UNCHANGED. Under
@@ -563,7 +632,7 @@ class PredictiveEngineStrategy(Strategy):
         s = self._scores_by_day[day]
         s = s[[k for k in s.index if k in self.last_close]]
         if len(s) < TOP_N:
-            return
+            return False
         ranked = s.sort_values(ascending=False)
         top = list(ranked.index[:TOP_N])
         keep = set(ranked.index[:BUFFER])
@@ -646,6 +715,7 @@ class PredictiveEngineStrategy(Strategy):
             "port_value": round(port_val, 2), "cash_before": round(cash, 2),
             "invest_value": round(invest_val, 2), "n_held_before": len(held),
             "n_buy": n_buy, "n_sell": n_sell})
+        return True
 
     # ------------------------------------------------------------ helpers
     def _inst(self, symbol):
@@ -685,4 +755,9 @@ class PredictiveEngineStrategy(Strategy):
             self._record_daily_holdings(now)
             self.log.info(f"final trading day {now.date()} recorded on stop "
                           f"(the 15:31 timer cannot fire after the 15:30 close bar)")
+            # THE STOP'S LAST DAY: book this morning's exit or re-entry fills; a
+            # trigger at this close sells nothing, exactly as the engine.
+            if self.dd_stop is not None:
+                self.day_index += 1
+                self._stop_day(now, last=True)
         self.log.info(f"rebalances={self.rebalances} orders={self.orders_submitted}")

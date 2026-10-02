@@ -457,7 +457,7 @@ def condition_4():
     out = {}
     for end_sale in (False, True):
         a = {k: [] for k in ("holdings", "summary", "trades", "ranking", "decisions", "skipped")}
-        eq, tc, n, _ = TE.backtest_exposure(px, op, sc, bd, pc, mom20, mode="none",
+        eq, tc, n, _ = TE.backtest_exposure(px, op, sc, bd, pc, mom20, drawdown_stop=None, mode="none",
                                             audit=a, tax_enabled=True, end_sale=end_sale,
                                             participation_cap=None)
         led = a["tax"]["ledger"]
