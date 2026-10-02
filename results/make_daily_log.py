@@ -427,13 +427,17 @@ def build(mdir, tag, arm, bh, raw_idx=None, cal_sorted=None):
     for d, g in rg.items():
         act_of[d] = {row["symbol"]: (int(row["rank"]), row["action"]) for _, row in g.iterrows()}
 
-    # Order IDs: on each execution day, SELLs are S1..Sn and BUYs are B1..Bn.
+    # Order IDs: on each execution day, SELLs are S1..Sn and BUYs are B1..Bn. A stop
+    # arm's exit sales are not part of a rebalance and are numbered X<n>-S1..Sn, n
+    # counting the exit fill days.
     oid = {}
+    exit_no = {d: k + 1 for k, d in enumerate(sorted(exit_trigger))}
     for d in sorted(tg):
         rno = rebal_no.get(prev_dec(d), 0)
         g = tg[d]
         for n, (_, o) in enumerate(g[g.action == "SELL"].iterrows(), 1):
-            oid[(d, o["symbol"])] = f"R{rno:03d}-S{n}"
+            oid[(d, o["symbol"])] = (f"X{exit_no[d]:03d}-S{n}" if d in exit_no
+                                     else f"R{rno:03d}-S{n}")
         for n, (_, o) in enumerate(g[g.action == "BUY"].iterrows(), 1):
             oid[(d, o["symbol"])] = f"R{rno:03d}-B{n}"
 
