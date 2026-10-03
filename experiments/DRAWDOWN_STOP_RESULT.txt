@@ -1,0 +1,841 @@
+DRAWDOWN STOP ON THE FULLY INVESTED ARMS (v5, v6) -- RESULT
+================================================================================
+Stage 5 of experiments/DRAWDOWN_STOP_PREREG.txt, run 2026-10-03 on the published
+score panels, judged against experiments/DRAWDOWN_STOP_BAND.csv. No threshold,
+rule, band or definition was changed. Each setting was run once with the
+registered settings; the two tax-on settings were run a second time, unchanged,
+after a reporting defect stopped the first attempt (see RUNS).
+
+VERDICT
+
+    v5 (v1 plus the stop)   REJECT
+    v6 (v3 plus the stop)   REJECT
+
+    v5: criterion 1 FAIL (7 of 24, need 18), criterion 2 FAIL (6 of 24, need 15),
+        criterion 3 FAIL (10 of 24, need at most 6), criterion 4 PASS.
+    v6: criterion 1 FAIL (14 of 24, need 18), criterion 2 FAIL (8 of 24, need 15),
+        criterion 3 PASS (2 of 24, need at most 6), criterion 4 PASS.
+    Neither arm is deeper than its parent by more than the band in any cell.
+
+    Criterion 4 does not say which setting's exits are counted. Every exit was
+    mapped to the parent's research, tax-off episodes under each of the four
+    settings. The count is 5 of 6 judged universes for both arms under all four
+    settings, so criterion 4 passes under every reading and the verdict does not
+    depend on the choice.
+
+RUNS
+
+    ./venv/bin/python run.py --universe all --arm v5,v6 --profile <p> --tax <t>
+    at cadence 20, for (research, off), (research, on), (tradeable, off),
+    (tradeable, on). Run folders:
+        runs/20261003T103550_all_v5-v6_r20   research, tax off
+        runs/20261003T104742_all_v5-v6_r20   tradeable, tax off
+        runs/20261003T110738_all_v5-v6_r20   research, tax on
+        runs/20261003T111527_all_v5-v6_r20   tradeable, tax on
+
+    The first tax-on attempts (runs/20261003T104141_..._FAILED.log and
+    runs/20261003T105604_..._FAILED.log) stopped in tax_report.py on nifty50 v5:
+    FY_EQUITY's close and BH_LOTS' "v5 after tax" differed by Rs 60,402.08. The
+    engine's taxed curve and BH_LOTS agreed (Rs 2,814,576.58). FY_EQUITY ended at
+    2026-03-30 because v5 was in cash from 2026-03-16 to 2026-05-08 and realised
+    nothing in FY2026-27, so the tax statement had no row for that year and
+    FY_EQUITY had no row ending at the final session. tax_report.write_all now
+    always includes the final session's financial year in FY_EQUITY. Every v1 to
+    v4 tax run has passed this same check, so each already has that row and its
+    FY_EQUITY is unchanged.
+    The two tax-on settings were then rerun with the same command and passed. The
+    engine's v34_stop_* files are written before that step, so the measurement
+    does not depend on the fix.
+
+    v1 TO v4 FILES ARE UNTOUCHED. Every file in the tree except venv/, .git/ and
+    runs/ was hashed with sha256 before the first run (8,970 files) and after the
+    last. Every v1 to v4 file in results_*/metrics/, every v34_* core file, every
+    Nautilus report and every v2FINAL equity curve is byte-identical. 23 files
+    other than the stop arms' changed, all written by engine_v2_final.py, which
+    writes v2's chart and params on every run whatever the arm selection:
+    chart_v2FINAL_{tax,tradeable,tradeable_tax}.png in eight universes (21 files)
+    and v2FINAL_params_{tax,tradeable}.json in nifty100. The equity curves behind
+    them did not change, and the rewritten params carry the same Sharpe, MaxDD and
+    CAGR as the published v34_comparison v2 rows. Their previous contents were
+    not archived, so what changed in them cannot be shown; the most likely cause
+    is that they were last written by older chart and params code. The two
+    source files changed are check_all.py and results/tax_report.py (this commit).
+
+HOW d IS MEASURED
+
+    Metrics are computed from the equity curves with the band writer's
+    raw_metrics, unrounded, so d is measured exactly as the band was:
+    parent curves from results_<u>/metrics/v34_equity<suffix>.csv, stop curves
+    from v34_stop_equity<suffix>.csv. d = stop arm minus parent. MaxDD% is
+    negative, so d > 0 means the stop arm's drawdown is shallower. The tables
+    below are the output of results/drawdown_stop_judge.py.
+
+    Parent episodes for criterion 4 are found by the script from the parent's
+    research, tax-off curve and match the list in the pre-registration exactly.
+    An exit is dated by its trigger (the close at which the drawdown reached
+    20%); the fill at the next open falls in the same episode in every case.
+
+PORT CHECK
+
+    nautilus/nt_verify.py for v5 and v6 at 0.20, research, tax off, on all eight
+    universes. 9 of 16 cells verify:
+        nifty100 v5, nifty100 v6, midcap150 v5, nifty50 v5, nifty50 v6,
+        nifty200 v5, smallcap250 v5, smallcap250 v6, nifty500 v6.
+    7 do not:
+        midcap150 v6   7 rebalances unexplained on the 0.01 grid
+        midcap50 v5    2 (one share lower on two symbols at once)
+        midcap50 v6    2
+        midcap100 v5   34 (port 1 to 2 shares higher after the first re-entry)
+        midcap100 v6   4
+        nifty200 v6    3
+        nifty500 v5    4
+    The result was the same on a second run with nothing else running; midcap50
+    v1, run as a control in the same pass, verifies. In all 16 cells the port and
+    the engine agree on every exit and re-entry date. The largest daily equity
+    gap is 0.03% to 1.73%. On midcap100 v5 the port is one share lower before the
+    first exit, as for the core arms, and one to two shares higher on all 34
+    differing rebalances after the first re-entry: the port's exit and re-entry
+    accounting differs from the reference's by a small amount that has not been
+    found. The other cells are not traced. The 9 that verify are gated in
+    check_all; the 7 that do not are listed in check_all.NT_VERIFY_UNGATED with
+    the reason. The verdict above comes from the engine and does not read the
+    port.
+
+WHAT IS NOT CHANGED
+
+    The README, --arm all (still v1 to v4) and every default are unchanged. They
+    wait for the owner's decision.
+
+================================================================================
+OUTPUT OF results/drawdown_stop_judge.py
+================================================================================
+
+====================================================================================================
+v5 AGAINST v1
+====================================================================================================
+
+Criterion 1: MaxDD%, counted when the stop arm is shallower than the parent by more than the band
+  universe     setting             parent       stop         d     band  counts
+  nifty50      research/off       -29.497    -30.339    -0.842    9.285  no
+  nifty50      research/on        -29.466    -30.304    -0.838    8.843  no
+  nifty50      tradeable/off      -29.497    -30.339    -0.842    9.285  no
+  nifty50      tradeable/on       -29.466    -30.304    -0.838    8.843  no
+  midcap50     research/off       -35.728    -21.223   +14.505    2.747  yes
+  midcap50     research/on        -35.777    -29.660    +6.117    9.839  no
+  midcap50     tradeable/off      -35.728    -21.223   +14.505    2.747  yes
+  midcap50     tradeable/on       -35.777    -29.660    +6.117    9.839  no
+  midcap100    research/off       -35.362    -32.420    +2.943    9.442  no
+  midcap100    research/on        -35.361    -32.426    +2.935    7.768  no
+  midcap100    tradeable/off      -36.009    -25.869   +10.140    9.563  yes
+  midcap100    tradeable/on       -35.371    -32.433    +2.939    7.600  no
+  nifty100     research/off       -33.023    -23.217    +9.807    4.787  yes
+  nifty100     research/on        -33.023    -23.217    +9.807    4.780  yes
+  nifty100     tradeable/off      -33.023    -23.217    +9.807    4.788  yes
+  nifty100     tradeable/on       -33.023    -23.217    +9.807    4.771  yes
+  midcap150    research/off       -40.763    -31.917    +8.846   11.661  no
+  midcap150    research/on        -40.763    -31.917    +8.846    9.798  no
+  midcap150    tradeable/off      -40.763    -31.917    +8.846   11.661  no
+  midcap150    tradeable/on       -40.763    -31.917    +8.846    9.798  no
+  smallcap250  research/off       -35.963    -39.627    -3.664    8.016  no
+  smallcap250  research/on        -35.914    -37.357    -1.443    8.493  no
+  smallcap250  tradeable/off      -35.937    -41.241    -5.304    8.072  no
+  smallcap250  tradeable/on       -41.675    -40.247    +1.428    8.220  no
+  COUNT: shallower by more than the band in 7 of 24 (need >= 18); deeper by more than the band in 0 (need 0) -> FAIL
+
+Criterion 2: Calmar, counted when the stop arm is higher than the parent by more than the band
+  universe     setting             parent       stop         d     band  counts
+  nifty50      research/off         0.786      0.577    -0.209    0.338  no
+  nifty50      research/on          0.684      0.495    -0.189    0.280  no
+  nifty50      tradeable/off        0.786      0.577    -0.209    0.338  no
+  nifty50      tradeable/on         0.684      0.495    -0.189    0.280  no
+  midcap50     research/off         0.965      1.632    +0.667    0.306  yes
+  midcap50     research/on          0.814      0.895    +0.081    0.524  no
+  midcap50     tradeable/off        0.965      1.632    +0.667    0.306  yes
+  midcap50     tradeable/on         0.814      0.895    +0.081    0.524  no
+  midcap100    research/off         0.923      0.746    -0.177    0.437  no
+  midcap100    research/on          0.773      0.623    -0.150    0.280  no
+  midcap100    tradeable/off        0.880      1.035    +0.155    0.457  no
+  midcap100    tradeable/on         0.785      0.638    -0.146    0.268  no
+  nifty100     research/off         0.848      1.232    +0.384    0.268  yes
+  nifty100     research/on          0.718      1.045    +0.327    0.238  yes
+  nifty100     tradeable/off        0.848      1.232    +0.384    0.268  yes
+  nifty100     tradeable/on         0.718      1.045    +0.327    0.238  yes
+  midcap150    research/off         1.027      1.206    +0.179    0.669  no
+  midcap150    research/on          0.831      0.939    +0.107    0.474  no
+  midcap150    tradeable/off        1.027      1.206    +0.179    0.669  no
+  midcap150    tradeable/on         0.831      0.939    +0.107    0.474  no
+  smallcap250  research/off         1.396      1.130    -0.266    0.453  no
+  smallcap250  research/on          1.177      1.013    -0.164    0.414  no
+  smallcap250  tradeable/off        1.375      1.064    -0.310    0.447  no
+  smallcap250  tradeable/on         0.992      0.915    -0.077    0.401  no
+  COUNT: 6 of 24 (need >= 15) -> FAIL
+
+Criterion 3: CAGR%, counted when the stop arm is lower than the parent by more than the band
+  universe     setting             parent       stop         d     band  counts
+  nifty50      research/off        23.197     17.509    -5.688    2.625  yes
+  nifty50      research/on         20.157     14.996    -5.161    2.390  yes
+  nifty50      tradeable/off       23.197     17.509    -5.688    2.625  yes
+  nifty50      tradeable/on        20.157     14.996    -5.161    2.390  yes
+  midcap50     research/off        34.467     34.636    +0.169    3.883  no
+  midcap50     research/on         29.115     26.552    -2.563    4.834  no
+  midcap50     tradeable/off       34.467     34.636    +0.169    3.883  no
+  midcap50     tradeable/on        29.115     26.552    -2.563    4.834  no
+  midcap100    research/off        32.644     24.180    -8.464    4.456  yes
+  midcap100    research/on         27.324     20.194    -7.129    4.094  yes
+  midcap100    tradeable/off       31.700     26.776    -4.924    4.602  yes
+  midcap100    tradeable/on        27.754     20.702    -7.052    3.923  yes
+  nifty100     research/off        28.005     28.594    +0.589    1.758  no
+  nifty100     research/on         23.698     24.254    +0.556    1.794  no
+  nifty100     tradeable/off       28.005     28.594    +0.589    1.755  no
+  nifty100     tradeable/on        23.698     24.254    +0.556    1.809  no
+  midcap150    research/off        41.859     38.479    -3.380    4.038  no
+  midcap150    research/on         33.890     29.961    -3.930    3.654  yes
+  midcap150    tradeable/off       41.859     38.479    -3.380    4.038  no
+  midcap150    tradeable/on        33.890     29.961    -3.930    3.654  yes
+  smallcap250  research/off        50.212     44.784    -5.427    5.640  no
+  smallcap250  research/on         42.288     37.852    -4.436    5.532  no
+  smallcap250  tradeable/off       49.398     43.895    -5.502    5.509  no
+  smallcap250  tradeable/on        41.329     36.830    -4.499    5.457  no
+  COUNT: 10 of 24 (need <= 6) -> FAIL
+
+Sharpe, not a criterion; d and band for reference
+  nifty50      research/off       1.272    1.052   -0.220   0.143
+  nifty50      research/on        1.112    0.910   -0.203   0.126
+  nifty50      tradeable/off      1.272    1.052   -0.220   0.143
+  nifty50      tradeable/on       1.112    0.910   -0.203   0.126
+  midcap50     research/off       1.589    1.682   +0.093   0.128
+  midcap50     research/on        1.358    1.331   -0.027   0.170
+  midcap50     tradeable/off      1.589    1.682   +0.093   0.128
+  midcap50     tradeable/on       1.358    1.331   -0.027   0.170
+  midcap100    research/off       1.452    1.225   -0.226   0.183
+  midcap100    research/on        1.232    1.042   -0.190   0.177
+  midcap100    tradeable/off      1.421    1.350   -0.071   0.188
+  midcap100    tradeable/on       1.250    1.062   -0.188   0.169
+  nifty100     research/off       1.368    1.453   +0.085   0.072
+  nifty100     research/on        1.172    1.241   +0.069   0.076
+  nifty100     tradeable/off      1.368    1.453   +0.085   0.072
+  nifty100     tradeable/on       1.172    1.241   +0.069   0.077
+  midcap150    research/off       1.774    1.717   -0.057   0.146
+  midcap150    research/on        1.459    1.388   -0.072   0.153
+  midcap150    tradeable/off      1.774    1.717   -0.057   0.146
+  midcap150    tradeable/on       1.459    1.388   -0.072   0.153
+  smallcap250  research/off       2.023    1.912   -0.111   0.170
+  smallcap250  research/on        1.730    1.653   -0.077   0.179
+  smallcap250  tradeable/off      2.003    1.885   -0.117   0.179
+  smallcap250  tradeable/on       1.701    1.599   -0.102   0.181
+
+Criterion 4: exits mapped to v1's research, tax-off episodes of 20% or deeper
+  setting research/off
+    nifty50      triggers 2, fills 2, distinct episodes 2  counts
+      2020-03-18->ep1(2020-02-14 -29.5%), 2026-03-19->ep2(2024-09-27 -23.2%)
+    midcap50     triggers 1, fills 1, distinct episodes 1  
+      2020-03-17->ep1(2020-02-07 -35.7%)
+    midcap100    triggers 4, fills 4, distinct episodes 4  counts
+      2020-03-18->ep1(2020-02-20 -35.4%), 2023-02-14->ep2(2022-12-05 -21.1%), 2025-02-17->ep3(2024-12-16 -20.8%), 2026-03-23->ep4(2025-10-01 -20.6%)
+    nifty100     triggers 2, fills 2, distinct episodes 2  counts
+      2020-03-16->ep1(2020-02-20 -33.0%), 2023-02-22->ep2(2022-12-02 -22.2%)
+    midcap150    triggers 2, fills 2, distinct episodes 2  counts
+      2020-03-12->ep1(2019-01-11 -40.8%), 2022-06-20->ep2(2022-04-08 -21.2%)
+    smallcap250  triggers 2, fills 2, distinct episodes 2  counts
+      2019-07-30->ep1(2019-04-03 -20.3%), 2020-03-12->ep2(2020-02-20 -36.0%)
+    COUNT: 5 of 6 universes (need >= 4) -> PASS
+  setting research/on
+    nifty50      triggers 2, fills 2, distinct episodes 2  counts
+      2020-03-18->ep1(2020-02-14 -29.5%), 2026-03-13->ep2(2024-09-27 -23.2%)
+    midcap50     triggers 2, fills 2, distinct episodes 1  
+      2020-03-17->ep1(2020-02-07 -35.7%), 2025-04-07->none
+    midcap100    triggers 4, fills 4, distinct episodes 4  counts
+      2020-03-18->ep1(2020-02-20 -35.4%), 2023-02-14->ep2(2022-12-05 -21.1%), 2025-02-14->ep3(2024-12-16 -20.8%), 2026-03-23->ep4(2025-10-01 -20.6%)
+    nifty100     triggers 2, fills 2, distinct episodes 2  counts
+      2020-03-16->ep1(2020-02-20 -33.0%), 2023-02-22->ep2(2022-12-02 -22.2%)
+    midcap150    triggers 3, fills 3, distinct episodes 2  counts
+      2020-03-12->ep1(2019-01-11 -40.8%), 2022-06-17->ep2(2022-04-08 -21.2%), 2025-02-14->none
+    smallcap250  triggers 2, fills 2, distinct episodes 2  counts
+      2019-07-30->ep1(2019-04-03 -20.3%), 2020-03-16->ep2(2020-02-20 -36.0%)
+    COUNT: 5 of 6 universes (need >= 4) -> PASS
+  setting tradeable/off
+    nifty50      triggers 2, fills 2, distinct episodes 2  counts
+      2020-03-18->ep1(2020-02-14 -29.5%), 2026-03-19->ep2(2024-09-27 -23.2%)
+    midcap50     triggers 1, fills 1, distinct episodes 1  
+      2020-03-17->ep1(2020-02-07 -35.7%)
+    midcap100    triggers 4, fills 4, distinct episodes 4  counts
+      2020-03-17->ep1(2020-02-20 -35.4%), 2023-02-14->ep2(2022-12-05 -21.1%), 2025-02-14->ep3(2024-12-16 -20.8%), 2026-03-23->ep4(2025-10-01 -20.6%)
+    nifty100     triggers 2, fills 2, distinct episodes 2  counts
+      2020-03-16->ep1(2020-02-20 -33.0%), 2023-02-22->ep2(2022-12-02 -22.2%)
+    midcap150    triggers 2, fills 2, distinct episodes 2  counts
+      2020-03-12->ep1(2019-01-11 -40.8%), 2022-06-20->ep2(2022-04-08 -21.2%)
+    smallcap250  triggers 2, fills 2, distinct episodes 2  counts
+      2019-07-30->ep1(2019-04-03 -20.3%), 2020-03-12->ep2(2020-02-20 -36.0%)
+    COUNT: 5 of 6 universes (need >= 4) -> PASS
+  setting tradeable/on
+    nifty50      triggers 2, fills 2, distinct episodes 2  counts
+      2020-03-18->ep1(2020-02-14 -29.5%), 2026-03-13->ep2(2024-09-27 -23.2%)
+    midcap50     triggers 2, fills 2, distinct episodes 1  
+      2020-03-17->ep1(2020-02-07 -35.7%), 2025-04-07->none
+    midcap100    triggers 4, fills 4, distinct episodes 4  counts
+      2020-03-18->ep1(2020-02-20 -35.4%), 2023-02-14->ep2(2022-12-05 -21.1%), 2025-02-14->ep3(2024-12-16 -20.8%), 2026-03-23->ep4(2025-10-01 -20.6%)
+    nifty100     triggers 2, fills 2, distinct episodes 2  counts
+      2020-03-16->ep1(2020-02-20 -33.0%), 2023-02-22->ep2(2022-12-02 -22.2%)
+    midcap150    triggers 3, fills 3, distinct episodes 2  counts
+      2020-03-12->ep1(2019-01-11 -40.8%), 2022-06-17->ep2(2022-04-08 -21.2%), 2025-02-14->none
+    smallcap250  triggers 2, fills 2, distinct episodes 2  counts
+      2019-07-30->ep1(2019-04-03 -20.3%), 2020-03-12->ep2(2020-02-20 -36.0%)
+    COUNT: 5 of 6 universes (need >= 4) -> PASS
+
+  Parent episodes used (research, tax off):
+    nifty50      ep1  2020-02-14  2020-03-24  -29.5%  2020-06-04
+    nifty50      ep2  2024-09-27  2026-03-30  -23.2%  not recovered
+    midcap50     ep1  2020-02-07  2020-03-24  -35.7%  2020-07-03
+    midcap100    ep1  2020-02-20  2020-03-24  -35.4%  2020-06-23
+    midcap100    ep2  2022-12-05  2023-02-27  -21.1%  2023-07-19
+    midcap100    ep3  2024-12-16  2025-02-18  -20.8%  2025-09-18
+    midcap100    ep4  2025-10-01  2026-03-23  -20.6%  not recovered
+    nifty100     ep1  2020-02-20  2020-03-24  -33.0%  2020-09-18
+    nifty100     ep2  2022-12-02  2023-02-27  -22.2%  2023-06-07
+    midcap150    ep1  2019-01-11  2020-03-24  -40.8%  2020-09-14
+    midcap150    ep2  2022-04-08  2022-06-20  -21.2%  2022-08-30
+    smallcap250  ep1  2019-04-03  2019-08-05  -20.3%  2020-01-17
+    smallcap250  ep2  2020-02-20  2020-03-25  -36.0%  2020-06-22
+
+VERDICT v5: REJECT  (criteria 1-3: 1 FAIL, 2 FAIL, 3 FAIL; criterion 4: research/off PASS, research/on PASS, tradeable/off PASS, tradeable/on PASS)
+====================================================================================================
+v6 AGAINST v3
+====================================================================================================
+
+Criterion 1: MaxDD%, counted when the stop arm is shallower than the parent by more than the band
+  universe     setting             parent       stop         d     band  counts
+  nifty50      research/off       -33.764    -28.946    +4.818    3.480  yes
+  nifty50      research/on        -33.758    -28.938    +4.820    6.374  no
+  nifty50      tradeable/off      -33.764    -28.946    +4.818    3.480  yes
+  nifty50      tradeable/on       -33.758    -28.938    +4.820    6.374  no
+  midcap50     research/off       -41.200    -24.216   +16.983    5.447  yes
+  midcap50     research/on        -41.193    -24.206   +16.988    8.968  yes
+  midcap50     tradeable/off      -41.200    -24.216   +16.983    5.447  yes
+  midcap50     tradeable/on       -41.193    -24.206   +16.988    8.968  yes
+  midcap100    research/off       -48.174    -40.573    +7.601    8.324  no
+  midcap100    research/on        -48.294    -40.706    +7.588    8.457  no
+  midcap100    tradeable/off      -48.152    -40.568    +7.585    8.679  no
+  midcap100    tradeable/on       -48.176    -40.580    +7.596    8.801  no
+  nifty100     research/off       -39.058    -31.816    +7.242    5.972  yes
+  nifty100     research/on        -39.044    -31.801    +7.243    5.833  yes
+  nifty100     tradeable/off      -39.058    -31.816    +7.242    5.972  yes
+  nifty100     tradeable/on       -39.044    -31.801    +7.243    5.833  yes
+  midcap150    research/off       -41.119    -28.627   +12.492    7.670  yes
+  midcap150    research/on        -41.119    -28.627   +12.492    7.656  yes
+  midcap150    tradeable/off      -41.119    -28.627   +12.492    7.670  yes
+  midcap150    tradeable/on       -41.119    -28.627   +12.492    7.656  yes
+  smallcap250  research/off       -36.490    -33.835    +2.654    6.558  no
+  smallcap250  research/on        -36.517    -37.799    -1.282   10.655  no
+  smallcap250  tradeable/off      -36.496    -31.571    +4.924    6.488  no
+  smallcap250  tradeable/on       -36.512    -29.823    +6.689   10.442  no
+  COUNT: shallower by more than the band in 14 of 24 (need >= 18); deeper by more than the band in 0 (need 0) -> FAIL
+
+Criterion 2: Calmar, counted when the stop arm is higher than the parent by more than the band
+  universe     setting             parent       stop         d     band  counts
+  nifty50      research/off         0.805      0.876    +0.071    0.165  no
+  nifty50      research/on          0.689      0.719    +0.030    0.197  no
+  nifty50      tradeable/off        0.805      0.876    +0.071    0.165  no
+  nifty50      tradeable/on         0.689      0.719    +0.030    0.197  no
+  midcap50     research/off         0.845      1.418    +0.573    0.332  yes
+  midcap50     research/on          0.727      1.145    +0.418    0.390  yes
+  midcap50     tradeable/off        0.845      1.418    +0.573    0.332  yes
+  midcap50     tradeable/on         0.727      1.145    +0.418    0.390  yes
+  midcap100    research/off         0.671      0.764    +0.093    0.211  no
+  midcap100    research/on          0.550      0.635    +0.085    0.187  no
+  midcap100    tradeable/off        0.671      0.759    +0.087    0.219  no
+  midcap100    tradeable/on         0.550      0.636    +0.086    0.197  no
+  nifty100     research/off         0.777      0.893    +0.116    0.225  no
+  nifty100     research/on          0.670      0.754    +0.084    0.209  no
+  nifty100     tradeable/off        0.777      0.893    +0.116    0.225  no
+  nifty100     tradeable/on         0.670      0.754    +0.084    0.209  no
+  midcap150    research/off         1.063      1.394    +0.331    0.320  yes
+  midcap150    research/on          0.902      1.187    +0.285    0.274  yes
+  midcap150    tradeable/off        1.063      1.394    +0.331    0.320  yes
+  midcap150    tradeable/on         0.902      1.187    +0.285    0.274  yes
+  smallcap250  research/off         1.344      1.160    -0.184    0.388  no
+  smallcap250  research/on          1.138      0.867    -0.271    0.444  no
+  smallcap250  tradeable/off        1.290      1.367    +0.078    0.374  no
+  smallcap250  tradeable/on         1.087      1.188    +0.101    0.419  no
+  COUNT: 8 of 24 (need >= 15) -> FAIL
+
+Criterion 3: CAGR%, counted when the stop arm is lower than the parent by more than the band
+  universe     setting             parent       stop         d     band  counts
+  nifty50      research/off        27.184     25.354    -1.830    3.070  no
+  nifty50      research/on         23.245     20.796    -2.449    2.856  no
+  nifty50      tradeable/off       27.184     25.354    -1.830    3.070  no
+  nifty50      tradeable/on        23.245     20.796    -2.449    2.856  no
+  midcap50     research/off        34.797     34.332    -0.466    3.513  no
+  midcap50     research/on         29.929     27.706    -2.223    4.691  no
+  midcap50     tradeable/off       34.797     34.332    -0.466    3.513  no
+  midcap50     tradeable/on        29.929     27.706    -2.223    4.691  no
+  midcap100    research/off        32.332     31.001    -1.331    3.657  no
+  midcap100    research/on         26.547     25.835    -0.712    3.586  no
+  midcap100    tradeable/off       32.321     30.774    -1.547    3.713  no
+  midcap100    tradeable/on        26.499     25.809    -0.690    3.767  no
+  nifty100     research/off        30.357     28.412    -1.945    2.535  no
+  nifty100     research/on         26.151     23.974    -2.177    3.041  no
+  nifty100     tradeable/off       30.357     28.412    -1.945    2.535  no
+  nifty100     tradeable/on        26.151     23.974    -2.177    3.041  no
+  midcap150    research/off        43.703     39.912    -3.791    4.437  no
+  midcap150    research/on         37.087     33.987    -3.099    3.751  no
+  midcap150    tradeable/off       43.703     39.912    -3.791    4.437  no
+  midcap150    tradeable/on        37.087     33.987    -3.099    3.751  no
+  smallcap250  research/off        49.052     39.252    -9.800    8.236  yes
+  smallcap250  research/on         41.550     32.769    -8.781    7.287  yes
+  smallcap250  tradeable/off       47.063     43.169    -3.894    8.223  no
+  smallcap250  tradeable/on        39.680     35.423    -4.257    6.955  no
+  COUNT: 2 of 24 (need <= 6) -> PASS
+
+Sharpe, not a criterion; d and band for reference
+  nifty50      research/off       1.300    1.279   -0.021   0.117
+  nifty50      research/on        1.131    1.073   -0.058   0.120
+  nifty50      tradeable/off      1.300    1.279   -0.021   0.117
+  nifty50      tradeable/on       1.131    1.073   -0.058   0.120
+  midcap50     research/off       1.473    1.558   +0.085   0.132
+  midcap50     research/on        1.279    1.285   +0.007   0.181
+  midcap50     tradeable/off      1.473    1.558   +0.085   0.132
+  midcap50     tradeable/on       1.279    1.285   +0.007   0.181
+  midcap100    research/off       1.288    1.352   +0.064   0.133
+  midcap100    research/on        1.084    1.149   +0.065   0.130
+  midcap100    tradeable/off      1.290    1.343   +0.053   0.135
+  midcap100    tradeable/on       1.083    1.148   +0.065   0.135
+  nifty100     research/off       1.256    1.270   +0.014   0.093
+  nifty100     research/on        1.104    1.092   -0.011   0.111
+  nifty100     tradeable/off      1.256    1.270   +0.014   0.093
+  nifty100     tradeable/on       1.104    1.092   -0.011   0.111
+  midcap150    research/off       1.650    1.645   -0.005   0.140
+  midcap150    research/on        1.418    1.430   +0.013   0.116
+  midcap150    tradeable/off      1.650    1.645   -0.005   0.140
+  midcap150    tradeable/on       1.418    1.430   +0.013   0.116
+  smallcap250  research/off       1.824    1.625   -0.199   0.230
+  smallcap250  research/on        1.587    1.393   -0.193   0.216
+  smallcap250  tradeable/off      1.779    1.734   -0.045   0.233
+  smallcap250  tradeable/on       1.537    1.485   -0.052   0.220
+
+Criterion 4: exits mapped to v3's research, tax-off episodes of 20% or deeper
+  setting research/off
+    nifty50      triggers 1, fills 1, distinct episodes 1  
+      2020-03-12->ep1(2020-01-17 -33.8%)
+    midcap50     triggers 2, fills 2, distinct episodes 2  counts
+      2020-03-16->ep1(2020-02-07 -41.2%), 2025-02-27->ep2(2024-09-23 -22.5%)
+    midcap100    triggers 4, fills 4, distinct episodes 3  counts
+      2019-08-22->ep1(2019-04-16 -48.2%), 2020-03-17->ep1(2019-04-16 -48.2%), 2023-02-13->ep2(2022-12-14 -24.0%), 2025-01-27->ep3(2024-10-16 -28.0%)
+    nifty100     triggers 2, fills 2, distinct episodes 2  counts
+      2020-03-12->ep1(2020-02-20 -39.1%), 2023-02-06->ep2(2022-12-02 -31.5%)
+    midcap150    triggers 4, fills 4, distinct episodes 3  counts
+      2019-07-19->ep1(2019-01-11 -41.1%), 2020-03-17->ep1(2019-01-11 -41.1%), 2022-06-20->ep2(2022-04-08 -20.9%), 2025-01-27->ep3(2024-12-16 -28.8%)
+    smallcap250  triggers 3, fills 3, distinct episodes 3  counts
+      2019-07-15->ep1(2019-04-16 -26.7%), 2020-03-16->ep2(2020-02-20 -36.5%), 2022-02-24->ep3(2022-01-17 -20.2%)
+    COUNT: 5 of 6 universes (need >= 4) -> PASS
+  setting research/on
+    nifty50      triggers 2, fills 2, distinct episodes 1  
+      2020-03-12->ep1(2020-01-17 -33.8%), 2022-06-16->none
+    midcap50     triggers 3, fills 3, distinct episodes 2  counts
+      2020-03-16->ep1(2020-02-07 -41.2%), 2022-06-16->none, 2025-02-27->ep2(2024-09-23 -22.5%)
+    midcap100    triggers 4, fills 4, distinct episodes 3  counts
+      2019-08-22->ep1(2019-04-16 -48.2%), 2020-03-17->ep1(2019-04-16 -48.2%), 2023-02-13->ep2(2022-12-14 -24.0%), 2025-01-27->ep3(2024-10-16 -28.0%)
+    nifty100     triggers 2, fills 2, distinct episodes 2  counts
+      2020-03-12->ep1(2020-02-20 -39.1%), 2023-02-06->ep2(2022-12-02 -31.5%)
+    midcap150    triggers 4, fills 4, distinct episodes 3  counts
+      2019-07-19->ep1(2019-01-11 -41.1%), 2020-03-17->ep1(2019-01-11 -41.1%), 2022-05-11->ep2(2022-04-08 -20.9%), 2025-01-27->ep3(2024-12-16 -28.8%)
+    smallcap250  triggers 3, fills 3, distinct episodes 3  counts
+      2019-07-15->ep1(2019-04-16 -26.7%), 2020-03-16->ep2(2020-02-20 -36.5%), 2022-02-24->ep3(2022-01-17 -20.2%)
+    COUNT: 5 of 6 universes (need >= 4) -> PASS
+  setting tradeable/off
+    nifty50      triggers 1, fills 1, distinct episodes 1  
+      2020-03-12->ep1(2020-01-17 -33.8%)
+    midcap50     triggers 2, fills 2, distinct episodes 2  counts
+      2020-03-16->ep1(2020-02-07 -41.2%), 2025-02-27->ep2(2024-09-23 -22.5%)
+    midcap100    triggers 4, fills 4, distinct episodes 3  counts
+      2019-08-22->ep1(2019-04-16 -48.2%), 2020-03-17->ep1(2019-04-16 -48.2%), 2023-02-13->ep2(2022-12-14 -24.0%), 2025-01-27->ep3(2024-10-16 -28.0%)
+    nifty100     triggers 2, fills 2, distinct episodes 2  counts
+      2020-03-12->ep1(2020-02-20 -39.1%), 2023-02-06->ep2(2022-12-02 -31.5%)
+    midcap150    triggers 4, fills 4, distinct episodes 3  counts
+      2019-07-19->ep1(2019-01-11 -41.1%), 2020-03-17->ep1(2019-01-11 -41.1%), 2022-06-20->ep2(2022-04-08 -20.9%), 2025-01-27->ep3(2024-12-16 -28.8%)
+    smallcap250  triggers 2, fills 2, distinct episodes 2  counts
+      2019-07-15->ep1(2019-04-16 -26.7%), 2020-03-16->ep2(2020-02-20 -36.5%)
+    COUNT: 5 of 6 universes (need >= 4) -> PASS
+  setting tradeable/on
+    nifty50      triggers 2, fills 2, distinct episodes 1  
+      2020-03-12->ep1(2020-01-17 -33.8%), 2022-06-16->none
+    midcap50     triggers 3, fills 3, distinct episodes 2  counts
+      2020-03-16->ep1(2020-02-07 -41.2%), 2022-06-16->none, 2025-02-27->ep2(2024-09-23 -22.5%)
+    midcap100    triggers 4, fills 4, distinct episodes 3  counts
+      2019-08-22->ep1(2019-04-16 -48.2%), 2020-03-17->ep1(2019-04-16 -48.2%), 2023-02-13->ep2(2022-12-14 -24.0%), 2025-01-27->ep3(2024-10-16 -28.0%)
+    nifty100     triggers 2, fills 2, distinct episodes 2  counts
+      2020-03-12->ep1(2020-02-20 -39.1%), 2023-02-06->ep2(2022-12-02 -31.5%)
+    midcap150    triggers 4, fills 4, distinct episodes 3  counts
+      2019-07-19->ep1(2019-01-11 -41.1%), 2020-03-17->ep1(2019-01-11 -41.1%), 2022-05-11->ep2(2022-04-08 -20.9%), 2025-01-27->ep3(2024-12-16 -28.8%)
+    smallcap250  triggers 3, fills 3, distinct episodes 2  counts
+      2019-07-15->ep1(2019-04-16 -26.7%), 2020-03-13->ep2(2020-02-20 -36.5%), 2022-05-11->none
+    COUNT: 5 of 6 universes (need >= 4) -> PASS
+
+  Parent episodes used (research, tax off):
+    nifty50      ep1  2020-01-17  2020-03-24  -33.8%  2020-08-07
+    midcap50     ep1  2020-02-07  2020-04-03  -41.2%  2020-08-04
+    midcap50     ep2  2024-09-23  2025-02-28  -22.5%  2025-11-03
+    midcap100    ep1  2019-04-16  2020-03-24  -48.2%  2020-12-11
+    midcap100    ep2  2022-12-14  2023-03-28  -24.0%  2023-08-31
+    midcap100    ep3  2024-10-16  2025-02-28  -28.0%  not recovered
+    nifty100     ep1  2020-02-20  2020-03-24  -39.1%  2020-08-20
+    nifty100     ep2  2022-12-02  2023-02-27  -31.5%  2023-07-05
+    midcap150    ep1  2019-01-11  2020-03-25  -41.1%  2020-06-05
+    midcap150    ep2  2022-04-08  2022-06-20  -20.9%  2022-08-30
+    midcap150    ep3  2024-12-16  2025-04-07  -28.8%  2026-02-26
+    smallcap250  ep1  2019-04-16  2019-08-05  -26.7%  2020-01-15
+    smallcap250  ep2  2020-02-20  2020-03-25  -36.5%  2020-06-18
+    smallcap250  ep3  2022-01-17  2022-02-24  -20.2%  2022-04-04
+
+VERDICT v6: REJECT  (criteria 1-3: 1 FAIL, 2 FAIL, 3 PASS; criterion 4: research/off PASS, research/on PASS, tradeable/off PASS, tradeable/on PASS)
+
+====================================================================================================
+REPORTED, NOT JUDGED
+====================================================================================================
+
+nifty200 and nifty500, d = stop - parent (no band exists for these)
+  nifty200   research/off    v5-v1  MaxDD% -34.581->-24.060 (+10.520)  CAGR% 47.037->41.693 (-5.344)  Sharpe 1.930->1.864 (-0.066)  Calmar 1.360->1.733 (+0.373)
+  nifty200   research/off    v6-v3  MaxDD% -46.717->-32.730 (+13.987)  CAGR% 49.405->49.971 (+0.566)  Sharpe 1.777->1.950 (+0.174)  Calmar 1.058->1.527 (+0.469)
+  nifty200   research/on     v5-v1  MaxDD% -34.568->-27.489 (+7.078)  CAGR% 40.424->35.976 (-4.448)  Sharpe 1.667->1.616 (-0.051)  Calmar 1.169->1.309 (+0.139)
+  nifty200   research/on     v6-v3  MaxDD% -46.969->-32.489 (+14.480)  CAGR% 41.880->43.287 (+1.408)  Sharpe 1.530->1.705 (+0.175)  Calmar 0.892->1.332 (+0.441)
+  nifty200   tradeable/off   v5-v1  MaxDD% -34.581->-24.060 (+10.520)  CAGR% 47.037->41.693 (-5.344)  Sharpe 1.930->1.864 (-0.066)  Calmar 1.360->1.733 (+0.373)
+  nifty200   tradeable/off   v6-v3  MaxDD% -46.717->-32.730 (+13.987)  CAGR% 49.405->49.971 (+0.566)  Sharpe 1.777->1.950 (+0.174)  Calmar 1.058->1.527 (+0.469)
+  nifty200   tradeable/on    v5-v1  MaxDD% -34.568->-27.489 (+7.078)  CAGR% 40.424->35.976 (-4.448)  Sharpe 1.667->1.616 (-0.051)  Calmar 1.169->1.309 (+0.139)
+  nifty200   tradeable/on    v6-v3  MaxDD% -46.969->-32.489 (+14.480)  CAGR% 41.880->43.287 (+1.408)  Sharpe 1.530->1.705 (+0.175)  Calmar 0.892->1.332 (+0.441)
+  nifty500   research/off    v5-v1  MaxDD% -47.078->-38.161 (+8.917)  CAGR% 34.363->33.168 (-1.195)  Sharpe 1.438->1.535 (+0.097)  Calmar 0.730->0.869 (+0.139)
+  nifty500   research/off    v6-v3  MaxDD% -62.843->-43.693 (+19.151)  CAGR% 44.210->42.395 (-1.814)  Sharpe 1.560->1.725 (+0.165)  Calmar 0.703->0.970 (+0.267)
+  nifty500   research/on     v5-v1  MaxDD% -47.093->-38.206 (+8.887)  CAGR% 29.609->27.757 (-1.852)  Sharpe 1.254->1.307 (+0.053)  Calmar 0.629->0.727 (+0.098)
+  nifty500   research/on     v6-v3  MaxDD% -63.135->-44.137 (+18.998)  CAGR% 36.900->35.807 (-1.093)  Sharpe 1.334->1.471 (+0.137)  Calmar 0.584->0.811 (+0.227)
+  nifty500   tradeable/off   v5-v1  MaxDD% -49.283->-39.485 (+9.799)  CAGR% 33.541->32.962 (-0.579)  Sharpe 1.403->1.525 (+0.122)  Calmar 0.681->0.835 (+0.154)
+  nifty500   tradeable/off   v6-v3  MaxDD% -62.843->-43.719 (+19.124)  CAGR% 44.172->47.004 (+2.832)  Sharpe 1.562->1.852 (+0.291)  Calmar 0.703->1.075 (+0.372)
+  nifty500   tradeable/on    v5-v1  MaxDD% -49.261->-39.504 (+9.757)  CAGR% 28.631->27.351 (-1.280)  Sharpe 1.214->1.289 (+0.075)  Calmar 0.581->0.692 (+0.111)
+  nifty500   tradeable/on    v6-v3  MaxDD% -63.135->-44.137 (+18.998)  CAGR% 36.871->41.200 (+4.330)  Sharpe 1.335->1.646 (+0.312)  Calmar 0.584->0.933 (+0.349)
+
+Stop arms against the equal-weight buy & hold
+  nifty50      research/off    v5  CAGR% 17.51 vs 20.45  MaxDD% -30.34 vs -37.31  Sharpe 1.05 vs 1.20  Calmar 0.58 vs 0.55
+  nifty50      research/off    v6  CAGR% 25.35 vs 20.45  MaxDD% -28.95 vs -37.31  Sharpe 1.28 vs 1.20  Calmar 0.88 vs 0.55
+  nifty50      research/on     v5  CAGR% 15.00 vs 20.45  MaxDD% -30.30 vs -37.31  Sharpe 0.91 vs 1.20  Calmar 0.49 vs 0.55
+  nifty50      research/on     v6  CAGR% 20.80 vs 20.45  MaxDD% -28.94 vs -37.31  Sharpe 1.07 vs 1.20  Calmar 0.72 vs 0.55
+  nifty50      tradeable/off   v5  CAGR% 17.51 vs 20.45  MaxDD% -30.34 vs -37.31  Sharpe 1.05 vs 1.20  Calmar 0.58 vs 0.55
+  nifty50      tradeable/off   v6  CAGR% 25.35 vs 20.45  MaxDD% -28.95 vs -37.31  Sharpe 1.28 vs 1.20  Calmar 0.88 vs 0.55
+  nifty50      tradeable/on    v5  CAGR% 15.00 vs 20.45  MaxDD% -30.30 vs -37.31  Sharpe 0.91 vs 1.20  Calmar 0.49 vs 0.55
+  nifty50      tradeable/on    v6  CAGR% 20.80 vs 20.45  MaxDD% -28.94 vs -37.31  Sharpe 1.07 vs 1.20  Calmar 0.72 vs 0.55
+  midcap50     research/off    v5  CAGR% 34.64 vs 23.73  MaxDD% -21.22 vs -37.92  Sharpe 1.68 vs 1.28  Calmar 1.63 vs 0.63
+  midcap50     research/off    v6  CAGR% 34.33 vs 23.73  MaxDD% -24.22 vs -37.92  Sharpe 1.56 vs 1.28  Calmar 1.42 vs 0.63
+  midcap50     research/on     v5  CAGR% 26.55 vs 23.73  MaxDD% -29.66 vs -37.92  Sharpe 1.33 vs 1.28  Calmar 0.90 vs 0.63
+  midcap50     research/on     v6  CAGR% 27.71 vs 23.73  MaxDD% -24.21 vs -37.92  Sharpe 1.29 vs 1.28  Calmar 1.14 vs 0.63
+  midcap50     tradeable/off   v5  CAGR% 34.64 vs 23.73  MaxDD% -21.22 vs -37.92  Sharpe 1.68 vs 1.28  Calmar 1.63 vs 0.63
+  midcap50     tradeable/off   v6  CAGR% 34.33 vs 23.73  MaxDD% -24.22 vs -37.92  Sharpe 1.56 vs 1.28  Calmar 1.42 vs 0.63
+  midcap50     tradeable/on    v5  CAGR% 26.55 vs 23.73  MaxDD% -29.66 vs -37.92  Sharpe 1.33 vs 1.28  Calmar 0.90 vs 0.63
+  midcap50     tradeable/on    v6  CAGR% 27.71 vs 23.73  MaxDD% -24.21 vs -37.92  Sharpe 1.29 vs 1.28  Calmar 1.14 vs 0.63
+  midcap100    research/off    v5  CAGR% 24.18 vs 26.25  MaxDD% -32.42 vs -38.89  Sharpe 1.23 vs 1.35  Calmar 0.75 vs 0.68
+  midcap100    research/off    v6  CAGR% 31.00 vs 26.25  MaxDD% -40.57 vs -38.89  Sharpe 1.35 vs 1.35  Calmar 0.76 vs 0.68
+  midcap100    research/on     v5  CAGR% 20.19 vs 26.25  MaxDD% -32.43 vs -38.89  Sharpe 1.04 vs 1.35  Calmar 0.62 vs 0.68
+  midcap100    research/on     v6  CAGR% 25.83 vs 26.25  MaxDD% -40.71 vs -38.89  Sharpe 1.15 vs 1.35  Calmar 0.63 vs 0.68
+  midcap100    tradeable/off   v5  CAGR% 26.78 vs 26.25  MaxDD% -25.87 vs -38.89  Sharpe 1.35 vs 1.35  Calmar 1.04 vs 0.68
+  midcap100    tradeable/off   v6  CAGR% 30.77 vs 26.25  MaxDD% -40.57 vs -38.89  Sharpe 1.34 vs 1.35  Calmar 0.76 vs 0.68
+  midcap100    tradeable/on    v5  CAGR% 20.70 vs 26.25  MaxDD% -32.43 vs -38.89  Sharpe 1.06 vs 1.35  Calmar 0.64 vs 0.68
+  midcap100    tradeable/on    v6  CAGR% 25.81 vs 26.25  MaxDD% -40.58 vs -38.89  Sharpe 1.15 vs 1.35  Calmar 0.64 vs 0.68
+  nifty100     research/off    v5  CAGR% 28.59 vs 23.90  MaxDD% -23.22 vs -37.40  Sharpe 1.45 vs 1.31  Calmar 1.23 vs 0.64
+  nifty100     research/off    v6  CAGR% 28.41 vs 23.90  MaxDD% -31.82 vs -37.40  Sharpe 1.27 vs 1.31  Calmar 0.89 vs 0.64
+  nifty100     research/on     v5  CAGR% 24.25 vs 23.90  MaxDD% -23.22 vs -37.40  Sharpe 1.24 vs 1.31  Calmar 1.04 vs 0.64
+  nifty100     research/on     v6  CAGR% 23.97 vs 23.90  MaxDD% -31.80 vs -37.40  Sharpe 1.09 vs 1.31  Calmar 0.75 vs 0.64
+  nifty100     tradeable/off   v5  CAGR% 28.59 vs 23.90  MaxDD% -23.22 vs -37.40  Sharpe 1.45 vs 1.31  Calmar 1.23 vs 0.64
+  nifty100     tradeable/off   v6  CAGR% 28.41 vs 23.90  MaxDD% -31.82 vs -37.40  Sharpe 1.27 vs 1.31  Calmar 0.89 vs 0.64
+  nifty100     tradeable/on    v5  CAGR% 24.25 vs 23.90  MaxDD% -23.22 vs -37.40  Sharpe 1.24 vs 1.31  Calmar 1.04 vs 0.64
+  nifty100     tradeable/on    v6  CAGR% 23.97 vs 23.90  MaxDD% -31.80 vs -37.40  Sharpe 1.09 vs 1.31  Calmar 0.75 vs 0.64
+  midcap150    research/off    v5  CAGR% 38.48 vs 24.95  MaxDD% -31.92 vs -37.67  Sharpe 1.72 vs 1.36  Calmar 1.21 vs 0.66
+  midcap150    research/off    v6  CAGR% 39.91 vs 24.95  MaxDD% -28.63 vs -37.67  Sharpe 1.65 vs 1.36  Calmar 1.39 vs 0.66
+  midcap150    research/on     v5  CAGR% 29.96 vs 24.95  MaxDD% -31.92 vs -37.67  Sharpe 1.39 vs 1.36  Calmar 0.94 vs 0.66
+  midcap150    research/on     v6  CAGR% 33.99 vs 24.95  MaxDD% -28.63 vs -37.67  Sharpe 1.43 vs 1.36  Calmar 1.19 vs 0.66
+  midcap150    tradeable/off   v5  CAGR% 38.48 vs 24.95  MaxDD% -31.92 vs -37.67  Sharpe 1.72 vs 1.36  Calmar 1.21 vs 0.66
+  midcap150    tradeable/off   v6  CAGR% 39.91 vs 24.95  MaxDD% -28.63 vs -37.67  Sharpe 1.65 vs 1.36  Calmar 1.39 vs 0.66
+  midcap150    tradeable/on    v5  CAGR% 29.96 vs 24.95  MaxDD% -31.92 vs -37.67  Sharpe 1.39 vs 1.36  Calmar 0.94 vs 0.66
+  midcap150    tradeable/on    v6  CAGR% 33.99 vs 24.95  MaxDD% -28.63 vs -37.67  Sharpe 1.43 vs 1.36  Calmar 1.19 vs 0.66
+  smallcap250  research/off    v5  CAGR% 44.78 vs 26.56  MaxDD% -39.63 vs -48.94  Sharpe 1.91 vs 1.28  Calmar 1.13 vs 0.54
+  smallcap250  research/off    v6  CAGR% 39.25 vs 26.56  MaxDD% -33.84 vs -48.94  Sharpe 1.62 vs 1.28  Calmar 1.16 vs 0.54
+  smallcap250  research/on     v5  CAGR% 37.85 vs 26.56  MaxDD% -37.36 vs -48.94  Sharpe 1.65 vs 1.28  Calmar 1.01 vs 0.54
+  smallcap250  research/on     v6  CAGR% 32.77 vs 26.56  MaxDD% -37.80 vs -48.94  Sharpe 1.39 vs 1.28  Calmar 0.87 vs 0.54
+  smallcap250  tradeable/off   v5  CAGR% 43.90 vs 26.56  MaxDD% -41.24 vs -48.94  Sharpe 1.89 vs 1.28  Calmar 1.06 vs 0.54
+  smallcap250  tradeable/off   v6  CAGR% 43.17 vs 26.56  MaxDD% -31.57 vs -48.94  Sharpe 1.73 vs 1.28  Calmar 1.37 vs 0.54
+  smallcap250  tradeable/on    v5  CAGR% 36.83 vs 26.56  MaxDD% -40.25 vs -48.94  Sharpe 1.60 vs 1.28  Calmar 0.92 vs 0.54
+  smallcap250  tradeable/on    v6  CAGR% 35.42 vs 26.56  MaxDD% -29.82 vs -48.94  Sharpe 1.48 vs 1.28  Calmar 1.19 vs 0.54
+  nifty200     research/off    v5  CAGR% 41.69 vs 25.12  MaxDD% -24.06 vs -38.03  Sharpe 1.86 vs 1.35  Calmar 1.73 vs 0.66
+  nifty200     research/off    v6  CAGR% 49.97 vs 25.12  MaxDD% -32.73 vs -38.03  Sharpe 1.95 vs 1.35  Calmar 1.53 vs 0.66
+  nifty200     research/on     v5  CAGR% 35.98 vs 25.12  MaxDD% -27.49 vs -38.03  Sharpe 1.62 vs 1.35  Calmar 1.31 vs 0.66
+  nifty200     research/on     v6  CAGR% 43.29 vs 25.12  MaxDD% -32.49 vs -38.03  Sharpe 1.70 vs 1.35  Calmar 1.33 vs 0.66
+  nifty200     tradeable/off   v5  CAGR% 41.69 vs 25.12  MaxDD% -24.06 vs -38.03  Sharpe 1.86 vs 1.35  Calmar 1.73 vs 0.66
+  nifty200     tradeable/off   v6  CAGR% 49.97 vs 25.12  MaxDD% -32.73 vs -38.03  Sharpe 1.95 vs 1.35  Calmar 1.53 vs 0.66
+  nifty200     tradeable/on    v5  CAGR% 35.98 vs 25.12  MaxDD% -27.49 vs -38.03  Sharpe 1.62 vs 1.35  Calmar 1.31 vs 0.66
+  nifty200     tradeable/on    v6  CAGR% 43.29 vs 25.12  MaxDD% -32.49 vs -38.03  Sharpe 1.70 vs 1.35  Calmar 1.33 vs 0.66
+  nifty500     research/off    v5  CAGR% 33.17 vs 25.60  MaxDD% -38.16 vs -41.56  Sharpe 1.54 vs 1.34  Calmar 0.87 vs 0.62
+  nifty500     research/off    v6  CAGR% 42.40 vs 25.60  MaxDD% -43.69 vs -41.56  Sharpe 1.73 vs 1.34  Calmar 0.97 vs 0.62
+  nifty500     research/on     v5  CAGR% 27.76 vs 25.60  MaxDD% -38.21 vs -41.56  Sharpe 1.31 vs 1.34  Calmar 0.73 vs 0.62
+  nifty500     research/on     v6  CAGR% 35.81 vs 25.60  MaxDD% -44.14 vs -41.56  Sharpe 1.47 vs 1.34  Calmar 0.81 vs 0.62
+  nifty500     tradeable/off   v5  CAGR% 32.96 vs 25.60  MaxDD% -39.48 vs -41.56  Sharpe 1.52 vs 1.34  Calmar 0.83 vs 0.62
+  nifty500     tradeable/off   v6  CAGR% 47.00 vs 25.60  MaxDD% -43.72 vs -41.56  Sharpe 1.85 vs 1.34  Calmar 1.08 vs 0.62
+  nifty500     tradeable/on    v5  CAGR% 27.35 vs 25.60  MaxDD% -39.50 vs -41.56  Sharpe 1.29 vs 1.34  Calmar 0.69 vs 0.62
+  nifty500     tradeable/on    v6  CAGR% 41.20 vs 25.60  MaxDD% -44.14 vs -41.56  Sharpe 1.65 vs 1.34  Calmar 0.93 vs 0.62
+
+Sub-periods (v34_stop_subperiods), stop arms and buy & hold
+  nifty50      research/off    2019-2022 v5  CAGR   23.02  Sharpe  1.17  MaxDD  -30.34
+  nifty50      research/off    2019-2022 v6  CAGR   26.36  Sharpe  1.22  MaxDD  -28.95
+  nifty50      research/off    2019-2022 bh  CAGR   23.15  Sharpe  1.17  MaxDD  -37.31
+  nifty50      research/off    2023-2026 v5  CAGR   11.41  Sharpe  0.89  MaxDD  -23.35
+  nifty50      research/off    2023-2026 v6  CAGR   24.13  Sharpe  1.38  MaxDD  -18.98
+  nifty50      research/off    2023-2026 bh  CAGR   17.24  Sharpe  1.31  MaxDD  -17.33
+  nifty50      research/on     2019-2022 v5  CAGR   20.05  Sharpe  1.03  MaxDD  -30.30
+  nifty50      research/on     2019-2022 v6  CAGR   20.51  Sharpe  0.98  MaxDD  -28.94
+  nifty50      research/on     2019-2022 bh  CAGR   23.15  Sharpe  1.17  MaxDD  -37.31
+  nifty50      research/on     2023-2026 v5  CAGR    9.38  Sharpe  0.75  MaxDD  -23.85
+  nifty50      research/on     2023-2026 v6  CAGR   21.07  Sharpe  1.21  MaxDD  -19.97
+  nifty50      research/on     2023-2026 bh  CAGR   17.24  Sharpe  1.31  MaxDD  -17.33
+  nifty50      tradeable/off   2019-2022 v5  CAGR   23.02  Sharpe  1.17  MaxDD  -30.34
+  nifty50      tradeable/off   2019-2022 v6  CAGR   26.36  Sharpe  1.22  MaxDD  -28.95
+  nifty50      tradeable/off   2019-2022 bh  CAGR   23.15  Sharpe  1.17  MaxDD  -37.31
+  nifty50      tradeable/off   2023-2026 v5  CAGR   11.41  Sharpe  0.89  MaxDD  -23.35
+  nifty50      tradeable/off   2023-2026 v6  CAGR   24.13  Sharpe  1.38  MaxDD  -18.98
+  nifty50      tradeable/off   2023-2026 bh  CAGR   17.24  Sharpe  1.31  MaxDD  -17.33
+  nifty50      tradeable/on    2019-2022 v5  CAGR   20.05  Sharpe  1.03  MaxDD  -30.30
+  nifty50      tradeable/on    2019-2022 v6  CAGR   20.51  Sharpe  0.98  MaxDD  -28.94
+  nifty50      tradeable/on    2019-2022 bh  CAGR   23.15  Sharpe  1.17  MaxDD  -37.31
+  nifty50      tradeable/on    2023-2026 v5  CAGR    9.38  Sharpe  0.75  MaxDD  -23.85
+  nifty50      tradeable/on    2023-2026 v6  CAGR   21.07  Sharpe  1.21  MaxDD  -19.97
+  nifty50      tradeable/on    2023-2026 bh  CAGR   17.24  Sharpe  1.31  MaxDD  -17.33
+  midcap50     research/off    2019-2022 v5  CAGR   42.83  Sharpe  1.95  MaxDD  -21.22
+  midcap50     research/off    2019-2022 v6  CAGR   41.61  Sharpe  1.71  MaxDD  -24.22
+  midcap50     research/off    2019-2022 bh  CAGR   21.01  Sharpe  1.07  MaxDD  -37.92
+  midcap50     research/off    2023-2026 v5  CAGR   25.38  Sharpe  1.34  MaxDD  -19.41
+  midcap50     research/off    2023-2026 v6  CAGR   26.18  Sharpe  1.35  MaxDD  -22.72
+  midcap50     research/off    2023-2026 bh  CAGR   26.86  Sharpe  1.60  MaxDD  -19.32
+  midcap50     research/on     2019-2022 v5  CAGR   38.10  Sharpe  1.71  MaxDD  -21.66
+  midcap50     research/on     2019-2022 v6  CAGR   32.42  Sharpe  1.37  MaxDD  -24.21
+  midcap50     research/on     2019-2022 bh  CAGR   21.01  Sharpe  1.07  MaxDD  -37.92
+  midcap50     research/on     2023-2026 v5  CAGR   14.00  Sharpe  0.82  MaxDD  -29.66
+  midcap50     research/on     2023-2026 v6  CAGR   22.30  Sharpe  1.17  MaxDD  -23.35
+  midcap50     research/on     2023-2026 bh  CAGR   26.86  Sharpe  1.60  MaxDD  -19.32
+  midcap50     tradeable/off   2019-2022 v5  CAGR   42.83  Sharpe  1.95  MaxDD  -21.22
+  midcap50     tradeable/off   2019-2022 v6  CAGR   41.61  Sharpe  1.71  MaxDD  -24.22
+  midcap50     tradeable/off   2019-2022 bh  CAGR   21.01  Sharpe  1.07  MaxDD  -37.92
+  midcap50     tradeable/off   2023-2026 v5  CAGR   25.38  Sharpe  1.34  MaxDD  -19.41
+  midcap50     tradeable/off   2023-2026 v6  CAGR   26.18  Sharpe  1.35  MaxDD  -22.72
+  midcap50     tradeable/off   2023-2026 bh  CAGR   26.86  Sharpe  1.60  MaxDD  -19.32
+  midcap50     tradeable/on    2019-2022 v5  CAGR   38.10  Sharpe  1.71  MaxDD  -21.66
+  midcap50     tradeable/on    2019-2022 v6  CAGR   32.42  Sharpe  1.37  MaxDD  -24.21
+  midcap50     tradeable/on    2019-2022 bh  CAGR   21.01  Sharpe  1.07  MaxDD  -37.92
+  midcap50     tradeable/on    2023-2026 v5  CAGR   14.00  Sharpe  0.82  MaxDD  -29.66
+  midcap50     tradeable/on    2023-2026 v6  CAGR   22.30  Sharpe  1.17  MaxDD  -23.35
+  midcap50     tradeable/on    2023-2026 bh  CAGR   26.86  Sharpe  1.60  MaxDD  -19.32
+  midcap100    research/off    2019-2022 v5  CAGR   27.11  Sharpe  1.33  MaxDD  -32.42
+  midcap100    research/off    2019-2022 v6  CAGR   35.11  Sharpe  1.47  MaxDD  -40.57
+  midcap100    research/off    2019-2022 bh  CAGR   23.21  Sharpe  1.15  MaxDD  -38.89
+  midcap100    research/off    2023-2026 v5  CAGR   20.98  Sharpe  1.10  MaxDD  -25.51
+  midcap100    research/off    2023-2026 v6  CAGR   26.56  Sharpe  1.21  MaxDD  -24.29
+  midcap100    research/off    2023-2026 bh  CAGR   29.70  Sharpe  1.64  MaxDD  -20.24
+  midcap100    research/on     2019-2022 v5  CAGR   23.45  Sharpe  1.16  MaxDD  -32.43
+  midcap100    research/on     2019-2022 v6  CAGR   30.31  Sharpe  1.28  MaxDD  -40.71
+  midcap100    research/on     2019-2022 bh  CAGR   23.21  Sharpe  1.15  MaxDD  -38.89
+  midcap100    research/on     2023-2026 v5  CAGR   16.62  Sharpe  0.90  MaxDD  -29.93
+  midcap100    research/on     2023-2026 v6  CAGR   20.99  Sharpe  0.99  MaxDD  -28.45
+  midcap100    research/on     2023-2026 bh  CAGR   29.70  Sharpe  1.64  MaxDD  -20.24
+  midcap100    tradeable/off   2019-2022 v5  CAGR   32.31  Sharpe  1.58  MaxDD  -22.20
+  midcap100    tradeable/off   2019-2022 v6  CAGR   34.67  Sharpe  1.46  MaxDD  -40.57
+  midcap100    tradeable/off   2019-2022 bh  CAGR   23.21  Sharpe  1.15  MaxDD  -38.89
+  midcap100    tradeable/off   2023-2026 v5  CAGR   20.74  Sharpe  1.09  MaxDD  -25.87
+  midcap100    tradeable/off   2023-2026 v6  CAGR   26.57  Sharpe  1.21  MaxDD  -24.31
+  midcap100    tradeable/off   2023-2026 bh  CAGR   29.70  Sharpe  1.64  MaxDD  -20.24
+  midcap100    tradeable/on    2019-2022 v5  CAGR   24.30  Sharpe  1.19  MaxDD  -32.43
+  midcap100    tradeable/on    2019-2022 v6  CAGR   30.26  Sharpe  1.28  MaxDD  -40.58
+  midcap100    tradeable/on    2019-2022 bh  CAGR   23.21  Sharpe  1.15  MaxDD  -38.89
+  midcap100    tradeable/on    2023-2026 v5  CAGR   16.76  Sharpe  0.91  MaxDD  -29.74
+  midcap100    tradeable/on    2023-2026 v6  CAGR   20.98  Sharpe  0.99  MaxDD  -28.46
+  midcap100    tradeable/on    2023-2026 bh  CAGR   29.70  Sharpe  1.64  MaxDD  -20.24
+  nifty100     research/off    2019-2022 v5  CAGR   31.26  Sharpe  1.50  MaxDD  -23.22
+  nifty100     research/off    2019-2022 v6  CAGR   30.68  Sharpe  1.30  MaxDD  -31.82
+  nifty100     research/off    2019-2022 bh  CAGR   24.89  Sharpe  1.23  MaxDD  -37.40
+  nifty100     research/off    2023-2026 v5  CAGR   25.67  Sharpe  1.40  MaxDD  -20.05
+  nifty100     research/off    2023-2026 v6  CAGR   25.94  Sharpe  1.24  MaxDD  -19.22
+  nifty100     research/off    2023-2026 bh  CAGR   22.62  Sharpe  1.48  MaxDD  -20.01
+  nifty100     research/on     2019-2022 v5  CAGR   27.63  Sharpe  1.33  MaxDD  -23.22
+  nifty100     research/on     2019-2022 v6  CAGR   27.12  Sharpe  1.16  MaxDD  -31.80
+  nifty100     research/on     2019-2022 bh  CAGR   24.89  Sharpe  1.23  MaxDD  -37.40
+  nifty100     research/on     2023-2026 v5  CAGR   20.53  Sharpe  1.13  MaxDD  -20.12
+  nifty100     research/on     2023-2026 v6  CAGR   20.51  Sharpe  1.01  MaxDD  -20.22
+  nifty100     research/on     2023-2026 bh  CAGR   22.62  Sharpe  1.48  MaxDD  -20.01
+  nifty100     tradeable/off   2019-2022 v5  CAGR   31.26  Sharpe  1.50  MaxDD  -23.22
+  nifty100     tradeable/off   2019-2022 v6  CAGR   30.68  Sharpe  1.30  MaxDD  -31.82
+  nifty100     tradeable/off   2019-2022 bh  CAGR   24.89  Sharpe  1.23  MaxDD  -37.40
+  nifty100     tradeable/off   2023-2026 v5  CAGR   25.67  Sharpe  1.40  MaxDD  -20.05
+  nifty100     tradeable/off   2023-2026 v6  CAGR   25.94  Sharpe  1.24  MaxDD  -19.22
+  nifty100     tradeable/off   2023-2026 bh  CAGR   22.62  Sharpe  1.48  MaxDD  -20.01
+  nifty100     tradeable/on    2019-2022 v5  CAGR   27.63  Sharpe  1.33  MaxDD  -23.22
+  nifty100     tradeable/on    2019-2022 v6  CAGR   27.12  Sharpe  1.16  MaxDD  -31.80
+  nifty100     tradeable/on    2019-2022 bh  CAGR   24.89  Sharpe  1.23  MaxDD  -37.40
+  nifty100     tradeable/on    2023-2026 v5  CAGR   20.53  Sharpe  1.13  MaxDD  -20.12
+  nifty100     tradeable/on    2023-2026 v6  CAGR   20.51  Sharpe  1.01  MaxDD  -20.22
+  nifty100     tradeable/on    2023-2026 bh  CAGR   22.62  Sharpe  1.48  MaxDD  -20.01
+  midcap150    research/off    2019-2022 v5  CAGR   25.91  Sharpe  1.28  MaxDD  -31.92
+  midcap150    research/off    2019-2022 v6  CAGR   39.12  Sharpe  1.62  MaxDD  -28.63
+  midcap150    research/off    2019-2022 bh  CAGR   23.15  Sharpe  1.21  MaxDD  -37.67
+  midcap150    research/off    2023-2026 v5  CAGR   54.86  Sharpe  2.20  MaxDD  -19.63
+  midcap150    research/off    2023-2026 v6  CAGR   40.94  Sharpe  1.68  MaxDD  -22.23
+  midcap150    research/off    2023-2026 bh  CAGR   26.90  Sharpe  1.57  MaxDD  -19.99
+  midcap150    research/on     2019-2022 v5  CAGR   21.76  Sharpe  1.07  MaxDD  -31.92
+  midcap150    research/on     2019-2022 v6  CAGR   33.99  Sharpe  1.42  MaxDD  -28.63
+  midcap150    research/on     2019-2022 bh  CAGR   23.15  Sharpe  1.21  MaxDD  -37.67
+  midcap150    research/on     2023-2026 v5  CAGR   40.28  Sharpe  1.75  MaxDD  -25.27
+  midcap150    research/on     2023-2026 v6  CAGR   34.07  Sharpe  1.44  MaxDD  -24.72
+  midcap150    research/on     2023-2026 bh  CAGR   26.90  Sharpe  1.57  MaxDD  -19.99
+  midcap150    tradeable/off   2019-2022 v5  CAGR   25.91  Sharpe  1.28  MaxDD  -31.92
+  midcap150    tradeable/off   2019-2022 v6  CAGR   39.12  Sharpe  1.62  MaxDD  -28.63
+  midcap150    tradeable/off   2019-2022 bh  CAGR   23.15  Sharpe  1.21  MaxDD  -37.67
+  midcap150    tradeable/off   2023-2026 v5  CAGR   54.86  Sharpe  2.20  MaxDD  -19.63
+  midcap150    tradeable/off   2023-2026 v6  CAGR   40.94  Sharpe  1.68  MaxDD  -22.23
+  midcap150    tradeable/off   2023-2026 bh  CAGR   26.90  Sharpe  1.57  MaxDD  -19.99
+  midcap150    tradeable/on    2019-2022 v5  CAGR   21.76  Sharpe  1.07  MaxDD  -31.92
+  midcap150    tradeable/on    2019-2022 v6  CAGR   33.99  Sharpe  1.42  MaxDD  -28.63
+  midcap150    tradeable/on    2019-2022 bh  CAGR   23.15  Sharpe  1.21  MaxDD  -37.67
+  midcap150    tradeable/on    2023-2026 v5  CAGR   40.28  Sharpe  1.75  MaxDD  -25.27
+  midcap150    tradeable/on    2023-2026 v6  CAGR   34.07  Sharpe  1.44  MaxDD  -24.72
+  midcap150    tradeable/on    2023-2026 bh  CAGR   26.90  Sharpe  1.57  MaxDD  -19.99
+  smallcap250  research/off    2019-2022 v5  CAGR   38.49  Sharpe  1.63  MaxDD  -39.63
+  smallcap250  research/off    2019-2022 v6  CAGR   28.69  Sharpe  1.24  MaxDD  -33.84
+  smallcap250  research/off    2019-2022 bh  CAGR   24.44  Sharpe  1.13  MaxDD  -48.94
+  smallcap250  research/off    2023-2026 v5  CAGR   51.98  Sharpe  2.27  MaxDD  -16.40
+  smallcap250  research/off    2023-2026 v6  CAGR   51.82  Sharpe  2.08  MaxDD  -17.28
+  smallcap250  research/off    2023-2026 bh  CAGR   28.76  Sharpe  1.47  MaxDD  -24.10
+  smallcap250  research/on     2019-2022 v5  CAGR   35.61  Sharpe  1.52  MaxDD  -37.36
+  smallcap250  research/on     2019-2022 v6  CAGR   24.57  Sharpe  1.08  MaxDD  -37.80
+  smallcap250  research/on     2019-2022 bh  CAGR   24.44  Sharpe  1.13  MaxDD  -48.94
+  smallcap250  research/on     2023-2026 v5  CAGR   40.00  Sharpe  1.81  MaxDD  -16.40
+  smallcap250  research/on     2023-2026 v6  CAGR   42.20  Sharpe  1.77  MaxDD  -17.28
+  smallcap250  research/on     2023-2026 bh  CAGR   28.76  Sharpe  1.47  MaxDD  -24.10
+  smallcap250  tradeable/off   2019-2022 v5  CAGR   37.05  Sharpe  1.58  MaxDD  -41.24
+  smallcap250  tradeable/off   2019-2022 v6  CAGR   35.48  Sharpe  1.44  MaxDD  -31.57
+  smallcap250  tradeable/off   2019-2022 bh  CAGR   24.44  Sharpe  1.13  MaxDD  -48.94
+  smallcap250  tradeable/off   2023-2026 v5  CAGR   51.80  Sharpe  2.27  MaxDD  -16.39
+  smallcap250  tradeable/off   2023-2026 v6  CAGR   51.82  Sharpe  2.08  MaxDD  -17.28
+  smallcap250  tradeable/off   2023-2026 bh  CAGR   28.76  Sharpe  1.47  MaxDD  -24.10
+  smallcap250  tradeable/on    2019-2022 v5  CAGR   33.83  Sharpe  1.43  MaxDD  -40.25
+  smallcap250  tradeable/on    2019-2022 v6  CAGR   29.40  Sharpe  1.24  MaxDD  -29.82
+  smallcap250  tradeable/on    2019-2022 bh  CAGR   24.44  Sharpe  1.13  MaxDD  -48.94
+  smallcap250  tradeable/on    2023-2026 v5  CAGR   39.90  Sharpe  1.80  MaxDD  -16.39
+  smallcap250  tradeable/on    2023-2026 v6  CAGR   41.97  Sharpe  1.76  MaxDD  -17.28
+  smallcap250  tradeable/on    2023-2026 bh  CAGR   28.76  Sharpe  1.47  MaxDD  -24.10
+  nifty200     research/off    2019-2022 v5  CAGR   46.07  Sharpe  2.02  MaxDD  -24.06
+  nifty200     research/off    2019-2022 v6  CAGR   48.15  Sharpe  1.88  MaxDD  -32.73
+  nifty200     research/off    2019-2022 bh  CAGR   24.16  Sharpe  1.20  MaxDD  -38.03
+  nifty200     research/off    2023-2026 v5  CAGR   36.75  Sharpe  1.68  MaxDD  -22.80
+  nifty200     research/off    2023-2026 v6  CAGR   52.28  Sharpe  2.03  MaxDD  -23.55
+  nifty200     research/off    2023-2026 bh  CAGR   26.09  Sharpe  1.59  MaxDD  -20.01
+  nifty200     research/on     2019-2022 v5  CAGR   40.86  Sharpe  1.78  MaxDD  -24.06
+  nifty200     research/on     2019-2022 v6  CAGR   42.48  Sharpe  1.66  MaxDD  -32.49
+  nifty200     research/on     2019-2022 bh  CAGR   24.16  Sharpe  1.20  MaxDD  -38.03
+  nifty200     research/on     2023-2026 v5  CAGR   30.48  Sharpe  1.42  MaxDD  -27.49
+  nifty200     research/on     2023-2026 v6  CAGR   44.36  Sharpe  1.76  MaxDD  -28.12
+  nifty200     research/on     2023-2026 bh  CAGR   26.09  Sharpe  1.59  MaxDD  -20.01
+  nifty200     tradeable/off   2019-2022 v5  CAGR   46.07  Sharpe  2.02  MaxDD  -24.06
+  nifty200     tradeable/off   2019-2022 v6  CAGR   48.15  Sharpe  1.88  MaxDD  -32.73
+  nifty200     tradeable/off   2019-2022 bh  CAGR   24.16  Sharpe  1.20  MaxDD  -38.03
+  nifty200     tradeable/off   2023-2026 v5  CAGR   36.75  Sharpe  1.68  MaxDD  -22.80
+  nifty200     tradeable/off   2023-2026 v6  CAGR   52.28  Sharpe  2.03  MaxDD  -23.55
+  nifty200     tradeable/off   2023-2026 bh  CAGR   26.09  Sharpe  1.59  MaxDD  -20.01
+  nifty200     tradeable/on    2019-2022 v5  CAGR   40.86  Sharpe  1.78  MaxDD  -24.06
+  nifty200     tradeable/on    2019-2022 v6  CAGR   42.48  Sharpe  1.66  MaxDD  -32.49
+  nifty200     tradeable/on    2019-2022 bh  CAGR   24.16  Sharpe  1.20  MaxDD  -38.03
+  nifty200     tradeable/on    2023-2026 v5  CAGR   30.48  Sharpe  1.42  MaxDD  -27.49
+  nifty200     tradeable/on    2023-2026 v6  CAGR   44.36  Sharpe  1.76  MaxDD  -28.12
+  nifty200     tradeable/on    2023-2026 bh  CAGR   26.09  Sharpe  1.59  MaxDD  -20.01
+  nifty500     research/off    2019-2022 v5  CAGR   31.36  Sharpe  1.47  MaxDD  -38.16
+  nifty500     research/off    2019-2022 v6  CAGR   40.33  Sharpe  1.59  MaxDD  -43.69
+  nifty500     research/off    2019-2022 bh  CAGR   24.29  Sharpe  1.20  MaxDD  -41.56
+  nifty500     research/off    2023-2026 v5  CAGR   34.68  Sharpe  1.58  MaxDD  -23.24
+  nifty500     research/off    2023-2026 v6  CAGR   44.00  Sharpe  1.87  MaxDD  -23.74
+  nifty500     research/off    2023-2026 bh  CAGR   26.91  Sharpe  1.53  MaxDD  -21.58
+  nifty500     research/on     2019-2022 v5  CAGR   28.46  Sharpe  1.33  MaxDD  -38.21
+  nifty500     research/on     2019-2022 v6  CAGR   34.12  Sharpe  1.36  MaxDD  -44.14
+  nifty500     research/on     2019-2022 bh  CAGR   24.29  Sharpe  1.20  MaxDD  -41.56
+  nifty500     research/on     2023-2026 v5  CAGR   26.31  Sharpe  1.26  MaxDD  -29.66
+  nifty500     research/on     2023-2026 v6  CAGR   36.98  Sharpe  1.60  MaxDD  -26.74
+  nifty500     research/on     2023-2026 bh  CAGR   26.91  Sharpe  1.53  MaxDD  -21.58
+  nifty500     tradeable/off   2019-2022 v5  CAGR   30.67  Sharpe  1.44  MaxDD  -39.48
+  nifty500     tradeable/off   2019-2022 v6  CAGR   48.86  Sharpe  1.82  MaxDD  -43.72
+  nifty500     tradeable/off   2019-2022 bh  CAGR   24.29  Sharpe  1.20  MaxDD  -41.56
+  nifty500     tradeable/off   2023-2026 v5  CAGR   35.06  Sharpe  1.60  MaxDD  -23.22
+  nifty500     tradeable/off   2023-2026 v6  CAGR   44.00  Sharpe  1.87  MaxDD  -23.74
+  nifty500     tradeable/off   2023-2026 bh  CAGR   26.91  Sharpe  1.53  MaxDD  -21.58
+  nifty500     tradeable/on    2019-2022 v5  CAGR   27.80  Sharpe  1.30  MaxDD  -39.50
+  nifty500     tradeable/on    2019-2022 v6  CAGR   45.04  Sharpe  1.69  MaxDD  -44.14
+  nifty500     tradeable/on    2019-2022 bh  CAGR   24.29  Sharpe  1.20  MaxDD  -41.56
+  nifty500     tradeable/on    2023-2026 v5  CAGR   26.20  Sharpe  1.25  MaxDD  -29.67
+  nifty500     tradeable/on    2023-2026 v6  CAGR   36.01  Sharpe  1.56  MaxDD  -26.75
+  nifty500     tradeable/on    2023-2026 bh  CAGR   26.91  Sharpe  1.53  MaxDD  -21.58
+
+Exits, re-entries, days in cash, and the true drawdown from the all-time peak (the stop's peak resets at re-entry; this one does not)
+  nifty50      research/off    v5  exits 2  re-entries 2  days in cash   51 of 1836  true MaxDD -30.34%
+  nifty50      research/off    v6  exits 1  re-entries 1  days in cash   25 of 1836  true MaxDD -28.95%
+  nifty50      research/on     v5  exits 2  re-entries 2  days in cash   55 of 1836  true MaxDD -30.30%
+  nifty50      research/on     v6  exits 2  re-entries 2  days in cash   48 of 1836  true MaxDD -28.94%
+  nifty50      tradeable/off   v5  exits 2  re-entries 2  days in cash   51 of 1836  true MaxDD -30.34%
+  nifty50      tradeable/off   v6  exits 1  re-entries 1  days in cash   25 of 1836  true MaxDD -28.95%
+  nifty50      tradeable/on    v5  exits 2  re-entries 2  days in cash   55 of 1836  true MaxDD -30.30%
+  nifty50      tradeable/on    v6  exits 2  re-entries 2  days in cash   48 of 1836  true MaxDD -28.94%
+  midcap50     research/off    v5  exits 1  re-entries 1  days in cash   22 of 1836  true MaxDD -21.22%
+  midcap50     research/off    v6  exits 2  re-entries 2  days in cash   54 of 1836  true MaxDD -24.22%
+  midcap50     research/on     v5  exits 2  re-entries 2  days in cash   48 of 1836  true MaxDD -29.66%
+  midcap50     research/on     v6  exits 3  re-entries 3  days in cash   77 of 1836  true MaxDD -24.21%
+  midcap50     tradeable/off   v5  exits 1  re-entries 1  days in cash   22 of 1836  true MaxDD -21.22%
+  midcap50     tradeable/off   v6  exits 2  re-entries 2  days in cash   54 of 1836  true MaxDD -24.22%
+  midcap50     tradeable/on    v5  exits 2  re-entries 2  days in cash   48 of 1836  true MaxDD -29.66%
+  midcap50     tradeable/on    v6  exits 3  re-entries 3  days in cash   77 of 1836  true MaxDD -24.21%
+  midcap100    research/off    v5  exits 4  re-entries 4  days in cash  144 of 1836  true MaxDD -32.42%
+  midcap100    research/off    v6  exits 4  re-entries 4  days in cash  156 of 1836  true MaxDD -40.57%
+  midcap100    research/on     v5  exits 4  re-entries 4  days in cash  145 of 1836  true MaxDD -32.43%
+  midcap100    research/on     v6  exits 4  re-entries 4  days in cash  156 of 1836  true MaxDD -40.71%
+  midcap100    tradeable/off   v5  exits 4  re-entries 4  days in cash  146 of 1836  true MaxDD -25.87%
+  midcap100    tradeable/off   v6  exits 4  re-entries 4  days in cash  156 of 1836  true MaxDD -40.57%
+  midcap100    tradeable/on    v5  exits 4  re-entries 4  days in cash  145 of 1836  true MaxDD -32.43%
+  midcap100    tradeable/on    v6  exits 4  re-entries 4  days in cash  156 of 1836  true MaxDD -40.58%
+  nifty100     research/off    v5  exits 2  re-entries 2  days in cash   54 of 1836  true MaxDD -23.22%
+  nifty100     research/off    v6  exits 2  re-entries 2  days in cash   68 of 1836  true MaxDD -31.82%
+  nifty100     research/on     v5  exits 2  re-entries 2  days in cash   54 of 1836  true MaxDD -23.22%
+  nifty100     research/on     v6  exits 2  re-entries 2  days in cash   68 of 1836  true MaxDD -31.80%
+  nifty100     tradeable/off   v5  exits 2  re-entries 2  days in cash   54 of 1836  true MaxDD -23.22%
+  nifty100     tradeable/off   v6  exits 2  re-entries 2  days in cash   68 of 1836  true MaxDD -31.82%
+  nifty100     tradeable/on    v5  exits 2  re-entries 2  days in cash   54 of 1836  true MaxDD -23.22%
+  nifty100     tradeable/on    v6  exits 2  re-entries 2  days in cash   68 of 1836  true MaxDD -31.80%
+  midcap150    research/off    v5  exits 2  re-entries 2  days in cash   46 of 1836  true MaxDD -31.92%
+  midcap150    research/off    v6  exits 4  re-entries 4  days in cash  141 of 1836  true MaxDD -28.63%
+  midcap150    research/on     v5  exits 3  re-entries 3  days in cash   86 of 1836  true MaxDD -31.92%
+  midcap150    research/on     v6  exits 4  re-entries 4  days in cash  169 of 1836  true MaxDD -28.63%
+  midcap150    tradeable/off   v5  exits 2  re-entries 2  days in cash   46 of 1836  true MaxDD -31.92%
+  midcap150    tradeable/off   v6  exits 4  re-entries 4  days in cash  141 of 1836  true MaxDD -28.63%
+  midcap150    tradeable/on    v5  exits 3  re-entries 3  days in cash   86 of 1836  true MaxDD -31.92%
+  midcap150    tradeable/on    v6  exits 4  re-entries 4  days in cash  169 of 1836  true MaxDD -28.63%
+  smallcap250  research/off    v5  exits 2  re-entries 2  days in cash   62 of 1836  true MaxDD -39.63%
+  smallcap250  research/off    v6  exits 3  re-entries 3  days in cash  109 of 1836  true MaxDD -33.84%
+  smallcap250  research/on     v5  exits 2  re-entries 2  days in cash   60 of 1836  true MaxDD -37.36%
+  smallcap250  research/on     v6  exits 3  re-entries 3  days in cash  109 of 1836  true MaxDD -37.80%
+  smallcap250  tradeable/off   v5  exits 2  re-entries 2  days in cash   62 of 1836  true MaxDD -41.24%
+  smallcap250  tradeable/off   v6  exits 2  re-entries 2  days in cash   71 of 1836  true MaxDD -31.57%
+  smallcap250  tradeable/on    v5  exits 2  re-entries 2  days in cash   62 of 1836  true MaxDD -40.25%
+  smallcap250  tradeable/on    v6  exits 3  re-entries 3  days in cash  121 of 1836  true MaxDD -29.82%
+  nifty200     research/off    v5  exits 3  re-entries 3  days in cash   89 of 1836  true MaxDD -24.06%
+  nifty200     research/off    v6  exits 4  re-entries 4  days in cash  154 of 1836  true MaxDD -32.73%
+  nifty200     research/on     v5  exits 3  re-entries 3  days in cash   89 of 1836  true MaxDD -27.49%
+  nifty200     research/on     v6  exits 4  re-entries 4  days in cash  158 of 1836  true MaxDD -32.49%
+  nifty200     tradeable/off   v5  exits 3  re-entries 3  days in cash   89 of 1836  true MaxDD -24.06%
+  nifty200     tradeable/off   v6  exits 4  re-entries 4  days in cash  154 of 1836  true MaxDD -32.73%
+  nifty200     tradeable/on    v5  exits 3  re-entries 3  days in cash   89 of 1836  true MaxDD -27.49%
+  nifty200     tradeable/on    v6  exits 4  re-entries 4  days in cash  158 of 1836  true MaxDD -32.49%
+  nifty500     research/off    v5  exits 4  re-entries 4  days in cash  140 of 1836  true MaxDD -38.16%
+  nifty500     research/off    v6  exits 6  re-entries 6  days in cash  309 of 1836  true MaxDD -43.69%
+  nifty500     research/on     v5  exits 5  re-entries 5  days in cash  165 of 1836  true MaxDD -38.21%
+  nifty500     research/on     v6  exits 6  re-entries 6  days in cash  309 of 1836  true MaxDD -44.14%
+  nifty500     tradeable/off   v5  exits 4  re-entries 4  days in cash  140 of 1836  true MaxDD -39.48%
+  nifty500     tradeable/off   v6  exits 5  re-entries 5  days in cash  271 of 1836  true MaxDD -43.72%
+  nifty500     tradeable/on    v5  exits 5  re-entries 5  days in cash  165 of 1836  true MaxDD -39.50%
+  nifty500     tradeable/on    v6  exits 5  re-entries 5  days in cash  297 of 1836  true MaxDD -44.14%
+
+SUMMARY
+  v5: REJECT
+  v6: REJECT

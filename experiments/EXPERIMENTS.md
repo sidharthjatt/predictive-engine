@@ -3636,6 +3636,55 @@ shipped `v2FINAL_equity.csv`, tolerance 1e-12.
 
 ---
 
+### 37. Drawdown stop on the fully invested arms, v5 and v6 — **BOTH REJECTED**
+
+*Pre-registration: `experiments/DRAWDOWN_STOP_PREREG.txt`, written 2026-10-02 before
+v5 or v6 existed in code. Band: `experiments/DRAWDOWN_STOP_BAND.csv`, committed in
+`41503cb` before any stop-arm figure at 0.20 was produced. Result, with every cell:
+`experiments/DRAWDOWN_STOP_RESULT.txt`. Run 2026-10-03.*
+
+The rule: exit when the arm's close equity is 20% or more below its running peak,
+sell everything at the next open, stay in cash at least one rebalance cycle, re-enter
+at the first rebalance with breadth of 0.50 or more, reset the peak at re-entry. v5
+is v1 with the stop and v6 is v3 with it. Judged on 24 cells: six universes under
+research and tradeable, tax off and on, cadence 20.
+
+| | v5 − v1 | v6 − v3 | needed |
+|---|--:|--:|--:|
+| 1. MaxDD shallower by more than the band | 7 of 24 | 14 of 24 | ≥ 18, and 0 deeper |
+| MaxDD deeper by more than the band | 0 | 0 | 0 |
+| 2. Calmar higher by more than the band | 6 of 24 | 8 of 24 | ≥ 15 |
+| 3. CAGR lower by more than the band | 10 of 24 | 2 of 24 | ≤ 6 |
+| 4. Universes with exits in ≥ 2 parent episodes | 5 of 6 | 5 of 6 | ≥ 4 |
+| **Verdict** | **REJECT** | **REJECT** | |
+
+Criterion 4 gives 5 of 6 for both arms under every one of the four settings, so
+the verdict does not depend on which setting's exits are counted.
+
+**What the stop does.** It never made a drawdown deeper than the band allows, and on
+some universes it cut it a lot: v6 on midcap50 by 17.0 points, on midcap150 by 12.5,
+v5 on midcap50 (tax off) by 14.5. It did not do so consistently enough for
+criterion 1, and it cost return where it did not help: v5 lost 4.9 to 8.5 CAGR
+points on midcap100 and 5.2 to 5.7 on nifty50, beyond the band in all eight of
+those cells. The peak reset limits the loss per episode, not overall: true
+drawdowns from the all-time peak reach −30.3% (v5, nifty50), −41.2% (v5,
+smallcap250) and −40.7% (v6, midcap100) against a 20% trigger.
+
+**Port.** `nt_verify` verifies 9 of 16 v5/v6 cells (research, tax off, all eight
+universes). In all 16 the port and the engine agree on every exit and re-entry
+date. The other 7 differ by one or two shares in ways the existing signatures do
+not explain; on midcap100 v5 the port holds one to two shares more on every
+differing rebalance after the first re-entry. Not found; the 9 are gated in
+`check_all.py` and the 7 listed in `NT_VERIFY_UNGATED`. The verdict reads only the
+engine.
+
+**Not changed:** the README, `--arm all` (still v1 to v4) and every default. A
+reporting defect found on the way, FY_EQUITY ending before the final session when
+the last financial year has no realised lot, was fixed in `results/tax_report.py`;
+the result file records it.
+
+---
+
 ## Which purge the shipped panels were built with, measured. 2026-09-02.
 
 Not an experiment and not a trial — a **measurement on the artefacts**, run

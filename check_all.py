@@ -58,8 +58,8 @@ WHAT THIS DOES ABOUT IT
                          The refit ones need --slow; without it they are named
                          skips. Three cannot assert at all and are listed with
                          the reason. See DELEGATES.
-    GATE 8  DATA SOURCE  every v34_params*.json names the price data it was
-                         built from -- resolved raw_data_dir, symlink target and a
+    GATE 8  DATA SOURCE  every v34_params*.json and v34_stop_params*.json
+                         names the price data it was built from -- resolved raw_data_dir, symlink target and a
                          sha256 over the whole input -- and that source is still
                          the one the registry uses. FAILS CLOSED: a missing field
                          is a failure. This is the only gate that opens a price
@@ -176,6 +176,34 @@ LIVE_LIKE = (
     "results/leakage_check2_trading_purge.py",
 )
 
+# nt_verify cells that do not verify and so are not in DELEGATES. The 12 core-arm
+# cells listed here on 2026-09-27 have verified since 2026-09-29 under nt_verify's
+# quote-mid valuation rule (pass I; KNOWN_ISSUES.md).
+#
+# THE 7 STOP-ARM CELLS BELOW FAIL, 2026-10-03, measured twice, the second time with
+# nothing else running. On each, the port and the reference agree on every exit and
+# re-entry date; the largest daily equity gap is 0.13% to 1.73%. What differs is
+# holdings on the 0.01 grid, by one or two shares, in a way neither the one-share
+# floor signature nor the quote-mid rule explains. Traced on two cells:
+#   midcap50 v5   one share lower on two symbols at once, 2 rebalances: the floor,
+#                 but on two symbols, which the signature does not excuse.
+#   midcap100 v5  one share lower before the first exit, as for the core arms; one
+#                 to two shares HIGHER on all 34 rebalances that differ after the
+#                 first re-entry.
+#                 The port's exit and re-entry accounting differs from the
+#                 reference's by a small amount that has not been found.
+# The other five are not traced. Not tolerated; not gated. The verdict of the
+# measurement comes from the engine and does not read the port.
+NT_VERIFY_UNGATED = (
+    ("midcap150", "v6", "7 rebalances unexplained on the 0.01 grid"),
+    ("midcap50", "v5", "2 rebalances with a one-share floor on two symbols at once"),
+    ("midcap50", "v6", "2 rebalances unexplained on the 0.01 grid"),
+    ("midcap100", "v5", "34 rebalances; port 1 to 2 shares higher after the first re-entry"),
+    ("midcap100", "v6", "4 rebalances unexplained on the 0.01 grid"),
+    ("nifty200", "v6", "3 rebalances unexplained on the 0.01 grid"),
+    ("nifty500", "v5", "4 rebalances unexplained on the 0.01 grid"),
+)
+
 DELEGATES = (
     # The four that were already here.
     ("registry_coverage_check.py",            [], False, None),
@@ -240,6 +268,14 @@ DELEGATES = (
                    ("nifty200", "v1"), ("nifty200", "v2"), ("nifty200", "v3"), ("nifty200", "v4"),
                    ("smallcap250", "v1"), ("smallcap250", "v2"), ("smallcap250", "v3"), ("smallcap250", "v4"),
                    ("nifty500", "v1"), ("nifty500", "v2"), ("nifty500", "v3"), ("nifty500", "v4"))],
+    # THE STOP ARMS, v5 AND v6, research, tax off. Added 2026-10-03 with the stage-5
+    # measurement of experiments/DRAWDOWN_STOP_PREREG.txt. 9 of the 16 cells verify
+    # and are gated here; the other 7 are in NT_VERIFY_UNGATED above, with the reason.
+    *[("nautilus/nt_verify.py", [f"--universe={t}", f"--arm={a}"], False, None)
+      for t, a in (("nifty100", "v5"), ("nifty100", "v6"), ("midcap150", "v5"),
+                   ("nifty50", "v5"), ("nifty50", "v6"), ("nifty200", "v5"),
+                   ("smallcap250", "v5"), ("smallcap250", "v6"), ("nifty500", "v6"))
+      if (t, a) not in {(u, x) for u, x, _ in NT_VERIFY_UNGATED}],
 
     # SLOW. validate_engine.py iterates the certified universes inside one run,
     # so it is wired ONCE and must not be given a tag. The other two do not, so
@@ -264,10 +300,6 @@ DELEGATES = (
      "it exits 0 whatever it finds"),
 )
 
-# nt_verify cells that do not verify and so are not in DELEGATES. Empty since
-# 2026-09-29: the 12 listed here on 2026-09-27 verify under nt_verify's quote-mid
-# valuation rule (pass I; KNOWN_ISSUES.md).
-NT_VERIFY_UNGATED = ()
 
 # RETIRED, AND NOT IN THE TABLE ABOVE. results/leakage_check2_purge.py audits the
 # CALENDAR purge rule, which engine_core.score_monthly no longer takes --
@@ -896,24 +928,28 @@ def _tax_ledger(u, M, arm="v2", stems=("FY_EQUITY", "FY_TAX_STATEMENT"), rec=Non
     sys.path.insert(0, str(ROOT / "results"))
     import audit_step
     import tax_report
-    from arms.registry import ARMS
+    from arms.registry import ALL_ARMS
     with _run_axes(rec):
-        tag = audit_step.artefact_tag(u, ARMS[getattr(arm, "name", arm)])
+        tag = audit_step.artefact_tag(u, ALL_ARMS[getattr(arm, "name", arm)])
         return tuple(M / tax_report.artefact_name(s, tag) for s in stems)
 
 
-def _v34_equity_pair(M, rec):
+def _v34_equity_pair(M, rec, arm=None):
     """(taxed, untaxed) v34_equity paths at rec's axes, composed as
-    v34_common.write_v34 composes them: arm subset, cadence, profile, tax."""
+    v34_common.write_v34 composes them: arm subset, cadence, profile, tax. A stop
+    arm's curve is in the companion v34_stop_equity file, named the same way from
+    the stop part of the selection."""
     import cadence as _cd
     import profiles as _pf
     import tax as _tx
     import arms.registry as _ar
+    stop = getattr(arm, "name", arm) in _ar.STOP_ARMS
     out = []
     for on in (True, False):
         with _run_axes(rec, tax_on=on):
-            out.append(M / (f"v34_equity{_ar.selection_suffix()}{_cd.suffix()}"
-                            f"{_pf.suffix()}{_tx.suffix()}.csv"))
+            head = (f"v34_stop_equity{_ar.stop_selection_suffix()}" if stop
+                    else f"v34_equity{_ar.selection_suffix()}")
+            out.append(M / f"{head}{_cd.suffix()}{_pf.suffix()}{_tx.suffix()}.csv")
     return tuple(out)
 
 
@@ -927,7 +963,7 @@ def _tax_targets(res, gate, since):
     """
     import datetime
     from universes.registry import REGISTRY
-    from arms.registry import ARMS
+    from arms.registry import ALL_ARMS as ARMS
     runs = _runs_since(since)
     if not runs:
         when = datetime.datetime.fromtimestamp(since).strftime("%Y-%m-%d %H:%M:%S")
@@ -1087,7 +1123,7 @@ def gate_tax(res, since, sel):
         col_name = arm.equity_column
         tn = f"{t}/{arm.name}"
         M = Path(u.metrics_dir)
-        taxed, plain = _v34_equity_pair(M, rec)
+        taxed, plain = _v34_equity_pair(M, rec, arm)
         # THE LEDGER IS NAMED EXACTLY, FOR THE CADENCE THIS GATE CHECKS. taxed is
         # the default-cadence, research, four-arm curve, so its ledger is v2's at
         # the same axes, named by the writer's own rule (audit_step.artefact_tag +
@@ -1218,7 +1254,7 @@ def gate_ltcg(res, sel, since=None):
     # HOLDING_PERIOD_LOTS_*_tax.csv in sort order, which was v2's research file
     # only by the accident of "_tax" sorting before "_tradeable_tax" and "_v1_tax".
     # Each arm's lots are now named by the writer's rule (_tax_ledger) and checked.
-    from arms.registry import ARMS as _ARMS
+    from arms.registry import ALL_ARMS as _ARMS
     if since is None:
         tags = sorted(REGISTRY) if sel in (None, "all") else [t.strip() for t in sel.split(",")]
         items = [(None, t, a) for t in tags for a in _ARMS.values()]
@@ -1415,7 +1451,9 @@ def gate_data_source(res, sel):
         M = Path(u.metrics_dir)
         if not M.exists():
             continue
-        for f in list_dir(M, "v34_params*.json"):
+        # The stop arms' companion params files carry the same field.
+        for f in sorted(list_dir(M, "v34_params*.json")
+                        + list_dir(M, "v34_stop_params*.json")):
             checked += 1
             nm = name(f)
             try:
