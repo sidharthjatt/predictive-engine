@@ -187,9 +187,16 @@ def write_all(M, tag, eq, tax_audit, dates):
     stmt, _due = T.liability_schedule(lots, dates)
     reconcile(stmt, tax_audit["cum_tax"])
 
+    # FY_EQUITY ENDS AT THE FINAL SESSION. The statement has a row only for a year
+    # with a realised lot. nifty50 v5 sold everything on 2026-03-16 and bought
+    # back on 2026-05-08, so it realised nothing in the last, partial year; the
+    # last row was then 2026-03-30 and the check below failed by Rs 60,402.08.
+    # When the last year already has a row the set is unchanged; every v1 to v4
+    # tax run has passed the check below, so each already has that row.
+    fys = sorted(set(stmt["fy"]) | {T.financial_year(dates[-1])})
     wrote = []
     for stem, df in (("FY_TAX_STATEMENT", stmt),
-                     ("FY_EQUITY", fy_equity(eq, stmt["fy"])),
+                     ("FY_EQUITY", fy_equity(eq, fys)),
                      ("HOLDING_PERIOD", holding_period(lots)),
                      ("HOLDING_PERIOD_LOTS", lots)):
         p = M / artefact_name(stem, tag)
