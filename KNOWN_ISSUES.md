@@ -716,11 +716,26 @@ move in one change. The owner deferred this on 2026-09-25.
 ### --arm narrows the v34 files and per-arm outputs, not v2FINAL_*
 
 `results/engine_v2_final.py` always backtests v1 and v2 and writes
-`v2FINAL_comparison.csv`, `v2FINAL_yearly.csv` and `v2FINAL_equity.csv`
-(columns `v1_invvol_none`, `v2_invvol_breadth`, `buyhold`) on every run, whatever
-`--arm` selects. So `--arm v3` still produces v1 and v2 figures in those files.
-The `buyhold` column there is the daily-rebalanced reference basket, not the
-investable buy & hold.
+`v2FINAL_comparison.csv`, `v2FINAL_yearly.csv`, `v2FINAL_equity.csv`
+(columns `v1_invvol_none`, `v2_invvol_breadth`, `buyhold`), `v2FINAL_params.json`
+and `chart_v2FINAL.png` on every run, whatever `--arm` selects. So `--arm v3`
+still produces v1 and v2 figures in those files, and a run of v5 or v6 alone
+rewrites all five. Only the v1 trade log, `daily_trades_v1_<tag>.csv`, checks the
+selection. The `buyhold` column there is the daily-rebalanced reference basket,
+not the investable buy & hold.
+
+v1 and v2 are computed regardless because later steps need them: `run_v34` takes
+their curves to build every other arm's table, `make_chart.py` and
+`make_combined_universes.py` read `v2FINAL_equity` and `v2FINAL_params`, and
+`audit_step.py` reads `v2FINAL_equity`. The rewrite does not change the numbers.
+On 2026-10-03 the v5/v6 runs over all eight universes and four settings left every
+`v2FINAL_equity` file byte-identical, and the two `v2FINAL_params` files that
+changed carried the same Sharpe, MaxDD and CAGR as the published v2 rows. The 21
+charts that changed could not be compared with their previous versions, which were
+not kept. None of these files is tracked by git (`results_*/metrics/` is ignored),
+so the rewrite shows in no diff. `arms/registry.py` records the same gap: making
+`v2FINAL_*` arm-aware means restructuring it into per-arm columns and
+re-baselining the identity gates. Not fixed.
 
 Everything else follows the selection. `v34_comparison`, `v34_equity`,
 `v34_params` and `chart_v34` take a selection suffix (`_v3`, `_v1_v3`) and a
