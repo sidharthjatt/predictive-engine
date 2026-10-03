@@ -66,11 +66,26 @@ midcap50, midcap100, midcap150, smallcap250), `--arm` (v1 to v4), `--rebal <days
 ```
 
 Two more arms exist and are not part of `--arm all`: v5 (v1 plus a drawdown stop)
-and v6 (v3 plus the stop), defined in `experiments/DRAWDOWN_STOP_PREREG.txt`. They
-are selected by name and write companion `v34_stop_*` files. Until the noise band
-of that pre-registration is committed, they refuse to run at the registered 20%
-threshold. Setting `DRAWDOWN_STOP_FIXTURE=0.01` runs them at a test threshold to
-check the wiring; such a run is never a result.
+and v6 (v3 plus the stop). The stop exits when the arm's close equity is 20% or more
+below its running peak, sells everything at the next open, stays in cash for at
+least one rebalance cycle, and re-enters at the first rebalance day with breadth of
+0.50 or more; the peak resets at re-entry. The rule, the cells and the accept rule
+were pre-registered in `experiments/DRAWDOWN_STOP_PREREG.txt` before either arm
+existed in code. On each of 24 cells, the difference from the parent was judged
+against a noise band of 2 x sqrt(2) times its standard deviation over 50 ten-seed
+subsets of 20 model seeds (`experiments/DRAWDOWN_STOP_BAND.csv`).
+
+Both arms are REJECTED. v5 fails criteria 1 to 3: its drawdown is shallower than
+v1's by more than the band in 7 of 24 cells (18 needed), its Calmar higher in 6
+(15 needed), and its CAGR lower in 10 (at most 6 allowed). v6 fails criteria 1 and
+2: 14 of 24 and 8 of 24 (18 and 15 needed). Every cell is in `experiments/DRAWDOWN_STOP_RESULT.txt`.
+v5 and v6 stay out of `--arm all`; they run only when selected by name, and write
+companion `v34_stop_*` files.
+
+The Nautilus port verifies 9 of the 16 v5/v6 cells (research, tax off). The other
+7 are not gated in `check_all.py`: the port and the engine agree on every exit and
+re-entry date, but holdings differ by one or two shares in ways the port check
+does not explain, and the cause has not been found (`check_all.NT_VERIFY_UNGATED`).
 
 Each run writes one folder, `runs/<timestamp>_<universe>_<arm>_r<cadence>/`, holding
 `run.log`, the day-by-day log (`DAILY_LOG_*.txt`), the CSVs (daily holdings, trades,
