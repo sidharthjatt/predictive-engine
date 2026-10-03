@@ -222,13 +222,13 @@ UNGATED_NOTICE = (
 # written when only BUYs were capped. Both sides are capped as of 2026-09-22, and
 # at cap=1.00 the cap still binds on NO fill of either universe on either side --
 # nifty100 949 fills, midcap150 1019, zero rows with reason "participation cap"
-# (re-measured 2026-10-03; the cap 1.00, k none row of each sweep CSV).
+# (re-measured 2026-10-03; the cap 1.00, k none row of each v2 sweep CSV).
 # So the inertness above survived the sell side being added, and the
 # research/tradeable byte-identity it describes is a property of THE CAP VALUE,
 # not of the cap.
 #
 # AT cap=0.10 THE IDENTITY ENDS, BY DESIGN AND MEASURED (re-measured 2026-10-03 on
-# the current data; the cap 0.10, k none row of each sweep CSV):
+# the current data; the cap 0.10, k none row of each v2 sweep CSV):
 #
 #     nifty100    2 BUY + 0 SELL binds of 949 fills    CAGR 20.44 -> 20.20  (-0.24)
 #     midcap150   8 BUY + 3 SELL binds of 1022 fills   CAGR 28.46 -> 27.83  (-0.63)
@@ -238,7 +238,7 @@ UNGATED_NOTICE = (
 # equals research" is reading a statement about 1.00.
 #
 # The full grid, with per-cell bind counts and the cap/slippage split, is
-# diagnostics/impact_sweep_{universe}_breadth_invvol.csv from results/impact_sweep.py.
+# diagnostics/impact_sweep_{universe}_{arm}.csv from results/impact_sweep.py.
 # CAP_INERT_NOTICE WAS A STORED CLAIM AND IS GONE. SUPERSEDED 2026-09-22.
 #
 # IT READ, VERBATIM:

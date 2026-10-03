@@ -6,15 +6,17 @@ the return, and a single combined figure cannot say which did it. The grid below
 holds one of the two fixed in every comparison:
 
     research            cap None,  k None      the published arithmetic
-    cap 1.00, k None    cap only               measured: binds on nothing
+    cap 1.00, k None    cap only               the loosest cap
     cap 0.10, k None    cap only               the cap's own contribution
-    cap 1.00, k = x     slippage only          cap is a no-op at 1.00, so this
-                                               isolates impact
+    cap 1.00, k = x     slippage plus the      isolates impact only where
+                        loosest cap            cap 1.00 binds on nothing
     cap 0.10, k = x     both                   the combined figure
 
-`cap 1.00` is carried even though it is a no-op precisely so that the no-op is on
-the record. A row that changes nothing is evidence; an assumption that it changes
-nothing is not.
+`cap 1.00` is NOT a no-op everywhere. On v2 of nifty100 and midcap150 it binds on
+no fill. Measured 2026-10-03 over every core arm and universe, it binds in 10 of
+32 CSVs, all but one on v1 or v3, and moves CAGR by up to -1.99 points
+(smallcap250 v3). Read each CSV's cap_BUY and cap_SELL columns before treating
+its cap 1.00 rows as impact only.
 
 THE BIND COUNTS ARE PART OF THE RESULT, NOT DIAGNOSTICS. A CAGR that moved while
 the cap bound 200 times means something different from one that moved while it
@@ -23,6 +25,13 @@ impact-exemption count.
 
 NO k IS SELECTED HERE. The sweep shows how sensitive the answer is to k. Picking
 one is a separate decision that needs a reason this file cannot supply.
+
+EVERY CORE ARM ON EVERY UNIVERSE. The arms come from arms.registry.ARMS (v1 to v4)
+and the universes from universes.registry.REGISTRY; nothing here names either.
+Each pair writes diagnostics/impact_sweep_<universe>_<arm>.csv. The no-cap, k-none
+row is the research profile, tax off, cadence 20 (test_exposure.REBAL), which is
+what the published v34_comparison.csv rows are, and is compared against them by
+the caller.
 """
 import io
 import sys
@@ -37,6 +46,7 @@ sys.path.insert(0, str(ROOT / "results"))
 
 import config                                    # noqa: E402
 import engine_core                               # noqa: E402
+from arms.registry import ARMS                   # noqa: E402
 import tradability                               # noqa: E402
 from test_exposure import backtest_exposure      # noqa: E402
 from universes.registry import REGISTRY          # noqa: E402
@@ -44,13 +54,12 @@ from config import read_table  # the one CSV/parquet reader: config.read_table
 
 K_VALUES = (0.001, 0.002, 0.003, 0.005)
 CAPS = (1.00, 0.10)
-from universes.registry import CERTIFIED as UNIVERSES          # noqa: E402
-# The shipping arm: v2 is mode="breadth", sizing="invvol".
-MODE, SIZING = "breadth", "invvol"
 
 
 def panel(tag):
     u = REGISTRY[tag]
+    # The untradeable-name guard the engines load for this universe.
+    engine_core.set_tradeability(u)
     src = config.require_cache(u.score_cache, what=f"{tag} score panel")
     p = read_table(src, parse_dates=["date"])
     px = p.pivot_table(index="date", columns="symbol", values="close").ffill()
@@ -64,12 +73,12 @@ def panel(tag):
     return px, op, sc, bd, pc, mom20, v20
 
 
-def cell(px, op, sc, bd, pc, mom20, v20, cap, k):
+def cell(px, op, sc, bd, pc, mom20, v20, arm, cap, k):
     aud = {x: [] for x in ("holdings", "summary", "trades", "ranking",
                            "decisions", "skipped")}
     iout = {}
     eq, tc, ntr, _ = backtest_exposure(
-        px, op, sc, bd, pc, mom20, drawdown_stop=None, mode=MODE, sizing=SIZING,
+        px, op, sc, bd, pc, mom20, drawdown_stop=None, **arm.kwargs,
         participation_cap=cap, vol20=(None if cap is None and k is None else v20),
         impact_k=k, audit=aud, impact_out=iout)
     m = engine_core.metrics(eq, "cell", tc, ntr)
@@ -88,32 +97,33 @@ def cell(px, op, sc, bd, pc, mom20, v20, cap, k):
 
 def main():
     out = {}
-    for tag in UNIVERSES:
+    for tag in REGISTRY:
         with contextlib.redirect_stdout(io.StringIO()):
             P = panel(tag)
-        rows = [cell(*P, None, None)]
-        for cap in CAPS:
-            rows.append(cell(*P, cap, None))
-        for cap in CAPS:
-            for k in K_VALUES:
-                rows.append(cell(*P, cap, k))
-        df = pd.DataFrame(rows)
-        base = df.iloc[0]
-        df["dCAGR"] = (df["CAGR%"] - base["CAGR%"]).round(2)
-        out[tag] = df
-        dest = ROOT / "diagnostics" / f"impact_sweep_{tag}_{MODE}_{SIZING}.csv"
-        # naming: axis-free -- the arm is fixed by MODE and SIZING at line 49 and
-        # is in the name; run.py's arm, cadence, profile and tax selections do not
-        # reach this script. The cap and k axes are columns, because the sweep is
-        # over them.
-        df.to_csv(dest, index=False)
-        print("=" * 100)
-        print(f" IMPACT SWEEP -- {tag}   arm {MODE}/{SIZING}   "
-              f"window {config.BT_START_DATE.date()} -> {config.BT_END_DATE.date()}")
-        print("=" * 100)
-        print(df.to_string(index=False))
-        print(f"  saved -> {dest.relative_to(ROOT)}")
-        print()
+        for arm in ARMS.values():
+            rows = [cell(*P, arm, None, None)]
+            for cap in CAPS:
+                rows.append(cell(*P, arm, cap, None))
+            for cap in CAPS:
+                for k in K_VALUES:
+                    rows.append(cell(*P, arm, cap, k))
+            df = pd.DataFrame(rows)
+            base = df.iloc[0]
+            df["dCAGR"] = (df["CAGR%"] - base["CAGR%"]).round(2)
+            out[(tag, arm.name)] = df
+            dest = ROOT / "diagnostics" / f"impact_sweep_{tag}_{arm.name}.csv"
+            # naming: axis-free -- every core arm and universe is written, each under
+            # its registry names; run.py's arm, cadence, profile and tax selections
+            # do not reach this script. The cap and k axes are columns, because the
+            # sweep is over them.
+            df.to_csv(dest, index=False)
+            print("=" * 100)
+            print(f" IMPACT SWEEP -- {tag}   arm {arm.name} ({arm.mode}/{arm.sizing})   "
+                  f"window {config.BT_START_DATE.date()} -> {config.BT_END_DATE.date()}")
+            print("=" * 100)
+            print(df.to_string(index=False))
+            print(f"  saved -> {dest.relative_to(ROOT)}")
+            print()
     return out
 
 
