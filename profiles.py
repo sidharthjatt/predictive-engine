@@ -221,7 +221,8 @@ UNGATED_NOTICE = (
 # RE-MEASURED 2026-09-22, WITH THE SELL SIDE NOW CAPPED TOO. The notice below was
 # written when only BUYs were capped. Both sides are capped as of 2026-09-22, and
 # at cap=1.00 the cap still binds on NO fill of either universe on either side --
-# nifty100 940 fills, midcap150 1006, zero rows with reason "participation cap".
+# nifty100 949 fills, midcap150 1019, zero rows with reason "participation cap"
+# (re-measured 2026-10-03; the cap 1.00, k none row of each sweep CSV).
 # So the inertness above survived the sell side being added, and the
 # research/tradeable byte-identity it describes is a property of THE CAP VALUE,
 # not of the cap.
