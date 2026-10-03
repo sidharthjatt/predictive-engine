@@ -226,10 +226,11 @@ UNGATED_NOTICE = (
 # research/tradeable byte-identity it describes is a property of THE CAP VALUE,
 # not of the cap.
 #
-# AT cap=0.10 THE IDENTITY ENDS, BY DESIGN AND MEASURED:
+# AT cap=0.10 THE IDENTITY ENDS, BY DESIGN AND MEASURED (re-measured 2026-10-03 on
+# the current data; the cap 0.10, k none row of each sweep CSV):
 #
-#     nifty100    2 BUY + 1 SELL binds of 941 fills    CAGR 19.01 -> 18.88  (-0.13)
-#     midcap150   7 BUY + 3 SELL binds of 1009 fills   CAGR 27.80 -> 27.61  (-0.19)
+#     nifty100    2 BUY + 0 SELL binds of 949 fills    CAGR 20.44 -> 20.20  (-0.24)
+#     midcap150   8 BUY + 3 SELL binds of 1022 fills   CAGR 28.46 -> 27.83  (-0.63)
 #
 # A tradeable artefact that differs from its research twin is then the cap doing
 # its job, not a regression. Anything reading the notice below as "tradeable always
