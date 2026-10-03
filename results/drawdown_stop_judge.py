@@ -121,7 +121,7 @@ def fmt(x, nd=3):
 
 
 def main():
-    band = pd.read_csv(ROOT / "experiments" / "DRAWDOWN_STOP_BAND.csv", comment="#")
+    band = read_table(ROOT / "experiments" / "DRAWDOWN_STOP_BAND.csv", comment="#")
     band = band.set_index(["universe", "profile", "tax", "comparison", "metric"])["band"]
 
     C = {(t, p, x): curves(t, p, x) for t in JUDGED + REPORTED for p, x in SETTINGS}
