@@ -14,9 +14,16 @@ holds one of the two fixed in every comparison:
 
 `cap 1.00` is NOT a no-op everywhere. On v2 of nifty100 and midcap150 it binds on
 no fill. Measured 2026-10-03 over every core arm and universe, it binds in 10 of
-32 CSVs, all but one on v1 or v3, and moves CAGR by up to -1.99 points
-(smallcap250 v3). Read each CSV's cap_BUY and cap_SELL columns before treating
-its cap 1.00 rows as impact only.
+32 CSVs (cap 1.00, k none row; BUY + SELL binds, CAGR change):
+
+    nifty100 v1     1 + 0   +0.00        smallcap250 v1   8 + 1   -0.81
+    midcap50 v1     1 + 0   +0.00        smallcap250 v3   3 + 1   -1.99
+    midcap50 v3     1 + 0   +0.00        nifty500 v1      2 + 1   -0.82
+    midcap100 v1    1 + 0   -0.94        nifty500 v2      0 + 1   -0.03
+    midcap100 v3    1 + 0   -0.01        nifty500 v3      1 + 0   -0.04
+
+Read each CSV's cap_BUY and cap_SELL columns before treating its cap 1.00 rows as
+impact only.
 
 THE BIND COUNTS ARE PART OF THE RESULT, NOT DIAGNOSTICS. A CAGR that moved while
 the cap bound 200 times means something different from one that moved while it
