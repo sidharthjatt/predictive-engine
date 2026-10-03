@@ -210,6 +210,10 @@ DELEGATES = (
     ("check_pipeline_order.py",               [], False, None),
     ("check_plan_order.py",                   [], False, None),
     ("naming_declare_check.py",               [], False, None),
+    # The gate run_all.py applies before a run: declared defects and declarations
+    # that do not hold fail it. Judged by its exit code, so check_all fails
+    # whenever run_all.py would refuse to start.
+    ("naming_declare_check.py",               ["--gate-declared-only"], False, None),
     ("platform_identity_check.py",            [], False, None),
     # No call site may pass an arm's mode and sizing and drop its drawdown stop:
     # v5 and v6 share v1's and v3's mode and sizing. Static; a second.
@@ -807,7 +811,7 @@ def gate_delegates(res, slow):
         r = subprocess.run([sys.executable, str(p)] + args,
                            capture_output=True, text=True)
         ran += 1
-        if name == "naming_declare_check.py":
+        if name == "naming_declare_check.py" and "--gate-declared-only" not in args:
             # ITS FAILURE IS A KNOWN NUMBER, AND THE CHECK IS THAT IT DOES NOT GROW.
             import re
             m = re.search(r"GATE 1 \(blocking\): (\d+) write call", r.stdout)

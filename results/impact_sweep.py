@@ -101,14 +101,11 @@ def main():
         base = df.iloc[0]
         df["dCAGR"] = (df["CAGR%"] - base["CAGR%"]).round(2)
         out[tag] = df
-        dest = ROOT / "diagnostics" / f"impact_sweep_{tag}.csv"
-        # naming: DEFECT arm -- the name carries the universe and nothing else,
-        # and MODE/SIZING at line 48 is the arm. Editing those two constants to
-        # sweep v1, v3 or v4 writes over this file with no name change and no
-        # error: the reader of impact_sweep_nifty100.csv cannot tell which arm
-        # produced it, and the run that produced the old one is gone. The cap and
-        # k axes ARE carried, as columns, because the sweep is over them; the arm
-        # is fixed per run and is the one axis that should be in the name.
+        dest = ROOT / "diagnostics" / f"impact_sweep_{tag}_{MODE}_{SIZING}.csv"
+        # naming: axis-free -- the arm is fixed by MODE and SIZING at line 49 and
+        # is in the name; run.py's arm, cadence, profile and tax selections do not
+        # reach this script. The cap and k axes are columns, because the sweep is
+        # over them.
         df.to_csv(dest, index=False)
         print("=" * 100)
         print(f" IMPACT SWEEP -- {tag}   arm {MODE}/{SIZING}   "

@@ -236,7 +236,7 @@ UNGATED_NOTICE = (
 # equals research" is reading a statement about 1.00.
 #
 # The full grid, with per-cell bind counts and the cap/slippage split, is
-# diagnostics/impact_sweep_{universe}.csv from results/impact_sweep.py.
+# diagnostics/impact_sweep_{universe}_breadth_invvol.csv from results/impact_sweep.py.
 # CAP_INERT_NOTICE WAS A STORED CLAIM AND IS GONE. SUPERSEDED 2026-09-22.
 #
 # IT READ, VERBATIM:
