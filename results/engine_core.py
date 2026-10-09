@@ -330,6 +330,42 @@ def _check_calendar(cal, panel, tag=""):
     return removed
 
 
+# THE OTHER DIRECTION, REPORTED AND NEVER ACTED ON. _check_calendar asks whether
+# the calendar removes a session the data has. This asks whether the data lacks a
+# session the calendar has. The 2026-10-10 delivery has no row for 2020-01-07 in
+# any file, so the panel skips that session and every later rebalance lands one
+# session later (KNOWN_ISSUES.md). Nothing here changes a panel or a result.
+THIN_SESSION_SHARE = 0.5
+
+
+def thin_sessions(data_dir, lo=None, hi=None, share=THIN_SESSION_SHARE):
+    """Calendar sessions in [lo, hi] where fewer than `share` of the names whose
+    history spans the session have a row on it.
+
+    A name spans a session when its first row is on or before it and its last row
+    on or after it. Returns [(date, rows, spanning)], oldest first. Reads only the
+    date column of each CSV in `data_dir`.
+    """
+    lo = config.BT_START_DATE if lo is None else pd.Timestamp(lo)
+    hi = config.BT_END_DATE if hi is None else pd.Timestamp(hi)
+    cal = pd.DatetimeIndex(sorted(d for d in _load_calendar() if lo <= d <= hi))
+    if not len(cal):
+        return []
+    rows = np.zeros(len(cal), dtype=int)
+    span = np.zeros(len(cal), dtype=int)
+    for f in list_dir(data_dir, "*.csv"):
+        d = config.smart_parse_dates(read_table(f, usecols=["date"])["date"],
+                                     source=str(f)).dropna()
+        if d.empty:
+            continue
+        a = cal.searchsorted(d.min(), side="left")
+        b = cal.searchsorted(d.max(), side="right")
+        span[a:b] += 1
+        rows += cal.isin(d)
+    return [(cal[i], int(rows[i]), int(span[i])) for i in range(len(cal))
+            if span[i] and rows[i] < share * span[i]]
+
+
 def build_panel(horizon, data_dir, pin_scorable=None, clean=True):
     """Build the full feature panel from one universe's raw stock CSVs.
 

@@ -556,6 +556,14 @@ The pipeline reads `data/raw/Final_Without_Survivorship_Data/`, eight folders an
 
 Deriving the calendar from a live universe does not reproduce it. The live panels carry 237 dates that are absent from the calendar, 107 of them inside the backtest window. A coverage threshold cannot separate them either: over the full range no threshold reproduces the calendar on nifty100 or midcap150 (`experiments/CALENDAR_DECOUPLE_SPEC.txt`, marked BLOCKED; `diagnostics/calendar_coverage_probe.txt`). No external NSE holiday list has been checked against the calendar.
 
+### The 2026-10-10 delivery has no row for 2020-01-07, so every rebalance after it moves one session later
+
+2020-01-07 was a real NSE session and the calendar keeps it. The supplier's delivery of 2026-10-10 has no row for that date in any price file: all 368 names whose history spans it lost the row, against 1,076 rows across the eight universes' files in the previous delivery. The data is not edited and no row is created.
+
+The panel takes its dates from the rows, so it skips the session. The backtest window has one session fewer, and because rebalances fall on every twentieth session of the window, every rebalance after 2020-01-07 lands one session later than it did on the previous data. Every published figure moves for this reason alone.
+
+No guard stops it. `_check_calendar` (`results/engine_core.py`) tests only dates the calendar removes. `engine_core.thin_sessions` reports the other direction: `run.py` prints every calendar session inside the window where fewer than half of the names spanning it have a row, and writes them to the run folder's RUN.txt. It reports and changes nothing. On the 2026-10-10 data it lists 2020-01-07 alone, at 0% in every universe.
+
 ### The calendar density guard compares against the per-year median, which is weaker than the old rule
 
 `results/engine_core._check_calendar` refuses to drop a date that the calendar marks as a holiday if that date carries as many symbols as the median day of its own year. Until 2026-09-19 it compared against the median over 2000-2026. That was loosened for smallcap250: most of its names did not exist for most of those years, so 23 phantom holidays cleared the long-run median and aborted the run.

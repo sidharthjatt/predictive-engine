@@ -581,7 +581,7 @@ def run_folder(plan, args):
     return ROOT / "runs" / paths.run_folder_name(uni, arm, reb)
 
 
-def collect_run_folder(plan, args, t_start, dest):
+def collect_run_folder(plan, args, t_start, dest, thin=None):
     """Copy everything THIS invocation produced into its own run folder.
 
     COPIES, NOT HARD LINKS, SINCE 2026-09-23. A run folder was a set of hard
@@ -649,12 +649,25 @@ def collect_run_folder(plan, args, t_start, dest):
         f"steps     : {len(plan['pipeline'])} pipeline, {len(plan['arm_runs'])} arm runs\n"
         f"artefacts : {copied} copied from their canonical locations\n"
         f"log       : run.log\n"
+        + _thin_section(thin) +
         f"\nEvery file here is an independent COPY. Later runs do not change it.\n")
     print(f"\n  run folder -> {show(dest)}/   ({copied} artefacts copied, run.log)")
     if failed:
         print(f"  {len(failed)} could not be copied (the run itself succeeded):")
         for m in failed[:5]:
             print(f"    {m}")
+
+
+def _thin_section(thin):
+    """RUN.txt's report of calendar sessions the data lacks; "" when not computed."""
+    if thin is None:
+        return ""
+    lines = ["", "calendar sessions in the window where fewer than half of the names "
+                 "spanning them have a row (reported only):"]
+    for t, rows in thin.items():
+        lines += [f"  {t:<12} {d.date()}  {n} of {m} names ({n / m:.1%})"
+                  for d, n, m in rows] or [f"  {t:<12} none"]
+    return "\n".join(lines) + "\n"
 
 
 class _Tee:
@@ -775,7 +788,7 @@ def execute(plan, args):
             fh.close()
             log_tmp.rename(ROOT / "runs" / f"{dest.name}_FAILED.log")
             return 1
-        collect_run_folder(plan, args, state["t_start"], dest)
+        collect_run_folder(plan, args, state["t_start"], dest, state.get("thin"))
     finally:
         _sys.stdout, _sys.stderr = out, err
         if not fh.closed:
@@ -910,6 +923,22 @@ def _execute(plan, args, state):
     # universe construction produced the numbers under it.
     import survivorship as sv
     print(f"SURVIVORSHIP: {sv.describe_state()}\n")
+
+    # CALENDAR SESSIONS THE DATA LACKS, REPORTED ONLY. A session inside the window
+    # where fewer than half of the names spanning it have a row is printed here
+    # and written to RUN.txt. It stops nothing and changes no result; see
+    # engine_core.thin_sessions and KNOWN_ISSUES.md on 2020-01-07.
+    import engine_core as _ec
+    state["thin"] = {u.tag: _ec.thin_sessions(u.prepare_data_dir())
+                     for u in plan["universes"]}
+    print(f"CALENDAR COVERAGE: sessions in the window where fewer than "
+          f"{_ec.THIN_SESSION_SHARE:.0%} of the names spanning them have a row")
+    for t, rows in state["thin"].items():
+        for d, n, m in rows:
+            print(f"    {t:<12} {d.date()}  {n} of {m} names ({n / m:.1%})")
+        if not rows:
+            print(f"    {t:<12} none")
+    print()
 
     t_start = time.time()
     state["t_start"] = t_start
