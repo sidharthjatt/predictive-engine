@@ -95,9 +95,9 @@ USAGE
 
 COMMAND LINE
 
-    python3 survivorship.py validate <membership.csv> [--prices <dir>]
-    python3 survivorship.py members <membership.csv> <date>
-    python3 survivorship.py coverage <membership.csv> --prices <dir>
+    ./venv/bin/python results/survivorship.py validate <membership.csv> [--prices <dir>]
+    ./venv/bin/python results/survivorship.py members <membership.csv> <date>
+    ./venv/bin/python results/survivorship.py coverage <membership.csv> --prices <dir>
 """
 
 from __future__ import annotations

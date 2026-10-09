@@ -45,9 +45,9 @@ sv.set_exit_policy("forced")  # "forced" (default) | "buffer"
 From the command line:
 
 ```bash
-python3 survivorship.py validate <membership.csv> --prices <dir> --index nifty100
-python3 survivorship.py members  <membership.csv> 2021-06-15
-python3 survivorship.py coverage <membership.csv> --prices <dir>
+./venv/bin/python results/survivorship.py validate <membership.csv> --prices <dir> --index nifty100
+./venv/bin/python results/survivorship.py members  <membership.csv> 2021-06-15
+./venv/bin/python results/survivorship.py coverage <membership.csv> --prices <dir>
 ```
 
 `validate` exits 0 on pass, 2 on fail — usable as a CI gate.
@@ -223,7 +223,7 @@ Dates may be ISO or day-first; both are handled.
 ## Tests
 
 ```bash
-python3 test_survivorship.py
+./venv/bin/python results/test_survivorship.py
 echo $?    # 0 = all passed
 ```
 
@@ -271,6 +271,6 @@ widens in a single step. Both are now fixtures.
 ## Testing your own file
 
 ```bash
-python3 survivorship.py validate your_file.csv --prices your_price_dir
+./venv/bin/python results/survivorship.py validate your_file.csv --prices your_price_dir
 echo $?    # 0 = pass, 2 = fail
 ```
