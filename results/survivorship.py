@@ -109,7 +109,15 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
-from paths import list_dir
+
+# THE REPOSITORY ROOT, FOR `paths`. Run as a script, sys.path[0] is results/, so
+# `from paths import list_dir` failed with ModuleNotFoundError before any command
+# ran. Imported as a module the root is usually already present; adding it twice
+# is avoided.
+_ROOT = Path(__file__).resolve().parents[1]
+if str(_ROOT) not in sys.path:
+    sys.path.insert(0, str(_ROOT))
+from paths import list_dir  # noqa: E402
 
 # ---------------------------------------------------------------------------
 # switches
