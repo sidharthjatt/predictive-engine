@@ -271,7 +271,9 @@ DELEGATES = (
                    ("midcap100", "v1"), ("midcap100", "v2"), ("midcap100", "v3"), ("midcap100", "v4"),
                    ("nifty200", "v1"), ("nifty200", "v2"), ("nifty200", "v3"), ("nifty200", "v4"),
                    ("smallcap250", "v1"), ("smallcap250", "v2"), ("smallcap250", "v3"), ("smallcap250", "v4"),
-                   ("nifty500", "v1"), ("nifty500", "v2"), ("nifty500", "v3"), ("nifty500", "v4"))],
+                   ("nifty500", "v1"), ("nifty500", "v2"), ("nifty500", "v3"), ("nifty500", "v4"),
+                   ("microcap250", "v1"), ("microcap250", "v2"), ("microcap250", "v3"),
+                   ("microcap250", "v4"))],
     # THE STOP ARMS, v5 AND v6, research, tax off. Added 2026-10-03 with the stage-5
     # measurement of experiments/DRAWDOWN_STOP_PREREG.txt. 9 of the 16 cells verify
     # and are gated here; the other 7 are in NT_VERIFY_UNGATED above, with the reason.

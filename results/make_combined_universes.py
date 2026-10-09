@@ -175,7 +175,10 @@ from universes.registry import CERTIFIED as PAIR_CHART  # noqa: E402
 # The guard did its job: it stopped a run rather than letting the pair be read as
 # still-confirmed while the registry grew around it. Bumping this is the record
 # that somebody looked, which is the whole content of the constant.
-PAIR_CHART_REGISTRY_SIZE = 8
+#
+# RE-CONFIRMED AT 9 ON 2026-10-10, AND THE PAIR DID NOT MOVE. microcap250 was
+# added that day and nothing on it has been run or validated.
+PAIR_CHART_REGISTRY_SIZE = 9
 
 _unknown_pair = set(PAIR_CHART) - set(REGISTRY)
 if _unknown_pair:

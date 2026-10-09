@@ -5,7 +5,7 @@ twenty-five ideas that were tested against it.
 
 > **NAMING.** Every universe has one name, used in code, file names, output and
 > current docs: `nifty50`, `nifty100`, `nifty200`, `nifty500`, `midcap50`,
-> `midcap100`, `midcap150`, `smallcap250`. The short tags `mid`, `n100` and
+> `midcap100`, `midcap150`, `smallcap250`, `microcap250`. The short tags `mid`, `n100` and
 > `n50` were retired on 2026-09-18 and are refused with an error that lists the
 > valid names. They still appear in dated records, pre-registrations and old
 > diagnostics, which are left as written; `mid` there means `midcap150`, `n100`
@@ -57,9 +57,9 @@ python3.12 -m venv venv
 ```
 
 `run.py` runs any combination: `--universe` (nifty50, nifty100, nifty200, nifty500,
-midcap50, midcap100, midcap150, smallcap250), `--arm` (v1 to v4), `--rebal <days>`
-(default 20), `--tax on|off` (default off) and `--profile research|tradeable`
-(default research). For example:
+midcap50, midcap100, midcap150, smallcap250, microcap250), `--arm` (v1 to v4),
+`--rebal <days>` (default 20), `--tax on|off` (default off) and
+`--profile research|tradeable` (default research). For example:
 
 ```
 ./venv/bin/python run.py --universe nifty50 --arm v4 --rebal 30 --tax on --profile tradeable

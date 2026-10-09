@@ -1413,7 +1413,82 @@ _NIFTY500 = Universe(
 )
 
 
-REGISTRY = {u.tag: u for u in (_MIDCAP150, _NIFTY100, _NIFTY50, _MIDCAP50, _MIDCAP100, _NIFTY200, _SMALLCAP250, _NIFTY500)}
+# microcap250 IS APPENDED, NEVER INSERTED. ADDED 2026-10-10 with the supplier's
+# delivery of that date, which brought this ninth folder.
+_MICROCAP250_SOURCE = _WITHOUT_SURV / "Final_NiftyMicroCap250_EoD_Data"
+_MICROCAP250_METRICS = ROOT / "results_microcap250" / "metrics"
+# THE SUPPLIER'S SPELLING, RECORDED AND NOT NORMALISED: "NIFTY MICROCAP250.csv",
+# spaced after NIFTY and not before 250. _constituents() excludes the index by
+# this name; see the note on _NIFTY500_INDEX.
+_MICROCAP250_INDEX = "NIFTY MICROCAP250"
+
+_MICROCAP250 = Universe(
+        tag="microcap250", label="MicroCap250 ({n} constituents)",
+        raw_data_dir=_MICROCAP250_SOURCE,
+        # MEASURED 2026-10-10. 102 of 242 names have no price row before
+        # BT_START_DATE -- 42.1%, the highest rate of the nine; 37 of them start
+        # after 2024-01-01.
+        survivorship=(
+            "STATIC. {n} names are TODAY'S Nifty Microcap 250 members backfilled "
+            "to 2019-01-01. Names dropped or delisted during the window are absent "
+            "entirely, so both the strategy and its equal-weight buy&hold are "
+            "inflated. 102 OF THE {n} did not exist at BT_START_DATE -- 42.1%, "
+            "the highest of the nine universes. The published Nifty Microcap 250 "
+            "index line is cap-weighted and is NOT survivorship-biased. Source: "
+            "data/raw/Final_Without_Survivorship_Data/"
+            "Final_NiftyMicroCap250_EoD_Data."),
+        symbol_list=_constituents(_MICROCAP250_SOURCE, _MICROCAP250_INDEX),
+        metrics_dir=_MICROCAP250_METRICS,
+        nautilus_scores="scores_microcap250.parquet",
+        nautilus_end=str(config.BT_END_DATE.date()),
+        purge_mode="trading",
+        index_name=_MICROCAP250_INDEX,
+        # THE PUBLISHED CAP-WEIGHTED INDEX. Benchmark only, never a tradable
+        # name. 5,282 rows, 01-04-2005..06-08-2026; the first row is 1000.0.
+        index_file=_MICROCAP250_SOURCE / f"{_MICROCAP250_INDEX}.csv",
+        year_range=None, date_range=(config.BT_START_DATE, config.BT_END_DATE),
+        display_name="NIFTY MICROCAP 250",
+        # MEASURED 2026-10-10, AGAINST FORTY-EIGHT SLOTS. Greedy maximin search
+        # over 6,000 random sRGB colours with L* 30-72 (generator seed 20261010),
+        # CIEDE2000 under normal vision, deuteranopia and protanopia: the closest
+        # of these six to any existing slot is dE 5.48, the closest pair among
+        # the six is 6.21. Below nifty500's 6.14 against 42 slots; nothing is
+        # near the JND of 2.3. Re-run palette_distance.py for the full report.
+        chart_colours=("#b85c68", "#5050bc", "#c08080", "#4c9490",
+                       "#94082c", "#2438d0"),
+        liquidity_note=None,
+        validation_status=("not measured on this universe. No seed-robustness, "
+                           "sub-period, shuffle or top-N work has been run here, "
+                           "and none of the validations on record was run on "
+                           "these {n} names."),
+        engine_params_keys=(
+            "universe", "model", "sizing", "exposure", "top_n", "buffer",
+            "rebalance_days", "avg_exposure_pct", "n_symbols", "sharpe",
+            "maxdd_pct", "cagr_pct", "cash_yield", "survivorship", "vs_buyhold",
+            "validation_status"),
+        engine_params_static={
+            "universe": "Nifty Microcap 250 ({n} constituents, "
+                        "'NIFTY MICROCAP250.csv' excluded by name -- the "
+                        "supplier's spelling)",
+        },
+        engine_text={
+            "panel_what": "Nifty Microcap 250 score panel",
+            "bh_label": "Equal-weight buy & hold (Nifty Microcap 250, {n} names)",
+            "assert_index_absent": True,
+        },
+        chart_text={
+            "stem": "chart_microcap250",
+            "index_window_end": "2026-08-06",
+            "dpi": 150,
+            "legend_fontsize": 8.5,
+            "rule_width": 100,
+            "diagnostics": False,
+        },
+)
+
+
+REGISTRY = {u.tag: u for u in (_MIDCAP150, _NIFTY100, _NIFTY50, _MIDCAP50, _MIDCAP100, _NIFTY200, _SMALLCAP250, _NIFTY500,
+                                  _MICROCAP250)}
 
 # THE METRICS DIRECTORY IS CREATED AT IMPORT, exactly as the midcap150 and
 # nifty100 config modules did with METRICS_DIR.mkdir(parents=True,
@@ -1456,7 +1531,8 @@ LIVE = list(REGISTRY.values())
 # A TAG ABSENT FROM REGISTRY IS SIMPLY SKIPPED, so this stays correct as universes
 # are removed. A registered tag absent from THIS tuple would be dropped silently
 # from every combined report, which is why report_order() raises on one instead.
-REPORT_ORDER = ("nifty500", "nifty200", "nifty100", "nifty50", "midcap150", "midcap100", "midcap50", "smallcap250")
+REPORT_ORDER = ("nifty500", "nifty200", "nifty100", "nifty50", "midcap150", "midcap100", "midcap50", "smallcap250",
+                "microcap250")
 
 
 # ---------------------------------------------------------------------------

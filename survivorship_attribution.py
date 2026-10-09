@@ -75,6 +75,7 @@ MEMBERSHIP_FILE = {
     "nifty50": "Nifty50", "nifty100": "Nifty100", "nifty200": "Nifty200",
     "nifty500": "Nifty500", "midcap50": "Midcap50", "midcap100": "Midcap100",
     "midcap150": "Midcap150", "smallcap250": "SmallCap250",
+    "microcap250": "MicroCap250",
 }
 # The 15 renames read against their circulars (diagnostics/membership/STATUS.md).
 # The other 176 rows of nse_symbol_renames.csv are unchecked and are not used.

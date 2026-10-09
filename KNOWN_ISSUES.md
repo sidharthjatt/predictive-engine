@@ -710,7 +710,7 @@ credited to all of them, and no check would notice.
 
 ### run_all.PIPELINE_ORDER is written out by hand -- DEFERRED
 
-`run_all.PIPELINE_ORDER` lists 52 rows, one per (step, universe) (`PIPELINE_ROW_COUNT`,
+`run_all.PIPELINE_ORDER` lists 58 rows, one per (step, universe) (`PIPELINE_ROW_COUNT`,
 run_all.py:291). Adding a universe means adding six rows with new labels, so a universe
 is not yet just a registry row. The labels are keys: GATE 2, check_pipeline_order,
 check_plan_order and the run logs name steps by them. Generating the rows would renumber
