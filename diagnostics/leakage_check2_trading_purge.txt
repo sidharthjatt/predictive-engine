@@ -258,7 +258,7 @@
  CHECK 2 (TRADING RULE) -- TRAINING MASK AND PURGE -- NIFTY MICROCAP 250 (microcap250)
 ====================================================================================================
 
-  panel raw_panel_microcap250_20.parquet   rows 706,382   symbols 242
+  panel raw_panel_microcap250_20.parquet   rows 703,638   symbols 241
   purge_mode from the registry: 'trading'      HORIZON = 20 TRADING rows   PURGE_EMBARGO = 2
   scoring months considered: 126   trained: 126   skipped by the engine: 0
 

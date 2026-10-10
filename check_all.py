@@ -189,15 +189,14 @@ LIVE_LIKE = (
 # the port-minus-engine equity gap grows from +1.6% before the fork to +6.08% at
 # the end. Neither the port nor the rule was changed.
 #
-# microcap250 v3. Its results are withheld until PRIVISCL's price data is
-# corrected (README, "microcap250: results withheld"), so its verdict is not
-# gated. Its other three cells stay gated.
+# microcap250 v3 was listed here while its results were withheld for PRIVISCL's
+# bad price data. Rerun without PRIVISCL on 2026-10-10 it verifies (quote-mid
+# valuation, 92 of 92 rebalances, no symbol-set difference) and is gated again.
 #
 # v5 and v6 are rejected and outside --arm all, so none of their 16 cells is
 # gated; every v5/v6 figure was measured on the previous data delivery.
 NT_VERIFY_UNGATED = (
     ("midcap100", "v3", "holds different names from the open-valued baseline on 7 of 92 rebalances from 2024-10-23"),
-    ("microcap250", "v3", "results withheld until PRIVISCL's price data is corrected"),
 )
 
 DELEGATES = (
@@ -257,8 +256,8 @@ DELEGATES = (
     # 20 by the one-share signature, 12 by the quote-mid valuation rule added to
     # nt_verify that day (pass I). On 2026-09-27 20 of 32 did; on 2026-09-26, before
     # the cleaning, 16. The cells are named so that a cell cannot leave the gate
-    # without an edit that shows in a diff. On the 2026-10-10 data 34 of the 36
-    # cells are gated; the other 2 are in NT_VERIFY_UNGATED above, with the reason.
+    # without an edit that shows in a diff. On the 2026-10-10 data 35 of the 36
+    # cells are gated; midcap100 v3 is in NT_VERIFY_UNGATED above, with the reason.
     *[("nautilus/nt_verify.py", [f"--universe={t}"] + ([] if a == "v2" else [f"--arm={a}"]),
        False, None)
       for t, a in (("nifty100", "v1"), ("nifty100", "v2"), ("nifty100", "v3"), ("nifty100", "v4"),

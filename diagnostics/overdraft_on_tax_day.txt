@@ -7,9 +7,9 @@ paid by selling a pro-rata slice of every holding at the assessment day's open
 year. Rows: diagnostics/overdraft_on_tax_day.csv.
 
 cells with cash below zero on at least one day: 40 of 72
-deepest overdraft: Rs -1,064,579.45 (microcap250 v3 tradeable, 2025-04-01)
+deepest overdraft: Rs -1,526,755.18 (microcap250 v3 research, 2025-04-01)
 longest run below zero: 54 sessions in one cell (days_negative counts every session below zero over the window)
-CAGR change, paying by selling: -0.9078 to +1.0534 points (mean -0.0945 over the overdrawn cells)
+CAGR change, paying by selling: -0.9078 to +1.4370 points (mean -0.0065 over the overdrawn cells)
 
 cell                          deepest Rs          on  days  published  by selling   change       sold Rs
 midcap150 v1 research        -119,841.15  2024-04-01    11    37.7040     38.0278  +0.3238    205,848.08
@@ -76,11 +76,11 @@ nifty500 v3 research         -803,521.11  2024-04-01    54    33.9170     33.009
 nifty500 v3 tradeable        -809,082.18  2024-04-01    54    34.1546     33.2550  -0.8996  1,272,517.88
 nifty500 v4 research                0.00                 0    25.3009     25.3009  +0.0000          0.00
 nifty500 v4 tradeable               0.00                 0    25.3009     25.3009  +0.0000          0.00
-microcap250 v1 research      -520,159.71  2025-04-01    36    52.8313     52.3603  -0.4710  1,484,139.69
-microcap250 v1 tradeable     -528,560.92  2025-04-01    36    50.3293     49.9275  -0.4018  1,615,975.09
-microcap250 v2 research             0.00                 0    27.1563     27.1563  +0.0000          0.00
-microcap250 v2 tradeable            0.00                 0    27.4282     27.4282  +0.0000          0.00
-microcap250 v3 research    -1,023,932.75  2025-04-01    44    65.3146     65.2516  -0.0630  2,814,418.28
-microcap250 v3 tradeable   -1,064,579.45  2025-04-01    43    61.3145     60.9787  -0.3358  2,433,890.60
-microcap250 v4 research             0.00                 0    36.4044     36.4044  +0.0000          0.00
-microcap250 v4 tradeable            0.00                 0    36.8782     36.8782  +0.0000          0.00
+microcap250 v1 research    -1,041,209.75  2025-04-01    35    43.0853     43.7212  +0.6359  1,505,925.90
+microcap250 v1 tradeable     -505,107.86  2025-04-01    35    43.0979     44.5349  +1.4370  1,232,979.60
+microcap250 v2 research             0.00                 0    26.8374     26.8374  +0.0000          0.00
+microcap250 v2 tradeable            0.00                 0    27.1422     27.1422  +0.0000          0.00
+microcap250 v3 research    -1,526,755.18  2025-04-01    43    55.5447     56.5255  +0.9808  2,476,162.20
+microcap250 v3 tradeable     -727,687.89  2025-04-01    43    54.3941     53.5914  -0.8028  1,679,526.54
+microcap250 v4 research             0.00                 0    33.2014     33.2014  +0.0000          0.00
+microcap250 v4 tradeable            0.00                 0    33.2271     33.2271  +0.0000          0.00

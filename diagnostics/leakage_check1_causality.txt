@@ -330,9 +330,9 @@
  CHECK 1 -- FEATURE CAUSALITY -- NIFTY MICROCAP 250 (microcap250)
 ====================================================================================================
 
-  symbols 242   panel rows 706,382
+  symbols 241   panel rows 703,638
   dates sampled 24 spread across 2019-01-01 .. 2026-05-29
-  cells compared per feature: 24 dates x 242 symbols x 2 corruptions = 11,616
+  cells compared per feature: 24 dates x 241 symbols x 2 corruptions = 11,568
   corruption (a) replace: future rows overwritten with a synthetic random walk
   corruption (b) shuffle: future rows permuted in time within each symbol
   comparison: BIT-EXACT (np.array_equal with equal_nan)

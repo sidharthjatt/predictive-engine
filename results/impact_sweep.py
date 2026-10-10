@@ -14,15 +14,16 @@ holds one of the two fixed in every comparison:
 
 `cap 1.00` is NOT a no-op everywhere. On v2 of nifty100 and midcap150 it binds on
 no fill. Measured 2026-10-10, on that day's data delivery, over every core arm of the
-eight original universes, it binds in 9 of 32 CSVs (cap 1.00, k none row; BUY + SELL
-binds, CAGR change). microcap250's results are withheld while its price data is
-corrected (README).
+nine universes (microcap250 without PRIVISCL), it binds in 13 of 36 CSVs (cap 1.00,
+k none row; BUY + SELL binds, CAGR change).
 
     nifty100 v1     1 + 0   +0.22        smallcap250 v1   4 + 1   -0.71
     midcap50 v1     1 + 0   -0.05        smallcap250 v3   2 + 0   -3.08
     midcap50 v3     1 + 0   -0.03        nifty500 v1      3 + 0   -0.18
     midcap100 v1    1 + 0   -0.02        nifty500 v3      1 + 0   +0.28
-    midcap100 v3    1 + 0   -0.05
+    midcap100 v3    1 + 0   -0.05        microcap250 v1  12 + 9   -0.67
+    microcap250 v2  3 + 2   +0.15        microcap250 v3  16 + 11  -4.79
+    microcap250 v4  3 + 1   +0.04
 
 Read each CSV's cap_BUY and cap_SELL columns before treating its cap 1.00 rows as
 impact only.

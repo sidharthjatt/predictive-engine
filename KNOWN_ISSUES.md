@@ -65,25 +65,6 @@ measures sensitivity. Across a cell's ten draws CAGR spreads over 1.8 to 12.4 po
 (median 5.3), and a live result should be expected to differ from the published one by
 that much. The registration carries a dated addendum saying so; its verdicts stand.
 
-### microcap250's rows in the tracked tables are invalid
-
-microcap250's results are withheld until PRIVISCL's price data is corrected (README,
-"microcap250: results withheld"). Until the data is corrected and the universe is
-rerun, its rows in these tracked files are invalid and are not to be quoted:
-
-- `diagnostics/impact_sweep_microcap250_v1.csv`
-- `diagnostics/impact_sweep_microcap250_v2.csv`
-- `diagnostics/impact_sweep_microcap250_v3.csv`
-- `diagnostics/impact_sweep_microcap250_v4.csv`
-- `diagnostics/cells_20261010.csv`
-- `diagnostics/tax_on_all_arms.csv`
-- `diagnostics/tradeable_tax_all_arms.csv`
-- `diagnostics/overdraft_on_tax_day.csv`
-- `diagnostics/overdraft_on_tax_day.txt`
-- `diagnostics/selection_margin_20261010.csv`
-
-The scripts wrote these rows; they were not edited by hand.
-
 ### Survivorship bias is not removed
 
 Every universe is today's index members applied back to 2019. The work to remove the
@@ -170,8 +151,8 @@ switching it moves every published figure and must be mirrored in
 bh_lots_after_tax.py withholds its tax-cost-of-turnover figure when one name
 exceeds 11.62% of the held-lots buy & hold's final value. On the 2026-10-10 outputs
 it withholds on midcap50, where DIXON is 12.4% of that basket
-(results_midcap50/metrics/BH_LOTS_midcap50_tax.csv). microcap250's results are
-withheld (README). The README's midcap50 gaps
+(results_midcap50/metrics/BH_LOTS_midcap50_tax.csv). microcap250, rerun without
+PRIVISCL, is under the limit. The README's midcap50 gaps
 against the investable buy & hold use the same basket and carry no such note, so
 treat them as resting on one name more than the other universes' gaps do. The
 basket holds today's members backfilled to 2019, so a name that rose is in it
@@ -199,9 +180,12 @@ current sensitivity evidence is the cleaned noise test
 `--profile tradeable` adds only the participation cap (`profiles.py`). Nothing replays
 the port under it (`profiles.UNGATED_NOTICE`). The figures are in
 `diagnostics/tradeable_tax_all_arms.csv`, tax on, on the 2026-10-10 data:
-- The cap binds in 9 of 32 cells and changes the CAGR in all 9.
-- Largest changes: smallcap250 v3 -2.90 points (2 binds) and midcap50 v3 +0.76 (1
-  bind). smallcap250 v3 loses -3.08 tax off. Neither is investigated.
+- The cap binds in 9 of the 32 cells of the eight original universes and changes the
+  CAGR in all 9. On microcap250 it binds in all 4 cells (19, 4, 25 and 3 skipped rows,
+  v1 to v4).
+- Largest changes: smallcap250 v3 -2.90 points (2 binds), microcap250 v3 -1.15 (25
+  rows) and midcap50 v3 +0.76 (1 bind). smallcap250 v3 loses -3.08 tax off,
+  microcap250 v3 -4.79. None is investigated.
 - Few binds does not mean small cost: 2 binds cost smallcap250 v3 almost three points.
 
 ### The tradeable profile does not cap the opening purchase
@@ -250,14 +234,17 @@ numerics fix and the cleaning. Run the tradeable profile to find out.
 - Cash goes below zero in the same 18 of 32 cells under each profile: every v1 and v3
   cell, and v4 on nifty50 and nifty200. Each episode starts on an assessment day; a
   cell spends 1 to 54 sessions below zero in all (median 20.5). The deepest is
-  Rs -8,09,082 (nifty500 v3, tradeable, 2024-04-01). microcap250's results are
-  withheld (README).
+  Rs -8,09,082 (nifty500 v3, tradeable, 2024-04-01).
+- On microcap250 cash goes below zero in v1 and v3 under each profile, for 35 and 43
+  sessions, from 2025-04-01. Its v3 research cell is the deepest of all nine universes,
+  Rs -15,26,755.
 - While overdrawn the book buys nothing but keeps holding more than its equity, and
   with CASH_YIELD = 0.0 the negative balance costs no interest.
 - Paying the tax instead by selling a pro-rata slice of every holding at the
   assessment day's open, with the usual slippage and charges and the sale's own gain
   taxed in the next financial year, moves the CAGR by -0.91 (nifty500 v3 research)
-  to +1.05 points (midcap100 v3 tradeable), mean -0.07 over the overdrawn cells. The sign varies
+  to +1.05 points (midcap100 v3 tradeable), mean -0.07 over the overdrawn cells; on
+  microcap250 by -0.80 (v3 tradeable) to +1.44 (v1 tradeable). The sign varies
   because the sale changes which names the later rebalances hold. The published
   figures are the engine's and are unchanged.
 ### Charges use the 2026-04-01 rate table for every fill since 2019; tax is dated
@@ -278,9 +265,10 @@ the 32 core cells of the eight universes pass; midcap100 v3 fails, because some
 rebalances hold a different symbol set even against the open-valued baseline. On
 the 0.01 grid the quote-mid rule reproduces every rebalance, but nt_verify fails a
 symbol-set difference against the open-valued baseline before it reaches that rule.
-microcap250 v3 also holds different names (the baseline buys FINPIPE on 2020-02-19 and
-the port does not). Both cells are in `check_all.NT_VERIFY_UNGATED`, with the reason
-(see "midcap100 v3 and microcap250 v3 are not gated in nt_verify"). The production port fills on the NSE 0.05 grid and the research engine does not round
+The cell is in `check_all.NT_VERIFY_UNGATED`, with the reason (see "midcap100 v3 is
+not gated in nt_verify"). microcap250 v3, rerun without PRIVISCL, verifies by quote-mid
+valuation (port +0.11% against the reference's final equity) and is gated. The
+production port fills on the NSE 0.05 grid and the research engine does not round
 prices (README, "The execution layer"). On v1 and v3 a buy is funded whole or skipped.
 So a book a fraction of a percent different can fund a different name at a cash-short
 skip, and that name's return then carries into the equity.
@@ -390,9 +378,9 @@ nt_verify checks before this rule (see "Nautilus figures differ from the engine'
 `experiments/CLEANED_NOISE_PREREG.txt`'s report keeps the labels fixed at registration,
 so eight supported cells still read "not port-verified" in `diagnostics/cleaned_noise.txt`.
 
-### midcap100 v3 and microcap250 v3 are not gated in nt_verify
+### midcap100 v3 is not gated in nt_verify
 
-Both are listed in `check_all.NT_VERIFY_UNGATED`, with the reason, since 2026-10-10.
+It is listed in `check_all.NT_VERIFY_UNGATED`, with the reason, since 2026-10-10.
 Neither the port nor the rule was changed.
 
 - **midcap100 v3** holds different names from the open-valued baseline. The first
@@ -404,8 +392,8 @@ Neither the port nor the rule was changed.
   port-minus-engine equity gap grows from +1.6% before the fork to +6.08% at the end.
   The prices did not change from the previous delivery; the four sessions it dropped
   moved every score and every rebalance date, so the cash-short skips fall elsewhere.
-- **microcap250 v3**: microcap250's results are withheld until PRIVISCL's price data is
-  corrected (README, "microcap250: results withheld"). Its other three cells stay gated.
+- microcap250 v3 was also listed while microcap250's results were withheld for
+  PRIVISCL's bad price data. Rerun without PRIVISCL it verifies and is gated again.
 
 ### v5 and v6 are not gated, and every v5/v6 figure is from the previous data delivery
 
@@ -447,8 +435,8 @@ on the previous delivery.
 All four arms, all eight universes:
 - GATE 9 (`check_b_exec_timing`, leakage checks 1 and 2), GATE 6 and GATE 7 tax.
 - `tax_report.py`, `bh_lots_after_tax.py`, `cost_reconcile_check.py`.
-- `nautilus/nt_verify.py`: 34 of the 36 cells of the nine universes are gated;
-  midcap100 v3 and microcap250 v3 are not (see below). No v5 or v6 cell is gated.
+- `nautilus/nt_verify.py`: 35 of the 36 cells of the nine universes are gated;
+  midcap100 v3 is not (see below). No v5 or v6 cell is gated.
 - The cleaned after-tax noise test (`results/noise_parallel.py`).
 
 All four arms, nifty100 and midcap150 only: `verify_v34_arms.py`, with the one-share
@@ -621,7 +609,7 @@ in the window.
 
 ### The price data is not in the repository and can only come from the owner
 
-The pipeline reads `data/raw/Final_Without_Survivorship_Data/`, nine folders and 1,635 CSVs, which is untracked vendor OHLCV. A clone cannot run without a copy from the owner. `check_data.py` compares a copy against the tracked `data/RAW_DATA_SHA256.txt` and fails on any missing, changed or extra file. The files carry vendor columns (`source`, `_window*`, `_dq_score`, `_gap_filled`, `_merged_at`) that show a private merged extract, and no document describes those columns. There is no licence and no fetch script. If the owner's copy is lost, it cannot be rebuilt from this repository.
+The pipeline reads `data/raw/Final_Without_Survivorship_Data/`, nine folders and 1,634 CSVs, which is untracked vendor OHLCV. A clone cannot run without a copy from the owner. `check_data.py` compares a copy against the tracked `data/RAW_DATA_SHA256.txt` and fails on any missing, changed or extra file. The files carry vendor columns (`source`, `_window*`, `_dq_score`, `_gap_filled`, `_merged_at`) that show a private merged extract, and no document describes those columns. There is no licence and no fetch script. If the owner's copy is lost, it cannot be rebuilt from this repository.
 
 `survivorship_attribution.py` also reads `data/raw/Survivorship_Bias/*_membership.csv` and the price files of `Final_With_Survivorship_Data/`. Neither is in the checksum manifest.
 

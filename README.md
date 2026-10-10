@@ -287,7 +287,8 @@ by four runs of 2026-10-10 (research and tradeable, tax off and on;
 change against the previous delivery is in `diagnostics/cells_prev_vs_20261010.csv`.
 Every figure is one run (n=1); no noise draw has been made on this data. Tax on,
 headline and sold on the last day, are as defined in the 2026-09-25 section below.
-microcap250, added with this delivery, is withheld; see the end of this section.
+microcap250, added with this delivery, is reported separately at the end of this
+section: it was rerun after PRIVISCL was removed.
 
 `research` profile:
 
@@ -420,10 +421,39 @@ strategy.
 | smallcap250 | v3 | 41.55 | 44.13 | +2.58 | +14.95 | +17.53 | no |
 | smallcap250 | v4 | 25.87 | 23.55 | -2.32 | -0.73 | -3.05 | no |
 
-**microcap250: results withheld.** PRIVISCL's price file has a 3,336-fold jump on
-2020-08-21 that does not revert, so the cleaning rule leaves it in, and that day enters
-the market-level features the model reads. microcap250's results are withheld and will
-be rerun when the data is corrected.
+**microcap250, rerun 2026-10-10 without PRIVISCL.** PRIVISCL's price file had a
+3,336-fold jump on 2020-08-21 that does not revert, so the cleaning rule left it in, and
+that day entered the market-level features the model reads. The owner removed PRIVISCL's
+price files for bad data, and microcap250 was rerun on its other 241 names: the same
+window, cadence and four settings as above, arms v1 to v4. Every figure is one run
+(n=1) and is in the same three files.
+
+| arm | tax off: CAGR% | MaxDD% | Sharpe | tax on, headline: CAGR% | MaxDD% | Sharpe | tax on, sold on the last day: CAGR% | n |
+|---|---:|---:|---:|---:|---:|---:|---:|---|
+| v1 | 53.07 | -42.45 | 2.07 | 43.09 | -42.47 | 1.70 | 43.18 | n=1 |
+| v2 | 32.11 | -22.63 | 2.21 | 26.84 | -22.63 | 1.81 | 26.82 | n=1 |
+| v3 | 67.11 | -40.97 | 2.20 | 55.54 | -40.99 | 1.85 | 55.70 | n=1 |
+| v4 | 39.41 | -20.61 | 2.24 | 33.20 | -22.19 | 1.85 | 33.26 | n=1 |
+
+Buy & hold: reference index 27.89% CAGR, MaxDD -48.60%; investable held lots, taxed,
+headline 33.37%, sold on the last day 31.41%. Tax-on headline minus investable headline:
+v1 +9.71, v2 -6.53, v3 +22.17, v4 -0.17 points.
+
+`tradeable` profile: the participation cap binds in all four cells (19, 4, 25 and 3
+skipped rows for v1 to v4), against 9 of the other 32.
+
+| arm | research, tax off | tradeable, tax off | research, tax on | tradeable, tax on | tradeable, sold on the last day | gap, research | gap, tradeable |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| v1 | 53.07 | 52.40 | 43.09 | 43.10 | 43.20 | +9.71 | +9.73 |
+| v2 | 32.11 | 32.26 | 26.84 | 27.14 | 27.12 | -6.53 | -6.23 |
+| v3 | 67.11 | 62.32 | 55.54 | 54.39 | 54.55 | +22.17 | +21.02 |
+| v4 | 39.41 | 39.45 | 33.20 | 33.23 | 33.28 | -0.17 | -0.14 |
+
+PRIVISCL's removal took the investable buy & hold from 132.69% to 33.37% and the
+reference index from 95.35% to 27.89%. The arms moved less: research tax-on v1 from
+52.83% to 43.09%, v3 from 65.31% to 55.54%. microcap250 has no figure on the previous
+delivery to compare with. 102 of its 241 names have no row before 2019-01-01 and 83
+none before 2021-01-01, so the early part of the window ranks fewer names.
 
 ### SUPERSEDED 2026-10-10, computed on the previous data delivery -- Republished 2026-09-27 on cleaned prices: every universe, arm and profile
 
@@ -1193,7 +1223,7 @@ rebuild.
 public. It comes from the owner of this repository: ask them for a copy.** It is
 vendor OHLCV, not redistributed here, and nothing runs without it.
 
-The pipeline reads exactly one folder, 1,025 MB, 1,635 CSV files. Put it at this path,
+The pipeline reads exactly one folder, 1,024 MB, 1,634 CSV files. Put it at this path,
 with these nine subfolders, one per universe:
 
     data/raw/Final_Without_Survivorship_Data/
@@ -1205,7 +1235,7 @@ with these nine subfolders, one per universe:
         Final_NIFTYMidCap100_EoD_Data/     midcap100     99 CSV   (98 + NIFTY MIDCAP 100.csv)
         Final_NIFTYMidCap150_EoD_Data/     midcap150    149 CSV   (148 + NIFTY MIDCAP 150.csv)
         Final_NIFTYSmallCap250_EoD_Data/   smallcap250  249 CSV   (248 + NIFTY SMLCAP 250.csv)
-        Final_NiftyMicroCap250_EoD_Data/   microcap250  243 CSV   (242 + NIFTY MICROCAP250.csv)
+        Final_NiftyMicroCap250_EoD_Data/   microcap250  242 CSV   (241 + NIFTY MICROCAP250.csv)
 
 Each folder holds one CSV per constituent, named by NSE symbol (`ABB.csv`), and one
 for the published index. A universe's constituents are whatever CSVs are in its
@@ -1223,7 +1253,7 @@ python3 check_data.py
 ```
 
 It compares every file against the tracked manifest `data/RAW_DATA_SHA256.txt`
-(SHA-256 per file) and exits 0 only if all 1,635 match and no extra file is present;
+(SHA-256 per file) and exits 0 only if all 1,634 match and no extra file is present;
 otherwise it lists each missing, different or extra file. It needs only the Python
 standard library. For a copy holding one universe, check just that folder (this
 form reads universes/registry.py, so it needs the venv):
