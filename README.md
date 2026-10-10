@@ -75,15 +75,18 @@ existed in code. On each of 24 cells, the difference from the parent was judged
 against a noise band of 2 x sqrt(2) times its standard deviation over 50 ten-seed
 subsets of 20 model seeds (`experiments/DRAWDOWN_STOP_BAND.csv`).
 
-Both arms are REJECTED. v5 fails criteria 1 to 3: its drawdown is shallower than
+Both arms are REJECTED, on the supplier's previous data delivery; the measurement has
+not been re-run on the 2026-10-10 delivery, and v5 and v6 were not rebuilt on it. v5
+fails criteria 1 to 3: its drawdown is shallower than
 v1's by more than the band in 7 of 24 cells (18 needed), its Calmar higher in 6
 (15 needed), and its CAGR lower in 10 (at most 6 allowed). v6 fails criteria 1 and
 2: 14 of 24 and 8 of 24 (18 and 15 needed). Every cell is in `experiments/DRAWDOWN_STOP_RESULT.txt`.
 v5 and v6 stay out of `--arm all`; they run only when selected by name, and write
 companion `v34_stop_*` files.
 
-The Nautilus port verifies 9 of the 16 v5/v6 cells (research, tax off). The other
-7 are not gated in `check_all.py`: the port and the engine agree on every exit and
+On the previous data the Nautilus port verified 9 of the 16 v5/v6 cells (research,
+tax off); on the 2026-10-10 panels those 9 fail too, because the engine's v5/v6 files
+were not rebuilt. The other 7 are not gated in `check_all.py`: the port and the engine agree on every exit and
 re-entry date, but holdings differ by one or two shares in ways the port check
 does not explain, and the cause has not been found (`check_all.NT_VERIFY_UNGATED`).
 
@@ -117,13 +120,19 @@ the ones the code uses.
 `platform_identity_check.py` is reported as a named skip, and most delegates skip
 until the runs they check have been made.
 
-## Current results, 2026-09-29
+## The noise test, measured on the previous data delivery (2026-09-29)
+
+**Every number in this section was measured on the supplier's previous data
+delivery**, on the runs of 2026-09-27, the "published run" column included. The
+delivery of 2026-10-10 moved every published figure (see "Republished 2026-10-10"
+under Results), and this test has not been re-run on it. The current gaps are in
+that section.
 
 After tax, over 2019-01-01 to 2026-05-29, on the cleaned prices. The pre-registered
 noise test (`experiments/CLEANED_NOISE_PREREG.txt`, n=10 draws per cell at sigma
 0.01%) found an after-tax edge over the investable buy & hold in 15 of 32 cells under
-both profiles. All 15 now verify in nt_verify. Gap = arm CAGR minus investable buy &
-hold CAGR, points, research profile.
+both profiles. All 15 verified in nt_verify on that data. Gap = arm CAGR minus
+investable buy & hold CAGR, points, research profile.
 
 | cell | published run (sigma 0) | draws: mean | min | max | draws above 0 |
 |---|---:|---:|---:|---:|---:|
@@ -146,8 +155,8 @@ hold CAGR, points, research profile.
 Read these with the caveats below:
 
 - **32 cells were tested.** A single supported cell on its own is not an edge.
-- **Every figure depends on the exact price path.** In 15 of 32 cells the published
-  run lies outside the range of all ten draws (nifty500: below every draw on three
+- **Every figure depends on the exact price path.** On the previous data, in 15 of 32
+  cells the published run lies outside the range of all ten draws (nifty500: below every draw on three
   arms; nifty200: above every draw on all four). The cause is that the noise gives
   a sign to every exactly-zero return, which moves the up-day and downside
   features the same way in every draw. A live run is computed like the published
@@ -155,15 +164,16 @@ Read these with the caveats below:
   the draws do. See "The noise draws and the published run" in KNOWN_ISSUES.md.
 - **Survivorship.** The universes are today's index members applied back to 2019.
   The supplier's point-in-time membership files cannot say whether a name was a
-  member for most of the position-days these arms held: 46% to 79% of each arm's
+  member for most of the position-days these arms held. Measured on the
+  2026-10-10 research tax-on run, for the same 15 cells: 42% to 75% of each arm's
   profit comes from position-days the files cannot classify. Removing only the
-  profit the files mark as held while not a member changes the gaps by -3.3 to
+  profit the files mark as held while not a member changes the gaps by -1.1 to
   +1.0 points; reading every unknown day as the files' events imply (which
-  assumes no event is missing) changes them by -11.9 to +0.7 points, and leaves
-  nifty500 v1 and v4 below zero. These are estimates, not backtests
+  assumes no event is missing) changes them by -6.1 to +0.1 points, and leaves
+  nifty500 v2 and v4 below zero. These are estimates, not backtests
   (`diagnostics/survivorship_attribution.txt`). The files are not good enough to
   run the strategy on point-in-time members: each of the six universes with a supported
-  cell misses 6 to 9 of the 15 scheduled reviews in the window, and 3 to 96 names
+  cell misses 6 to 9 of the 15 scheduled reviews in the window, and 2 to 75 names
   that left an index during the window have no price file.
 - **The tradeable profile is ungated**, and a live run is not possible yet: see
   "Live orders" in KNOWN_ISSUES.md.
@@ -177,7 +187,8 @@ trailing volatility, and the whole book is then scaled by market breadth — the
 fraction of the universe with positive 20-day momentum. When breadth is 0.4, the
 strategy deploys 40% of capital and the rest sits in cash earning nothing.
 
-That is why average deployment is 54–56%. It is not an oversight; it is the
+That is why average deployment is 53–57% (53.3% to 57.4% across the eight universes
+on the 2026-10-10 data, the same for v2 and v4). It is not an oversight; it is the
 exposure rule doing what it was built to do. It also means comparing this to a
 fully-invested benchmark on raw CAGR compares two different things, so the tables
 below give both sides.
@@ -216,27 +227,37 @@ pipeline trades on a price it could not have seen.
 
 ### Read these first
 
-- **The prices were cleaned on 2026-09-27 and every cell was republished.** The
-  current figures are in "Republished 2026-09-27 on cleaned prices" below. Every
-  other figure in this file, in every section, was computed on the uncleaned
-  prices and is superseded by that date; they are left as written. The cleaning
-  moved the tax-on CAGR of the 32 research cells by 3.57 points on average in
-  either direction (range -5.00 to +12.28) and changed the sign of the gap against
-  the investable buy & hold in 7 of them.
+- **The supplier's data delivery of 2026-10-10 replaced the prices, and every cell was
+  republished.** The current figures are in "Republished 2026-10-10" below. Every
+  figure in the sections after it was computed on earlier data and is left as
+  written. The delivery only removed rows: holiday rows the calendar already
+  dropped, and four calendar sessions that no file has a row for. Three of them
+  (2016-07-06, 2017-04-04, 2017-12-02) are in the model's training history and
+  feature windows, so the scores differ from the first rebalance of 2019. The fourth,
+  2020-01-07, is inside the window, so every rebalance after it also falls one
+  session later (KNOWN_ISSUES.md). Together they moved the tax-on CAGR of the 32 research cells by
+  2.63 points on average in either direction (range -11.29 to +4.89) and changed
+  the sign of the gap against the investable buy & hold in 2 of them (nifty50 v1
+  and nifty100 v1, from positive to negative).
 - **Every current figure is one draw (n=1).** No noise draw has been made on the
-  cleaned prices. The n=10 spreads further down were measured on the uncleaned
-  prices. Figures of this kind have moved by more than 12 CAGR points under
-  changes that are not strategy changes (the cleaning touched 0.4% to 0.5% of
-  rows).
-- **One name carried midcap150's edge on the uncleaned prices.** midcap150 v2 beat
-  its own buy & hold by +3.32 CAGR points, and removing TATAELXSI cut that to
-  +0.07 (tax off, reference buy & hold, measured 2026-09-25). Not re-measured on
-  the cleaned prices.
+  2026-10-10 data. The pre-registered noise test and every n=10 spread further
+  down were measured on earlier data. Figures of this kind have moved by more than
+  12 CAGR points under changes that are not strategy changes: the 2026-09-27
+  cleaning touched 0.4% to 0.5% of rows, and the 2026-10-10 delivery removed four
+  sessions, one of them inside the window.
+- **midcap150's edge is no longer carried by one name.** On the 2026-10-10 data
+  midcap150 v2 beats its own buy & hold by +8.80 CAGR points (tax off, reference buy
+  & hold). No single removal of its 148 names and none of 200 random 8-name removals
+  makes that negative; the largest single drop is 1.79 points (SUZLON). On the
+  uncleaned prices of 2026-09-25 the edge was +3.32 and removing TATAELXSI cut it to
+  +0.07. Records: `diagnostics/jackknife_midcap150_20261010.txt` and
+  `diagnostics/jackknife_midcap150_20260925.txt`.
 - **The investable buy & hold pays no tax in the headline** because it never
   sells. That is what holding and never trading earns. The "sold on the last day"
   column prices the alternative: everything sold on 2026-05-29, with sell charges
   and capital-gains tax.
-- **The after-tax noise test on the cleaned prices, 2026-09-29**
+- **The after-tax noise test on the cleaned prices, 2026-09-29, on the previous data
+  delivery**
   (`experiments/CLEANED_NOISE_PREREG.txt`, 32 cells, sigma 0.01%, n=10, research
   and tradeable): 15 of 32 cells pass the registered rule under both profiles.
   7 of them verified in nt_verify at registration: nifty50 v3, midcap150 v4,
@@ -254,7 +275,189 @@ pipeline trades on a price it could not have seen.
 - **The survivorship bias is permanent.** Every universe is today's index members
   backfilled to 2019 (see "What is wrong with these results").
 
-### Republished 2026-09-27 on cleaned prices: every universe, arm and profile
+### Republished 2026-10-10 on the supplier's new data delivery: every universe, arm and profile
+
+Window 2019-01-01 to 2026-05-29, 1,835 trading days (the delivery has no row for
+2020-01-07; see KNOWN_ISSUES.md), from Rs 10,00,000, all figures after costs, cadence
+20, with the adj_close/close cleaning of `experiments/DATA_CLEANING_SPEC.txt`. Produced
+by four runs of 2026-10-10 (research and tradeable, tax off and on;
+`runs/20261010T015553_all_all_r20`, `20261010T050655`, `20261010T052337` and
+`20261010T053852`, not tracked). Every figure is in `diagnostics/cells_20261010.csv`,
+`diagnostics/tax_on_all_arms.csv` and `diagnostics/tradeable_tax_all_arms.csv`, and the
+change against the previous delivery is in `diagnostics/cells_prev_vs_20261010.csv`.
+Every figure is one run (n=1); no noise draw has been made on this data. Tax on,
+headline and sold on the last day, are as defined in the 2026-09-25 section below.
+microcap250, added with this delivery, is reported separately at the end: its price
+data has a fault that makes its buy & hold meaningless.
+
+`research` profile:
+
+| universe | arm | tax off: CAGR% | MaxDD% | Sharpe | tax on, headline: CAGR% | MaxDD% | Sharpe | tax on, sold on the last day: CAGR% | n |
+|---|---|---:|---:|---:|---:|---:|---:|---:|---|
+| nifty50 | v1 | 20.90 | -36.02 | 1.14 | 17.79 | -36.02 | 0.98 | 17.89 | n=1 |
+| nifty50 | v2 | 14.65 | -20.03 | 1.21 | 12.29 | -20.24 | 1.01 | 12.47 | n=1 |
+| nifty50 | v3 | 23.26 | -33.84 | 1.13 | 20.39 | -33.83 | 1.01 | 20.50 | n=1 |
+| nifty50 | v4 | 16.72 | -19.33 | 1.18 | 14.15 | -21.09 | 1.00 | 14.34 | n=1 |
+| nifty100 | v1 | 26.55 | -32.23 | 1.32 | 22.35 | -32.23 | 1.13 | 22.43 | n=1 |
+| nifty100 | v2 | 21.82 | -19.33 | 1.70 | 18.49 | -19.58 | 1.43 | 18.59 | n=1 |
+| nifty100 | v3 | 31.50 | -37.34 | 1.30 | 26.44 | -37.33 | 1.12 | 26.47 | n=1 |
+| nifty100 | v4 | 27.07 | -20.15 | 1.71 | 23.26 | -20.30 | 1.46 | 23.32 | n=1 |
+| nifty200 | v1 | 42.98 | -34.61 | 1.81 | 36.92 | -34.60 | 1.57 | 37.22 | n=1 |
+| nifty200 | v2 | 32.48 | -24.70 | 2.16 | 27.51 | -24.71 | 1.81 | 27.71 | n=1 |
+| nifty200 | v3 | 42.77 | -37.80 | 1.60 | 36.15 | -38.54 | 1.38 | 36.40 | n=1 |
+| nifty200 | v4 | 38.74 | -26.94 | 2.10 | 32.92 | -27.44 | 1.79 | 33.12 | n=1 |
+| nifty500 | v1 | 37.97 | -45.24 | 1.57 | 32.89 | -45.29 | 1.36 | 32.84 | n=1 |
+| nifty500 | v2 | 26.14 | -28.70 | 1.78 | 22.23 | -28.72 | 1.49 | 22.17 | n=1 |
+| nifty500 | v3 | 39.36 | -59.74 | 1.41 | 33.92 | -59.83 | 1.24 | 33.80 | n=1 |
+| nifty500 | v4 | 29.66 | -36.55 | 1.79 | 25.30 | -36.60 | 1.50 | 25.29 | n=1 |
+| midcap50 | v1 | 36.27 | -34.34 | 1.67 | 31.69 | -34.35 | 1.47 | 31.91 | n=1 |
+| midcap50 | v2 | 27.29 | -24.22 | 1.83 | 23.70 | -25.10 | 1.58 | 23.86 | n=1 |
+| midcap50 | v3 | 33.55 | -35.60 | 1.46 | 29.92 | -35.63 | 1.32 | 30.10 | n=1 |
+| midcap50 | v4 | 25.53 | -25.77 | 1.56 | 22.27 | -25.77 | 1.36 | 22.42 | n=1 |
+| midcap100 | v1 | 35.68 | -36.48 | 1.56 | 30.42 | -36.45 | 1.34 | 30.50 | n=1 |
+| midcap100 | v2 | 25.04 | -27.33 | 1.66 | 21.28 | -27.33 | 1.41 | 21.31 | n=1 |
+| midcap100 | v3 | 34.67 | -50.19 | 1.34 | 29.06 | -50.32 | 1.15 | 29.04 | n=1 |
+| midcap100 | v4 | 26.21 | -37.46 | 1.45 | 22.23 | -37.47 | 1.24 | 22.21 | n=1 |
+| midcap150 | v1 | 45.28 | -33.32 | 1.85 | 37.70 | -33.32 | 1.56 | 37.84 | n=1 |
+| midcap150 | v2 | 33.74 | -17.64 | 2.17 | 28.92 | -18.06 | 1.83 | 28.95 | n=1 |
+| midcap150 | v3 | 42.64 | -41.01 | 1.58 | 35.95 | -41.01 | 1.36 | 35.99 | n=1 |
+| midcap150 | v4 | 37.10 | -20.18 | 2.05 | 31.94 | -20.79 | 1.74 | 31.92 | n=1 |
+| smallcap250 | v1 | 37.00 | -43.70 | 1.57 | 30.99 | -43.73 | 1.33 | 30.95 | n=1 |
+| smallcap250 | v2 | 24.35 | -25.01 | 1.77 | 20.53 | -25.00 | 1.46 | 20.45 | n=1 |
+| smallcap250 | v3 | 51.09 | -37.21 | 1.90 | 44.13 | -37.27 | 1.66 | 43.62 | n=1 |
+| smallcap250 | v4 | 27.87 | -33.49 | 1.76 | 23.55 | -33.51 | 1.47 | 23.33 | n=1 |
+
+Buy & hold, the same for every arm of a universe. The investable buy & hold did not
+move: it buys at the first session's open and is valued at the last session's close,
+and neither changed. The reference index moved by -0.007 to +0.001 points. The
+previous table also gave the investable basket's MaxDD; no tracked script writes it,
+so it is not given here.
+
+| universe | buy & hold, reference (untaxed, daily-rebalanced index): CAGR% | MaxDD% | buy & hold, investable (held lots), taxed, headline: CAGR% | held lots, sold on the last day: CAGR% | v2 tax on headline minus investable headline | v2 sold on the last day minus held lots sold on the last day |
+|---|---:|---:|---:|---:|---:|---:|
+| nifty50 | 20.45 | -37.31 | 19.62 | 18.35 | -7.33 | -5.88 |
+| nifty100 | 23.91 | -37.40 | 23.38 | 21.97 | -4.89 | -3.38 |
+| nifty200 | 25.12 | -38.03 | 23.69 | 22.27 | +3.82 | +5.44 |
+| nifty500 | 25.60 | -41.56 | 24.43 | 22.91 | -2.20 | -0.74 |
+| midcap50 | 23.72 | -37.92 | 25.97 | 24.51 | -2.28 | -0.65 |
+| midcap100 | 26.25 | -38.89 | 24.48 | 23.04 | -3.19 | -1.74 |
+| midcap150 | 24.94 | -37.67 | 23.55 | 22.16 | +5.37 | +6.79 |
+| smallcap250 | 26.56 | -48.95 | 26.60 | 24.95 | -6.06 | -4.50 |
+
+All four arms against the investable taxed buy & hold, tax-on headline minus investable
+headline, CAGR points (`diagnostics/tax_on_all_arms.csv`, full precision):
+
+| universe | investable buy & hold | v1 gap | v2 gap | v3 gap | v4 gap |
+|---|---:|---:|---:|---:|---:|
+| nifty50 | 19.62 | -1.83 | -7.33 | +0.77 | -5.47 |
+| nifty100 | 23.38 | -1.03 | -4.89 | +3.06 | -0.12 |
+| nifty200 | 23.69 | +13.23 | +3.82 | +12.46 | +9.24 |
+| nifty500 | 24.43 | +8.46 | -2.20 | +9.49 | +0.87 |
+| midcap50 | 25.97 | +5.72 | -2.28 | +3.95 | -3.70 |
+| midcap100 | 24.48 | +5.94 | -3.19 | +4.59 | -2.24 |
+| midcap150 | 23.55 | +14.15 | +5.37 | +12.39 | +8.38 |
+| smallcap250 | 26.60 | +4.40 | -6.06 | +17.53 | -3.05 |
+
+`tradeable` profile (participation cap). The cap binds in 9 of 32 cells
+(`diagnostics/tradeable_tax_all_arms.csv`), and those are the nine below; in the
+other 23 the tradeable figures equal the research ones exactly. All 64 (cell,
+profile) rows are in `diagnostics/cells_20261010.csv`. The profile is UNGATED
+(`profiles.UNGATED_NOTICE`).
+
+| universe | arm | research, tax off | tradeable, tax off | research, tax on | tradeable, tax on | tradeable, sold on the last day | gap, research | gap, tradeable |
+|---|---|---:|---:|---:|---:|---:|---:|---:|
+| nifty100 | v1 | 26.55 | 26.77 | 22.35 | 22.47 | 22.56 | -1.03 | -0.91 |
+| nifty500 | v1 | 37.97 | 37.79 | 32.89 | 32.72 | 32.67 | +8.46 | +8.29 |
+| nifty500 | v3 | 39.36 | 39.64 | 33.92 | 34.15 | 34.03 | +9.49 | +9.73 |
+| midcap50 | v1 | 36.27 | 36.22 | 31.69 | 31.66 | 31.88 | +5.72 | +5.69 |
+| midcap50 | v3 | 33.55 | 33.52 | 29.92 | 30.68 | 30.86 | +3.95 | +4.71 |
+| midcap100 | v1 | 35.68 | 35.66 | 30.42 | 30.40 | 30.48 | +5.94 | +5.92 |
+| midcap100 | v3 | 34.67 | 34.62 | 29.06 | 29.01 | 28.99 | +4.59 | +4.53 |
+| smallcap250 | v1 | 37.00 | 36.29 | 30.99 | 30.41 | 30.37 | +4.40 | +3.82 |
+| smallcap250 | v3 | 51.09 | 48.01 | 44.13 | 41.23 | 40.73 | +17.53 | +14.64 |
+
+**Previous delivery against the new one, research profile, tax on headline** (previous:
+the 2026-09-27 figures in the next section; `diagnostics/cells_prev_vs_20261010.csv`
+has every column for both profiles). The tax-on CAGR rose in 15 cells and fell in 17,
+by 2.63 points on average in either direction (range -11.29 to +4.89). The gap
+against the investable buy & hold changed sign in 2 cells under both profiles, both
+from positive to negative: nifty50 v1 and nifty100 v1. The data lost four sessions,
+three in the training history and one inside the window; moves this size are the
+single-draw instability recorded elsewhere in this file, not a change in the
+strategy.
+
+| universe | arm | tax-on CAGR old | new | change | gap old | gap new | sign changed |
+|---|---|---:|---:|---:|---:|---:|---|
+| nifty50 | v1 | 20.16 | 17.79 | -2.37 | +0.54 | -1.83 | **yes** |
+| nifty50 | v2 | 13.15 | 12.29 | -0.86 | -6.47 | -7.33 | no |
+| nifty50 | v3 | 23.25 | 20.39 | -2.86 | +3.63 | +0.77 | no |
+| nifty50 | v4 | 15.80 | 14.15 | -1.64 | -3.82 | -5.47 | no |
+| nifty100 | v1 | 23.70 | 22.35 | -1.35 | +0.32 | -1.03 | **yes** |
+| nifty100 | v2 | 17.24 | 18.49 | +1.25 | -6.14 | -4.89 | no |
+| nifty100 | v3 | 26.15 | 26.44 | +0.29 | +2.77 | +3.06 | no |
+| nifty100 | v4 | 18.37 | 23.26 | +4.89 | -5.01 | -0.12 | no |
+| nifty200 | v1 | 40.42 | 36.92 | -3.51 | +16.74 | +13.23 | no |
+| nifty200 | v2 | 27.64 | 27.51 | -0.13 | +3.95 | +3.82 | no |
+| nifty200 | v3 | 41.88 | 36.15 | -5.73 | +18.19 | +12.46 | no |
+| nifty200 | v4 | 31.15 | 32.92 | +1.77 | +7.46 | +9.24 | no |
+| nifty500 | v1 | 29.61 | 32.89 | +3.28 | +5.18 | +8.46 | no |
+| nifty500 | v2 | 23.10 | 22.23 | -0.88 | -1.33 | -2.20 | no |
+| nifty500 | v3 | 36.90 | 33.92 | -2.98 | +12.47 | +9.49 | no |
+| nifty500 | v4 | 26.43 | 25.30 | -1.12 | +2.00 | +0.87 | no |
+| midcap50 | v1 | 29.12 | 31.69 | +2.58 | +3.14 | +5.72 | no |
+| midcap50 | v2 | 19.40 | 23.70 | +4.29 | -6.57 | -2.28 | no |
+| midcap50 | v3 | 29.93 | 29.92 | -0.01 | +3.95 | +3.95 | no |
+| midcap50 | v4 | 20.21 | 22.27 | +2.06 | -5.76 | -3.70 | no |
+| midcap100 | v1 | 27.32 | 30.42 | +3.10 | +2.85 | +5.94 | no |
+| midcap100 | v2 | 22.19 | 21.28 | -0.91 | -2.29 | -3.19 | no |
+| midcap100 | v3 | 26.55 | 29.06 | +2.51 | +2.07 | +4.59 | no |
+| midcap100 | v4 | 22.14 | 22.23 | +0.09 | -2.34 | -2.24 | no |
+| midcap150 | v1 | 33.89 | 37.70 | +3.81 | +10.34 | +14.15 | no |
+| midcap150 | v2 | 24.04 | 28.92 | +4.88 | +0.48 | +5.37 | no |
+| midcap150 | v3 | 37.09 | 35.95 | -1.14 | +13.53 | +12.39 | no |
+| midcap150 | v4 | 27.92 | 31.94 | +4.01 | +4.37 | +8.38 | no |
+| smallcap250 | v1 | 42.29 | 30.99 | -11.29 | +15.69 | +4.40 | no |
+| smallcap250 | v2 | 24.21 | 20.53 | -3.67 | -2.39 | -6.06 | no |
+| smallcap250 | v3 | 41.55 | 44.13 | +2.58 | +14.95 | +17.53 | no |
+| smallcap250 | v4 | 25.87 | 23.55 | -2.32 | -0.73 | -3.05 | no |
+
+**microcap250, reported in full and not to be read as a result.** One file in its
+folder is broken: PRIVISCL closes between 0.05 and 0.19 from its first row in 2015 to
+2020-08-20, on a median volume of 30 million shares, then 0.136 on 2020-08-20 and 453.80
+on 2020-08-21, a 3,336-fold move in one session.
+The cleaning rule repairs only moves that revert, so it is left in. No arm held
+PRIVISCL across that day (its first buy is on 2020-12-10), but both buy & holds hold
+it, which is why they show 95% and 133% a year, and the day enters every
+market-level feature the model reads. No other universe has a daily move above +100%
+or below -60% in the window. The data is not edited; the figures below are what the
+pipeline produces from it.
+
+| universe | arm | tax off: CAGR% | MaxDD% | Sharpe | tax on, headline: CAGR% | MaxDD% | Sharpe | tax on, sold on the last day: CAGR% | n |
+|---|---|---:|---:|---:|---:|---:|---:|---:|---|
+| microcap250 | v1 | 61.69 | -39.37 | 2.25 | 52.83 | -39.37 | 1.94 | 52.96 | n=1 |
+| microcap250 | v2 | 31.96 | -21.65 | 2.13 | 27.16 | -21.67 | 1.77 | 27.16 | n=1 |
+| microcap250 | v3 | 74.39 | -34.90 | 2.34 | 65.31 | -34.91 | 2.07 | 65.41 | n=1 |
+| microcap250 | v4 | 42.42 | -19.04 | 2.29 | 36.40 | -23.08 | 1.93 | 36.41 | n=1 |
+
+`tradeable`: v1 57.28 / 50.33 tax on (19 cap binds), v2 32.04 / 27.43 (7), v3 70.40 /
+61.31 (27), v4 42.89 / 36.88 (5), tax off / tax on headline CAGR%.
+
+| universe | buy & hold, reference (untaxed, daily-rebalanced index): CAGR% | MaxDD% | buy & hold, investable (held lots), taxed, headline: CAGR% | held lots, sold on the last day: CAGR% | v2 tax on headline minus investable headline | v2 sold on the last day minus held lots sold on the last day |
+|---|---:|---:|---:|---:|---:|---:|
+| microcap250 | 95.35 | -48.27 | 132.69 | 128.79 | -105.54 | -101.63 |
+
+| universe | investable buy & hold | v1 gap | v2 gap | v3 gap | v4 gap |
+|---|---:|---:|---:|---:|---:|
+| microcap250 | 132.69 | -79.86 | -105.54 | -67.38 | -96.29 |
+
+### SUPERSEDED 2026-10-10, computed on the previous data delivery -- Republished 2026-09-27 on cleaned prices: every universe, arm and profile
+
+> *Superseded 2026-10-10: the supplier's new data delivery moved every figure in this
+> section. The current figures are in the section above. Nothing below is changed.
+> `diagnostics/tax_on_all_arms.csv` and `tradeable_tax_all_arms.csv` now hold the
+> 2026-10-10 figures; the 2026-09-27 versions are in git history
+> (`git show 82d1a3c:diagnostics/tax_on_all_arms.csv`). "Current results" is now "The
+> noise test, measured on the previous data delivery".*
 
 Window 2019-01-01 to 2026-05-29, 1,836 trading days, from Rs 10,00,000, all figures
 after costs, cadence 20. All eight panels were rebuilt with the adj_close/close
@@ -863,17 +1066,26 @@ whole attempt, including that downloading the complete non-bond archive back to
 2016 did not extend coverage by a single day, and that the walk still breaks on a
 missing IREDA exclusion that is in no press release on disk.
 
-**The edge is concentrated in very few names, but not the ones it used to be.**
-Re-measured 2026-09-25 with `jackknife.py` on the published v2 run (window
-2019-01-01 to 2026-05-29, 1,836 sessions, cadence 20, research profile, tax off;
+**On the 2026-10-10 data the midcap150 edge is not concentrated in a few names.**
+Re-measured 2026-10-10 with `jackknife.py` on the published v2 run (window
+2019-01-01 to 2026-05-29, 1,835 sessions, cadence 20, research profile, tax off;
 the script's baseline reproduces `v2FINAL_equity.csv` exactly). midcap150 beats its
-own buy & hold by **3.32** points. Removing **TATAELXSI** alone takes that to
-**+0.07**. Removing LLOYDSME leaves **+2.94**, and removing TATAINVEST as well
-**+2.65**. No single removal of the 148 makes the edge negative; **30 of 200**
-random 8-name removals do. On nifty100 the edge is −4.76 and every one of the 99
-single removals leaves it negative. Each figure is one draw (n=1). Records:
-`diagnostics/jackknife_midcap150_20260925.txt`,
-`diagnostics/jackknife_nifty100_20260925.txt`.
+own buy & hold by **8.80** points. The most damaging single removal, SUZLON, takes
+it to **+7.01**; removing LLOYDSME and TATAINVEST together leaves **+8.18**. No
+single removal of the 148 and **none of 200** random 8-name removals makes the edge
+negative. On nifty100 the edge is **−2.09**, and every one of the 99 single removals
+and 192 of the 200 random removals leave it negative. Each figure is one draw (n=1).
+Records: `diagnostics/jackknife_midcap150_20261010.txt`,
+`diagnostics/jackknife_nifty100_20261010.txt`.
+
+> *Superseded 2026-10-10: this paragraph read, from the 2026-09-25 measurement on the
+> uncleaned prices: "midcap150 beats its own buy & hold by 3.32 points. Removing
+> TATAELXSI alone takes that to +0.07. Removing LLOYDSME leaves +2.94, and removing
+> TATAINVEST as well +2.65. No single removal of the 148 makes the edge negative; 30
+> of 200 random 8-name removals do. On nifty100 the edge is −4.76 and every one of the
+> 99 single removals leaves it negative." Records:
+> `diagnostics/jackknife_midcap150_20260925.txt`,
+> `diagnostics/jackknife_nifty100_20260925.txt`.*
 
 > *Superseded 2026-09-25: this paragraph read "midcap150 beats its own buy & hold
 > by 1.99 points. Remove LLOYDSME and that becomes +0.02. Remove TATAINVEST as well
@@ -1006,8 +1218,8 @@ rebuild.
 public. It comes from the owner of this repository: ask them for a copy.** It is
 vendor OHLCV, not redistributed here, and nothing runs without it.
 
-The pipeline reads exactly one folder, 876 MB, 1,392 CSV files. Put it at this path,
-with these eight subfolders, one per universe:
+The pipeline reads exactly one folder, 1,025 MB, 1,635 CSV files. Put it at this path,
+with these nine subfolders, one per universe:
 
     data/raw/Final_Without_Survivorship_Data/
         Final_NIFTY50_EoD_Data/            nifty50       51 CSV   (50 constituents + Nifty 50.csv)
@@ -1018,14 +1230,14 @@ with these eight subfolders, one per universe:
         Final_NIFTYMidCap100_EoD_Data/     midcap100     99 CSV   (98 + NIFTY MIDCAP 100.csv)
         Final_NIFTYMidCap150_EoD_Data/     midcap150    149 CSV   (148 + NIFTY MIDCAP 150.csv)
         Final_NIFTYSmallCap250_EoD_Data/   smallcap250  249 CSV   (248 + NIFTY SMLCAP 250.csv)
+        Final_NiftyMicroCap250_EoD_Data/   microcap250  243 CSV   (242 + NIFTY MICROCAP250.csv)
 
 Each folder holds one CSV per constituent, named by NSE symbol (`ABB.csv`), and one
 for the published index. A universe's constituents are whatever CSVs are in its
 folder, so an extra or missing file changes that universe and every figure on it.
-For one universe only, copy just its folder; for the published figures, all eight.
+For one universe only, copy just its folder; for the published figures, all nine.
 Other folders the owner's copy may have under `data/raw/` are not read by the
-pipeline: `Final_With_Survivorship_Data/` (1,337 MB), `MidCap150/` (99 MB),
-`nifty100_benchmark/` (81 MB) and `Survivorship_Bias/` (1 MB), earlier vendor pulls.
+pipeline: `Final_With_Survivorship_Data/` (1,470 MB) and `Survivorship_Bias/` (1 MB).
 `survivorship_attribution.py` alone reads `Survivorship_Bias/` and the price files of
 `Final_With_Survivorship_Data/`; neither is in the checksum manifest.
 
@@ -1036,7 +1248,7 @@ python3 check_data.py
 ```
 
 It compares every file against the tracked manifest `data/RAW_DATA_SHA256.txt`
-(SHA-256 per file) and exits 0 only if all 1,392 match and no extra file is present;
+(SHA-256 per file) and exits 0 only if all 1,635 match and no extra file is present;
 otherwise it lists each missing, different or extra file. It needs only the Python
 standard library. For a copy holding one universe, check just that folder (this
 form reads universes/registry.py, so it needs the venv):

@@ -5,8 +5,8 @@
 **"Clone it, install requirements.txt, run it" does not work until the price
 data is copied in, and nothing in the repository can fetch it.** The data comes
 from the owner of this repository. README.md, "The price data", gives the exact
-layout: one folder, `data/raw/Final_Without_Survivorship_Data/`, 876 MB, 1,392
-CSVs in eight subfolders, one per universe. `data/raw/*` is excluded by
+layout: one folder, `data/raw/Final_Without_Survivorship_Data/`, 1,025 MB, 1,635
+CSVs in nine subfolders, one per universe. `data/raw/*` is excluded by
 `.gitignore`.
 
 Check a copy before running anything:
@@ -16,7 +16,7 @@ python3 check_data.py
 ```
 
 It compares every file with the tracked manifest `data/RAW_DATA_SHA256.txt` and
-exits 0 only when all 1,392 files match and no extra file is present.
+exits 0 only when all 1,635 files match and no extra file is present.
 
 **There is no fetch script and no licence.** The only downloader in the project,
 `results/extract_membership.py`, retrieves NSE press releases for the
@@ -518,10 +518,10 @@ Its end date, 2026-06-08, is a **data** boundary, not a market one — it is sim
 the last date present in the deleted universe's files. See RETIRED_UNIVERSES.md
 section 6 in git history (`git show 50562ed:RETIRED_UNIVERSES.md`).
 
-## 3. The price data: 876 MB, untracked, from the repository owner
+## 3. The price data: 1,025 MB, untracked, from the repository owner
 
 ```
-data/raw/Final_Without_Survivorship_Data/     1,392 files   876 MB   eight folders, one per universe
+data/raw/Final_Without_Survivorship_Data/     1,635 files 1,025 MB   nine folders, one per universe
 ```
 
 The folder names, file counts and index file of each universe are in README.md,

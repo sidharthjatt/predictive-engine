@@ -54,6 +54,12 @@ with a plausible reconstruction. Three early entries (1, 2, 8) are named in
 (15, 16) were recovered from a session transcript rather than from an original
 report. These are flagged individually.
 
+**Every entry in this file was measured on data before the supplier's delivery of
+2026-10-10.** That delivery removed four trading sessions from every price file, three in
+the training history and 2020-01-07 inside the window, which moved every published
+figure (README, "Republished 2026-10-10"). No entry here has been
+re-run on it, and its numbers are left as measured. The current figures are in README.
+
 ---
 
 ## The system these were run against
@@ -3637,6 +3643,10 @@ shipped `v2FINAL_equity.csv`, tolerance 1e-12.
 ---
 
 ### 37. Drawdown stop on the fully invested arms, v5 and v6 — **BOTH REJECTED**
+
+*Measured on the supplier's previous data delivery. The 2026-10-10 delivery moved
+every published figure and this measurement has not been re-run on it; v5 and v6 were
+not rebuilt, and their port cells fail nt_verify against the new panels.*
 
 *Pre-registration: `experiments/DRAWDOWN_STOP_PREREG.txt`, written 2026-10-02 before
 v5 or v6 existed in code. Band: `experiments/DRAWDOWN_STOP_BAND.csv`, committed in

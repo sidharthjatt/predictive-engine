@@ -40,9 +40,12 @@ WHAT THE CAP MEANS
     need an order-state concept the engine does not have.
 
     Measured consequence, and it is the opposite of the obvious guess: capping
-    INCREASES the mean number of names held (midcap150 v3 7.60 -> 7.72) and REDUCES
-    cash-short skips (131 -> 123). The cap partially relieves the funding defect
-    rather than compounding it.
+    INCREASES the mean number of names held and REDUCES cash-short skips. On the
+    2026-10-10 data, research against tradeable, tax off, in the four v1 and v3 cells
+    of the eight universes where the cap changes either count: smallcap250 v1 7.84 ->
+    7.86 names and 120 -> 119 skips, smallcap250 v3 7.89 -> 7.89 and 119 -> 118,
+    nifty500 v1 7.76 -> 7.77 and 109 -> 108, nifty500 v3 7.82 -> 7.84 and 109 -> 108.
+    The cap partially relieves the funding defect rather than compounding it.
 
     THAT DIRECTION HAS TWO SOURCES, NOT ONE. CORRECTED 2026-09-23. This paragraph
     used to end "...because the buy loop runs in score-descending order and
@@ -221,17 +224,18 @@ UNGATED_NOTICE = (
 # RE-MEASURED 2026-09-22, WITH THE SELL SIDE NOW CAPPED TOO. The notice below was
 # written when only BUYs were capped. Both sides are capped as of 2026-09-22, and
 # at cap=1.00 the cap still binds on NO fill of either universe on either side --
-# nifty100 949 fills, midcap150 1019, zero rows with reason "participation cap"
-# (re-measured 2026-10-03; the cap 1.00, k none row of each v2 sweep CSV).
+# nifty100 954 fills, midcap150 973, zero rows with reason "participation cap"
+# (re-measured 2026-10-10 on that day's data delivery; the cap 1.00, k none row of
+# each v2 sweep CSV).
 # So the inertness above survived the sell side being added, and the
 # research/tradeable byte-identity it describes is a property of THE CAP VALUE,
 # not of the cap.
 #
-# AT cap=0.10 THE IDENTITY ENDS, BY DESIGN AND MEASURED (re-measured 2026-10-03 on
-# the current data; the cap 0.10, k none row of each v2 sweep CSV):
+# AT cap=0.10 THE IDENTITY ENDS, BY DESIGN AND MEASURED (re-measured 2026-10-10 on
+# that day's data delivery; the cap 0.10, k none row of each v2 sweep CSV):
 #
-#     nifty100    2 BUY + 0 SELL binds of 949 fills    CAGR 20.44 -> 20.20  (-0.24)
-#     midcap150   8 BUY + 3 SELL binds of 1022 fills   CAGR 28.46 -> 27.83  (-0.63)
+#     nifty100    2 BUY + 1 SELL binds of 955 fills    CAGR 21.82 -> 21.65  (-0.17)
+#     midcap150  10 BUY + 5 SELL binds of 978 fills    CAGR 33.74 -> 33.10  (-0.64)
 #
 # A tradeable artefact that differs from its research twin is then the cap doing
 # its job, not a regression. Anything reading the notice below as "tradeable always

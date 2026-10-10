@@ -10,8 +10,8 @@
 What is true of this repository now: open defects, limits, deliberate decisions a
 reader has to know, and caveats on the published figures. Entries that were fixed,
 closed or superseded have been removed; the full record up to 2026-09-29 is in git
-history (`git show c63b45b:KNOWN_ISSUES.md`). The current figures are the 2026-09-27
-republish on cleaned prices (README, "Current results").
+history (`git show c63b45b:KNOWN_ISSUES.md`). The current figures are the 2026-10-10
+republish on the supplier's new data delivery (README, "Republished 2026-10-10").
 
 Scope: live orders are built outside this repository (last section). Survivorship work
 comes later.
@@ -23,12 +23,15 @@ comes later.
 
 ### The after-tax noise test on the cleaned prices, 2026-09-29
 
-`experiments/CLEANED_NOISE_PREREG.txt` was committed before any draw (d4ea256). It ran
-88 of 88 draws; all eight baselines passed and no draw failed. Report:
+Measured on the supplier's previous data delivery and not re-run on the 2026-10-10
+delivery, which moved every published figure; every number in this entry describes the
+previous data. `experiments/CLEANED_NOISE_PREREG.txt` was committed before any draw
+(d4ea256). It ran 88 of 88 draws; all eight baselines passed and no draw failed. Report:
 `diagnostics/cleaned_noise.txt`. Records: `diagnostics/cleaned_noise_runs.csv`.
 
 - 15 of 32 cells are supported under both profiles, and research and tradeable agree
-  on every cell. The table is in README, "Current results".
+  on every cell. The table is in README, "The noise test, measured on the previous data
+  delivery".
 - No cell of nifty100 or midcap50 is supported. No v2 cell is supported outside
   nifty500, and nifty500 v2 passes even though its sigma-0 gap is -1.33.
 - All 15 are port-verified since the quote-mid rule (Pass I). The report keeps the
@@ -39,6 +42,7 @@ comes later.
 ### The noise draws are biased by exact zero returns
 
 `results/nifty500_baseline_trace.py`, report `diagnostics/nifty500_baseline_trace.txt`.
+Measured on the previous data delivery, with the draws of the noise test above.
 - At sigma 0, 0.72% of close-to-close returns are exactly zero (nifty500, 2019 onward),
   from tick size, illiquidity and circuit locks. Every draw gives each a random sign.
 - The raw 20-day up-day share behind `trend_consistency_20` therefore changes on 8.7% to
@@ -65,42 +69,43 @@ that much. The registration carries a dated addendum saying so; its verdicts sta
 
 Every universe is today's index members applied back to 2019. The work to remove the
 bias is planned for later. What is known now (`survivorship_attribution.py`,
-`diagnostics/survivorship_attribution.txt`, an estimate, not a backtest, on the 15
-supported cells):
+`diagnostics/survivorship_attribution.txt`, an estimate, not a backtest, on the 15 cells
+the noise test supported, measured on the 2026-10-10 research tax-on run):
 - The supplier's membership files (`data/raw/Survivorship_Bias/`) are not point-in-time.
   Their symbols column is today's list edited backwards (the 2018 Nifty 50 rows list
-  JIOFIN, listed 2023), and all eight fail `survivorship.validate`. Only their
+  JIOFIN, listed 2023), and all nine fail `survivorship.validate`. Only their
   inclusion and exclusion events are usable, and those miss scheduled reviews: none of
   the files records the 2024-09 or 2025-03 reconstitution, and the six universes with a
   supported cell miss 6 to 9 of the 15 reviews in the window.
-- So 46% to 79% of each arm's profit is on position-days the files cannot classify.
-  Removing the profit they mark as held while not a member moves the gap by -3.3 to
+- So 42% to 75% of each arm's profit is on position-days the files cannot classify.
+  Removing the profit they mark as held while not a member moves the gap by -1.1 to
   +1.0 points. Reading every unknown day as the events imply, which assumes no event is
-  missing, moves it by -11.9 to +0.7 and leaves nifty500 v1 and v4 below zero.
+  missing, moves it by -6.1 to +0.1 and leaves nifty500 v2 and v4 below zero.
 - A run restricted to point-in-time members is not possible with these files: reviews
-  are missing, and 3 to 96 names that left an index during the window have no price
+  are missing, and 2 to 75 names that left an index during the window have no price
   file (some may be renames outside the 15 validated ones).
 
 ### The rank-8/rank-9 boundary is thin on every universe
 
-`results/selection_margin.py`, rows `diagnostics/selection_margin_cleaned_20260927.csv`.
-On the cleaned prices, the median score gap between rank 8 and rank 9 at a rebalance
-is 0.44% (nifty200, nifty500) to 1.08% (midcap100) of that day's score range. It is
-under 1% of the range on 46% to 73% of rebalances. So a small change to any input can
-swap a held name. That is why the cleaning and each noise draw move the figures as much
-as they do. On the uncleaned data the margin did not predict which cells moved most
-under the cleaning (Spearman -0.19, p 0.29, 32 cells).
+`results/selection_margin.py`, rows `diagnostics/selection_margin_20261010.csv`.
+On the 2026-10-10 data, the median score gap between rank 8 and rank 9 at a rebalance
+is 0.48% (nifty200) to 1.23% (nifty50) of that day's score range across the eight
+universes, and 0.74% on microcap250. It is under 1% of the range on 43% to 73% of
+rebalances. So a small change to any input can swap a held name. That is why the
+cleaning, each noise draw and the 2026-10-10 delivery move the figures as much as they
+do. On the uncleaned data the margin did not predict which cells moved most under the
+cleaning (Spearman -0.19, p 0.29, 32 cells; no tracked script computes it).
 
 ### Two buy & holds are published, and a gap against one cannot be carried to the other
 
 - **Reference.** A costless index line rebalanced daily. It holds no lots, so it cannot be taxed.
-- **Investable.** An equal-rupee basket of real lots, bought at the first open and never sold. It is the only one that can be taxed, and every after-tax gap is measured against it (`bh_investable` in `diagnostics/cells_cleaned_20260927.csv`).
+- **Investable.** An equal-rupee basket of real lots, bought at the first open and never sold. It is the only one that can be taxed, and every after-tax gap is measured against it (`bh_investable` in `diagnostics/cells_20261010.csv`).
 
-The difference between the two does not have one sign. On the cleaned prices the investable basket beats the reference in midcap50 (25.97 against 23.73) and, narrowly, in smallcap250 (26.60 against 26.56). It trails in the other six, by 0.52 (nifty100) to 1.77 points (midcap100). Take the benchmark from the same table as the arm's figure. Moving a figure between the tables changes the gap by up to 2.2 points, and none of that change comes from the strategy.
+The difference between the two does not have one sign. On the 2026-10-10 data the investable basket beats the reference in midcap50 (25.97 against 23.72) and, narrowly, in smallcap250 (26.60 against 26.56). It trails in the other six, by 0.53 (nifty100) to 1.77 points (midcap100). Take the benchmark from the same table as the arm's figure. Moving a figure between the tables changes the gap by up to 2.3 points, and none of that change comes from the strategy. microcap250's two baskets are both distorted by one broken price file (README).
 
 ### v2 and v4 trade return for drawdown, and no published comparison separates the two
 
-The breadth rule (v2, v4) moves the book to cash when breadth collapses. The same rule produces the shallower drawdown and misses the rebound days after a crash. On the cleaned prices (research, tax off, n=1), v2 has lower CAGR and shallower MaxDD than v1 in all eight universes. Example: nifty100 v1 28.01% / -33.02%, v2 20.44% / -19.78%.
+The breadth rule (v2, v4) moves the book to cash when breadth collapses. The same rule produces the shallower drawdown and misses the rebound days after a crash. On the 2026-10-10 data (research, tax off, n=1), v2 has lower CAGR and shallower MaxDD than v1 in all eight universes. Example: nifty100 v1 26.55% / -32.23%, v2 21.82% / -19.33%.
 
 Every published gap compares an arm that is partly in cash with a buy & hold that is always fully invested. That comparison mixes what selection earns with what the exposure rule spends and buys. No script builds an exposure-matched benchmark, meaning the universe held at the arm's own daily invested fraction. The only such measurement (2026-09-11, retired data) found that the exposure rule alone gave about 90% of the drawdown reduction. It has not been repeated on current data. Whether the trade is worth making is a risk decision and is not a defect.
 
@@ -109,12 +114,11 @@ Every published gap compares an arm that is partly in cash with a buy & hold tha
 ### v2's smaller drawdown comes mostly from the breadth rule, not from selection
 
 v2 and v1 hold the same selection; v2 scales exposure by breadth and v1 stays
-fully invested. On the 2026-09-27 figures (research, tax off, against the
-reference buy & hold), v2's drawdown is 9.6 to 24.5 points shallower than buy &
-hold's in every universe. v1's is at most 13 points shallower, and on nifty500
-(-47.08 against -41.56) and midcap150 (-40.76 against -37.67) it is deeper than
-buy & hold. The share of v2's advantage that survives at full deployment runs from
--47% (nifty500) to 53% (smallcap250).
+fully invested. On the 2026-10-10 figures (research, tax off, against the
+reference buy & hold), v2's drawdown is 11.6 to 23.9 points shallower than buy &
+hold's in every universe. v1's is at most 5.3 points shallower, and on nifty500
+(-45.24 against -41.56) it is deeper than buy & hold. The share of v2's advantage
+that survives at full deployment runs from -29% (nifty500) to 29% (nifty100).
 
 So the drawdown result is the exposure rule going to cash when breadth falls. It
 also keeps the book partly out of the market in rebounds, which is part of why v2,
@@ -129,9 +133,9 @@ names are never resized and buffer names (ranks 9-16 still held) carry capital
 with no target weight. When the entrants do not fit, the lowest-ranked are
 skipped and logged `cash short (before TC)`.
 
-On the 2026-09-27 figures, the 100%-invested arms skip 98 to 165 buys per run and
-hold a mean of 7.68 to 8.10 names across the eight universes; the breadth-scaled
-arms skip 1 to 8 and hold 9.0 to 10.1. The counts are in every
+On the 2026-10-10 figures (research, tax off), the 100%-invested arms skip 101 to 171
+buys per run and hold a mean of 7.49 to 8.07 names across the eight universes; the
+breadth-scaled arms skip 0 to 8 and hold 9.1 to 10.1. The counts are in every
 `v34_comparison*.csv` (`CashShortSkips`, `MeanNamesHeld`). This is why
 `results/validate_engine.py` fails T1 (mean book below `TOP_N`) on v1.
 
@@ -145,9 +149,10 @@ switching it moves every published figure and must be mirrored in
 ### The held-lots buy & hold is concentration-limited, and midcap50 exceeds the limit
 
 bh_lots_after_tax.py withholds its tax-cost-of-turnover figure when one name
-exceeds 11.62% of the held-lots buy & hold's final value. On the 2026-09-27 outputs
-it withholds on midcap50 only: DIXON is 12.4% of that basket
-(results_midcap50/metrics/BH_LOTS_midcap50_tax.csv). The README's midcap50 gaps
+exceeds 11.62% of the held-lots buy & hold's final value. On the 2026-10-10 outputs
+it withholds on midcap50, where DIXON is 12.4% of that basket
+(results_midcap50/metrics/BH_LOTS_midcap50_tax.csv), and on microcap250, where
+PRIVISCL, a broken price file (README), is 98.4%. The README's midcap50 gaps
 against the investable buy & hold use the same basket and carry no such note, so
 treat them as resting on one name more than the other universes' gaps do. The
 basket holds today's members backfilled to 2019, so a name that rose is in it
@@ -174,13 +179,11 @@ current sensitivity evidence is the cleaned noise test
 
 `--profile tradeable` adds only the participation cap (`profiles.py`). Nothing replays
 the port under it (`profiles.UNGATED_NOTICE`). The figures are in
-`diagnostics/tradeable_tax_all_arms.csv`, tax on, cleaned prices:
-- The cap binds in 10 of 32 cells and changes the CAGR in 7. In nifty100 v1 and
-  midcap50 v1 and v3 it binds without changing the CAGR.
-- Largest changes: smallcap250 v3 -1.87 points (4 binds) and nifty500 v1 -0.98.
-  midcap100 v1 gains +0.43 tax on but loses -0.94 tax off (README). Neither is
-  investigated.
-- Few binds does not mean small cost: 4 binds cost smallcap250 v3 almost two points.
+`diagnostics/tradeable_tax_all_arms.csv`, tax on, on the 2026-10-10 data:
+- The cap binds in 9 of 32 cells and changes the CAGR in all 9.
+- Largest changes: smallcap250 v3 -2.90 points (2 binds) and midcap50 v3 +0.76 (1
+  bind). smallcap250 v3 loses -3.08 tax off. Neither is investigated.
+- Few binds does not mean small cost: 2 binds cost smallcap250 v3 almost three points.
 
 ### The tradeable profile does not cap the opening purchase
 
@@ -220,21 +223,22 @@ records them: `daily_skipped` gives the rupee need for a cash-short skip and no
 quantity. `diagnostics/participation_predicate.csv` is from 2026-09-22, before the
 numerics fix and the cleaning. Run the tradeable profile to find out.
 
-### Tax deductions overdraw cash in 20 of 32 taxed cells, and the overdraft is free
+### Tax deductions overdraw cash in 18 of 32 taxed cells, and the overdraft is free
 
 `results/test_exposure.py` deducts each year's tax without a clamp. Measured with
 `results/overdraft_measure.py` (`diagnostics/overdraft_on_tax_day.txt`), tax on, cadence
-20, both profiles, read-only:
-- Cash goes below zero in the same 20 of 32 cells under each profile: every v1 and v3
-  cell, and v2 and v4 on midcap50 and smallcap250. Each episode starts on an assessment
-  day; a cell spends 4 to 53 sessions below zero in all (median 21.5). The deepest is
-  Rs -5,93,269 (nifty200 v3, 2025-04-01).
+20, both profiles, read-only, on the 2026-10-10 data:
+- Cash goes below zero in the same 18 of 32 cells under each profile: every v1 and v3
+  cell, and v4 on nifty50 and nifty200. Each episode starts on an assessment day; a
+  cell spends 1 to 54 sessions below zero in all (median 20.5). The deepest is
+  Rs -8,09,082 (nifty500 v3, tradeable, 2024-04-01). microcap250 v1 and v3 go below
+  zero too, by up to Rs -10,64,579.
 - While overdrawn the book buys nothing but keeps holding more than its equity, and
   with CASH_YIELD = 0.0 the negative balance costs no interest.
 - Paying the tax instead by selling a pro-rata slice of every holding at the
   assessment day's open, with the usual slippage and charges and the sale's own gain
-  taxed in the next financial year, moves the CAGR by -0.66 (smallcap250 v1 research)
-  to +1.26 points (midcap150 v1), mean -0.04 over the overdrawn cells. The sign varies
+  taxed in the next financial year, moves the CAGR by -0.91 (nifty500 v3 research)
+  to +1.05 points (midcap100 v3 tradeable), mean -0.07 over the overdrawn cells. The sign varies
   because the sale changes which names the later rebalances hold. The published
   figures are the engine's and are unchanged.
 ### Charges use the 2026-04-01 rate table for every fill since 2019; tax is dated
@@ -248,16 +252,25 @@ and the charge figures are not, and nothing in an output says so. The size and
 sign of the error are unknown because the historical rate tables are not in the
 repository. Making charges dated changes every published cost figure.
 
-### Nautilus figures differ from the engine's by up to 1.8%, and on the 100%-invested arms can hold different names
+### Nautilus figures differ from the engine's by up to 6.1%, and on the 100%-invested arms can hold different names
 
-nt_verify gates the port against ARM D on the 0.01 grid, and all 32 cells pass. The
+nt_verify gates the port against ARM D on the 0.01 grid. On the 2026-10-10 data 34 of
+the 36 core cells pass; midcap100 v3 and microcap250 v3 fail, because some
+rebalances hold a different symbol set even against the open-valued baseline. On
+the 0.01 grid the quote-mid rule reproduces every rebalance of both, but nt_verify
+fails a symbol-set difference against the open-valued baseline before it reaches
+that rule. The
 production port fills on the NSE 0.05 grid and the research engine does not round
 prices (README, "The execution layer"). On v1 and v3 a buy is funded whole or skipped.
 So a book a fraction of a percent different can fund a different name at a cash-short
 skip, and that name's return then carries into the equity.
-`diagnostics/nt_verify_all_arms_20260929.txt`: port minus reference final equity is
--1.82% (midcap100 v1) to +1.08% (midcap150 v3). Against the close-valued reference, the
-port holds a different symbol set on 1 or 2 rebalances in 7 cells, all v1 or v3.
+Port minus engine final equity on the 2026-10-10 data (`nautilus/reports/<u>/<arm>/daily_equity.csv`
+against `v34_equity.csv`, research, tax off) is -4.00% (nifty200 v1) to +6.08%
+(midcap100 v3) across the eight universes, and +2.50% on microcap250 v1; 30 of the 36
+cells are within 0.6%. On the previous data
+(`diagnostics/nt_verify_all_arms_20260929.txt`) it was -1.82% (midcap100 v1) to +1.08%
+(midcap150 v3), and the port held a different symbol set from the close-valued
+reference on 1 or 2 rebalances in 7 cells, all v1 or v3.
 `nt_attribution.run` with only `tick_round` changed reproduced both sides of the two
 largest forks on 2026-09-26. A Nautilus figure is not the engine's figure to the rupee.
 
@@ -349,9 +362,12 @@ is what the code follows. It is not an off-by-one-year bug.
 
 `nautilus/nt_verify.py` passes a 0.01-grid difference beyond the one-share signature
 only if the reference valued at the port's quote mid (`mid_valued`) reproduces the
-port's holdings, names and share counts, on every rebalance. All 32 cells verify
-(`diagnostics/nt_verify_all_arms_20260929.txt`): 20 by the one-share signature and 12
-by this rule, none of those 12 with a different set of names. check_all gates all 32.
+port's holdings, names and share counts, on every rebalance. On the previous data all
+32 cells verified (`diagnostics/nt_verify_all_arms_20260929.txt`): 20 by the one-share
+signature and 12 by this rule, none of those 12 with a different set of names. On the
+2026-10-10 data 34 of the 36 gated cells verify; midcap100 v3 and microcap250 v3 do
+not, because they hold a different set of names from the open-valued baseline, which
+nt_verify checks before this rule (see "Nautilus figures differ from the engine's").
 `experiments/CLEANED_NOISE_PREREG.txt`'s report keeps the labels fixed at registration,
 so eight supported cells still read "not port-verified" in `diagnostics/cleaned_noise.txt`.
 
@@ -365,8 +381,10 @@ so eight supported cells still read "not port-verified" in `diagnostics/cleaned_
   validate_breadth_live fails T2 on nifty100. validate_sizing fails 2 of 4 on each, but
   its records date from 2026-09-20. All three are `--slow`, so they do not gate commits.
   No thresholds were changed.
-- TOP_N trial (`diagnostics/topn_verdict.txt`): the incumbent TOP_N=8 is contradicted on
-  both certified universes. Nothing in config changed, and TOP_N=12 is not promoted.
+- TOP_N trial (`diagnostics/topn_verdict.txt`, rewritten by check_all on the 2026-10-10
+  data): the incumbent TOP_N=8 holds on nifty100 and is contradicted on midcap150
+  (2023-2026 Sharpe -0.38). On the previous data it was contradicted on both. Nothing in
+  config changed, and TOP_N=12 is not promoted.
 
 ### Which checks cover which arm
 
@@ -546,7 +564,7 @@ in the window.
 
 ### The price data is not in the repository and can only come from the owner
 
-The pipeline reads `data/raw/Final_Without_Survivorship_Data/`, eight folders and 1,392 CSVs, which is untracked vendor OHLCV. A clone cannot run without a copy from the owner. `check_data.py` compares a copy against the tracked `data/RAW_DATA_SHA256.txt` and fails on any missing, changed or extra file. The files carry vendor columns (`source`, `_window*`, `_dq_score`, `_gap_filled`, `_merged_at`) that show a private merged extract, and no document describes those columns. There is no licence and no fetch script. If the owner's copy is lost, it cannot be rebuilt from this repository.
+The pipeline reads `data/raw/Final_Without_Survivorship_Data/`, nine folders and 1,635 CSVs, which is untracked vendor OHLCV. A clone cannot run without a copy from the owner. `check_data.py` compares a copy against the tracked `data/RAW_DATA_SHA256.txt` and fails on any missing, changed or extra file. The files carry vendor columns (`source`, `_window*`, `_dq_score`, `_gap_filled`, `_merged_at`) that show a private merged extract, and no document describes those columns. There is no licence and no fetch script. If the owner's copy is lost, it cannot be rebuilt from this repository.
 
 `survivorship_attribution.py` also reads `data/raw/Survivorship_Bias/*_membership.csv` and the price files of `Final_With_Survivorship_Data/`. Neither is in the checksum manifest.
 
@@ -560,7 +578,9 @@ On the 2026-10-10 delivery no price file in the nine universes has a row on a da
 
 2020-01-07 was a real NSE session and the calendar keeps it. The supplier's delivery of 2026-10-10 has no row for that date in any price file: all 368 names whose history spans it lost the row, against 1,076 rows across the eight universes' files in the previous delivery. The data is not edited and no row is created.
 
-The panel takes its dates from the rows, so it skips the session. The backtest window has one session fewer, and because rebalances fall on every twentieth session of the window, every rebalance after 2020-01-07 lands one session later than it did on the previous data. Every published figure moves for this reason alone.
+The panel takes its dates from the rows, so it skips the session. The backtest window has one session fewer, and because rebalances fall on every twentieth session of the window, every rebalance after 2020-01-07 lands one session later than it did on the previous data.
+
+It is not the only change. Three earlier sessions also have no row in any file of the delivery: 2016-07-06, 2017-04-04 and 2017-12-02, which had rows in 493, 384 and 81 of the eight universes' files before. They are in the model's training history and in the rolling feature windows, so the scores differ from the first rebalance: on 2019-01-01 nifty50's scores moved by up to 0.030 and one of its top eight names changed (TCS out, GRASIM in). Holdings differ from the first rebalance in each of the three cells compared (nifty50 v2, nifty100 v4, smallcap250 v1). The two effects together moved every published figure; which of the two moved each cell more has not been separated.
 
 No guard stops it. `_check_calendar` (`results/engine_core.py`) tests only dates the calendar removes. `engine_core.thin_sessions` reports the other direction: `run.py` prints every calendar session inside the window where fewer than half of the names spanning it have a row, and writes them to the run folder's RUN.txt. It reports and changes nothing. On the 2026-10-10 data it lists 2020-01-07 alone, at 0% in every universe.
 
@@ -605,13 +625,19 @@ Where `Universe.prepare_data_dir` cannot hard-link a raw file, it copies it with
 leave a stale copy in the farm. `config.data_fingerprint` reports such a copy as coming
 from `raw_data_dir` (config.py:549). Hard links, the normal case, cannot go stale.
 
-### Artefacts computed on uncleaned prices sit beside current ones, and GATE 8 passes them
+### Artefacts computed on earlier data sit beside current ones, and GATE 8 fails their params files
 
-The published figures are the 2026-09-27 republish on cleaned prices. Many older
-outputs remain in results_*/metrics/: 51 of 88 v34_params*.json files, and 457
-files in all, predate 2026-09-27 (arm subsets, other cadences, tradeable runs).
-Their data_source digest matches the current one, because the cleaning happens at
-load and the raw files did not change, so GATE 8 cannot tell them apart. Check
+The published figures are the 2026-10-10 republish. Older outputs remain in
+results_*/metrics/: on 2026-10-10, 1,349 of 3,835 files predate the rebuild (arm
+subsets, other cadences, the v5/v6 drawdown-stop runs). Until 2026-10-10 the raw files
+had not changed since the repoint, so GATE 8 could not tell an older params file from
+a current one. The 2026-10-10 delivery changed every raw file, so GATE 8 now fails
+every v34_params*.json and v34_stop_params*.json not rewritten since: 41 of 77, of which
+32 are the v5/v6 files of the drawdown-stop measurement (not re-run, being fixed by its
+pre-registration) and 9 come from one-off arm-subset and cadence runs
+(midcap100 v4_tax; midcap150 and smallcap250 r30; midcap50 v1_r15_tradeable_tax and
+v2; nifty100 v1_v3_tradeable_tax; nifty50 v2_tax, v3_tradeable_tax and v4_r30). Files
+other than params, such as their charts and daily logs, are checked by no gate. Check
 run_date in the params file before quoting any figure. diagnostics/ has the same
 problem: SUPERSEDED_20260927.txt names ten files, 35 pre-repoint files carry a
 "PRE-REPOINT DIAGNOSTIC" header, and seed_noise.txt, drawdown_exit.txt,
@@ -852,8 +878,8 @@ scripts that were merged, not renamed; no file of the new-tag spelling ever exis
 ### Old names and an old window left in place on purpose
 
 - `topn_test.py` cuts the window with engine_core's integer years (`BT_START`,
-  `BT_END`, topn_test.py:97), so it runs to 2026-06-08 (1,842 sessions) instead of the
-  pipeline's 2026-05-29 (1,836). It carries a pre-registered accept rule, so changing
+  `BT_END`, topn_test.py:97), so it runs to 2026-06-08 (1,842 sessions on the previous
+  data, 1,841 on the 2026-10-10 delivery) instead of the pipeline's 2026-05-29 (1,835). It carries a pre-registered accept rule, so changing
   what it measures is the owner's decision. jackknife had the same defect and was fixed.
 - Comments and docstrings still name deleted files where they describe what that file
   did (`engine_v2_final_mid.py`, `make_n100_chart.py`, ...). None of these can be run.

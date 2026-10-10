@@ -808,7 +808,8 @@ _NIFTY50 = Universe(
         # which is a mid-series value, so unlike midcap150's and nifty100's rows
         # there is no base-date reading in this file to verify a methodology
         # against. Stating one would be repeating NSE's documentation rather than
-        # checking it. The file carries 6,627 rows, 03-01-2000..26-08-2026.
+        # checking it. On the 2026-10-10 delivery the file carries 6,612 rows,
+        # 03-01-2000..06-08-2026.
         index_file=_NIFTY50_SOURCE / f"{_NIFTY50_INDEX}.csv",
         year_range=None, date_range=(config.BT_START_DATE, config.BT_END_DATE),
         display_name="NIFTY 50",
@@ -921,7 +922,7 @@ _MIDCAP50 = Universe(
         # THE PUBLISHED CAP-WEIGHTED INDEX. Benchmark only, never a tradable
         # name. NO BASE VALUE IS CLAIMED: the file begins 01-01-2004, a
         # mid-series value, so like nifty50's row there is no base-date reading
-        # here to check a methodology against. 5,589 rows, 01-01-2004..06-08-2026.
+        # here to check a methodology against. 5,588 rows, 01-01-2004..06-08-2026.
         index_file=_MIDCAP50_SOURCE / f"{_MIDCAP50_INDEX}.csv",
         year_range=None, date_range=(config.BT_START_DATE, config.BT_END_DATE),
         display_name="NIFTY MIDCAP 50",
@@ -1045,7 +1046,7 @@ _MIDCAP100 = Universe(
         # THE PUBLISHED CAP-WEIGHTED INDEX. Benchmark only, never a tradable
         # name. NO BASE VALUE IS CLAIMED: the file begins 01-01-2001, a
         # mid-series value, so like midcap50's row there is no base-date
-        # reading here to check a methodology against. 6,362 rows,
+        # reading here to check a methodology against. 6,361 rows,
         # 01-01-2001..06-08-2026.
         index_file=_MIDCAP100_SOURCE / f"{_MIDCAP100_INDEX}.csv",
         year_range=None, date_range=(config.BT_START_DATE, config.BT_END_DATE),
@@ -1163,7 +1164,7 @@ _NIFTY200 = Universe(
         index_name=_NIFTY200_INDEX,
         # THE PUBLISHED CAP-WEIGHTED INDEX. Benchmark only, never a tradable
         # name. NO BASE VALUE IS CLAIMED: the file begins 01-01-2004, a
-        # mid-series value. 5,610 rows, 01-01-2004..06-08-2026.
+        # mid-series value. 5,609 rows, 01-01-2004..06-08-2026.
         index_file=_NIFTY200_SOURCE / f"{_NIFTY200_INDEX}.csv",
         year_range=None, date_range=(config.BT_START_DATE, config.BT_END_DATE),
         display_name="NIFTY 200",
@@ -1267,7 +1268,7 @@ _SMALLCAP250 = Universe(
         index_name=_SMALLCAP250_INDEX,
         # THE PUBLISHED CAP-WEIGHTED INDEX. Benchmark only, never a tradable
         # name. NO BASE VALUE IS CLAIMED: the file begins 01-04-2005, a
-        # mid-series value. 5,295 rows, 01-04-2005..06-08-2026.
+        # mid-series value. 5,294 rows, 01-04-2005..06-08-2026.
         index_file=_SMALLCAP250_SOURCE / f"{_SMALLCAP250_INDEX}.csv",
         year_range=None, date_range=(config.BT_START_DATE, config.BT_END_DATE),
         display_name="NIFTY SMALLCAP 250",
@@ -1361,8 +1362,8 @@ _NIFTY500 = Universe(
         index_name=_NIFTY500_INDEX,
         # THE PUBLISHED CAP-WEIGHTED INDEX. Benchmark only, never a tradable
         # name. NO BASE VALUE IS CLAIMED: the file begins 03-01-2000, a
-        # mid-series value. 6,612 rows, 03-01-2000..06-08-2026 -- the longest
-        # index series of the eight.
+        # mid-series value. 6,612 rows, 03-01-2000..06-08-2026 -- with nifty50's,
+        # the longest index series of the nine.
         index_file=_NIFTY500_SOURCE / f"{_NIFTY500_INDEX}.csv",
         year_range=None, date_range=(config.BT_START_DATE, config.BT_END_DATE),
         display_name="NIFTY 500",
