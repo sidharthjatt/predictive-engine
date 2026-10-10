@@ -65,6 +65,25 @@ measures sensitivity. Across a cell's ten draws CAGR spreads over 1.8 to 12.4 po
 (median 5.3), and a live result should be expected to differ from the published one by
 that much. The registration carries a dated addendum saying so; its verdicts stand.
 
+### microcap250's rows in the tracked tables are invalid
+
+microcap250's results are withheld until PRIVISCL's price data is corrected (README,
+"microcap250: results withheld"). Until the data is corrected and the universe is
+rerun, its rows in these tracked files are invalid and are not to be quoted:
+
+- `diagnostics/impact_sweep_microcap250_v1.csv`
+- `diagnostics/impact_sweep_microcap250_v2.csv`
+- `diagnostics/impact_sweep_microcap250_v3.csv`
+- `diagnostics/impact_sweep_microcap250_v4.csv`
+- `diagnostics/cells_20261010.csv`
+- `diagnostics/tax_on_all_arms.csv`
+- `diagnostics/tradeable_tax_all_arms.csv`
+- `diagnostics/overdraft_on_tax_day.csv`
+- `diagnostics/overdraft_on_tax_day.txt`
+- `diagnostics/selection_margin_20261010.csv`
+
+The scripts wrote these rows; they were not edited by hand.
+
 ### Survivorship bias is not removed
 
 Every universe is today's index members applied back to 2019. The work to remove the
@@ -259,8 +278,9 @@ the 32 core cells of the eight universes pass; midcap100 v3 fails, because some
 rebalances hold a different symbol set even against the open-valued baseline. On
 the 0.01 grid the quote-mid rule reproduces every rebalance, but nt_verify fails a
 symbol-set difference against the open-valued baseline before it reaches that rule.
-microcap250's four cells are gated too; its results are withheld (README). The
-production port fills on the NSE 0.05 grid and the research engine does not round
+microcap250 v3 also holds different names (the baseline buys FINPIPE on 2020-02-19 and
+the port does not). Both cells are in `check_all.NT_VERIFY_UNGATED`, with the reason
+(see "midcap100 v3 and microcap250 v3 are not gated in nt_verify"). The production port fills on the NSE 0.05 grid and the research engine does not round
 prices (README, "The execution layer"). On v1 and v3 a buy is funded whole or skipped.
 So a book a fraction of a percent different can fund a different name at a cash-short
 skip, and that name's return then carries into the equity.
@@ -370,6 +390,43 @@ nt_verify checks before this rule (see "Nautilus figures differ from the engine'
 `experiments/CLEANED_NOISE_PREREG.txt`'s report keeps the labels fixed at registration,
 so eight supported cells still read "not port-verified" in `diagnostics/cleaned_noise.txt`.
 
+### midcap100 v3 and microcap250 v3 are not gated in nt_verify
+
+Both are listed in `check_all.NT_VERIFY_UNGATED`, with the reason, since 2026-10-10.
+Neither the port nor the rule was changed.
+
+- **midcap100 v3** holds different names from the open-valued baseline. The first
+  fork is on 2024-10-23: the port buys 87 POWERINDIA, the baseline 1,175 TATAINVEST.
+  At the previous rebalance, 2024-09-24, the two books held the same names, the port
+  1 to 3 shares lower on four of them. That difference comes from close-against-open
+  valuation and the 0.05 tick grid; with slightly less cash, a different entrant was
+  funded at the cash-short skip. Names then differ on 7 of 92 rebalances, and the
+  port-minus-engine equity gap grows from +1.6% before the fork to +6.08% at the end.
+  The prices did not change from the previous delivery; the four sessions it dropped
+  moved every score and every rebalance date, so the cash-short skips fall elsewhere.
+- **microcap250 v3**: microcap250's results are withheld until PRIVISCL's price data is
+  corrected (README, "microcap250: results withheld"). Its other three cells stay gated.
+
+### v5 and v6 are not gated, and every v5/v6 figure is from the previous data delivery
+
+Both arms are rejected and outside `--arm all`. Since 2026-10-10 none of their 16
+nt_verify cells is gated in `check_all.py`. On the previous delivery the port verified
+9 of the 16; the engine's v5/v6 files were not rebuilt on the 2026-10-10 data, so
+those 9 no longer pass. Every v5/v6 figure in the README, in
+`experiments/DRAWDOWN_STOP_RESULT.txt` and in `experiments/EXPERIMENTS.md` was measured
+on the previous delivery.
+
+### Two checks were not rerun on the 2026-10-10 data
+
+- The calendar coverage probe (`experiments/CALENDAR_DECOUPLE_SPEC.txt`) no longer
+  applies. It examines dates the calendar excludes, and the 2026-10-10 data has none.
+  `diagnostics/calendar_coverage_probe.txt` is from the previous delivery.
+- The drawdown-exit measurement (`results/drawdown_exit_measure.py`, experiments
+  entries 33 to 35) was not rerun. Its patch anchor named REBAL matches nothing in
+  `backtest_exposure`, which changed with the v5/v6 stop, and the script aborts rather
+  than patch a different line. The anchor has to be re-derived before it can run.
+  `diagnostics/drawdown_exit.txt` is from earlier data.
+
 ### Gates loosened or failing after the cleaning, accepted by the owner 2026-09-27
 
 - `verify_v34_arms.ONE_SHARE_TOLERATED` (verify_v34_arms.py:107) lets midcap150 v1, v2
@@ -390,7 +447,8 @@ so eight supported cells still read "not port-verified" in `diagnostics/cleaned_
 All four arms, all eight universes:
 - GATE 9 (`check_b_exec_timing`, leakage checks 1 and 2), GATE 6 and GATE 7 tax.
 - `tax_report.py`, `bh_lots_after_tax.py`, `cost_reconcile_check.py`.
-- `nautilus/nt_verify.py`: 32 of 32 gated.
+- `nautilus/nt_verify.py`: 34 of the 36 cells of the nine universes are gated;
+  midcap100 v3 and microcap250 v3 are not (see below). No v5 or v6 cell is gated.
 - The cleaned after-tax noise test (`results/noise_parallel.py`).
 
 All four arms, nifty100 and midcap150 only: `verify_v34_arms.py`, with the one-share
@@ -571,7 +629,7 @@ The pipeline reads `data/raw/Final_Without_Survivorship_Data/`, nine folders and
 
 `data/nse_trading_calendar.csv` is tracked and filters every panel (`results/engine_core._load_calendar`, `_check_calendar`). It was built once from a retired universe's raw files by `results/make_trading_calendar.py`. Both the script and the files were deleted in 2fe48ff. The calendar ends on 2026-06-08, and nothing in the repository appends to it. Any data past that date needs a new source of sessions, and that source has not been chosen. Do not hand-edit it: a wrong tail changes every backtest window.
 
-On the 2026-10-10 delivery no price file in the nine universes has a row on a date the calendar lacks. The previous delivery carried 237 such dates, 107 of them inside the backtest window, and the supplier removed them. The union of every file's dates is now the calendar minus four sessions that no file has a row for: 2016-07-06, 2017-04-04, 2017-12-02 and 2020-01-07, the only one inside the backtest window (see the entry below). A calendar derived from today's files would drop those four. The finding that no coverage threshold reproduces the calendar on nifty100 or midcap150 (`experiments/CALENDAR_DECOUPLE_SPEC.txt`, marked BLOCKED; `diagnostics/calendar_coverage_probe.txt`) was measured on the previous delivery. On the 2026-10-10 data the probe stops with IndexError before writing its report, because there is no calendar-excluded date for it to examine. No external NSE holiday list has been checked against the calendar.
+On the 2026-10-10 delivery no price file in the nine universes has a row on a date the calendar lacks. The previous delivery carried 237 such dates, 107 of them inside the backtest window, and the supplier removed them. The union of every file's dates is now the calendar minus four sessions that no file has a row for: 2016-07-06, 2017-04-04, 2017-12-02 and 2020-01-07, the only one inside the backtest window (see the entry below). A calendar derived from today's files would drop those four. The finding that no coverage threshold reproduces the calendar on nifty100 or midcap150 (`experiments/CALENDAR_DECOUPLE_SPEC.txt`, marked BLOCKED; `diagnostics/calendar_coverage_probe.txt`) was measured on the previous delivery. The probe no longer applies: the 2026-10-10 data has no calendar-excluded date for it to examine, and on this data it stops with IndexError before writing a report. No external NSE holiday list has been checked against the calendar.
 
 ### The 2026-10-10 delivery has no row for 2020-01-07, so every rebalance after it moves one session later
 
@@ -624,26 +682,25 @@ Where `Universe.prepare_data_dir` cannot hard-link a raw file, it copies it with
 leave a stale copy in the farm. `config.data_fingerprint` reports such a copy as coming
 from `raw_data_dir` (config.py:549). Hard links, the normal case, cannot go stale.
 
-### Artefacts computed on earlier data sit beside current ones, and GATE 8 fails their params files
+### Older outputs were deleted on 2026-10-10; diagnostics/ still carries older records
 
-The published figures are the 2026-10-10 republish. Older outputs remain in
-results_*/metrics/: on 2026-10-10, 1,349 of 3,835 files predate the rebuild (arm
-subsets, other cadences, the v5/v6 drawdown-stop runs). Until 2026-10-10 the raw files
-had not changed since the repoint, so GATE 8 could not tell an older params file from
-a current one. The 2026-10-10 delivery changed every raw file, so GATE 8 now fails
-every v34_params*.json and v34_stop_params*.json not rewritten since: 41 of 77, of which
-32 are the v5/v6 files of the drawdown-stop measurement (not re-run, being fixed by its
-pre-registration) and 9 come from one-off arm-subset and cadence runs
-(midcap100 v4_tax; midcap150 and smallcap250 r30; midcap50 v1_r15_tradeable_tax and
-v2; nifty100 v1_v3_tradeable_tax; nifty50 v2_tax, v3_tradeable_tax and v4_r30). Files
-other than params, such as their charts and daily logs, are checked by no gate. Check
-run_date in the params file before quoting any figure. diagnostics/ has the same
-problem: SUPERSEDED_20260927.txt names ten files, 35 pre-repoint files carry a
-"PRE-REPOINT DIAGNOSTIC" header, and seed_noise.txt, drawdown_exit.txt,
-purge_fix_measure.txt, shuffle_n100.txt, shuffle_mid.txt and topn_{mid,n100}.txt are
-pre-repoint and carry no marking. rebal_cadence_sweep.txt, shuffle_verdict.txt,
-shuffle_{nifty100,midcap150}.txt and topn_verdict.txt were rewritten on the 2026-10-10
-data.
+The published figures are the 2026-10-10 republish. On that date every untracked
+output older than the rebuild was deleted: the 1,898 paths listed in
+`runs/STALE_OUTPUTS_20261010.txt` (ignored by git), 7,921 files in all. They were the
+v5/v6 drawdown-stop runs, the one-off arm-subset and cadence runs, older combined
+charts and run folders, and the 41 v34_params*.json and v34_stop_params*.json files
+GATE 8 failed because they predated the delivery. None was tracked. Files other than
+params, such as charts and daily logs, are checked by no gate, so an output written
+later from an older run would not be caught; check run_date in the params file before
+quoting any figure.
+
+diagnostics/ has the same problem: SUPERSEDED_20260927.txt names ten files, 35
+pre-repoint files carry a "PRE-REPOINT DIAGNOSTIC" header, and seed_noise.txt,
+drawdown_exit.txt, purge_fix_measure.txt and topn_{mid,n100}.txt are pre-repoint and
+carry no marking. shuffle_n100.txt and shuffle_mid.txt were removed on 2026-10-10;
+shuffle_{nifty100,midcap150}.txt replace them. rebal_cadence_sweep.txt,
+shuffle_verdict.txt, shuffle_{nifty100,midcap150}.txt and topn_verdict.txt were
+rewritten on the 2026-10-10 data.
 
 ### Most files in diagnostics/ describe panels that no longer exist
 

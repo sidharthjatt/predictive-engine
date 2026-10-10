@@ -84,11 +84,11 @@ v1's by more than the band in 7 of 24 cells (18 needed), its Calmar higher in 6
 v5 and v6 stay out of `--arm all`; they run only when selected by name, and write
 companion `v34_stop_*` files.
 
-On the previous data the Nautilus port verified 9 of the 16 v5/v6 cells (research,
-tax off); on the 2026-10-10 panels those 9 fail too, because the engine's v5/v6 files
-were not rebuilt. The other 7 are not gated in `check_all.py`: the port and the engine agree on every exit and
-re-entry date, but holdings differ by one or two shares in ways the port check
-does not explain, and the cause has not been found (`check_all.NT_VERIFY_UNGATED`).
+Every v5 and v6 figure, including the Nautilus port check, was measured on the
+previous data delivery. On that data the port verified 9 of the 16 v5/v6 cells
+(research, tax off). Since 2026-10-10 no v5/v6 cell is gated in `check_all.py`:
+both arms are rejected and outside `--arm all`, and their engine files were not
+rebuilt on the new data.
 
 Each run writes one folder, `runs/<timestamp>_<universe>_<arm>_r<cadence>/`, holding
 `run.log`, the day-by-day log (`DAILY_LOG_*.txt`), the CSVs (daily holdings, trades,

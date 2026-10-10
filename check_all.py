@@ -176,32 +176,28 @@ LIVE_LIKE = (
     "results/leakage_check2_trading_purge.py",
 )
 
-# nt_verify cells that do not verify and so are not in DELEGATES. The 12 core-arm
-# cells listed here on 2026-09-27 have verified since 2026-09-29 under nt_verify's
-# quote-mid valuation rule (pass I; KNOWN_ISSUES.md).
+# nt_verify cells that do not verify and so are not in DELEGATES, each with the
+# reason. The 12 core-arm cells listed here on 2026-09-27 have verified since
+# 2026-09-29 under nt_verify's quote-mid valuation rule (pass I; KNOWN_ISSUES.md).
 #
-# THE 7 STOP-ARM CELLS BELOW FAIL, 2026-10-03, measured twice, the second time with
-# nothing else running. On each, the port and the reference agree on every exit and
-# re-entry date; the largest daily equity gap is 0.13% to 1.73%. What differs is
-# holdings on the 0.01 grid, by one or two shares, in a way neither the one-share
-# floor signature nor the quote-mid rule explains. Traced on two cells:
-#   midcap50 v5   one share lower on two symbols at once, 2 rebalances: the floor,
-#                 but on two symbols, which the signature does not excuse.
-#   midcap100 v5  one share lower before the first exit, as for the core arms; one
-#                 to two shares HIGHER on all 34 rebalances that differ after the
-#                 first re-entry.
-#                 The port's exit and re-entry accounting differs from the
-#                 reference's by a small amount that has not been found.
-# The other five are not traced. Not tolerated; not gated. The verdict of the
-# measurement comes from the engine and does not read the port.
+# midcap100 v3, 2026-10-10 data. The port and the open-valued baseline first hold
+# different names on 2024-10-23: the port buys 87 POWERINDIA, the baseline 1,175
+# TATAINVEST. At the previous rebalance, 2024-09-24, both held the same names, the
+# port one to three shares lower on four of them, from close-against-open
+# valuation and the 0.05 tick grid; with slightly less cash, a different entrant
+# was funded at the cash-short skip. Names then differ on 7 of 92 rebalances, and
+# the port-minus-engine equity gap grows from +1.6% before the fork to +6.08% at
+# the end. Neither the port nor the rule was changed.
+#
+# microcap250 v3. Its results are withheld until PRIVISCL's price data is
+# corrected (README, "microcap250: results withheld"), so its verdict is not
+# gated. Its other three cells stay gated.
+#
+# v5 and v6 are rejected and outside --arm all, so none of their 16 cells is
+# gated; every v5/v6 figure was measured on the previous data delivery.
 NT_VERIFY_UNGATED = (
-    ("midcap150", "v6", "7 rebalances unexplained on the 0.01 grid"),
-    ("midcap50", "v5", "2 rebalances with a one-share floor on two symbols at once"),
-    ("midcap50", "v6", "2 rebalances unexplained on the 0.01 grid"),
-    ("midcap100", "v5", "34 rebalances; port 1 to 2 shares higher after the first re-entry"),
-    ("midcap100", "v6", "4 rebalances unexplained on the 0.01 grid"),
-    ("nifty200", "v6", "3 rebalances unexplained on the 0.01 grid"),
-    ("nifty500", "v5", "4 rebalances unexplained on the 0.01 grid"),
+    ("midcap100", "v3", "holds different names from the open-valued baseline on 7 of 92 rebalances from 2024-10-23"),
+    ("microcap250", "v3", "results withheld until PRIVISCL's price data is corrected"),
 )
 
 DELEGATES = (
@@ -261,7 +257,8 @@ DELEGATES = (
     # 20 by the one-share signature, 12 by the quote-mid valuation rule added to
     # nt_verify that day (pass I). On 2026-09-27 20 of 32 did; on 2026-09-26, before
     # the cleaning, 16. The cells are named so that a cell cannot leave the gate
-    # without an edit that shows in a diff.
+    # without an edit that shows in a diff. On the 2026-10-10 data 34 of the 36
+    # cells are gated; the other 2 are in NT_VERIFY_UNGATED above, with the reason.
     *[("nautilus/nt_verify.py", [f"--universe={t}"] + ([] if a == "v2" else [f"--arm={a}"]),
        False, None)
       for t, a in (("nifty100", "v1"), ("nifty100", "v2"), ("nifty100", "v3"), ("nifty100", "v4"),
@@ -273,14 +270,7 @@ DELEGATES = (
                    ("smallcap250", "v1"), ("smallcap250", "v2"), ("smallcap250", "v3"), ("smallcap250", "v4"),
                    ("nifty500", "v1"), ("nifty500", "v2"), ("nifty500", "v3"), ("nifty500", "v4"),
                    ("microcap250", "v1"), ("microcap250", "v2"), ("microcap250", "v3"),
-                   ("microcap250", "v4"))],
-    # THE STOP ARMS, v5 AND v6, research, tax off. Added 2026-10-03 with the stage-5
-    # measurement of experiments/DRAWDOWN_STOP_PREREG.txt. 9 of the 16 cells verify
-    # and are gated here; the other 7 are in NT_VERIFY_UNGATED above, with the reason.
-    *[("nautilus/nt_verify.py", [f"--universe={t}", f"--arm={a}"], False, None)
-      for t, a in (("nifty100", "v5"), ("nifty100", "v6"), ("midcap150", "v5"),
-                   ("nifty50", "v5"), ("nifty50", "v6"), ("nifty200", "v5"),
-                   ("smallcap250", "v5"), ("smallcap250", "v6"), ("nifty500", "v6"))
+                   ("microcap250", "v4"))
       if (t, a) not in {(u, x) for u, x, _ in NT_VERIFY_UNGATED}],
 
     # SLOW. validate_engine.py iterates the certified universes inside one run,

@@ -3946,7 +3946,7 @@ is recorded once, as a state of the record, rather than as a list of tasks.
 | entry | what it established | superseded diagnostics |
 |---|---|---|
 | **27** TOP_N revalidation | TOP_N=8 NOT CONTRADICTED, 6 of 6 criteria | `topn_n100.txt`, `topn_mid.txt`, `topn_verdict.txt` |
-| **28** Shuffle test | 0 of 100 permutations beat the real arm, p = 0.0099 | `shuffle_n100.txt`, `shuffle_mid.txt`, `shuffle_verdict.txt` |
+| **28** Shuffle test | 0 of 100 permutations beat the real arm, p = 0.0099 | `shuffle_n100.txt`, `shuffle_mid.txt` (both removed 2026-10-10; in git history), `shuffle_verdict.txt` |
 | **29** Seed noise floor | sd 0.97–2.14 CAGR at K=10; sigma(K) exponent −0.15 to −0.25 | `seed_noise.txt` |
 | **C** Breadth live validation | 3 of 3 gated criteria PASS on both universes | `breadth_live_n100.txt`, `breadth_live_mid.txt` |
 
