@@ -192,7 +192,10 @@ def main(u):
 
         bh_eq,bh_tx,det=bh_lots(px,op,bd)
         bh_last=det["eq_last_day"]
-        bh_pub=START_CAPITAL*(1+px.pct_change().loc[bd].mean(axis=1).fillna(0)).cumprod()
+        # The basket: every name in static mode, the members on bd[0] in pit mode.
+        import survivorship as _sv, engine_core as _ec
+        bh_pub=START_CAPITAL*(1+_sv.buyhold_prices(px,bd[0],_ec.MEMBERSHIP)
+                              .pct_change().loc[bd].mean(axis=1).fillna(0)).cumprod()
 
         # SINCE 2026-09-25 NOTHING IS SETTLED HERE. The engine settles the last,
         # partial financial year in-loop on the final session (tax_util.Ledger

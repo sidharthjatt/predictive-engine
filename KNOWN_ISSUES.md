@@ -98,8 +98,14 @@ and some excluded names are still listed in the same row. The owner decided on
 membership until the next row. Every pit run writes the verdict, the members it could
 not price and the look-ahead note into its run.log, RUN.txt and params JSON.
 - Residual survivorship. Members in the window with no with-survivorship price file
-  cannot be held. Measured 2026-10-10: nifty50 1 of 56 (IBULHSGFIN, dropped), nifty100
-  3 of 125 (HDFC and PEL dropped, LTM current). HDFC merged into HDFCBANK in 2023.
+  cannot be held. Measured 2026-10-10, as members with no price file of members in the
+  window: nifty50 1 of 56, nifty100 3 of 125, nifty200 10 of 248, nifty500 39 of 641,
+  midcap50 5 of 97, midcap100 9 of 166, midcap150 17 of 220, smallcap250 38 of 412,
+  microcap250 18 of 320 (README, "Point-in-time (pit) results"; names in each pit
+  run's RUN.txt). "Current" means in the file's last row (September 2026), so it
+  includes names listed after the window (MEESHO, ICICIAMC) and NSE placeholder
+  tickers (DUMMYHEG, DUMMYINGL1 and others). Some are mergers: HDFC merged into
+  HDFCBANK in 2023.
 - Look-ahead. The symbols column reads like today's list edited backwards (the 2018
   and 2019 Nifty 50 rows list JIOFIN, listed in 2023), so a later member can be
   eligible early.
@@ -108,8 +114,12 @@ not price and the look-ahead note into its run.log, RUN.txt and params JSON.
   2019, so the window is the static one. The pit buy & hold holds the members on the
   first pit rebalance. A pit figure is to be reported beside static over the same
   window.
-- Run so far on nifty50 and nifty100 only (stage 1). The other seven universes have
-  not been run in pit mode.
+- Run on all nine universes, four settings each, on 2026-10-10
+  (`diagnostics/pit_vs_static_20261010.csv`, `results/pit_compare.py`). Tax-on pit CAGR
+  is above static in 12 of 36 research cells (nifty500 and smallcap250 on all four
+  arms, midcap100 v1, v3 and v4, nifty200 v3). Not investigated beyond one cell: on
+  nifty500 v1 the names only the pit universe holds account for Rs 2.4 lakh of the
+  Rs 2.78 crore profit.
 
 ### Pit cells are not covered by nt_verify
 
@@ -131,8 +141,11 @@ files.
 ### VIJAYA has no with-survivorship price file
 
 VIJAYA is in the without-survivorship folders of nifty500 and smallcap250 and in
-neither with-survivorship folder. A pit run of those universes cannot hold it; where
-it is a member it is counted in the run's residual survivorship.
+neither with-survivorship folder. Those two membership files list VIJAYABANK, not
+VIJAYA, in their current rows, and there is no VIJAYABANK price file either, so pit
+runs count VIJAYABANK as a current member with no price file. Which company the
+files mean by VIJAYABANK has not been checked; it is not one of the 15 validated
+renames.
 
 ### The rank-8/rank-9 boundary is thin on every universe
 
@@ -933,6 +946,23 @@ Citing by symbol name (`test_exposure.backtest_exposure`, the `invest_val`
 assignment) does not have this failure. Pre-registrations under `experiments/`
 keep their original line numbers on purpose: they record what was true when they
 were written.
+
+### Four tracked tables have no tracked writer
+
+Every other tracked table can be rebuilt from tracked code (checked 2026-10-10).
+These four cannot, and are kept as records, not rebuilt:
+- `diagnostics/INVENTORY.csv`: a listing of every file in the repository, made once
+  on 2026-09-17 by a command that was not saved.
+- `diagnostics/four_arm_noise_runs.csv`: written by `results/noise_parallel.py
+  analyse` as it stood from 50280df (2026-09-26) to 5fcdc0d (2026-09-27). 5fcdc0d
+  turned the harness into the cleaned-price test, which no longer writes it. The
+  writer is in git history only (`git show 50280df:results/noise_parallel.py`).
+- `diagnostics/tax_on_all_arms_uncleaned_20260927.csv` and
+  `diagnostics/tradeable_tax_all_arms_uncleaned_20260927.csv`: the outputs of
+  `results/tax_on_all_arms.py` and `results/tradeable_tax_grid.py` on the prices
+  before the 2026-09-27 cleaning, renamed by hand in b39b513. The scripts are tracked
+  and write only the undated names, and the uncleaned panels they read no longer
+  exist.
 
 ### A file that nothing imports or runs is not necessarily dead
 

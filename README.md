@@ -463,6 +463,99 @@ reference index from 95.35% to 27.89%. The arms moved less: research tax-on v1 f
 delivery to compare with. 102 of its 241 names have no row before 2019-01-01 and 83
 none before 2021-01-01, so the early part of the window ranks fewer names.
 
+### Point-in-time (pit) results, 2026-10-10: every universe, arm and profile
+
+Produced by `run.py --survivorship pit` (four settings per universe: research and
+tradeable, tax off and on, arms v1 to v4, cadence 20) and compared with the static runs
+above by `results/pit_compare.py`; every row, both profiles, is in
+`diagnostics/pit_vs_static_20261010.csv`. Every figure is one run (n=1). The static
+figures above are unchanged.
+
+**Read every pit figure with these three caveats.**
+
+- **Validator verdict: FAIL on all nine membership files.** Inclusions and exclusions
+  disagree with the symbols column, and some excluded names are still listed in the
+  same row. The files are used as delivered by the owner's decision of 2026-10-10.
+- **Residual survivorship.** Members in the window that have no with-survivorship
+  price file could not be held, so some bias remains (count per universe below;
+  names in each run's RUN.txt).
+- **Look-ahead.** The symbols column reads like today's member list edited backwards
+  (the 2018 and 2019 Nifty 50 rows list JIOFIN, listed in 2023, and TRENT, BEL, INDIGO
+  and MAXHEALTH, which joined in 2024 and 2025). Used as membership, it makes some later
+  members eligible early.
+
+| universe | window | verdict | members with no price file (dropped, current) |
+|---|---|---|---|
+| nifty50 | 2019-01-01 to 2026-05-29 | FAIL | 1 of 56 (1, 0) |
+| nifty100 | 2019-01-01 to 2026-05-29 | FAIL | 3 of 125 (2, 1) |
+| nifty200 | 2019-01-01 to 2026-05-29 | FAIL | 10 of 248 (7, 3) |
+| nifty500 | 2019-01-01 to 2026-05-29 | FAIL | 39 of 641 (32, 7) |
+| midcap50 | 2019-01-01 to 2026-05-29 | FAIL | 5 of 97 (4, 1) |
+| midcap100 | 2019-01-01 to 2026-05-29 | FAIL | 9 of 166 (7, 2) |
+| midcap150 | 2019-01-01 to 2026-05-29 | FAIL | 17 of 220 (15, 2) |
+| smallcap250 | 2019-01-01 to 2026-05-29 | FAIL | 38 of 412 (34, 4) |
+| microcap250 | 2021-10-29 to 2026-05-29 | FAIL | 18 of 320 (5, 13) |
+
+microcap250's membership file starts on 2021-10-29, so its pit window starts there,
+and its static figures below are the static run's curves cut to that window (not a
+run started there). Its with-survivorship prices also come from a different source
+(KNOWN_ISSUES.md). For the other eight the windows are the same.
+
+`research` profile. CAGR% and MaxDD%, static -> pit. Buy & hold is the investable
+held-lots basket, taxed, headline; in pit it holds the members on the first pit
+rebalance. Gap is the tax-on headline CAGR minus that buy & hold. **bold** marks an
+arm that beats buy & hold in static but not in pit.
+
+| universe | arm | tax off: CAGR% | tax off: MaxDD% | tax on: CAGR% | pit buy & hold | gap, static | gap, pit |
+|---|---|---|---|---|---:|---:|---:|
+| nifty50 | v1 | 20.90 -> 16.66 | -36.02 -> -40.58 | 17.79 -> 14.45 | 17.24 | -1.83 | -2.79 |
+| nifty50 | v2 | 14.65 -> 12.84 | -20.03 -> -21.47 | 12.29 -> 10.73 | 17.24 | -7.33 | -6.51 |
+| **nifty50** | **v3** | 23.26 -> 15.72 | -33.84 -> -47.56 | 20.39 -> 12.16 | 17.24 | +0.77 | **-5.08** |
+| nifty50 | v4 | 16.72 -> 12.09 | -19.33 -> -25.54 | 14.15 -> 9.80 | 17.24 | -5.47 | -7.44 |
+| nifty100 | v1 | 26.55 -> 25.72 | -32.23 -> -32.36 | 22.35 -> 21.83 | 18.97 | -1.03 | +2.85 |
+| nifty100 | v2 | 21.82 -> 14.31 | -19.33 -> -15.84 | 18.49 -> 12.12 | 18.97 | -4.89 | -6.86 |
+| nifty100 | v3 | 31.50 -> 26.50 | -37.34 -> -30.44 | 26.44 -> 22.45 | 18.97 | +3.06 | +3.47 |
+| nifty100 | v4 | 27.07 -> 14.29 | -20.15 -> -21.25 | 23.26 -> 12.13 | 18.97 | -0.12 | -6.85 |
+| nifty200 | v1 | 42.98 -> 37.57 | -34.61 -> -32.13 | 36.92 -> 31.98 | 18.57 | +13.23 | +13.41 |
+| nifty200 | v2 | 32.48 -> 26.23 | -24.70 -> -19.25 | 27.51 -> 22.35 | 18.57 | +3.82 | +3.78 |
+| nifty200 | v3 | 42.77 -> 42.95 | -37.80 -> -32.91 | 36.15 -> 36.71 | 18.57 | +12.46 | +18.13 |
+| nifty200 | v4 | 38.74 -> 26.04 | -26.94 -> -21.71 | 32.92 -> 22.23 | 18.57 | +9.24 | +3.66 |
+| nifty500 | v1 | 37.97 -> 57.40 | -45.24 -> -37.52 | 32.89 -> 48.90 | 21.53 | +8.46 | +27.36 |
+| nifty500 | v2 | 26.14 -> 32.50 | -28.70 -> -18.06 | 22.23 -> 27.62 | 21.53 | -2.20 | +6.09 |
+| nifty500 | v3 | 39.36 -> 58.88 | -59.74 -> -44.14 | 33.92 -> 50.04 | 21.53 | +9.49 | +28.51 |
+| nifty500 | v4 | 29.66 -> 32.25 | -36.55 -> -26.78 | 25.30 -> 27.06 | 21.53 | +0.87 | +5.53 |
+| midcap50 | v1 | 36.27 -> 26.61 | -34.34 -> -34.86 | 31.69 -> 22.09 | 18.72 | +5.72 | +3.37 |
+| midcap50 | v2 | 27.29 -> 20.69 | -24.22 -> -23.27 | 23.70 -> 17.42 | 18.72 | -2.28 | -1.30 |
+| midcap50 | v3 | 33.55 -> 24.48 | -35.60 -> -39.93 | 29.92 -> 20.58 | 18.72 | +3.95 | +1.86 |
+| midcap50 | v4 | 25.53 -> 20.94 | -25.77 -> -25.28 | 22.27 -> 17.70 | 18.72 | -3.70 | -1.01 |
+| midcap100 | v1 | 35.68 -> 39.47 | -36.48 -> -32.75 | 30.42 -> 33.29 | 18.78 | +5.94 | +14.51 |
+| midcap100 | v2 | 25.04 -> 25.09 | -27.33 -> -22.02 | 21.28 -> 21.08 | 18.78 | -3.19 | +2.30 |
+| midcap100 | v3 | 34.67 -> 49.28 | -50.19 -> -38.01 | 29.06 -> 42.05 | 18.78 | +4.59 | +23.27 |
+| midcap100 | v4 | 26.21 -> 28.72 | -37.46 -> -24.56 | 22.23 -> 24.31 | 18.78 | -2.24 | +5.53 |
+| midcap150 | v1 | 45.28 -> 33.03 | -33.32 -> -38.01 | 37.70 -> 27.76 | 20.50 | +14.15 | +7.26 |
+| **midcap150** | **v2** | 33.74 -> 23.30 | -17.64 -> -15.02 | 28.92 -> 19.61 | 20.50 | +5.37 | **-0.90** |
+| midcap150 | v3 | 42.64 -> 35.86 | -41.01 -> -45.44 | 35.95 -> 29.76 | 20.50 | +12.39 | +9.26 |
+| midcap150 | v4 | 37.10 -> 24.80 | -20.18 -> -20.19 | 31.94 -> 20.84 | 20.50 | +8.38 | +0.33 |
+| smallcap250 | v1 | 37.00 -> 44.90 | -43.70 -> -41.88 | 30.99 -> 38.49 | 23.42 | +4.40 | +15.07 |
+| smallcap250 | v2 | 24.35 -> 26.29 | -25.01 -> -26.41 | 20.53 -> 22.22 | 23.42 | -6.06 | -1.21 |
+| smallcap250 | v3 | 51.09 -> 58.57 | -37.21 -> -38.52 | 44.13 -> 50.36 | 23.42 | +17.53 | +26.93 |
+| smallcap250 | v4 | 27.87 -> 31.39 | -33.49 -> -23.89 | 23.55 -> 26.78 | 23.42 | -3.05 | +3.35 |
+| **microcap250** | **v1** | 47.95 -> 30.00 | -25.31 -> -31.54 | 35.44 -> 25.34 | 29.66 | +3.98 | **-4.32** |
+| microcap250 | v2 | 32.25 -> 21.46 | -13.57 -> -13.56 | 25.54 -> 18.15 | 29.66 | -5.93 | -11.51 |
+| microcap250 | v3 | 57.53 -> 37.07 | -25.91 -> -32.46 | 43.54 -> 30.81 | 29.66 | +12.07 | +1.15 |
+| microcap250 | v4 | 37.33 -> 30.07 | -17.07 -> -17.93 | 29.62 -> 25.35 | 29.66 | -1.85 | -4.31 |
+
+`tradeable` profile: the same three cells, nifty50 v3, midcap150 v2 and microcap250 v1,
+beat buy & hold in static but not in pit; every tradeable row is in the CSV.
+
+Tax-on pit CAGR is below static in 24 of 36 research cells and above it in 12,
+on nifty500 and smallcap250 (all four arms), midcap100 v1, v3 and v4, and nifty200 v3.
+On nifty500 v1 (research, tax off), names only the pit universe holds account for
+Rs 2.4 lakh of the Rs 2.78 crore profit; the rest comes from names the static universe
+also holds, held at different times, since the pit model trains and ranks on
+point-in-time members. Why pit is higher on those cells has not been investigated
+further.
+
 ### SUPERSEDED 2026-10-10, computed on the previous data delivery -- Republished 2026-09-27 on cleaned prices: every universe, arm and profile
 
 > *Superseded 2026-10-10: the supplier's new data delivery moved every figure in this
