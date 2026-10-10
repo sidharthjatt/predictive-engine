@@ -4,33 +4,33 @@
 
   score panel   /Users/sidharthchoudhary/Downloads/algo_trading_project/cache/nifty100/v_nifty100_expanding.parquet
   symbol set    99 names, asserted equal to the configured universe
-  window        2019-01-01 .. 2026-05-29   1836 trading days
+  window        2019-01-01 .. 2026-05-29   1835 trading days
   engine        test_exposure.backtest_exposure (SHIPPING)
   arms          TOP_N=8 vs TOP_N=12, BUFFER pinned at 16 in both
-  panel sha256  523812be5447dcdf0a75d715a4e977297d626aa2144908ea8d0df42c29a1fe26
+  panel sha256  1abbbd8e61903b699f99272084a38e6c527d286c128a62fa14526fdb3e9592c0
 
   IDENTICAL PANEL FOR BOTH ARMS: yes
 
   IDENTITY GATE -- the TOP_N=8 arm must reproduce the shipped v2
   metric        this run  v34_comparison        
-  CAGR%            20.44           20.44      ok
-  Sharpe            1.60            1.60      ok
-  MaxDD%          -19.78          -19.78      ok
+  CAGR%            21.82           21.82      ok
+  Sharpe            1.70            1.70      ok
+  MaxDD%          -19.33          -19.33      ok
 
 ----------------------------------------------------------------------------------------------------
  FULL PERIOD -- gated on Sharpe only. Everything else is reported, not gated.
 ----------------------------------------------------------------------------------------------------
   TOP_N   CAGR%  AnnVol%  Sharpe   MaxDD%  Trades   /year  /rebal  MeanHeld CashShort
-      8   20.44    12.28    1.60   -19.78     949   128.1   10.32      9.41         1
-     12   17.02    10.41    1.59   -16.04    1386   187.1   15.07     12.81         0
+      8   21.82    12.27    1.70   -19.33     954   128.8   10.37      9.38         3
+     12   16.67    10.36    1.57   -16.62    1370   185.0   14.89      12.7         0
 
-  dSharpe (8 minus 12)          +0.0100
-  dCAGR   (8 minus 12)          +3.42 pt
-  dMaxDD  (8 minus 12)          -3.74 pt
+  dSharpe (8 minus 12)          +0.1300
+  dCAGR   (8 minus 12)          +5.15 pt
+  dMaxDD  (8 minus 12)          -2.71 pt
 
   TURNOVER, AND THE SIZE OF THE PIN'S HANDICAP
     BUFFER is 16 in both arms, so the hysteresis band is 8 ranks wide at TOP_N=8 and 4 at TOP_N=12.
-    trades 949 vs 1386   (+46.0% for the challenger)
+    trades 954 vs 1370   (+43.6% for the challenger)
     The challenger is handicapped by the pin. This test cannot separate
     '8 is a better concentration' from '16 suits 8 better than it suits 12'.
 
@@ -38,19 +38,19 @@
  SUB-PERIODS -- each half re-run independently, intersected with the window
 ----------------------------------------------------------------------------------------------------
  period       TOP_N  days   CAGR%  AnnVol%  Sharpe   MaxDD%  Trades  MeanHeld CashShort
- 2019-2022        8   993   20.87    13.22    1.52   -19.78     495      9.59         1
- 2019-2022       12   993   17.23    10.88    1.54   -16.04     726     12.88         0
- 2023-2026        8   843   21.94    13.68    1.55   -14.87     460      9.67         4
- 2023-2026       12   843   17.49    11.28    1.51   -12.56     674     12.95         2
+ 2019-2022        8   992   24.78    12.91    1.81   -19.33     510      9.45         1
+ 2019-2022       12   992   18.27    10.90    1.62   -16.62     735     12.57         0
+ 2023-2026        8   843   20.50    13.35    1.49   -13.91     450      9.52         4
+ 2023-2026       12   843   15.01    11.03    1.35   -12.65     654      12.9         0
 
-  2019-2022  dSharpe (8 minus 12)  -0.0200
-  2023-2026  dSharpe (8 minus 12)  +0.0400
+  2019-2022  dSharpe (8 minus 12)  +0.1900
+  2023-2026  dSharpe (8 minus 12)  +0.1400
 
   THE FUNDING-DEFECT PREDICTION, TESTED
     TOPN_SPEC.txt records, before the run, an expectation that TOP_N=12
     would show HIGHER cash-short skips than TOP_N=8, because twelve targets
     funded from cash alone is more pressure on the same defect.
-    measured, full period:  TOP_N=8 1   TOP_N=12 0
+    measured, full period:  TOP_N=8 3   TOP_N=12 0
     the prediction is NOT BORNE OUT on nifty100.
 
 ====================================================================================================
@@ -59,33 +59,33 @@
 
   score panel   /Users/sidharthchoudhary/Downloads/algo_trading_project/cache/midcap150/v_midcap150_expanding.parquet
   symbol set    148 names, asserted equal to the configured universe
-  window        2019-01-01 .. 2026-05-29   1836 trading days
+  window        2019-01-01 .. 2026-05-29   1835 trading days
   engine        test_exposure.backtest_exposure (SHIPPING)
   arms          TOP_N=8 vs TOP_N=12, BUFFER pinned at 16 in both
-  panel sha256  c1d2a2c2631bd89cbeb6295fc4c7e75181165d74738872dedcf51cfffa6f1a1f
+  panel sha256  2e0f8a838f4ce8b0d9111a368a2b5cf4c2f3696910379b0f70884e8fa2cf218c
 
   IDENTICAL PANEL FOR BOTH ARMS: yes
 
   IDENTITY GATE -- the TOP_N=8 arm must reproduce the shipped v2
   metric        this run  v34_comparison        
-  CAGR%            28.46           28.46      ok
-  Sharpe            1.88            1.88      ok
-  MaxDD%          -24.95          -24.95      ok
+  CAGR%            33.74           33.74      ok
+  Sharpe            2.17            2.17      ok
+  MaxDD%          -17.64          -17.64      ok
 
 ----------------------------------------------------------------------------------------------------
  FULL PERIOD -- gated on Sharpe only. Everything else is reported, not gated.
 ----------------------------------------------------------------------------------------------------
   TOP_N   CAGR%  AnnVol%  Sharpe   MaxDD%  Trades   /year  /rebal  MeanHeld CashShort
-      8   28.46    14.12    1.88   -24.95    1019   137.6   11.08      9.46         1
-     12   22.29    11.77    1.80   -21.48    1479   199.7   16.08     12.85         0
+      8   33.74    14.09    2.17   -17.64     973   131.4   10.58      9.35         2
+     12   28.23    11.97    2.17   -15.65    1435   193.8   15.60     12.79         0
 
-  dSharpe (8 minus 12)          +0.0800
-  dCAGR   (8 minus 12)          +6.17 pt
-  dMaxDD  (8 minus 12)          -3.47 pt
+  dSharpe (8 minus 12)          +0.0000
+  dCAGR   (8 minus 12)          +5.51 pt
+  dMaxDD  (8 minus 12)          -1.99 pt
 
   TURNOVER, AND THE SIZE OF THE PIN'S HANDICAP
     BUFFER is 16 in both arms, so the hysteresis band is 8 ranks wide at TOP_N=8 and 4 at TOP_N=12.
-    trades 1019 vs 1479   (+45.1% for the challenger)
+    trades 973 vs 1435   (+47.5% for the challenger)
     The challenger is handicapped by the pin. This test cannot separate
     '8 is a better concentration' from '16 suits 8 better than it suits 12'.
 
@@ -93,19 +93,19 @@
  SUB-PERIODS -- each half re-run independently, intersected with the window
 ----------------------------------------------------------------------------------------------------
  period       TOP_N  days   CAGR%  AnnVol%  Sharpe   MaxDD%  Trades  MeanHeld CashShort
- 2019-2022        8   993   23.10    14.45    1.53   -24.95     554      9.59         1
- 2019-2022       12   993   18.14    12.09    1.46   -21.48     793     12.98         0
- 2023-2026        8   843   27.03    13.20    1.91   -11.39     478      9.14         1
- 2023-2026       12   843   28.82    11.24    2.35    -8.88     702     12.45         0
+ 2019-2022        8   992   30.29    14.06    1.98   -17.64     520      9.51         1
+ 2019-2022       12   992   24.98    11.87    1.97   -15.65     761     12.78         0
+ 2023-2026        8   843   25.77    13.15    1.84   -11.14     476       9.1         0
+ 2023-2026       12   843   27.72    11.52    2.22   -10.70     696     12.71         0
 
-  2019-2022  dSharpe (8 minus 12)  +0.0700
-  2023-2026  dSharpe (8 minus 12)  -0.4400
+  2019-2022  dSharpe (8 minus 12)  +0.0100
+  2023-2026  dSharpe (8 minus 12)  -0.3800
 
   THE FUNDING-DEFECT PREDICTION, TESTED
     TOPN_SPEC.txt records, before the run, an expectation that TOP_N=12
     would show HIGHER cash-short skips than TOP_N=8, because twelve targets
     funded from cash alone is more pressure on the same defect.
-    measured, full period:  TOP_N=8 1   TOP_N=12 0
+    measured, full period:  TOP_N=8 2   TOP_N=12 0
     the prediction is NOT BORNE OUT on midcap150.
 
 ====================================================================================================
@@ -113,24 +113,24 @@
 ====================================================================================================
 
   nifty100
-    full period      dSharpe +0.0100   holds
-    2019-2022        dSharpe -0.0200   does not hold
-    2023-2026        dSharpe +0.0400   holds
+    full period      dSharpe +0.1300   holds
+    2019-2022        dSharpe +0.1900   holds
+    2023-2026        dSharpe +0.1400   holds
   midcap150
-    full period      dSharpe +0.0800   holds
-    2019-2022        dSharpe +0.0700   holds
-    2023-2026        dSharpe -0.4400   does not hold
+    full period      dSharpe +0.0000   holds
+    2019-2022        dSharpe +0.0100   holds
+    2023-2026        dSharpe -0.3800   does not hold
 
   TOP_N=8 IS CONTRADICTED -- at least one criterion does not hold
 
   AND IN THE SAME MEASUREMENT, TOP_N=12 HAD THE SHALLOWER MaxDD
   IN BOTH UNIVERSES, ON A DIMENSION THE RULE DOES NOT GATE.
-    nifty100 MaxDD  TOP_N=8 -19.78   TOP_N=12 -16.04
-    midcap150 MaxDD  TOP_N=8 -24.95   TOP_N=12 -21.48
+    nifty100 MaxDD  TOP_N=8 -19.33   TOP_N=12 -16.62
+    midcap150 MaxDD  TOP_N=8 -17.64   TOP_N=12 -15.65
 
   THIS IS NOT A CLAIM THAT TOP_N=12 IS BETTER.
-    Its Sharpe is lower in every period,
-    and its turnover is higher -- nifty100 +46.0%, midcap150 +45.1%.
+    Its Sharpe is lower in the periods gated above,
+    and its turnover is higher -- nifty100 +43.6%, midcap150 +47.5%.
     NO DRAWDOWN CRITERION WAS PRE-REGISTERED, so nothing here is a result
     about drawdown. It is an ungated observation, recorded because the rule
     cannot see it.
@@ -139,11 +139,11 @@
     the data, which is what documenting the Sharpe-only asymmetry rather
     than fixing it was meant to avoid. It stays ungated and recorded.
 
-  THE INCUMBENT IS CONTRADICTED ON BOTH LIVE UNIVERSES.
-    The single acceptance in twenty-five trials does not reproduce on the
-    universes that ship. This does NOT promote TOP_N=12:
-    promotion is a separate decision needing its own pre-registration.
-    The immediate output is a KNOWN_ISSUES.md entry, not a config change.
+  THE UNIVERSES DISAGREE, AND THE DISAGREEMENT IS THE FINDING.
+    holds on nifty100; does not hold on midcap150.
+    It is NOT resolved toward either universe, NOT averaged, NOT called a
+    hold with a caveat, and NOT re-run with a changed criterion. Neither
+    universe is primary. Same handling as the v34 measurement.
 
   NOT GATED, REPORTED ONLY: MaxDD, CAGR, volatility, turnover, mean names
   held and cash-short skips. Entry 10 gated on Sharpe alone and this

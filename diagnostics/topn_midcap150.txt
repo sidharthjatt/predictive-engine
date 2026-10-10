@@ -4,33 +4,33 @@
 
   score panel   /Users/sidharthchoudhary/Downloads/algo_trading_project/cache/midcap150/v_midcap150_expanding.parquet
   symbol set    148 names, asserted equal to the configured universe
-  window        2019-01-01 .. 2026-05-29   1836 trading days
+  window        2019-01-01 .. 2026-05-29   1835 trading days
   engine        test_exposure.backtest_exposure (SHIPPING)
   arms          TOP_N=8 vs TOP_N=12, BUFFER pinned at 16 in both
-  panel sha256  c1d2a2c2631bd89cbeb6295fc4c7e75181165d74738872dedcf51cfffa6f1a1f
+  panel sha256  2e0f8a838f4ce8b0d9111a368a2b5cf4c2f3696910379b0f70884e8fa2cf218c
 
   IDENTICAL PANEL FOR BOTH ARMS: yes
 
   IDENTITY GATE -- the TOP_N=8 arm must reproduce the shipped v2
   metric        this run  v34_comparison        
-  CAGR%            28.46           28.46      ok
-  Sharpe            1.88            1.88      ok
-  MaxDD%          -24.95          -24.95      ok
+  CAGR%            33.74           33.74      ok
+  Sharpe            2.17            2.17      ok
+  MaxDD%          -17.64          -17.64      ok
 
 ----------------------------------------------------------------------------------------------------
  FULL PERIOD -- gated on Sharpe only. Everything else is reported, not gated.
 ----------------------------------------------------------------------------------------------------
   TOP_N   CAGR%  AnnVol%  Sharpe   MaxDD%  Trades   /year  /rebal  MeanHeld CashShort
-      8   28.46    14.12    1.88   -24.95    1019   137.6   11.08      9.46         1
-     12   22.29    11.77    1.80   -21.48    1479   199.7   16.08     12.85         0
+      8   33.74    14.09    2.17   -17.64     973   131.4   10.58      9.35         2
+     12   28.23    11.97    2.17   -15.65    1435   193.8   15.60     12.79         0
 
-  dSharpe (8 minus 12)          +0.0800
-  dCAGR   (8 minus 12)          +6.17 pt
-  dMaxDD  (8 minus 12)          -3.47 pt
+  dSharpe (8 minus 12)          +0.0000
+  dCAGR   (8 minus 12)          +5.51 pt
+  dMaxDD  (8 minus 12)          -1.99 pt
 
   TURNOVER, AND THE SIZE OF THE PIN'S HANDICAP
     BUFFER is 16 in both arms, so the hysteresis band is 8 ranks wide at TOP_N=8 and 4 at TOP_N=12.
-    trades 1019 vs 1479   (+45.1% for the challenger)
+    trades 973 vs 1435   (+47.5% for the challenger)
     The challenger is handicapped by the pin. This test cannot separate
     '8 is a better concentration' from '16 suits 8 better than it suits 12'.
 
@@ -38,17 +38,17 @@
  SUB-PERIODS -- each half re-run independently, intersected with the window
 ----------------------------------------------------------------------------------------------------
  period       TOP_N  days   CAGR%  AnnVol%  Sharpe   MaxDD%  Trades  MeanHeld CashShort
- 2019-2022        8   993   23.10    14.45    1.53   -24.95     554      9.59         1
- 2019-2022       12   993   18.14    12.09    1.46   -21.48     793     12.98         0
- 2023-2026        8   843   27.03    13.20    1.91   -11.39     478      9.14         1
- 2023-2026       12   843   28.82    11.24    2.35    -8.88     702     12.45         0
+ 2019-2022        8   992   30.29    14.06    1.98   -17.64     520      9.51         1
+ 2019-2022       12   992   24.98    11.87    1.97   -15.65     761     12.78         0
+ 2023-2026        8   843   25.77    13.15    1.84   -11.14     476       9.1         0
+ 2023-2026       12   843   27.72    11.52    2.22   -10.70     696     12.71         0
 
-  2019-2022  dSharpe (8 minus 12)  +0.0700
-  2023-2026  dSharpe (8 minus 12)  -0.4400
+  2019-2022  dSharpe (8 minus 12)  +0.0100
+  2023-2026  dSharpe (8 minus 12)  -0.3800
 
   THE FUNDING-DEFECT PREDICTION, TESTED
     TOPN_SPEC.txt records, before the run, an expectation that TOP_N=12
     would show HIGHER cash-short skips than TOP_N=8, because twelve targets
     funded from cash alone is more pressure on the same defect.
-    measured, full period:  TOP_N=8 1   TOP_N=12 0
+    measured, full period:  TOP_N=8 2   TOP_N=12 0
     the prediction is NOT BORNE OUT on midcap150.

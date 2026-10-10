@@ -1,0 +1,78 @@
+jackknife.py record, measured 2026-10-10 at commit 82d1a3c on the supplier's data delivery of 2026-10-10.
+command: ./venv/bin/python jackknife.py --universe=midcap150 --run '--named-drop=LLOYDSME,TATAINVEST'
+================================================================================================
+ MIDCAP150 JACKKNIFE -- is the edge concentrated? (148 names)
+================================================================================================
+================================================================================================
+ BASELINE GATE -- does this script's reconstruction reproduce the pipeline?
+================================================================================================
+
+                          this script   v2FINAL_equity     delta
+   strategy CAGR               33.74%           33.74%     +0.00
+   buy & hold CAGR             24.94%           24.94%     +0.00
+   edge                        +8.80            +8.80      +0.00
+   sessions                     1835             1835  (2019-01-01 .. 2026-05-29)
+
+   GATE PASSED -- v2 and buy & hold curves identical to v2FINAL_equity.csv.
+
+================================================================================================
+ COST
+================================================================================================
+   one edge() call            : 0.4 s
+   full run                   : 350 calls (1 baseline + 148 leave-one-out + 200 random + 1 named)
+   estimate                   : 2 min (130 s), assuming every call costs the baseline
+   removal size 8 is 5.4% of midcap150
+
+ NAMED DROP (2)  strategy 32.95%   buy&hold 24.77%   edge +8.18 pt   <- the non-neutral test
+
+------------------------------------------------------------------------------------------------
+ [1] LEAVE-ONE-OUT over all 148 names
+------------------------------------------------------------------------------------------------
+     ... 25/148
+     ... 50/148
+     ... 75/148
+     ... 100/148
+     ... 125/148
+
+   edge distribution over 148 single-name removals:
+     min +7.01   p10 +7.92   median +8.74   p90 +9.44   max +10.22
+     removals that flip the edge negative: 0 of 148 (0.0%)
+
+   most damaging single removals:
+     SUZLON        edge  +7.01  drop  +1.79  (strategy 31.70%, buy&hold 24.69%)
+     KPRMILL       edge  +7.04  drop  +1.76  (strategy 31.85%, buy&hold 24.81%)
+     BLUESTARCO    edge  +7.23  drop  +1.57  (strategy 32.13%, buy&hold 24.90%)
+     APLAPOLLO     edge  +7.42  drop  +1.38  (strategy 32.15%, buy&hold 24.73%)
+     APARINDS      edge  +7.44  drop  +1.36  (strategy 32.14%, buy&hold 24.70%)
+     MCX           edge  +7.56  drop  +1.24  (strategy 32.28%, buy&hold 24.72%)
+     ATGL          edge  +7.62  drop  +1.18  (strategy 32.38%, buy&hold 24.76%)
+     DIXON         edge  +7.63  drop  +1.17  (strategy 32.28%, buy&hold 24.65%)
+
+------------------------------------------------------------------------------------------------
+ [2] 200 RANDOM REMOVALS OF 8 NAMES   (seed 0)
+------------------------------------------------------------------------------------------------
+     ... 50/200
+     ... 100/200
+     ... 150/200
+     ... 200/200
+
+   edge distribution over 200 random 8-name removals:
+     min +3.47   p10 +6.35   median +8.23   p90 +9.84   max +10.99
+     removals that flip the edge negative: 0 of 200 (0.0%)
+
+================================================================================================
+ SUMMARY -- reported, not graded
+================================================================================================
+   baseline edge                        +8.80 pt
+   largest single-name drop             +1.79 pt (SUZLON, edge -> +7.01)
+   single removals flipping it negative 0 of 148
+   random-8 removals flipping it negative  0 of 200
+
+   WHERE THE NAMED DROP SITS: edge +8.18 pt
+     random draws at or below it: 99 of 200 (percentile 49.5)
+
+================================================================================================
+ VERDICT ON THE NAMED DROP
+================================================================================================
+  MIXED. A random 8 flips the edge negative 0% of the time and
+  the named drop sits at the 49.5th percentile. Read both numbers together.
