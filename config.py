@@ -412,13 +412,28 @@ def write_cache_source(cache_path, u, key):
     """
     import json
     rel = root_relative(u.raw_data_dir)
+    rec = {"universe": u.tag, "raw_data_dir": rel, "digest": key["digest"],
+           "code": panel_code_key(),
+           "n_files": key["n_files"], "files": key["files"]}
+    if getattr(u, "is_pit", False):
+        rec["membership"] = pit_membership_key(u)
     # naming: axis-free -- the sidecar's name is its cache's name plus a fixed
     # suffix, so it carries whatever axes that cache carries and adds none of
     # its own; there is no arm, cadence, profile or tax choice expressed here.
-    cache_source_file(cache_path).write_text(json.dumps(
-        {"universe": u.tag, "raw_data_dir": rel, "digest": key["digest"],
-         "code": panel_code_key(),
-         "n_files": key["n_files"], "files": key["files"]}, indent=1) + "\n")
+    cache_source_file(cache_path).write_text(json.dumps(rec, indent=1) + "\n")
+
+
+def pit_membership_key(u):
+    """What else a pit panel depends on: the membership file's bytes and the code
+    that applies it (survivorship.apply_to_panel and its RENAMES). Static panels
+    carry no such field, so their sidecars are unchanged."""
+    import hashlib
+    import inspect
+    import survivorship as _sv
+    h = hashlib.sha256(Path(u.membership_file).read_bytes())
+    h.update(_code_tokens(inspect.getsource(_sv.apply_to_panel)).encode())
+    h.update(repr(sorted(_sv.RENAMES.items())).encode())
+    return "sha256:" + h.hexdigest()
 
 
 def _cache_owner(path):
@@ -456,6 +471,9 @@ def cache_staleness(cache_path, u):
         return ("the code that builds panels changed since this one was built "
                 "(config.panel_code_key)" if rec.get("code") else
                 "it predates the code key (config.panel_code_key, 2026-09-24)")
+    if getattr(u, "is_pit", False) and rec.get("membership") != pit_membership_key(u):
+        return ("the membership file or the code that applies it changed since this "
+                "pit panel was built (config.pit_membership_key)")
     cur = source_key_for(u)
     if rec.get("digest") == cur["digest"]:
         return None

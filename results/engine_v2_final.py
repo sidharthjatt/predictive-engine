@@ -112,8 +112,11 @@ def _c(path):
     # integer share counts sized from it and therefore every number this step
     # writes -- exactly the way `tradeable` does. Writing those into the
     # canonical filenames would be the same defect on a fourth axis.
-    _all_default = cadence.is_default() and _pf.is_default() and _tax.is_default()
-    _sfx = "" if _all_default else cadence.suffix() + _pf.suffix() + _tax.suffix()
+    import survivorship_axis as _sva
+    _all_default = (cadence.is_default() and _pf.is_default() and _tax.is_default()
+                    and _sva.is_default())
+    _sfx = ("" if _all_default
+            else cadence.suffix() + _pf.suffix() + _tax.suffix() + _sva.suffix())
     out = path if not _sfx else path.with_name(path.stem + _sfx + path.suffix)
     # WHAT THIS RUN ACTUALLY WROTE, RECORDED HERE BECAUSE HERE IS WHERE THE NAME
     # IS DECIDED. The step used to end by printing a hardcoded list of the
@@ -173,7 +176,9 @@ def main(u):
     px = p.pivot_table(index="date", columns="symbol", values="close").ffill()
     op = p.pivot_table(index="date", columns="symbol", values="open").ffill()
     sc = p.pivot_table(index="date", columns="symbol", values="score")
-    bd = px.index[(px.index >= BT_START_DATE) & (px.index <= BT_END_DATE)]
+    # THE UNIVERSE'S WINDOW: config.BT_START_DATE..BT_END_DATE for every static row;
+    # a pit row starts at its first membership row when that is later.
+    bd = u.trading_days(px.index)
     pc = precompute(px)
     mom20 = px / px.shift(20) - 1
     idx = (1 + px.pct_change().mean(axis=1).fillna(0)).cumprod()
@@ -225,7 +230,11 @@ def main(u):
                                               drawdown_stop=None,
                                               rebal=_reb, tax_enabled=_taxon,
                                               **_capkw)
-    bh = START_CAPITAL * (1 + px.pct_change().loc[bd].mean(axis=1).fillna(0)).cumprod()
+    # THE BUY & HOLD BASKET: every name in static mode; in pit mode the members on
+    # the first pit rebalance, bd[0] (owner's decision, 2026-10-10).
+    import survivorship as _sv, engine_core as _ec
+    bh = START_CAPITAL * (1 + _sv.buyhold_prices(px, bd[0], _ec.MEMBERSHIP)
+                          .pct_change().loc[bd].mean(axis=1).fillna(0)).cumprod()
 
     mbase = metrics(base_eq, "Inverse-vol, 100% invested (v1 final)", tcb, nb)
     mfin = metrics(fin_eq, "+ breadth scaling (v2 FINAL)", tcf, nf)
@@ -333,7 +342,10 @@ def main(u):
         "cash_yield": CASH_YIELD,
         # STATED IN THE ARTEFACT, not only on the chart, so a reader of
         # v2FINAL_params.json alone knows which membership basis produced it.
-        "survivorship": sv.describe_state(),
+        # In a pit run, the whole pit record: verdict, residual survivorship and
+        # the look-ahead note. The static value is unchanged.
+        "survivorship": (sv.params_fields(u.tag)["survivorship"] if sv.is_pit()
+                         else sv.describe_state()),
         "vs_buyhold": (f"Sharpe {mfin['Sharpe']} vs {mbh['Sharpe']}, "
                        f"MaxDD {mfin['MaxDD%']}% vs {mbh['MaxDD%']}%, "
                        f"CAGR {mfin['CAGR%']}% vs {mbh['CAGR%']}%"),

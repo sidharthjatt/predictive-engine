@@ -81,9 +81,58 @@ the noise test supported, measured on the 2026-10-10 research tax-on run):
   Removing the profit they mark as held while not a member moves the gap by -1.1 to
   +1.0 points. Reading every unknown day as the events imply, which assumes no event is
   missing, moves it by -6.1 to +0.1 and leaves nifty500 v2 and v4 below zero.
-- A run restricted to point-in-time members is not possible with these files: reviews
-  are missing, and 2 to 75 names that left an index during the window have no price
-  file (some may be renames outside the 15 validated ones).
+- Removing the bias is not possible with these files: reviews are missing, and 2 to 75
+  names that left an index during the window have no price file (some may be renames
+  outside the 15 validated ones).
+- Since 2026-10-10 a point-in-time mode exists (`run.py --survivorship pit`; see the
+  next entry). The owner ruled the membership files final and their symbols column the
+  membership. It reduces the bias; it does not remove it, for the reasons above.
+
+### Pit runs use membership files that fail validation, by decision
+
+`run.py --survivorship pit` (SURVIVORSHIP_README.md, "Pit runs in this repository")
+reads the supplier's membership files as delivered. All nine fail
+`survivorship.validate`: inclusions and exclusions disagree with the symbols column,
+and some excluded names are still listed in the same row. The owner decided on
+2026-10-10 that pit runs go ahead on them, with the symbols column of each row as the
+membership until the next row. Every pit run writes the verdict, the members it could
+not price and the look-ahead note into its run.log, RUN.txt and params JSON.
+- Residual survivorship. Members in the window with no with-survivorship price file
+  cannot be held. Measured 2026-10-10: nifty50 1 of 56 (IBULHSGFIN, dropped), nifty100
+  3 of 125 (HDFC and PEL dropped, LTM current). HDFC merged into HDFCBANK in 2023.
+- Look-ahead. The symbols column reads like today's list edited backwards (the 2018
+  and 2019 Nifty 50 rows list JIOFIN, listed in 2023), so a later member can be
+  eligible early.
+- Window and buy & hold. A pit window starts at the first session on or after the
+  file's first row; for every universe but microcap250 (2021-10-29) that is before
+  2019, so the window is the static one. The pit buy & hold holds the members on the
+  first pit rebalance. A pit figure is to be reported beside static over the same
+  window.
+- Run so far on nifty50 and nifty100 only (stage 1). The other seven universes have
+  not been run in pit mode.
+
+### Pit cells are not covered by nt_verify
+
+The Nautilus port has no membership rule and no index exit, so its reports would
+describe a different strategy from the engine's pit run. A pit run leaves out STEP 16
+and STEP 17 (`run.PIT_NOT_RUN`), and check_all lists every pit cell as not covered
+(`check_all.NOT_COVERED`). Pit figures are engine figures only, checked by no port.
+
+### microcap250's with-survivorship prices come from a different source
+
+For the 241 names in both folders, every microcap250 file in
+`data/raw/Final_With_Survivorship_Data/` differs from its copy in
+`Final_Without_Survivorship_Data/`: the source column reads Kite against upstox, and
+prices differ by a few paise (SENCO: up to 0.08 on close). The other eight universes'
+shared files are byte-identical. So a microcap250 pit result against static mixes a
+data change with the membership change, and the two cannot be separated from these
+files.
+
+### VIJAYA has no with-survivorship price file
+
+VIJAYA is in the without-survivorship folders of nifty500 and smallcap250 and in
+neither with-survivorship folder. A pit run of those universes cannot hold it; where
+it is a member it is counted in the run's residual survivorship.
 
 ### The rank-8/rank-9 boundary is thin on every universe
 
@@ -436,7 +485,8 @@ All four arms, all eight universes:
 - GATE 9 (`check_b_exec_timing`, leakage checks 1 and 2), GATE 6 and GATE 7 tax.
 - `tax_report.py`, `bh_lots_after_tax.py`, `cost_reconcile_check.py`.
 - `nautilus/nt_verify.py`: 35 of the 36 cells of the nine universes are gated;
-  midcap100 v3 is not (see below). No v5 or v6 cell is gated.
+  midcap100 v3 is not (see below). No v5 or v6 cell is gated, and no pit cell is
+  covered (see "Pit cells are not covered by nt_verify").
 - The cleaned after-tax noise test (`results/noise_parallel.py`).
 
 All four arms, nifty100 and midcap150 only: `verify_v34_arms.py`, with the one-share

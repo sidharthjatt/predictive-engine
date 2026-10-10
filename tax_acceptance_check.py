@@ -105,6 +105,11 @@ for l in src[i:]:
 expr = " ".join(buf)[len("SFX = "):].strip()
 ns = {"arm_reg": arm_reg, "cadence": cadence, "profiles": profiles}
 if HAVE_TAX: ns["_tax"] = tax
+try:
+    import survivorship_axis
+    ns["_sva"] = survivorship_axis
+except ImportError:
+    pass
 try: out["SFX"] = eval(expr, ns)
 except Exception as e: out["SFX"] = f"EVALFAIL {type(e).__name__}: {e}"
 
@@ -192,9 +197,11 @@ def condition_2():
     print(f"    tail at default {base!r} -> at tax=on {on!r}   "
           f"{'PASS' if ok_axis else 'FAIL'}")
 
-    # tax must be LAST, or every existing non-default artefact is renamed.
-    ok_last = naming.AXES[-1] == "tax"
-    print(f"    tax is the LAST axis in naming.AXES              "
+    # tax must follow the first three, and any later axis must be appended after
+    # it, or every existing non-default artefact is renamed. survivorship was
+    # appended after tax on 2026-10-10.
+    ok_last = naming.AXES[:4] == ("arm", "cadence", "profile", "tax")
+    print(f"    tax is fourth, later axes appended after it      "
           f"{'PASS' if ok_last else 'FAIL -- appending is what keeps _r40/_tradeable in place'}")
 
     # No entry may credit an axis by live reference to AXES.
@@ -242,7 +249,7 @@ def condition_2():
     r = subprocess.run([sys.executable, str(ROOT / "naming_declare_check.py")],
                        capture_output=True, text=True, cwd=str(ROOT))
     txt = r.stdout
-    ok_probe = "tax=True" in txt and "_tradeable_tax'" in txt
+    ok_probe = "tax=True" in txt and "_tradeable_tax" in txt
     nothon = [l for l in txt.splitlines() if "NOT honoured" in l]
     ok_hon = bool(nothon) and nothon[0].strip().endswith("0")
     print(f"    naming_declare_check honour probe carries tax    "

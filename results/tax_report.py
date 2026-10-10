@@ -283,8 +283,7 @@ def main(u):
     mom20 = px / px.shift(20) - 1
     idx = (1 + px.pct_change().mean(axis=1).fillna(0)).cumprod()
     port_vol = rolling_std(idx.pct_change(), 60) * np.sqrt(252)
-    bd = px.index[(px.index >= config.BT_START_DATE)
-                  & (px.index <= config.BT_END_DATE)]
+    bd = u.trading_days(px.index)   # the universe's window; see engine_v2_final
 
     # EVERY SELECTED ARM, SINCE 2026-09-26. This ran v2 alone and wrote v2's four
     # artefacts; v1, v3 and v4 were charged tax in-loop by the engine and nothing

@@ -393,6 +393,10 @@ def _universe_artefacts_in_shared_metrics():
             if f.is_file() and _UNIVERSE_ARTEFACT.search(f.name)]
 
 
+# The Nautilus steps a pit run leaves out; see build_plan.
+PIT_NOT_RUN = ("nt_export_scores.py", "nt_execute.py")
+
+
 def build_plan(args):
     unis = resolve_universes(args.universe)
     arms = resolve_arms(args.arm)
@@ -403,6 +407,14 @@ def build_plan(args):
         # shape because the reporting code reads it, and is always empty.
         _pipe_unis = list(unis)
         plan["pipeline"], plan["_run_all"], plan["dropped"] = pipeline_steps(_pipe_unis)
+        # PIT RUNS DO NOT RUN THE NAUTILUS PORT. It has no membership rule and no
+        # index exit, so its reports would describe a different strategy from the
+        # engine's, and pit cells are outside nt_verify (KNOWN_ISSUES.md). Removed
+        # from the plan and named, never silently.
+        import survivorship_axis as _sva
+        if not _sva.is_default():
+            plan["pit_not_run"] = [e for e in plan["pipeline"] if e[1] in PIT_NOT_RUN]
+            plan["pipeline"] = [e for e in plan["pipeline"] if e[1] not in PIT_NOT_RUN]
     if args.steps in ("arms", "all"):
         plan["arm_runs"], plan["skipped"] = arm_steps(unis, arms, args.rebal)
     return plan
@@ -421,6 +433,10 @@ def print_plan(plan, args, show_paths=False):
     else:
         print(f"  rebalance cadence: 20 (default, unchanged)")
 
+    import survivorship_axis as _sva
+    if not _sva.is_default():
+        print(f"  survivorship: {_sva.selected()} (point-in-time membership, "
+              f"with-survivorship prices; static is the default)")
     if plan["pipeline"]:
         print(f"\n  PIPELINE STEPS ({len(plan['pipeline'])}), in run_all order:")
         for label, scr, tag in plan["pipeline"]:
@@ -453,6 +469,12 @@ def print_plan(plan, args, show_paths=False):
               f"has been removed from the registry:")
         for label, scr, serves in plan["dropped"]:
             print(f"    {label:<9} {scr:<28} names [{','.join(serves)}], which the registry does not define")
+
+    if plan.get("pit_not_run"):
+        print(f"\n  NOT RUN IN PIT MODE ({len(plan['pit_not_run'])}) -- the Nautilus port has "
+              f"no membership rule; pit cells are outside nt_verify:")
+        for label, scr, _t in plan["pit_not_run"]:
+            print(f"    {label:<9} {scr}")
 
     if plan["skipped"]:
         print(f"\n  SKIPPED ({len(plan['skipped'])}) -- combinations a frozen universe cannot supply:")
@@ -513,11 +535,25 @@ def main(argv=None):
                     help="execution-realism profile; research (default) reproduces "
                          "the published history exactly, tradeable applies the "
                          "participation cap. See profiles.py.")
+    # THE FIFTH AXIS, 2026-10-10. Default static: today's members backfilled, every
+    # published figure. pit swaps each selected universe for its point-in-time
+    # variant (universes.registry.pit_variant) BEFORE the plan is built, because
+    # run_all's input table and every path are derived from REGISTRY.
+    ap.add_argument("--survivorship", default="static", choices=("static", "pit"),
+                    help="universe construction (default static). pit uses the "
+                         "supplier's membership files and with-survivorship prices; "
+                         "every artefact gets the _pit suffix. See survivorship_axis.py.")
     ap.add_argument("--list", action="store_true", help="resolve and print the plan, run nothing")
     ap.add_argument("--dry-run", action="store_true",
                     help="like --list, and show every output location")
     ap.add_argument("--fresh", action="store_true", help="clear caches first (full rebuild)")
     args = ap.parse_args(argv)
+
+    import survivorship_axis as _sva
+    _sva.set_selection(args.survivorship)
+    if not _sva.is_default():
+        from universes.registry import use_pit
+        use_pit([u.tag for u in resolve_universes(args.universe)])
 
     plan = build_plan(args)
 
@@ -578,7 +614,8 @@ def run_folder(plan, args):
     uni = [u.tag for u in plan["universes"]]
     arm = [a.name for a in plan["arms"]]
     reb = args.rebal if args.rebal is not None else paths.DEFAULT_REBAL
-    return ROOT / "runs" / paths.run_folder_name(uni, arm, reb)
+    import survivorship_axis as _sva
+    return ROOT / "runs" / (paths.run_folder_name(uni, arm, reb) + _sva.suffix())
 
 
 def collect_run_folder(plan, args, t_start, dest, thin=None):
@@ -646,6 +683,7 @@ def collect_run_folder(plan, args, t_start, dest, thin=None):
         f"cadence   : {reb}\n"
         f"profile   : {_pf.selected()}\n"
         f"tax       : {'on' if _tax.selected() else 'off'}\n"
+        + _survivorship_section(plan) +
         f"steps     : {len(plan['pipeline'])} pipeline, {len(plan['arm_runs'])} arm runs\n"
         f"artefacts : {copied} copied from their canonical locations\n"
         f"log       : run.log\n"
@@ -656,6 +694,19 @@ def collect_run_folder(plan, args, t_start, dest, thin=None):
         print(f"  {len(failed)} could not be copied (the run itself succeeded):")
         for m in failed[:5]:
             print(f"    {m}")
+
+
+def _survivorship_section(plan):
+    """RUN.txt's survivorship lines: none in a static run, so a static RUN.txt is
+    unchanged; in a pit run the mode and each universe's pit record."""
+    import survivorship_axis as _sva
+    if _sva.is_default():
+        return ""
+    out = [f"survivorship : {_sva.selected()}"]
+    for u in plan["universes"]:
+        out.append(f"--- {u.tag} point-in-time record ---")
+        out += plan["pit_records"][u.tag]["lines"]
+    return "\n".join(out) + "\n"
 
 
 def _thin_section(thin):
@@ -724,6 +775,8 @@ def read_run_record(folder):
     return {"folder": folder, "universes": split(kv["universes"]),
             "arms": split(kv.get("arms", "")), "cadence": kv.get("cadence"),
             "profile": kv.get("profile"), "tax": kv.get("tax"),
+            # Absent from every RUN.txt written before 2026-10-10: those runs were static.
+            "survivorship": kv.get("survivorship", "static"),
             "pipeline_steps": int(m.group(1)), "arm_runs": int(m.group(2)),
             "started": started, "finished": finished}
 
@@ -797,6 +850,45 @@ def execute(plan, args):
     return 0
 
 
+def _pit_setup(plan):
+    """Pit runs only: check the pit inputs against data/RAW_DATA_SHA256_PIT.txt,
+    load every selected universe's membership, and print its record.
+
+    THE FILES FAIL survivorship.validate AND ARE USED ANYWAY, by the owner's
+    decision of 2026-10-10. The verdict, the residual survivorship and the
+    look-ahead note go into this log here, into RUN.txt (_survivorship_section)
+    and into every params JSON (v34_common), so no pit figure travels without them.
+    """
+    import survivorship_axis as _sva
+    if _sva.is_default():
+        return
+    import check_data
+    rc = check_data.check_pit([u.tag for u in plan["universes"]])
+    if rc != 0:
+        raise SystemExit("pit inputs do not match data/RAW_DATA_SHA256_PIT.txt; "
+                         "see the lines above")
+    import engine_core as _ec
+    import survivorship as _sv
+    plan["pit_records"] = {}
+    print("\n" + "!" * 90)
+    print(" SURVIVORSHIP pit -- point-in-time membership, with-survivorship prices")
+    for u in plan["universes"]:
+        m = _sv.load(u.membership_file, index_name=u.tag, price_dir=u.raw_data_dir,
+                     allow_invalid=True)
+        # CURRENT MEMBERS ARE THE FILE'S LAST ROW: who is in the index today.
+        rec = _sv.pit_record(m, u.raw_data_dir, m.lists[-1],
+                             u.date_range[0], u.date_range[1])
+        rec["window_start"] = str(u.date_range[0].date())
+        _ec.PIT_MEMBERSHIPS[u.tag] = m
+        _ec.PIT_RECORDS[u.tag] = rec
+        lines = [f"window start        : {rec['window_start']}"] + _sv.pit_record_lines(rec)
+        plan["pit_records"][u.tag] = {"record": rec, "lines": lines}
+        print(f" --- {u.tag} ---")
+        for line in lines:
+            print("   " + line)
+    print("!" * 90, flush=True)
+
+
 def _execute(plan, args, state):
     """Run the plan in ONE process, carrying run_all.py's four safety mechanisms."""
     import importlib
@@ -843,6 +935,10 @@ def _execute(plan, args, state):
     # knows "on" means True.
     import tax as _tax
     _tax.set_selection(args.tax == "on")
+    # THE FIFTH AXIS was set in main(), before the plan was built, because the
+    # registry swap has to precede it. Here, in a pit run, each universe's
+    # membership is loaded and its record printed before any number exists.
+    _pit_setup(plan)
     # LOUD, AT THE START, BEFORE ANY NUMBER EXISTS. A run under a non-default
     # profile completes and exits 0, which is indistinguishable from a run that was
     # checked unless something says otherwise. profiles.gate_status() owns the
@@ -978,6 +1074,10 @@ def _execute(plan, args, state):
             # both forms go through the same module_state.pinned() guard, the same
             # check_inputs, the same timing and logging above and below.
             _step = importlib.import_module(Path(scr).stem)
+            # PIT RUNS: this universe's membership for the step; None otherwise, and
+            # for a whole-run step (make_daily_log sets it per universe itself).
+            import engine_core as _ec
+            _ec.MEMBERSHIP = _ec.membership_for(REGISTRY[tag]) if tag else None
             _step.main(REGISTRY[tag]) if tag else _step.main()
         print(f"    [{label} done in {(time.time()-t0)/60:.1f} min]")
 
@@ -1005,6 +1105,8 @@ def _execute(plan, args, state):
         import v34_common
         state["step"] = f"ARM {u.tag}/{a.name}"
         with module_state.pinned():
+            import engine_core as _ec
+            _ec.MEMBERSHIP = _ec.membership_for(u)
             comp, out = v34_common.run_arm(u, a, rebal=args.rebal)
         (out / "RUN_IN_PROGRESS.txt").unlink(missing_ok=True)
         state["pending"] = [d for d in state["pending"] if d != out]

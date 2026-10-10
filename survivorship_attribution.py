@@ -77,15 +77,8 @@ MEMBERSHIP_FILE = {
     "midcap150": "Midcap150", "smallcap250": "SmallCap250",
     "microcap250": "MicroCap250",
 }
-# The 15 renames read against their circulars (diagnostics/membership/STATUS.md).
-# The other 176 rows of nse_symbol_renames.csv are unchecked and are not used.
-RENAMES = {
-    "RNAM": "NAM-INDIA", "TATAGLOBAL": "TATACONSUM", "NIITTECH": "COFORGE",
-    "INFRATEL": "INDUSTOWER", "ADANIGAS": "ATGL", "CADILAHC": "ZYDUSLIFE",
-    "MOTHERSUMI": "MOTHERSON", "RUCHI": "PATANJALI", "MINDAIND": "UNOMINDA",
-    "SRTRANSFIN": "SHRIRAMFIN", "IIFLWAM": "360ONE", "ADANITRANS": "ADANIENSOL",
-    "L&TFH": "LTF", "GMRINFRA": "GMRAIRPORT", "TATAMOTORS": "TMPV",
-}
+# The 15 renames read against their circulars, held in results/survivorship.py.
+from survivorship import RENAMES  # noqa: E402
 SUPPORTED = [
     ("nifty50", "v3"), ("midcap150", "v4"), ("smallcap250", "v1"), ("smallcap250", "v3"),
     ("nifty200", "v1"), ("nifty500", "v1"), ("nifty500", "v2"),

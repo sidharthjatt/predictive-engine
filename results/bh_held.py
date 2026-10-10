@@ -31,7 +31,11 @@ def held_lots(px, op, bd):
     """-> dict(eq_headline, eq_last_day, detail) for the equal-rupee held basket."""
     d0, dN = bd[0], bd[-1]
     o0 = op.loc[d0]
-    syms = [s for s in o0.index if not np.isnan(o0[s]) and o0[s] > 0]
+    # THE BASKET: every name in static mode; in pit mode the members on d0, the
+    # first pit rebalance (owner's decision, 2026-10-10).
+    import survivorship as _sv, engine_core as _ec
+    syms = [s for s in _sv.buyhold_columns(list(o0.index), d0, _ec.MEMBERSHIP)
+            if not np.isnan(o0[s]) and o0[s] > 0]
     per = START_CAPITAL / len(syms)
     shares, cash, buy_tc = {}, START_CAPITAL, 0.0
     for s in syms:

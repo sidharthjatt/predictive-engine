@@ -980,6 +980,10 @@ def main():
     SEL = set(selected_tags())
     for _t in REGISTRY:
         if _t in SEL:
+            # PIT RUNS: this step loops over universes itself, so it sets each
+            # universe's membership here; None in a static run.
+            import engine_core as _ec
+            _ec.MEMBERSHIP = _ec.membership_for(REGISTRY[_t])
             _logs_for(REGISTRY[_t], REGISTRY[_t].metrics_dir)
         else:
             print(f"  {_t} not selected for this run -- skipping its daily log")

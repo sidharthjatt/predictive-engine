@@ -113,7 +113,9 @@ def artefact_tag(u, arm):
     # AND THE TAX AXIS, for the same reason again: a tax=on run must not
     # overwrite the trail the Nautilus comparison scripts and the daily log read
     # by name. Empty at tax=off, so the unsuffixed names are untouched.
-    return tag + cadence.suffix() + profiles.suffix() + _tax.suffix()
+    # AND THE SURVIVORSHIP AXIS, appended after tax: "" at static.
+    import survivorship_axis as _sva
+    return tag + cadence.suffix() + profiles.suffix() + _tax.suffix() + _sva.suffix()
 
 
 def _reference_curve(M, arm_name):
@@ -176,7 +178,8 @@ def _reference_curve(M, arm_name):
     # re-run against an untaxed curve left on disk by an EARLIER, DIFFERENT run
     # and reported MATCH. It could not fail.
     import tax as _tax_axis
-    _cad = cadence.suffix() + _prof.suffix() + _tax_axis.suffix()
+    import survivorship_axis as _sva
+    _cad = cadence.suffix() + _prof.suffix() + _tax_axis.suffix() + _sva.suffix()
     # A STOP ARM'S CURVE IS IN THE COMPANION FILE, and only there.
     if arm_name in _ar.STOP_ARMS:
         g = M / f"v34_stop_equity{_ar.stop_selection_suffix()}{_cad}.csv"

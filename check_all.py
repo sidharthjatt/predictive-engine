@@ -904,16 +904,20 @@ def _run_axes(rec=None, tax_on=True):
     import profiles as _pf
     import tax as _tx
     import arms.registry as _ar
-    saved = (_cd._SELECTED, _pf.selected(), _tx.selected(), _ar._SELECTED)
+    import survivorship_axis as _sva
+    saved = (_cd._SELECTED, _pf.selected(), _tx.selected(), _ar._SELECTED,
+             _sva.selected())
     try:
         _cd.set_selection(rec["cadence"] if rec else None)
         _pf.set_selection(rec["profile"] if rec else None)
         _ar.set_selection(rec["arms"] if rec else None)
         _tx.set_selection(tax_on)
+        _sva.set_selection((rec or {}).get("survivorship"))
         yield
     finally:
         _cd.set_selection(saved[0]); _pf.set_selection(saved[1])
         _tx.set_selection(saved[2]); _ar._SELECTED = saved[3]
+        _sva.set_selection(saved[4])
 
 
 def _tax_ledger(u, M, arm="v2", stems=("FY_EQUITY", "FY_TAX_STATEMENT"), rec=None):
@@ -944,7 +948,9 @@ def _v34_equity_pair(M, rec, arm=None):
         with _run_axes(rec, tax_on=on):
             head = (f"v34_stop_equity{_ar.stop_selection_suffix()}" if stop
                     else f"v34_equity{_ar.selection_suffix()}")
-            out.append(M / f"{head}{_cd.suffix()}{_pf.suffix()}{_tx.suffix()}.csv")
+            import survivorship_axis as _sva
+            out.append(M / f"{head}{_cd.suffix()}{_pf.suffix()}{_tx.suffix()}"
+                           f"{_sva.suffix()}.csv")
     return tuple(out)
 
 
@@ -1478,9 +1484,16 @@ def gate_data_source(res, sel):
                          "is meant to shrink; leaving a cleared artefact on it "
                          "hides the next one that genuinely lacks the field.")
                 continue
-            if t not in live:
-                live[t] = config.data_fingerprint(u.prepare_data_dir(), u.raw_data_dir)
-            cur = live[t]
+            # A PIT ARTEFACT (name ending _pit, the last axis) was built from the
+            # universe's point-in-time variant, so it is checked against that
+            # variant's data: the with-survivorship folder and the pit farm.
+            pit = f.stem.endswith("_pit")
+            if (t, pit) not in live:
+                from universes.registry import pit_variant
+                uu = pit_variant(u) if pit else u
+                live[(t, pit)] = config.data_fingerprint(uu.prepare_data_dir(),
+                                                         uu.raw_data_dir)
+            cur = live[(t, pit)]
             for key in ("raw_data_dir", "link_target_dir", "digest"):
                 a, b = rec.get(key), cur.get(key)
                 if key != "digest" and a and b and not str(a).startswith("MIXED"):
@@ -1537,6 +1550,21 @@ def _print_not_asserted(res):
     print(f"        GATE 5 DID NOT ASSERT ({len(res.not_asserted)}), BY NAME:")
     for label, status, short in sorted(res.not_asserted):
         print(f"          {label:<{w}}  {short}")
+
+
+# CELLS NO GATE COVERS, NAMED UNDER EVERY VERDICT. A pit cell (run.py
+# --survivorship pit) is outside nt_verify: the Nautilus port has no membership
+# rule and no index exit, so it would be checked against a different strategy.
+# KNOWN_ISSUES.md, "Pit cells are not covered by nt_verify".
+NOT_COVERED = (
+    ("nautilus/nt_verify.py", "every pit cell (--survivorship pit), all universes and arms",
+     "the Nautilus port has no membership rule or index exit"),
+)
+
+
+def _print_not_covered():
+    for gate, cells, why in NOT_COVERED:
+        print(f"        NOT COVERED by {gate}: {cells} -- {why}")
 
 
 def _print_not_selected(res):
@@ -1608,6 +1636,7 @@ def main(argv=None):
             if detail:
                 print(f"      {detail}")
         print()
+        _print_not_covered()
         return 1
     # THE VERDICT IS COMPUTED FROM THE SKIPS, NEVER TYPED. A constant string is
     # exactly what went wrong: it survived every skip the body recorded.
@@ -1627,6 +1656,7 @@ def main(argv=None):
               f"{len(res.skipped)} skipped: {'; '.join(parts)})")
         print(f"        ASSERTED: {', '.join('GATE %d' % g for g in ok)}")
         _print_not_selected(res)
+        _print_not_covered()
         _print_not_asserted(res)
         print("        A SKIPPED GATE IS NOT A PASSED GATE. Exit code is 0 "
               "because a skip is legitimate,")
@@ -1637,6 +1667,7 @@ def main(argv=None):
     else:
         print(f"RESULT: PASS -- all {n} gates asserted, none skipped")
         _print_not_selected(res)
+        _print_not_covered()
         _print_not_asserted(res)
     return 0
 

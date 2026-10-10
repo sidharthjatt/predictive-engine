@@ -65,6 +65,14 @@ midcap50, midcap100, midcap150, smallcap250, microcap250), `--arm` (v1 to v4),
 ./venv/bin/python run.py --universe nifty50 --arm v4 --rebal 30 --tax on --profile tradeable
 ```
 
+`--survivorship static|pit` (default static) chooses the universe construction.
+static is every published figure: today's members backfilled. pit uses the
+supplier's point-in-time membership files and the with-survivorship prices, and
+writes every artefact with a `_pit` suffix. The membership files fail validation
+and are used by decision; each pit run records the verdict, the members it could
+not price and a look-ahead note in its log, RUN.txt and params JSON. See
+`SURVIVORSHIP_README.md` and KNOWN_ISSUES.md.
+
 Two more arms exist and are not part of `--arm all`: v5 (v1 plus a drawdown stop)
 and v6 (v3 plus the stop). The stop exits when the arm's close equity is 20% or more
 below its running peak, sells everything at the next open, stays in cash for at

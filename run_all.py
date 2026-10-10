@@ -545,7 +545,7 @@ def _step_label(script, tag):
 # build_scores_step already declared `# naming: axis-free` on both writes. That was
 # a CLAIM; it is now a measured one.
 AXIS_FREE = ""                      # the name carries no run axis at all
-RUN_AXES = "cadence,profile,tax"     # the axes _present() composes, in writer order
+RUN_AXES = "cadence,profile,tax,survivorship"  # the axes _present() composes, in writer order
 # TAX JOINED 2026-09-23. It was missing, so `--tax on --rebal 10` refused at
 # STEP 10t asking for daily_trades_<tag>_r10.csv while make_audit had written
 # daily_trades_<tag>_r10_tax.csv -- and at the default cadence the guard was
@@ -860,6 +860,9 @@ def check_inputs(label, script, tag):
         import tax as _tx
         if "tax" in axes and not _tx.is_default():
             _sfx += _tx.suffix()
+        import survivorship_axis as _sva
+        if "survivorship" in axes and not _sva.is_default():
+            _sfx += _sva.suffix()
         want = f if not _sfx else f.with_name(f.stem + _sfx + f.suffix)
         if want.exists():
             return True
@@ -976,7 +979,15 @@ def main():
 
         `--fresh` still works. It is forwarded.
     """
-    extra = [a for a in sys.argv[1:] if a != "--fresh"]
+    # --survivorship static|pit IS FORWARDED as well (2026-10-10), as one flag and
+    # its value. Anything else still stops the run.
+    argv_in = sys.argv[1:]
+    surv = []
+    if "--survivorship" in argv_in:
+        i = argv_in.index("--survivorship")
+        surv = argv_in[i:i + 2]
+        argv_in = argv_in[:i] + argv_in[i + 2:]
+    extra = [a for a in argv_in if a != "--fresh"]
     if extra:
         # THIS FILE TAKES ONE FLAG. It never used argparse -- FRESH is a bare
         # `"--fresh" in sys.argv` -- so every other argument was silently ignored
@@ -984,7 +995,7 @@ def main():
         # three-hour rebuild is not a help message. Unrecognised arguments now stop
         # the run and point at the entry point that understands them.
         print(__doc__)
-        print(f"run_all.py takes only --fresh; got {' '.join(extra)}")
+        print(f"run_all.py takes only --fresh and --survivorship; got {' '.join(extra)}")
         print("For anything else -- one universe, one arm, --list, --dry-run,")
         print("--rebal -- use run.py, which this file now delegates to:")
         print("    ./venv/bin/python run.py --help")
@@ -995,7 +1006,7 @@ def main():
         return rc
 
     import run as _run
-    argv = ["--universe", "all", "--arm", "all"]
+    argv = ["--universe", "all", "--arm", "all"] + surv
     if FRESH:
         argv.append("--fresh")
     return _run.main(argv)

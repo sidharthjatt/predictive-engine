@@ -69,6 +69,21 @@ import ratio_clean  # reverting adj_close/close events: experiments/DATA_CLEANIN
 # list[t] != list[t-1] + inclusions - exclusions on 20 of 75 transitions).
 MEMBERSHIP = None
 
+# PIT RUNS ONLY: {tag: Membership}, filled once by run.py when --survivorship pit
+# is selected. run.py sets MEMBERSHIP from it before each universe's step and arm
+# run; a step that loops over universes itself (make_daily_log) calls
+# membership_for(u) per universe. Empty in a static run, so membership_for() is
+# None and every touch point stays a no-op.
+PIT_MEMBERSHIPS = {}
+# {tag: survivorship.pit_record(...)} for the same universes, read by the params
+# JSON writers so every pit artefact carries its verdict.
+PIT_RECORDS = {}
+
+
+def membership_for(u):
+    """u's membership in a pit run, else None."""
+    return PIT_MEMBERSHIPS.get(u.tag) if sv.is_pit() else None
+
 # ---------------------------------------------------------------------------
 # TRADEABILITY -- the third, PRICE-SIDE flag. See results/tradability.py.
 # ---------------------------------------------------------------------------

@@ -465,6 +465,56 @@ def backtest_exposure(px, op, sc, dates, pc, mom20, port_vol=None,
                 else:
                     del shares[s]
 
+        # TOUCH POINT 7 -- FORCED EXIT ON A NAME LEAVING THE INDEX. Pit mode only;
+        # in static mode, or with no membership loaded, nothing here runs.
+        #
+        # BESIDE TOUCH POINT 4, FOR THE SAME REASON: a name that leaves between
+        # rebalances must not be held until the next one. Each session, a held name
+        # that is not in the membership in force today is sold at today's OPEN --
+        # the first session on or after the effective date of the row that drops
+        # it. Index changes are announced weeks ahead, so that order could be
+        # placed in time. Same fill, slippage, charges, participation cap and tax
+        # ledger as every other sell; a capped remainder stays held and is retried
+        # the next session, as is a name with no raw price row today. The cash is
+        # not reinvested until the next rebalance. Touch point 3 still removes the
+        # same names from `keep` at a rebalance, which is then a no-op.
+        if sv.is_pit() and engine_core.MEMBERSHIP is not None and sv.EXIT_POLICY == "forced":
+            _members = engine_core.MEMBERSHIP.members_on(dt)
+            for s in [x for x in shares if _members and x.upper() not in _members]:
+                pr = opens.get(s, np.nan)
+                if np.isnan(pr) or pr <= 0 or not engine_core.tradeable_on(s, dt):
+                    continue
+                q = int(shares[s])
+                _capped = _participation_limit(s, dt, participation_cap, vol20)
+                _left = 0
+                if _capped is not None and q > _capped[0]:
+                    _left, q = q - _capped[0], _capped[0]
+                    if audit is not None:
+                        audit["skipped"].append({"date": dt, "side": "SELL", "symbol": s,
+                            "reason": "participation cap",
+                            "detail": f"index exit capped to {q:,} sh; remainder stays held"})
+                if q < 1:
+                    continue
+                _ref = pr
+                pr, _pend = _fill_price("SELL", s, dt, pr, q)
+                tc = calc_tc(pr, q, "SELL")
+                cash += q * pr - tc; cum_tc += tc; n_trades += 1
+                _cost_fill(dt, "SELL", s, q, _ref, pr, tc, "index exit")
+                _commit_impact(_pend)
+                if ledger is not None:
+                    ledger.sell(s, q, round(pr, 2), dt)
+                if audit is not None:
+                    audit["trades"].append({"date": dt, "action": "SELL", "symbol": s,
+                        "qty": q, "price": round(pr, 2), "value": round(q*pr, 2),
+                        "tc": round(tc, 2)})
+                    audit["skipped"].append({"date": dt, "side": "SELL", "symbol": s,
+                        "reason": "forced exit: left the index",
+                        "detail": "not in the membership in force on this session"})
+                if _left:
+                    shares[s] = _left
+                else:
+                    del shares[s]
+
         if pending is not None:
             targets, keep = pending
             # The fill kind of this morning's sells: "rebalance" unless the order

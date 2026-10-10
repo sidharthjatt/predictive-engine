@@ -179,7 +179,7 @@ def main(u):
         pc=precompute(px); mom20=px/px.shift(20)-1
         idx=(1+px.pct_change().mean(axis=1).fillna(0)).cumprod()
         pv=rolling_std(idx.pct_change(), VOL_WIN)*np.sqrt(252)
-        bd=px.index[(px.index>=config.BT_START_DATE)&(px.index<=config.BT_END_DATE)]
+        bd=u.trading_days(px.index)   # the universe's window; see engine_v2_final
         kw=dict(target_vol=pv.loc[bd].median(),rebal=cadence.selected(),
                 **arm.kwargs,**profiles.cap_kwargs(u))
         v2_off,_,_,_=backtest_exposure(px,op,sc,bd,pc,mom20,pv,audit=None,tax_enabled=False,**kw)

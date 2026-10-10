@@ -40,6 +40,7 @@ from engine_core import metrics
 import config as _config
 import universes.registry as _uni_registry
 import naming
+import survivorship as _survivorship
 from config import read_table  # the one CSV/parquet reader: config.read_table
 from numerics import rolling_std  # platform-identical variance: results/numerics.py
 
@@ -234,6 +235,9 @@ def _write_core(M, SFX, comp, subs, ARM_ON, bd, bh, curves, universe_label,
         # dropped, so the key SET of a gated artefact does not move either.
         **({"gate_status": profiles.gate_status()}
            if profiles.gate_status() else {}),
+        # PIT RUNS ONLY: the validator verdict, residual survivorship and the
+        # look-ahead note. Absent in a static run.
+        **_survivorship.params_fields(universe_tag),
     }, indent=2))
 
     # --- chart: four arms plus the reference on one axis ---
@@ -299,8 +303,9 @@ def _write_stop(M, stop_rows, stop_curves, stop_audits, bd, bh, halves,
                 universe_label, universe_tag, consts, _reb, _wrote, arm_reg, cadence,
                 profiles, _tax):
     """The companion v34_stop_* files: the selected stop arms and the buy & hold."""
+    import survivorship_axis as _sva
     SFX = (arm_reg.stop_selection_suffix() + cadence.suffix() + profiles.suffix()
-            + _tax.suffix())
+            + _tax.suffix() + _sva.suffix())
     rows = stop_rows + [arm_row(bh, "buy & hold equal-weight", 0, 0, 100.0)]
     rows[-1]["MeanNamesHeld"], rows[-1]["CashShortSkips"] = "", ""
     pd.DataFrame(rows).to_csv(M / f"v34_stop_comparison{SFX}.csv", index=False)
@@ -342,6 +347,9 @@ def _write_stop(M, stop_rows, stop_curves, stop_audits, bd, bh, halves,
         "spec": "experiments/DRAWDOWN_STOP_PREREG.txt",
         **({"gate_status": profiles.gate_status()}
            if profiles.gate_status() else {}),
+        # PIT RUNS ONLY: the validator verdict, residual survivorship and the
+        # look-ahead note. Absent in a static run.
+        **_survivorship.params_fields(universe_tag),
     }, indent=2))
     _wrote.append(M / f"v34_stop_params{SFX}.json")
 
@@ -427,7 +435,11 @@ def run_v34(M, universe_label, universe_tag, px, op, sc, bd, pc, mom20, port_vol
                                                         drawdown_stop=None,
                                                         audit=a4, rebal=_reb,
                                                         tax_enabled=_taxon, **_capkw)
-    bh = start_capital * (1 + px.pct_change().loc[bd].mean(axis=1).fillna(0)).cumprod()
+    # THE BUY & HOLD BASKET: every name in static mode; in pit mode the members on
+    # the first pit rebalance, bd[0] (owner's decision, 2026-10-10).
+    import survivorship as _sv, engine_core as _ec
+    bh = start_capital * (1 + _sv.buyhold_prices(px, bd[0], _ec.MEMBERSHIP)
+                          .pct_change().loc[bd].mean(axis=1).fillna(0)).cumprod()
 
     # ONE TABLE DRIVES CURVES, AUDITS, ROWS AND THE EQUITY COLUMNS, so an arm
     # cannot be filtered out of one of them and left in another. Order is ARMS
@@ -495,8 +507,9 @@ def run_v34(M, universe_label, universe_tag, px, op, sc, bd, pc, mom20, port_vol
     # THE CORE PART OF THE SELECTION NAMES THE CORE FILES. A stop arm never enters
     # v34_comparison.csv: it is written to the companion v34_stop_* files below, so
     # a run of v1..v4 plus v5 still writes the canonical files with v1..v4 only.
+    import survivorship_axis as _sva
     SFX = (arm_reg.selection_suffix([n for n, *_ in ARM_ON]) + cadence.suffix()
-           + profiles.suffix() + _tax.suffix())
+           + profiles.suffix() + _tax.suffix() + _sva.suffix())
     # THE PATHS THIS CALL WRITES, IN ORDER. Read only by the report line below, so
     # that what is printed is derived from what was written rather than restated.
     _wrote = []
@@ -624,7 +637,11 @@ def run_arm(u, arm, rebal=None, out_dir=None):
         # correction were two retired universes, and they are gone.
         value_at_open=True, rebal=rebal, **_capkw)
 
-    bh = START_CAPITAL * (1 + px.pct_change().loc[bd].mean(axis=1).fillna(0)).cumprod()
+    # THE BUY & HOLD BASKET: every name in static mode; in pit mode the members on
+    # the first pit rebalance, bd[0] (owner's decision, 2026-10-10).
+    import survivorship as _sv, engine_core as _ec
+    bh = START_CAPITAL * (1 + _sv.buyhold_prices(px, bd[0], _ec.MEMBERSHIP)
+                          .pct_change().loc[bd].mean(axis=1).fillna(0)).cumprod()
     # A stop arm is not always invested: its share is the mean target exposure over
     # the rebalance grid, 0 on the days the stop holds it in cash, as for v2 and v4.
     dep = 100.0 if arm.mode == "none" and arm.stop is None else expo * 100
@@ -680,6 +697,7 @@ def run_arm(u, arm, rebal=None, out_dir=None):
         "trading_days": int(len(bd)),
         "deployed_pct": round(float(dep), 1),
         "git_state": _git_state(), "run_date": str(pd.Timestamp.today().date()),
+        **_survivorship.params_fields(u.tag),
     }, indent=2))
 
     fig, ax = plt.subplots(2, 1, figsize=(13, 8), height_ratios=[2, 1])

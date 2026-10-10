@@ -40,11 +40,22 @@ WHY THERE IS A VALIDATION GATE, AND WHY IT REFUSES RATHER THAN WARNS
     largely made of Reliance. It would have looked like the answer and been the least
     trustworthy figure in the project.
 
-    So validate() raises. It does not warn and continue. A caveat gets dropped when
+    So load() raises. It does not warn and continue. A caveat gets dropped when
     a number is copied into a slide; a raised exception does not.
+
+    PIT RUNS ARE THE ONE EXCEPTION, BY THE OWNER'S DECISION OF 2026-10-10. Every
+    supplier membership file in data/raw/Survivorship_Bias fails validate(), and
+    the owner ruled them final as delivered. run.py --survivorship pit loads them
+    with allow_invalid=True and writes the verdict, the residual-survivorship
+    warning and LOOKAHEAD_NOTE into every pit run's log, RUN.txt and params JSON
+    (pit_record). A pit figure must be quoted with that verdict.
 
 HOW A NAME LEAVING THE INDEX IS HANDLED
     Forced exit on the exclusion date, not a buffer exit at the next rebalance.
+    The shipping engine (results/test_exposure.py, beside touch point 4) sells a
+    held name at the open of the first session on or after the effective date of
+    the first row that does not list it. Index changes are announced weeks ahead,
+    so that order could be placed in time.
 
     The point of a point-in-time universe is that the portfolio never holds what it
     could not have held. Letting the buffer carry a name past its exclusion date
@@ -52,7 +63,7 @@ HOW A NAME LEAVING THE INDEX IS HANDLED
     turnover on the reconstitution dates, which is the correct price to pay -- and a
     real index-tracking mandate pays it too.
 
-    EXIT_POLICY = "forced"  -- sell on the first trading day after exclusion (default)
+    EXIT_POLICY = "forced"  -- sell on the first session on or after exclusion (default)
     EXIT_POLICY = "buffer"  -- let the normal buffer rule handle it
 
     "buffer" exists so the two can be measured against each other. It is not the
@@ -72,6 +83,11 @@ EXPECTED FILE FORMAT
     Only effective_date and symbols are required. If inclusions/exclusions are
     present they are cross-checked against symbols, and a disagreement is an error,
     because it means the file has no single coherent membership series.
+
+    MEMBERSHIP IS BUILT FROM THE symbols COLUMN ONLY: the row's list is the
+    membership from its effective_date until the next row. inclusions and
+    exclusions are read by validate() and nowhere else (owner's decision,
+    2026-10-10).
 
 USAGE
 
@@ -125,6 +141,29 @@ from paths import list_dir  # noqa: E402
 
 SURVIVORSHIP_MODE = "static"     # "static" | "pit"
 EXIT_POLICY = "forced"           # "forced" | "buffer"
+
+# THE 15 RENAMES READ AGAINST THEIR NSE CIRCULARS (diagnostics/membership/STATUS.md),
+# old symbol -> the symbol the price files use. The other 176 rows of
+# data/reference/nse_symbol_renames.csv are unchecked and are not used. Applied by
+# load() to the membership lists it returns, never to the file and never inside
+# validate(), so the validator's checks see the file exactly as delivered.
+RENAMES = {
+    "RNAM": "NAM-INDIA", "TATAGLOBAL": "TATACONSUM", "NIITTECH": "COFORGE",
+    "INFRATEL": "INDUSTOWER", "ADANIGAS": "ATGL", "CADILAHC": "ZYDUSLIFE",
+    "MOTHERSUMI": "MOTHERSON", "RUCHI": "PATANJALI", "MINDAIND": "UNOMINDA",
+    "SRTRANSFIN": "SHRIRAMFIN", "IIFLWAM": "360ONE", "ADANITRANS": "ADANIENSOL",
+    "L&TFH": "LTF", "GMRINFRA": "GMRAIRPORT", "TATAMOTORS": "TMPV",
+}
+
+# WRITTEN INTO EVERY PIT RUN'S RECORD. Measured by survivorship_attribution.py on
+# the supplier's files: the 2018 and 2019 rows of the Nifty 50 file list JIOFIN,
+# listed in 2023, and TRENT, BEL, INDIGO and MAXHEALTH, which joined in 2024 and
+# 2025. Read as membership, such a row makes a later member eligible early.
+LOOKAHEAD_NOTE = (
+    "The symbols column reads like today's member list edited backwards (the 2018 "
+    "and 2019 rows of the Nifty 50 file list JIOFIN, listed in 2023, and TRENT, BEL, "
+    "INDIGO and MAXHEALTH, which joined in 2024 and 2025). It is used as membership "
+    "by the owner's decision, so some look-ahead remains in pit results.")
 
 
 def set_mode(mode: str) -> None:
@@ -551,9 +590,14 @@ def load(path, index_name="nifty100", price_dir=None,
          expected_size=None, allow_invalid=False) -> Membership:
     """Load and validate a membership file.
 
-    Raises MembershipError if validation fails. allow_invalid=True bypasses that
-    and exists only for inspecting a known-broken file -- never for producing a
-    number. Anything computed under allow_invalid must not be reported.
+    Raises MembershipError if validation fails. allow_invalid=True bypasses that.
+    PIT RUNS USE IT: every supplier membership file fails validation, and the owner
+    decided on 2026-10-10 that pit runs go ahead on those files as delivered. A
+    figure computed under allow_invalid must be quoted with the validator's verdict,
+    which pit_record() puts into every pit run's log, RUN.txt and params JSON.
+
+    The returned lists carry RENAMES applied, so they name the symbols the price
+    files use. The validation result describes the file as delivered.
     """
     res = validate(path, index_name, price_dir, expected_size)
     if not res.ok and not allow_invalid:
@@ -563,8 +607,9 @@ def load(path, index_name="nifty100", price_dir=None,
             f"invalid membership history looks more authoritative than the biased "
             f"one it replaces, which makes it worse.")
     df = _read_raw(path)
-    lists = [_split(s) for s in df["symbols"]]
-    excl = {d: _split(e) for d, e in zip(df["effective_date"], df["exclusions"])}
+    lists = [{RENAMES.get(x, x) for x in _split(s)} for s in df["symbols"]]
+    excl = {d: {RENAMES.get(x, x) for x in _split(e)}
+            for d, e in zip(df["effective_date"], df["exclusions"])}
     return Membership(dates=list(df["effective_date"]), lists=lists,
                       exclusions=excl, source=str(path), validation=res)
 
@@ -581,6 +626,12 @@ def apply_to_panel(panel: pd.DataFrame, membership: Membership | None,
     permanently in the pipeline. In "pit" mode it drops every (date, symbol) row
     where the symbol was not in the index on that date.
 
+    ROWS BEFORE THE FIRST EFFECTIVE DATE ARE KEPT. There is no membership to
+    restrict them to, and the model needs history to train on before the first
+    pit rebalance. They are never traded: a pit universe's backtest window starts
+    at the first session on or after the first effective date
+    (universes.registry.pit_variant).
+
     PRICES ARE NOT DROPPED FROM THE EXECUTION PATH BY THIS FUNCTION. Apply it to
     the SCORE panel -- the set of names that may be ranked and bought. A name being
     sold after exclusion still needs its price on the sale date, and this project
@@ -596,9 +647,96 @@ def apply_to_panel(panel: pd.DataFrame, membership: Membership | None,
     syms = panel[symbol_col].astype(str).str.upper().values
     keep = np.zeros(len(panel), dtype=bool)
     for i, (p, s) in enumerate(zip(pos, syms)):
-        if p >= 0 and s in membership.lists[p]:
+        if p < 0 or s in membership.lists[p]:
             keep[i] = True
     return panel[keep].copy()
+
+
+def buyhold_columns(columns, first_date, membership):
+    """The names the buy & hold holds: all of `columns`, or in pit mode the
+    members on `first_date`, the first pit rebalance (owner's decision 2026-10-10).
+
+    Static mode returns `columns` itself, so a static buy & hold is computed from
+    the same object it always was.
+    """
+    if not is_pit() or membership is None:
+        return columns
+    m = membership.members_on(first_date)
+    return [c for c in columns if str(c).upper() in m]
+
+
+def buyhold_prices(px, first_date, membership):
+    """`px` restricted to buyhold_columns(). Static mode returns `px` itself."""
+    if not is_pit() or membership is None:
+        return px
+    return px[buyhold_columns(list(px.columns), first_date, membership)]
+
+
+def residual_survivorship(membership, price_dir, current, lo=None, hi=None):
+    """Members in force at any point of [lo, hi] that have no price file in
+    `price_dir`, split into those not in `current` (dropped from the index) and
+    those in it (current members). Uses the renamed lists."""
+    files = {p.stem.upper() for p in list_dir(price_dir, "*.csv")}
+    i0 = 0 if lo is None else max(int(membership._pos([pd.Timestamp(lo)])[0]), 0)
+    i1 = (len(membership.lists) - 1 if hi is None
+          else int(membership._pos([pd.Timestamp(hi)])[0]))
+    seen = set().union(*membership.lists[i0:i1 + 1]) if i1 >= i0 else set()
+    missing = sorted(seen - files)
+    cur = {c.upper() for c in current}
+    return {"members_in_window": len(seen),
+            "no_price_file": len(missing),
+            "no_price_file_dropped": [s for s in missing if s not in cur],
+            "no_price_file_current": [s for s in missing if s in cur]}
+
+
+def pit_record(membership, price_dir, current, lo, hi):
+    """What every pit run must carry: the validator verdict, the residual
+    survivorship and the look-ahead note. A dict, for the params JSON; lines()
+    renders it for the log and RUN.txt."""
+    v = membership.validation
+    res = residual_survivorship(membership, price_dir, current, lo, hi)
+    try:
+        src = Path(membership.source).resolve().relative_to(_ROOT).as_posix()
+    except ValueError:
+        src = membership.source
+    return {"membership_file": src,
+            "validator_verdict": "PASS" if v.ok else "FAIL",
+            "validator_errors": list(v.errors),
+            "validator_warnings": list(v.warnings),
+            "residual_survivorship": res,
+            "residual_warning": (
+                f"{res['no_price_file']} of {res['members_in_window']} members in the "
+                f"window have no price file ({len(res['no_price_file_dropped'])} dropped "
+                f"from the index, {len(res['no_price_file_current'])} current): they "
+                f"could not be held, so residual survivorship bias remains"),
+            "lookahead_note": LOOKAHEAD_NOTE,
+            "exit_policy": EXIT_POLICY}
+
+
+def params_fields(tag):
+    """The params JSON entry a pit run adds: {"survivorship": the pit record}.
+    {} in a static run, so a static params file keeps its exact key set."""
+    if not is_pit():
+        return {}
+    import engine_core
+    return {"survivorship": {"state": describe_state(),
+                             **engine_core.PIT_RECORDS.get(tag, {})}}
+
+
+def pit_record_lines(rec):
+    """pit_record as text, for run.log and RUN.txt."""
+    res = rec["residual_survivorship"]
+    out = [f"membership file     : {rec['membership_file']}",
+           f"validator verdict   : {rec['validator_verdict']} (used anyway, by the "
+           f"owner's decision; quote pit figures with this verdict)"]
+    out += [f"  error   : {e}" for e in rec["validator_errors"]]
+    out += [f"  warning : {w}" for w in rec["validator_warnings"]]
+    out += [f"residual survivorship: {rec['residual_warning']}",
+            f"  dropped, no price : {', '.join(res['no_price_file_dropped']) or 'none'}",
+            f"  current, no price : {', '.join(res['no_price_file_current']) or 'none'}",
+            f"look-ahead          : {rec['lookahead_note']}",
+            f"exit policy         : {rec['exit_policy']}"]
+    return out
 
 
 def describe_state() -> str:

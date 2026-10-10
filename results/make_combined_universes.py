@@ -420,10 +420,12 @@ def _ci(path):
     # THE TAX AXIS, 2026-09-17. This helper is the one that was found composing
     # one axis fewer than its two same-named siblings; it gets the fourth at the
     # same time they do, so the three cannot drift apart again.
-    if cadence.is_default() and _pf.is_default() and _tax.is_default():
+    import survivorship_axis as _sva
+    if (cadence.is_default() and _pf.is_default() and _tax.is_default()
+            and _sva.is_default()):
         return path
     c = path.with_name(path.stem + cadence.suffix() + _pf.suffix()
-                       + _tax.suffix() + path.suffix)
+                       + _tax.suffix() + _sva.suffix() + path.suffix)
     # NO FALLBACK TO THE CANONICAL FILE, 2026-09-23. This returned `path` when
     # the sibling was absent, so a missing non-default artefact was silently
     # replaced by the published cadence-20 research one and plotted under this
@@ -511,8 +513,10 @@ def combined_chart_path(M, tags, out_suffix=""):
     """
     import profiles as _pf
     import tax as _tax
+    import survivorship_axis as _sva
     return M / ("chart_COMBINED_" + "_".join(tags) + out_suffix
-                + cadence.suffix() + _pf.suffix() + _tax.suffix() + ".png")
+                + cadence.suffix() + _pf.suffix() + _tax.suffix() + _sva.suffix()
+                + ".png")
 
 
 def _draw(rows, out_path):

@@ -54,6 +54,32 @@ From the command line:
 
 ---
 
+## Pit runs in this repository (2026-10-10)
+
+`run.py --survivorship pit` runs a universe on point-in-time membership. It is the
+fifth naming axis, appended after tax: static is the default and unsuffixed, and a
+pit run writes every artefact with `_pit` (`v34_equity_tax_pit.csv`). One code path
+serves every universe:
+
+- membership: `data/raw/Survivorship_Bias/<Index>_membership.csv`, the registry
+  row's `membership_file`. The `symbols` column of a row is the membership from its
+  date until the next row; inclusions and exclusions are read only by the validator.
+- prices: `data/raw/Final_With_Survivorship_Data/<folder>`, the row's
+  `survivorship_data_dir`, which holds today's members and the names that left.
+  Static runs read `Final_Without_Survivorship_Data` as before.
+- caches: `cache/<tag>/pit/`, so no pit file can replace a static one.
+- inputs: checked against `data/RAW_DATA_SHA256_PIT.txt` before the run starts
+  (`check_data.py --pit`).
+- window: starts at the first session on or after the file's first row.
+- buy & hold: the members on the first pit rebalance, held.
+- the Nautilus port is not run, and pit cells are outside nt_verify.
+
+**Every supplier membership file fails `validate()`, and pit runs use them anyway,
+by the owner's decision.** They are loaded with `allow_invalid=True`. Each pit run
+writes the validator verdict, the members with no price file (dropped and current)
+and a look-ahead note (`LOOKAHEAD_NOTE`) into its `run.log`, its `RUN.txt` and every
+params JSON it writes. A pit figure must be quoted with that verdict.
+
 ## Why validation raises instead of warning
 
 The first membership file supplied to this project parsed cleanly: 76 dated rows,
@@ -111,7 +137,7 @@ Anchors live in `SANITY_ANCHORS`. Add an index by adding its list. Leave it empt
 
 ## Exit policy
 
-**`forced` (default)** — a name is sold on the first trading day after it leaves the
+**`forced` (default)** — a name is sold at the open of the first session on or after it leaves the
 index, regardless of rank or buffer status.
 
 The point of a point-in-time universe is that the portfolio never holds what it
@@ -189,9 +215,16 @@ biased number as a clean one six months later.
 | `Membership.coverage_table(price_dir)` | per-date price coverage |
 | `apply_to_panel(panel, m)` | filtered long panel; no-op in static |
 | `describe_state()` | one-line configuration string |
+| `buyhold_columns(cols, date, m)` / `buyhold_prices(px, date, m)` | the buy & hold basket: all names, or in pit the members on `date` |
+| `residual_survivorship(m, price_dir, current)` | members with no price file, dropped and current |
+| `pit_record(...)` / `pit_record_lines(rec)` | what every pit run's log, RUN.txt and params JSON carry |
+| `params_fields(tag)` | `{}` in static; the pit record under `survivorship` in pit |
 
-`load(..., allow_invalid=True)` bypasses the gate for **inspecting** a broken file.
-Anything computed under it must not be reported.
+`load(..., allow_invalid=True)` bypasses the gate. Pit runs use it, by decision, on
+files that fail validation; their figures must be quoted with the verdict.
+`apply_to_panel` keeps rows dated before the first effective date (training history
+only; no pit trade happens before that date). `load` applies the 15 validated
+renames (`RENAMES`) to the lists it returns, never to the file.
 
 ---
 

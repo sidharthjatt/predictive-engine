@@ -383,6 +383,12 @@ class Universe:
     # two would read as though both were measured.
     validation_status: object
 
+    # THE POINT-IN-TIME SOURCES, 2026-10-10. Required, like the fields above, so a
+    # new row cannot forget them. Read only by pit_variant(), i.e. only by a
+    # --survivorship pit run; a static run never opens either path.
+    membership_file: Path          # data/raw/Survivorship_Bias/<Index>_membership.csv
+    survivorship_data_dir: Path    # data/raw/Final_With_Survivorship_Data/<folder>
+
     # THE ONE FIELD THAT KEEPS A DEFAULT, and it is different in kind. It is read
     # as `u.engine_params_static or {}` and then as `_vals[k]` for every key in
     # engine_params_keys, so a row that omits it while naming a key that needed a
@@ -408,14 +414,25 @@ class Universe:
     data_dir: Path = field(init=False)        # what build_panel is pointed at
     score_cache: Path = field(init=False)     # the score panel
     raw_cache: Path = field(init=False)       # the raw feature panel
+    # The row's text fields before the "{n}" count is filled, so pit_variant()
+    # can rebuild them for a different symbol list.
+    _templates: dict = field(init=False, repr=False, compare=False)
 
     @property
     def name(self):
         """The label without its constituent count: "Nifty 100", "MidCap150"."""
         return self.label.split(" (")[0]
 
+    @property
+    def is_pit(self):
+        """True for the variant pit_variant() builds: its prices come from the
+        with-survivorship folder."""
+        return self.raw_data_dir is not None and self.raw_data_dir == self.survivorship_data_dir
+
     def __post_init__(self):
-        d = CACHE_DIR / self.tag
+        # A PIT VARIANT CACHES UNDER cache/<tag>/pit/, so its farm and panels can
+        # never be read as, or overwrite, the static ones.
+        d = CACHE_DIR / self.tag / "pit" if self.is_pit else CACHE_DIR / self.tag
         object.__setattr__(self, "data_dir", d / "constituents")
         object.__setattr__(self, "score_cache", d / f"v_{self.tag}_expanding.parquet")
         object.__setattr__(self, "raw_cache", d / f"raw_panel_{self.tag}_{HORIZON}.parquet")
@@ -424,8 +441,10 @@ class Universe:
         # the set of CSVs the farm links and build_panel scores. A typed count
         # said "49 constituents" on a run that scored 48.
         n = str(len(self.symbol_list))
-        for f in ("label", "survivorship", "validation_status",
-                  "engine_text", "chart_text", "engine_params_static"):
+        _fields = ("label", "survivorship", "validation_status",
+                   "engine_text", "chart_text", "engine_params_static")
+        object.__setattr__(self, "_templates", {f: getattr(self, f) for f in _fields})
+        for f in _fields:
             object.__setattr__(self, f, _fill_count(getattr(self, f), n))
 
     def symbols(self):
@@ -586,6 +605,13 @@ _RAW = ROOT / "data" / "raw"
 # BT_START_DATE where they did not before. See PANEL_MIGRATION.md.
 _WITHOUT_SURV = _RAW / "Final_Without_Survivorship_Data"
 
+# THE POINT-IN-TIME SOURCES, read only by a --survivorship pit run (pit_variant).
+# The with-survivorship folders hold today's members and the names that left the
+# index; the membership files say who was in it from each effective date until
+# the next. Both are supplier data and are never edited (owner, 2026-10-10).
+_WITH_SURV = _RAW / "Final_With_Survivorship_Data"
+_MEMBERSHIP = _RAW / "Survivorship_Bias"
+
 _MIDCAP150_SOURCE = _WITHOUT_SURV / "Final_NIFTYMidCap150_EoD_Data"
 _MIDCAP150_METRICS = ROOT / "results_midcap150" / "metrics"
 _MIDCAP150_INDEX = "NIFTY MIDCAP 150"
@@ -597,6 +623,8 @@ _NIFTY100_INDEX = "NIFTY 100"
 _MIDCAP150 = Universe(
         tag="midcap150", label="MidCap150 ({n} constituents)",
         raw_data_dir=_MIDCAP150_SOURCE,
+        membership_file=_MEMBERSHIP / "Midcap150_membership.csv",
+        survivorship_data_dir=_WITH_SURV / "Final_Survivorship_NIFTYMidcap150_EoD_Data",
         survivorship=(
             "STATIC. {n} names are TODAY'S MidCap150 members backfilled to "
             "2019-01-01. Midcaps that left the index or delisted during the window "
@@ -688,6 +716,8 @@ _MIDCAP150 = Universe(
 _NIFTY100 = Universe(
         tag="nifty100", label="Nifty 100 ({n} constituents)",
         raw_data_dir=_NIFTY100_SOURCE,
+        membership_file=_MEMBERSHIP / "Nifty100_membership.csv",
+        survivorship_data_dir=_WITH_SURV / "Final_Survivorship_NIFTY100_EoD_Data",
         survivorship=(
             "STATIC. {n} names are TODAY'S Nifty 100 members backfilled to "
             "2019-01-01. Names dropped or delisted during the window are absent "
@@ -789,6 +819,8 @@ _NIFTY50_INDEX = "Nifty 50"
 _NIFTY50 = Universe(
         tag="nifty50", label="Nifty 50 ({n} constituents)",
         raw_data_dir=_NIFTY50_SOURCE,
+        membership_file=_MEMBERSHIP / "Nifty50_membership.csv",
+        survivorship_data_dir=_WITH_SURV / "Final_Survivorship_NIFTY50_EoD_Data",
         survivorship=(
             "STATIC. {n} names are TODAY'S Nifty 50 members backfilled to "
             "2019-01-01. Names dropped or delisted during the window are absent "
@@ -896,6 +928,8 @@ _MIDCAP50_INDEX = "NIFTY MIDCAP 50"
 _MIDCAP50 = Universe(
         tag="midcap50", label="MidCap50 ({n} constituents)",
         raw_data_dir=_MIDCAP50_SOURCE,
+        membership_file=_MEMBERSHIP / "Midcap50_membership.csv",
+        survivorship_data_dir=_WITH_SURV / "Final_Survivorship_NIFTYMidCap50_EoD_Data",
         # midcap50's OWN NUMBERS, MEASURED 2026-09-18. NOT nifty50's paragraph
         # with the nouns changed: the late-lister rate here is 8 of 49, which is
         # DOUBLE nifty50's 4 of 50 in a universe a third the size, and a reader
@@ -1013,6 +1047,8 @@ _MIDCAP100_INDEX = "NIFTY MIDCAP 100"
 _MIDCAP100 = Universe(
         tag="midcap100", label="MidCap100 ({n} constituents)",
         raw_data_dir=_MIDCAP100_SOURCE,
+        membership_file=_MEMBERSHIP / "Midcap100_membership.csv",
+        survivorship_data_dir=_WITH_SURV / "Final_Survivorship_NIFTYMidCap100_EoD_Data",
         # midcap100's OWN NUMBERS, MEASURED 2026-09-19 by reading the first
         # dated row of all 98 constituent files. NOT midcap50's paragraph with
         # the count changed: THE LATE-LISTER RATE HERE IS 21.4%, against
@@ -1130,6 +1166,8 @@ _NIFTY200_INDEX = "NIFTY 200"
 _NIFTY200 = Universe(
         tag="nifty200", label="Nifty200 ({n} constituents)",
         raw_data_dir=_NIFTY200_SOURCE,
+        membership_file=_MEMBERSHIP / "Nifty200_membership.csv",
+        survivorship_data_dir=_WITH_SURV / "Final_Survivorship_NIFTY200_EoD_Data",
         # nifty200's OWN NUMBERS, MEASURED 2026-09-19 by reading the first dated
         # row of all 197 constituent files. 32 OF 197 IS 16.2% -- essentially
         # midcap50's rate (16.3%) in a universe four times the size, and well
@@ -1229,6 +1267,8 @@ _SMALLCAP250_INDEX = "NIFTY SMLCAP 250"
 _SMALLCAP250 = Universe(
         tag="smallcap250", label="SmallCap250 ({n} constituents)",
         raw_data_dir=_SMALLCAP250_SOURCE,
+        membership_file=_MEMBERSHIP / "SmallCap250_membership.csv",
+        survivorship_data_dir=_WITH_SURV / "Final_Survivorship_NIFTYSmallCap250_EoD_Data",
         # smallcap250's OWN NUMBERS, MEASURED 2026-09-19. 90 OF 248 IS 36.3%,
         # THE HIGHEST RATE OF THE SEVEN AND NEARLY DOUBLE midcap100's 21.4%.
         # THE NINETY NAMES ARE IN diagnostics/smallcap250_late_listers.txt
@@ -1340,6 +1380,8 @@ _NIFTY500_INDEX = "NIFTY500"
 _NIFTY500 = Universe(
         tag="nifty500", label="Nifty500 ({n} constituents)",
         raw_data_dir=_NIFTY500_SOURCE,
+        membership_file=_MEMBERSHIP / "Nifty500_membership.csv",
+        survivorship_data_dir=_WITH_SURV / "Final_Survivorship_NIFTY500_EoD_Data",
         # nifty500's OWN NUMBERS, MEASURED 2026-09-19. 137 of 495 is 27.7% --
         # BELOW smallcap250's 36.3% despite being twice the size, because the
         # Nifty 500 reaches up into the large caps as well as down. The rate
@@ -1426,6 +1468,8 @@ _MICROCAP250_INDEX = "NIFTY MICROCAP250"
 _MICROCAP250 = Universe(
         tag="microcap250", label="MicroCap250 ({n} constituents)",
         raw_data_dir=_MICROCAP250_SOURCE,
+        membership_file=_MEMBERSHIP / "MicroCap250_membership.csv",
+        survivorship_data_dir=_WITH_SURV / "Final_Survivorship_NiftyMicroCap250_EoD_Data",
         # MEASURED 2026-10-10. 102 of 242 names have no price row before
         # BT_START_DATE -- 42.1%, the highest rate of the nine; 37 of them start
         # after 2024-01-01.
@@ -1486,6 +1530,77 @@ _MICROCAP250 = Universe(
             "diagnostics": False,
         },
 )
+
+
+def _pit_constituents(raw_dir, index_name):
+    """The tradable names in a with-survivorship folder, the index excluded.
+
+    LIKE _constituents, EXCEPT THAT NO INDEX FILE IS ALLOWED. microcap250's
+    with-survivorship folder has none; the index line is read from index_file,
+    which points into the without-survivorship folder in both modes. More than one
+    file matching the index name still refuses.
+    """
+    files = list_dir(raw_dir, "*.csv")
+    if index_name is None:
+        return tuple(f.stem for f in files)
+    key = normalise_stem(index_name)
+    hits = [f.stem for f in files if normalise_stem(f.stem) == key]
+    if len(hits) > 1:
+        raise IndexFileError(f"index_name {index_name!r} matches {len(hits)} files "
+                             f"in {raw_dir}: {hits}")
+    return tuple(f.stem for f in files if normalise_stem(f.stem) != key)
+
+
+def first_membership_date(u):
+    """The first effective date in u's membership file, as a Timestamp."""
+    import sys as _sys
+    _res = ROOT / "results"
+    if str(_res) not in _sys.path:
+        _sys.path.insert(0, str(_res))
+    import survivorship as _sv
+    return _sv._read_raw(u.membership_file)["effective_date"].min()
+
+
+def pit_variant(u):
+    """The point-in-time version of a static row. ONE RULE FOR EVERY UNIVERSE.
+
+      prices      survivorship_data_dir, which also holds names that left the index
+      caches      cache/<tag>/pit/ (Universe.__post_init__)
+      window      starts at the later of the static start and the first membership
+                  row, so the first pit rebalance is the first session on or after
+                  that row (owner's decision, 2026-10-10)
+      metrics     the same directory; every pit artefact carries the _pit suffix
+    """
+    import dataclasses
+    import pandas as _pd
+    d0, d1 = u.date_range
+    start = max(_pd.Timestamp(d0), first_membership_date(u))
+    t = u._templates
+    return dataclasses.replace(
+        u, raw_data_dir=u.survivorship_data_dir,
+        symbol_list=_pit_constituents(u.survivorship_data_dir, u.index_name),
+        date_range=(start, d1),
+        label=t["label"], validation_status=t["validation_status"],
+        engine_text=t["engine_text"], chart_text=t["chart_text"],
+        engine_params_static=t["engine_params_static"],
+        survivorship=(
+            "POINT-IN-TIME membership from " + str(u.membership_file.relative_to(ROOT))
+            + ", priced from " + str(u.survivorship_data_dir.relative_to(ROOT))
+            + " ({n} names, current and dropped). The membership file fails "
+            "survivorship.validate and is used by the owner's decision; members with "
+            "no price file leave residual survivorship bias, and the symbols column "
+            "carries some look-ahead. See the run's RUN.txt."))
+
+
+def use_pit(tags):
+    """Replace REGISTRY's rows for `tags` with their pit variants, IN PLACE.
+
+    Called once by run.py, before the plan is built, when --survivorship pit is
+    selected. In place because every consumer looks a universe up in this dict.
+    """
+    for t in tags:
+        if not REGISTRY[t].is_pit:
+            REGISTRY[t] = pit_variant(REGISTRY[t])
 
 
 REGISTRY = {u.tag: u for u in (_MIDCAP150, _NIFTY100, _NIFTY50, _MIDCAP50, _MIDCAP100, _NIFTY200, _SMALLCAP250, _NIFTY500,

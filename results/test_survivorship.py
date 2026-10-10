@@ -705,6 +705,51 @@ def test_ordinary_equities_are_not_rejected():
 # main
 # ---------------------------------------------------------------------------
 
+def test_pit_keeps_rows_before_first_row():
+    """Rows dated before the first effective date stay scorable, for training."""
+    m = sv.load(valid_file())
+    sv.set_mode("pit")
+    p = pd.DataFrame({"date": pd.to_datetime(["2019-01-02", "2019-01-02"]),
+                      "symbol": ["RELIANCE", "MARUTI"], "close": [1.0, 2.0]})
+    out = sv.apply_to_panel(p, m)
+    sv.set_mode("static")
+    assert len(out) == 2, f"rows before the first row were dropped: {len(out)} of 2"
+
+
+def test_load_applies_renames():
+    """An old ticker in the file comes back as the symbol the price files use."""
+    base = ANCHORS + ["L&TFH"]
+    path = write_csv("renamed.csv", [
+        {"effective_date": "2019-03-29", "symbols": ",".join(base),
+         "inclusions": "", "exclusions": ""}])
+    m = sv.load(path, allow_invalid=True)
+    assert "LTF" in m.members_on("2019-06-01") and "L&TFH" not in m.members_on("2019-06-01"), \
+        f"rename not applied: {sorted(m.members_on('2019-06-01'))}"
+
+
+def test_buyhold_columns_static_is_identity():
+    m = sv.load(valid_file())
+    sv.set_mode("static")
+    cols = ["RELIANCE", "WIPRO", "MARUTI"]
+    assert sv.buyhold_columns(cols, "2019-06-01", m) is cols, "static basket changed"
+
+
+def test_buyhold_columns_pit_filters():
+    m = sv.load(valid_file())
+    sv.set_mode("pit")
+    got = sv.buyhold_columns(["RELIANCE", "WIPRO", "MARUTI"], "2019-10-01", m)
+    sv.set_mode("static")
+    assert got == ["RELIANCE", "MARUTI"], f"pit basket wrong: {got}"
+
+
+def test_residual_counts_unpriced_members():
+    m = sv.load(valid_file())
+    d = price_dir([a for a in ANCHORS] + ["LT", "AXISBANK", "MARUTI"], name="resid")
+    r = sv.residual_survivorship(m, d, current=ANCHORS + ["LT", "MARUTI", "TITAN"])
+    assert r["no_price_file_dropped"] == ["WIPRO"], r
+    assert r["no_price_file_current"] == ["TITAN"], r
+
+
 TESTS = [
     ("validation: valid file passes", test_valid_file_passes),
     ("validation: missing anchor is an error", test_missing_anchor_is_error),
@@ -736,6 +781,12 @@ TESTS = [
     ("switch: pit with membership=None passes through", test_pit_mode_with_none_membership_is_noop),
     ("switch: empty panel survives", test_empty_panel_survives),
     ("switch: does not mutate input", test_apply_to_panel_does_not_mutate_input),
+    ("switch: pit keeps rows before the first row", test_pit_keeps_rows_before_first_row),
+
+    ("pit: load applies the validated renames", test_load_applies_renames),
+    ("pit: static buy & hold basket is unchanged", test_buyhold_columns_static_is_identity),
+    ("pit: buy & hold holds the first members", test_buyhold_columns_pit_filters),
+    ("pit: residual counts unpriced members", test_residual_counts_unpriced_members),
 
     ("mask: shape and values", test_eligible_mask_shape_and_values),
     ("mask: before history all false", test_eligible_mask_before_history_all_false),
