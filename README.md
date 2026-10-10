@@ -287,8 +287,7 @@ by four runs of 2026-10-10 (research and tradeable, tax off and on;
 change against the previous delivery is in `diagnostics/cells_prev_vs_20261010.csv`.
 Every figure is one run (n=1); no noise draw has been made on this data. Tax on,
 headline and sold on the last day, are as defined in the 2026-09-25 section below.
-microcap250, added with this delivery, is reported separately at the end: its price
-data has a fault that makes its buy & hold meaningless.
+microcap250, added with this delivery, is withheld; see the end of this section.
 
 `research` profile:
 
@@ -421,34 +420,10 @@ strategy.
 | smallcap250 | v3 | 41.55 | 44.13 | +2.58 | +14.95 | +17.53 | no |
 | smallcap250 | v4 | 25.87 | 23.55 | -2.32 | -0.73 | -3.05 | no |
 
-**microcap250, reported in full and not to be read as a result.** One file in its
-folder is broken: PRIVISCL closes between 0.05 and 0.19 from its first row in 2015 to
-2020-08-20, on a median volume of 30 million shares, then 0.136 on 2020-08-20 and 453.80
-on 2020-08-21, a 3,336-fold move in one session.
-The cleaning rule repairs only moves that revert, so it is left in. No arm held
-PRIVISCL across that day (its first buy is on 2020-12-10), but both buy & holds hold
-it, which is why they show 95% and 133% a year, and the day enters every
-market-level feature the model reads. No other universe has a daily move above +100%
-or below -60% in the window. The data is not edited; the figures below are what the
-pipeline produces from it.
-
-| universe | arm | tax off: CAGR% | MaxDD% | Sharpe | tax on, headline: CAGR% | MaxDD% | Sharpe | tax on, sold on the last day: CAGR% | n |
-|---|---|---:|---:|---:|---:|---:|---:|---:|---|
-| microcap250 | v1 | 61.69 | -39.37 | 2.25 | 52.83 | -39.37 | 1.94 | 52.96 | n=1 |
-| microcap250 | v2 | 31.96 | -21.65 | 2.13 | 27.16 | -21.67 | 1.77 | 27.16 | n=1 |
-| microcap250 | v3 | 74.39 | -34.90 | 2.34 | 65.31 | -34.91 | 2.07 | 65.41 | n=1 |
-| microcap250 | v4 | 42.42 | -19.04 | 2.29 | 36.40 | -23.08 | 1.93 | 36.41 | n=1 |
-
-`tradeable`: v1 57.28 / 50.33 tax on (19 cap binds), v2 32.04 / 27.43 (7), v3 70.40 /
-61.31 (27), v4 42.89 / 36.88 (5), tax off / tax on headline CAGR%.
-
-| universe | buy & hold, reference (untaxed, daily-rebalanced index): CAGR% | MaxDD% | buy & hold, investable (held lots), taxed, headline: CAGR% | held lots, sold on the last day: CAGR% | v2 tax on headline minus investable headline | v2 sold on the last day minus held lots sold on the last day |
-|---|---:|---:|---:|---:|---:|---:|
-| microcap250 | 95.35 | -48.27 | 132.69 | 128.79 | -105.54 | -101.63 |
-
-| universe | investable buy & hold | v1 gap | v2 gap | v3 gap | v4 gap |
-|---|---:|---:|---:|---:|---:|
-| microcap250 | 132.69 | -79.86 | -105.54 | -67.38 | -96.29 |
+**microcap250: results withheld.** PRIVISCL's price file has a 3,336-fold jump on
+2020-08-21 that does not revert, so the cleaning rule leaves it in, and that day enters
+the market-level features the model reads. microcap250's results are withheld and will
+be rerun when the data is corrected.
 
 ### SUPERSEDED 2026-10-10, computed on the previous data delivery -- Republished 2026-09-27 on cleaned prices: every universe, arm and profile
 

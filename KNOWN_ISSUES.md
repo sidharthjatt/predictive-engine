@@ -90,7 +90,7 @@ the noise test supported, measured on the 2026-10-10 research tax-on run):
 `results/selection_margin.py`, rows `diagnostics/selection_margin_20261010.csv`.
 On the 2026-10-10 data, the median score gap between rank 8 and rank 9 at a rebalance
 is 0.48% (nifty200) to 1.23% (nifty50) of that day's score range across the eight
-universes, and 0.74% on microcap250. It is under 1% of the range on 43% to 73% of
+universes. It is under 1% of the range on 43% to 73% of
 rebalances. So a small change to any input can swap a held name. That is why the
 cleaning, each noise draw and the 2026-10-10 delivery move the figures as much as they
 do. On the uncleaned data the margin did not predict which cells moved most under the
@@ -101,7 +101,7 @@ cleaning (Spearman -0.19, p 0.29, 32 cells; no tracked script computes it).
 - **Reference.** A costless index line rebalanced daily. It holds no lots, so it cannot be taxed.
 - **Investable.** An equal-rupee basket of real lots, bought at the first open and never sold. It is the only one that can be taxed, and every after-tax gap is measured against it (`bh_investable` in `diagnostics/cells_20261010.csv`).
 
-The difference between the two does not have one sign. On the 2026-10-10 data the investable basket beats the reference in midcap50 (25.97 against 23.72) and, narrowly, in smallcap250 (26.60 against 26.56). It trails in the other six, by 0.53 (nifty100) to 1.77 points (midcap100). Take the benchmark from the same table as the arm's figure. Moving a figure between the tables changes the gap by up to 2.3 points, and none of that change comes from the strategy. microcap250's two baskets are both distorted by one broken price file (README).
+The difference between the two does not have one sign. On the 2026-10-10 data the investable basket beats the reference in midcap50 (25.97 against 23.72) and, narrowly, in smallcap250 (26.60 against 26.56). It trails in the other six, by 0.53 (nifty100) to 1.77 points (midcap100). Take the benchmark from the same table as the arm's figure. Moving a figure between the tables changes the gap by up to 2.3 points, and none of that change comes from the strategy.
 
 ### v2 and v4 trade return for drawdown, and no published comparison separates the two
 
@@ -151,8 +151,8 @@ switching it moves every published figure and must be mirrored in
 bh_lots_after_tax.py withholds its tax-cost-of-turnover figure when one name
 exceeds 11.62% of the held-lots buy & hold's final value. On the 2026-10-10 outputs
 it withholds on midcap50, where DIXON is 12.4% of that basket
-(results_midcap50/metrics/BH_LOTS_midcap50_tax.csv), and on microcap250, where
-PRIVISCL, a broken price file (README), is 98.4%. The README's midcap50 gaps
+(results_midcap50/metrics/BH_LOTS_midcap50_tax.csv). microcap250's results are
+withheld (README). The README's midcap50 gaps
 against the investable buy & hold use the same basket and carry no such note, so
 treat them as resting on one name more than the other universes' gaps do. The
 basket holds today's members backfilled to 2019, so a name that rose is in it
@@ -231,8 +231,8 @@ numerics fix and the cleaning. Run the tradeable profile to find out.
 - Cash goes below zero in the same 18 of 32 cells under each profile: every v1 and v3
   cell, and v4 on nifty50 and nifty200. Each episode starts on an assessment day; a
   cell spends 1 to 54 sessions below zero in all (median 20.5). The deepest is
-  Rs -8,09,082 (nifty500 v3, tradeable, 2024-04-01). microcap250 v1 and v3 go below
-  zero too, by up to Rs -10,64,579.
+  Rs -8,09,082 (nifty500 v3, tradeable, 2024-04-01). microcap250's results are
+  withheld (README).
 - While overdrawn the book buys nothing but keeps holding more than its equity, and
   with CASH_YIELD = 0.0 the negative balance costs no interest.
 - Paying the tax instead by selling a pro-rata slice of every holding at the
@@ -254,20 +254,19 @@ repository. Making charges dated changes every published cost figure.
 
 ### Nautilus figures differ from the engine's by up to 6.1%, and on the 100%-invested arms can hold different names
 
-nt_verify gates the port against ARM D on the 0.01 grid. On the 2026-10-10 data 34 of
-the 36 core cells pass; midcap100 v3 and microcap250 v3 fail, because some
+nt_verify gates the port against ARM D on the 0.01 grid. On the 2026-10-10 data 31 of
+the 32 core cells of the eight universes pass; midcap100 v3 fails, because some
 rebalances hold a different symbol set even against the open-valued baseline. On
-the 0.01 grid the quote-mid rule reproduces every rebalance of both, but nt_verify
-fails a symbol-set difference against the open-valued baseline before it reaches
-that rule. The
+the 0.01 grid the quote-mid rule reproduces every rebalance, but nt_verify fails a
+symbol-set difference against the open-valued baseline before it reaches that rule.
+microcap250's four cells are gated too; its results are withheld (README). The
 production port fills on the NSE 0.05 grid and the research engine does not round
 prices (README, "The execution layer"). On v1 and v3 a buy is funded whole or skipped.
 So a book a fraction of a percent different can fund a different name at a cash-short
 skip, and that name's return then carries into the equity.
 Port minus engine final equity on the 2026-10-10 data (`nautilus/reports/<u>/<arm>/daily_equity.csv`
 against `v34_equity.csv`, research, tax off) is -4.00% (nifty200 v1) to +6.08%
-(midcap100 v3) across the eight universes, and +2.50% on microcap250 v1; 30 of the 36
-cells are within 0.6%. On the previous data
+(midcap100 v3) across the eight universes; 30 of the 32 cells are within 0.6%. On the previous data
 (`diagnostics/nt_verify_all_arms_20260929.txt`) it was -1.82% (midcap100 v1) to +1.08%
 (midcap150 v3), and the port held a different symbol set from the close-valued
 reference on 1 or 2 rebalances in 7 cells, all v1 or v3.
@@ -365,8 +364,8 @@ only if the reference valued at the port's quote mid (`mid_valued`) reproduces t
 port's holdings, names and share counts, on every rebalance. On the previous data all
 32 cells verified (`diagnostics/nt_verify_all_arms_20260929.txt`): 20 by the one-share
 signature and 12 by this rule, none of those 12 with a different set of names. On the
-2026-10-10 data 34 of the 36 gated cells verify; midcap100 v3 and microcap250 v3 do
-not, because they hold a different set of names from the open-valued baseline, which
+2026-10-10 data 31 of the 32 cells of the eight universes verify; midcap100 v3 does
+not, because it holds a different set of names from the open-valued baseline, which
 nt_verify checks before this rule (see "Nautilus figures differ from the engine's").
 `experiments/CLEANED_NOISE_PREREG.txt`'s report keeps the labels fixed at registration,
 so eight supported cells still read "not port-verified" in `diagnostics/cleaned_noise.txt`.
@@ -572,7 +571,7 @@ The pipeline reads `data/raw/Final_Without_Survivorship_Data/`, nine folders and
 
 `data/nse_trading_calendar.csv` is tracked and filters every panel (`results/engine_core._load_calendar`, `_check_calendar`). It was built once from a retired universe's raw files by `results/make_trading_calendar.py`. Both the script and the files were deleted in 2fe48ff. The calendar ends on 2026-06-08, and nothing in the repository appends to it. Any data past that date needs a new source of sessions, and that source has not been chosen. Do not hand-edit it: a wrong tail changes every backtest window.
 
-On the 2026-10-10 delivery no price file in the nine universes has a row on a date the calendar lacks. The previous delivery carried 237 such dates, 107 of them inside the backtest window, and the supplier removed them. The union of every file's dates is now the calendar minus four sessions that no file has a row for: 2016-07-06, 2017-04-04, 2017-12-02 and 2020-01-07, the only one inside the backtest window (see the entry below). A calendar derived from today's files would drop those four. The finding that no coverage threshold reproduces the calendar on nifty100 or midcap150 (`experiments/CALENDAR_DECOUPLE_SPEC.txt`, marked BLOCKED; `diagnostics/calendar_coverage_probe.txt`) was measured on the previous delivery. No external NSE holiday list has been checked against the calendar.
+On the 2026-10-10 delivery no price file in the nine universes has a row on a date the calendar lacks. The previous delivery carried 237 such dates, 107 of them inside the backtest window, and the supplier removed them. The union of every file's dates is now the calendar minus four sessions that no file has a row for: 2016-07-06, 2017-04-04, 2017-12-02 and 2020-01-07, the only one inside the backtest window (see the entry below). A calendar derived from today's files would drop those four. The finding that no coverage threshold reproduces the calendar on nifty100 or midcap150 (`experiments/CALENDAR_DECOUPLE_SPEC.txt`, marked BLOCKED; `diagnostics/calendar_coverage_probe.txt`) was measured on the previous delivery. On the 2026-10-10 data the probe stops with IndexError before writing its report, because there is no calendar-excluded date for it to examine. No external NSE holiday list has been checked against the calendar.
 
 ### The 2026-10-10 delivery has no row for 2020-01-07, so every rebalance after it moves one session later
 
@@ -641,8 +640,10 @@ other than params, such as their charts and daily logs, are checked by no gate. 
 run_date in the params file before quoting any figure. diagnostics/ has the same
 problem: SUPERSEDED_20260927.txt names ten files, 35 pre-repoint files carry a
 "PRE-REPOINT DIAGNOSTIC" header, and seed_noise.txt, drawdown_exit.txt,
-purge_fix_measure.txt, rebal_cadence_sweep.txt, shuffle_*.txt and
-topn_{mid,n100,verdict}.txt are pre-repoint and carry no marking.
+purge_fix_measure.txt, shuffle_n100.txt, shuffle_mid.txt and topn_{mid,n100}.txt are
+pre-repoint and carry no marking. rebal_cadence_sweep.txt, shuffle_verdict.txt,
+shuffle_{nifty100,midcap150}.txt and topn_verdict.txt were rewritten on the 2026-10-10
+data.
 
 ### Most files in diagnostics/ describe panels that no longer exist
 
