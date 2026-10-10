@@ -1,0 +1,52 @@
+====================================================================================================
+ SHUFFLE TEST -- NIFTY 100 (nifty100)
+====================================================================================================
+
+  score panel   /Users/sidharthchoudhary/Downloads/algo_trading_project/cache/nifty100/v_nifty100_expanding.parquet
+  symbol set    99 names, asserted equal to the configured universe
+  window        2019-01-01 .. 2026-05-29   1835 trading days
+  engine        test_exposure.backtest_exposure (SHIPPING)
+  null          100 cross-sectional score permutations, seeds 0..99
+  bar           p < 0.05 on CAGR, one-sided, fixed in the spec
+
+  IDENTITY GATE -- the real v2 arm must reproduce the shipped v2
+    CAGR%    this run     21.82   shipped     21.82   ok
+    Sharpe   this run      1.70   shipped      1.70   ok
+    MaxDD%   this run    -19.33   shipped    -19.33   ok
+
+  equal-weight buy & hold (100% invested, same panel and window):
+    CAGR 23.91%   Sharpe 1.31   MaxDD -37.40%
+
+----------------------------------------------------------------------------------------------------
+ CAGR -- THE GATED STATISTIC
+----------------------------------------------------------------------------------------------------
+ arm       real  null med  null p5  null p95  null max   beat        p   effect  gated
+ v1       26.55     15.11     9.01     21.40     23.97      0   0.0099   +11.44    yes
+ v2       21.82     11.63     7.32     15.11     16.11      0   0.0099   +10.19    yes
+ v3       31.50     16.99     9.23     26.69     29.36      0   0.0099   +14.51     no
+ v4       27.07     13.52     8.04     18.39     21.60      0   0.0099   +13.55     no
+
+----------------------------------------------------------------------------------------------------
+ REPORTED, NOT GATED -- Sharpe and MaxDD
+----------------------------------------------------------------------------------------------------
+ arm     realSh  nullSh med    p(Sh)   realDD  nullDD med    p(DD)  deploy%
+ v1        1.32        0.87   0.0099   -32.23      -37.55   0.1782    100.0
+ v2        1.70        1.06   0.0099   -19.33      -20.48   0.3564     57.0
+ v3        1.30        0.86   0.0297   -37.34      -41.96   0.2376    100.0
+ v4        1.71        1.06   0.0099   -20.15      -22.66   0.2574     57.0
+
+  PREDICTION 3, TESTED -- does the null keep breadth's drawdown advantage?
+    The spec predicted it would, because exposure is score-independent.
+    shuffled v1 median MaxDD -37.55   shuffled v2 median MaxDD -20.48
+    the prediction is BORNE OUT on nifty100.
+
+  PREDICTION 4, REPORTED, NOT GATED -- do the MECHANICS carry return?
+    shuffled v1 median CAGR   15.11  vs buy & hold  23.91   below
+    shuffled v2 median CAGR   11.63  vs buy & hold  23.91   below
+    shuffled v3 median CAGR   16.99  vs buy & hold  23.91   below
+    shuffled v4 median CAGR   13.52  vs buy & hold  23.91   below
+    NOTE, AND IT MATTERS FOR HOW THIS IS READ: the breadth arms deploy
+    about 57% while buy & hold is 100% invested, so a
+    breadth arm below buy & hold on CAGR is not evidence of anything on
+    its own. The null, which holds deployment identical, is the comparison
+    that controls for this. Buy & hold is context, not a benchmark here.

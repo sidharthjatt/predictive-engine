@@ -58,7 +58,11 @@ report. These are flagged individually.
 2026-10-10.** That delivery removed four trading sessions from every price file, three in
 the training history and 2020-01-07 inside the window, which moved every published
 figure (README, "Republished 2026-10-10"). No entry here has been
-re-run on it, and its numbers are left as measured. The current figures are in README.
+re-run on it, and its numbers are left as measured, except four quick checks re-run
+on 2026-10-10 under their registered rules: the shuffle test (entry 28) and the cadence
+sweep (entries 30 and 31) ran, and their notes give the new verdicts; the drawdown exit
+(entries 33 to 35) and the calendar probe did not run, and their notes say why. The
+current figures are in README.
 
 ---
 
@@ -2206,6 +2210,13 @@ the run on failure.
 
 ### 28. Shuffle test — randomised scores against the real model — **PASS**
 
+*Re-run 2026-10-10 on that day's data delivery, rule unchanged: PASS again, 4 of 4
+gated criteria hold, each at p = 0.0099 with no shuffle beating the real arm. Real
+CAGR against the null median: nifty100 v1 26.55 against 15.11, v2 21.82 against 11.63;
+midcap150 v1 45.28 against 16.84, v2 33.74 against 11.41
+(`diagnostics/shuffle_verdict.txt`, `shuffle_nifty100.txt`, `shuffle_midcap150.txt`).
+The figures below are from the original run.*
+
 *Pre-registration: `experiments/SHUFFLE_SPEC.txt`, written 2026-09-01 before any
 code existed. The permutation, N, the statistic, the 0.05 bar, the gated arms and
 the written expectation were all fixed there before any number was produced.*
@@ -2485,6 +2496,9 @@ CAGR, Sharpe, drawdown and trade count on it belongs to that window.
 
 ### 30. Rebalance cadence sweep on the shipping arm — **NO CADENCE QUALIFIES; THE UNIVERSES DISAGREE**
 
+*Re-run 2026-10-10 on that day's data delivery, rules unchanged; the result is under
+entry 31. The figures below are from the original run.*
+
 *Pre-registration: `experiments/REBAL_CADENCE_SPEC.txt`, written 2026-09-03
 before any code existed. The four cadences, the control, the trial-count charge,
 the noise-floor rule and seven numbered predictions were all fixed there first.*
@@ -2614,6 +2628,15 @@ clock **2 sec**, eight backtests, no refit.
 ---
 
 ### 31. Rebalance cadence across all four arms — **ONLY v2 HAS A TRUSTWORTHY VERDICT, AND IT IS: NO CADENCE BEATS REBAL=20**
+
+*Re-run 2026-10-10 on that day's data delivery, rules unchanged: the v2 verdict is the
+same, no cadence beats REBAL=20 on both universes (v2 REBAL=5 nifty100 -0.88 INSIDE,
+midcap150 -4.29 outside; REBAL=10 +0.46 INSIDE, -3.14 outside; REBAL=40 +0.15 INSIDE,
+-0.13 INSIDE; REBAL=60 -3.11 outside, +2.00 outside). All 8 controls reproduce. No cell
+now has a measured verdict on both universes, against 2 before (v1 REBAL=5 and 60,
+both worse than control). The noise floors are still those of entry 29, measured on
+earlier data (`diagnostics/rebal_cadence_sweep.txt`). The figures below are from the
+original run.*
 
 *Pre-registration: `experiments/REBAL_CADENCE_SPEC.txt` PART 8, written 2026-09-03
 after entry 30's v2 result and **before any four-arm number existed**. The grid,
@@ -2952,6 +2975,12 @@ Spec: `experiments/REBAL_CADENCE_SPEC.txt` PART 9.
 ---
 
 ### 33. Portfolio drawdown exit — **SPECIFIED IN ADVANCE, IMPLEMENTED CORRECTLY, AND THE SPECIFICATION WAS WRONG**
+
+*Re-run attempted 2026-10-10 for entries 33 to 35, and it did not run: the script
+aborts because its patch anchor REBAL matches 0 times in
+`test_exposure.backtest_exposure`, which changed when the v5/v6 drawdown stop was
+added. The script requires the patch to be re-derived rather than adapted, so the
+verdicts below stand as measured on earlier data.*
 
 *Pre-registration: `experiments/DRAWDOWN_EXIT_SPEC.txt`, written and frozen
 2026-09-03 **before the measurement script existed** — the rule, the five
@@ -3782,6 +3811,12 @@ of the production 10 seeds, wall clock **5.1 min**.
 ---
 
 ## Decoupling the trading calendar by a coverage threshold — REFUTED BEFORE IMPLEMENTATION. 2026-09-03.
+
+*Re-run attempted 2026-10-10, and it did not complete: on that day's data no file has a
+row on a date the calendar lacks, so the probe's list of calendar-excluded dates is
+empty and `results/calendar_coverage_probe.py` raises IndexError at line 221 before it
+writes its report. The question it asks does not arise on this data. The findings below
+were measured on the previous delivery.*
 
 *Pre-registration: `experiments/CALENDAR_DECOUPLE_SPEC.txt`, written 2026-09-03
 before any code. The design, the threshold, the predictions and the four
