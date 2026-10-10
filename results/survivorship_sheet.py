@@ -12,19 +12,26 @@ universes in COLUMNS order; rows, all in percent to two decimals:
     pit, tax on: CAGR                  v34_equity_tax_pit.csv
     static, tax off: CAGR              v34_equity.csv
     static, tax on: CAGR               v34_equity_tax.csv
-    reference index: CAGR              the buyhold column of v34_equity.csv
-    reference index: MaxDD             the same
+    NSE index: CAGR                    the close column of the universe's own index
+    NSE index: MaxDD                   file (Universe.index_file, e.g. "NIFTY 100.csv")
     static, tax off: MaxDD             v34_equity.csv
     static, tax off: average drawdown  the same
     pit, tax off: MaxDD                v34_equity_pit.csv
     pit, tax off: average drawdown     the same
+    equal-weight basket (untaxed, daily rebalanced): CAGR
+    equal-weight basket (untaxed, daily rebalanced): MaxDD
+                                       the buyhold column of v34_equity.csv
 
-THE REFERENCE INDEX is the README's "buy & hold, reference (untaxed,
+THE NSE INDEX rows are the published index itself, read from its file's close
+column. These files are PRICE indices, not total-return indices: the Nifty 50
+file closes at 10,910.10 on 2019-01-01, the price index's level that day, and
+adjusted_close equals close on every row. Dividends are not in them.
+
+THE EQUAL-WEIGHT BASKET is the README's "buy & hold, reference (untaxed,
 daily-rebalanced index)": the costless equal-weight basket of the static universe,
-the "buy & hold equal-weight" row of v34_comparison.csv. It is not the cap-weighted
-published index.
+the "buy & hold equal-weight" row of v34_comparison.csv.
 
-WINDOWS. Static and reference rows use the published static window, 2019-01-01 to
+WINDOWS. Static, NSE index and basket rows use the published static window, 2019-01-01 to
 2026-05-29, for every universe, microcap250 included; they are the static run's own
 curves, not cut. Pit rows use each universe's pit window. microcap250's pit window
 starts on 2021-10-29, and its pit cells say so ("from 2021-10-29"); every other
@@ -35,8 +42,9 @@ equity / running peak - 1, so a day at a peak counts as 0.
 
 EVERY CAGR AND MaxDD IS CHECKED against the published figure, rounded to two
 decimals: static against v34_comparison.csv and v34_comparison_tax.csv, pit against
-their _pit counterparts, the reference index against the static buy & hold row. The
-script stops before writing anything if one differs.
+their _pit counterparts, the equal-weight basket against the static buy & hold row.
+The NSE index has no published figure to check against. The script stops before
+writing anything if one differs.
 """
 import sys
 from pathlib import Path
@@ -57,9 +65,12 @@ COLUMNS = ("smallcap250", "midcap150", "midcap100", "midcap50", "nifty500",
 ARMS = ("v1", "v2", "v3", "v4")
 ROWS = ("pit, tax off: CAGR", "pit, tax on: CAGR",
         "static, tax off: CAGR", "static, tax on: CAGR",
-        "reference index: CAGR", "reference index: MaxDD",
+        "NSE index: CAGR", "NSE index: MaxDD",
         "static, tax off: MaxDD", "static, tax off: average drawdown",
-        "pit, tax off: MaxDD", "pit, tax off: average drawdown")
+        "pit, tax off: MaxDD", "pit, tax off: average drawdown",
+        "equal-weight basket (untaxed, daily rebalanced): CAGR",
+        "equal-weight basket (untaxed, daily rebalanced): MaxDD")
+WINDOW = (pd.Timestamp("2019-01-01"), pd.Timestamp("2026-05-29"))
 BH_ROW = "buy & hold equal-weight"
 OUT_CSV = ROOT / "diagnostics" / "survivorship_sheet_research.csv"
 OUT_XLSX = ROOT / "diagnostics" / "survivorship_sheet_research.xlsx"
@@ -89,6 +100,14 @@ def published(M, sfx, label):
     return float(c.loc[label, "CAGR%"]), float(c.loc[label, "MaxDD%"])
 
 
+def nse_index(u):
+    """The close series of u's own NSE index file over WINDOW."""
+    d = read_table(u.index_file)
+    d["date"] = pd.to_datetime(d["date"], dayfirst=True)
+    c = d.sort_values("date").set_index("date")["close"]
+    return c.loc[WINDOW[0]:WINDOW[1]]
+
+
 def check(what, got, want):
     if round(got, 2) != want:
         raise SystemExit(f"MISMATCH {what}: computed {got:.4f}, published {want}. "
@@ -103,8 +122,9 @@ def universe_block(u):
     pit_start = eq["_pit"].index[0]
     static_start = eq[""].index[0]
     ref = eq[""]["buyhold"]
-    check(f"{u.tag} reference CAGR", cagr(ref), published(M, "", BH_ROW)[0])
-    check(f"{u.tag} reference MaxDD", maxdd(ref), published(M, "", BH_ROW)[1])
+    check(f"{u.tag} equal-weight basket CAGR", cagr(ref), published(M, "", BH_ROW)[0])
+    check(f"{u.tag} equal-weight basket MaxDD", maxdd(ref), published(M, "", BH_ROW)[1])
+    nse = nse_index(u)
     out = {}
     for a in ARMS:
         col, lab = arm_reg.ARMS[a].equity_column, arm_reg.ARMS[a].label
@@ -115,11 +135,13 @@ def universe_block(u):
             check(f"{u.tag} {a} v34_comparison{s} MaxDD", maxdd(e), d)
         out[a] = {"pit, tax off: CAGR": cagr(po), "pit, tax on: CAGR": cagr(pn),
                   "static, tax off: CAGR": cagr(so), "static, tax on: CAGR": cagr(sn),
-                  "reference index: CAGR": cagr(ref), "reference index: MaxDD": maxdd(ref),
+                  "NSE index: CAGR": cagr(nse), "NSE index: MaxDD": maxdd(nse),
                   "static, tax off: MaxDD": maxdd(so),
                   "static, tax off: average drawdown": avgdd(so),
                   "pit, tax off: MaxDD": maxdd(po),
-                  "pit, tax off: average drawdown": avgdd(po)}
+                  "pit, tax off: average drawdown": avgdd(po),
+                  "equal-weight basket (untaxed, daily rebalanced): CAGR": cagr(ref),
+                  "equal-weight basket (untaxed, daily rebalanced): MaxDD": maxdd(ref)}
     return out, pit_start != static_start, pit_start
 
 
@@ -140,15 +162,22 @@ def tables():
 
 
 def main():
+    import csv
+    import io
     tabs = tables()
-    lines = []
+    # THE csv MODULE QUOTES. Two labels contain commas ("v1 invvol, 100% invested",
+    # "equal-weight basket (untaxed, daily rebalanced)"), and a joined line would
+    # split each into an extra column.
+    buf = io.StringIO()
+    w = csv.writer(buf, lineterminator="\n")
     for a, t in tabs.items():
-        lines.append(f"arm {a} ({arm_reg.ARMS[a].label}), research profile")
-        lines.append(",".join(["row"] + list(t.columns)))
-        lines += [",".join([r] + [str(v) for v in t.loc[r]]) for r in t.index]
-        lines.append("")
+        w.writerow([f"arm {a} ({arm_reg.ARMS[a].label}), research profile"])
+        w.writerow(["row"] + list(t.columns))
+        for r in t.index:
+            w.writerow([r] + [str(v) for v in t.loc[r]])
+        w.writerow([])
     # naming: axis-free -- one fixed export of the research profile, static and pit
-    OUT_CSV.write_text("\n".join(lines))
+    OUT_CSV.write_text(buf.getvalue())
     with pd.ExcelWriter(OUT_XLSX, engine="openpyxl") as xw:
         for a, t in tabs.items():
             # naming: axis-free -- one sheet per arm in the fixed export above
