@@ -735,14 +735,20 @@ def require_price_data(plan):
 
 
 def run_folder(plan, args):
-    """runs/<timestamp>_<selection>_r<cadence>/ for this invocation. Not created here."""
+    """runs/<timestamp>_<selection>_r<cadence><axes>/ for this invocation. Not created here.
+
+    THE AXES COME FROM naming.path_tail, the rule the arm directories use, with "_"
+    for "@": "_tradeable", "_tax", "_pit", "_dd20" in AXES order, "" at each
+    default. The cadence is already spelled by run_folder_name, so the tail is
+    taken at the default cadence. Until 2026-10-14 only pit and dd were appended,
+    so a --tax on or --profile tradeable folder carried the default run's name.
+    """
     uni = [u.tag for u in plan["universes"]]
     arm = [a.name for a in plan["arms"]]
     reb = args.rebal if args.rebal is not None else paths.DEFAULT_REBAL
-    import survivorship_axis as _sva
-    import dd_axis as _dda
-    return ROOT / "runs" / (paths.run_folder_name(uni, arm, reb) + _sva.suffix()
-                            + _dda.suffix())
+    import naming
+    return ROOT / "runs" / (paths.run_folder_name(uni, arm, reb)
+                            + naming.path_tail(None).replace("@", "_"))
 
 
 def collect_run_folder(plan, args, t_start, dest, thin=None):
