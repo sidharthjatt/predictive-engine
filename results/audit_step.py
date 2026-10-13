@@ -333,6 +333,12 @@ def run(u, arm=None):
     else:
         print("  SKIPPED orders: 0")
     print(f"  rebalance (decision) days: {len(dcdf)} | ranking rows: {len(rkdf):,}")
+    # A cadence near or past the window length leaves one or two rebalances, and
+    # the result is close to holding the first selection. Said once per arm.
+    if len(dcdf) < 3:
+        print(f"  WARNING: only {len(dcdf)} rebalance(s) in {len(s):,} trading days "
+              f"at cadence {cadence.selected()}; this run is close to buy and hold "
+              f"of the first selection")
 
     print(f"  trades logged : {len(t):,}   (engine reported {ntr:,})"
           f"   {'OK' if len(t)==ntr else '*** COUNT MISMATCH ***'}")

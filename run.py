@@ -503,6 +503,26 @@ def print_plan(plan, args, show_paths=False):
     print("=" * 96)
 
 
+def _cadence_arg(s):
+    """--rebal value: a whole number of trading sessions, at least 1.
+
+    Checked at parse time so --list and --dry-run refuse it too. preflight() only
+    runs on a real run, and before this check --list printed a plan for
+    --rebal -5, and showed --rebal 0 as the default cadence.
+    """
+    try:
+        n = int(s)
+    except ValueError:
+        raise argparse.ArgumentTypeError(
+            f"{s!r} is not a whole number of trading sessions "
+            f"(default {paths.DEFAULT_REBAL})")
+    if n < 1:
+        raise argparse.ArgumentTypeError(
+            f"{n} -- the cadence must be at least 1 trading session "
+            f"(default {paths.DEFAULT_REBAL})")
+    return n
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(description="Run the pipeline for one universe/arm combination.")
     ap.add_argument("--universe", default="all",
@@ -514,7 +534,7 @@ def main(argv=None):
                          "'all' (default, the core four). known: " + ", ".join(ALL_ARMS))
     ap.add_argument("--steps", default="all", choices=("all", "pipeline", "arms"),
                     help="which kinds of step to run (default all)")
-    ap.add_argument("--rebal", type=int, default=None,
+    ap.add_argument("--rebal", type=_cadence_arg, default=None,
                     help="rebalance cadence in trading days; omit for the default 20")
     # THE FOURTH AXIS GETS ITS ENTRY POINT. It had none until 2026-09-18: tax.py
     # was implemented, verified by tax_acceptance_check.py on BOTH halves, hooked
