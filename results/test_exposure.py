@@ -386,6 +386,7 @@ def backtest_exposure(px, op, sc, dates, pc, mom20, port_vol=None,
         from drawdown_overlay import OverlayState
         _ds = OverlayState(_dd, START_CAPITAL)
         _dd_rows = set()          # ledger row indices realised by the overlay's sales
+        _dd_invested = []         # mtm / equity at each close: Deployed% with the axis on
 
     for i, dt in enumerate(dates):
         if _stop is not None:
@@ -1042,6 +1043,7 @@ def backtest_exposure(px, op, sc, dates, pc, mom20, port_vol=None,
             if _stop_log is not None:
                 _stop_log.extend(_st.rows(dt, pv))
         if _dd is not None:
+            _dd_invested.append(mtm / pv if pv > 0 else 0.0)
             # A, the arm's own exposure: its last rebalance decision (1.0 for
             # mode "none").
             _ds.at_close(dt, pv, mtm, shares, i == len(dates) - 1,
@@ -1089,5 +1091,12 @@ def backtest_exposure(px, op, sc, dates, pc, mom20, port_vol=None,
                            "exempt": _imp["exempt"],
                            "fills": _imp["priced"] + _imp["exempt"],
                            "trades": n_trades})
+    # THE FOURTH VALUE IS WHAT Deployed% AND avg_exposure_pct REPORT. Without the
+    # drawdown limit it is the arm's mean decided exposure, as it always was. With
+    # it, the arm's exposure no longer describes the book, so it is the mean
+    # invested fraction at the close, after the limit's trims and top-ups.
+    if _dd is not None:
+        return (pd.Series(eq, index=dates), cum_tc, n_trades,
+                float(np.mean(_dd_invested)) if _dd_invested else 1.0)
     return (pd.Series(eq, index=dates), cum_tc, n_trades,
             np.mean(expo_log) if expo_log else 1.0)

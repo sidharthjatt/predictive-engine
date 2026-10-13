@@ -660,6 +660,20 @@ def main(argv=None):
     args = ap.parse_args(argv)
     _dd_setup(ap, args)
 
+    # EVERY AXIS IS RECORDED HERE, BEFORE THE PLAN IS BUILT, so --list and --dry-run
+    # compose their paths from the same selection a real run writes under. Cadence,
+    # profile and tax used to be set only in _execute(), after --dry-run had
+    # returned, so `--tax on --dry-run` printed runs/<u>/<arm>/ for a run that
+    # writes runs/<u>/<arm>@tax/. Read by the engines as arguments or at call time;
+    # see cadence.py, profiles.py and tax.py. The tax bool is built here and
+    # nowhere else.
+    import cadence as _cad
+    import profiles as _prof
+    import tax as _tax
+    _cad.set_selection(args.rebal)
+    _prof.set_selection(args.profile)
+    _tax.set_selection(args.tax == "on")
+
     import survivorship_axis as _sva
     _sva.set_selection(args.survivorship)
     if not _sva.is_default():
@@ -1051,25 +1065,11 @@ def _execute(plan, args, state):
     # the universe selection.
     import arms.registry as _arms
     _arms.set_selection([a.name for a in plan["arms"]])
-    # THE THIRD AXIS. Set here beside the other two, before any step runs, and
-    # read by the engines as an ARGUMENT to backtest_exposure -- never written
-    # into test_exposure.REBAL. See the note at the top of cadence.py.
-    import cadence as _cad
-    _cad.set_selection(args.rebal)
-    # THE PROFILE, LIKE THE CADENCE, IS RECORDED ONCE HERE. Everything downstream
-    # asks profiles.participation_cap() at call time.
+    # CADENCE, PROFILE AND TAX were recorded in main(), before the plan was built,
+    # so the plan, --dry-run and this run compose paths from one selection.
+    import cadence as _cad  # noqa: F401
     import profiles as _prof
-    _prof.set_selection(args.profile)
-    # THE FOURTH AXIS, SET ONCE, HERE, BESIDE THE OTHER THREE. tax.set_selection's
-    # docstring said "Called once by run.py" from the day it was written and that
-    # was false until this line existed -- an assertion nobody re-measured, which
-    # is the class this repository keeps finding. The docstring is corrected in
-    # tax.py to describe the shape that is actually here.
-    #
-    # THE BOOL IS BUILT HERE AND NOWHERE ELSE, so there is exactly one place that
-    # knows "on" means True.
-    import tax as _tax
-    _tax.set_selection(args.tax == "on")
+    import tax as _tax  # noqa: F401
     # THE FIFTH AXIS was set in main(), before the plan was built, because the
     # registry swap has to precede it. Here, in a pit run, each universe's
     # membership is loaded and its record printed before any number exists.

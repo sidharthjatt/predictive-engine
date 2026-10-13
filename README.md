@@ -104,7 +104,9 @@ stop, and an overnight gap can take the drawdown through it.
 Each run reports the true worst close drawdown from the all-time peak against L,
 whether and by how much L was breached, sessions below L, days at the floor, and
 the charges, slippage and marginal tax of the limit's own fills (end of run.log and
-`COST_SUMMARY_*.txt`). Every order and fill is in `daily_dd_events_*.csv`.
+`COST_SUMMARY_*.txt`). Every order and fill is in `daily_dd_events_*.csv`. With
+`--dd`, `Deployed%` is the mean invested fraction at the close after the limit;
+without it, it is the arm's own mean exposure, as before.
 
 Names: `_dd20` after every other suffix (`_dd12p5`, `_dd20m3f10` when m or F is not
 the default), `@dd20` in directory names, the limit in chart titles, a `dd` entry in

@@ -45,6 +45,14 @@ from config import read_table  # the one CSV/parquet reader: config.read_table
 from numerics import rolling_std  # platform-identical variance: results/numerics.py
 
 
+def deployed_none(expo):
+    """Deployed% of a mode-"none" arm. 100 without the drawdown limit, as it always
+    was. With it, the engine's fourth return value, which is then the mean
+    invested fraction at the close after the limit (test_exposure)."""
+    import dd_axis as _dda
+    return 100.0 if _dda.is_default() else float(expo) * 100
+
+
 def _dd_params():
     """{"dd": ...} when the drawdown-limit axis is on, {} when off, so a params
     file from a run without --dd is the file it always was."""
@@ -369,7 +377,7 @@ def _write_stop(M, stop_rows, stop_curves, stop_audits, bd, bh, halves,
 # selection_suffix() + cadence.suffix() + profiles.suffix().
 def run_v34(M, universe_label, universe_tag, px, op, sc, bd, pc, mom20, port_vol,
             tv, backtest_exposure, v1_eq, v1_tc, v1_n, v2_eq, v2_tc, v2_n, v2_expo,
-            start_capital, halves, consts, v1_audit=None, audits_out=None):
+            start_capital, halves, consts, v1_audit=None, audits_out=None, v1_expo=1.0):
     """Run v3 and v4, assemble all four arms plus buy & hold, write the outputs.
 
     `audits_out`, when a dict, receives {arm name: audit} for the selected arms, so
@@ -429,15 +437,16 @@ def run_v34(M, universe_label, universe_tag, px, op, sc, bd, pc, mom20, port_vol
     # module is imported still takes effect.
     a3, a4 = _blank(), _blank()
     v3_eq = v3_tc = v3_n = None
+    v3_expo = 1.0
     v4_eq = v4_tc = v4_n = None
     v4_expo = 0.0
     if "v3" in sel:
-        v3_eq, v3_tc, v3_n, _ = backtest_exposure(px, op, sc, bd, pc, mom20, port_vol,
-                                                  mode="none", target_vol=tv,
-                                                  sizing="provol", drawdown_stop=None,
-                                                  audit=a3,
-                                                  rebal=_reb, tax_enabled=_taxon,
-                                                  **_capkw)
+        v3_eq, v3_tc, v3_n, v3_expo = backtest_exposure(px, op, sc, bd, pc, mom20, port_vol,
+                                                        mode="none", target_vol=tv,
+                                                        sizing="provol", drawdown_stop=None,
+                                                        audit=a3,
+                                                        rebal=_reb, tax_enabled=_taxon,
+                                                        **_capkw)
     if "v4" in sel:
         v4_eq, v4_tc, v4_n, v4_expo = backtest_exposure(px, op, sc, bd, pc, mom20,
                                                         port_vol, mode="breadth",
@@ -455,9 +464,9 @@ def run_v34(M, universe_label, universe_tag, px, op, sc, bd, pc, mom20, port_vol
     # cannot be filtered out of one of them and left in another. Order is ARMS
     # order, which is the order the four-arm table has always been written in.
     ARM_DEF = [
-        ("v1", "v1 invvol, 100% invested",  "v1_invvol_none",    v1_eq, v1_tc, v1_n, 100.0,          v1_audit),
+        ("v1", "v1 invvol, 100% invested",  "v1_invvol_none",    v1_eq, v1_tc, v1_n, deployed_none(v1_expo), v1_audit),
         ("v2", "v2 invvol, breadth-scaled", "v2_invvol_breadth", v2_eq, v2_tc, v2_n, v2_expo * 100,  a2),
-        ("v3", "v3 provol, 100% invested",  "v3_provol_none",    v3_eq, v3_tc, v3_n, 100.0,          a3),
+        ("v3", "v3 provol, 100% invested",  "v3_provol_none",    v3_eq, v3_tc, v3_n, deployed_none(v3_expo), a3),
         ("v4", "v4 provol, breadth-scaled", "v4_provol_breadth", v4_eq, v4_tc, v4_n, v4_expo * 100,  a4),
     ]
     ARM_ON = [a for a in ARM_DEF if a[0] in sel]
@@ -655,7 +664,7 @@ def run_arm(u, arm, rebal=None, out_dir=None):
                           .pct_change().loc[bd].mean(axis=1).fillna(0)).cumprod()
     # A stop arm is not always invested: its share is the mean target exposure over
     # the rebalance grid, 0 on the days the stop holds it in cash, as for v2 and v4.
-    dep = 100.0 if arm.mode == "none" and arm.stop is None else expo * 100
+    dep = deployed_none(expo) if arm.mode == "none" and arm.stop is None else expo * 100
     rows = [arm_row(eq, arm.label, tc, ntr, dep),
             arm_row(bh, "buy & hold equal-weight", 0, 0, 100.0)]
     mh, nsk = held_and_skips(audit)

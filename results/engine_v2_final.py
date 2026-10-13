@@ -223,11 +223,11 @@ def main(u):
     # is exact.
     import profiles as _prof
     _capkw = _prof.cap_kwargs(u)
-    base_eq, tcb, nb, _ = backtest_exposure(px, op, sc, bd, pc, mom20, port_vol,
-                                            mode="none", target_vol=tv,
-                                            drawdown_stop=None,
-                                            audit=base_audit, rebal=_reb,
-                                            tax_enabled=_taxon, **_capkw)
+    base_eq, tcb, nb, base_expo = backtest_exposure(px, op, sc, bd, pc, mom20, port_vol,
+                                                    mode="none", target_vol=tv,
+                                                    drawdown_stop=None,
+                                                    audit=base_audit, rebal=_reb,
+                                                    tax_enabled=_taxon, **_capkw)
     fin_eq, tcf, nf, expo = backtest_exposure(px, op, sc, bd, pc, mom20, port_vol,
                                               mode="breadth", target_vol=tv,
                                               drawdown_stop=None,
@@ -418,7 +418,7 @@ def main(u):
         {"TOP_N": TOP_N, "BUFFER": BUFFER, "REBAL": REBAL, "VOL_WIN": VOL_WIN,
          "START_CAPITAL": START_CAPITAL, "CASH_YIELD": CASH_YIELD,
          "SLIPPAGE": 0.0015},
-        v1_audit=base_audit, audits_out=_arm_audits)
+        v1_audit=base_audit, audits_out=_arm_audits, v1_expo=base_expo)
     print("\n" + "=" * 100)
     print(f" V3/V4 FOUR-ARM MEASUREMENT -- {u.label}")
     print("=" * 100)
