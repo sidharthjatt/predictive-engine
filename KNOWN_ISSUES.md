@@ -171,6 +171,35 @@ attribution.
 for every cell. The limit's trims and top-ups on the days between are checked only
 through their effect on those holdings and on the final equity.
 
+With the axis on, a one-share rounding difference can put the engine and the port
+on opposite sides of the 5-point band, and from then on they trade on different
+days. Both sides floor share counts (`int(invest_val * w // price)`) and reach
+`invest_val` by different paths, so a buy can differ by one share; with the axis
+off that stays a one-share difference. Traced on nifty50 v3, L 20, at the 0.01
+grid: one WIPRO share apart on 2019-02-27 (757 against 758), equity Rs 33 apart on
+2019-08-06, where the engine's gap to the limit was 5.0133 points (top-up) and the
+port's 4.9985 (no order). After that the engine placed 356 limit orders and the
+port 344.
+
+Measured final equity, port against engine, static, research, tax off, nifty50 and
+midcap150, v1 and v3, measured 2026-10-14:
+
+- axis on, L 10 to 25, 16 cells: -1.85% to +4.06% at the 0.05 grid, and -3.17% to
+  +5.26% at the 0.01 grid. The finer grid does not close the gap.
+- axis off, the same four cells: 0.33% or less at the 0.05 grid, 0.06% or less at
+  the 0.01 grid.
+
+Live results with `--dd` on should be expected to differ from the backtest in the
+same way, in either direction: a live book differs from the backtest by more than
+one share, so it will cross the band on other days. A single `--dd` backtest figure
+is one path, not a precise estimate.
+
+Correction, 2026-10-14: an earlier report of these gaps gave a "port" column that
+was the 0.01-grid run, not the 0.05 port. `nt_verify --dd` runs its 0.01-grid
+control last, and that run overwrote the 0.05 port's `daily_equity.csv` in
+`nautilus/tool_reports/` before it was read. The figures above are from separate
+runs at each grid.
+
 ### microcap250's with-survivorship prices come from a different source
 
 For the 241 names in both folders, every microcap250 file in
