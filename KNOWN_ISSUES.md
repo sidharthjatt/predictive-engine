@@ -167,6 +167,15 @@ The marginal tax reported for the limit is each year's bill less the bill withou
 the gains its sales realised. Losses set off within a year, so it is not an exact
 attribution.
 
+`Deployed%` in a `--dd` run's comparison files is the arm's own exposure (100 for
+v1 and v3), not the invested fraction after the limit's trims. The limit's own
+figures are in COST_SUMMARY and `daily_dd_events_*.csv`; the invested fraction is
+`invested_pct` in `daily_summary_*.csv`.
+
+`nt_verify --dd` compares holdings on the 92 rebalance decision days, as it does
+for every cell. The limit's trims and top-ups on the days between are checked only
+through their effect on those holdings and on the final equity.
+
 ### microcap250's with-survivorship prices come from a different source
 
 For the 241 names in both folders, every microcap250 file in

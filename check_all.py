@@ -122,6 +122,7 @@ import argparse
 import ast
 import contextlib
 import importlib
+import re
 import subprocess
 import sys
 import time
@@ -1493,10 +1494,12 @@ def gate_data_source(res, sel):
                          "is meant to shrink; leaving a cleared artefact on it "
                          "hides the next one that genuinely lacks the field.")
                 continue
-            # A PIT ARTEFACT (name ending _pit, the last axis) was built from the
-            # universe's point-in-time variant, so it is checked against that
-            # variant's data: the with-survivorship folder and the pit farm.
-            pit = f.stem.endswith("_pit")
+            # A PIT ARTEFACT was built from the universe's point-in-time variant, so
+            # it is checked against that variant's data: the with-survivorship
+            # folder and the pit farm. "_pit" is followed only by the drawdown-limit
+            # suffix, the one axis after it ("v34_params_v3_tax_pit_dd20"); testing
+            # endswith("_pit") checked those against the static data.
+            pit = re.search(r"_pit(_dd[0-9p]+(m[0-9p]+)?(f[0-9p]+)?)?$", f.stem) is not None
             if (t, pit) not in live:
                 from universes.registry import pit_variant
                 uu = pit_variant(u) if pit else u
