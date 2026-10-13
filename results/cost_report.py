@@ -378,8 +378,45 @@ def exit_costs(fills):
     return float(f["charges_total"].sum() + f["slippage_rs"].sum()) if len(f) else 0.0
 
 
+def dd_block(dd, fills, tax_on):
+    """The drawdown-limit axis's own lines for the summary, [] when it is off.
+
+    Its trims and top-ups are fill kinds "dd trim" and "dd top-up", so their
+    charges and slippage are summed from the reconciled fills. Its tax is the
+    marginal figure drawdown_overlay.marginal_tax computes."""
+    if not dd:
+        return []
+    f = fills[fills["kind"].astype(str).str.startswith("dd ")] if len(fills) else fills
+    n_trim = int((f["kind"] == "dd trim").sum()) if len(f) else 0
+    n_top = int((f["kind"] == "dd top-up").sum()) if len(f) else 0
+    ch = float(f["charges"].sum()) if len(f) else 0.0
+    sl = float(f["slippage_rs"].sum()) if len(f) else 0.0
+    tx = float(dd.get("marginal_tax", 0.0)) if tax_on else 0.0
+    wd = dd["worst_date"]
+    pk = dd["worst_peak_date"]
+    L = ["", f"  DRAWDOWN LIMIT (exploratory, not validated): L {dd['limit_pct']:g}%, "
+             f"m {dd['m']:.4g}, floor {dd['floor_pct']:g}%, band {dd['band_pct']:g} points",
+         f"    worst close drawdown from the all-time peak  {dd['worst_dd_pct']:.2f}%"
+         + (f" on {pd.Timestamp(wd).date()}" if wd is not None else "")
+         + (f" (peak {pd.Timestamp(pk).date()})" if pk is not None else ""),
+         f"    limit breached                               "
+         + (f"yes, by {dd['breach_points']:.2f} points" if dd["breached"] else "no"),
+         f"    sessions below the limit                     {dd['sessions_below_limit']:,}",
+         f"    days at the floor                            {dd['days_at_floor']:,}",
+         f"    orders / fills (trim, top-up)                {dd['orders']:,} / "
+         f"{n_trim + n_top:,} ({n_trim:,}, {n_top:,})",
+         f"    {'charges of its fills':<45}{ch:>16,.2f}",
+         f"    {'slippage of its fills':<45}{sl:>16,.2f}",
+         f"    {'tax, marginal':<45}{tx:>16,.2f}",
+         f"    {'all three':<45}{ch + sl + tx:>16,.2f}",
+         "    These are part of the totals above, not added to them. The marginal tax is each",
+         "    year's bill less the bill without the gains its sales realised; losses set off",
+         "    within a year, so it is not an exact attribution."]
+    return L
+
+
 def summary_block(label, profile, tax_on, rebal, start_capital, equity, fills, years, days, bh,
-                  cap_cuts=0, stop_arm=False):
+                  cap_cuts=0, stop_arm=False, dd=None):
     """The text block, as a list of lines. `stop_arm` adds the "of which drawdown
     exits" row; it is False for the core arms, whose block is unchanged."""
     S = strategy_totals(start_capital, float(equity.iloc[-1]), fills, years)
@@ -459,6 +496,7 @@ def summary_block(label, profile, tax_on, rebal, start_capital, equity, fills, y
                      f"Rs {bh['tax_if_on']:,.2f}.")
         L += ["", f"  all costs: arm Rs {charges + slip + tax:,.2f}; buy & hold held Rs {held_costs:,.2f}, "
                   f"sold on the last day Rs {sold_costs:,.2f}"]
+    L += dd_block(dd, fills, tax_on)
     # zeros, stated
     L += ["", "  zero components and why:"]
     if tot["brokerage"] == 0:
@@ -633,7 +671,8 @@ def write(u, arm, tag, audit, equity, engine_tc, px, op, bd, start_capital, prof
     lines = summary_block(f"{u.tag} {getattr(arm, 'name', arm)}", profile, tax_on, rebal,
                           start_capital, equity, fills, years, days, bh,
                           cap_cuts=sum(1 for r in audit["skipped"] if r.get("reason") == "participation cap"),
-                          stop_arm=getattr(arm, "stop", None) is not None)
+                          stop_arm=getattr(arm, "stop", None) is not None,
+                          dd=audit.get("dd"))
     # naming: arm,cadence,profile,tax via artefact_tag -- `tag` is audit_step.artefact_tag(u, arm)
     out.to_csv(M / f"COSTS_{tag}.csv", index=False)
     # naming: arm,cadence,profile,tax via artefact_tag -- `tag` is audit_step.artefact_tag(u, arm)

@@ -863,6 +863,9 @@ def check_inputs(label, script, tag):
         import survivorship_axis as _sva
         if "survivorship" in axes and not _sva.is_default():
             _sfx += _sva.suffix()
+        import dd_axis as _dda
+        if "dd" in axes and not _dda.is_default():
+            _sfx += _dda.suffix()
         want = f if not _sfx else f.with_name(f.stem + _sfx + f.suffix)
         if want.exists():
             return True

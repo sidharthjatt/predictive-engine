@@ -128,6 +128,45 @@ describe a different strategy from the engine's pit run. A pit run leaves out ST
 and STEP 17 (`run.PIT_NOT_RUN`), and check_all lists every pit cell as not covered
 (`check_all.NOT_COVERED`). Pit figures are engine figures only, checked by no port.
 
+### The drawdown limit (--dd) is exploratory, and the port checks only part of it
+
+No `--dd` setting has been validated, and none may be used to choose a live setting.
+
+The Nautilus port runs the limit (`nautilus/nt_strategy.py`, through the same
+`results/drawdown_overlay.py` the engine uses), and `nt_verify.py --dd=L` compares it
+with the engine at research profile, tax off, static. Every other `--dd` cell is
+outside port verification:
+
+- tax on: the port has no tax ledger, so its cash, and from the first assessment
+  its exposure decisions, differ from the engine's;
+- `--profile tradeable`: the port has no participation cap, so a capped trim or
+  top-up fills in full in the port;
+- `--survivorship pit`: the port has no membership rule, and pit runs leave out the
+  Nautilus steps anyway.
+
+run.py prints this at the start of every such run, and check_all lists the cells as
+not covered (`check_all.NOT_COVERED`). No `nt_verify --dd` cell is in check_all's
+gated set; it is run by hand.
+
+Four properties of the rule matter when reading a `--dd` result:
+
+- The floor F keeps the book at least about F invested, so the limit is not a hard
+  stop: below (1 - L) x peak the floored book keeps losing. The book may also drift
+  up to the 5-point band below F before a top-up.
+- Orders are decided at the close and filled at the next open, so an overnight gap
+  can take the drawdown through L. Each run reports the true worst drawdown from
+  the all-time peak and by how much L was breached.
+- At m = 1/L the limit moves about 4 points of exposure per 1% of drawdown near a
+  peak, so the 5-point band is crossed by a drawdown of a little over 1%, and the
+  limit trades often.
+- During a smooth recovery the trimmed book re-risks mostly by price drift: the
+  invested fraction rises with prices about as fast as the limit does, so few
+  top-ups fill. Top-ups fill after sharp rebounds.
+
+The marginal tax reported for the limit is each year's bill less the bill without
+the gains its sales realised. Losses set off within a year, so it is not an exact
+attribution.
+
 ### microcap250's with-survivorship prices come from a different source
 
 For the 241 names in both folders, every microcap250 file in

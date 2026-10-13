@@ -172,11 +172,16 @@ class PredictiveEngineStrategy(Strategy):
         self.dd_stop = None           # set by configure(); the drawdown stop of v5/v6.
                                       # Not `stop`: Strategy.stop() is nautilus's own method.
         self.stop_events = []         # mirrors daily_stop_events_*.csv
+        self.dd = None                # set by configure(); the drawdown-limit axis
+        self._dd_order = None         # {symbol: signed qty} decided at the last close
+        self._dd_pending = None       # that order, taken at the open it fills at
+        self._dd_before = {}          # the order's names held when its legs were queued
 
     # ---------------------------------------------------------------- setup
     def configure(self, scores: pd.DataFrame, instruments, trading_start: str,
                   sizing: str = DEFAULT_SIZING, mode: str = DEFAULT_MODE,
-                  rebal: int = None, drawdown_stop=None):
+                  rebal: int = None, drawdown_stop=None, dd_overlay=None,
+                  start_capital=None):
         """Called before the engine runs. Keeps __init__ free of heavy objects.
 
         `sizing` and `mode` default to the values every existing caller relied on
@@ -210,6 +215,16 @@ class PredictiveEngineStrategy(Strategy):
             self._stop_days = _days
             self.dd_stop = StopState(drawdown_stop, self.rebal, len(_days))
             self._held_at_exit = {}
+        # THE DRAWDOWN-LIMIT AXIS (results/drawdown_overlay.py), the class the
+        # engine and nt_attribution also run. None without --dd: nothing below runs.
+        self.dd = None
+        if dd_overlay is not None:
+            if drawdown_stop is not None:
+                raise ValueError("the drawdown-limit axis cannot run on a stop arm (v5/v6)")
+            if start_capital is None:
+                raise ValueError("dd_overlay needs start_capital, the run's first peak")
+            from drawdown_overlay import OverlayState
+            self.dd = OverlayState(dd_overlay, start_capital)
 
     def on_start(self):
         for inst in self.instruments:
@@ -316,7 +331,7 @@ class PredictiveEngineStrategy(Strategy):
             price: both still fill at today's open.
         """
         now = pd.Timestamp(self.clock.timestamp_ns(), tz="UTC").tz_localize(None).normalize()
-        if not self._plan:
+        if not self._plan and not self._dd_order:
             return
         # No quotes today means this is not a trading day. Flushing here would fill
         # against the previous session's book, so the plan waits for the next open.
@@ -341,6 +356,13 @@ class PredictiveEngineStrategy(Strategy):
             + [(sy, OrderSide.BUY, 0, plan[sy][2])
                for sy in sorted((sy for sy, p in plan.items() if p[0] == OrderSide.BUY),
                                 key=lambda sy: plan[sy][3])])
+        # THE DRAWDOWN-LIMIT LEGS GO LAST, after the arm's own buys, as in the
+        # engine. Two markers: the first expands into the trims of the names still
+        # held when it is reached; the second, reached once those have settled,
+        # sizes the top-ups from free cash.
+        if self._dd_order:
+            self._dd_pending, self._dd_order = self._dd_order, None
+            self._queue += [("__DD_SELL__", None, 0, 0.0), ("__DD_BUY__", None, 0, 0.0)]
         self._invest_val = None
         self._pump()
 
@@ -371,6 +393,12 @@ class PredictiveEngineStrategy(Strategy):
         """
         while self._queue:
             sy, side, qty, weight = self._queue.pop(0)
+            if sy == "__DD_SELL__":
+                self._queue[0:0] = self._dd_sell_legs()
+                continue
+            if sy == "__DD_BUY__":
+                self._queue[0:0] = self._dd_buy_legs()
+                continue
             inst = self._inst(sy)
             if inst is None:
                 continue
@@ -387,11 +415,23 @@ class PredictiveEngineStrategy(Strategy):
                 self._send(inst, OrderSide.SELL, qty)
                 return
 
+            # A drawdown-limit top-up carries its own quantity (weight None).
+            if weight is None:
+                px = self._open_px.get(sy)
+                if qty < 1 or not px or px <= 0:
+                    continue
+                if self._free_cash() < qty * px + leg_charges(px, qty, "BUY"):
+                    continue
+                self._send(inst, OrderSide.BUY, qty)
+                return
+
             # Every sell has settled by the time the first buy is reached, so the
             # portfolio value is computed once here -- the same point in the sequence
             # at which the reference engine computes it.
             if self._invest_val is None:
                 self._invest_val = self._portfolio_at_open() * self._exposure * SAFETY
+                if self.dd is not None:
+                    self._invest_val *= self.dd.entry_factor(self._exposure)
             px = self._open_px.get(sy)
             if not px or px <= 0:
                 continue
@@ -539,9 +579,10 @@ class PredictiveEngineStrategy(Strategy):
 
         self.day_index += 1
         if self.dd_stop is None:
-            if self.day_index % self.rebal != 0:
-                return
-            self.rebalance(day)
+            if self.day_index % self.rebal == 0:
+                self.rebalance(day)
+            if self.dd is not None:
+                self._dd_close(day, last=False)
             return
         self._stop_day(day, last=False)
 
@@ -732,6 +773,44 @@ class PredictiveEngineStrategy(Strategy):
             "n_buy": n_buy, "n_sell": n_sell})
         return True
 
+    # ------------------------------------------------- drawdown-limit axis
+    def _equity_now(self):
+        """(cash, mtm) at this close, unrounded: _record_equity's arithmetic."""
+        cash = self._free_cash()
+        mtm = 0.0
+        for inst in self.instruments:
+            q = self.portfolio.net_position(inst.id)
+            sy = inst.id.symbol.value
+            if q and float(q) > 0 and sy in self.last_close:
+                mtm += float(q) * self.last_close[sy]
+        return cash, mtm
+
+    def _dd_close(self, day, last):
+        """The overlay's decision at this close, after the arm's own rebalance."""
+        cash, mtm = self._equity_now()
+        self._dd_order = self.dd.at_close(day, cash + mtm, mtm, self._held(), last,
+                                          self._exposure if self.rebalances else 1.0)
+
+    def _dd_sell_legs(self):
+        """The trims of the standing order, for the names still held."""
+        held = self._held()
+        order = self._dd_pending or {}
+        self._dd_before = {s: held[s] for s in order if s in held}
+        return [(s, OrderSide.SELL, min(-order[s], self._dd_before[s]), 0.0)
+                for s in sorted(self._dd_before) if order[s] < 0]
+
+    def _dd_buy_legs(self):
+        """The top-ups, scaled together to free cash with the engine's haircut."""
+        held = self._held()
+        order = self._dd_pending or {}
+        self._dd_pending = None
+        buys = [(s, order[s]) for s in sorted(self._dd_before)
+                if order[s] > 0 and s in held]
+        need = sum(dq * self._open_px[s] for s, dq in buys
+                   if self._open_day.get(s) == self._quote_day and self._open_px.get(s))
+        f = min(1.0, self._free_cash() * SAFETY / need) if need > 0 else 1.0
+        return [(s, OrderSide.BUY, int(dq * f), None) for s, dq in buys]
+
     # ------------------------------------------------------------ helpers
     def _inst(self, symbol):
         for inst in self.instruments:
@@ -775,4 +854,6 @@ class PredictiveEngineStrategy(Strategy):
             if self.dd_stop is not None:
                 self.day_index += 1
                 self._stop_day(now, last=True)
+            elif self.dd is not None:
+                self._dd_close(now, last=True)
         self.log.info(f"rebalances={self.rebalances} orders={self.orders_submitted}")

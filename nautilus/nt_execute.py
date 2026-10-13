@@ -71,9 +71,11 @@ def main():
             # were for the retired universes -- so neither does this, and the two
             # halves of a run still cannot disagree about what is possible.
             U = nt_run.UNIVERSES[u.tag]
+            import dd_axis
             strat = nt_run.run(str(config.BT_START_DATE.date()), U["end"],
                                universe=u.tag, rebal=reb,
-                               reports_root=nt_run.PIPELINE_REPORTS, **a.kwargs)
+                               reports_root=nt_run.PIPELINE_REPORTS,
+                               dd_overlay=dd_axis.selected(), **a.kwargs)
             ran.append((u.tag, a.name, strat.rebalances))
 
     print("\n" + "=" * 96)

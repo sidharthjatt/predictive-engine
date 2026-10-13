@@ -159,7 +159,7 @@ DEFAULT_MODE = "breadth"
 def run(px, op, sc, dates, pc, mom20, size_at_close: bool, tick_round: bool = False,
         value_at_open: bool = False, holdings_out=None,
         sizing: str = DEFAULT_SIZING, mode: str = DEFAULT_MODE, applied_out=None,
-        rebal: int = None, drawdown_stop=None, stop_events_out=None):
+        rebal: int = None, drawdown_stop=None, stop_events_out=None, dd_overlay=None):
     """`holdings_out`, when a dict is passed, is filled with
     {rebalance_date: {symbol: qty}} -- the holdings standing at each decision, which
     is the same quantity the port records in strat.holdings_log and the same one
@@ -170,7 +170,11 @@ def run(px, op, sc, dates, pc, mom20, size_at_close: bool, tick_round: bool = Fa
     `drawdown_stop` runs the stop of v5/v6 through results/drawdown_stop.py, the
     state machine the engine and the port also run; `stop_events_out`, a list,
     receives its events. Both None for the core arms, which then run the loop
-    exactly as before."""
+    exactly as before.
+
+    `dd_overlay`, a dd_axis.DDLimit, runs the drawdown-limit axis through
+    results/drawdown_overlay.py, the class the engine and the port also run. None,
+    the default, runs none of its code."""
     # THE CADENCE, AS AN ARGUMENT. REBAL stays the module DEFAULT and is never
     # reassigned: module_state.py records that rebal_cadence_sweep.py:172 writes
     # test_exposure.REBAL and never restores it, and that every later step then
@@ -195,6 +199,11 @@ def run(px, op, sc, dates, pc, mom20, size_at_close: bool, tick_round: bool = Fa
         from drawdown_stop import StopState
         _st = StopState(_stop, _reb, len(dates))
         _EXIT = ({"_exposure": 0.0}, set())
+    _dd = dd_overlay
+    if _dd is not None:
+        from drawdown_overlay import OverlayState
+        _ds = OverlayState(_dd, START_CAPITAL)
+        _expo_last = 1.0
 
     for i, dt in enumerate(dates):
         prices, opens = px.loc[dt], op.loc[dt]
@@ -239,6 +248,8 @@ def run(px, op, sc, dates, pc, mom20, size_at_close: bool, tick_round: bool = Fa
                     port_val = sum(q * vp[s] for s, q in shares.items()
                                    if not np.isnan(vp.get(s, np.nan))) + cash
                     invest_val = port_val * plan["_exposure"] * SAFETY
+                    if _dd is not None:
+                        invest_val *= _ds.entry_factor(plan["_exposure"])
                     for s, w in plan.items():
                         if s == "_exposure" or s in shares:
                             continue
@@ -261,6 +272,52 @@ def run(px, op, sc, dates, pc, mom20, size_at_close: bool, tick_round: bool = Fa
                 _st.after_fills(i, shares, _held_before,
                                 lambda k: pd.Timestamp(dates[k]).date())
 
+        # THE DRAWDOWN-LIMIT ORDER, after the arm's fills: the engine's sequence
+        # (results/test_exposure.py), without the cap, tax or impact this copy
+        # never models.
+        if _dd is not None and _ds.order is not None:
+            _ord = _ds.order
+            _before = {s: int(shares[s]) for s in _ord if s in shares}
+            for s in sorted(_before):
+                dq = _ord[s]
+                if dq >= 0:
+                    continue
+                pr = opens.get(s, np.nan)
+                if np.isnan(pr) or pr <= 0:
+                    continue
+                pr *= (1 - SLIPPAGE)
+                if tick_round:
+                    pr = _tick(pr, dt)
+                q = min(-dq, int(shares[s]))
+                tc = calc_tc(pr, q, "SELL")
+                cash += q * pr - tc; cum_tc += tc; n_trades += 1
+                shares[s] -= q
+                if shares[s] == 0:
+                    del shares[s]
+            _buys = [(s, _ord[s]) for s in sorted(_before) if _ord[s] > 0 and s in shares]
+            _need = 0.0
+            for s, dq in _buys:
+                pr = opens.get(s, np.nan)
+                if not (np.isnan(pr) or pr <= 0):
+                    _need += dq * pr * (1 + SLIPPAGE)
+            _f = min(1.0, cash * SAFETY / _need) if _need > 0 else 1.0
+            for s, dq in _buys:
+                pr = opens.get(s, np.nan)
+                if np.isnan(pr) or pr <= 0:
+                    continue
+                pr *= (1 + SLIPPAGE)
+                if tick_round:
+                    pr = _tick(pr, dt)
+                q = int(dq * _f)
+                if q < 1:
+                    continue
+                tc = calc_tc(pr, q, "BUY")
+                if cash < q * pr + tc:
+                    continue
+                cash -= q * pr + tc; cum_tc += tc; n_trades += 1
+                shares[s] += q
+            _ds.cancel()
+
         _grid = i % _reb == 0 and i < len(dates) - 1
         _reentry = False
         if _grid and _stop is not None and _st.state != "IN":
@@ -272,6 +329,8 @@ def run(px, op, sc, dates, pc, mom20, size_at_close: bool, tick_round: bool = Fa
             m = mom20.loc[dt].dropna()
             expo = float((m > 0).mean()) if len(m) else 1.0
             expo = 1.0 if mode == "none" else max(0.0, min(1.0, expo))
+            if _dd is not None:
+                _expo_last = expo     # the engine's expo_log[-1]
             if applied_out is not None:
                 applied_out["mode"] = mode
             s_ = sc.loc[dt].dropna()
@@ -325,6 +384,8 @@ def run(px, op, sc, dates, pc, mom20, size_at_close: bool, tick_round: bool = Fa
                 pending = _EXIT
             if stop_events_out is not None:
                 stop_events_out.extend(_st.rows(dt, cash + mtm))
+        if _dd is not None:
+            _ds.at_close(dt, cash + mtm, mtm, shares, i == len(dates) - 1, _expo_last)
         eq.append(cash + mtm)
 
     return pd.Series(eq, index=dates), n_trades, cum_tc

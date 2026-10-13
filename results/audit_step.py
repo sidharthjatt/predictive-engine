@@ -115,7 +115,8 @@ def artefact_tag(u, arm):
     # by name. Empty at tax=off, so the unsuffixed names are untouched.
     # AND THE SURVIVORSHIP AXIS, appended after tax: "" at static.
     import survivorship_axis as _sva
-    return tag + cadence.suffix() + profiles.suffix() + _tax.suffix() + _sva.suffix()
+    import dd_axis as _dda
+    return tag + cadence.suffix() + profiles.suffix() + _tax.suffix() + _sva.suffix() + _dda.suffix()
 
 
 def _reference_curve(M, arm_name):
@@ -179,7 +180,8 @@ def _reference_curve(M, arm_name):
     # and reported MATCH. It could not fail.
     import tax as _tax_axis
     import survivorship_axis as _sva
-    _cad = cadence.suffix() + _prof.suffix() + _tax_axis.suffix() + _sva.suffix()
+    import dd_axis as _dda
+    _cad = cadence.suffix() + _prof.suffix() + _tax_axis.suffix() + _sva.suffix() + _dda.suffix()
     # A STOP ARM'S CURVE IS IN THE COMPANION FILE, and only there.
     if arm_name in _ar.STOP_ARMS:
         g = M / f"v34_stop_equity{_ar.stop_selection_suffix()}{_cad}.csv"
@@ -327,6 +329,19 @@ def run(u, arm=None):
         print(f"  stop events: {len(stdf)} "
               f"({int((stdf['event'] == 'trigger').sum())} exits, "
               f"{int((stdf['event'] == 're-entry filled').sum())} re-entries)")
+    # THE DRAWDOWN-LIMIT AXIS: one row per order and per fill. Only with --dd.
+    if "dd_events" in audit:
+        from drawdown_overlay import EVENT_COLUMNS
+        dddf = pd.DataFrame(audit["dd_events"], columns=EVENT_COLUMNS)
+        # naming: arm,cadence,profile,tax,survivorship,dd via artefact_tag -- `tag` is artefact_tag(u, _arm)
+        dddf.to_csv(M / f"daily_dd_events_{tag}.csv", index=False)
+        _d = audit["dd"]
+        print(f"  drawdown limit {_d['limit_pct']:g}%: {_d['orders']} orders, worst close "
+              f"drawdown {_d['worst_dd_pct']:.2f}% from the all-time peak, "
+              + (f"limit breached by {_d['breach_points']:.2f} points"
+                 if _d["breached"] else "limit not breached")
+              + f", {_d['sessions_below_limit']} sessions below it, "
+              f"{_d['days_at_floor']} days at the floor")
     if len(skdf):
         print(f"  SKIPPED orders: {len(skdf)}")
         print(skdf["reason"].value_counts().to_string().replace("\n", "\n    "))

@@ -217,6 +217,11 @@ DELEGATES = (
     # copy: exit on a rebalance day, capped and unopened exit sales, the tax
     # assessment day, the last two days, a re-entry with no fill, low breadth.
     ("drawdown_stop_test.py",                 ["--quiet"], False, None),
+    # The drawdown-limit axis on a synthetic panel: the partial sells and top-ups
+    # it adds, the band, the floor, the cap, a missing open, a gap through the
+    # limit, tax on, and the refusal on a stop arm. Every case is reconciled to
+    # the paisa by cost_report. A few seconds.
+    ("dd_overlay_test.py",                    ["--quiet"], False, None),
 
     # Cheap, and each already carries an exit status.
     ("results/leakage_check1_causality.py",   [], False, None),
@@ -905,19 +910,22 @@ def _run_axes(rec=None, tax_on=True):
     import tax as _tx
     import arms.registry as _ar
     import survivorship_axis as _sva
+    import dd_axis as _dda
     saved = (_cd._SELECTED, _pf.selected(), _tx.selected(), _ar._SELECTED,
-             _sva.selected())
+             _sva.selected(), _dda.selected())
     try:
         _cd.set_selection(rec["cadence"] if rec else None)
         _pf.set_selection(rec["profile"] if rec else None)
         _ar.set_selection(rec["arms"] if rec else None)
         _tx.set_selection(tax_on)
         _sva.set_selection((rec or {}).get("survivorship"))
+        _dda.set_selection((rec or {}).get("dd"))
         yield
     finally:
         _cd.set_selection(saved[0]); _pf.set_selection(saved[1])
         _tx.set_selection(saved[2]); _ar._SELECTED = saved[3]
         _sva.set_selection(saved[4])
+        _dda.set_selection(saved[5])
 
 
 def _tax_ledger(u, M, arm="v2", stems=("FY_EQUITY", "FY_TAX_STATEMENT"), rec=None):
@@ -949,8 +957,9 @@ def _v34_equity_pair(M, rec, arm=None):
             head = (f"v34_stop_equity{_ar.stop_selection_suffix()}" if stop
                     else f"v34_equity{_ar.selection_suffix()}")
             import survivorship_axis as _sva
+            import dd_axis as _dda
             out.append(M / f"{head}{_cd.suffix()}{_pf.suffix()}{_tx.suffix()}"
-                           f"{_sva.suffix()}.csv")
+                           f"{_sva.suffix()}{_dda.suffix()}.csv")
     return tuple(out)
 
 
@@ -1559,6 +1568,9 @@ def _print_not_asserted(res):
 NOT_COVERED = (
     ("nautilus/nt_verify.py", "every pit cell (--survivorship pit), all universes and arms",
      "the Nautilus port has no membership rule or index exit"),
+    ("nautilus/nt_verify.py", "every --dd cell with tax on, the tradeable profile or pit",
+     "the port has no tax ledger and no participation cap; nt_verify --dd checks "
+     "static, research, tax-off cells only, and only when run by hand"),
 )
 
 

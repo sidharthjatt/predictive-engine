@@ -99,6 +99,10 @@ _CAP_REQUIRED = object()
 # axis being unable to reach them.
 _VOL20_REQUIRED = object()
 
+# dd_overlay's default: read dd_axis.selected() at call time. A sentinel rather
+# than None, because None is the explicit "off" a test or a caller may pass.
+_DD_FROM_SELECTION = object()
+
 
 def _participation_limit(sym, dt, participation_cap, vol20):
     """The cap in shares for one (symbol, date), or None when it does not apply.
@@ -136,9 +140,17 @@ def backtest_exposure(px, op, sc, dates, pc, mom20, port_vol=None,
                       const_expo=None, value_at_open=True, rebal=None,
                       funding="cash", participation_cap=_CAP_REQUIRED, vol20=_VOL20_REQUIRED,
                       tax_enabled=False, impact_k=None, impact_out=None,
-                      end_sale=False, drawdown_stop=None):
+                      end_sale=False, drawdown_stop=None, dd_overlay=_DD_FROM_SELECTION):
     """audit=None reproduces the original code path exactly: no overhead, and the
     official numbers are unchanged.
+
+    dd_overlay -- THE DRAWDOWN-LIMIT AXIS (dd_axis.py, results/drawdown_overlay.py).
+        Left unset, it is read from dd_axis.selected(), which is None unless
+        run.py was given --dd, and None runs none of the code that reads it. A
+        DDLimit passed explicitly (tests) overrides the selection. When on, the
+        invested fraction is cut to the cushion rule's limit: decided at each
+        close, filled at the next open after the arm's own orders, fill kinds
+        "dd trim" and "dd top-up". Refused together with drawdown_stop.
 
     drawdown_stop -- THE STOP OF v5 AND v6 (experiments/DRAWDOWN_STOP_PREREG.txt).
         None, the default, runs none of the code below that reads it, so v1 to v4
@@ -362,6 +374,19 @@ def backtest_exposure(px, op, sc, dates, pc, mom20, port_vol=None,
         _stop_log = audit.setdefault("stop_events", []) if audit is not None else None
         _EXIT_ORDER = ({"_exposure": 0.0}, set())   # sell every holding, buy nothing
 
+    # THE DRAWDOWN-LIMIT AXIS (results/drawdown_overlay.py). Nothing below that
+    # reads _dd runs when it is None, which is every run without --dd.
+    if dd_overlay is _DD_FROM_SELECTION:
+        import dd_axis as _dd_axis
+        dd_overlay = _dd_axis.selected()
+    _dd = dd_overlay
+    if _dd is not None:
+        if _stop is not None:
+            raise ValueError("the drawdown-limit axis cannot run on a stop arm (v5/v6)")
+        from drawdown_overlay import OverlayState
+        _ds = OverlayState(_dd, START_CAPITAL)
+        _dd_rows = set()          # ledger row indices realised by the overlay's sales
+
     for i, dt in enumerate(dates):
         if _stop is not None:
             _st.begin_day()
@@ -578,6 +603,11 @@ def backtest_exposure(px, op, sc, dates, pc, mom20, port_vol=None,
                 port_val = sum(q * vp[s] for s, q in shares.items()
                                if not np.isnan(vp.get(s, np.nan))) + cash
                 invest_val = port_val * targets["_exposure"] * 0.98
+                if _dd is not None:
+                    # ENTRANTS ARE SIZED AT min(E, A) INSTEAD OF A, from the E
+                    # decided at the last close, so they are not bought full and
+                    # trimmed the same morning.
+                    invest_val *= _ds.entry_factor(targets["_exposure"])
                 # PRO-RATA ENTRANT SCALING (funding="prorata"). See the `funding`
                 # note in the docstring and experiments/FUNDING_SPEC.txt.
                 #
@@ -709,6 +739,100 @@ def backtest_exposure(px, op, sc, dates, pc, mom20, port_vol=None,
             if _stop is not None and (_st.exit_pending or _st.reentry_pending):
                 _st.after_fills(i, shares, _held_before,
                                 lambda k: pd.Timestamp(dates[k]).date())
+
+        # THE DRAWDOWN-LIMIT ORDER placed at the last close, after the arm's own
+        # fills. See results/drawdown_overlay.py. Each name the order still finds
+        # held is resized by the same ratio: sells first, then top-ups funded from
+        # cash with the usual 0.98 haircut, scaled down together when cash is short.
+        if _dd is not None and _ds.order is not None:
+            _ord = _ds.order
+            _before = {s: int(shares[s]) for s in _ord if s in shares}
+            if not _before:
+                _ds.cancel()
+            else:
+                for s in sorted(_before):
+                    dq = _ord[s]
+                    if dq >= 0:
+                        continue
+                    raw = opens.get(s, np.nan)
+                    if np.isnan(raw) or raw <= 0:
+                        if audit is not None:
+                            audit["skipped"].append({"date": dt, "side": "SELL", "symbol": s,
+                                "reason": "dd trim: no open price (NaN/<=0)", "detail": ""})
+                        continue
+                    q = min(-dq, int(shares[s]))
+                    _capped = _participation_limit(s, dt, participation_cap, vol20)
+                    if _capped is not None and q > _capped[0]:
+                        if audit is not None:
+                            audit["skipped"].append({"date": dt, "side": "SELL", "symbol": s,
+                                "reason": "participation cap",
+                                "detail": f"dd trim wanted {q:,} sh, capped to {_capped[0]:,}"})
+                        q = _capped[0]
+                    if q < 1:
+                        continue
+                    pr, _pend = _fill_price("SELL", s, dt, raw, q)
+                    tc = calc_tc(pr, q, "SELL")
+                    cash += q * pr - tc; cum_tc += tc; n_trades += 1
+                    _cost_fill(dt, "SELL", s, q, raw, pr, tc, "dd trim")
+                    _commit_impact(_pend)
+                    if ledger is not None:
+                        _n0 = len(ledger.rows)
+                        ledger.sell(s, q, round(pr, 2), dt)
+                        _dd_rows.update(range(_n0, len(ledger.rows)))
+                    if audit is not None:
+                        audit["trades"].append({"date": dt, "action": "SELL", "symbol": s,
+                            "qty": q, "price": round(pr, 2), "value": round(q*pr, 2),
+                            "tc": round(tc, 2)})
+                    shares[s] -= q
+                    if shares[s] == 0:
+                        del shares[s]
+                _buys = [(s, _ord[s]) for s in sorted(_before) if _ord[s] > 0 and s in shares]
+                _need = 0.0
+                for s, dq in _buys:
+                    raw = opens.get(s, np.nan)
+                    if not (np.isnan(raw) or raw <= 0):
+                        _need += dq * _sl.buy_price(raw, 0, None, None)
+                _f = min(1.0, cash * 0.98 / _need) if _need > 0 else 1.0
+                for s, dq in _buys:
+                    raw = opens.get(s, np.nan)
+                    if np.isnan(raw) or raw <= 0 or not engine_core.tradeable_on(s, dt):
+                        if audit is not None:
+                            audit["skipped"].append({"date": dt, "side": "BUY", "symbol": s,
+                                "reason": "dd top-up: no open price or untradeable",
+                                "detail": ""})
+                        continue
+                    pr = _sl.buy_price(raw, 0, None, None)
+                    q = int(dq * _f)
+                    _capped = _participation_limit(s, dt, participation_cap, vol20)
+                    if _capped is not None and q > _capped[0]:
+                        if audit is not None:
+                            audit["skipped"].append({"date": dt, "side": "BUY", "symbol": s,
+                                "reason": "participation cap",
+                                "detail": f"dd top-up wanted {q:,} sh, capped to {_capped[0]:,}"})
+                        q = _capped[0]
+                    if q < 1:
+                        continue
+                    _pend = None
+                    if impact_k is not None:
+                        pr, _pend = _fill_price("BUY", s, dt, raw, q)
+                    tc = calc_tc(pr, q, "BUY")
+                    if cash < q * pr + tc:
+                        if audit is not None:
+                            audit["skipped"].append({"date": dt, "side": "BUY", "symbol": s,
+                                "reason": "dd top-up: cash short",
+                                "detail": f"need Rs {q*pr+tc:,.0f}, have Rs {cash:,.0f}"})
+                        continue
+                    cash -= q * pr + tc; cum_tc += tc; n_trades += 1
+                    _cost_fill(dt, "BUY", s, q, raw, pr, tc, "dd top-up")
+                    _commit_impact(_pend)
+                    if ledger is not None:
+                        ledger.buy(s, q, round(pr, 2), dt)
+                    if audit is not None:
+                        audit["trades"].append({"date": dt, "action": "BUY", "symbol": s,
+                            "qty": q, "price": round(pr, 2), "value": round(q*pr, 2),
+                            "tc": round(tc, 2)})
+                    shares[s] += q
+                _ds.after_fills(dt, _before, {s: int(shares.get(s, 0)) for s in _before})
 
         # THE LAST-DAY SALE -- see end_sale in the docstring. After the day's
         # ordinary fills and before the end-of-window tax settlement below.
@@ -917,6 +1041,11 @@ def backtest_exposure(px, op, sc, dates, pc, mom20, port_vol=None,
                 pending = _EXIT_ORDER
             if _stop_log is not None:
                 _stop_log.extend(_st.rows(dt, pv))
+        if _dd is not None:
+            # A, the arm's own exposure: its last rebalance decision (1.0 for
+            # mode "none").
+            _ds.at_close(dt, pv, mtm, shares, i == len(dates) - 1,
+                         expo_log[-1] if expo_log else 1.0)
         if _costs is not None:
             _costs["days"].append({"date": dt, "cash_open": _cash_open, "interest": _cash_int,
                                    "tax_before_fills": _tax_pre, "tax_after_fills": _tax_post,
@@ -942,6 +1071,11 @@ def backtest_exposure(px, op, sc, dates, pc, mom20, port_vol=None,
     # are untaxed. A caller that wants the tax trail passes an audit dict and
     # finds it under "tax"; a caller that does not is unaffected, which is what
     # keeps tax=off byte-identical rather than merely equal.
+    if _dd is not None and audit is not None:
+        from drawdown_overlay import marginal_tax
+        audit["dd_events"] = _ds.events
+        audit["dd"] = dict(_ds.summary(), marginal_tax=(
+            marginal_tax(ledger.rows, _dd_rows) if ledger is not None else 0.0))
     if audit is not None and ledger is not None:
         audit["tax"] = {"ledger": ledger, "cum_tax": cum_tax,
                         "lots": pd.DataFrame(ledger.rows), "leaked": ledger.leaked()}

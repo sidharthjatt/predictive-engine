@@ -437,6 +437,10 @@ def print_plan(plan, args, show_paths=False):
     if not _sva.is_default():
         print(f"  survivorship: {_sva.selected()} (point-in-time membership, "
               f"with-survivorship prices; static is the default)")
+    import dd_axis as _dda
+    if not _dda.is_default():
+        print(f"  {_dda.label()} -- EXPLORATORY, not validated; off is the default")
+        print(f"  {_dd_port_note(args)}")
     if plan["pipeline"]:
         print(f"\n  PIPELINE STEPS ({len(plan['pipeline'])}), in run_all order:")
         for label, scr, tag in plan["pipeline"]:
@@ -523,6 +527,82 @@ def _cadence_arg(s):
     return n
 
 
+def _dd_limit_arg(s):
+    """--dd value: the drawdown limit in percent, above 0 and at most 50."""
+    try:
+        x = float(s)
+    except ValueError:
+        raise argparse.ArgumentTypeError(f"{s!r} is not a number (percent, e.g. 20)")
+    if not (0 < x <= 50):
+        raise argparse.ArgumentTypeError(f"{x:g} -- the limit must be above 0 and at most 50 percent")
+    return x
+
+
+def _dd_m_arg(s):
+    """--dd-m value: the cushion multiplier, above 0."""
+    try:
+        x = float(s)
+    except ValueError:
+        raise argparse.ArgumentTypeError(f"{s!r} is not a number")
+    if not x > 0:
+        raise argparse.ArgumentTypeError(f"{x:g} -- the multiplier must be above 0")
+    return x
+
+
+def _dd_floor_arg(s):
+    """--dd-floor value: the exposure floor in percent, above 0 and at most 100."""
+    try:
+        x = float(s)
+    except ValueError:
+        raise argparse.ArgumentTypeError(f"{s!r} is not a number (percent, e.g. 25)")
+    if not (0 < x <= 100):
+        raise argparse.ArgumentTypeError(f"{x:g} -- the floor must be above 0 and at most 100 percent")
+    return x
+
+
+def _dd_setup(ap, args):
+    """Validate the drawdown-limit flags together and record the selection.
+
+    Before the plan is built, so --list and --dry-run name the dd paths and refuse
+    what a real run would refuse."""
+    import dd_axis as _dda
+    if args.dd is None:
+        if args.dd_m is not None or args.dd_floor is not None:
+            ap.error("--dd-m and --dd-floor need --dd")
+        _dda.set_selection(None)
+        return
+    stop = [a.name for a in resolve_arms(args.arm) if a.stop is not None]
+    if stop:
+        ap.error(f"--dd cannot run on the stop arm(s) {', '.join(stop)}: they carry their "
+                 f"own drawdown stop, and the two rules would act on one book. Choose "
+                 f"from {', '.join(ARMS)}.")
+    sel = _dda.make(args.dd, args.dd_m, args.dd_floor)
+    w = _dda.peak_warning(sel)
+    if w:
+        print(w)
+    _dda.set_selection(sel)
+
+
+def _dd_port_note(args):
+    """The sentence saying a dd cell is outside port verification, or None."""
+    import dd_axis as _dda
+    import survivorship_axis as _sva
+    if _dda.is_default():
+        return None
+    why = []
+    if args.tax == "on":
+        why.append("tax on (the port has no tax ledger)")
+    if args.profile == "tradeable":
+        why.append("profile tradeable (the port has no participation cap)")
+    if not _sva.is_default():
+        why.append("survivorship pit (the port has no membership rule)")
+    if not why:
+        return ("drawdown limit: static, research, tax off -- nt_verify --dd can check "
+                "these cells against the port")
+    return ("DRAWDOWN LIMIT OUTSIDE PORT VERIFICATION: " + "; ".join(why)
+            + ". No nt_verify result covers these cells.")
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(description="Run the pipeline for one universe/arm combination.")
     ap.add_argument("--universe", default="all",
@@ -563,11 +643,22 @@ def main(argv=None):
                     help="universe construction (default static). pit uses the "
                          "supplier's membership files and with-survivorship prices; "
                          "every artefact gets the _pit suffix. See survivorship_axis.py.")
+    # THE SIXTH AXIS, 2026-10-13. Default off. Exploratory: see README.
+    ap.add_argument("--dd", type=_dd_limit_arg, default=None, metavar="L",
+                    help="drawdown limit in percent (above 0, at most 50); off by default. "
+                         "Exposure = max(F, min(1, m*(W-(1-L)*M)/W)). Exploratory, not "
+                         "validated. See dd_axis.py.")
+    ap.add_argument("--dd-m", type=_dd_m_arg, default=None, metavar="m",
+                    help="cushion multiplier for --dd (above 0; default 1/L, fully "
+                         "invested at a peak)")
+    ap.add_argument("--dd-floor", type=_dd_floor_arg, default=None, metavar="F",
+                    help="exposure floor for --dd in percent (above 0, at most 100; default 25)")
     ap.add_argument("--list", action="store_true", help="resolve and print the plan, run nothing")
     ap.add_argument("--dry-run", action="store_true",
                     help="like --list, and show every output location")
     ap.add_argument("--fresh", action="store_true", help="clear caches first (full rebuild)")
     args = ap.parse_args(argv)
+    _dd_setup(ap, args)
 
     import survivorship_axis as _sva
     _sva.set_selection(args.survivorship)
@@ -635,7 +726,9 @@ def run_folder(plan, args):
     arm = [a.name for a in plan["arms"]]
     reb = args.rebal if args.rebal is not None else paths.DEFAULT_REBAL
     import survivorship_axis as _sva
-    return ROOT / "runs" / (paths.run_folder_name(uni, arm, reb) + _sva.suffix())
+    import dd_axis as _dda
+    return ROOT / "runs" / (paths.run_folder_name(uni, arm, reb) + _sva.suffix()
+                            + _dda.suffix())
 
 
 def collect_run_folder(plan, args, t_start, dest, thin=None):
@@ -703,7 +796,7 @@ def collect_run_folder(plan, args, t_start, dest, thin=None):
         f"cadence   : {reb}\n"
         f"profile   : {_pf.selected()}\n"
         f"tax       : {'on' if _tax.selected() else 'off'}\n"
-        + _survivorship_section(plan) +
+        + _survivorship_section(plan) + _dd_section() +
         f"steps     : {len(plan['pipeline'])} pipeline, {len(plan['arm_runs'])} arm runs\n"
         f"artefacts : {copied} copied from their canonical locations\n"
         f"log       : run.log\n"
@@ -727,6 +820,17 @@ def _survivorship_section(plan):
         out.append(f"--- {u.tag} point-in-time record ---")
         out += plan["pit_records"][u.tag]["lines"]
     return "\n".join(out) + "\n"
+
+
+def _dd_section():
+    """RUN.txt's drawdown-limit line: none when the axis is off, so RUN.txt is
+    unchanged; check_all --since reads it back (read_run_record)."""
+    import dd_axis as _dda
+    if _dda.is_default():
+        return ""
+    s = _dda.selected()
+    return (f"dd        : limit_pct={s.limit * 100:g} m={s.m:.10g} "
+            f"floor_pct={s.floor * 100:g}\n")
 
 
 def _thin_section(thin):
@@ -797,8 +901,19 @@ def read_run_record(folder):
             "profile": kv.get("profile"), "tax": kv.get("tax"),
             # Absent from every RUN.txt written before 2026-10-10: those runs were static.
             "survivorship": kv.get("survivorship", "static"),
+            # Absent from every RUN.txt of a run without --dd.
+            "dd": _parse_dd(kv.get("dd")),
             "pipeline_steps": int(m.group(1)), "arm_runs": int(m.group(2)),
             "started": started, "finished": finished}
+
+
+def _parse_dd(v):
+    """RUN.txt's dd line back to a dd_axis.DDLimit, or None."""
+    if not v:
+        return None
+    kv = dict(x.split("=", 1) for x in v.split())
+    import dd_axis as _dda
+    return _dda.make(float(kv["limit_pct"]), float(kv["m"]), float(kv["floor_pct"]))
 
 
 def runs_finished_since(since):
@@ -959,6 +1074,15 @@ def _execute(plan, args, state):
     # registry swap has to precede it. Here, in a pit run, each universe's
     # membership is loaded and its record printed before any number exists.
     _pit_setup(plan)
+    # THE SIXTH AXIS was set in main() too. Said here, before any number exists,
+    # and the cells the port cannot check are named.
+    import dd_axis as _dda
+    if not _dda.is_default():
+        print("\n" + "!" * 90)
+        print(f" {_dda.label().upper()} -- EXPLORATORY: no result with this axis on has been "
+              f"validated")
+        print(f" {_dd_port_note(args)}")
+        print("!" * 90, flush=True)
     # LOUD, AT THE START, BEFORE ANY NUMBER EXISTS. A run under a non-default
     # profile completes and exits 0, which is indistinguishable from a run that was
     # checked unless something says otherwise. profiles.gate_status() owns the

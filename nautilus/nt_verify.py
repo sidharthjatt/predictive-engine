@@ -6,6 +6,7 @@ prints what matches, what does not, and by how much. Nothing here is hardcoded:
 every number is produced by the run it describes.
 
 Run: ./venv/bin/python nautilus/nt_verify.py --universe=nifty100 [--arm=v3] [--rebal=3]
+                                             [--dd=20 [--dd-m=5] [--dd-floor=25]]
 
 --arm=NAME verifies that arm (default v2): the port runs with the arm's mode and
 sizing, both reference re-runs (ARM A and ARM D) and the 0.01-grid proof take the
@@ -63,6 +64,29 @@ ARM = _ARMS[_ARM_NAME]
 # the port and the reference copy then both run. Sealed for a stop arm unless the
 # test fixture is set (arms.registry.FIXTURE_ENV).
 _ARM_KW = ARM.kwargs
+
+# --dd=L [--dd-m=m] [--dd-floor=F]: THE DRAWDOWN-LIMIT AXIS. The selection is set
+# here, so the reference trail is found by the writer's own name (_ref_tag), and the
+# overlay rides in _ARM_KW to the port and to both reference re-runs. This command
+# runs at research profile and tax off only; a cell with the axis on under tax or
+# the tradeable profile is outside port verification (the port has no tax ledger
+# and no participation cap).
+def _flag(name):
+    return next((a.split("=", 1)[1] for a in sys.argv if a.startswith(f"--{name}=")), None)
+
+
+if _flag("dd") is not None:
+    import dd_axis as _dda
+    _DD = _dda.make(float(_flag("dd")),
+                    float(_flag("dd-m")) if _flag("dd-m") is not None else None,
+                    float(_flag("dd-floor")) if _flag("dd-floor") is not None else None)
+    if ARM.stop is not None:
+        raise SystemExit("--dd cannot be used with a stop arm (v5/v6)")
+    _dda.set_selection(_DD)
+    _ARM_KW = dict(ARM.kwargs, dd_overlay=_DD)
+    print(f"  drawdown-limit axis: {_dda.label()} -- research profile, tax off")
+elif _flag("dd-m") is not None or _flag("dd-floor") is not None:
+    raise SystemExit("--dd-m and --dd-floor need --dd")
 
 # THE STOP'S DATES, compared exactly: these events on these days, on both sides.
 STOP_KEY_EVENTS = ("trigger", "exit fills", "flat", "re-entry order", "re-entry filled",

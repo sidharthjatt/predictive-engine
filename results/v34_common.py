@@ -45,6 +45,13 @@ from config import read_table  # the one CSV/parquet reader: config.read_table
 from numerics import rolling_std  # platform-identical variance: results/numerics.py
 
 
+def _dd_params():
+    """{"dd": ...} when the drawdown-limit axis is on, {} when off, so a params
+    file from a run without --dd is the file it always was."""
+    import dd_axis as _dda
+    return {} if _dda.is_default() else {"dd": _dda.params()}
+
+
 def _window_label(eq=None):
     """One line naming the window every figure on the chart belongs to.
 
@@ -238,6 +245,7 @@ def _write_core(M, SFX, comp, subs, ARM_ON, bd, bh, curves, universe_label,
         # PIT RUNS ONLY: the validator verdict, residual survivorship and the
         # look-ahead note. Absent in a static run.
         **_survivorship.params_fields(universe_tag),
+        **_dd_params(),
     }, indent=2))
 
     # --- chart: four arms plus the reference on one axis ---
@@ -304,8 +312,9 @@ def _write_stop(M, stop_rows, stop_curves, stop_audits, bd, bh, halves,
                 profiles, _tax):
     """The companion v34_stop_* files: the selected stop arms and the buy & hold."""
     import survivorship_axis as _sva
+    import dd_axis as _dda
     SFX = (arm_reg.stop_selection_suffix() + cadence.suffix() + profiles.suffix()
-            + _tax.suffix() + _sva.suffix())
+            + _tax.suffix() + _sva.suffix() + _dda.suffix())
     rows = stop_rows + [arm_row(bh, "buy & hold equal-weight", 0, 0, 100.0)]
     rows[-1]["MeanNamesHeld"], rows[-1]["CashShortSkips"] = "", ""
     pd.DataFrame(rows).to_csv(M / f"v34_stop_comparison{SFX}.csv", index=False)
@@ -350,6 +359,7 @@ def _write_stop(M, stop_rows, stop_curves, stop_audits, bd, bh, halves,
         # PIT RUNS ONLY: the validator verdict, residual survivorship and the
         # look-ahead note. Absent in a static run.
         **_survivorship.params_fields(universe_tag),
+        **_dd_params(),
     }, indent=2))
     _wrote.append(M / f"v34_stop_params{SFX}.json")
 
@@ -508,8 +518,9 @@ def run_v34(M, universe_label, universe_tag, px, op, sc, bd, pc, mom20, port_vol
     # v34_comparison.csv: it is written to the companion v34_stop_* files below, so
     # a run of v1..v4 plus v5 still writes the canonical files with v1..v4 only.
     import survivorship_axis as _sva
+    import dd_axis as _dda
     SFX = (arm_reg.selection_suffix([n for n, *_ in ARM_ON]) + cadence.suffix()
-           + profiles.suffix() + _tax.suffix() + _sva.suffix())
+           + profiles.suffix() + _tax.suffix() + _sva.suffix() + _dda.suffix())
     # THE PATHS THIS CALL WRITES, IN ORDER. Read only by the report line below, so
     # that what is printed is derived from what was written rather than restated.
     _wrote = []
@@ -698,6 +709,7 @@ def run_arm(u, arm, rebal=None, out_dir=None):
         "deployed_pct": round(float(dep), 1),
         "git_state": _git_state(), "run_date": str(pd.Timestamp.today().date()),
         **_survivorship.params_fields(u.tag),
+        **_dd_params(),
     }, indent=2))
 
     fig, ax = plt.subplots(2, 1, figsize=(13, 8), height_ratios=[2, 1])

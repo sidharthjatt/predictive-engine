@@ -152,7 +152,15 @@ TOOL_REPORTS = Path(__file__).resolve().parent / "tool_reports"
 def run(trading_start, trading_end, symbols=None, quiet=True,
         universe=None,
         sizing="invvol", mode="breadth", rebal=None, reports_root=None,
-        drawdown_stop=None):
+        drawdown_stop=None, dd_overlay=None):
+    # THE REPORT DIRECTORY TAKES THE dd SEGMENT FROM THE SELECTION (naming.path_tail),
+    # so an overlay passed without the selection, or the selection without the
+    # overlay, would write a report under the wrong name. Refused.
+    import dd_axis as _dda
+    if (dd_overlay is None) != _dda.is_default() or (
+            dd_overlay is not None and dd_overlay != _dda.selected()):
+        raise ValueError(f"nt_run.run: dd_overlay={dd_overlay!r} does not match the "
+                         f"dd selection {_dda.selected()!r}")
     warm_start = (pd.Timestamp(trading_start) - pd.Timedelta(days=WARMUP_DAYS)).strftime("%Y-%m-%d")
     print(f"data from {warm_start} (warm-up) | trading {trading_start} to {trading_end}")
 
@@ -197,7 +205,8 @@ def run(trading_start, trading_end, symbols=None, quiet=True,
     # sizing/mode default to what every caller relied on when these were module
     # globals, so an existing call site behaves exactly as before.
     strat.configure(scores, instruments, trading_start, sizing=sizing, mode=mode,
-                    rebal=rebal, drawdown_stop=drawdown_stop)
+                    rebal=rebal, drawdown_stop=drawdown_stop, dd_overlay=dd_overlay,
+                    start_capital=START_CAPITAL)
     eng.add_strategy(strat)
 
     eng.run()

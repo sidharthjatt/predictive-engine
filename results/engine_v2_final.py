@@ -43,6 +43,7 @@ sys.path.append(str(Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import config
 import cadence
+import dd_axis  # noqa: E402
 import arms.registry as arm_reg
 from engine_core import metrics, precompute
 from test_exposure import backtest_exposure, CASH_YIELD
@@ -113,10 +114,12 @@ def _c(path):
     # writes -- exactly the way `tradeable` does. Writing those into the
     # canonical filenames would be the same defect on a fourth axis.
     import survivorship_axis as _sva
+    import dd_axis as _dda
     _all_default = (cadence.is_default() and _pf.is_default() and _tax.is_default()
-                    and _sva.is_default())
+                    and _sva.is_default() and _dda.is_default())
     _sfx = ("" if _all_default
-            else cadence.suffix() + _pf.suffix() + _tax.suffix() + _sva.suffix())
+            else (cadence.suffix() + _pf.suffix() + _tax.suffix() + _sva.suffix()
+                  + _dda.suffix()))
     out = path if not _sfx else path.with_name(path.stem + _sfx + path.suffix)
     # WHAT THIS RUN ACTUALLY WROTE, RECORDED HERE BECAUSE HERE IS WHERE THE NAME
     # IS DECIDED. The step used to end by printing a hardcoded list of the
@@ -346,6 +349,9 @@ def main(u):
         # the look-ahead note. The static value is unchanged.
         "survivorship": (sv.params_fields(u.tag)["survivorship"] if sv.is_pit()
                          else sv.describe_state()),
+        # THE DRAWDOWN-LIMIT AXIS: present only with --dd, so this file is
+        # unchanged without it.
+        **({} if dd_axis.is_default() else {"dd": dd_axis.params()}),
         "vs_buyhold": (f"Sharpe {mfin['Sharpe']} vs {mbh['Sharpe']}, "
                        f"MaxDD {mfin['MaxDD%']}% vs {mbh['MaxDD%']}%, "
                        f"CAGR {mfin['CAGR%']}% vs {mbh['CAGR%']}%"),

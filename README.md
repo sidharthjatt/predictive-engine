@@ -73,6 +73,45 @@ and are used by decision; each pit run records the verdict, the members it could
 not price and a look-ahead note in its log, RUN.txt and params JSON. See
 `SURVIVORSHIP_README.md` and KNOWN_ISSUES.md.
 
+### The drawdown limit (`--dd`): exploratory, not validated
+
+**Any result with `--dd` on is exploratory. It has not been validated, and it must
+not be used to choose a live setting.** No limit, multiplier, floor or band was
+pre-registered or tested out of sample. The option is off by default; without it
+every run, file and figure is what it was.
+
+```
+./venv/bin/python run.py --universe nifty50 --arm v1 --dd 20
+./venv/bin/python run.py --universe midcap150 --arm v3 --dd 15 --dd-m 4 --dd-floor 10
+```
+
+- `--dd L`: the limit in percent, above 0 and at most 50.
+- `--dd-m m`: the cushion multiplier, above 0. Default 1/L, so the book is fully
+  invested at a peak. Below 1/L the run prints a warning: the book is then never
+  fully invested.
+- `--dd-floor F`: the exposure floor in percent, above 0 and at most 100. Default 25.
+
+At each close, with W the close equity and M its all-time peak since the start of
+the run (never reset), the exposure limit is `E = max(F, min(1, m * (W - (1 - L) * M) / W))`.
+When the invested fraction is more than 5 points above `min(E, arm exposure)`, every
+holding is cut by the same proportion at the next open. After a cut, the book is
+topped up the same way, at most to the arm's own level. The arm still chooses the
+names. Fills go through the normal slippage, charges, participation cap and tax
+ledger, as fill kinds `dd trim` and `dd top-up`. The floor keeps part of the book
+invested so it can recover after the limit; it also means the limit is not a hard
+stop, and an overnight gap can take the drawdown through it.
+
+Each run reports the true worst close drawdown from the all-time peak against L,
+whether and by how much L was breached, sessions below L, days at the floor, and
+the charges, slippage and marginal tax of the limit's own fills (end of run.log and
+`COST_SUMMARY_*.txt`). Every order and fill is in `daily_dd_events_*.csv`.
+
+Names: `_dd20` after every other suffix (`_dd12p5`, `_dd20m3f10` when m or F is not
+the default), `@dd20` in directory names, the limit in chart titles, a `dd` entry in
+params.json and a `dd` line in RUN.txt. `--dd` is refused with v5 or v6, which carry
+their own stop. The Nautilus port runs the limit; `nautilus/nt_verify.py --dd=20`
+checks static, research, tax-off cells only. See KNOWN_ISSUES.md.
+
 Two more arms exist and are not part of `--arm all`: v5 (v1 plus a drawdown stop)
 and v6 (v3 plus the stop). The stop exits when the arm's close equity is 20% or more
 below its running peak, sells everything at the next open, stays in cash for at
