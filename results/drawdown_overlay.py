@@ -70,7 +70,15 @@ class OverlayState:
         if W <= 0:
             return F
         C = W - (1.0 - L) * self.peak
-        return max(F, min(1.0, m * C / W))
+        raw = m * C / W
+        # AT A PEAK m * C / W IS m * L, WHICH IS 1 AT THE DEFAULT m = 1 / L, but in
+        # floating point it lands a rounding error above or below 1 depending on W.
+        # The two sides of nt_verify carry W a few rupees apart, so one read E = 1
+        # (the snap back to full) and the other 0.9999999999 (the band), and their
+        # books parted on nifty50 v1 on 2019-03-14. Within 1e-9 of 1 is 1.
+        if abs(raw - 1.0) < 1e-9:
+            raw = 1.0
+        return max(F, min(1.0, raw))
 
     def entry_factor(self, arm_expo):
         """Multiplier on the arm's invest_value for entrants at the next open:
@@ -98,7 +106,7 @@ class OverlayState:
             self.sessions_below += 1
         E = self.target(W)
         raw = (cfg.m * (W - (1.0 - L) * self.peak) / W) if W > 0 else 0.0
-        if raw < cfg.floor:
+        if raw < cfg.floor and E == cfg.floor:
             self.days_at_floor += 1
         self.E = E
         self.order = None

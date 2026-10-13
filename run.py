@@ -1079,8 +1079,8 @@ def _execute(plan, args, state):
     import dd_axis as _dda
     if not _dda.is_default():
         print("\n" + "!" * 90)
-        print(f" {_dda.label().upper()} -- EXPLORATORY: no result with this axis on has been "
-              f"validated")
+        print(f" DRAWDOWN LIMIT: {_dda.label()} -- EXPLORATORY: no result with this axis "
+              f"on has been validated")
         print(f" {_dd_port_note(args)}")
         print("!" * 90, flush=True)
     # LOUD, AT THE START, BEFORE ANY NUMBER EXISTS. A run under a non-default
