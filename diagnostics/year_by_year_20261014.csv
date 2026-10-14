@@ -1,0 +1,61 @@
+universe,arm,setting,period,cell,basket,index,cell_minus_basket,cell_minus_index
+nifty200,v3,"pit, tradeable, tax on",2019,-9.6060,5.6661,8.3352,-15.2721,-17.9412
+nifty200,v3,"pit, tradeable, tax on",2020,55.4087,25.4859,15.6172,29.9228,39.7914
+nifty200,v3,"pit, tradeable, tax on",2021,77.6751,47.2653,27.4696,30.4098,50.2054
+nifty200,v3,"pit, tradeable, tax on",2022,46.4073,7.4729,3.6460,38.9344,42.7613
+nifty200,v3,"pit, tradeable, tax on",2023,50.9450,41.9744,23.4891,8.9707,27.4560
+nifty200,v3,"pit, tradeable, tax on",2024,76.4211,25.9736,13.6307,50.4475,62.7904
+nifty200,v3,"pit, tradeable, tax on",2025,4.4172,7.8037,8.4027,-3.3864,-3.9855
+nifty200,v3,"pit, tradeable, tax on",2026,1.0334,-1.4961,-5.9848,2.5295,7.0182
+nifty200,v3,"pit, tradeable, tax on",CAGR 2019-01-01 to 2022-12-30,38.3228,20.3907,13.4391,17.9322,24.8837
+nifty200,v3,"pit, tradeable, tax on",CAGR 2023-01-02 to 2026-05-29,35.6079,20.4388,10.9300,15.1691,24.6780
+nifty200,v3,"static, tradeable, tax on",2019,-6.5619,6.9860,8.3352,-13.5479,-14.8971
+nifty200,v3,"static, tradeable, tax on",2020,31.1473,31.2509,15.6172,-0.1036,15.5300
+nifty200,v3,"static, tradeable, tax on",2021,123.0297,50.8824,27.4696,72.1473,95.5600
+nifty200,v3,"static, tradeable, tax on",2022,1.5509,12.0195,3.6460,-10.4686,-2.0951
+nifty200,v3,"static, tradeable, tax on",2023,51.3047,50.5106,23.4891,0.7942,27.8157
+nifty200,v3,"static, tradeable, tax on",2024,113.1977,32.1221,13.6307,81.0756,99.5670
+nifty200,v3,"static, tradeable, tax on",2025,11.5476,10.5376,8.4027,1.0100,3.1449
+nifty200,v3,"static, tradeable, tax on",2026,0.3185,0.7853,-5.9848,-0.4668,6.3033
+nifty200,v3,"static, tradeable, tax on",CAGR 2019-01-01 to 2022-12-30,29.1173,24.1564,13.4391,4.9609,15.6782
+nifty200,v3,"static, tradeable, tax on",CAGR 2023-01-02 to 2026-05-29,45.9705,26.0914,10.9300,19.8791,35.0405
+nifty200,v1,"pit, tradeable, tax on",2019,-2.0740,5.6661,8.3352,-7.7401,-10.4092
+nifty200,v1,"pit, tradeable, tax on",2020,43.0209,25.4859,15.6172,17.5350,27.4037
+nifty200,v1,"pit, tradeable, tax on",2021,77.1258,47.2653,27.4696,29.8605,49.6561
+nifty200,v1,"pit, tradeable, tax on",2022,46.1912,7.4729,3.6460,38.7184,42.5453
+nifty200,v1,"pit, tradeable, tax on",2023,22.5322,41.9744,23.4891,-19.4422,-0.9569
+nifty200,v1,"pit, tradeable, tax on",2024,65.4927,25.9736,13.6307,39.5191,51.8620
+nifty200,v1,"pit, tradeable, tax on",2025,8.7428,7.8037,8.4027,0.9391,0.3401
+nifty200,v1,"pit, tradeable, tax on",2026,-1.0503,-1.4961,-5.9848,0.4458,4.9345
+nifty200,v1,"pit, tradeable, tax on",CAGR 2019-01-01 to 2022-12-30,38.0597,20.3907,13.4391,17.6690,24.6206
+nifty200,v1,"pit, tradeable, tax on",CAGR 2023-01-02 to 2026-05-29,25.8912,20.4388,10.9300,5.4524,14.9612
+nifty200,v1,"static, tradeable, tax on",2019,7.1096,6.9860,8.3352,0.1236,-1.2256
+nifty200,v1,"static, tradeable, tax on",2020,48.7219,31.2509,15.6172,17.4710,33.1047
+nifty200,v1,"static, tradeable, tax on",2021,112.7793,50.8824,27.4696,61.8969,85.3096
+nifty200,v1,"static, tradeable, tax on",2022,18.4418,12.0195,3.6460,6.4223,14.7959
+nifty200,v1,"static, tradeable, tax on",2023,29.1255,50.5106,23.4891,-21.3851,5.6364
+nifty200,v1,"static, tradeable, tax on",2024,100.6740,32.1221,13.6307,68.5519,87.0433
+nifty200,v1,"static, tradeable, tax on",2025,-0.2387,10.5376,8.4027,-10.7763,-8.6414
+nifty200,v1,"static, tradeable, tax on",2026,-1.9102,0.7853,-5.9848,-2.6956,4.0746
+nifty200,v1,"static, tradeable, tax on",CAGR 2019-01-01 to 2022-12-30,41.6173,24.1564,13.4391,17.4609,28.1782
+nifty200,v1,"static, tradeable, tax on",CAGR 2023-01-02 to 2026-05-29,31.5026,26.0914,10.9300,5.4111,20.5726
+midcap100,v1,"pit, tradeable, tax on",2019,0.9296,0.7631,-4.4206,0.1666,5.3502
+midcap100,v1,"pit, tradeable, tax on",2020,30.8536,23.3318,21.8681,7.5218,8.9855
+midcap100,v1,"pit, tradeable, tax on",2021,106.5611,40.7376,46.0617,65.8236,60.4995
+midcap100,v1,"pit, tradeable, tax on",2022,28.7815,8.5357,3.5023,20.2459,25.2792
+midcap100,v1,"pit, tradeable, tax on",2023,43.0430,48.7778,46.5661,-5.7347,-3.5231
+midcap100,v1,"pit, tradeable, tax on",2024,36.4333,31.5440,23.8575,4.8893,12.5758
+midcap100,v1,"pit, tradeable, tax on",2025,23.2365,7.6334,5.7431,15.6031,17.4933
+midcap100,v1,"pit, tradeable, tax on",2026,-1.6801,-0.9141,2.0490,-0.7659,-3.7290
+midcap100,v1,"pit, tradeable, tax on",CAGR 2019-01-01 to 2022-12-30,36.9663,17.4046,15.2178,19.5617,21.7485
+midcap100,v1,"pit, tradeable, tax on",CAGR 2023-01-02 to 2026-05-29,28.2155,23.8216,21.5317,4.3939,6.6838
+midcap100,v1,"static, tradeable, tax on",2019,5.0311,3.3799,-4.4206,1.6512,9.4517
+midcap100,v1,"static, tradeable, tax on",2020,33.5870,38.1792,21.8681,-4.5922,11.7189
+midcap100,v1,"static, tradeable, tax on",2021,98.6647,51.4526,46.0617,47.2121,52.6030
+midcap100,v1,"static, tradeable, tax on",2022,17.3523,6.3790,3.5023,10.9734,13.8501
+midcap100,v1,"static, tradeable, tax on",2023,48.8484,57.7008,46.5661,-8.8524,2.2824
+midcap100,v1,"static, tradeable, tax on",2024,59.7504,40.4412,23.8575,19.3092,35.8929
+midcap100,v1,"static, tradeable, tax on",2025,-5.0593,9.5057,5.7431,-14.5650,-10.8025
+midcap100,v1,"static, tradeable, tax on",2026,-3.6392,0.6558,2.0490,-4.2950,-5.6882
+midcap100,v1,"static, tradeable, tax on",CAGR 2019-01-01 to 2022-12-30,34.5396,23.2046,15.2178,11.3350,19.3218
+midcap100,v1,"static, tradeable, tax on",CAGR 2023-01-02 to 2026-05-29,25.6957,29.7047,21.5317,-4.0090,4.1641
