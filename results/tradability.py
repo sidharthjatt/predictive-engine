@@ -147,6 +147,12 @@ def median_volume(data_dir, cal, lo=None, hi=None, win=20):
     on the very quantity the cap exists to constrain. MEDIAN rather than mean,
     because one block trade should not licence a large fill: AIIL's mean is dragged
     up by occasional 300,000-share days against a median of 1,272.
+
+    THE `win` SESSIONS BEFORE `lo` ARE READ, and the result is then cut to `lo`
+    onwards. Until 2026-10-14 the data was cut at `lo` before the rolling median,
+    so no symbol had a median in the window's first `win` sessions and every
+    first-rebalance buy went uncapped. The extra rows are all before the date they
+    serve, so the shift still keeps the day's own volume out.
     """
     import pandas as pd
     out = {}
@@ -155,10 +161,13 @@ def median_volume(data_dir, cal, lo=None, hi=None, win=20):
         if "volume" not in d.columns:
             continue
         d = d[d["date"].isin(cal)].sort_values("date")
-        if lo is not None:
-            d = d[d["date"] >= lo]
         if hi is not None:
             d = d[d["date"] <= hi]
+        if lo is not None:
+            d = pd.concat([d[d["date"] < lo].tail(win), d[d["date"] >= lo]])
         med = d["volume"].rolling(win).median().shift(1)
+        if lo is not None:
+            keep = (d["date"] >= lo).to_numpy()
+            d, med = d[keep], med[keep]
         out[f.stem] = dict(zip(d["date"], med))
     return out

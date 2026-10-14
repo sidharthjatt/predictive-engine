@@ -29,9 +29,11 @@ ONE DEFINITION, AND IT IS THE CAP'S
     A measurement of the cap that used a different median than the cap would be
     measuring something nobody runs.
 
-    TWO CONSEQUENCES, BOTH DELIBERATE. Fills in the first 20 sessions of the window
-    (60 for the 60-day column) now have no median and are excluded rather than
-    being given a short-window one -- the cap does not fire on them either. And the
+    TWO CONSEQUENCES, BOTH DELIBERATE. A fill with fewer than 20 prior sessions in
+    its symbol's price file (60 for the 60-day column) has no median and is
+    excluded rather than given a short-window one -- the cap does not fire on it
+    either. Since 2026-10-14 the median reads the sessions before the window start,
+    so this no longer covers the window's first 20 sessions. And the
     symbol folder is prepare_data_dir(), the constituents the cap reads, not
     raw_data_dir, which carries the index file as well.
 
@@ -205,9 +207,9 @@ def predicate_grid():
     -- and executing it computes nothing. This decides which cells can move
     before any of them is run.
 
-    THE MEDIAN IS tradability.median_volume, the one the cap consumes. A fill in
-    the first 20 sessions of the window has no median and is excluded, because the
-    cap does not fire on it either.
+    THE MEDIAN IS tradability.median_volume, the one the cap consumes. A fill with
+    no median (fewer than 20 prior sessions in its symbol's price file) is
+    excluded, because the cap does not fire on it either.
 
     THE BACKTEST CAPITAL IS THE ONE THE PREDICATE ANSWERS AT. The x5 and x20
     columns are headroom, not a second verdict: participation scales linearly with

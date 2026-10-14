@@ -328,17 +328,27 @@ the port under it (`profiles.UNGATED_NOTICE`). The figures are in
   microcap250 v3 -4.79. None is investigated.
 - Few binds does not mean small cost: 2 binds cost smallcap250 v3 almost three points.
 
-### The tradeable profile does not cap the opening purchase
+### The opening purchase is capped since 2026-10-14; a late lister's first 20 sessions are not
 
-The cap needs each symbol's prior-20-session median volume. `results/tradability.py`
-(`median_volume`, lines 157-161) drops every row before `BT_START_DATE` before it takes
-the rolling median, and `profiles.cap_kwargs` passes that date. So no symbol has a
-median for the first 20 sessions of 2019. `_participation_limit` then returns None, and
-the fills of the 2019-01-02 rebalance go through uncapped (results/test_exposure.py:117-123).
-The raw files hold warm-up data from 2018, so the median could be computed. The window
-start is simply cut first. The unused impact model (`slippage.impact`) refuses such fills
-and exempts them explicitly (`slippage.first_priced_date`, `resolve`). The cap does
-neither and logs nothing.
+Until 2026-10-14 `results/tradability.py` (`median_volume`) dropped every row before
+`BT_START_DATE` before taking the rolling median, so no symbol had a median in the
+window's first 20 sessions and every fill of the 2019-01-02 rebalance went through
+uncapped. The median now reads the 20 sessions before the window start, which are all
+before the fill, so the shift still keeps the day's own volume out.
+
+Effect on the 144 published tradeable cells (cap 1.00, Rs 10 lakh): 12 cells moved, all
+pit nifty500 and pit smallcap250 (v1, v3 and v4, tax off and on). Each gained exactly
+one capped fill, on 2019-01-02. CAGR moved by +0.00 to +0.02 points and MaxDD by at most
+0.02. The other 132 cells are unchanged. Research outputs are byte-identical. In the
+capital ladder (nifty200 v1 and v3, midcap100 v1, pit, tradeable, tax on), the largest
+order against 20-day average traded value at Rs 5 crore fell from 118-277% to 88-89%;
+no order on 2019-01-02 now exceeds the cap.
+
+What is still uncapped: a symbol whose own price file has fewer than 20 sessions before
+a fill has no median, and `_participation_limit` returns None for it, so that fill goes
+through uncapped and nothing is logged (results/test_exposure.py:112-131). The impact
+model (`slippage.impact`) exempts the same fills explicitly and counts them
+(`slippage.first_priced_date`, `resolve`). The cap does not count them.
 
 ### The participation cap changes which trades happen, not only what they cost
 

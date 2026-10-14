@@ -99,9 +99,10 @@ def first_priced_date(vol20):
 
     THE EXEMPTION IS DEFINED BY THIS, NOT BY OBSERVING WHICH FILLS FAILED. A fill
     before its symbol's first priced date has no denominator because the window
-    does not exist yet -- `median_volume` is rolling(win).median().shift(1), so
-    the first `win` sessions of any symbol's series are empty by construction and
-    the raw data holds nothing earlier to widen into.
+    does not exist yet -- `median_volume` is rolling(win).median().shift(1). Since
+    2026-10-14 it reads the `win` sessions before the window start, so a symbol is
+    exempt only where its own price file has fewer than `win` sessions before the
+    fill (a late lister).
 
     A SYMBOL WITH NO USABLE MEDIAN ANYWHERE IS ABSENT FROM THIS MAP, and a fill on
     it therefore raises. That is the point of building the map rather than
