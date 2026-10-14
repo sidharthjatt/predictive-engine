@@ -113,7 +113,14 @@ def is_default():
 
 
 def participation_cap():
-    """The cap as a fraction of prior-20-session median volume, or None."""
+    """The cap as a fraction of prior-20-session median volume, or None.
+
+    The profile's own value unless run.py was given --cap (pcap_axis.py), which
+    replaces it for the run. --cap under research is refused before this is read.
+    """
+    import pcap_axis
+    if pcap_axis.selected() is not None and not is_default():
+        return pcap_axis.selected()
     return PROFILES[selected()]["participation_cap"]
 
 
@@ -130,16 +137,26 @@ def cap_kwargs(u):
     without vol20, so `--tax on --profile tradeable` died at STEP 17h on every
     universe. The engines and the audit must read the volume from the same place
     by the same call, which is now true by construction.
+
+    THE IMPACT MODEL RIDES HERE TOO (impact_axis.py, 2026-10-15). It needs the
+    same vol20, so every caller that honours the cap honours --impact. The key is
+    added only when --impact is non-zero, so a default call is unchanged; under
+    research a non-zero k is refused rather than dropped.
     """
+    import impact_axis as _imp
     cap = participation_cap()
     if cap is None:
+        _imp.check_profile()
         return {"participation_cap": None}
     import config as _cfg
     import tradability as _tr
     from engine_core import _load_calendar
-    return {"participation_cap": cap,
-            "vol20": _tr.median_volume(u.prepare_data_dir(), _load_calendar(),
-                                       _cfg.BT_START_DATE, _cfg.BT_END_DATE)}
+    kw = {"participation_cap": cap,
+          "vol20": _tr.median_volume(u.prepare_data_dir(), _load_calendar(),
+                                     _cfg.BT_START_DATE, _cfg.BT_END_DATE)}
+    if not _imp.is_default():
+        kw["impact_k"] = _imp.impact_k()
+    return kw
 
 
 def research_only(caller):

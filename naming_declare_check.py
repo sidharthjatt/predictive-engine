@@ -68,7 +68,8 @@ DIRECTIVE = re.compile(r"#\s*naming:\s*(.+?)\s*$")
 
 # Non-default on every axis, so no axis can hide behind an empty suffix.
 HONOUR_SELECTION = {"arms": ["v1", "v3"], "cadence": 40, "profile": "tradeable",
-                    "tax": True, "survivorship": "pit", "dd": 20, "capital": 5_000_000}
+                    "tax": True, "survivorship": "pit", "dd": 20, "capital": 5_000_000,
+                    "impact": 0.003, "pcap": 0.1}
 
 # THE MEMBERSHIP LIST IS GONE. Gate 2 used to ask "does this expression mention a
 # blessed helper name?", which is a question about spelling. It now asks "does the
@@ -224,6 +225,10 @@ def honour_probe():
     dd_axis.set_selection(dd_axis.make(HONOUR_SELECTION["dd"]))
     import capital_axis
     capital_axis.set_selection(HONOUR_SELECTION["capital"])
+    import impact_axis
+    impact_axis.set_selection(HONOUR_SELECTION["impact"])
+    import pcap_axis
+    pcap_axis.set_selection(HONOUR_SELECTION["pcap"])
     return naming, naming.tail()
 
 
@@ -329,7 +334,8 @@ def main():
           f"profile={HONOUR_SELECTION['profile']} "
           f"tax={HONOUR_SELECTION['tax']} "
           f"survivorship={HONOUR_SELECTION['survivorship']} "
-          f"dd={HONOUR_SELECTION['dd']} capital={HONOUR_SELECTION['capital']}  "
+          f"dd={HONOUR_SELECTION['dd']} capital={HONOUR_SELECTION['capital']} "
+          f"impact={HONOUR_SELECTION['impact']} pcap={HONOUR_SELECTION['pcap']}  "
           f"-> tail {tail!r}")
     print(f"  sites / write calls          : {n_sites} / {n_calls}")
     print(f"  GATE 1  undeclared calls     : {sum(len(v) for _, v in undeclared)}"

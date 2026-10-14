@@ -117,7 +117,9 @@ def artefact_tag(u, arm):
     import survivorship_axis as _sva
     import dd_axis as _dda
     import capital_axis as _capa
-    return tag + cadence.suffix() + profiles.suffix() + _tax.suffix() + _sva.suffix() + _dda.suffix() + _capa.suffix()
+    import impact_axis as _impa
+    import pcap_axis as _pca
+    return tag + cadence.suffix() + profiles.suffix() + _tax.suffix() + _sva.suffix() + _dda.suffix() + _capa.suffix() + _impa.suffix() + _pca.suffix()
 
 
 def _reference_curve(M, arm_name):
@@ -183,7 +185,9 @@ def _reference_curve(M, arm_name):
     import survivorship_axis as _sva
     import dd_axis as _dda
     import capital_axis as _capa
-    _cad = cadence.suffix() + _prof.suffix() + _tax_axis.suffix() + _sva.suffix() + _dda.suffix() + _capa.suffix()
+    import impact_axis as _impa
+    import pcap_axis as _pca
+    _cad = cadence.suffix() + _prof.suffix() + _tax_axis.suffix() + _sva.suffix() + _dda.suffix() + _capa.suffix() + _impa.suffix() + _pca.suffix()
     # A STOP ARM'S CURVE IS IN THE COMPANION FILE, and only there.
     if arm_name in _ar.STOP_ARMS:
         g = M / f"v34_stop_equity{_ar.stop_selection_suffix()}{_cad}.csv"

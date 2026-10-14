@@ -58,8 +58,12 @@ def _dd_params():
     file from a run without --dd is the file it always was."""
     import dd_axis as _dda
     import capital_axis as _capa
+    import impact_axis as _impa
+    import pcap_axis as _pca
     return (({} if _dda.is_default() else {"dd": _dda.params()})
-            | ({} if _capa.is_default() else {"capital": _capa.selected()}))
+            | ({} if _capa.is_default() else {"capital": _capa.selected()})
+            | ({} if _impa.is_default() else {"impact_k": _impa.selected()})
+            | ({} if _pca.is_default() else {"participation_cap": _pca.selected()}))
 
 
 def _window_label(eq=None):
@@ -324,8 +328,10 @@ def _write_stop(M, stop_rows, stop_curves, stop_audits, bd, bh, halves,
     import survivorship_axis as _sva
     import dd_axis as _dda
     import capital_axis as _capa
+    import impact_axis as _impa
+    import pcap_axis as _pca
     SFX = (arm_reg.stop_selection_suffix() + cadence.suffix() + profiles.suffix()
-            + _tax.suffix() + _sva.suffix() + _dda.suffix() + _capa.suffix())
+            + _tax.suffix() + _sva.suffix() + _dda.suffix() + _capa.suffix() + _impa.suffix() + _pca.suffix())
     rows = stop_rows + [arm_row(bh, "buy & hold equal-weight", 0, 0, 100.0)]
     rows[-1]["MeanNamesHeld"], rows[-1]["CashShortSkips"] = "", ""
     pd.DataFrame(rows).to_csv(M / f"v34_stop_comparison{SFX}.csv", index=False)
@@ -532,8 +538,10 @@ def run_v34(M, universe_label, universe_tag, px, op, sc, bd, pc, mom20, port_vol
     import survivorship_axis as _sva
     import dd_axis as _dda
     import capital_axis as _capa
+    import impact_axis as _impa
+    import pcap_axis as _pca
     SFX = (arm_reg.selection_suffix([n for n, *_ in ARM_ON]) + cadence.suffix()
-           + profiles.suffix() + _tax.suffix() + _sva.suffix() + _dda.suffix() + _capa.suffix())
+           + profiles.suffix() + _tax.suffix() + _sva.suffix() + _dda.suffix() + _capa.suffix() + _impa.suffix() + _pca.suffix())
     # THE PATHS THIS CALL WRITES, IN ORDER. Read only by the report line below, so
     # that what is printed is derived from what was written rather than restated.
     _wrote = []

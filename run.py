@@ -440,6 +440,14 @@ def print_plan(plan, args, show_paths=False):
     import capital_axis as _capa
     if not _capa.is_default():
         print(f"  starting capital: Rs {_capa.selected():,} (default Rs {_capa.DEFAULT:,})")
+    import impact_axis as _impa
+    if not _impa.is_default():
+        print(f"  market impact: k {_impa.selected():g} x sqrt(order / prior-20-session "
+              f"median volume), on buys and sells (default 0, off)")
+    import pcap_axis as _pca
+    if not _pca.is_default():
+        print(f"  participation cap: {_pca.selected():g} of prior-20-session median volume "
+              f"(the profile's own is {_pca._profile_cap():g})")
     import dd_axis as _dda
     if not _dda.is_default():
         print(f"  {_dda.label()} -- EXPLORATORY, not validated; off is the default")
@@ -576,6 +584,28 @@ def _capital_arg(s):
     return x
 
 
+def _impact_arg(s):
+    """--impact value: k, zero or positive. 0 is the default and runs no impact model."""
+    try:
+        x = float(s)
+    except ValueError:
+        raise argparse.ArgumentTypeError(f"{s!r} is not a number")
+    if not x >= 0 or x != x or x == float("inf"):
+        raise argparse.ArgumentTypeError(f"{s!r} -- k must be zero or positive")
+    return x
+
+
+def _pcap_arg(s):
+    """--cap value: the participation cap, a positive fraction of median volume."""
+    try:
+        x = float(s)
+    except ValueError:
+        raise argparse.ArgumentTypeError(f"{s!r} is not a number")
+    if not x > 0 or x == float("inf"):
+        raise argparse.ArgumentTypeError(f"{s!r} -- the cap must be above 0")
+    return x
+
+
 def _dd_setup(ap, args):
     """Validate the drawdown-limit flags together and record the selection.
 
@@ -673,6 +703,15 @@ def main(argv=None):
     ap.add_argument("--capital", type=_capital_arg, default=None, metavar="RUPEES",
                     help="starting capital in whole rupees, at least 100000 (default "
                          "1000000). See capital_axis.py.")
+    # THE EIGHTH AND NINTH AXES, 2026-10-15. Both need --profile tradeable; under
+    # research either one is refused, not ignored.
+    ap.add_argument("--impact", type=_impact_arg, default=None, metavar="K",
+                    help="square-root market impact coefficient k, on buys and sells "
+                         "(default 0, off; tradeable profile only). See impact_axis.py.")
+    ap.add_argument("--cap", type=_pcap_arg, default=None, metavar="FRACTION",
+                    help="participation cap as a fraction of prior-20-session median "
+                         "volume (default: the profile's own, 1.0 under tradeable; "
+                         "tradeable profile only). See pcap_axis.py.")
     ap.add_argument("--list", action="store_true", help="resolve and print the plan, run nothing")
     ap.add_argument("--dry-run", action="store_true",
                     help="like --list, and show every output location")
@@ -695,6 +734,15 @@ def main(argv=None):
     _tax.set_selection(args.tax == "on")
     import capital_axis as _capa
     _capa.set_selection(args.capital)
+    import impact_axis as _impa
+    import pcap_axis as _pca
+    _impa.set_selection(args.impact)
+    _pca.set_selection(args.cap)
+    for _axis in (_impa, _pca):
+        try:
+            _axis.check_profile()
+        except ValueError as e:
+            ap.error(str(e))
 
     import survivorship_axis as _sva
     _sva.set_selection(args.survivorship)
@@ -838,7 +886,8 @@ def collect_run_folder(plan, args, t_start, dest, thin=None):
         f"cadence   : {reb}\n"
         f"profile   : {_pf.selected()}\n"
         f"tax       : {'on' if _tax.selected() else 'off'}\n"
-        + _survivorship_section(plan) + _dd_section() + _capital_section() +
+        + _survivorship_section(plan) + _dd_section() + _capital_section()
+        + _impact_pcap_section() +
         f"steps     : {len(plan['pipeline'])} pipeline, {len(plan['arm_runs'])} arm runs\n"
         f"artefacts : {copied} copied from their canonical locations\n"
         f"log       : run.log\n"
@@ -879,6 +928,14 @@ def _capital_section():
     """RUN.txt's capital line: none at the default, so RUN.txt is unchanged."""
     import capital_axis as _capa
     return "" if _capa.is_default() else f"capital   : {_capa.selected()}\n"
+
+
+def _impact_pcap_section():
+    """RUN.txt's impact and cap lines: none at the defaults, so RUN.txt is unchanged."""
+    import impact_axis as _impa
+    import pcap_axis as _pca
+    return (("" if _impa.is_default() else f"impact    : {_impa.selected():g}\n")
+            + ("" if _pca.is_default() else f"pcap      : {_pca.selected():g}\n"))
 
 
 def _thin_section(thin):
@@ -953,6 +1010,9 @@ def read_run_record(folder):
             "dd": _parse_dd(kv.get("dd")),
             # Absent from every RUN.txt of a run at the default capital.
             "capital": int(kv["capital"]) if kv.get("capital") else None,
+            # Absent from every RUN.txt of a run at k 0 and at the profile's cap.
+            "impact": float(kv["impact"]) if kv.get("impact") else None,
+            "pcap": float(kv["pcap"]) if kv.get("pcap") else None,
             "pipeline_steps": int(m.group(1)), "arm_runs": int(m.group(2)),
             "started": started, "finished": finished}
 

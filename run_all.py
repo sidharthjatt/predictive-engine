@@ -869,6 +869,12 @@ def check_inputs(label, script, tag):
         import capital_axis as _capa
         if "capital" in axes and not _capa.is_default():
             _sfx += _capa.suffix()
+        import impact_axis as _impa
+        if "impact" in axes and not _impa.is_default():
+            _sfx += _impa.suffix()
+        import pcap_axis as _pca
+        if "pcap" in axes and not _pca.is_default():
+            _sfx += _pca.suffix()
         want = f if not _sfx else f.with_name(f.stem + _sfx + f.suffix)
         if want.exists():
             return True

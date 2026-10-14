@@ -66,6 +66,8 @@ REBAL, VOL_WIN = 20, 60
 # SELECTION -- imported from config.py, the single definition.
 TOP_N, BUFFER = config.TOP_N, config.BUFFER
 import capital_axis as _capital_axis  # noqa: E402
+import impact_axis  # noqa: E402
+import pcap_axis  # noqa: E402
 # THE DEFAULT, defined once in capital_axis.py. A run's capital is
 # capital_axis.selected(); this name stays for callers that want the default.
 START_CAPITAL = _capital_axis.DEFAULT
@@ -119,12 +121,14 @@ def _c(path):
     import survivorship_axis as _sva
     import dd_axis as _dda
     import capital_axis as _capa
+    import impact_axis as _impa
+    import pcap_axis as _pca
     _all_default = (cadence.is_default() and _pf.is_default() and _tax.is_default()
                     and _sva.is_default() and _dda.is_default()
-            and _capa.is_default())
+            and _capa.is_default() and _impa.is_default() and _pca.is_default())
     _sfx = ("" if _all_default
             else (cadence.suffix() + _pf.suffix() + _tax.suffix() + _sva.suffix()
-                  + _dda.suffix() + _capa.suffix()))
+                  + _dda.suffix() + _capa.suffix() + _impa.suffix() + _pca.suffix()))
     out = path if not _sfx else path.with_name(path.stem + _sfx + path.suffix)
     # WHAT THIS RUN ACTUALLY WROTE, RECORDED HERE BECAUSE HERE IS WHERE THE NAME
     # IS DECIDED. The step used to end by printing a hardcoded list of the
@@ -358,6 +362,8 @@ def main(u):
         # unchanged without it.
         **({} if dd_axis.is_default() else {"dd": dd_axis.params()}),
         **({} if _capital_axis.is_default() else {"capital": _capital_axis.selected()}),
+        **({} if impact_axis.is_default() else {"impact_k": impact_axis.selected()}),
+        **({} if pcap_axis.is_default() else {"participation_cap": pcap_axis.selected()}),
         "vs_buyhold": (f"Sharpe {mfin['Sharpe']} vs {mbh['Sharpe']}, "
                        f"MaxDD {mfin['MaxDD%']}% vs {mbh['MaxDD%']}%, "
                        f"CAGR {mfin['CAGR%']}% vs {mbh['CAGR%']}%"),

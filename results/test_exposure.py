@@ -314,8 +314,8 @@ def backtest_exposure(px, op, sc, dates, pc, mom20, port_vol=None,
         if exempt:
             return flat(raw, qty, None, None), {
                 "date": dt_, "side": side, "symbol": sym, "qty": qty,
-                "exempt": True}
-        return flat(raw, qty, med, impact_k), {"exempt": False}
+                "exempt": True, "med": None}
+        return flat(raw, qty, med, impact_k), {"exempt": False, "med": med}
 
     def _commit_impact(pending):
         """Count a leg that was actually transacted, and log an exemption."""
@@ -366,11 +366,20 @@ def backtest_exposure(px, op, sc, dates, pc, mom20, port_vol=None,
     # so a run without the key, and every figure of a run with it, is unchanged.
     _costs = audit.get("costs") if audit is not None else None
 
-    def _cost_fill(dt_, side, sym, q_, ref, fill, tc_, kind):
+    # WITH THE IMPACT MODEL ON, each fill also records the median volume it was
+    # priced against (None for a fill the model exempted), so cost_report can
+    # recompute the impact rate with slippage.impact and split it from the flat
+    # slippage. Without the model the record has no such key and is unchanged.
+    def _cost_fill(dt_, side, sym, q_, ref, fill, tc_, kind, pend=None):
         if _costs is not None:
-            _costs["fills"].append({"date": dt_, "side": side, "symbol": sym, "qty": int(q_),
-                                    "reference_price": float(ref), "fill_price": float(fill),
-                                    "charges": float(tc_), "kind": kind})
+            rec = {"date": dt_, "side": side, "symbol": sym, "qty": int(q_),
+                   "reference_price": float(ref), "fill_price": float(fill),
+                   "charges": float(tc_), "kind": kind}
+            if impact_k is not None:
+                rec["impact_k"] = float(impact_k)
+                rec["impact_median"] = (None if pend is None or pend["med"] is None
+                                        else float(pend["med"]))
+            _costs["fills"].append(rec)
 
     cash_daily = (1 + CASH_YIELD) ** (1 / 252) - 1
 
@@ -481,7 +490,7 @@ def backtest_exposure(px, op, sc, dates, pc, mom20, port_vol=None,
                 pr, _pend = _fill_price("SELL", s, dt, pr, q)
                 tc = calc_tc(pr, q, "SELL")
                 cash += q * pr - tc; cum_tc += tc; n_trades += 1
-                _cost_fill(dt, "SELL", s, q, _ref, pr, tc, "forced exit")
+                _cost_fill(dt, "SELL", s, q, _ref, pr, tc, "forced exit", _pend)
                 _commit_impact(_pend)
                 if ledger is not None:
                     ledger.sell(s, q, round(pr, 2), dt)
@@ -534,7 +543,7 @@ def backtest_exposure(px, op, sc, dates, pc, mom20, port_vol=None,
                 pr, _pend = _fill_price("SELL", s, dt, pr, q)
                 tc = calc_tc(pr, q, "SELL")
                 cash += q * pr - tc; cum_tc += tc; n_trades += 1
-                _cost_fill(dt, "SELL", s, q, _ref, pr, tc, "index exit")
+                _cost_fill(dt, "SELL", s, q, _ref, pr, tc, "index exit", _pend)
                 _commit_impact(_pend)
                 if ledger is not None:
                     ledger.sell(s, q, round(pr, 2), dt)
@@ -592,7 +601,7 @@ def backtest_exposure(px, op, sc, dates, pc, mom20, port_vol=None,
                     pr, _pend = _fill_price("SELL", s, dt, pr, q)
                     tc = calc_tc(pr, q, "SELL")
                     cash += q * pr - tc; cum_tc += tc; n_trades += 1
-                    _cost_fill(dt, "SELL", s, q, _ref, pr, tc, _sell_kind)
+                    _cost_fill(dt, "SELL", s, q, _ref, pr, tc, _sell_kind, _pend)
                     _commit_impact(_pend)
                     if ledger is not None:
                         ledger.sell(s, q, round(pr, 2), dt)
@@ -736,7 +745,7 @@ def backtest_exposure(px, op, sc, dates, pc, mom20, port_vol=None,
                                 "detail": f"need Rs {q*pr+tc:,.0f}, have Rs {cash:,.0f}"})
                         continue
                     cash -= q * pr + tc; cum_tc += tc; n_trades += 1
-                    _cost_fill(dt, "BUY", s, q, _raw_buy, pr, tc, "rebalance")
+                    _cost_fill(dt, "BUY", s, q, _raw_buy, pr, tc, "rebalance", _pend)
                     _commit_impact(_pend)
                     if ledger is not None:
                         ledger.buy(s, q, round(pr, 2), dt)
@@ -783,7 +792,7 @@ def backtest_exposure(px, op, sc, dates, pc, mom20, port_vol=None,
                     pr, _pend = _fill_price("SELL", s, dt, raw, q)
                     tc = calc_tc(pr, q, "SELL")
                     cash += q * pr - tc; cum_tc += tc; n_trades += 1
-                    _cost_fill(dt, "SELL", s, q, raw, pr, tc, "dd trim")
+                    _cost_fill(dt, "SELL", s, q, raw, pr, tc, "dd trim", _pend)
                     _commit_impact(_pend)
                     if ledger is not None:
                         _n0 = len(ledger.rows)
@@ -833,7 +842,7 @@ def backtest_exposure(px, op, sc, dates, pc, mom20, port_vol=None,
                                 "detail": f"need Rs {q*pr+tc:,.0f}, have Rs {cash:,.0f}"})
                         continue
                     cash -= q * pr + tc; cum_tc += tc; n_trades += 1
-                    _cost_fill(dt, "BUY", s, q, raw, pr, tc, "dd top-up")
+                    _cost_fill(dt, "BUY", s, q, raw, pr, tc, "dd top-up", _pend)
                     _commit_impact(_pend)
                     if ledger is not None:
                         ledger.buy(s, q, round(pr, 2), dt)
@@ -857,7 +866,7 @@ def backtest_exposure(px, op, sc, dates, pc, mom20, port_vol=None,
                 pr, _pend = _fill_price("SELL", s, dt, raw, q)
                 tc = calc_tc(pr, q, "SELL")
                 cash += q * pr - tc; cum_tc += tc; n_trades += 1
-                _cost_fill(dt, "SELL", s, q, raw, pr, tc, "last-day sale")
+                _cost_fill(dt, "SELL", s, q, raw, pr, tc, "last-day sale", _pend)
                 _commit_impact(_pend)
                 if ledger is not None:
                     ledger.sell(s, q, round(pr, 2), dt)

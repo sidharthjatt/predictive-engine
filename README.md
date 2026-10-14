@@ -80,6 +80,17 @@ files and `@cap<rupees>` to folders, and appears in chart titles, params.json an
 RUN.txt. The default is defined once, in `capital_axis.py`. `nautilus/nt_verify.py
 --capital=<rupees>` checks the port at that capital (static, research, tax off).
 
+`--impact K` (default 0, off) adds square-root market impact to every buy and sell:
+the fill pays the flat 0.15% plus K x sqrt(order shares / prior-20-session median
+volume), the formula in `slippage.py`. `--cap F` (default the profile's own, 1.0 under
+tradeable) replaces the participation cap. Both need `--profile tradeable`; under
+research either one is refused. Neither has a chosen value. At the defaults nothing is
+added to any name; otherwise `_impact<k>` and `_pcap<f>` follow every other suffix
+(`_impact0p003_pcap0p1`, `@impact0p003@pcap0p1` in folders), and both appear in chart
+titles, params.json and RUN.txt. With `--impact`, the cost report and the daily log
+totals show impact as its own figure, apart from the flat slippage. The Nautilus port
+applies neither (KNOWN_ISSUES.md).
+
 ### The drawdown limit (`--dd`): exploratory, not validated
 
 **Any result with `--dd` on is exploratory. It has not been validated, and it must

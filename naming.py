@@ -42,6 +42,8 @@ import tax as _tax
 import survivorship_axis as _surv
 import dd_axis as _dd
 import capital_axis as _capital
+import impact_axis as _impact
+import pcap_axis as _pcap
 
 # The axes, in the order they appear in a name. This order is LOAD-BEARING: it is
 # the order v34_common.py has always used, and changing it renames every
@@ -56,13 +58,18 @@ import capital_axis as _capital
 # STARTING CAPITAL IS APPENDED AFTER dd (2026-10-14): "" at Rs 10,00,000,
 # "_cap5000000" after every other suffix otherwise.
 #
+# MARKET IMPACT, THEN THE PARTICIPATION CAP, ARE APPENDED AFTER CAPITAL
+# (2026-10-15): "" at k 0 and at the profile's own cap; "_impact0p003" and
+# "_pcap0p1" otherwise.
+#
 # TAX IS APPENDED, NEVER INSERTED (2026-09-17). Appending leaves every existing
 # non-default name -- every _r40, every _tradeable, every arm suffix -- exactly
 # where it was, because the tax suffix is empty at the default and lands after
 # the other three when it is not. Inserting it anywhere else in this tuple
 # renames artefacts whose names are recorded by SHA-256 in the retired-universe
 # manifest (deleted 2026-09-24; git show 50562ed:RETIRED_UNIVERSES-manifest.txt).
-AXES = ("arm", "cadence", "profile", "tax", "survivorship", "dd", "capital")
+AXES = ("arm", "cadence", "profile", "tax", "survivorship", "dd", "capital", "impact",
+        "pcap")
 
 _SUFFIX = {
     "arm": lambda: _arm.selection_suffix(),
@@ -72,6 +79,8 @@ _SUFFIX = {
     "survivorship": lambda: _surv.suffix(),
     "dd": lambda: _dd.suffix(),
     "capital": lambda: _capital.suffix(),
+    "impact": lambda: _impact.suffix(),
+    "pcap": lambda: _pcap.suffix(),
 }
 
 
@@ -110,6 +119,9 @@ def cost_basis():
     s = f"ALL NUMBERS AFTER Zerodha charges and a flat {SLIPPAGE*100:g}% slippage"
     if cap is not None:
         s += f", with fills capped at {cap*100:g}% of prior-20-session median volume"
+    if not _impact.is_default():
+        s += (f", plus square-root impact k {_impact.selected():g} x sqrt(order / "
+              f"prior-20-session median volume)")
     return s + (", and AFTER capital-gains tax" if _tax.selected() else ", BEFORE tax")
 
 
@@ -127,7 +139,9 @@ def run_label(universe, arms):
             f"  |  profile {_profiles.selected()}"
             + ("" if _surv.is_default() else f"  |  survivorship {_surv.selected()}")
             + ("" if _dd.is_default() else f"  |  {_dd.label()}")
-            + ("" if _capital.is_default() else f"  |  {_capital.label()}"))
+            + ("" if _capital.is_default() else f"  |  {_capital.label()}")
+            + ("" if _impact.is_default() else f"  |  {_impact.label()}")
+            + ("" if _pcap.is_default() else f"  |  {_pcap.label()}"))
 
 
 def path_tail(rebal=None):
@@ -150,7 +164,8 @@ def path_tail(rebal=None):
         seg += f"@{_profiles.selected()}"
     if not _tax.is_default():
         seg += "@tax"
-    return seg + _surv.segment() + _dd.segment() + _capital.segment()
+    return (seg + _surv.segment() + _dd.segment() + _capital.segment() + _impact.segment()
+            + _pcap.segment())
 
 
 # ---------------------------------------------------------------------------
@@ -230,29 +245,34 @@ def path_tail(rebal=None):
 # capital_axis.set_selection(5_000_000) off its default: every entry but
 # selection_suffix gained "_cap5000000" or "@cap5000000".
 #
+# RE-PROBED 2026-10-15 FOR THE IMPACT AND PARTICIPATION-CAP AXES, with only
+# impact_axis.set_selection(0.003) and pcap_axis.set_selection(0.1) off their
+# defaults under the tradeable profile: every entry but selection_suffix gained
+# "_impact0p003_pcap0p1" or "@impact0p003@pcap0p1".
+#
 # A spelled-out set cannot do that. An axis added to AXES now appears in NO
 # entry's value until somebody measures it and types it in, so the default for a
 # new axis is "unproven", which is the only safe default an enforcement table has.
 CARRIES = {
     "naming.name":       frozenset({"arm", "cadence", "profile", "tax", "survivorship",
-                                    "dd", "capital"}),
+                                    "dd", "capital", "impact", "pcap"}),
     "naming.tail":       frozenset({"arm", "cadence", "profile", "tax", "survivorship",
-                                    "dd", "capital"}),
+                                    "dd", "capital", "impact", "pcap"}),
     "SFX":               frozenset({"arm", "cadence", "profile", "tax", "survivorship",
-                                    "dd", "capital"}),
+                                    "dd", "capital", "impact", "pcap"}),
     "artefact_tag":      frozenset({"arm", "cadence", "profile", "tax", "survivorship",
-                                    "dd", "capital"}),
-    "_c(":               frozenset({"cadence", "profile", "tax", "survivorship", "dd", "capital"}),
-    "_ci(":              frozenset({"cadence", "profile", "tax", "survivorship", "dd", "capital"}),
+                                    "dd", "capital", "impact", "pcap"}),
+    "_c(":               frozenset({"cadence", "profile", "tax", "survivorship", "dd", "capital", "impact", "pcap"}),
+    "_ci(":              frozenset({"cadence", "profile", "tax", "survivorship", "dd", "capital", "impact", "pcap"}),
     "selection_suffix":  frozenset({"arm"}),
     "nt_reports_segment": frozenset({"arm", "cadence", "profile", "tax", "survivorship",
-                                     "dd", "capital"}),
+                                     "dd", "capital", "impact", "pcap"}),
     "reports_segment":   frozenset({"arm", "cadence", "profile", "tax", "survivorship",
-                                    "dd", "capital"}),
+                                    "dd", "capital", "impact", "pcap"}),
     "chart_path":        frozenset({"arm", "cadence", "profile", "tax", "survivorship",
-                                    "dd", "capital"}),
+                                    "dd", "capital", "impact", "pcap"}),
     "combined_chart_path": frozenset({"arm", "cadence", "profile", "tax", "survivorship",
-                                      "dd", "capital"}),
+                                      "dd", "capital", "impact", "pcap"}),
 }
 
 # `_ci` is three different functions and a textual check cannot tell them apart,

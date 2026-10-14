@@ -426,6 +426,17 @@ and the charge figures are not, and nothing in an output says so. The size and
 sign of the error are unknown because the historical rate tables are not in the
 repository. Making charges dated changes every published cost figure.
 
+### The Nautilus port applies neither the participation cap nor impact
+
+`nautilus/nt_strategy.py` sizes every order with no participation cap, and its fills
+take the flat `SLIPPAGE` through the quote prices it is fed (bid and ask at open x
+(1 -/+ SLIPPAGE), `nautilus/nt_run.py`), so no fill pays size-sensitive impact. A run
+with `--profile tradeable`, `--cap` or `--impact` still runs the Nautilus steps, and
+its reports land under the run's `@tradeable`, `@pcap...` or `@impact...` folder, but
+they describe the uncapped, flat-slippage strategy. Nothing compares them with the
+engine: `nt_verify.py` checks research-profile cells only. Treat every engine figure
+with the cap or impact on as unverified by the port.
+
 ### Nautilus figures differ from the engine's by up to 6.1%, and on the 100%-invested arms can hold different names
 
 nt_verify gates the port against ARM D on the 0.01 grid. On the 2026-10-10 data 31 of

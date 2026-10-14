@@ -21,9 +21,11 @@ THE SLIPPAGE MODEL. Both profiles use slippage.py's flat rate: a BUY fills at th
 reference price times (1 + SLIPPAGE), a SELL at (1 - SLIPPAGE), SLIPPAGE = 0.0015.
 The reference price is the execution day's open from the score panel (the adjusted
 price basis), or for the optional last-day sale the close where the open is
-missing. The size-sensitive term (slippage.impact) exists but no production caller
-passes impact_k, so it is zero in every run. The tradeable profile adds the
-participation cap, which changes quantities, not the rate.
+missing. The size-sensitive term (slippage.impact) runs only with run.py --impact
+(tradeable profile): a fill then pays SLIPPAGE + k x sqrt(qty / prior-20-session
+median volume), and the report shows the second part as "impact", apart from the
+flat slippage. Without --impact it is not run. The tradeable profile adds the
+participation cap (--cap replaces its value), which changes quantities, not the rate.
 
 THE CHARGES are results/qbeast_in_charges.compute_leg_charges for Zerodha delivery
 equity on NSE, called exactly as test_exposure.calc_tc calls it: on the fill price
@@ -56,6 +58,7 @@ for _p in (str(ROOT), str(ROOT / "results")):
 
 import tax_util as T                                      # noqa: E402
 from slippage import SLIPPAGE                             # noqa: E402
+import slippage as _sl                                    # noqa: E402
 from qbeast_in_charges import (compute_leg_charges, Broker, Segment,  # noqa: E402
                                Product, Side as QSide, Exchange)
 
@@ -105,8 +108,15 @@ def _fail(check, date, gap, what):
 
 def fills_frame(costs):
     """The per-fill table, with slippage and the itemised charges."""
+    # IMPACT IS SPLIT FROM FLAT SLIPPAGE WHEN THE MODEL RAN (--impact). The engine
+    # then records, per fill, k and the median volume the fill was priced against
+    # (None where the model exempted it). The rate is recomputed here with
+    # slippage.impact, impact_rs = reference x rate x qty, and slippage_rs keeps
+    # only the flat part. Without the model there are no such keys and no columns.
+    has_imp = any("impact_median" in r for r in costs["fills"])
     f = pd.DataFrame(costs["fills"], columns=["date", "side", "symbol", "qty", "reference_price",
-                                              "fill_price", "charges", "kind"])
+                                              "fill_price", "charges", "kind"]
+                     + (["impact_k", "impact_median"] if has_imp else []))
     if f.empty:
         for k, _ in CHARGES:
             f[k] = []
@@ -115,6 +125,11 @@ def fills_frame(costs):
         return f
     sign = np.where(f["side"] == "BUY", 1.0, -1.0)
     f["slippage_rs"] = (f["fill_price"] - f["reference_price"]) * f["qty"] * sign
+    if has_imp:
+        f["impact_rate"] = [0.0 if (m is None or m != m) else _sl.impact(int(q), float(m), float(k))
+                            for q, m, k in zip(f["qty"], f["impact_median"], f["impact_k"])]
+        f["impact_rs"] = f["reference_price"] * f["impact_rate"] * f["qty"]
+        f["slippage_rs"] = f["slippage_rs"] - f["impact_rs"]
     br = [charge_breakdown(p, q, s) for p, q, s in zip(f["fill_price"], f["qty"], f["side"])]
     for k, _ in CHARGES:
         f[k] = [b[k] for b in br]
@@ -220,13 +235,19 @@ def reconcile(costs, trades, dates, start_capital, engine_tc, engine_tax, tax_on
                   f"fill {i} ({a['side']} {a['symbol']}): charges differ from its trades row")
     # --- slippage and charges, every fill ------------------------------------
     if len(fills):
-        model = np.where(fills["side"] == "BUY", 1 + SLIPPAGE, 1 - SLIPPAGE) * fills["reference_price"]
+        if "impact_rate" in fills.columns:
+            r = fills["impact_rate"]
+            model = np.where(fills["side"] == "BUY", 1 + SLIPPAGE + r, 1 - SLIPPAGE - r) \
+                * fills["reference_price"]
+        else:
+            model = np.where(fills["side"] == "BUY", 1 + SLIPPAGE, 1 - SLIPPAGE) * fills["reference_price"]
         gap = (fills["fill_price"] - model) * fills["qty"]
         bad = np.flatnonzero(np.abs(gap) >= PAISA)
         if len(bad):
             j = bad[0]
             _fail("slippage", fills["date"].iloc[j], float(gap.iloc[j]),
-                  f"{fills['side'].iloc[j]} {fills['symbol'].iloc[j]}: the flat model does not "
+                  f"{fills['side'].iloc[j]} {fills['symbol'].iloc[j]}: the slippage model "
+                  f"(flat{', plus impact' if 'impact_rate' in fills.columns else ''}) does not "
                   f"give the recorded fill")
         cg = fills["charges_total"] - fills["charges"]
         bad = np.flatnonzero(np.abs(cg) >= PAISA)
@@ -353,10 +374,16 @@ def strategy_totals(start_capital, final, fills, years):
     stcg = float(years["stcg_tax"].sum())
     ltcg = float(years["ltcg_tax"].sum())
     tax = stcg + ltcg
-    return {"final": final, "gross": final - start_capital + charges + slip + tax,
-            "by_type": tot, "charges": charges, "slippage": slip, "tax": tax,
+    if "impact_rs" not in fills.columns:
+        return {"final": final, "gross": final - start_capital + charges + slip + tax,
+                "by_type": tot, "charges": charges, "slippage": slip, "tax": tax,
+                "stcg": stcg, "ltcg": ltcg, "exemption_used": float(years["exemption_used"].sum()),
+                "all_costs": charges + slip + tax}
+    imp = float(fills["impact_rs"].sum()) if len(fills) else 0.0
+    return {"final": final, "gross": final - start_capital + charges + slip + imp + tax,
+            "by_type": tot, "charges": charges, "slippage": slip, "impact": imp, "tax": tax,
             "stcg": stcg, "ltcg": ltcg, "exemption_used": float(years["exemption_used"].sum()),
-            "all_costs": charges + slip + tax}
+            "all_costs": charges + slip + imp + tax}
 
 
 def bh_totals(bh, start_capital):
@@ -382,7 +409,10 @@ def exit_costs(fills):
     if not len(fills):
         return 0.0
     f = fills[fills["kind"] == "drawdown exit"]
-    return float(f["charges_total"].sum() + f["slippage_rs"].sum()) if len(f) else 0.0
+    if not len(f):
+        return 0.0
+    out = float(f["charges_total"].sum() + f["slippage_rs"].sum())
+    return out + float(f["impact_rs"].sum()) if "impact_rs" in f.columns else out
 
 
 def dd_block(dd, fills, tax_on):
@@ -429,10 +459,12 @@ def summary_block(label, profile, tax_on, rebal, start_capital, equity, fills, y
     S = strategy_totals(start_capital, float(equity.iloc[-1]), fills, years)
     final, gross, tot, charges = S["final"], S["gross"], S["by_type"], S["charges"]
     slip, stcg, ltcg, tax, exu = S["slippage"], S["stcg"], S["ltcg"], S["tax"], S["exemption_used"]
+    has_imp = "impact" in S
     L = ["=" * 90, f" COSTS -- {label}   cadence {rebal}, profile {profile}, tax {'on' if tax_on else 'off'}",
          "=" * 90,
          f"  starting capital Rs {start_capital:,.2f}   final equity Rs {final:,.2f}",
-         f"  gross profit Rs {gross:,.2f} = final equity - starting capital + charges + slippage + tax",
+         f"  gross profit Rs {gross:,.2f} = final equity - starting capital + charges + slippage"
+         + (" + impact" if has_imp else "") + " + tax",
          "",
          f"  {'':<34}{'Rs':>16}{'of capital':>12}{'of gross':>11}"]
 
@@ -442,23 +474,26 @@ def summary_block(label, profile, tax_on, rebal, start_capital, equity, fills, y
     for k, nm in CHARGES:
         row(nm, tot[k])
     row("slippage", slip, 0)
+    if has_imp:
+        row("impact", S["impact"], 0)
     row("tax, total", tax, 0)
     row("short-term", stcg)
     row("long-term", ltcg)
     row("LTCG exemption used (not a cost)", exu)
-    row("all costs", charges + slip + tax, 0)
+    row("all costs", S["all_costs"], 0)
     if stop_arm:
         row("of which drawdown exits", exit_costs(fills))
     # per financial year, on a cash basis: a cost belongs to the year it left cash,
     # so each year's gross profit is its change in equity plus what it paid
     L += ["", "  per financial year, as paid (Rs; last column % of the year's gross profit)",
-          f"  {'FY':<11}{'gross profit':>15}{'charges':>13}{'slippage':>12}{'short tax':>12}{'long tax':>11}"
-          f"{'exempt used':>13}{'costs % gross':>15}"]
+          f"  {'FY':<11}{'gross profit':>15}{'charges':>13}{'slippage':>12}"
+          + (f"{'impact':>12}" if has_imp else "")
+          + f"{'short tax':>12}{'long tax':>11}{'exempt used':>13}{'costs % gross':>15}"]
     paid = years.dropna(subset=["deducted_on"]).copy()
     paid["paid_fy"] = paid["deducted_on"].map(T.financial_year)
     fyof = pd.Series([T.financial_year(d) for d in equity.index], index=equity.index)
     ffy = fills["date"].map(T.financial_year) if len(fills) else pd.Series(dtype=int)
-    prev, sums = start_capital, np.zeros(5)
+    prev, sums, imp_sum = start_capital, np.zeros(5), 0.0
     for fy in sorted(fyof.unique()):
         end = float(equity.loc[fyof[fyof == fy].index[-1]])
         fl = fills[ffy == fy] if len(fills) else fills
@@ -466,13 +501,23 @@ def summary_block(label, profile, tax_on, rebal, start_capital, equity, fills, y
         s_ = float(fl["slippage_rs"].sum()) if len(fl) else 0.0
         y = paid[paid["paid_fy"] == fy]
         st, lt, ex = (float(y[k].sum()) for k in ("stcg_tax", "ltcg_tax", "exemption_used"))
-        g = end - prev + c + s_ + st + lt
-        settles = ", ".join(y["fy"]) if len(y) else ""
-        L.append(f"  {T.fy_label(fy):<11}{g:>15,.2f}{c:>13,.2f}{s_:>12,.2f}{st:>12,.2f}{lt:>11,.2f}"
-                 f"{ex:>13,.2f}{_pct(c + s_ + st + lt, g):>15}"
-                 + (f"   tax settles {settles}" if settles else ""))
+        if has_imp:
+            i_ = float(fl["impact_rs"].sum()) if len(fl) else 0.0
+            g = end - prev + c + s_ + i_ + st + lt
+            L.append(f"  {T.fy_label(fy):<11}{g:>15,.2f}{c:>13,.2f}{s_:>12,.2f}{i_:>12,.2f}"
+                     f"{st:>12,.2f}{lt:>11,.2f}{ex:>13,.2f}{_pct(c + s_ + i_ + st + lt, g):>15}"
+                     + (f"   tax settles {', '.join(y['fy'])}" if len(y) else ""))
+            imp_sum += i_
+        else:
+            g = end - prev + c + s_ + st + lt
+            settles = ", ".join(y["fy"]) if len(y) else ""
+            L.append(f"  {T.fy_label(fy):<11}{g:>15,.2f}{c:>13,.2f}{s_:>12,.2f}{st:>12,.2f}{lt:>11,.2f}"
+                     f"{ex:>13,.2f}{_pct(c + s_ + st + lt, g):>15}"
+                     + (f"   tax settles {settles}" if settles else ""))
         sums += (g, c, s_, st, lt)
         prev = end
+    if has_imp and abs(imp_sum - S["impact"]) >= PAISA:
+        _fail("totals", None, imp_sum - S["impact"], "per-year impact does not sum to the summary total")
     for got, want, what in ((sums[0], gross, "gross profit"), (sums[1], charges, "charges"),
                             (sums[2], slip, "slippage"), (sums[3] + sums[4], tax, "tax")):
         if abs(got - want) >= PAISA:
@@ -501,7 +546,7 @@ def summary_block(label, profile, tax_on, rebal, start_capital, equity, fills, y
         if not tax_on:
             L.append(f"  Tax is off, so the last-day sale pays none here; with tax on it would pay "
                      f"Rs {bh['tax_if_on']:,.2f}.")
-        L += ["", f"  all costs: arm Rs {charges + slip + tax:,.2f}; buy & hold held Rs {held_costs:,.2f}, "
+        L += ["", f"  all costs: arm Rs {S['all_costs']:,.2f}; buy & hold held Rs {held_costs:,.2f}, "
                   f"sold on the last day Rs {sold_costs:,.2f}"]
     L += dd_block(dd, fills, tax_on)
     # zeros, stated
@@ -510,8 +555,16 @@ def summary_block(label, profile, tax_on, rebal, start_capital, equity, fills, y
         L.append("    brokerage is zero: Zerodha charges no brokerage on delivery equity.")
     if tot["ipft"] == 0:
         L.append("    IPFT is zero: the charge engine leaves the NSE IPFT levy out (about Rs 0.01 a crore).")
-    L.append(f"    slippage is the flat {SLIPPAGE:.2%} of the reference price in both profiles; the size-"
-             f"sensitive term is not used, so no fill pays more than the flat rate.")
+    if has_imp:
+        k_ = float(fills["impact_k"].iloc[0]) if len(fills) else 0.0
+        n_ex = int(fills["impact_median"].isna().sum()) if len(fills) else 0
+        L.append(f"    slippage is the flat {SLIPPAGE:.2%} of the reference price; impact is the size-"
+                 f"sensitive term on top of it, k {k_:g} x sqrt(order / prior-20-session median "
+                 f"volume), on buys and sells. {n_ex:,} fill(s) had no prior-20-session median and "
+                 f"paid the flat rate only.")
+    else:
+        L.append(f"    slippage is the flat {SLIPPAGE:.2%} of the reference price in both profiles; the size-"
+                 f"sensitive term is not used, so no fill pays more than the flat rate.")
     if profile == "research":
         L.append("    research profile: no participation cap, so no order was cut for volume.")
     else:
@@ -524,7 +577,8 @@ def summary_block(label, profile, tax_on, rebal, start_capital, equity, fills, y
                  "not separable; it is part of each year's bill above.")
     L += ["", "  what the tax model leaves out (data/reference/TAX_AND_CHARGES.docx, section 5):"]
     L += [f"    - {x}" for x in TAX_LEAVES_OUT]
-    L += ["", f"  reconciled to the paisa: cash on {len(days):,} days, slippage and charges on "
+    L += ["", f"  reconciled to the paisa: cash on {len(days):,} days, slippage"
+              + (", impact" if has_imp else "") + f" and charges on "
               f"{len(fills):,} fills, tax on {len(years)} financial years, the totals above, and "
               f"the buy & hold held and sold.",
           "=" * 90]
@@ -557,6 +611,8 @@ def read_run_costs(M, tag):
 def _book_figures(book, T_):
     out = {f"{book}/{k}": T_[k] for k in ("final", "gross", "charges", "slippage", "tax", "stcg",
                                           "ltcg", "exemption_used", "all_costs")}
+    if "impact" in T_:
+        out[f"{book}/impact"] = T_["impact"]
     out.update({f"{book}/{k}": T_["by_type"][k] for k, _ in CHARGES})
     return out
 
@@ -571,6 +627,7 @@ def summary_figures(text):
     out["strategy/final"] = m.group(1)
     out["strategy/gross"] = re.search(r"gross profit Rs ([-\d,.]+) =", text).group(1)
     names = {"charges, total": "charges", "charges": "charges", "slippage": "slippage",
+             "impact": "impact",
              "tax, total": "tax", "short-term": "stcg", "long-term": "ltcg",
              "LTCG exemption used (not a cost)": "exemption_used", "all costs": "all_costs",
              "final equity": "final", "gross profit": "gross",
@@ -624,11 +681,13 @@ def daily_log_totals(M, tag, arm_name, final, bh, start_capital, tax_on, width):
         if got != v:
             _fail("daily log", None, float(got.replace(",", "")) - float(v.replace(",", "")),
                   f"the daily log's {k.replace('/', ' ')} is Rs {got}, {summ.name} prints Rs {v}")
+    has_imp = "impact" in books["strategy"]
     L = ["", "=" * width,
-         " COST TOTALS -- charges, slippage and capital-gains tax over the whole run",
+         " COST TOTALS -- charges, slippage"
+         + (", impact" if has_imp else "") + " and capital-gains tax over the whole run",
          "=" * width,
          f"   starting capital Rs {start_capital:,.2f}.   gross profit = final equity - starting capital"
-         f" + charges + slippage + tax",
+         f" + charges + slippage" + (" + impact" if has_imp else "") + " + tax",
          f"   From results/cost_report.py: the strategy from COSTS_{tag}.csv and COST_TAX_YEARS_{tag}.csv,",
          "   the buy & hold from bh_costs."]
     for b, T_ in books.items():
@@ -643,6 +702,8 @@ def daily_log_totals(M, tag, arm_name, final, bh, start_capital, tax_on, width):
         for k, nm in CHARGES:
             row(nm, T_["by_type"][k])
         row("slippage", T_["slippage"], 0)
+        if "impact" in T_:
+            row("impact", T_["impact"], 0)
         row("tax, total", T_["tax"], 0)
         row("short-term", T_["stcg"])
         row("long-term", T_["ltcg"])
@@ -667,6 +728,7 @@ def write(u, arm, tag, audit, equity, engine_tc, px, op, bd, start_capital, prof
     fills, lots, years, days = reconcile(audit["costs"], audit["trades"], list(bd), start_capital,
                                          engine_tc, engine_tax, tax_on, engine_lots)
     cols = ["date", "side", "kind", "symbol", "qty", "reference_price", "fill_price", "slippage_rs"] + \
+        (["impact_k", "impact_median", "impact_rs"] if "impact_rs" in fills.columns else []) + \
         [k for k, _ in CHARGES] + ["charges_total"]
     out = fills[cols].rename(columns={"stt_ctt": "stt"})
     lo = lots.rename(columns={"sell_date": "date", "held_days": "days_held"})
