@@ -161,7 +161,10 @@ NOT_CHECKED = "NOT CHECKED BY THIS RUN"
 # rest surfaces as a reconciliation failure elsewhere, not as a wrong
 # number here. Value unchanged at 0.0015.
 from slippage import SLIPPAGE  # noqa: E402
-START_CAPITAL = 1_000_000
+import capital_axis as _capital_axis  # noqa: E402
+# THE DEFAULT, defined once in capital_axis.py. A run's capital is
+# capital_axis.selected(); this name stays for callers that want the default.
+START_CAPITAL = _capital_axis.DEFAULT
 BT_START, BT_END = 2019, 2026
 M = config.METRICS_DIR
 

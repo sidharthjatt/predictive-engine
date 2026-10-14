@@ -43,7 +43,10 @@ TOP_N, BUFFER = config.TOP_N, config.BUFFER
 from slippage import SLIPPAGE  # noqa: E402
 from config import read_table  # the one CSV/parquet reader: config.read_table
 CASH_YIELD = 0.0        # must match test_exposure.py
-START_CAPITAL = 1_000_000
+import capital_axis as _capital_axis  # noqa: E402
+# THE DEFAULT, defined once in capital_axis.py. A run's capital is
+# capital_axis.selected(); this name stays for callers that want the default.
+START_CAPITAL = _capital_axis.DEFAULT
 CASH_DAILY = (1 + CASH_YIELD) ** (1 / 252) - 1
 
 TOL_CASH = 0.50      # rupees; CSVs are rounded to 2 decimals, so a few paise of
@@ -481,7 +484,7 @@ def build(mdir, tag, arm, bh, raw_idx=None, cal_sorted=None):
          f" Period          : {s['date'].min().date()} to {s['date'].max().date()}"
          f"   ({len(s):,} trading days)",
          f" Rebalances      : {len(dc)}   |  orders filled: {len(t):,}   |  orders skipped: {len(sk):,}",
-         f" Capital         : Rs {START_CAPITAL:,}  ->  Rs {s['total'].iloc[-1]:,.0f}",
+         f" Capital         : Rs {_capital_axis.selected():,}  ->  Rs {s['total'].iloc[-1]:,.0f}",
          f" Total fees paid : Rs {s['cum_tc'].iloc[-1]:,.2f}",
          # Stated in the header of every universe's log, so a reader who opens this
          # file six months from now sees how the universe was constructed before
@@ -499,7 +502,7 @@ def build(mdir, tag, arm, bh, raw_idx=None, cal_sorted=None):
     n_stale_fill = n_stale_hold = n_hold_rows = 0
     stale_syms = {}
     fail_lines = []
-    prev_cash, prev_tc = float(START_CAPITAL), 0.0
+    prev_cash, prev_tc = float(_capital_axis.selected()), 0.0
     prev_qty, peak, last_dec = {}, 0.0, None
 
     for dn, d in enumerate(all_days, 1):
@@ -523,7 +526,7 @@ def build(mdir, tag, arm, bh, raw_idx=None, cal_sorted=None):
         total = float(r["total"])
         peak = max(peak, total)
         dd = (total / peak - 1) * 100 if peak > 0 else 0.0
-        cum_ret = (total / START_CAPITAL - 1) * 100
+        cum_ret = (total / _capital_axis.selected() - 1) * 100
 
         L += ["", "#" * W,
               f"# [{d.date()}]  {d.strftime('%A'):<9} |  trading day {dn:,} of {len(all_days):,}"
@@ -894,7 +897,7 @@ def build(mdir, tag, arm, bh, raw_idx=None, cal_sorted=None):
     # to the paisa and would move gross profit.
     import cost_report
     import tax as _tax_axis
-    from test_exposure import START_CAPITAL as _cap
+    _cap = _capital_axis.selected()
     if ref_curve is None:
         raise cost_report.CostReconciliationError(
             f"{tag}: no engine curve on disk for {arm.name}, so the cost totals have no final equity")
@@ -959,7 +962,7 @@ def main():
         # COST_SUMMARY, on the prices audit_step replays.
         import cost_report
         import tax as _tax_axis
-        from test_exposure import START_CAPITAL as _cap
+        _cap = _capital_axis.selected()
         bh = None
         for _arm in _ar.selected():
             tag = audit_step.artefact_tag(u, _arm)

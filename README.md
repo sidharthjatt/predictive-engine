@@ -73,6 +73,13 @@ and are used by decision; each pit run records the verdict, the members it could
 not price and a look-ahead note in its log, RUN.txt and params JSON. See
 `SURVIVORSHIP_README.md` and KNOWN_ISSUES.md.
 
+`--capital RUPEES` (whole rupees, at least 100000; default 1000000) sets the starting
+capital of the strategy and of the investable buy & hold. Every published figure is at
+the default, which adds nothing to any name; another capital adds `_cap<rupees>` to
+files and `@cap<rupees>` to folders, and appears in chart titles, params.json and
+RUN.txt. The default is defined once, in `capital_axis.py`. `nautilus/nt_verify.py
+--capital=<rupees>` checks the port at that capital (static, research, tax off).
+
 ### The drawdown limit (`--dd`): exploratory, not validated
 
 **Any result with `--dd` on is exploratory. It has not been validated, and it must

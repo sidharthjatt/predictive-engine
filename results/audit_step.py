@@ -116,7 +116,8 @@ def artefact_tag(u, arm):
     # AND THE SURVIVORSHIP AXIS, appended after tax: "" at static.
     import survivorship_axis as _sva
     import dd_axis as _dda
-    return tag + cadence.suffix() + profiles.suffix() + _tax.suffix() + _sva.suffix() + _dda.suffix()
+    import capital_axis as _capa
+    return tag + cadence.suffix() + profiles.suffix() + _tax.suffix() + _sva.suffix() + _dda.suffix() + _capa.suffix()
 
 
 def _reference_curve(M, arm_name):
@@ -181,7 +182,8 @@ def _reference_curve(M, arm_name):
     import tax as _tax_axis
     import survivorship_axis as _sva
     import dd_axis as _dda
-    _cad = cadence.suffix() + _prof.suffix() + _tax_axis.suffix() + _sva.suffix() + _dda.suffix()
+    import capital_axis as _capa
+    _cad = cadence.suffix() + _prof.suffix() + _tax_axis.suffix() + _sva.suffix() + _dda.suffix() + _capa.suffix()
     # A STOP ARM'S CURVE IS IN THE COMPANION FILE, and only there.
     if arm_name in _ar.STOP_ARMS:
         g = M / f"v34_stop_equity{_ar.stop_selection_suffix()}{_cad}.csv"
@@ -366,8 +368,8 @@ def run(u, arm=None):
     # audits. Raises cost_report.CostReconciliationError, naming the check, the
     # first day and the gap, and so fails the run, if any figure does not reconcile.
     import cost_report
-    from test_exposure import START_CAPITAL
-    cost_report.write(u, _arm, tag, audit, eq, tc, px, op, bd, float(START_CAPITAL),
+    import capital_axis as _capital_axis
+    cost_report.write(u, _arm, tag, audit, eq, tc, px, op, bd, float(_capital_axis.selected()),
                       _prof.selected(), bool(_tax_axis.selected()), cadence.selected())
 
     print(f"\n  --- SAMPLE: latest day ({s['date'].iloc[-1].date()}) ---")

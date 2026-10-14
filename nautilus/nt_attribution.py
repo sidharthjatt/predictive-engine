@@ -69,7 +69,10 @@ TOP_N, BUFFER = config.TOP_N, config.BUFFER
 # rest surfaces as a reconciliation failure elsewhere, not as a wrong
 # number here. Value unchanged at 0.0015.
 from slippage import SLIPPAGE  # noqa: E402
-START_CAPITAL = 1_000_000
+import capital_axis as _capital_axis  # noqa: E402
+# THE DEFAULT, defined once in capital_axis.py. A run's capital is
+# capital_axis.selected(); this name stays for callers that want the default.
+START_CAPITAL = _capital_axis.DEFAULT
 SAFETY = 0.98
 
 
@@ -192,7 +195,7 @@ def run(px, op, sc, dates, pc, mom20, size_at_close: bool, tick_round: bool = Fa
         raise ValueError(f"sizing must be 'invvol' or 'provol', got {sizing!r}")
     if mode not in ("breadth", "none"):
         raise ValueError(f"mode must be 'breadth' or 'none', got {mode!r}")
-    shares, cash = {}, float(START_CAPITAL)
+    shares, cash = {}, float(_capital_axis.selected())
     eq, pending, n_trades, cum_tc = [], None, 0, 0.0
     _stop = drawdown_stop
     if _stop is not None:
@@ -202,7 +205,7 @@ def run(px, op, sc, dates, pc, mom20, size_at_close: bool, tick_round: bool = Fa
     _dd = dd_overlay
     if _dd is not None:
         from drawdown_overlay import OverlayState
-        _ds = OverlayState(_dd, START_CAPITAL)
+        _ds = OverlayState(_dd, _capital_axis.selected())
         _expo_last = 1.0
 
     for i, dt in enumerate(dates):
@@ -420,7 +423,7 @@ if __name__ == "__main__":
                           value_at_open=True, tick_round=True)
 
     yrs = (bd[-1] - bd[0]).days / 365.25
-    def cagr(e): return ((e.iloc[-1] / START_CAPITAL) ** (1 / yrs) - 1) * 100
+    def cagr(e): return ((e.iloc[-1] / _capital_axis.selected()) ** (1 / yrs) - 1) * 100
 
     print(f"\n  ARM A  size at next open  (official)  : Rs {a_eq.iloc[-1]:>12,.0f}  "
           f"CAGR {cagr(a_eq):5.2f}%  trades {a_n}")

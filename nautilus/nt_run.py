@@ -66,7 +66,10 @@ UNIVERSES = {
 # it, none of which mention a universe themselves.
 _DEFAULT_UNIVERSE = next(iter(UNIVERSES))
 PRICE_CACHE = UNIVERSES[_DEFAULT_UNIVERSE]["cache"]
-START_CAPITAL = 1_000_000
+import capital_axis as _capital_axis  # noqa: E402
+# THE DEFAULT, defined once in capital_axis.py. A run's capital is
+# capital_axis.selected(); this name stays for callers that want the default.
+START_CAPITAL = _capital_axis.DEFAULT
 WARMUP_DAYS = 200          # calendar days of history before trading begins
 # No latency. The strategy now plans at the close and sends at the next open, so
 # nothing depends on delaying a resting order.
@@ -179,7 +182,7 @@ def run(trading_start, trading_end, symbols=None, quiet=True,
         trader_id="PREDENG-001",
         logging=LoggingConfig(bypass_logging=quiet)))
     eng.add_venue(VENUE, OmsType.NETTING, AccountType.CASH,
-                  starting_balances=[Money(START_CAPITAL, INR)],
+                  starting_balances=[Money(_capital_axis.selected(), INR)],
                   base_currency=INR,
                   latency_model=LatencyModel(base_latency_nanos=LATENCY_NS),
                   # Orders execute against the 09:15 QUOTE and nothing else. With the
@@ -206,7 +209,7 @@ def run(trading_start, trading_end, symbols=None, quiet=True,
     # globals, so an existing call site behaves exactly as before.
     strat.configure(scores, instruments, trading_start, sizing=sizing, mode=mode,
                     rebal=rebal, drawdown_stop=drawdown_stop, dd_overlay=dd_overlay,
-                    start_capital=START_CAPITAL)
+                    start_capital=_capital_axis.selected())
     eng.add_strategy(strat)
 
     eng.run()
@@ -288,7 +291,7 @@ def run(trading_start, trading_end, symbols=None, quiet=True,
     print(f"  open positions   : {open_pos}")
     print(f"  cash             : Rs {cash:,.2f}")
     print(f"  positions value  : Rs {pos_val:,.2f}")
-    print(f"  EQUITY           : Rs {equity:,.2f}   (from Rs {START_CAPITAL:,})")
+    print(f"  EQUITY           : Rs {equity:,.2f}   (from Rs {_capital_axis.selected():,})")
     if strat.decisions:
         d = pd.DataFrame(strat.decisions)
         print(f"\n  first 3 rebalance decisions:")

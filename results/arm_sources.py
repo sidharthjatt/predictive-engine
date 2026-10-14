@@ -56,7 +56,8 @@ def _axes(*, for_arm_subset=False):
     import tax as _tax
     import survivorship_axis as _sva
     import dd_axis as _dda
-    sfx = cadence.suffix() + _pf.suffix() + _tax.suffix() + _sva.suffix() + _dda.suffix()
+    import capital_axis as _capa
+    sfx = cadence.suffix() + _pf.suffix() + _tax.suffix() + _sva.suffix() + _dda.suffix() + _capa.suffix()
     # THE CORE PART OF THE SELECTION names the v34 files: a stop arm in the
     # selection goes to v34_stop_* and does not rename them.
     core = [n for n in arm_reg.selected_names() if n in arm_reg.ARMS]

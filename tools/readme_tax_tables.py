@@ -111,6 +111,7 @@ def main():
             raise SystemExit(f"README.md has neither the marker block nor the anchor {anchor!r}")
         i = s.index(anchor)
         s = s[:i] + b + "\n\n" + s[i:]
+    # naming: axis-free -- README.md is one file; the block covers every setting
     readme.write_text(s)
     print(f"README.md: tax-on tables written ({b.count(chr(10)) + 1} lines)")
     return 0

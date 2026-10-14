@@ -24,7 +24,8 @@ construction and stays the reference line.
 import numpy as np
 
 import tax_util as T
-from test_exposure import calc_tc, SLIPPAGE, START_CAPITAL
+from test_exposure import calc_tc, SLIPPAGE
+import capital_axis as _capital_axis  # noqa: E402
 
 
 def held_lots(px, op, bd):
@@ -36,8 +37,9 @@ def held_lots(px, op, bd):
     import survivorship as _sv, engine_core as _ec
     syms = [s for s in _sv.buyhold_columns(list(o0.index), d0, _ec.MEMBERSHIP)
             if not np.isnan(o0[s]) and o0[s] > 0]
-    per = START_CAPITAL / len(syms)
-    shares, cash, buy_tc = {}, START_CAPITAL, 0.0
+    _cap0 = _capital_axis.selected()
+    per = _cap0 / len(syms)
+    shares, cash, buy_tc = {}, _cap0, 0.0
     for s in syms:
         pr = float(o0[s]) * (1 + SLIPPAGE)
         q = int(per // pr)

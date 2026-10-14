@@ -437,6 +437,9 @@ def print_plan(plan, args, show_paths=False):
     if not _sva.is_default():
         print(f"  survivorship: {_sva.selected()} (point-in-time membership, "
               f"with-survivorship prices; static is the default)")
+    import capital_axis as _capa
+    if not _capa.is_default():
+        print(f"  starting capital: Rs {_capa.selected():,} (default Rs {_capa.DEFAULT:,})")
     import dd_axis as _dda
     if not _dda.is_default():
         print(f"  {_dda.label()} -- EXPLORATORY, not validated; off is the default")
@@ -560,6 +563,19 @@ def _dd_floor_arg(s):
     return x
 
 
+def _capital_arg(s):
+    """--capital value: whole rupees, at least Rs 1,00,000."""
+    import capital_axis as _ca
+    try:
+        x = int(s)
+    except ValueError:
+        raise argparse.ArgumentTypeError(f"{s!r} is not a whole number of rupees")
+    if x < _ca.MINIMUM:
+        raise argparse.ArgumentTypeError(f"{x:,} -- the starting capital must be at least "
+                                         f"Rs {_ca.MINIMUM:,}")
+    return x
+
+
 def _dd_setup(ap, args):
     """Validate the drawdown-limit flags together and record the selection.
 
@@ -653,6 +669,10 @@ def main(argv=None):
                          "invested at a peak)")
     ap.add_argument("--dd-floor", type=_dd_floor_arg, default=None, metavar="F",
                     help="exposure floor for --dd in percent (above 0, at most 100; default 25)")
+    # THE SEVENTH AXIS, 2026-10-14. Default Rs 10,00,000, every published run's.
+    ap.add_argument("--capital", type=_capital_arg, default=None, metavar="RUPEES",
+                    help="starting capital in whole rupees, at least 100000 (default "
+                         "1000000). See capital_axis.py.")
     ap.add_argument("--list", action="store_true", help="resolve and print the plan, run nothing")
     ap.add_argument("--dry-run", action="store_true",
                     help="like --list, and show every output location")
@@ -673,6 +693,8 @@ def main(argv=None):
     _cad.set_selection(args.rebal)
     _prof.set_selection(args.profile)
     _tax.set_selection(args.tax == "on")
+    import capital_axis as _capa
+    _capa.set_selection(args.capital)
 
     import survivorship_axis as _sva
     _sva.set_selection(args.survivorship)
@@ -816,7 +838,7 @@ def collect_run_folder(plan, args, t_start, dest, thin=None):
         f"cadence   : {reb}\n"
         f"profile   : {_pf.selected()}\n"
         f"tax       : {'on' if _tax.selected() else 'off'}\n"
-        + _survivorship_section(plan) + _dd_section() +
+        + _survivorship_section(plan) + _dd_section() + _capital_section() +
         f"steps     : {len(plan['pipeline'])} pipeline, {len(plan['arm_runs'])} arm runs\n"
         f"artefacts : {copied} copied from their canonical locations\n"
         f"log       : run.log\n"
@@ -851,6 +873,12 @@ def _dd_section():
     s = _dda.selected()
     return (f"dd        : limit_pct={s.limit * 100:g} m={s.m:.10g} "
             f"floor_pct={s.floor * 100:g}\n")
+
+
+def _capital_section():
+    """RUN.txt's capital line: none at the default, so RUN.txt is unchanged."""
+    import capital_axis as _capa
+    return "" if _capa.is_default() else f"capital   : {_capa.selected()}\n"
 
 
 def _thin_section(thin):
@@ -923,6 +951,8 @@ def read_run_record(folder):
             "survivorship": kv.get("survivorship", "static"),
             # Absent from every RUN.txt of a run without --dd.
             "dd": _parse_dd(kv.get("dd")),
+            # Absent from every RUN.txt of a run at the default capital.
+            "capital": int(kv["capital"]) if kv.get("capital") else None,
             "pipeline_steps": int(m.group(1)), "arm_runs": int(m.group(2)),
             "started": started, "finished": finished}
 

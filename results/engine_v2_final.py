@@ -65,7 +65,10 @@ REBAL, VOL_WIN = 20, 60
 # leaks into the next step (module_state.py names the case).
 # SELECTION -- imported from config.py, the single definition.
 TOP_N, BUFFER = config.TOP_N, config.BUFFER
-START_CAPITAL = 1_000_000
+import capital_axis as _capital_axis  # noqa: E402
+# THE DEFAULT, defined once in capital_axis.py. A run's capital is
+# capital_axis.selected(); this name stays for callers that want the default.
+START_CAPITAL = _capital_axis.DEFAULT
 # BACKTEST WINDOW -- imported from config.py, the single definition.
 # Date-based and inclusive. The old year cut (BT_START, BT_END = 2019, 2026)
 # ran to 2026-06-08, six trading days beyond this window.
@@ -115,11 +118,13 @@ def _c(path):
     # canonical filenames would be the same defect on a fourth axis.
     import survivorship_axis as _sva
     import dd_axis as _dda
+    import capital_axis as _capa
     _all_default = (cadence.is_default() and _pf.is_default() and _tax.is_default()
-                    and _sva.is_default() and _dda.is_default())
+                    and _sva.is_default() and _dda.is_default()
+            and _capa.is_default())
     _sfx = ("" if _all_default
             else (cadence.suffix() + _pf.suffix() + _tax.suffix() + _sva.suffix()
-                  + _dda.suffix()))
+                  + _dda.suffix() + _capa.suffix()))
     out = path if not _sfx else path.with_name(path.stem + _sfx + path.suffix)
     # WHAT THIS RUN ACTUALLY WROTE, RECORDED HERE BECAUSE HERE IS WHERE THE NAME
     # IS DECIDED. The step used to end by printing a hardcoded list of the
@@ -236,7 +241,7 @@ def main(u):
     # THE BUY & HOLD BASKET: every name in static mode; in pit mode the members on
     # the first pit rebalance, bd[0] (owner's decision, 2026-10-10).
     import survivorship as _sv, engine_core as _ec
-    bh = START_CAPITAL * (1 + _sv.buyhold_prices(px, bd[0], _ec.MEMBERSHIP)
+    bh = _capital_axis.selected() * (1 + _sv.buyhold_prices(px, bd[0], _ec.MEMBERSHIP)
                           .pct_change().loc[bd].mean(axis=1).fillna(0)).cumprod()
 
     mbase = metrics(base_eq, "Inverse-vol, 100% invested (v1 final)", tcb, nb)
@@ -352,6 +357,7 @@ def main(u):
         # THE DRAWDOWN-LIMIT AXIS: present only with --dd, so this file is
         # unchanged without it.
         **({} if dd_axis.is_default() else {"dd": dd_axis.params()}),
+        **({} if _capital_axis.is_default() else {"capital": _capital_axis.selected()}),
         "vs_buyhold": (f"Sharpe {mfin['Sharpe']} vs {mbh['Sharpe']}, "
                        f"MaxDD {mfin['MaxDD%']}% vs {mbh['MaxDD%']}%, "
                        f"CAGR {mfin['CAGR%']}% vs {mbh['CAGR%']}%"),
@@ -413,10 +419,10 @@ def main(u):
         M, u.label, tag, px, op, sc, bd, pc, mom20, port_vol, tv,
         backtest_exposure,
         base_eq, tcb, nb, fin_eq, tcf, nf, expo,
-        START_CAPITAL,
+        _capital_axis.selected(),
         [("2019-2022", 2019, 2022), ("2023-2026", 2023, 2026)],
         {"TOP_N": TOP_N, "BUFFER": BUFFER, "REBAL": REBAL, "VOL_WIN": VOL_WIN,
-         "START_CAPITAL": START_CAPITAL, "CASH_YIELD": CASH_YIELD,
+         "START_CAPITAL": _capital_axis.selected(), "CASH_YIELD": CASH_YIELD,
          "SLIPPAGE": 0.0015},
         v1_audit=base_audit, audits_out=_arm_audits, v1_expo=base_expo)
     print("\n" + "=" * 100)

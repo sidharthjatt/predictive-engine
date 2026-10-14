@@ -66,7 +66,7 @@ import pandas as pd
 import config
 from paths import list_dir
 from config import read_table
-from test_exposure import START_CAPITAL
+import capital_axis  # noqa: E402
 from universes.registry import REGISTRY, check_tags
 
 RUN = ROOT / "runs" / "20260927T122131_all_all_r20"
@@ -184,7 +184,7 @@ def arm_pnl(u, arm, run):
             .reindex(index=dates, columns=val.columns.union(t["symbol"].unique())).fillna(0.0)
     val = val.reindex(columns=flow.columns).fillna(0.0)
     pnl = val.diff().fillna(val) + flow
-    resid = s["total"].diff().fillna(s["total"].iloc[0] - START_CAPITAL) - pnl.sum(axis=1)
+    resid = s["total"].diff().fillna(s["total"].iloc[0] - capital_axis.selected()) - pnl.sum(axis=1)
     return pnl, s["total"], resid, lots
 
 

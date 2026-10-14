@@ -7,6 +7,7 @@ every number is produced by the run it describes.
 
 Run: ./venv/bin/python nautilus/nt_verify.py --universe=nifty100 [--arm=v3] [--rebal=3]
                                              [--dd=20 [--dd-m=5] [--dd-floor=25]]
+                                             [--capital=5000000]
 
 --arm=NAME verifies that arm (default v2): the port runs with the arm's mode and
 sizing, both reference re-runs (ARM A and ARM D) and the 0.01-grid proof take the
@@ -87,6 +88,14 @@ if _flag("dd") is not None:
     print(f"  drawdown-limit axis: {_dda.label()} -- research profile, tax off")
 elif _flag("dd-m") is not None or _flag("dd-floor") is not None:
     raise SystemExit("--dd-m and --dd-floor need --dd")
+
+# --capital=RUPEES: THE STARTING-CAPITAL AXIS. Selected here, so the port's starting
+# balance (nt_run), the reference copy's cash (nt_attribution) and the reference
+# trail's name (_ref_tag) all follow it. Research profile, tax off, as every cell here.
+if _flag("capital") is not None:
+    import capital_axis as _capa
+    _capa.set_selection(int(_flag("capital")))
+    print(f"  starting capital: Rs {_capa.selected():,}")
 
 # THE STOP'S DATES, compared exactly: these events on these days, on both sides.
 STOP_KEY_EVENTS = ("trigger", "exit fills", "flat", "re-entry order", "re-entry filled",

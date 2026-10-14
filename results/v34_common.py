@@ -57,7 +57,9 @@ def _dd_params():
     """{"dd": ...} when the drawdown-limit axis is on, {} when off, so a params
     file from a run without --dd is the file it always was."""
     import dd_axis as _dda
-    return {} if _dda.is_default() else {"dd": _dda.params()}
+    import capital_axis as _capa
+    return (({} if _dda.is_default() else {"dd": _dda.params()})
+            | ({} if _capa.is_default() else {"capital": _capa.selected()}))
 
 
 def _window_label(eq=None):
@@ -321,8 +323,9 @@ def _write_stop(M, stop_rows, stop_curves, stop_audits, bd, bh, halves,
     """The companion v34_stop_* files: the selected stop arms and the buy & hold."""
     import survivorship_axis as _sva
     import dd_axis as _dda
+    import capital_axis as _capa
     SFX = (arm_reg.stop_selection_suffix() + cadence.suffix() + profiles.suffix()
-            + _tax.suffix() + _sva.suffix() + _dda.suffix())
+            + _tax.suffix() + _sva.suffix() + _dda.suffix() + _capa.suffix())
     rows = stop_rows + [arm_row(bh, "buy & hold equal-weight", 0, 0, 100.0)]
     rows[-1]["MeanNamesHeld"], rows[-1]["CashShortSkips"] = "", ""
     pd.DataFrame(rows).to_csv(M / f"v34_stop_comparison{SFX}.csv", index=False)
@@ -528,8 +531,9 @@ def run_v34(M, universe_label, universe_tag, px, op, sc, bd, pc, mom20, port_vol
     # a run of v1..v4 plus v5 still writes the canonical files with v1..v4 only.
     import survivorship_axis as _sva
     import dd_axis as _dda
+    import capital_axis as _capa
     SFX = (arm_reg.selection_suffix([n for n, *_ in ARM_ON]) + cadence.suffix()
-           + profiles.suffix() + _tax.suffix() + _sva.suffix() + _dda.suffix())
+           + profiles.suffix() + _tax.suffix() + _sva.suffix() + _dda.suffix() + _capa.suffix())
     # THE PATHS THIS CALL WRITES, IN ORDER. Read only by the report line below, so
     # that what is printed is derived from what was written rather than restated.
     _wrote = []
@@ -660,7 +664,8 @@ def run_arm(u, arm, rebal=None, out_dir=None):
     # THE BUY & HOLD BASKET: every name in static mode; in pit mode the members on
     # the first pit rebalance, bd[0] (owner's decision, 2026-10-10).
     import survivorship as _sv, engine_core as _ec
-    bh = START_CAPITAL * (1 + _sv.buyhold_prices(px, bd[0], _ec.MEMBERSHIP)
+    import capital_axis as _capital_axis
+    bh = _capital_axis.selected() * (1 + _sv.buyhold_prices(px, bd[0], _ec.MEMBERSHIP)
                           .pct_change().loc[bd].mean(axis=1).fillna(0)).cumprod()
     # A stop arm is not always invested: its share is the mean target exposure over
     # the rebalance grid, 0 on the days the stop holds it in cash, as for v2 and v4.

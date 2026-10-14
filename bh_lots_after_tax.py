@@ -49,7 +49,8 @@ for p in (ROOT,ROOT/"results",ROOT/"nautilus"): sys.path.insert(0,str(p))
 import numpy as np, pandas as pd
 import cadence, config, profiles, engine_core, tax_util as T
 from engine_core import precompute
-from test_exposure import backtest_exposure, calc_tc, SLIPPAGE, START_CAPITAL
+from test_exposure import backtest_exposure, calc_tc, SLIPPAGE
+import capital_axis  # noqa: E402
 from universes.registry import REGISTRY
 from config import read_table  # the one CSV/parquet reader: config.read_table
 from numerics import rolling_std  # platform-identical variance: results/numerics.py
@@ -194,7 +195,7 @@ def main(u):
         bh_last=det["eq_last_day"]
         # The basket: every name in static mode, the members on bd[0] in pit mode.
         import survivorship as _sv, engine_core as _ec
-        bh_pub=START_CAPITAL*(1+_sv.buyhold_prices(px,bd[0],_ec.MEMBERSHIP)
+        bh_pub=capital_axis.selected()*(1+_sv.buyhold_prices(px,bd[0],_ec.MEMBERSHIP)
                               .pct_change().loc[bd].mean(axis=1).fillna(0)).cumprod()
 
         # SINCE 2026-09-25 NOTHING IS SETTLED HERE. The engine settles the last,

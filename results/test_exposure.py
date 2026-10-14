@@ -68,7 +68,10 @@ from slippage import SLIPPAGE  # noqa: E402
 import slippage as _sl  # noqa: E402
 from config import read_table  # the one CSV/parquet reader: config.read_table
 from numerics import rolling_std  # platform-identical variance: results/numerics.py
-START_CAPITAL = 1_000_000
+import capital_axis as _capital_axis  # noqa: E402
+# THE DEFAULT, defined once in capital_axis.py. A run's capital is
+# capital_axis.selected(); this name stays for callers that want the default.
+START_CAPITAL = _capital_axis.DEFAULT
 CASH_YIELD = 0.0        # no yield assumed on idle cash
 # BACKTEST WINDOW -- imported from config.py, the single definition.
 # Date-based and inclusive. The old year cut (BT_START, BT_END = 2019, 2026)
@@ -140,7 +143,8 @@ def backtest_exposure(px, op, sc, dates, pc, mom20, port_vol=None,
                       const_expo=None, value_at_open=True, rebal=None,
                       funding="cash", participation_cap=_CAP_REQUIRED, vol20=_VOL20_REQUIRED,
                       tax_enabled=False, impact_k=None, impact_out=None,
-                      end_sale=False, drawdown_stop=None, dd_overlay=_DD_FROM_SELECTION):
+                      end_sale=False, drawdown_stop=None, dd_overlay=_DD_FROM_SELECTION,
+                      start_capital=None):
     """audit=None reproduces the original code path exactly: no overhead, and the
     official numbers are unchanged.
 
@@ -340,7 +344,9 @@ def backtest_exposure(px, op, sc, dates, pc, mom20, port_vol=None,
         raise ValueError(f"rebal must be >= 1, got {rebal!r}")
     if funding not in ("cash", "prorata"):
         raise ValueError(f'funding must be "cash" or "prorata", got {funding!r}')
-    shares, cash = {}, START_CAPITAL
+    # THE STARTING CAPITAL: capital_axis.selected() unless a caller passes one.
+    _cap0 = _capital_axis.selected() if start_capital is None else start_capital
+    shares, cash = {}, _cap0
     cum_tc, n_trades = 0.0, 0
     eq, pending, expo_log = [], None, []
     # THE TAX LEDGER. None at the default, and `ledger is None` is the only test
@@ -384,7 +390,7 @@ def backtest_exposure(px, op, sc, dates, pc, mom20, port_vol=None,
         if _stop is not None:
             raise ValueError("the drawdown-limit axis cannot run on a stop arm (v5/v6)")
         from drawdown_overlay import OverlayState
-        _ds = OverlayState(_dd, START_CAPITAL)
+        _ds = OverlayState(_dd, _cap0)
         _dd_rows = set()          # ledger row indices realised by the overlay's sales
         _dd_invested = []         # mtm / equity at each close: Deployed% with the axis on
 

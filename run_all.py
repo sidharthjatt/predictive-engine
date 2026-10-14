@@ -866,6 +866,9 @@ def check_inputs(label, script, tag):
         import dd_axis as _dda
         if "dd" in axes and not _dda.is_default():
             _sfx += _dda.suffix()
+        import capital_axis as _capa
+        if "capital" in axes and not _capa.is_default():
+            _sfx += _capa.suffix()
         want = f if not _sfx else f.with_name(f.stem + _sfx + f.suffix)
         if want.exists():
             return True

@@ -229,6 +229,10 @@ DELEGATES = (
     # with its 8-year limit and oldest-first order, the 4% cess, and the engine's
     # Ledger carrying a loss forward. A second.
     ("tax_rules_test.py",                     ["--quiet"], False, None),
+    # The starting-capital axis on a synthetic panel: validation, names, the default
+    # path unchanged, the engine and the buy & hold at a selected capital, and one
+    # definition of the default. A second.
+    ("capital_axis_test.py",                  ["--quiet"], False, None),
 
     # Cheap, and each already carries an exit status.
     ("results/leakage_check1_causality.py",   [], False, None),
@@ -918,8 +922,9 @@ def _run_axes(rec=None, tax_on=True):
     import arms.registry as _ar
     import survivorship_axis as _sva
     import dd_axis as _dda
+    import capital_axis as _capa
     saved = (_cd._SELECTED, _pf.selected(), _tx.selected(), _ar._SELECTED,
-             _sva.selected(), _dda.selected())
+             _sva.selected(), _dda.selected(), _capa._SELECTED)
     try:
         _cd.set_selection(rec["cadence"] if rec else None)
         _pf.set_selection(rec["profile"] if rec else None)
@@ -927,12 +932,14 @@ def _run_axes(rec=None, tax_on=True):
         _tx.set_selection(tax_on)
         _sva.set_selection((rec or {}).get("survivorship"))
         _dda.set_selection((rec or {}).get("dd"))
+        _capa.set_selection((rec or {}).get("capital"))
         yield
     finally:
         _cd.set_selection(saved[0]); _pf.set_selection(saved[1])
         _tx.set_selection(saved[2]); _ar._SELECTED = saved[3]
         _sva.set_selection(saved[4])
         _dda.set_selection(saved[5])
+        _capa.set_selection(saved[6])
 
 
 def _tax_ledger(u, M, arm="v2", stems=("FY_EQUITY", "FY_TAX_STATEMENT"), rec=None):
@@ -965,8 +972,9 @@ def _v34_equity_pair(M, rec, arm=None):
                     else f"v34_equity{_ar.selection_suffix()}")
             import survivorship_axis as _sva
             import dd_axis as _dda
+            import capital_axis as _capa
             out.append(M / f"{head}{_cd.suffix()}{_pf.suffix()}{_tx.suffix()}"
-                           f"{_sva.suffix()}{_dda.suffix()}.csv")
+                           f"{_sva.suffix()}{_dda.suffix()}{_capa.suffix()}.csv")
     return tuple(out)
 
 
@@ -1503,10 +1511,11 @@ def gate_data_source(res, sel):
                 continue
             # A PIT ARTEFACT was built from the universe's point-in-time variant, so
             # it is checked against that variant's data: the with-survivorship
-            # folder and the pit farm. "_pit" is followed only by the drawdown-limit
-            # suffix, the one axis after it ("v34_params_v3_tax_pit_dd20"); testing
-            # endswith("_pit") checked those against the static data.
-            pit = re.search(r"_pit(_dd[0-9p]+(m[0-9p]+)?(f[0-9p]+)?)?$", f.stem) is not None
+            # folder and the pit farm. "_pit" is followed only by the axes after it,
+            # drawdown limit then capital ("v34_params_v3_tax_pit_dd20_cap5000000");
+            # testing endswith("_pit") checked those against the static data.
+            pit = re.search(r"_pit(_dd[0-9p]+(m[0-9p]+)?(f[0-9p]+)?)?(_cap[0-9]+)?$",
+                            f.stem) is not None
             if (t, pit) not in live:
                 from universes.registry import pit_variant
                 uu = pit_variant(u) if pit else u
