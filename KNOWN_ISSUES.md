@@ -449,6 +449,20 @@ investable buy & hold held to the end and sold on the last day.
   yield, no DP charge) is out of date and is kept as a reference copy. Its tax rules
   were the ones used until 2026-10-14; since then four of them are replaced (next
   entry).
+  - The DP charge (Rs 13 plus GST, Rs 15.34) is charged on every sell order
+    (`qbeast_in_charges.py:322-323`). The depository charges it once per stock per
+    day, so two sells of one stock on one day would pay it twice. On nifty200 v3, pit,
+    tradeable, tax on, Rs 10 lakh, the size is zero: 409 sell orders fall on 409
+    distinct (day, stock) pairs, because the engine always sells a whole position in
+    one order. Total DP charged there is Rs 6,274.06.
+  - IPFT is not charged (`include_ipft=False`, `qbeast_in_charges.py:274, 319-320`).
+    At the library's rate of Rs 0.01 per crore, the rate Zerodha's charges page lists,
+    the same cell's Rs 42.64 crore of turnover would owe Rs 0.05 including GST. Per
+    leg it rounds to zero paisa: the largest leg, Rs 26.1 lakh, owes Rs 0.0003.
+  - `calc_tc` stops with an ImportError if the charge library cannot be imported.
+    Until 2026-10-14 it fell back to a flat 0.11% without saying so, in
+    `results/test_exposure.py`, `results/engine_core.py` and
+    `nautilus/nt_attribution.py`.
 - The report rounds as the engine does. The engine's prices are numpy floats, and
   round() on 1607.585 gives 1607.58 there and 1607.59 on a Python float; the buy & hold
   (`bh_held`) uses Python floats.

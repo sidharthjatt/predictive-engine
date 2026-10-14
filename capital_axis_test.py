@@ -57,7 +57,7 @@ def run(px, op, sc, **kw):
     audit["costs"] = {"fills": [], "days": []}
     eq, tc, n, _ = backtest_exposure(px, op, sc, DATES, precompute(px), px / px.shift(20) - 1,
                                      mode="none", sizing="invvol", audit=audit, rebal=20,
-                                     participation_cap=None, **kw)
+                                     participation_cap=None, drawdown_stop=None, **kw)
     return eq, tc, audit
 
 

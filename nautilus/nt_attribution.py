@@ -56,9 +56,12 @@ try:
                                  Decimal(str(round(price, 2))), Decimal(str(round(qty, 4))),
                                  Exchange.NSE)
         return float(bd.total)
-except Exception:
-    def calc_tc(price, qty, side):
-        return price * qty * 0.0011
+except Exception as _e:
+    # No fallback. A flat 0.11% here once replaced the charge library without a
+    # word whenever its import failed, which moves every cost figure by about 9%.
+    raise ImportError(
+        f"qbeast_in_charges could not be imported ({type(_e).__name__}: {_e}). "
+        f"calc_tc has no fallback rate; fix the import.") from _e
 
 REBAL = 20
 # SELECTION -- imported from config.py, the single definition.
