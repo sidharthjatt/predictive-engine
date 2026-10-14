@@ -221,7 +221,7 @@ Read these with the caveats below:
 - **Survivorship.** The universes are today's index members applied back to 2019.
   The supplier's point-in-time membership files cannot say whether a name was a
   member for most of the position-days these arms held. Measured on the
-  2026-10-10 research tax-on run, for the same 15 cells: 42% to 75% of each arm's
+  2026-10-14 research tax-on run, for the same 15 cells: 42% to 74% of each arm's
   profit comes from position-days the files cannot classify. Removing only the
   profit the files mark as held while not a member changes the gaps by -1.1 to
   +1.0 points; reading every unknown day as the files' events imply (which

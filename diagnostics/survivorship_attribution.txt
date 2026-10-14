@@ -1,6 +1,6 @@
 SURVIVORSHIP ATTRIBUTION -- ESTIMATE, NOT A BACKTEST
 ====================================================================================
-run: runs/20261010T052337_all_all_r20 (research profile, tax on, cadence 20, sigma 0)
+run: runs/20261014T184449_all_all_r20_tax (research profile, tax on, cadence 20, sigma 0)
 membership: data/raw/Survivorship_Bias/<Index>_membership.csv (supplier), events only
 groups: (a) index member on the day held, (b) not a member, (c) the data cannot say
 gap = arm tax-on headline CAGR minus investable buy & hold headline CAGR, points
@@ -10,52 +10,52 @@ strict: (c) where the file cannot say. lenient: assumes no event is missing (a b
 
 Share of profit by group, per cent, strict reading (arm net of allocated tax; buy & hold pays none)
 cell               arm a   arm b   arm c     b&h a   b&h b   b&h c       gap  gap, (b) removed
-nifty50 v3          51.3     6.8    41.9      22.9    10.4    66.6     +0.77             +1.21
-midcap150 v4        20.4    12.8    66.8      51.6     8.8    39.6     +8.38             +7.48
-smallcap250 v1      21.0    11.0    67.9      19.9     6.4    73.7     +4.40             +3.56
-smallcap250 v3      30.6    10.7    58.6      19.9     6.4    73.7    +17.53            +16.42
-nifty200 v1         42.4     7.7    49.9      37.7     8.3    53.9    +13.23            +13.04
-nifty500 v1         24.4     4.1    71.5      29.6     4.5    65.9     +8.46             +8.42
-nifty500 v2         21.6     7.1    71.3      29.6     4.5    65.9     -2.20             -2.52
-midcap100 v1        20.1     7.3    72.6      40.4    15.1    44.5     +5.94             +6.95
-midcap100 v3        29.9    13.5    56.6      40.4    15.1    44.5     +4.59             +4.64
-midcap150 v1        31.4    10.3    58.3      51.6     8.8    39.6    +14.15            +13.53
-midcap150 v3        23.5    12.4    64.0      51.6     8.8    39.6    +12.39            +11.43
-nifty200 v3         44.6     1.8    53.6      37.7     8.3    53.9    +12.46            +13.30
-nifty200 v4         32.3    10.3    57.4      37.7     8.3    53.9     +9.24             +8.68
-nifty500 v3         21.1     4.2    74.7      29.6     4.5    65.9     +9.49             +9.42
-nifty500 v4         16.9     9.8    73.4      29.6     4.5    65.9     +0.87             +0.10
+nifty50 v3          51.3     6.8    41.9      22.9    10.4    66.6     +0.65             +1.09
+midcap150 v4        20.4    12.8    66.7      51.6     8.8    39.6     +8.28             +7.39
+smallcap250 v1      20.9    11.1    68.0      19.9     6.4    73.7     +4.49             +3.64
+smallcap250 v3      30.6    10.7    58.7      19.9     6.4    73.7    +17.39            +16.29
+nifty200 v1         42.8     7.7    49.6      37.7     8.3    53.9    +13.11            +12.93
+nifty500 v1         24.5     4.2    71.3      29.6     4.5    65.9     +8.67             +8.62
+nifty500 v2         21.7     7.3    71.0      29.6     4.5    65.9     -1.99             -2.34
+midcap100 v1        20.1     7.3    72.6      40.4    15.1    44.5     +5.88             +6.90
+midcap100 v3        29.6    13.6    56.8      40.4    15.1    44.5     +4.92             +4.95
+midcap150 v1        31.3    10.4    58.3      51.6     8.8    39.6    +14.00            +13.37
+midcap150 v3        23.7    12.5    63.9      51.6     8.8    39.6    +12.71            +11.73
+nifty200 v3         44.3     1.8    54.0      37.7     8.3    53.9    +12.81            +13.66
+nifty200 v4         32.2    10.4    57.4      37.7     8.3    53.9     +9.24             +8.67
+nifty500 v3         21.2     4.5    74.3      29.6     4.5    65.9    +10.01             +9.90
+nifty500 v4         16.9    10.1    73.0      29.6     4.5    65.9     +1.18             +0.36
 
 Share of profit by group, per cent, lenient reading (arm net of allocated tax; buy & hold pays none)
 cell               arm a   arm b   arm c     b&h a   b&h b   b&h c       gap  gap, (b) removed
-nifty50 v3          80.7    19.3     0.0      79.3    20.7     0.0     +0.77             +0.91
-midcap150 v4        74.6    25.4     0.0      86.7    13.3     0.0     +8.38             +5.84
-smallcap250 v1      59.8    40.2     0.0      75.6    24.4     0.0     +4.40             +0.85
-smallcap250 v3      60.2    39.8     0.0      75.6    24.4     0.0    +17.53            +12.58
-nifty200 v1         64.6    35.4     0.0      75.7    24.4     0.0    +13.23             +9.84
-nifty500 v1         61.0    39.0     0.0      83.3    16.7     0.0     +8.46             +3.53
-nifty500 v2         61.5    38.5     0.0      83.3    16.7     0.0     -2.20             -5.51
-midcap100 v1        60.4    39.6     0.0      68.0    32.0     0.0     +5.94             +3.73
-midcap100 v3        63.1    36.9     0.0      68.0    32.0     0.0     +4.59             +3.10
-midcap150 v1        81.3    18.6     0.0      86.7    13.3     0.0    +14.15            +12.60
-midcap150 v3        78.9    21.1     0.0      86.7    13.3     0.0    +12.39            +10.44
-nifty200 v3         64.6    35.4     0.0      75.7    24.4     0.0    +12.46             +9.14
-nifty200 v4         51.5    48.5     0.0      75.7    24.4     0.0     +9.24             +3.16
-nifty500 v3         64.2    35.8     0.0      83.3    16.7     0.0     +9.49             +5.16
-nifty500 v4         59.1    40.9     0.0      83.3    16.7     0.0     +0.87             -3.39
+nifty50 v3          80.6    19.4     0.0      79.3    20.7     0.0     +0.65             +0.79
+midcap150 v4        74.6    25.4     0.0      86.7    13.3     0.0     +8.28             +5.76
+smallcap250 v1      59.6    40.4     0.0      75.6    24.4     0.0     +4.49             +0.89
+smallcap250 v3      60.2    39.8     0.0      75.6    24.4     0.0    +17.39            +12.46
+nifty200 v1         64.8    35.2     0.0      75.7    24.4     0.0    +13.11             +9.78
+nifty500 v1         61.0    39.0     0.0      83.3    16.7     0.0     +8.67             +3.72
+nifty500 v2         61.6    38.4     0.0      83.3    16.7     0.0     -1.99             -5.33
+midcap100 v1        60.5    39.5     0.0      68.0    32.0     0.0     +5.88             +3.67
+midcap100 v3        62.9    37.1     0.0      68.0    32.0     0.0     +4.92             +3.35
+midcap150 v1        81.3    18.7     0.0      86.7    13.3     0.0    +14.00            +12.45
+midcap150 v3        78.9    21.1     0.0      86.7    13.3     0.0    +12.71            +10.74
+nifty200 v3         64.5    35.5     0.0      75.7    24.4     0.0    +12.81             +9.44
+nifty200 v4         51.4    48.6     0.0      75.7    24.4     0.0     +9.24             +3.14
+nifty500 v3         64.0    36.0     0.0      83.3    16.7     0.0    +10.01             +5.58
+nifty500 v4         58.9    41.1     0.0      83.3    16.7     0.0     +1.18             -3.16
 
 Held position-days by group, strict reading (arm; buy & hold)
   nifty50 v3       arm a   3333 b    198 c  11005   b&h a   24252 b     892 c   59266
   midcap150 v4     arm a   5410 b   1705 c  10336   b&h a   75393 b   13242 c  109545
   smallcap250 v1   arm a   4925 b   1042 c   8730   b&h a  108885 b   21649 c  155726
-  smallcap250 v3   arm a   4927 b   1063 c   8734   b&h a  108885 b   21649 c  155726
-  nifty200 v1      arm a   3656 b   1235 c  10176   b&h a   91484 b    8901 c  193215
+  smallcap250 v3   arm a   4907 b   1063 c   8754   b&h a  108885 b   21649 c  155726
+  nifty200 v1      arm a   3635 b   1235 c  10176   b&h a   91484 b    8901 c  193215
   nifty500 v1      arm a   5228 b    687 c   8751   b&h a  210924 b   13995 c  397146
   nifty500 v2      arm a   5991 b    766 c  10496   b&h a  210924 b   13995 c  397146
   midcap100 v1     arm a   3370 b   1456 c  10028   b&h a   44057 b   12248 c   81320
   midcap100 v3     arm a   3325 b   1343 c   9716   b&h a   44057 b   12248 c   81320
   midcap150 v1     arm a   4717 b   1543 c   8836   b&h a   75393 b   13242 c  109545
-  midcap150 v3     arm a   4199 b   1326 c   8502   b&h a   75393 b   13242 c  109545
+  midcap150 v3     arm a   4261 b   1326 c   8462   b&h a   75393 b   13242 c  109545
   nifty200 v3      arm a   3558 b   1059 c   9630   b&h a   91484 b    8901 c  193215
   nifty200 v4      arm a   4329 b   1320 c  12095   b&h a   91484 b    8901 c  193215
   nifty500 v3      arm a   5126 b    666 c   8892   b&h a  210924 b   13995 c  397146
@@ -63,21 +63,21 @@ Held position-days by group, strict reading (arm; buy & hold)
 
 Accounting check: position-day profit summed over symbols against the day's change
 in total equity. The residual is tax on tax days and nothing else if the sum is right.
-  nifty50 v3       tax allocated Rs    582,043.09   positive residual (should be 0) Rs       0.00
-  midcap150 v4     tax allocated Rs  1,337,070.23   positive residual (should be 0) Rs       0.00
-  smallcap250 v1   tax allocated Rs  1,378,817.69   positive residual (should be 0) Rs       0.00
-  smallcap250 v3   tax allocated Rs  2,693,093.84   positive residual (should be 0) Rs       0.00
-  nifty200 v1      tax allocated Rs  2,048,005.03   positive residual (should be 0) Rs       0.00
-  nifty500 v1      tax allocated Rs  1,536,696.04   positive residual (should be 0) Rs       0.00
-  nifty500 v2      tax allocated Rs    698,387.90   positive residual (should be 0) Rs       0.00
-  midcap100 v1     tax allocated Rs  1,197,520.87   positive residual (should be 0) Rs       0.00
-  midcap100 v3     tax allocated Rs  1,118,811.28   positive residual (should be 0) Rs       0.00
-  midcap150 v1     tax allocated Rs  2,033,853.99   positive residual (should be 0) Rs       0.00
-  midcap150 v3     tax allocated Rs  1,808,632.47   positive residual (should be 0) Rs       0.00
-  nifty200 v3      tax allocated Rs  2,009,811.74   positive residual (should be 0) Rs       0.00
-  nifty200 v4      tax allocated Rs  1,558,812.66   positive residual (should be 0) Rs       0.00
-  nifty500 v3      tax allocated Rs  1,577,237.74   positive residual (should be 0) Rs       0.00
-  nifty500 v4      tax allocated Rs    881,990.89   positive residual (should be 0) Rs       0.00
+  nifty50 v3       tax allocated Rs    603,920.74   positive residual (should be 0) Rs       0.00
+  midcap150 v4     tax allocated Rs  1,382,507.04   positive residual (should be 0) Rs       0.00
+  smallcap250 v1   tax allocated Rs  1,418,774.88   positive residual (should be 0) Rs       0.00
+  smallcap250 v3   tax allocated Rs  2,775,237.32   positive residual (should be 0) Rs       0.00
+  nifty200 v1      tax allocated Rs  2,132,976.71   positive residual (should be 0) Rs       0.00
+  nifty500 v1      tax allocated Rs  1,571,255.15   positive residual (should be 0) Rs       0.00
+  nifty500 v2      tax allocated Rs    700,835.27   positive residual (should be 0) Rs       0.00
+  midcap100 v1     tax allocated Rs  1,232,631.03   positive residual (should be 0) Rs       0.00
+  midcap100 v3     tax allocated Rs  1,133,228.36   positive residual (should be 0) Rs       0.00
+  midcap150 v1     tax allocated Rs  2,095,819.32   positive residual (should be 0) Rs       0.00
+  midcap150 v3     tax allocated Rs  1,890,646.61   positive residual (should be 0) Rs       0.00
+  nifty200 v3      tax allocated Rs  2,105,798.38   positive residual (should be 0) Rs       0.00
+  nifty200 v4      tax allocated Rs  1,602,175.25   positive residual (should be 0) Rs       0.00
+  nifty500 v3      tax allocated Rs  1,598,746.76   positive residual (should be 0) Rs       0.00
+  nifty500 v4      tax allocated Rs    881,231.41   positive residual (should be 0) Rs       0.00
 
 Scheduled reviews in the window the membership file records (a row with changes
 between the 25th of March or September and the 5th of the next month); x = not recorded

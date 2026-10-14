@@ -21,6 +21,21 @@ comes later.
 
 ## Reading the results
 
+### Three noise-test records are superseded and are not rerun
+
+Each is a pre-registered test. Each ran on the data before the 2026-10-10 delivery
+and on the tax ledger before 2026-10-14 (no cess, no set-off, no carry-forward). A
+rerun on the current data and ledger would be a new trial, not a refresh, so the
+files keep their figures as the record of what was measured then.
+
+| record | pre-registration | ran | wall-clock |
+|---|---|---|---|
+| `diagnostics/after_tax_noise.txt`, `_runs.csv` | `experiments/AFTER_TAX_PREREG.txt` | 2026-09-25 to 09-26, 22 runs | 13.5 h (824 run-minutes) |
+| `diagnostics/four_arm_noise.txt`, `_runs.csv` | `experiments/FOUR_ARM_NOISE_PREREG.txt` | 2026-09-26 to 09-27, 44 draws | 6.8 h |
+| `diagnostics/cleaned_noise.txt`, `_runs.csv` | `experiments/CLEANED_NOISE_PREREG.txt` | 2026-09-27 to 09-29, 88 draws | 28.9 h |
+
+Wall-clock is from the first to the last `run_date` in each `_runs.csv`.
+
 ### The after-tax noise test on the cleaned prices, 2026-09-29
 
 Measured on the supplier's previous data delivery and not re-run on the 2026-10-10
@@ -70,14 +85,15 @@ that much. The registration carries a dated addendum saying so; its verdicts sta
 Every universe is today's index members applied back to 2019. The work to remove the
 bias is planned for later. What is known now (`survivorship_attribution.py`,
 `diagnostics/survivorship_attribution.txt`, an estimate, not a backtest, on the 15 cells
-the noise test supported, measured on the 2026-10-10 research tax-on run):
+the noise test supported, measured on the research tax-on run of 2026-10-14, on the
+tax ledger since 2026-10-14):
 - The supplier's membership files (`data/raw/Survivorship_Bias/`) are not point-in-time.
   Their symbols column is today's list edited backwards (the 2018 Nifty 50 rows list
   JIOFIN, listed 2023), and all nine fail `survivorship.validate`. Only their
   inclusion and exclusion events are usable, and those miss scheduled reviews: none of
   the files records the 2024-09 or 2025-03 reconstitution, and the six universes with a
   supported cell miss 6 to 9 of the 15 reviews in the window.
-- So 42% to 75% of each arm's profit is on position-days the files cannot classify.
+- So 42% to 74% of each arm's profit is on position-days the files cannot classify.
   Removing the profit they mark as held while not a member moves the gap by -1.1 to
   +1.0 points. Reading every unknown day as the events imply, which assumes no event is
   missing, moves it by -6.1 to +0.1 and leaves nifty500 v2 and v4 below zero.
@@ -319,12 +335,13 @@ current sensitivity evidence is the cleaned noise test
 
 `--profile tradeable` adds only the participation cap (`profiles.py`). Nothing replays
 the port under it (`profiles.UNGATED_NOTICE`). The figures are in
-`diagnostics/tradeable_tax_all_arms.csv`, tax on, on the 2026-10-10 data:
+`diagnostics/tradeable_tax_all_arms.csv`, tax on, on the 2026-10-10 data and the tax ledger
+since 2026-10-14:
 - The cap binds in 9 of the 32 cells of the eight original universes and changes the
   CAGR in all 9. On microcap250 it binds in all 4 cells (19, 4, 25 and 3 skipped rows,
   v1 to v4).
-- Largest changes: smallcap250 v3 -2.90 points (2 binds), microcap250 v3 -1.15 (25
-  rows) and midcap50 v3 +0.76 (1 bind). smallcap250 v3 loses -3.08 tax off,
+- Largest changes: smallcap250 v3 -2.83 points (2 binds), microcap250 v3 -1.02 (25
+  rows) and midcap50 v3 +0.75 (1 bind). smallcap250 v3 loses -3.08 tax off,
   microcap250 v3 -4.79. None is investigated.
 - Few binds does not mean small cost: 2 binds cost smallcap250 v3 almost three points.
 
@@ -380,21 +397,22 @@ numerics fix and the cleaning. Run the tradeable profile to find out.
 
 `results/test_exposure.py` deducts each year's tax without a clamp. Measured with
 `results/overdraft_measure.py` (`diagnostics/overdraft_on_tax_day.txt`), tax on, cadence
-20, both profiles, read-only, on the 2026-10-10 data:
+20, both profiles, read-only, on the 2026-10-10 data and the tax ledger since 2026-10-14
+(regenerated 2026-10-15):
 - Cash goes below zero in the same 18 of 32 cells under each profile: every v1 and v3
   cell, and v4 on nifty50 and nifty200. Each episode starts on an assessment day; a
-  cell spends 1 to 54 sessions below zero in all (median 20.5). The deepest is
-  Rs -8,09,082 (nifty500 v3, tradeable, 2024-04-01).
-- On microcap250 cash goes below zero in v1 and v3 under each profile, for 35 and 43
-  sessions, from 2025-04-01. Its v3 research cell is the deepest of all nine universes,
-  Rs -15,26,755.
+  cell spends 1 to 54 sessions below zero in all (median 23). The deepest is
+  Rs -8,74,658 (nifty500 v3, tradeable, 2024-04-01).
+- On microcap250 cash goes below zero in v1 and v3 under each profile, for 35 to 36 and
+  43 sessions, from 2025-04-01. Its v3 research cell is the deepest of all nine
+  universes, Rs -16,19,762.
 - While overdrawn the book buys nothing but keeps holding more than its equity, and
   with CASH_YIELD = 0.0 the negative balance costs no interest.
 - Paying the tax instead by selling a pro-rata slice of every holding at the
   assessment day's open, with the usual slippage and charges and the sale's own gain
-  taxed in the next financial year, moves the CAGR by -0.91 (nifty500 v3 research)
-  to +1.05 points (midcap100 v3 tradeable), mean -0.07 over the overdrawn cells; on
-  microcap250 by -0.80 (v3 tradeable) to +1.44 (v1 tradeable). The sign varies
+  taxed in the next financial year, moves the CAGR by -0.72 (nifty500 v3 research)
+  to +0.10 points (smallcap250 v1 research), mean -0.15 over the overdrawn cells; on
+  microcap250 by -0.77 (v3 tradeable) to +1.42 (v1 tradeable). The sign varies
   because the sale changes which names the later rebalances hold. The published
   figures are the engine's and are unchanged.
 ### Charges use the 2026-04-01 rate table for every fill since 2019; tax is dated
@@ -593,7 +611,9 @@ nt_verify cells is gated in `check_all.py`. On the previous delivery the port ve
 9 of the 16; the engine's v5/v6 files were not rebuilt on the 2026-10-10 data, so
 those 9 no longer pass. Every v5/v6 figure in the README, in
 `experiments/DRAWDOWN_STOP_RESULT.txt` and in `experiments/EXPERIMENTS.md` was measured
-on the previous delivery.
+on the previous delivery, and its tax-on figures on the tax ledger before 2026-10-14. The
+result is a pre-registered test and is not rerun, for the reason given under "Three
+noise-test records are superseded".
 
 ### Two checks were not rerun on the 2026-10-10 data
 
