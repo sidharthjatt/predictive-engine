@@ -68,7 +68,8 @@ WHAT THIS DOES ABOUT IT
                          other seven were green for three days.
     GATE 7  LTCG         the artefacts' claim about the long-term branch must
                          match the lots. Fails when a universe's longest hold
-                         crosses LTCG_HOLD_DAYS while HOLDING_PERIOD still says
+                         is held more than twelve calendar months while
+                         HOLDING_PERIOD still says
                          the branch does not fire. This is the gate whose absence
                          let 443- and 588-day lots appear unannounced.
     GATE 9  LIVE-LIKE    the four delegates that prove the backtest trades like
@@ -223,6 +224,11 @@ DELEGATES = (
     # limit, tax on, and the refusal on a stop arm. Every case is reconciled to
     # the paisa by cost_report. A few seconds.
     ("dd_overlay_test.py",                    ["--quiet"], False, None),
+    # The tax rules of 2026-10-14 on hand-worked cases, to the paisa: the
+    # calendar-month holding period, short loss against long gain, carry-forward
+    # with its 8-year limit and oldest-first order, the 4% cess, and the engine's
+    # Ledger carrying a loss forward. A second.
+    ("tax_rules_test.py",                     ["--quiet"], False, None),
 
     # Cheap, and each already carries an exit status.
     ("results/leakage_check1_causality.py",   [], False, None),
@@ -1226,7 +1232,7 @@ def gate_ltcg(res, sel, since=None):
 
     So the assertion here is deliberately the one the prose promised:
 
-        max_holding_days(lots) >= LTCG_HOLD_DAYS  =>  the artefact must SAY SO
+        any lot held more than twelve calendar months  =>  the artefact must SAY SO
 
     and it is asserted against `tax_report.holding_period`, the producer, not
     against a file. A file can be stale; the producer is what the next run will
@@ -1296,25 +1302,26 @@ def gate_ltcg(res, sel, since=None):
         checked += 1
 
         mx = T.max_holding_days(lots)          # THE CALL SITE. Do not remove it.
-        fires = mx >= T.LTCG_HOLD_DAYS
+        # the count must come from the same predicate that routes the lot: held
+        # more than twelve calendar months (tax_util.long_term_mask, 2026-10-14)
+        routed = int(T.long_term_mask(lots).sum())
+        fires = routed > 0
         row = TR.holding_period(lots).iloc[0]
         note = str(row["note"]).lower()
         says_fires = "fires" in note
         says_not = "does not fire" in note
 
-        # the count must come from the same predicate that routes the lot
-        routed = int((lots["held_days"] >= T.LTCG_HOLD_DAYS).sum())
         if int(row["lots_long_term"]) != routed:
             res.fail("GATE 7 ltcg", f"{t} lots_long_term",
                      f"artefact counts {int(row['lots_long_term'])} long lots, the "
-                     f"routing predicate (held_days >= {T.LTCG_HOLD_DAYS}) finds "
-                     f"{routed}. The count and the bucket disagree, which means "
-                     f"LTCG may be charged at STCG rates or the reverse.")
+                     f"routing predicate (more than {T.LTCG_HOLD_MONTHS} calendar "
+                     f"months) finds {routed}. The count and the bucket disagree, "
+                     f"which means LTCG may be charged at STCG rates or the reverse.")
 
         if fires and (says_not or not says_fires):
             res.fail("GATE 7 ltcg", f"{t} HOLDING_PERIOD note",
-                     f"longest hold is {mx} days, which is >= LTCG_HOLD_DAYS="
-                     f"{T.LTCG_HOLD_DAYS}, and {routed} lot(s) took the long "
+                     f"longest hold is {mx} days and {routed} lot(s) were held more "
+                     f"than {T.LTCG_HOLD_MONTHS} calendar months and took the long "
                      f"branch -- but the note still claims the branch does not "
                      f"fire:\n      {row['note']}\n"
                      f"      headroom_days={int(row['headroom_days'])} in the same "
@@ -1323,8 +1330,8 @@ def gate_ltcg(res, sel, since=None):
                      f"margin. See tax_report.holding_period.")
         elif not fires and says_fires:
             res.fail("GATE 7 ltcg", f"{t} HOLDING_PERIOD note",
-                     f"longest hold is {mx} days, under LTCG_HOLD_DAYS="
-                     f"{T.LTCG_HOLD_DAYS}, but the note claims the branch fires:"
+                     f"no lot was held more than {T.LTCG_HOLD_MONTHS} calendar months "
+                     f"(longest {mx} days), but the note claims the branch fires:"
                      f"\n      {row['note']}")
         else:
             res.note(f"GATE 7  {t}: max hold {mx}d, "
@@ -1340,7 +1347,7 @@ def gate_ltcg(res, sel, since=None):
             try:
                 disk = read_table(onf).iloc[0]
                 dn = str(disk["note"]).lower()
-                if (int(disk["max_held_days"]) >= T.LTCG_HOLD_DAYS) and \
+                if (int(disk["lots_long_term"]) > 0) and \
                         "does not fire" in dn:
                     stale.append(f"{t}/{onf.name}")
             except Exception:

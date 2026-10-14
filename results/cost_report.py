@@ -67,8 +67,9 @@ CHARGES = (("brokerage", "brokerage"), ("stt_ctt", "STT"), ("exchange_txn", "exc
 # The tax reference document's own list of what the tax model does not do
 # (data/reference/TAX_AND_CHARGES.docx, section 5), one line each.
 TAX_LEAVES_OUT = (
-    "No cess or surcharge: the 4% health and education cess and any surcharge are not added, so tax is understated by at least 4%.",
-    "No loss carry-forward: a net-loss year pays nil and the loss is discarded, where the law carries it forward for 8 years.",
+    "No surcharge: it depends on the person's total income. The 4% cess is charged (since 2026-10-14).",
+    "No basic exemption limit: the portfolio is taxed as if the person's other income used it up.",
+    "Losses carry forward 8 years (since 2026-10-14), assuming every return is filed on time, which carry-forward requires.",
     "No s.112A grandfathering: no cost step-up to the 31-Jan-2018 value; the window starts in 2019, so nothing is affected.",
     "No advance tax: each year is paid as one lump sum on its assessment day, not in quarterly instalments.",
     "The LTCG exemption is really per person across all holdings; here the portfolio gets the whole of it.",
@@ -159,11 +160,13 @@ def replay_ledger(fills, dates):
 def tax_years(lots, dates, when, tax_on):
     """One row per financial year of the window, with every intermediate the rules use."""
     buckets = T.realized_buckets(lots)
+    # ONE PASS IN ASCENDING YEARS, so losses carry forward as the engine's ledger
+    # carries them (tax_util.assess_years).
+    assessed = T.assess_years(buckets, {T.financial_year(d) for d in dates})
     rows = []
     for fy in sorted({T.financial_year(d) for d in dates}):
         b = buckets.get(fy, dict.fromkeys(T.BUCKETS, 0.0))
-        t = T.tax_for_fy(fy, b)
-        ltcg_pos = max(t["ltcg_net"], 0.0)
+        t = assessed[fy]
         r = {"fy": T.fy_label(fy), "tax": "on" if tax_on else "off",
              **{k: b[k] for k in T.BUCKETS},
              "stcg_net": t["stcg_net"], "stcg_taxable": t["stcg_taxable"],
@@ -172,18 +175,22 @@ def tax_years(lots, dates, when, tax_on):
              "stcg_new_taxed": t["stcg_new_taxed"], "stcg_new_rate": T.STCG_RATE["new"],
              "stcg_new_tax": t["stcg_new_taxed"] * T.STCG_RATE["new"],
              "stcg_tax": t["stcg_tax"],
-             "ltcg_net": t["ltcg_net"], "exemption_available": t["exemption"],
-             "exemption_used": min(ltcg_pos, t["exemption"]),
+             "stcl_set_off_vs_ltcg": t["stcl_set_off_vs_ltcg"],
+             "bf_short_used": t["bf_short_used"], "bf_long_used": t["bf_long_used"],
+             "cf_short_added": t["cf_short_added"], "cf_long_added": t["cf_long_added"],
+             "ltcg_net": t["ltcg_net"], "ltcg_after_set_off": t["ltcg_after_set_off"],
+             "exemption_available": t["exemption"],
+             "exemption_used": t["exemption_used"],
              "ltcg_taxable": t["ltcg_taxable"],
              "ltcg_old_taxed": t["ltcg_old_taxed"], "ltcg_old_rate": T.LTCG_RATE["old"],
              "ltcg_old_tax": t["ltcg_old_taxed"] * T.LTCG_RATE["old"],
              "ltcg_new_taxed": t["ltcg_new_taxed"], "ltcg_new_rate": T.LTCG_RATE["new"],
              "ltcg_new_tax": t["ltcg_new_taxed"] * T.LTCG_RATE["new"],
-             "ltcg_tax": t["ltcg_tax"], "total_tax": t["total_tax"],
+             "ltcg_tax": t["ltcg_tax"], "cess": t["cess"], "total_tax": t["total_tax"],
              "deducted_on": when.get(fy), "net_loss_year": (t["stcg_net"] + t["ltcg_net"]) < 0}
         if not tax_on:
             for k in ("stcg_old_tax", "stcg_new_tax", "stcg_tax", "exemption_used",
-                      "ltcg_old_tax", "ltcg_new_tax", "ltcg_tax", "total_tax"):
+                      "ltcg_old_tax", "ltcg_new_tax", "ltcg_tax", "cess", "total_tax"):
                 r[k] = 0.0
             r["deducted_on"] = None
         rows.append(r)
@@ -316,7 +323,7 @@ def bh_costs(px, op, bd, start_capital, tax_on):
         proceeds += q * sp
         gain += q * (round(sp, 2) - round(pr, 2))
     bucket = dict.fromkeys(T.BUCKETS, 0.0)
-    bucket[("long_" if (dN - d0).days >= T.LTCG_HOLD_DAYS else "short_") + T.regime_of(dN)] = gain
+    bucket[("long_" if T.is_long_term(d0, dN) else "short_") + T.regime_of(dN)] = gain
     tx = T.tax_for_fy(T.financial_year(dN), bucket)
     held_final = cash + float((px.loc[bd, list(r["shares"])].ffill().iloc[-1]
                                * np.array([q for q, _ in r["shares"].values()], dtype=float)).sum())
@@ -333,7 +340,7 @@ def bh_costs(px, op, bd, start_capital, tax_on):
             "held_final": held_final, "sell_charges": sell, "sell_slippage": sell_slip,
             "tax": tx["total_tax"] if tax_on else 0.0, "stcg_tax": tx["stcg_tax"] if tax_on else 0.0,
             "ltcg_tax": tx["ltcg_tax"] if tax_on else 0.0,
-            "exemption_used": min(max(tx["ltcg_net"], 0.0), tx["exemption"]) if tax_on else 0.0,
+            "exemption_used": tx["exemption_used"] if tax_on else 0.0,
             "sold_final": sold_final if tax_on else sold_final + tx["total_tax"],
             "tax_if_on": tx["total_tax"]}
 

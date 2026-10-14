@@ -180,8 +180,10 @@ def main():
                     raise SystemExit(f"ABORT: {tag} {arm.name} {profile}: no forced sale, "
                                      f"yet the variant's curve differs from the engine's")
                 led = a1["tax"]["ledger"]
-                unpaid = sum(T.tax_for_fy(fy, b)["total_tax"] for fy, b in led.realized.items()
-                             if fy not in led.assessed)
+                import copy
+                _cf = copy.deepcopy(led.cf)
+                unpaid = sum(T.tax_for_fy(fy, led.realized[fy], _cf)["total_tax"]
+                             for fy in sorted(led.realized) if fy not in led.assessed)
                 rows.append({
                     "universe": tag, "arm": arm.name, "profile": profile,
                     "published_cagr": round(cagr(eq0), 4), "tax_paid_by_selling_cagr": round(cagr(eq1), 4),

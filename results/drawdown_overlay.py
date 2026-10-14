@@ -189,8 +189,8 @@ def marginal_tax(ledger_rows, dd_row_ids):
     keep = df[[i not in dd_row_ids for i in range(len(df))]]
 
     def total(lots):
-        return sum(T.tax_for_fy(fy, b)["total_tax"]
-                   for fy, b in T.realized_buckets(lots).items())
+        return sum(t["total_tax"]
+                   for t in T.assess_years(T.realized_buckets(lots)).values())
     return total(df) - total(keep)
 
 

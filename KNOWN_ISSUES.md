@@ -132,6 +132,12 @@ and STEP 17 (`run.PIT_NOT_RUN`), and check_all lists every pit cell as not cover
 
 No `--dd` setting has been validated, and none may be used to choose a live setting.
 
+Every `--dd` figure recorded so far (the runs of 2026-10-13 and 2026-10-14) used the
+tax ledger before the 2026-10-14 rules (no carry-forward, no cess, 365-day holding
+period). Their tax-off figures are unaffected; their tax-on figures, including the
+midcap150 v3 and nifty50 v1 pit tax-on cells and the limit's marginal tax, are on the
+old rules and were not rerun.
+
 The Nautilus port runs the limit (`nautilus/nt_strategy.py`, through the same
 `results/drawdown_overlay.py` the engine uses), and `nt_verify.py --dd=L` compares it
 with the engine at research profile, tax off, static. Every other `--dd` cell is
@@ -440,11 +446,38 @@ investable buy & hold held to the end and sold on the last day.
   profile adds only the participation cap.
 - Charges are the itemised Zerodha delivery rates in `results/qbeast_in_charges.py`.
   The charges section of `data/reference/TAX_AND_CHARGES.docx` (flat 0.11%, 4.5% cash
-  yield, no DP charge) is out of date and is kept as a reference copy; its tax rules
-  are the ones used.
+  yield, no DP charge) is out of date and is kept as a reference copy. Its tax rules
+  were the ones used until 2026-10-14; since then four of them are replaced (next
+  entry).
 - The report rounds as the engine does. The engine's prices are numpy floats, and
   round() on 1607.585 gives 1607.58 there and 1607.59 on a Python float; the buy & hold
   (`bh_held`) uses Python floats.
+
+### The tax rules since 2026-10-14, and what is still left out
+
+The reference document departed from the Income-tax Act for listed equity in four
+places, and on 2026-10-14 the ledger (`results/tax_util.py`) was changed to follow the
+Act. Every tax-on figure before that date was computed without them; see
+experiments/EXPERIMENTS.md for old against new.
+
+- Holding period: long-term only when a lot is held more than twelve calendar months
+  (sold after the buy date plus 12 months), not `held_days >= 365`.
+- Within a year: a net short-term loss is set off against long-term gains.
+- Carry-forward: a net short-term loss carries forward up to 8 financial years against
+  later short- and long-term gains; a net long-term loss up to 8 years against later
+  long-term gains only; oldest loss first; set off before the LTCG exemption.
+- Cess: 4% health and education cess on the tax.
+
+`tax_rules_test.py` (in check_all) checks each rule on a hand-worked case to the paisa.
+
+Still left out:
+- Surcharge. It depends on the person's total income, which a backtest does not know.
+- The basic exemption limit. The portfolio is taxed as if the person's other income
+  used it up.
+- Advance-tax instalments. Each year is paid as one lump sum on its assessment day.
+- Carry-forward assumes every year's return is filed on time, which the Act requires
+  before a loss can be carried forward.
+- The LTCG exemption is per person across all holdings; here the portfolio gets all of it.
 
 ### How tax is settled at the window's end, and on a 31 March trading day
 

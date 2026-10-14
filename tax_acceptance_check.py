@@ -304,41 +304,41 @@ def condition_3():
     sys.path.insert(0, str(ROOT / "results"))
     import tax_util as T
 
-    dates = [pd.Timestamp("2020-01-01"), pd.Timestamp("2027-04-01")]
-    buy = pd.Timestamp("2020-01-01")
-    cases = ((364, False, "short"), (365, True, "long"), (366, True, "long"))
+    # SUPERSEDED 2026-10-14: the boundary is no longer `held_days >= 365` but
+    # MORE THAN TWELVE CALENDAR MONTHS (tax_util.is_long_term), by the owner's
+    # decision to follow the Act rather than section 3.2 of the document. The
+    # rationale above is kept as the record; the fixtures below are the new
+    # boundary, each one day either side of buy date + 12 months, and a leap-year
+    # lot the old day count got wrong.
+    cases = (
+        ("2023-01-31", "2024-01-31", False),   # exactly 12 months: not MORE than
+        ("2023-01-31", "2024-02-01", True),    # one day past
+        ("2023-03-01", "2024-02-29", False),   # 365 days, under 12 months (long by the old rule)
+        ("2023-03-01", "2024-03-01", False),   # 366 days, exactly 12 months
+        ("2023-03-01", "2024-03-02", True),
+    )
+    dates = [pd.Timestamp("2023-01-01"), pd.Timestamp("2027-04-01")]
 
-    print("\n  CONDITION 3 -- the 365-day LTCG boundary (synthetic lots)")
+    print("\n  CONDITION 3 -- the long-term boundary: more than 12 calendar months")
     ok_all = True
-    for days, want_long, want_arm in cases:
+    for b_, s_, want_long in cases:
+        buy, sell = pd.Timestamp(b_), pd.Timestamp(s_)
         led = T.Ledger(dates)
-        sell = buy + pd.Timedelta(days=days)
         led.buy("FIXTURE", 10, 100.0, buy)
         led.sell("FIXTURE", 10, 110.0, sell)
         row = led.rows[-1]
+        want_arm = "long" if want_long else "short"
         got_arm = ("long_" if row["is_long"] else "short_") + T.regime_of(sell)
-        ok = (row["is_long"] is want_long or bool(row["is_long"]) == want_long) \
-             and got_arm.startswith(want_arm)
+        ok = bool(row["is_long"]) == want_long and got_arm.startswith(want_arm)
         ok_all = ok_all and ok
-        print(f"    held {days:>3}d  is_long={str(bool(row['is_long'])):<5} "
-              f"bucket={got_arm:<11} expect {want_arm:<5} "
+        print(f"    bought {b_} sold {s_} ({(sell - buy).days}d)  is_long="
+              f"{str(bool(row['is_long'])):<5} bucket={got_arm:<11} expect {want_arm:<5} "
               f"{'PASS' if ok else 'FAIL'}")
-        assert bool(row["is_long"]) == want_long, (
-            f"LTCG boundary moved: a lot held {days} days reported "
-            f"is_long={bool(row['is_long'])}, expected {want_long}. "
-            f"tax_util.LTCG_HOLD_DAYS={T.LTCG_HOLD_DAYS}, comparison must stay "
-            f">=. Real lots now cross 365 (four of them, nifty100 and nifty50) "
-            f"but none sits AT it -- the nearest is 383 -- so nothing else in "
-            f"the tree would have caught a one-day move in the boundary.")
-        assert got_arm.startswith(want_arm), (
-            f"LTCG boundary bucket wrong: {days} days -> {got_arm}, "
-            f"expected a {want_arm}_* bucket.")
-
-    assert T.LTCG_HOLD_DAYS == 365, (
-        f"LTCG_HOLD_DAYS is {T.LTCG_HOLD_DAYS}, not 365. Section 3.2 of the "
-        f"reference document fixes it at 365 "
-        f"(is_long = held_days >= LTCG_HOLD_DAYS).")
-    print(f"    LTCG_HOLD_DAYS == 365                            PASS")
+        assert ok, (f"LTCG boundary wrong: bought {b_}, sold {s_} -> is_long="
+                    f"{bool(row['is_long'])}, expected {want_long} (more than "
+                    f"{T.LTCG_HOLD_MONTHS} calendar months).")
+    assert T.LTCG_HOLD_MONTHS == 12
+    print(f"    LTCG_HOLD_MONTHS == 12                           PASS")
     return ok_all
 
 
@@ -387,21 +387,22 @@ def condition_4():
         due += led.due_on(d, after_fills=True)
         if due:
             paid[d] = due
-    # FY2025-26: short_new +500 -> 500 x 20% = 100, assessed 2026-03-31 (a
-    #   Tuesday, inside FY2025-26, so after that day's fills).
+    # FY2025-26: short_new +500 -> 500 x 20% = 100, plus 4% cess = 104, assessed
+    #   2026-03-31 (a Tuesday, inside FY2025-26, so after that day's fills).
     # FY2026-27: short_new +1,000 - 500 = 500 -> 100; long_new 300,000 less the
-    #   Rs 1,25,000 exemption = 175,000 x 12.5% = 21,875; total 21,975, settled
-    #   on the last session 2026-05-29.
-    want = {pd.Timestamp("2026-03-31"): 100.0, pd.Timestamp("2026-05-29"): 21_975.0}
+    #   Rs 1,25,000 exemption = 175,000 x 12.5% = 21,875; 21,975 plus 4% cess =
+    #   22,854, settled on the last session 2026-05-29. (Before the cess was
+    #   charged, 2026-10-14, these were 100 and 21,975.)
+    want = {pd.Timestamp("2026-03-31"): 104.0, pd.Timestamp("2026-05-29"): 22_854.0}
     ok_a = (set(paid) == set(want)
             and all(abs(paid[d] - want[d]) < 1e-6 for d in want)
             and led.settled_at_end == {2026})
     stmt, _ = T.liability_schedule(pd.DataFrame(led.rows), dates)
     r26 = stmt[stmt["fy"] == 2026].iloc[0]
     ok_a = ok_a and bool(r26["assessed"]) and r26["assessed_basis"] == "backtest end" \
-        and abs(float(r26["total_tax"]) - 21_975.0) < 1e-6
+        and abs(float(r26["total_tax"]) - 22_854.0) < 1e-6
     print(f"    4a partial year: paid {dict((str(k.date()), round(v, 2)) for k, v in paid.items())}"
-          f"  expect {{'2026-03-31': 100.0, '2026-05-29': 21975.0}}  "
+          f"  expect {{'2026-03-31': 104.0, '2026-05-29': 22854.0}}  "
           f"{'PASS' if ok_a else 'FAIL'}")
     assert ok_a, f"end-of-window settlement: paid {paid}, expected {want}"
 
@@ -434,7 +435,7 @@ def condition_4():
         proceeds += qty[sym] * pr
         sell_tc += TE.calc_tc(pr, qty[sym], "SELL")
         gain += qty[sym] * (round(pr, 2) - round(bpx[sym], 2))
-    tax = max(gain - 125_000.0, 0.0) * 0.125     # held 393 days: long, new rate
+    tax = max(gain - 125_000.0, 0.0) * 0.125 * 1.04   # held 393 days: long, new rate, 4% cess
     last = cash + proceeds - sell_tc - tax
     ok_b = (abs(r["eq_headline"].iloc[-1] - head) < 1e-6
             and abs(r["eq_last_day"].iloc[-1] - last) < 1e-6
@@ -468,7 +469,7 @@ def condition_4():
                                             audit=a, tax_enabled=True, end_sale=end_sale,
                                             participation_cap=None)
         led = a["tax"]["ledger"]
-        want_tax = sum(T.tax_for_fy(fy, b)["total_tax"] for fy, b in led.realized.items())
+        want_tax = sum(t["total_tax"] for t in T.assess_years(led.realized).values())
         out[end_sale] = dict(held=a["summary"][-1]["n_stocks"], tax=a["tax"]["cum_tax"],
                              want=want_tax, cash=a["summary"][-1]["cash"], final=eq.iloc[-1])
     h, l = out[False], out[True]

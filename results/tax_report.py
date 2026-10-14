@@ -127,19 +127,26 @@ def holding_period(lots):
         return pd.DataFrame()
     h = lots["held_days"]
     mx = int(h.max())
-    n_long = int(lots["is_long"].sum())
-    margin = int(T.LTCG_HOLD_DAYS - mx)
+    # THE ROUTING PREDICATE: more than twelve calendar months (tax_util, 2026-10-14).
+    # headroom_days is how many more days the lot nearest the line needed to be
+    # long-term (positive), or how far past the line the furthest lot went
+    # (negative or zero).
+    line = pd.to_datetime(lots["buy_date"]) + pd.DateOffset(months=T.LTCG_HOLD_MONTHS)
+    sold = pd.to_datetime(lots["sell_date"] if "sell_date" in lots else lots["date"])
+    n_long = int(T.long_term_mask(lots).sum())
+    margin = int(((line - sold).dt.days + 1).min())
     # THE WHOLE SENTENCE IS COMPUTED, INCLUDING WHICH SENTENCE IT IS. The
     # previous version interpolated the margin into a hardcoded "does not fire",
     # so nifty50 wrote "does not fire; the margin is -223 days" -- an artefact
     # contradicting its own adjacent column. A claim beside a computed number
     # has to be computed from the same data or it will eventually disagree
     # with it.
-    if mx >= T.LTCG_HOLD_DAYS:
+    if n_long > 0:
         verb = "is" if n_long == 1 else "are"
         claim = (f"the long-term branch FIRES on this window: {n_long} of "
-                 f"{len(lots)} lots {verb} held {T.LTCG_HOLD_DAYS} days or longer, "
-                 f"the longest {mx} days, and LTCG_RATE applies to those lots")
+                 f"{len(lots)} lots {verb} held more than {T.LTCG_HOLD_MONTHS} "
+                 f"calendar months, the longest {mx} days, and LTCG_RATE applies to "
+                 f"those lots")
     else:
         claim = (f"the long-term branch does not fire on this window; the "
                  f"margin is {margin} days")
@@ -149,7 +156,7 @@ def holding_period(lots):
         "mean_held_days": round(float(h.mean()), 2),
         "median_held_days": float(h.median()),
         "p95_held_days": float(h.quantile(0.95)),
-        "long_term_threshold_days": T.LTCG_HOLD_DAYS,
+        "long_term_rule": f"held more than {T.LTCG_HOLD_MONTHS} calendar months",
         "lots_long_term": n_long,
         "headroom_days": margin,
         "note": claim + (" -- EMPIRICAL, not structural: a cadence or buffer "

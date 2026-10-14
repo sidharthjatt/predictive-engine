@@ -68,7 +68,7 @@ def held_lots(px, op, bd):
     fy = T.financial_year(dN)
     reg = T.regime_of(dN)
     b = dict.fromkeys(T.BUCKETS, 0.0)
-    b[("long_" if held_days >= T.LTCG_HOLD_DAYS else "short_") + reg] = gain
+    b[("long_" if T.is_long_term(d0, dN) else "short_") + reg] = gain
     tx = T.tax_for_fy(fy, b)
     eq_last_day = eq_headline.copy()
     eq_last_day.iloc[-1] = cash + proceeds - sell_tc - tx["total_tax"]

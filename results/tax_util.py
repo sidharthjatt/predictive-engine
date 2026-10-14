@@ -149,6 +149,9 @@ WHAT IS NOT MODELLED -- section 3(D), carried over verbatim in substance
     Carry-forward of a net loss: a net-loss year pays nil and the loss is
     DISCARDED, not carried forward. The code floors at zero and resets each
     financial year. Also absent: surcharge and cess (understates tax by >= 4%),
+    [SUPERSEDED 2026-10-14: losses are now carried forward and set off, and the
+    4% cess is charged; see THE 2026-10-14 RULES below. The paragraph is kept as
+    the record of what the figures before that date assumed.]
     s.112A grandfathering for pre-31-Jan-2018 acquisitions, and quarterly
     advance tax. The portfolio is treated as a standalone taxpayer, though the
     exemption is really per person across all holdings.
@@ -170,7 +173,26 @@ import pandas as pd
 # SECTION 3, ITEMS 1-8. Every constant below is the document's, not a default.
 # ---------------------------------------------------------------------------
 CGT_REGIME_CHANGE = pd.Timestamp("2024-07-23")   # item 8, the transfer-date cut
-LTCG_HOLD_DAYS = 365                             # item 7, is_long = held >= 365
+
+# ---------------------------------------------------------------------------
+# THE 2026-10-14 RULES, decided by the owner where the document departs from
+# the Income-tax Act for listed equity under s.111A/112A:
+#   holding period  long-term only when held MORE THAN TWELVE CALENDAR MONTHS
+#                   (sale date after the buy date plus 12 months), not a day
+#                   count; the document's `held_days >= 365` is retired.
+#   within a year   a net short-term loss is set off against long-term gains.
+#   carry-forward   a net short-term loss carries forward up to 8 financial
+#                   years against later short- and long-term gains; a net
+#                   long-term loss up to 8 years against later long-term gains
+#                   only; oldest loss first; set off before the LTCG exemption.
+#   cess            4% health and education cess on the tax.
+# STILL LEFT OUT: surcharge (it depends on the person's total income), the basic
+# exemption limit, advance-tax instalment timing; the timely return filing that
+# carry-forward requires is assumed. See KNOWN_ISSUES.md.
+# ---------------------------------------------------------------------------
+LTCG_HOLD_MONTHS = 12
+CARRY_FORWARD_YEARS = 8
+CESS_RATE = 0.04
 
 # item 1-4, keyed on the SALE DATE via regime_of()
 STCG_RATE = {"old": 0.15,  "new": 0.20}
@@ -182,6 +204,60 @@ LTCG_EXEMPTION_NEW = 125_000.0     # FY >= 2024
 LTCG_EXEMPTION_FY_CUT = 2024
 
 BUCKETS = ("short_old", "short_new", "long_old", "long_new")
+
+
+def is_long_term(buy_date, sale_date):
+    """True when the lot was held MORE than twelve calendar months: sold after the
+    buy date plus 12 months. Bought 2023-01-31: 2024-01-31 is short, 2024-02-01 long."""
+    return pd.Timestamp(sale_date) > (pd.Timestamp(buy_date)
+                                      + pd.DateOffset(months=LTCG_HOLD_MONTHS))
+
+
+def long_term_mask(lots):
+    """is_long_term over a lots frame with buy_date and sell_date columns."""
+    b = pd.to_datetime(lots["buy_date"])
+    s = pd.to_datetime(lots["sell_date"] if "sell_date" in lots else lots["date"])
+    return s > b + pd.DateOffset(months=LTCG_HOLD_MONTHS)
+
+
+class CarryForward:
+    """Losses brought forward, by the financial year they arose in.
+
+    short  usable against later short-term, then long-term gains
+    long   usable against later long-term gains only
+    A loss from year f may be set off in years f+1 to f+8; the oldest goes first.
+    The caller assesses years in ascending order with one instance.
+    """
+
+    def __init__(self):
+        self.pools = {"short": [], "long": []}     # [fy, amount] each
+        self.last_fy = None
+
+    def start(self, fy):
+        if self.last_fy is not None and fy <= self.last_fy:
+            raise ValueError(f"carry-forward: FY {fy} assessed after FY {self.last_fy}; "
+                             f"years must be assessed in ascending order")
+        self.last_fy = fy
+        for k in self.pools:
+            self.pools[k] = [p for p in self.pools[k]
+                             if fy - p[0] <= CARRY_FORWARD_YEARS and p[1] > 0]
+
+    def use(self, kind, need):
+        got = 0.0
+        for p in self.pools[kind]:
+            if got >= need:
+                break
+            t = min(p[1], need - got)
+            p[1] -= t
+            got += t
+        return got
+
+    def add(self, kind, fy, amount):
+        if amount > 0:
+            self.pools[kind].append([fy, amount])
+
+    def balance(self):
+        return {k: sum(p[1] for p in v) for k, v in self.pools.items()}
 
 
 def financial_year(ts):
@@ -263,7 +339,7 @@ def closed_lots(path):
                 "buy_date": lot[2], "sell_date": t["date"],
                 "qty": take, "buy_price": lot[1], "sell_price": px,
                 "held_days": held,
-                "is_long": held >= LTCG_HOLD_DAYS,
+                "is_long": is_long_term(lot[2], t["date"]),
                 "regime": regime_of(t["date"]),
                 "fy": financial_year(t["date"]),
                 "gain": take * (px - lot[1]),
@@ -332,44 +408,93 @@ def realized_buckets(lots):
     return out
 
 
-def tax_for_fy(fy, b):
-    """The tax owed for one financial year. Section 3.4, verbatim.
+def tax_for_fy(fy, b, cf=None):
+    """The tax owed for one financial year, and every intermediate.
 
-    Returns a dict carrying every intermediate the document names, so a reader
-    can check the arithmetic against the spec line by line instead of trusting
-    a single total.
+    `b` holds the year's realised gains in the four buckets. `cf` is the
+    CarryForward of the run, assessed in ascending years; None assesses the year
+    alone (nothing brought forward, nothing carried out), which is right for a
+    single sale. The steps, in the order the Act applies them:
+
+      1. within each head the buckets net: short_old + short_new, long_old + long_new
+      2. a net short-term loss is set off against this year's long-term gain
+      3. brought-forward short losses against short-term gains, then long-term;
+         brought-forward long losses against long-term gains; oldest first
+      4. what is left of this year's losses is carried forward
+      5. the LTCG exemption, on long-term gains left after set-off
+      6. rates by sale date (old/new), split as section 3.4 splits them
+      7. 4% cess on the tax
     """
-    # ---- STCG: no exemption, buckets net against each other -----------------
+    if cf is None:
+        cf = CarryForward()
+    cf.start(fy)
+    # 1 ---------------------------------------------------------------------
     stcg_net = b["short_old"] + b["short_new"]
-    stcg_taxable = max(stcg_net, 0.0)
+    ltcg_net = b["long_old"] + b["long_new"]
+    st_left = max(stcg_net, 0.0)
+    lt_left = max(ltcg_net, 0.0)
+    st_loss = max(-stcg_net, 0.0)
+    lt_loss = max(-ltcg_net, 0.0)
+    # 2 ---------------------------------------------------------------------
+    stcl_vs_ltcg = min(st_loss, lt_left)
+    st_loss -= stcl_vs_ltcg
+    lt_left -= stcl_vs_ltcg
+    # 3 ---------------------------------------------------------------------
+    bf_short_vs_st = cf.use("short", st_left)
+    st_left -= bf_short_vs_st
+    bf_short_vs_lt = cf.use("short", lt_left)
+    lt_left -= bf_short_vs_lt
+    bf_long_vs_lt = cf.use("long", lt_left)
+    lt_left -= bf_long_vs_lt
+    # 4 ---------------------------------------------------------------------
+    cf.add("short", fy, st_loss)
+    cf.add("long", fy, lt_loss)
+    # 5, 6 -- STCG: no exemption; the old-rate part is taken first, as before
+    stcg_taxable = st_left
     stcg_old_t = min(max(b["short_old"], 0.0), stcg_taxable)
     stcg_new_t = stcg_taxable - stcg_old_t
     stcg_tax = stcg_old_t * STCG_RATE["old"] + stcg_new_t * STCG_RATE["new"]
-
-    # ---- LTCG: annual exemption, consumed by the OLD-rate gains first -------
-    # ltcg_new_t is taken FIRST out of the taxable remainder, which is what
-    # leaves the exemption sitting against the old-rate gains. The document
-    # states the intent ("consumed by the pre-cutoff gains FIRST") and gives the
-    # formulas; the formulas are what is implemented.
+    # LTCG: the exemption on what set-off left; ltcg_new_t is taken FIRST out of
+    # the taxable remainder, which leaves the exemption against the old-rate
+    # gains (section 3.4, unchanged).
     exemption = exemption_for_fy(fy)
-    ltcg_net = b["long_old"] + b["long_new"]
-    ltcg_taxable = max(ltcg_net - exemption, 0.0)
+    exemption_used = min(lt_left, exemption)
+    ltcg_taxable = max(lt_left - exemption, 0.0)
     ltcg_new_t = min(ltcg_taxable, max(b["long_new"], 0.0))
     ltcg_old_t = ltcg_taxable - ltcg_new_t
     ltcg_tax = ltcg_old_t * LTCG_RATE["old"] + ltcg_new_t * LTCG_RATE["new"]
-
+    # 7 ---------------------------------------------------------------------
+    tax_before_cess = stcg_tax + ltcg_tax
+    cess = tax_before_cess * CESS_RATE
+    left = cf.balance()
     return {
         "fy": fy, "fy_label": fy_label(fy),
         **{k: b[k] for k in BUCKETS},
-        "stcg_net": stcg_net, "stcg_taxable": stcg_taxable,
+        "stcg_net": stcg_net, "ltcg_net": ltcg_net,
+        "stcl_set_off_vs_ltcg": stcl_vs_ltcg,
+        "bf_short_used": bf_short_vs_st + bf_short_vs_lt, "bf_long_used": bf_long_vs_lt,
+        "cf_short_added": st_loss, "cf_long_added": lt_loss,
+        "cf_short_balance": left["short"], "cf_long_balance": left["long"],
+        "stcg_taxable": stcg_taxable,
         "stcg_old_taxed": stcg_old_t, "stcg_new_taxed": stcg_new_t,
         "stcg_tax": stcg_tax,
-        "exemption": exemption,
-        "ltcg_net": ltcg_net, "ltcg_taxable": ltcg_taxable,
+        "exemption": exemption, "ltcg_after_set_off": lt_left,
+        "exemption_used": exemption_used,
+        "ltcg_taxable": ltcg_taxable,
         "ltcg_old_taxed": ltcg_old_t, "ltcg_new_taxed": ltcg_new_t,
         "ltcg_tax": ltcg_tax,
-        "total_tax": stcg_tax + ltcg_tax,
+        "tax_before_cess": tax_before_cess, "cess": cess,
+        "total_tax": tax_before_cess + cess,
     }
+
+
+def assess_years(buckets_by_fy, fys=None):
+    """{fy: tax_for_fy(...)} for every year, assessed in ascending order with one
+    CarryForward. `fys` adds years with no realised gain (they still age losses)."""
+    cf = CarryForward()
+    years = sorted(set(buckets_by_fy) | set(fys or ()))
+    return {fy: tax_for_fy(fy, buckets_by_fy.get(fy, dict.fromkeys(BUCKETS, 0.0)), cf)
+            for fy in years}
 
 
 def assess_dates(fys, trading_days):
@@ -408,7 +533,7 @@ def liability_schedule(lots, trading_days):
     anything or touches an equity curve; results/test_exposure.py moves the cash.
     """
     buckets = realized_buckets(lots)
-    rows = [tax_for_fy(fy, b) for fy, b in sorted(buckets.items())]
+    rows = list(assess_years(buckets).values())
     when = assess_dates(buckets.keys(), trading_days)
     last = pd.Timestamp(max(pd.DatetimeIndex(trading_days)))
     for r in rows:
@@ -430,8 +555,8 @@ def liability_schedule(lots, trading_days):
                 f"{r['fy_label']} on the first trading day at or after "
                 f"{due_d.date()}, outside the window. Settled on {last.date()}, "
                 f"after that day's fills, on gains realised to that date, with the "
-                f"document's netting and full annual exemption (decision of "
-                f"2026-09-25; the document is silent on a window ending mid-year).")
+                f"same set-off, carry-forward, full annual exemption and cess (decision "
+                f"of 2026-09-25; the document is silent on a window ending mid-year).")
     due = {r["assessed_on"]: r["total_tax"]
            for r in rows if r["assessed"] and r["total_tax"] > 0}
     return pd.DataFrame(rows), due
@@ -481,6 +606,10 @@ class Ledger:
         # (due_on, after_fills=True). None for an empty calendar.
         self.end = d[-1] if len(d) else None
         self.settled_at_end = set()
+        # LOSSES BROUGHT FORWARD, one pool for the run. Years are assessed in
+        # ascending order (each on its own due date, the rest at the end), which
+        # CarryForward.start enforces.
+        self.cf = CarryForward()
         self.assess_on = {}
         for fy in sorted({financial_year(x) for x in d}):
             later = d[d >= pd.Timestamp(year=fy + 1, month=3, day=31)]
@@ -499,12 +628,13 @@ class Ledger:
             held = (date - lot[2]).days
             g = take * (float(price) - lot[1])
             fy = financial_year(date)
-            key = ("long_" if held >= LTCG_HOLD_DAYS else "short_") + regime_of(date)
+            is_long = is_long_term(lot[2], date)
+            key = ("long_" if is_long else "short_") + regime_of(date)
             self.realized.setdefault(fy, dict.fromkeys(BUCKETS, 0.0))[key] += g
             self.rows.append({
                 "symbol": sym, "buy_date": lot[2], "sell_date": date,
                 "qty": take, "buy_price": lot[1], "sell_price": float(price),
-                "held_days": held, "is_long": held >= LTCG_HOLD_DAYS,
+                "held_days": held, "is_long": is_long,
                 "regime": regime_of(date), "fy": fy, "gain": g})
             gain += g
             lot[0] -= take
@@ -550,7 +680,7 @@ class Ledger:
             self.assessed.add(fy)
             b = self.realized.get(fy)
             if b:
-                total += tax_for_fy(fy, b)["total_tax"]
+                total += tax_for_fy(fy, b, self.cf)["total_tax"]
         # SETTLEMENT AT THE BACKTEST END, 2026-09-25. On the last session, after
         # its fills, every financial year with realised gains that section 3(9)
         # would assess after the window is settled now, on what was realised by
@@ -561,7 +691,7 @@ class Ledger:
                     continue
                 self.assessed.add(fy)
                 self.settled_at_end.add(fy)
-                total += tax_for_fy(fy, self.realized[fy])["total_tax"]
+                total += tax_for_fy(fy, self.realized[fy], self.cf)["total_tax"]
         return total
 
     def leaked(self):
