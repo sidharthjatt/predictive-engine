@@ -365,7 +365,9 @@ What is still uncapped: a symbol whose own price file has fewer than 20 sessions
 a fill has no median, and `_participation_limit` returns None for it, so that fill goes
 through uncapped and nothing is logged (results/test_exposure.py:112-131). The impact
 model (`slippage.impact`) exempts the same fills explicitly and counts them
-(`slippage.first_priced_date`, `resolve`). The cap does not count them.
+(`slippage.first_priced_date`, `resolve`). The cap does not count them. Measured
+2026-10-15 on nifty200 v3, nifty200 v1 and midcap100 v1 (pit, tradeable, tax on,
+Rs 10 lakh): no fill falls in this case (0 of 826, 842 and 782 fills).
 
 ### The participation cap changes which trades happen, not only what they cost
 

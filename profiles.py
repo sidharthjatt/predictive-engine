@@ -124,7 +124,7 @@ def participation_cap():
     return PROFILES[selected()]["participation_cap"]
 
 
-def cap_kwargs(u):
+def cap_kwargs(u, vol20=None):
     """The participation-cap keywords for backtest_exposure on universe `u`.
 
     {"participation_cap": None} under research; the cap plus vol20 -- the
@@ -142,6 +142,11 @@ def cap_kwargs(u):
     same vol20, so every caller that honours the cap honours --impact. The key is
     added only when --impact is non-zero, so a default call is unchanged; under
     research a non-zero k is refused rather than dropped.
+
+    `vol20`, when given, is a series this function returned earlier for the same
+    universe; it is reused instead of reading every price file again. Only a
+    caller that runs many settings on one universe (results/impact_sweep.py)
+    passes it.
     """
     import impact_axis as _imp
     cap = participation_cap()
@@ -151,9 +156,10 @@ def cap_kwargs(u):
     import config as _cfg
     import tradability as _tr
     from engine_core import _load_calendar
-    kw = {"participation_cap": cap,
-          "vol20": _tr.median_volume(u.prepare_data_dir(), _load_calendar(),
-                                     _cfg.BT_START_DATE, _cfg.BT_END_DATE)}
+    if vol20 is None:
+        vol20 = _tr.median_volume(u.prepare_data_dir(), _load_calendar(),
+                                  _cfg.BT_START_DATE, _cfg.BT_END_DATE)
+    kw = {"participation_cap": cap, "vol20": vol20}
     if not _imp.is_default():
         kw["impact_k"] = _imp.impact_k()
     return kw
