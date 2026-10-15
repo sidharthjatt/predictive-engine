@@ -259,6 +259,10 @@ cleaning (Spearman -0.19, p 0.29, 32 cells; no tracked script computes it).
 
 The difference between the two does not have one sign. On the 2026-10-10 data the investable basket beats the reference in midcap50 (25.97 against 23.72) and, narrowly, in smallcap250 (26.60 against 26.56). It trails in the other six, by 0.53 (nifty100) to 1.77 points (midcap100). Take the benchmark from the same table as the arm's figure. Moving a figure between the tables changes the gap by up to 2.3 points, and none of that change comes from the strategy.
 
+**The reference basket favours itself.** Its label is "buy & hold equal-weight", but it is not held. Each day it earns the mean of its members' daily returns (`results/v34_common.py:676`), which is the same as rebalancing to equal weight every day. It is charged no costs at all, on any day. The strategy pays every charge, all slippage and, under `--impact`, impact. Every gap against the reference basket is therefore tilted toward the basket. The label is left unchanged so that the default outputs and their hash proofs stay the same.
+
+**Where the reference basket starts.** Its first value is the starting capital times one plus the first window day's move from the session before: the mean close-to-close return across its members. On microcap250 pit, which starts on 2021-10-29, that move is -0.2567%, so the curve starts at 997,432.88 instead of 1,000,000. Its CAGR is measured from that first value, so it effectively starts at the first window day's close, as the strategy does; the strategy holds cash that day and first buys at the next open. Measured from the starting capital instead, the basket CAGR would change by at most 0.12 points (median 0.02) across 537 finished runs, measured 2026-10-16. The basket also earns the first night's gap, from that close to the next open, which the strategy misses because it buys at the open.
+
 ### v2 and v4 trade return for drawdown, and no published comparison separates the two
 
 The breadth rule (v2, v4) moves the book to cash when breadth collapses. The same rule produces the shallower drawdown and misses the rebound days after a crash. On the 2026-10-10 data (research, tax off, n=1), v2 has lower CAGR and shallower MaxDD than v1 in all eight universes. Example: nifty100 v1 26.55% / -32.23%, v2 21.82% / -19.33%.
@@ -382,6 +386,18 @@ Channel 3 does not imply a gain: two of the three cells where it appeared then f
 behind. Which channel drives today's midcap100 v1 gain (+0.43 tax on) has not been
 checked. All of this moves with capital. Count the `participation cap` rows in a run's
 own `daily_skipped` before repeating any of it.
+
+### Capital ladder: neighbouring impact values differ by up to about 0.5 points from the trade path alone
+
+In `diagnostics/capital_ladder_20261015.csv` (270 rows: nifty200 v1 and v3, midcap100
+v1, pit, tradeable, tax on), 13 rows show CAGR rising as k rises within the same cell,
+capital and cap. Extra impact cost cannot cause that. A different k changes fill prices,
+which changes which trades happen afterwards. The largest rise is 0.46 points (nifty200
+v1, Rs 2 crore, cap 1: k 0.003 gives 31.97, k 0.005 gives 32.43). One example: nifty200
+v3, Rs 25 lakh, cap 1. The k 0.003 row gives 36.74, above k 0.002 (36.54) and equal to
+k 0. Its run did charge impact at 0.003: its `params.json` has `impact_k` 0.003, and all
+820 of its fills paid impact, Rs 1,86,832 in total. So a gap of about half a point between
+neighbouring k values is noise. Checked 2026-10-16 against all 270 rows.
 
 ### liquidity_participation.py cannot say a cell is unaffected by the cap
 
