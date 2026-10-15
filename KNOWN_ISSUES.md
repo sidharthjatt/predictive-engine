@@ -392,8 +392,10 @@ no executed fill reaches the cap. It does not mean the tradeable run equals the
 research run: on 2026-09-22 nifty100 v1 scored 0 and still diverged. A non-zero count
 does prove divergence. A correct predicate needs intended share counts, and no artefact
 records them: `daily_skipped` gives the rupee need for a cash-short skip and no
-quantity. `diagnostics/participation_predicate.csv` is from 2026-09-22, before the
-numerics fix and the cleaning. Run the tradeable profile to find out.
+quantity. `diagnostics/participation_predicate.csv` was regenerated 2026-10-15 on the
+2026-10-10 data: 13 of 36 cells have an executed research fill at or over the cap of
+1.00 (6 of 32 before, on older data and without microcap250). Run the tradeable profile
+to find out.
 
 ### Tax deductions overdraw cash in 18 of 32 taxed cells, and the overdraft is free
 

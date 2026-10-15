@@ -16,8 +16,9 @@ ONE DEFINITION, AND IT IS THE CAP'S
     symbol's own file with volume > 0, taking whatever was there even if fewer than
     20. tradability.median_volume, which the participation cap actually consumes,
     does something different: rolling(20).median().shift(1) over the trading
-    calendar, inside the backtest window, with no volume > 0 filter and no result
-    at all until 20 sessions exist.
+    calendar, with no volume > 0 filter and no result until 20 sessions exist. Since
+    2026-10-14 it reads the 20 sessions before the window start, so a fill in the
+    window's first 20 sessions has a median too.
 
     Both called themselves "prior-20-session median volume" and they are not the
     same number. Measured 2026-09-20 on the midcap150 tradeable arms: they differ
@@ -37,10 +38,10 @@ ONE DEFINITION, AND IT IS THE CAP'S
     symbol folder is prepare_data_dir(), the constituents the cap reads, not
     raw_data_dir, which carries the index file as well.
 
-    diagnostics/liquidity_participation.txt ON DISK PREDATES THIS CHANGE. Its
-    figures, including the 1,614.52% quoted in EXPERIMENTS.md and DRAWDOWN_EXIT_
-    SPEC.txt, were produced by the old definition. Regenerate before citing them
-    again.
+    diagnostics/liquidity_participation.txt is this script's printed output,
+    regenerated 2026-10-15 on the 2026-10-10 data with the opening-purchase fix.
+    The 1,614.52% quoted in EXPERIMENTS.md and DRAWDOWN_EXIT_SPEC.txt came from
+    the old definition and older data; it is not in the current file.
 
 WHAT PARTICIPATION MEANS HERE
     order quantity / median daily volume over the prior N sessions, as a
@@ -371,8 +372,9 @@ def main():
     print("=" * 108)
     print(f" Generated {pd.Timestamp.today().date()} at commit {_commit}.")
     print(" MEDIAN VOLUME IS tradability.median_volume, the one the participation cap")
-    print(" consumes: rolling(20).median().shift(1) over the trading calendar, inside")
-    print(" the backtest window, no volume>0 filter, no value until 20 sessions exist.")
+    print(" consumes: rolling(20).median().shift(1) over the trading calendar, reading")
+    print(" the 20 sessions before the window start, no volume>0 filter, no value until")
+    print(" a symbol's own file has 20 sessions.")
     print(" This file previously used a different median of its own -- last 20 dated")
     print(" rows with volume>0, however few -- and the two disagree by more than 1% on")
     print(" about a fifth of fills. Figures below are NOT comparable to a copy of this")
@@ -418,9 +420,9 @@ def main():
         print(f"  fills measured {len(f):,} | symbols {f['symbol'].nunique()} | "
               f"window {f['date'].min().date()} -> {f['date'].max().date()}")
         print(f"  fills with a 20-session median: {int(f['med20'].notna().sum()):,} | "
-              f"60-session: {int(f['med60'].notna().sum()):,}. A fill inside the first "
-              f"20 (or 60) sessions of the window has none, and the cap does not fire "
-              f"on it either.")
+              f"60-session: {int(f['med60'].notna().sum()):,}. A fill with fewer than "
+              f"20 (or 60) earlier sessions in its symbol's file has none, and the cap "
+              f"does not fire on it either.")
 
         for cap, lab in CAPITALS:
             mult = cap / 1_000_000

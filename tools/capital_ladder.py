@@ -58,6 +58,9 @@ def main():
     ap.add_argument("--capitals", required=True)
     ap.add_argument("--impacts", default="0")
     ap.add_argument("--pcaps", default="1.0")
+    ap.add_argument("--append", action="store_true",
+                    help="merge into today's file: rows for the same cell, capital, k and "
+                         "cap are replaced, every other row is kept")
     a = ap.parse_args()
     cells = [tuple(c.split(":")) for c in a.cells.split(",")]
     caps = [int(x) for x in a.capitals.split(",")]
@@ -121,6 +124,12 @@ def main():
                     "max_order_pct_adv": best, "max_order": where})
     df = pd.DataFrame(rows)
     out = ROOT / "diagnostics" / f"capital_ladder_{time.strftime('%Y%m%d')}.csv"
+    if a.append and out.exists():
+        key = ["universe", "arm", "capital", "impact_k", "pcap"]
+        old = read_table(out)
+        keep = old.merge(df[key], on=key, how="left", indicator=True)
+        old = old[(keep["_merge"] == "left_only").to_numpy()]
+        df = pd.concat([old, df], ignore_index=True)
     # naming: axis-free -- one measurement over named cells; capital is a column
     df.to_csv(out, index=False, float_format="%.4f")
     print(df.to_string(index=False))

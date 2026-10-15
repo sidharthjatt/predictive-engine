@@ -1448,10 +1448,11 @@ the script were deleted on 2026-09-11, so **this figure cannot be regenerated an
 equivalent exists for any current universe.** See `git show
 50562ed:RETIRED_UNIVERSES.md`.*
 
-**midcap150 holds positions it could not have bought.** Re-measured 2026-09-20 at
-the backtest's own Rs 10,00,000: **12 of 998 fills** with a prior-20-session median
-exceed 10% of it (n=1,006 fills in all). The worst is TATAINVEST on 2019-12-26 at
-**34.46%**. nifty100 is cleaner: **3 of 932** above 10% (n=940). Modelling depth
+**midcap150 holds positions it could not have bought.** Re-measured 2026-10-15, on the
+2026-10-10 data, at the backtest's own Rs 10,00,000: **18 of 973 fills** with a
+prior-20-session median
+exceed 10% of it (n=973 fills in all). The worst is TATAINVEST on 2019-12-26 at
+**34.48%**. nifty100 is cleaner: **3 of 954** above 10% (n=954). Modelling depth
 properly now costs midcap150 **0.04 CAGR points**, 27.79% to 27.75%, with Sharpe
 going 1.90 to 1.89 and 11 orders walking the book (n=1,006 fills, re-run
 2026-09-20), and costs nifty100 **0.00 points**, 19.00% to 19.00%, 3 orders walking
