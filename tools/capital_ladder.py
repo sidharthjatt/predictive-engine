@@ -5,12 +5,14 @@ capital_ladder.py -- named cells at several starting capitals, from their run ar
         --capitals 500000,1000000,2500000,5000000,10000000,20000000,50000000
 
 Reads the artefacts of `run.py --survivorship pit --profile tradeable --tax on
---capital C` runs (cadence 20, no --dd), already made; it runs nothing. Per cell
-and capital:
+--capital C [--impact K] [--cap F]` runs (cadence 20, no --dd), already made; it
+runs nothing. --impacts and --pcaps (default 0 and 1.0, the tradeable defaults)
+add those axes to the grid. Per cell, capital, k and cap:
 
     cagr, maxdd           the arm's row of v34_comparison<sfx>.csv
     cagr_minus_basket     minus that file's "buy & hold equal-weight" CAGR
     slippage, charges     COSTS_<tag>.csv, summed over every fill
+    impact                COSTS_<tag>.csv impact_rs, summed; 0 when the run had k 0
     tax                   COST_TAX_YEARS_<tag>.csv, total_tax summed
     capped_fills          daily_skipped rows with reason "participation cap"
     cash_short_skips      daily_skipped rows with reason "cash short ..."
@@ -54,9 +56,25 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--cells", required=True)
     ap.add_argument("--capitals", required=True)
+    ap.add_argument("--impacts", default="0")
+    ap.add_argument("--pcaps", default="1.0")
     a = ap.parse_args()
     cells = [tuple(c.split(":")) for c in a.cells.split(",")]
     caps = [int(x) for x in a.capitals.split(",")]
+    ks = [float(x) for x in a.impacts.split(",")]
+    pcs = [float(x) for x in a.pcaps.split(",")]
+    import capital_axis, impact_axis, pcap_axis, profiles
+    profiles.set_selection("tradeable")
+
+    def tail(cap, k, pc):
+        """The capital, impact and cap suffixes, from the axes' own composers."""
+        capital_axis.set_selection(cap)
+        impact_axis.set_selection(k)
+        pcap_axis.set_selection(pc)
+        t = capital_axis.suffix() + impact_axis.suffix() + pcap_axis.suffix()
+        capital_axis.set_selection(None); impact_axis.set_selection(None)
+        pcap_axis.set_selection(None)
+        return t
     by_u = {}
     for t, arm in cells:
         by_u.setdefault(t, []).append(arm)
@@ -65,10 +83,11 @@ def main():
         u = pit_variant(REGISTRY[tag])
         M = Path(u.metrics_dir)
         sel = "_" + "_".join(x for x in arm_reg.ARMS if x in arms)
-        for cap in caps:
-            cs = "" if cap == 1_000_000 else f"_cap{cap}"
-            # the published 10-lakh run holds all four arms (no selection suffix)
-            comp_f = M / (f"v34_comparison_tradeable_tax_pit.csv" if cap == 1_000_000
+        for pc, k, cap in ((pc, k, cap) for pc in pcs for k in ks for cap in caps):
+            cs = tail(cap, k, pc)
+            # the published run (every axis at its default) holds all four arms and
+            # has no selection suffix
+            comp_f = M / (f"v34_comparison_tradeable_tax_pit.csv" if cs == ""
                           else f"v34_comparison{sel}_tradeable_tax_pit{cs}.csv")
             comp = read_table(comp_f).set_index("Config")
             basket = float(comp.loc["buy & hold equal-weight", "CAGR%"])
@@ -88,11 +107,12 @@ def main():
                             best, where = pct, f"{r.symbol} {r.side} {r.date.date()}"
                 c = comp.loc[A.label]
                 rows.append({
-                    "universe": tag, "arm": arm, "capital": cap,
+                    "universe": tag, "arm": arm, "capital": cap, "impact_k": k, "pcap": pc,
                     "cagr": float(c["CAGR%"]), "maxdd": float(c["MaxDD%"]),
                     "cagr_minus_basket": float(c["CAGR%"]) - basket,
                     "slippage": float(costs["slippage_rs"].sum()),
                     "charges": float(costs["charges_total"].sum()),
+                    "impact": float(costs["impact_rs"].sum()) if "impact_rs" in costs else 0.0,
                     "tax": float(years["total_tax"].sum()),
                     "capped_fills": int((sk["reason"] == "participation cap").sum()),
                     "cash_short_skips": int(sk["reason"].astype(str).str.startswith("cash short").sum()),
