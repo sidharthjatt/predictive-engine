@@ -209,10 +209,10 @@ NT_VERIFY_UNGATED = (
     ("midcap100", "v3", "holds different names from the open-valued baseline on 7 of 92 rebalances from 2024-10-23"),
     # THE MARKET-CAP BUCKETS, 2026-10-16: mcapover10000 verifies on all four arms
     # (92 of 92); these eight do not.
-    ("mcap1500to5000", "v1", "INCONCLUSIVE, measured 2026-10-16: ARM A, the reference copy, holds the engine's own symbol set on 64 of 92 rebalances, so nt_verify cannot judge the port; not investigated"),
-    ("mcap1500to5000", "v2", "INCONCLUSIVE, measured 2026-10-16: ARM A, the reference copy, holds the engine's own symbol set on 65 of 92 rebalances, so nt_verify cannot judge the port; not investigated"),
-    ("mcap1500to5000", "v3", "INCONCLUSIVE, measured 2026-10-16: ARM A, the reference copy, holds the engine's own symbol set on 66 of 92 rebalances, so nt_verify cannot judge the port; not investigated"),
-    ("mcap1500to5000", "v4", "INCONCLUSIVE, measured 2026-10-16: ARM A, the reference copy, holds the engine's own symbol set on 65 of 92 rebalances, so nt_verify cannot judge the port; not investigated"),
+    ("mcap1500to5000", "v1", "INCONCLUSIVE, measured 2026-10-16 on 477 names: ARM A, the reference copy, holds the engine's own symbol set on 66 of 92 rebalances, so nt_verify cannot judge the port; not investigated"),
+    ("mcap1500to5000", "v2", "INCONCLUSIVE, measured 2026-10-16 on 477 names: ARM A, the reference copy, holds the engine's own symbol set on 67 of 92 rebalances, so nt_verify cannot judge the port; not investigated"),
+    ("mcap1500to5000", "v3", "INCONCLUSIVE, measured 2026-10-16 on 477 names: ARM A, the reference copy, holds the engine's own symbol set on 65 of 92 rebalances, so nt_verify cannot judge the port; not investigated"),
+    ("mcap1500to5000", "v4", "INCONCLUSIVE, measured 2026-10-16 on 477 names: ARM A, the reference copy, holds the engine's own symbol set on 67 of 92 rebalances, so nt_verify cannot judge the port; not investigated"),
     ("mcap5001to10000", "v1", "INCONCLUSIVE, measured 2026-10-16: ARM A, the reference copy, holds the engine's own symbol set on 86 of 92 rebalances, so nt_verify cannot judge the port; not investigated"),
     ("mcap5001to10000", "v2", "INCONCLUSIVE, measured 2026-10-16: ARM A, the reference copy, holds the engine's own symbol set on 86 of 92 rebalances, so nt_verify cannot judge the port; not investigated"),
     ("mcap5001to10000", "v3", "INCONCLUSIVE, measured 2026-10-16: ARM A, the reference copy, holds the engine's own symbol set on 83 of 92 rebalances, so nt_verify cannot judge the port; not investigated"),

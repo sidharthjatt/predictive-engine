@@ -371,9 +371,9 @@
  CHECK 1 -- FEATURE CAUSALITY -- MARKET CAP 1500 to 5000 (mcap1500to5000)
 ====================================================================================================
 
-  symbols 478   panel rows 1,411,729
+  symbols 477   panel rows 1,411,292
   dates sampled 24 spread across 2019-01-01 .. 2026-05-29
-  cells compared per feature: 24 dates x 478 symbols x 2 corruptions = 22,944
+  cells compared per feature: 24 dates x 477 symbols x 2 corruptions = 22,896
   corruption (a) replace: future rows overwritten with a synthetic random walk
   corruption (b) shuffle: future rows permuted in time within each symbol
   comparison: BIT-EXACT (np.array_equal with equal_nan)

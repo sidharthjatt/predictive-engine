@@ -1558,7 +1558,10 @@ _MICROCAP250 = Universe(
 # {k} IN THE LABEL, MEASURED 2026-10-16 from the price files: names whose last row is
 # before BT_END_DATE (2026-05-29). mcap1500to5000: CIGNITITEC 2025-12-23, SANGHIIND
 # 2026-04-02. mcap5001to10000: none. mcapover10000: GSPL 2025-12-23, AIRTELPP
-# 2026-02-05. Names starting after BT_START_DATE: 184 of 478, 79 of 216, 158 of 538.
+# 2026-02-05. Names starting after BT_START_DATE: 184 of 477, 79 of 216, 158 of 538.
+#
+# mcap1500to5000 WAS DELIVERED WITH 478 NAMES. The owner removed ELCIDIN on
+# 2026-10-16 (KNOWN_ISSUES.md); {n} is counted from the folder, so it is 477.
 _MCAP_INDEX = "NIFTY 500"
 
 

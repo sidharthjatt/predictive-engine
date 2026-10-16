@@ -290,7 +290,7 @@
  CHECK 2 (TRADING RULE) -- TRAINING MASK AND PURGE -- MARKET CAP 1500 to 5000 (mcap1500to5000)
 ====================================================================================================
 
-  panel raw_panel_mcap1500to5000_20.parquet   rows 1,411,729   symbols 478
+  panel raw_panel_mcap1500to5000_20.parquet   rows 1,411,292   symbols 477
   purge_mode from the registry: 'trading'      HORIZON = 20 TRADING rows   PURGE_EMBARGO = 2
   scoring months considered: 126   trained: 126   skipped by the engine: 0
 

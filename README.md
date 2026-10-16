@@ -318,7 +318,7 @@ pipeline trades on a price it could not have seen.
 
 ### The market-cap buckets, static only, 2026-10-16
 
-**mcap1500to5000:** STATIC AND NOT AN INDEX. The supplier delivered these 478 names as a market-cap bucket, with no membership history. Only 2 of the 478 stop trading before the window ends, so the list appears to hold the bucket's members near the time of delivery, not the members at each date. A stock that left the bucket or was delisted is likely missing; a stock that grew into it is present for the whole window. Both the strategy and its buy & hold therefore likely carry survivorship and look-ahead bias, which cannot be measured without membership files. The benchmark index is the broad NIFTY 500, not a bucket index.
+**mcap1500to5000:** STATIC AND NOT AN INDEX. The supplier delivered these 477 names as a market-cap bucket, with no membership history. Only 2 of the 477 stop trading before the window ends, so the list appears to hold the bucket's members near the time of delivery, not the members at each date. A stock that left the bucket or was delisted is likely missing; a stock that grew into it is present for the whole window. Both the strategy and its buy & hold therefore likely carry survivorship and look-ahead bias, which cannot be measured without membership files. The benchmark index is the broad NIFTY 500, not a bucket index.
 
 **mcap5001to10000:** STATIC AND NOT AN INDEX. The supplier delivered these 216 names as a market-cap bucket, with no membership history. Only 0 of the 216 stop trading before the window ends, so the list appears to hold the bucket's members near the time of delivery, not the members at each date. A stock that left the bucket or was delisted is likely missing; a stock that grew into it is present for the whole window. Both the strategy and its buy & hold therefore likely carry survivorship and look-ahead bias, which cannot be measured without membership files. The benchmark index is the broad NIFTY 500, not a bucket index.
 
@@ -328,28 +328,28 @@ v1 to v4, tax off and on, research and tradeable, cadence 20, Rs 10 lakh, window
 to 2026-05-29, one run per cell. CAGR and MaxDD are each cell's `v34_comparison` row; the
 basket is that file's equal-weight buy & hold (untaxed, daily rebalanced); NIFTY 500 is the
 price index over the same dates; tax paid is COST_TAX_YEARS `total_tax`, cess included.
-mcap1500to5000's basket CAGR is one name-day: ELCIDIN's auction on 2024-10-29, which no arm
-traded (KNOWN_ISSUES.md). nt_verify verifies the four mcapover10000 cells; the other eight are
-not gated (KNOWN_ISSUES.md). There are no pit figures: no membership files exist.
+mcap1500to5000 is 477 names: the owner removed ELCIDIN on 2026-10-16, whose auction-day
+gain could not have been traded (KNOWN_ISSUES.md). nt_verify verifies the four
+mcapover10000 cells; the other eight are not gated (KNOWN_ISSUES.md). There are no pit figures: no membership files exist.
 
 | universe | arm | profile | tax | CAGR% | basket CAGR% | NIFTY 500 CAGR% | MaxDD% | tax paid Rs |
 |---|---|---|---|---:|---:|---:|---:|---:|
-| mcap1500to5000 | v1 | research | off | 54.03 | 146.88 | 12.94 | -41.52 | 0.00 |
-| mcap1500to5000 | v2 | research | off | 27.82 | 146.88 | 12.94 | -21.92 | 0.00 |
-| mcap1500to5000 | v3 | research | off | 58.54 | 146.88 | 12.94 | -50.93 | 0.00 |
-| mcap1500to5000 | v4 | research | off | 30.59 | 146.88 | 12.94 | -31.29 | 0.00 |
-| mcap1500to5000 | v1 | research | on | 44.31 | 146.88 | 12.94 | -41.52 | 3,012,581.25 |
-| mcap1500to5000 | v2 | research | on | 23.46 | 146.88 | 12.94 | -21.92 | 740,496.86 |
-| mcap1500to5000 | v3 | research | on | 49.82 | 146.88 | 12.94 | -50.93 | 3,840,342.01 |
-| mcap1500to5000 | v4 | research | on | 25.78 | 146.88 | 12.94 | -31.29 | 877,937.15 |
-| mcap1500to5000 | v1 | tradeable | off | 38.40 | 146.88 | 12.94 | -45.12 | 0.00 |
-| mcap1500to5000 | v2 | tradeable | off | 20.67 | 146.88 | 12.94 | -22.54 | 0.00 |
-| mcap1500to5000 | v3 | tradeable | off | 38.42 | 146.88 | 12.94 | -48.09 | 0.00 |
-| mcap1500to5000 | v4 | tradeable | off | 21.44 | 146.88 | 12.94 | -26.05 | 0.00 |
-| mcap1500to5000 | v1 | tradeable | on | 32.36 | 146.88 | 12.94 | -45.12 | 1,277,810.50 |
-| mcap1500to5000 | v2 | tradeable | on | 17.84 | 146.88 | 12.94 | -22.54 | 442,105.88 |
-| mcap1500to5000 | v3 | tradeable | on | 33.53 | 146.88 | 12.94 | -48.09 | 1,343,365.48 |
-| mcap1500to5000 | v4 | tradeable | on | 18.54 | 146.88 | 12.94 | -26.05 | 466,087.49 |
+| mcap1500to5000 | v1 | research | off | 50.17 | 25.92 | 12.94 | -40.93 | 0.00 |
+| mcap1500to5000 | v2 | research | off | 29.15 | 25.92 | 12.94 | -17.68 | 0.00 |
+| mcap1500to5000 | v3 | research | off | 58.72 | 25.92 | 12.94 | -49.16 | 0.00 |
+| mcap1500to5000 | v4 | research | off | 34.97 | 25.92 | 12.94 | -21.10 | 0.00 |
+| mcap1500to5000 | v1 | research | on | 41.15 | 25.92 | 12.94 | -40.93 | 2,449,158.78 |
+| mcap1500to5000 | v2 | research | on | 24.44 | 25.92 | 12.94 | -17.68 | 820,223.45 |
+| mcap1500to5000 | v3 | research | on | 49.84 | 25.92 | 12.94 | -49.16 | 4,067,248.40 |
+| mcap1500to5000 | v4 | research | on | 29.35 | 25.92 | 12.94 | -21.10 | 1,166,237.84 |
+| mcap1500to5000 | v1 | tradeable | off | 42.78 | 25.92 | 12.94 | -42.01 | 0.00 |
+| mcap1500to5000 | v2 | tradeable | off | 22.29 | 25.92 | 12.94 | -17.86 | 0.00 |
+| mcap1500to5000 | v3 | tradeable | off | 48.61 | 25.92 | 12.94 | -42.86 | 0.00 |
+| mcap1500to5000 | v4 | tradeable | off | 25.65 | 25.92 | 12.94 | -17.48 | 0.00 |
+| mcap1500to5000 | v1 | tradeable | on | 35.97 | 25.92 | 12.94 | -42.01 | 1,630,840.44 |
+| mcap1500to5000 | v2 | tradeable | on | 19.03 | 25.92 | 12.94 | -17.86 | 508,312.80 |
+| mcap1500to5000 | v3 | tradeable | on | 41.45 | 25.92 | 12.94 | -42.86 | 2,333,031.33 |
+| mcap1500to5000 | v4 | tradeable | on | 21.77 | 25.92 | 12.94 | -17.48 | 639,857.39 |
 | mcap5001to10000 | v1 | research | off | 62.82 | 28.67 | 12.94 | -34.26 | 0.00 |
 | mcap5001to10000 | v2 | research | off | 39.04 | 28.67 | 12.94 | -20.88 | 0.00 |
 | mcap5001to10000 | v3 | research | off | 53.65 | 28.67 | 12.94 | -38.72 | 0.00 |
@@ -1696,8 +1696,8 @@ rebuild.
 public. It comes from the owner of this repository: ask them for a copy.** It is
 vendor OHLCV, not redistributed here, and nothing runs without it.
 
-The pipeline reads exactly one folder, 2,869 CSV files: 1,634 in the nine index
-folders (1,024 MB) and 1,235 in the three market-cap bucket folders the supplier added
+The pipeline reads exactly one folder, 2,868 CSV files: 1,634 in the nine index
+folders (1,024 MB) and 1,234 in the three market-cap bucket folders the supplier added
 on 2026-10-16 (about 650 MB). Put it at this path, with these twelve subfolders, one per
 universe:
 
@@ -1711,7 +1711,7 @@ universe:
         Final_NIFTYMidCap150_EoD_Data/     midcap150    149 CSV   (148 + NIFTY MIDCAP 150.csv)
         Final_NIFTYSmallCap250_EoD_Data/   smallcap250  249 CSV   (248 + NIFTY SMLCAP 250.csv)
         Final_NiftyMicroCap250_EoD_Data/   microcap250  242 CSV   (241 + NIFTY MICROCAP250.csv)
-        Final_Universe_MarcketCap_1500_5000/   mcap1500to5000   479 CSV   (478 + NIFTY 500.csv)
+        Final_Universe_MarcketCap_1500_5000/   mcap1500to5000   478 CSV   (477 + NIFTY 500.csv)
         Final_Universe_MarcketCap_5001_10000/  mcap5001to10000  217 CSV   (216 + NIFTY 500.csv)
         Final_Universe_MarcketCap_GT_10000/    mcapover10000    539 CSV   (538 + NIFTY 500.csv)
 
