@@ -856,6 +856,14 @@ The pipeline reads `data/raw/Final_Without_Survivorship_Data/`, nine folders and
 
 `survivorship_attribution.py` also reads `data/raw/Survivorship_Bias/*_membership.csv` and the price files of `Final_With_Survivorship_Data/`. Neither is in the checksum manifest.
 
+### PRIVISCL's removal lives only in data/raw/ and its manifests; check_all now checks them first
+
+PRIVISCL was removed from microcap250 on 2026-10-10 for bad price data (commit `730a0c2`). The removal is the absence of its two price files from `data/raw/` and of their lines from the manifests. No code excludes it: `Universe.prepare_data_dir()` (`universes/registry.py:459`) rebuilds each constituent farm under `cache/` from every CSV in the raw folder, on every call. Panel freshness checks (`config.source_key_for`, `config.py:306`), several `check_all` delegates and GATE 8 all call it.
+
+On 2026-10-15, between 20:49 and 20:53, `data/raw/` was restored from an older copy that still held both PRIVISCL files. The next `check_all`, on 2026-10-16, linked PRIVISCL back into both microcap250 farms (242 static and 304 pit names). It then failed 11 checks: three steps refused the panels as stale, and GATE 8 found eight microcap250 artefacts' data digests no longer matched. No run, panel or output was written from the restored copy. The two raw files were deleted again on 2026-10-16 by the owner's decision, and the farms are back to 241 and 303 names.
+
+`check_all` now runs `check_data.py` and `check_data.py --pit` (both read-only) as GATE 0, before any gate that rebuilds a farm. Any missing, different or extra price file stops the run and names the file. `run.py` still checks only the pit inputs before a pit run. A pipeline run outside `check_all` on a mismatched copy is not stopped by this gate.
+
 ### The NSE trading calendar is frozen data with no generator and no way to extend it
 
 `data/nse_trading_calendar.csv` is tracked and filters every panel (`results/engine_core._load_calendar`, `_check_calendar`). It was built once from a retired universe's raw files by `results/make_trading_calendar.py`. Both the script and the files were deleted in 2fe48ff. The calendar ends on 2026-06-08, and nothing in the repository appends to it. Any data past that date needs a new source of sessions, and that source has not been chosen. Do not hand-edit it: a wrong tail changes every backtest window.

@@ -35,6 +35,14 @@ WHAT THIS DOES ABOUT IT
     checkers that already existed so there is ONE command rather than five, and
     so that "I ran the checks" means the same thing every time it is said.
 
+    GATE 0  RAW DATA     runs first: check_data.py, static and --pit, read-only.
+                         Any missing, different or extra price file stops the
+                         run before any other gate, naming the files. The other
+                         gates rebuild the constituent farms from data/raw/, so
+                         a stray file would otherwise be linked in first. Added
+                         2026-10-16 after data/raw/ was restored from an older
+                         copy and PRIVISCL, removed 2026-10-10, came back. A
+                         precondition, not one of the nine counted gates.
     GATE 1  IMPORTS      every module in the repository, by name, loudly.
     GATE 2  TABLE        PIPELINE_ORDER's row count against a DECLARED constant,
                          and every script column resolved to a file on disk.
@@ -1620,6 +1628,31 @@ def _print_not_selected(res):
                   f"not selected by this run; they are not counted as passed.")
 
 
+def gate_raw_data():
+    """GATE 0: the price data must match both tracked manifests before anything runs.
+
+    Runs check_data.py and check_data.py --pit (both read-only). Returns the
+    problem lines, MISSING, DIFFERENT or EXTRA with the file, plus each failing
+    command's verdict line; an empty list means both passed.
+    """
+    problems = []
+    for args in ([], ["--pit"]):
+        r = subprocess.run([sys.executable, str(ROOT / "check_data.py")] + args,
+                           cwd=ROOT, capture_output=True, text=True)
+        if r.returncode == 0:
+            ok = [ln for ln in r.stdout.splitlines() if ln.startswith("PASS")]
+            print(f"  GATE 0  check_data.py {' '.join(args)}".rstrip()
+                  + f": {ok[0] if ok else 'exit 0'}")
+            continue
+        lines = r.stdout.splitlines()
+        named = [ln.strip() for ln in lines
+                 if ln.strip().split(" ", 1)[0] in ("MISSING", "DIFFERENT", "EXTRA")]
+        verdict = [ln.strip() for ln in lines if ln.startswith("FAIL")]
+        problems.append((" ".join(["check_data.py"] + args),
+                         named + (verdict or [f"exit {r.returncode}: {r.stderr.strip()[-300:]}"])))
+    return problems
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--since", type=float, default=None,
@@ -1652,6 +1685,21 @@ def main(argv=None):
     print(" check_all.py -- an operation must not report success having done "
           "part of the work")
     print("=" * 78)
+    # GATE 0 RUNS BEFORE EVERYTHING ELSE, because gates 5 and 8 rebuild the
+    # constituent farms from data/raw/: a stray price file is linked in before
+    # any later gate could object.
+    raw = gate_raw_data()
+    if raw:
+        print("!" * 78)
+        print("STOPPED AT GATE 0: data/raw/ does not match the tracked manifests. "
+              "No other gate ran.")
+        print("!" * 78)
+        for cmd, lines in raw:
+            print(f"\n  [{cmd}]")
+            for ln in lines:
+                print(f"      {ln}")
+        print()
+        return 1
     gate_imports(res)
     rows = gate_table(res)
     gate_entry_points(res, rows)
