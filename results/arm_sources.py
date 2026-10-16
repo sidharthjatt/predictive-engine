@@ -59,7 +59,8 @@ def _axes(*, for_arm_subset=False):
     import capital_axis as _capa
     import impact_axis as _impa
     import pcap_axis as _pca
-    sfx = cadence.suffix() + _pf.suffix() + _tax.suffix() + _sva.suffix() + _dda.suffix() + _capa.suffix() + _impa.suffix() + _pca.suffix()
+    import fixed_axis as _fxa
+    sfx = cadence.suffix() + _pf.suffix() + _tax.suffix() + _sva.suffix() + _dda.suffix() + _capa.suffix() + _impa.suffix() + _pca.suffix() + _fxa.suffix()
     # THE CORE PART OF THE SELECTION names the v34 files: a stop arm in the
     # selection goes to v34_stop_* and does not rename them.
     core = [n for n in arm_reg.selected_names() if n in arm_reg.ARMS]

@@ -803,9 +803,44 @@ function viewMethods() {
     if (cagr !== null && mean !== null && simple !== null)
       expl.push(`<li><b>${name}.</b> CAGR ${pct(cagr)} is the steady yearly rate that turns the start value into the end value. The mean of full years, ${pct(mean)}, averages the ${vals.length} yearly returns and ignores that losses and gains compound. Total gain divided by years, ${pct(simple)}, spreads the whole gain evenly with no compounding.</li>`);
   }
-  h += `</tbody></table></div><ul>${expl.join("")}</ul>
-    <p>A fixed-capital backtest, where profits are taken out and not reinvested, is not in this data. Every run here reinvests everything.</p></section>`;
+  h += `</tbody></table></div><ul>${expl.join("")}</ul>`;
+  const twin = r.fixed_twin ? BYID.get(r.fixed_twin) : null;
+  if (twin) h += fixedBlock(r.axes.fixed === "on" ? r : twin, r.axes.fixed === "on" ? twin : r);
+  else h += `<p>${r.axes.fixed === "on" ? "This fixed-capital run has no compounded twin with the same settings in this data." : "A fixed-capital backtest, where profits are taken out and not reinvested, is not in this data for these settings. This run reinvests everything."}</p>`;
+  h += `</section>`;
   MAIN.innerHTML = h; bindAxisControls();
+}
+
+// The fixed-capital figures of a run (results/fixed_capital.py), next to the
+// compounded CAGR of its twin: the same settings with --fixed-capital off.
+function fixedBlock(fx, comp) {
+  const F = fx.fixed || {};
+  const lines = [["Strategy", "strategy", comp.cagr], ["Basket", "basket", comp.basket && comp.basket.cagr]];
+  if (F.index) lines.push(["Index", "index", comp.index && comp.index.cagr]);
+  const fy = (F.strategy && F.strategy.full_years) || [];
+  let h = `<h3>Fixed capital: profits not reinvested</h3>
+    <p class="muted">From the run with --fixed-capital (base ${inr(fx.start_equity)}), next to the compounded CAGR of the same settings without it.</p>
+    <div class="scroll"><table><thead><tr><th class="l">Line</th><th>Compounded CAGR</th><th>AvgAnnRet%</th><th>MeanFullYear%</th><th>MaxDD_base%</th><th>MaxInvested_base%</th></tr></thead><tbody>`;
+  for (const [name, key, cagr] of lines) {
+    const x = F[key];
+    if (!x) continue;
+    h += `<tr><td class="l">${name}</td><td>${pct(cagr)}</td><td>${pct(x.avg_ann_ret)}</td><td>${pct(x.mean_full_year)}</td><td>${pct(x.max_dd_base)}</td><td>${pct(x.max_invested_base)}${x.max_invested_date ? ` <span class="muted">${esc(x.max_invested_date)}</span>` : ""}</td></tr>`;
+  }
+  h += `</tbody></table></div><ul>
+    <li><b>Compounded CAGR</b> is the steady yearly rate of the run that reinvests every profit, with every other setting the same.</li>
+    <li><b>AvgAnnRet%</b> is the fixed-capital run's total net profit divided by the base and by the ${fx.years.toFixed(2)} years; nothing compounds.</li>
+    <li><b>MeanFullYear%</b> is the average of each full calendar year's rupee profit or loss divided by the base, over ${fy.length ? esc(fy.join(", ")) : "no full year"}.</li>
+    <li><b>MaxDD_base%</b> is the largest fall from a running peak, in rupees, divided by the base rather than by the peak.</li>
+    <li><b>MaxInvested_base%</b> is the highest held market value divided by the base: for the strategy at a rebalance open after its buys, for the basket and the index at a reset close before the reset. Above 100% means held winners grew past the base, which the strategy does not trim.</li>
+  </ul>
+  <p class="muted">The basket and the index are reset to the smaller of the base and their equity at the close of each of the strategy's rebalance decision days, one session before the strategy's own reset at the next open. The index is a price index, without dividends. CAGR of the fixed-capital run itself understates it and is not shown here.</p>`;
+  const years = [...new Set(Object.keys((F.strategy || {}).years || {}))].sort();
+  h += `<div class="scroll"><table><thead><tr><th class="l">Year</th>${lines.filter(l => F[l[1]]).map(l => `<th>${l[0]} Year%</th>`).join("")}</tr></thead><tbody>`;
+  for (const y of years) {
+    h += `<tr><td class="l">${esc(y)}${fy.includes(Number(y)) ? "" : ' <span class="muted">(part year)</span>'}</td>${lines.filter(l => F[l[1]]).map(l => { const v = F[l[1]].years[y]; return `<td>${v ? pct(v.pct) : "–"}</td>`; }).join("")}</tr>`;
+  }
+  h += `</tbody></table></div><p class="muted">Year% is that calendar year's rupee profit or loss divided by the base.</p>`;
+  return h;
 }
 
 function viewAll() {

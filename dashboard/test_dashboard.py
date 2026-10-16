@@ -146,7 +146,7 @@ def exec_script(ws):
 
     runs = js(ws, """(() => {
       const pick = f => RUNS.find(f);
-      const a = pick(r => r.axes.universe==='nifty200' && r.axes.arm==='v3' && r.axes.survivorship==='pit' && r.axes.profile==='tradeable' && r.axes.tax==='on' && r.axes.capital==='1000000' && r.axes.impact==='0' && r.axes.pcap==='1');
+      const a = pick(r => r.axes.universe==='nifty200' && r.axes.arm==='v3' && r.axes.survivorship==='pit' && r.axes.profile==='tradeable' && r.axes.tax==='on' && r.axes.capital==='1000000' && r.axes.impact==='0' && r.axes.pcap==='1' && r.axes.fixed==='off');
       const b = pick(r => r.axes.universe==='midcap100' && r.axes.arm==='v3' && r.axes.profile==='research' && r.axes.tax==='off' && r.axes.survivorship==='static');
       const c = pick(r => r.axes.universe==='nifty200' && r.axes.arm==='v1' && r.axes.capital==='5000000' && r.axes.impact==='0.01' && r.axes.pcap==='0.1');
       const d = pick(r => r.axes.universe==='nifty50' && r.axes.arm==='v2' && r.axes.profile==='research' && r.axes.tax==='on');
@@ -181,6 +181,22 @@ def exec_script(ws):
         step("  one-setting table opens a run", """(() => { const tr = [...MAIN.querySelectorAll('tr[data-open]')][0]; if (!tr) return 'no rows';
             const id = tr.dataset.open; tr.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',bubbles:true})); const ok = current() && current().id===id; history.back; return 'opened ' + id + ' ' + ok; })()""")
         step("  back to run", f"openRun(BYID.get({json.dumps(rid)})); current().id")
+    # Return methods with and without a fixed-capital twin.
+    step("methods: fixed-capital twin shown, no-data line gone", """(() => { const out=[];
+        for (const fx of ['off','on']) {
+          const r = RUNS.find(x => x.axes.universe==='nifty200' && x.axes.arm==='v3' && x.axes.survivorship==='pit' && x.axes.profile==='tradeable' && x.axes.tax==='on' && x.axes.capital==='1000000' && x.axes.impact==='0' && x.axes.pcap==='1' && x.axes.fixed===fx);
+          if (!r) { out.push('fixed ' + fx + ': no run'); continue; }
+          openRun(r); state.view='methods'; render();
+          const h3 = [...MAIN.querySelectorAll('h3')].map(h=>h.textContent).join(' / ');
+          const t = MAIN.querySelectorAll('table')[1];
+          const rows = t ? [...t.querySelectorAll('tbody tr')].map(tr=>tr.innerText.replace(/\t/g,' ')) : [];
+          const years = MAIN.querySelectorAll('table')[2] ? MAIN.querySelectorAll('table')[2].querySelectorAll('tbody tr').length : 0;
+          out.push(`fixed ${fx}: ${h3} | ${rows.join(' ; ')} | year rows ${years} | no-data line ${MAIN.innerText.includes('is not in this data')} | sentences ${MAIN.querySelectorAll('ul')[1] ? MAIN.querySelectorAll('ul')[1].children.length : 0}`);
+        }
+        const nt = RUNS.find(x => !x.fixed_twin);
+        openRun(nt); state.view='methods'; render();
+        out.push('no twin (' + nt.id + '): no-data line ' + MAIN.innerText.includes('is not in this data') + ', fixed block ' + MAIN.querySelectorAll('h3').length);
+        return out.join(' || '); })()""")
     # Grid interactions.
     step("grid: rows capital, cols impact, metric minus_basket", """(() => { state.view='grid'; state.grow='capital'; state.gcol='impact'; state.gmetric='minus_basket'; render();
         const b = MAIN.querySelectorAll('td.cell button'); const empty = MAIN.querySelectorAll('td.cell:not(:has(button))').length;

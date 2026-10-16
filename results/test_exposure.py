@@ -109,6 +109,9 @@ _VOL20_REQUIRED = object()
 # than None, because None is the explicit "off" a test or a caller may pass.
 _DD_FROM_SELECTION = object()
 
+# fixed_capital's default: read fixed_axis.selected() at call time, as dd_overlay.
+_FIXED_FROM_SELECTION = object()
+
 
 def _participation_limit(sym, dt, participation_cap, vol20):
     """The cap in shares for one (symbol, date), or None when it does not apply.
@@ -147,9 +150,19 @@ def backtest_exposure(px, op, sc, dates, pc, mom20, port_vol=None,
                       funding="cash", participation_cap=_CAP_REQUIRED, vol20=_VOL20_REQUIRED,
                       tax_enabled=False, impact_k=None, impact_out=None,
                       end_sale=False, drawdown_stop=None, dd_overlay=_DD_FROM_SELECTION,
-                      start_capital=None):
+                      start_capital=None, fixed_capital=_FIXED_FROM_SELECTION):
     """audit=None reproduces the original code path exactly: no overhead, and the
     official numbers are unchanged.
+
+    fixed_capital -- THE FIXED-CAPITAL AXIS (fixed_axis.py). Left unset, it is read
+        from fixed_axis.selected(), which is False unless run.py was given
+        --fixed-capital, and False runs none of the code that reads it. When on, at
+        each rebalance open, after the morning's sells and any tax taken that
+        morning: book = min(start capital, port_val), reserve = max(0, port_val -
+        start capital), invest_val = book * exposure * 0.98, and the cash tests read
+        cash - reserve. Held names are not trimmed. With an audit dict, each
+        execution day's open valuation is written to audit["fixed"]. Refused
+        together with drawdown_stop, dd_overlay and funding="prorata".
 
     dd_overlay -- THE DRAWDOWN-LIMIT AXIS (dd_axis.py, results/drawdown_overlay.py).
         Left unset, it is read from dd_axis.selected(), which is None unless
@@ -398,6 +411,24 @@ def backtest_exposure(px, op, sc, dates, pc, mom20, port_vol=None,
         import dd_axis as _dd_axis
         dd_overlay = _dd_axis.selected()
     _dd = dd_overlay
+    # THE FIXED-CAPITAL AXIS (fixed_axis.py). Nothing below that reads _fixed runs
+    # when it is False, which is every run without --fixed-capital.
+    if fixed_capital is _FIXED_FROM_SELECTION:
+        import fixed_axis as _fixed_axis
+        fixed_capital = _fixed_axis.selected()
+    _fixed = bool(fixed_capital)
+    if _fixed:
+        if _stop is not None or _dd is not None:
+            raise ValueError(
+                "fixed capital cannot run with the drawdown stop (v5/v6) or the "
+                "drawdown limit (--dd): both act on the running peak of compounded "
+                "equity, and the fixed-capital book is min(base, equity)")
+        if funding != "cash":
+            raise ValueError('fixed capital is defined for funding="cash" only')
+        _fixed_log = audit.setdefault("fixed", []) if audit is not None else None
+    # The idle profit ring-fenced at this morning's open. 0.0 off the axis, and
+    # cash - 0.0 is cash exactly, so the cash tests below are unchanged.
+    _reserve = 0.0
     if _dd is not None:
         if _stop is not None:
             raise ValueError("the drawdown-limit axis cannot run on a stop arm (v5/v6)")
@@ -621,7 +652,17 @@ def backtest_exposure(px, op, sc, dates, pc, mom20, port_vol=None,
                 vp = opens if value_at_open else prices
                 port_val = sum(q * vp[s] for s, q in shares.items()
                                if not np.isnan(vp.get(s, np.nan))) + cash
-                invest_val = port_val * targets["_exposure"] * 0.98
+                if _fixed:
+                    # THE FIXED-CAPITAL RING-FENCE (fixed_axis.py). Profit above the
+                    # base is held back from every purchase; below the base the book
+                    # is the equity, so a loss is not topped up.
+                    _book = min(_cap0, port_val)
+                    _reserve = max(0.0, port_val - _cap0)
+                    _held_open = sum(q_ * vp[s_] for s_, q_ in shares.items()
+                                     if not np.isnan(vp.get(s_, np.nan)))
+                    invest_val = _book * targets["_exposure"] * 0.98
+                else:
+                    invest_val = port_val * targets["_exposure"] * 0.98
                 if _dd is not None:
                     # ENTRANTS ARE SIZED AT min(E, A) INSTEAD OF A, from the E
                     # decided at the last close, so they are not bought full and
@@ -731,18 +772,22 @@ def backtest_exposure(px, op, sc, dates, pc, mom20, port_vol=None,
                     _pend = None
                     if impact_k is not None:
                         pr, _pend = _fill_price("BUY", s, dt, _raw_buy, q)
-                    if cash < q * pr:
+                    if cash - _reserve < q * pr:
                         if audit is not None:
                             audit["skipped"].append({"date": dt, "side": "BUY", "symbol": s,
                                 "reason": "cash short (before TC)",
-                                "detail": f"need Rs {q*pr:,.0f}, have Rs {cash:,.0f}"})
+                                "detail": f"need Rs {q*pr:,.0f}, have Rs {cash:,.0f}"
+                                          + (f", of which Rs {_reserve:,.0f} is the fixed-"
+                                             f"capital reserve" if _fixed else "")})
                         continue
                     tc = calc_tc(pr, q, "BUY")
-                    if cash < q * pr + tc:
+                    if cash - _reserve < q * pr + tc:
                         if audit is not None:
                             audit["skipped"].append({"date": dt, "side": "BUY", "symbol": s,
                                 "reason": "cash short (incl TC)",
-                                "detail": f"need Rs {q*pr+tc:,.0f}, have Rs {cash:,.0f}"})
+                                "detail": f"need Rs {q*pr+tc:,.0f}, have Rs {cash:,.0f}"
+                                          + (f", of which Rs {_reserve:,.0f} is the fixed-"
+                                             f"capital reserve" if _fixed else "")})
                         continue
                     cash -= q * pr + tc; cum_tc += tc; n_trades += 1
                     _cost_fill(dt, "BUY", s, q, _raw_buy, pr, tc, "rebalance", _pend)
@@ -754,6 +799,17 @@ def backtest_exposure(px, op, sc, dates, pc, mom20, port_vol=None,
                             "qty": q, "price": round(pr, 2), "value": round(q*pr, 2),
                             "tc": round(tc, 2)})
                     shares[s] = shares.get(s, 0) + q
+                if _fixed and _fixed_log is not None:
+                    # THIS MORNING'S OPEN VALUATION, for MaxInvested_base% and for
+                    # fixed_capital_test.py: held value before and after the buys,
+                    # both at the open the orders filled at.
+                    _fixed_log.append({
+                        "date": dt, "port_val": port_val, "book": _book,
+                        "reserve": _reserve, "held_before_buys": _held_open,
+                        "held_after": sum(q_ * vp[s_] for s_, q_ in shares.items()
+                                          if not np.isnan(vp.get(s_, np.nan))),
+                        "cash_after": cash})
+                _reserve = 0.0
             pending = None
             if _stop is not None and (_st.exit_pending or _st.reentry_pending):
                 _st.after_fills(i, shares, _held_before,

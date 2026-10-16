@@ -91,6 +91,28 @@ titles, params.json and RUN.txt. With `--impact`, the cost report and the daily 
 totals show impact as its own figure, apart from the flat slippage. The Nautilus port
 applies neither (KNOWN_ISSUES.md).
 
+`--fixed-capital` (default off) runs the strategy without reinvesting profit. At each
+rebalance open the book is min(`--capital`, equity): buys are sized from it, and profit
+above the base stays in cash at 0% and is never spent. Below the base the book is the
+equity, so a loss is not topped up. Held names are not trimmed. Tax, charges and
+slippage are paid from the account, as in every run. The mode is refused with `--dd`
+and with the stop arms. Off adds nothing to any name; on adds `_fixed` after every
+other suffix and `@fixed` to folders.
+
+A fixed-capital run also writes `v34_fixed<sfx>.csv` and `v34_fixed_years<sfx>.csv`,
+and `fixed.csv` and `fixed_years.csv` in each arm folder. They hold:
+- `AvgAnnRet%`: (end equity - base) / base / years.
+- `Year%`: each calendar year's rupee P&L / base, and `MeanFullYear%`, their mean
+  over the full years.
+- `MaxDD_Rs` and `MaxDD_base%`: the fall from the running peak in rupees, and over
+  the base.
+- `MaxInvested_base%`: the highest held value / base, with its date.
+- CAGR, labelled as understating such a run.
+
+The rows cover the strategy, and the basket and the index reset to min(base, equity)
+on the strategy's grid days (`results/fixed_capital.py`). The port does not cover
+the mode (KNOWN_ISSUES.md).
+
 ### The drawdown limit (`--dd`): exploratory, not validated
 
 **Any result with `--dd` on is exploratory. It has not been validated, and it must

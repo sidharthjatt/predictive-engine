@@ -457,6 +457,31 @@ they describe the uncapped, flat-slippage strategy. Nothing compares them with t
 engine: `nt_verify.py` checks research-profile cells only. Treat every engine figure
 with the cap or impact on as unverified by the port.
 
+### Fixed capital (--fixed-capital) is gated by fixed_capital_test.py only
+
+`nautilus/nt_strategy.py` and `nautilus/nt_attribution.py` size every rebalance from
+the whole portfolio and have no fixed-capital rule, and `nt_verify.py` checks
+compounded research cells only. A run with `--fixed-capital` that reaches the Nautilus
+steps writes its reports under the run's `@fixed` folder, but they describe the
+compounded strategy. Nothing compares a fixed-capital engine figure with the port.
+
+What does check the mode is `fixed_capital_test.py`, a check_all delegate:
+- On every execution day, purchases never lift invested value above the book. Run on
+  nifty200, pit, tradeable, v1 to v4, tax off and on.
+- The fixed and compounded runs are identical up to the session before the first
+  execution day whose open equity is above the base. Run on nifty500 v4, pit,
+  tradeable, tax off and on, and on a synthetic falling panel over the whole window.
+- Every test run reconciles from its own fills to within Rs 1.
+
+Three definitions are choices, not measurements:
+- Held names are not trimmed, so a winner can carry invested value above the book
+  (`MaxInvested_base%` reports how far).
+- The basket and the index reset to min(base, equity) at the close of each of the
+  strategy's grid days. That is one session before the strategy's own reset at the
+  next open, and the reset also brings an invested amount above the base back down,
+  which the strategy does not do. The index is a price index, without dividends.
+- The engine refuses the mode together with `--dd` and the stop arms v5 and v6.
+
 ### Nautilus figures differ from the engine's by up to 6.1%, and on the 100%-invested arms can hold different names
 
 nt_verify gates the port against ARM D on the 0.01 grid. On the 2026-10-10 data 31 of

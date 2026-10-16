@@ -425,12 +425,13 @@ def _ci(path):
     import capital_axis as _capa
     import impact_axis as _impa
     import pcap_axis as _pca
+    import fixed_axis as _fxa
     if (cadence.is_default() and _pf.is_default() and _tax.is_default()
             and _sva.is_default() and _dda.is_default()
-            and _capa.is_default() and _impa.is_default() and _pca.is_default()):
+            and _capa.is_default() and _impa.is_default() and _pca.is_default() and _fxa.is_default()):
         return path
     c = path.with_name(path.stem + cadence.suffix() + _pf.suffix()
-                       + _tax.suffix() + _sva.suffix() + _dda.suffix() + _capa.suffix() + _impa.suffix() + _pca.suffix() + path.suffix)
+                       + _tax.suffix() + _sva.suffix() + _dda.suffix() + _capa.suffix() + _impa.suffix() + _pca.suffix() + _fxa.suffix() + path.suffix)
     # NO FALLBACK TO THE CANONICAL FILE, 2026-09-23. This returned `path` when
     # the sibling was absent, so a missing non-default artefact was silently
     # replaced by the published cadence-20 research one and plotted under this
@@ -523,8 +524,9 @@ def combined_chart_path(M, tags, out_suffix=""):
     import capital_axis as _capa
     import impact_axis as _impa
     import pcap_axis as _pca
+    import fixed_axis as _fxa
     return M / ("chart_COMBINED_" + "_".join(tags) + out_suffix
-                + cadence.suffix() + _pf.suffix() + _tax.suffix() + _sva.suffix() + _dda.suffix() + _capa.suffix() + _impa.suffix() + _pca.suffix()
+                + cadence.suffix() + _pf.suffix() + _tax.suffix() + _sva.suffix() + _dda.suffix() + _capa.suffix() + _impa.suffix() + _pca.suffix() + _fxa.suffix()
                 + ".png")
 
 

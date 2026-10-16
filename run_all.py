@@ -875,6 +875,9 @@ def check_inputs(label, script, tag):
         import pcap_axis as _pca
         if "pcap" in axes and not _pca.is_default():
             _sfx += _pca.suffix()
+        import fixed_axis as _fxa
+        if "fixed" in axes and not _fxa.is_default():
+            _sfx += _fxa.suffix()
         want = f if not _sfx else f.with_name(f.stem + _sfx + f.suffix)
         if want.exists():
             return True

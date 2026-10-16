@@ -44,6 +44,7 @@ import dd_axis as _dd
 import capital_axis as _capital
 import impact_axis as _impact
 import pcap_axis as _pcap
+import fixed_axis as _fixed
 
 # The axes, in the order they appear in a name. This order is LOAD-BEARING: it is
 # the order v34_common.py has always used, and changing it renames every
@@ -62,6 +63,9 @@ import pcap_axis as _pcap
 # (2026-10-15): "" at k 0 and at the profile's own cap; "_impact0p003" and
 # "_pcap0p1" otherwise.
 #
+# FIXED CAPITAL IS APPENDED AFTER THE PARTICIPATION CAP (2026-10-16): "" when off,
+# "_fixed" after every other suffix when on. No existing name moves.
+#
 # TAX IS APPENDED, NEVER INSERTED (2026-09-17). Appending leaves every existing
 # non-default name -- every _r40, every _tradeable, every arm suffix -- exactly
 # where it was, because the tax suffix is empty at the default and lands after
@@ -69,7 +73,7 @@ import pcap_axis as _pcap
 # renames artefacts whose names are recorded by SHA-256 in the retired-universe
 # manifest (deleted 2026-09-24; git show 50562ed:RETIRED_UNIVERSES-manifest.txt).
 AXES = ("arm", "cadence", "profile", "tax", "survivorship", "dd", "capital", "impact",
-        "pcap")
+        "pcap", "fixed")
 
 _SUFFIX = {
     "arm": lambda: _arm.selection_suffix(),
@@ -81,6 +85,7 @@ _SUFFIX = {
     "capital": lambda: _capital.suffix(),
     "impact": lambda: _impact.suffix(),
     "pcap": lambda: _pcap.suffix(),
+    "fixed": lambda: _fixed.suffix(),
 }
 
 
@@ -141,7 +146,8 @@ def run_label(universe, arms):
             + ("" if _dd.is_default() else f"  |  {_dd.label()}")
             + ("" if _capital.is_default() else f"  |  {_capital.label()}")
             + ("" if _impact.is_default() else f"  |  {_impact.label()}")
-            + ("" if _pcap.is_default() else f"  |  {_pcap.label()}"))
+            + ("" if _pcap.is_default() else f"  |  {_pcap.label()}")
+            + ("" if _fixed.is_default() else f"  |  {_fixed.label()}"))
 
 
 def path_tail(rebal=None):
@@ -165,7 +171,7 @@ def path_tail(rebal=None):
     if not _tax.is_default():
         seg += "@tax"
     return (seg + _surv.segment() + _dd.segment() + _capital.segment() + _impact.segment()
-            + _pcap.segment())
+            + _pcap.segment() + _fixed.segment())
 
 
 # ---------------------------------------------------------------------------
@@ -250,29 +256,33 @@ def path_tail(rebal=None):
 # defaults under the tradeable profile: every entry but selection_suffix gained
 # "_impact0p003_pcap0p1" or "@impact0p003@pcap0p1".
 #
+# RE-PROBED 2026-10-16 FOR THE FIXED-CAPITAL AXIS, with only
+# fixed_axis.set_selection(True) off its default: every entry but selection_suffix
+# gained "_fixed" or "@fixed".
+#
 # A spelled-out set cannot do that. An axis added to AXES now appears in NO
 # entry's value until somebody measures it and types it in, so the default for a
 # new axis is "unproven", which is the only safe default an enforcement table has.
 CARRIES = {
     "naming.name":       frozenset({"arm", "cadence", "profile", "tax", "survivorship",
-                                    "dd", "capital", "impact", "pcap"}),
+                                    "dd", "capital", "impact", "pcap", "fixed"}),
     "naming.tail":       frozenset({"arm", "cadence", "profile", "tax", "survivorship",
-                                    "dd", "capital", "impact", "pcap"}),
+                                    "dd", "capital", "impact", "pcap", "fixed"}),
     "SFX":               frozenset({"arm", "cadence", "profile", "tax", "survivorship",
-                                    "dd", "capital", "impact", "pcap"}),
+                                    "dd", "capital", "impact", "pcap", "fixed"}),
     "artefact_tag":      frozenset({"arm", "cadence", "profile", "tax", "survivorship",
-                                    "dd", "capital", "impact", "pcap"}),
-    "_c(":               frozenset({"cadence", "profile", "tax", "survivorship", "dd", "capital", "impact", "pcap"}),
-    "_ci(":              frozenset({"cadence", "profile", "tax", "survivorship", "dd", "capital", "impact", "pcap"}),
+                                    "dd", "capital", "impact", "pcap", "fixed"}),
+    "_c(":               frozenset({"cadence", "profile", "tax", "survivorship", "dd", "capital", "impact", "pcap", "fixed"}),
+    "_ci(":              frozenset({"cadence", "profile", "tax", "survivorship", "dd", "capital", "impact", "pcap", "fixed"}),
     "selection_suffix":  frozenset({"arm"}),
     "nt_reports_segment": frozenset({"arm", "cadence", "profile", "tax", "survivorship",
-                                     "dd", "capital", "impact", "pcap"}),
+                                     "dd", "capital", "impact", "pcap", "fixed"}),
     "reports_segment":   frozenset({"arm", "cadence", "profile", "tax", "survivorship",
-                                    "dd", "capital", "impact", "pcap"}),
+                                    "dd", "capital", "impact", "pcap", "fixed"}),
     "chart_path":        frozenset({"arm", "cadence", "profile", "tax", "survivorship",
-                                    "dd", "capital", "impact", "pcap"}),
+                                    "dd", "capital", "impact", "pcap", "fixed"}),
     "combined_chart_path": frozenset({"arm", "cadence", "profile", "tax", "survivorship",
-                                      "dd", "capital", "impact", "pcap"}),
+                                      "dd", "capital", "impact", "pcap", "fixed"}),
 }
 
 # `_ci` is three different functions and a textual check cannot tell them apart,

@@ -448,6 +448,11 @@ def print_plan(plan, args, show_paths=False):
     if not _pca.is_default():
         print(f"  participation cap: {_pca.selected():g} of prior-20-session median volume "
               f"(the profile's own is {_pca._profile_cap():g})")
+    import fixed_axis as _fxa
+    if not _fxa.is_default():
+        print(f"  fixed capital: positions sized from min(base, equity), base Rs "
+              f"{_capa.selected():,}; profit above the base is not reinvested (default "
+              f"off, compounded)")
     import dd_axis as _dda
     if not _dda.is_default():
         print(f"  {_dda.label()} -- EXPLORATORY, not validated; off is the default")
@@ -712,12 +717,25 @@ def main(argv=None):
                     help="participation cap as a fraction of prior-20-session median "
                          "volume (default: the profile's own, 1.0 under tradeable; "
                          "tradeable profile only). See pcap_axis.py.")
+    # THE TENTH AXIS, 2026-10-16. Default off: every published run compounds.
+    ap.add_argument("--fixed-capital", action="store_true",
+                    help="size every rebalance from min(--capital, equity) and never "
+                         "reinvest profit above it (default off, compounded). Refused "
+                         "with --dd and the stop arms. See fixed_axis.py.")
     ap.add_argument("--list", action="store_true", help="resolve and print the plan, run nothing")
     ap.add_argument("--dry-run", action="store_true",
                     help="like --list, and show every output location")
     ap.add_argument("--fresh", action="store_true", help="clear caches first (full rebuild)")
     args = ap.parse_args(argv)
     _dd_setup(ap, args)
+    import fixed_axis as _fxa
+    if args.fixed_capital:
+        _why = _fxa.refusal(dd=args.dd is not None,
+                            stop_arms=[a.name for a in resolve_arms(args.arm)
+                                       if a.stop is not None])
+        if _why:
+            ap.error(_why)
+    _fxa.set_selection(bool(args.fixed_capital))
 
     # EVERY AXIS IS RECORDED HERE, BEFORE THE PLAN IS BUILT, so --list and --dry-run
     # compose their paths from the same selection a real run writes under. Cadence,
@@ -887,7 +905,7 @@ def collect_run_folder(plan, args, t_start, dest, thin=None):
         f"profile   : {_pf.selected()}\n"
         f"tax       : {'on' if _tax.selected() else 'off'}\n"
         + _survivorship_section(plan) + _dd_section() + _capital_section()
-        + _impact_pcap_section() +
+        + _impact_pcap_section() + _fixed_section() +
         f"steps     : {len(plan['pipeline'])} pipeline, {len(plan['arm_runs'])} arm runs\n"
         f"artefacts : {copied} copied from their canonical locations\n"
         f"log       : run.log\n"
@@ -936,6 +954,12 @@ def _impact_pcap_section():
     import pcap_axis as _pca
     return (("" if _impa.is_default() else f"impact    : {_impa.selected():g}\n")
             + ("" if _pca.is_default() else f"pcap      : {_pca.selected():g}\n"))
+
+
+def _fixed_section():
+    """RUN.txt's fixed-capital line: none when off, so RUN.txt is unchanged."""
+    import fixed_axis as _fxa
+    return "" if _fxa.is_default() else "fixed     : on\n"
 
 
 def _thin_section(thin):
@@ -1013,6 +1037,8 @@ def read_run_record(folder):
             # Absent from every RUN.txt of a run at k 0 and at the profile's cap.
             "impact": float(kv["impact"]) if kv.get("impact") else None,
             "pcap": float(kv["pcap"]) if kv.get("pcap") else None,
+            # Absent from every RUN.txt of a compounded run.
+            "fixed": kv.get("fixed") == "on",
             "pipeline_steps": int(m.group(1)), "arm_runs": int(m.group(2)),
             "started": started, "finished": finished}
 

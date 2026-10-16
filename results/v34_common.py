@@ -60,10 +60,12 @@ def _dd_params():
     import capital_axis as _capa
     import impact_axis as _impa
     import pcap_axis as _pca
+    import fixed_axis as _fxa
     return (({} if _dda.is_default() else {"dd": _dda.params()})
             | ({} if _capa.is_default() else {"capital": _capa.selected()})
             | ({} if _impa.is_default() else {"impact_k": _impa.selected()})
-            | ({} if _pca.is_default() else {"participation_cap": _pca.selected()}))
+            | ({} if _pca.is_default() else {"participation_cap": _pca.selected()})
+            | ({} if _fxa.is_default() else {"fixed_capital": True}))
 
 
 def _window_label(eq=None):
@@ -319,6 +321,31 @@ def _write_core(M, SFX, comp, subs, ARM_ON, bd, bh, curves, universe_label,
     _wrote.append(M / f"chart_v34{SFX}.png")
 
 
+# naming: arm,cadence,profile via SFX -- every artefact here is `v34_fixed<stem>{SFX}`,
+# SFX composed in run_v34 and ending in "_fixed", the only setting that calls this.
+def _write_fixed(M, SFX, ARM_ON, bd, bh, base, u, rebal, _wrote):
+    """The fixed-capital companions: v34_fixed (figures per line), v34_fixed_years
+    (rupee P&L per calendar year) and v34_fixed_equity (the basket's and the
+    index's fixed-capital curves). See results/fixed_capital.py."""
+    import fixed_capital as fc
+    w0, w1 = bd[0], bd[-1]
+    rows, years = [], []
+    for _, lab, _, eq, _, _, _, au in ARM_ON:
+        inv = fc.max_invested((au or {}).get("fixed"), base)
+        rows.append(fc.figures(eq, base, fc.STRATEGY, lab, inv, w0, w1))
+        years += fc.year_rows(eq, base, fc.STRATEGY, lab)
+    b_rows, b_years, b_curves = fc.benchmark_rows(bh, u, bd, base, rebal, w0, w1)
+    rows += b_rows
+    years += b_years
+    pd.DataFrame(rows).to_csv(M / f"v34_fixed{SFX}.csv", index=False)
+    _wrote.append(M / f"v34_fixed{SFX}.csv")
+    pd.DataFrame(years).to_csv(M / f"v34_fixed_years{SFX}.csv", index=False)
+    _wrote.append(M / f"v34_fixed_years{SFX}.csv")
+    pd.DataFrame({"date": bd, **{f"{k}_fixed": v.values for k, v in b_curves.items()}}
+                 ).to_csv(M / f"v34_fixed_equity{SFX}.csv", index=False)
+    _wrote.append(M / f"v34_fixed_equity{SFX}.csv")
+
+
 # naming: arm,cadence,profile via SFX -- every artefact here is `v34_stop_<stem>{SFX}`,
 # SFX composed from stop_selection_suffix() + cadence, profile and tax suffixes.
 def _write_stop(M, stop_rows, stop_curves, stop_audits, bd, bh, halves,
@@ -330,8 +357,10 @@ def _write_stop(M, stop_rows, stop_curves, stop_audits, bd, bh, halves,
     import capital_axis as _capa
     import impact_axis as _impa
     import pcap_axis as _pca
+    import fixed_axis as _fxa
     SFX = (arm_reg.stop_selection_suffix() + cadence.suffix() + profiles.suffix()
-            + _tax.suffix() + _sva.suffix() + _dda.suffix() + _capa.suffix() + _impa.suffix() + _pca.suffix())
+            + _tax.suffix() + _sva.suffix() + _dda.suffix() + _capa.suffix() + _impa.suffix() + _pca.suffix()
+            + _fxa.suffix())
     rows = stop_rows + [arm_row(bh, "buy & hold equal-weight", 0, 0, 100.0)]
     rows[-1]["MeanNamesHeld"], rows[-1]["CashShortSkips"] = "", ""
     pd.DataFrame(rows).to_csv(M / f"v34_stop_comparison{SFX}.csv", index=False)
@@ -540,8 +569,10 @@ def run_v34(M, universe_label, universe_tag, px, op, sc, bd, pc, mom20, port_vol
     import capital_axis as _capa
     import impact_axis as _impa
     import pcap_axis as _pca
+    import fixed_axis as _fxa
     SFX = (arm_reg.selection_suffix([n for n, *_ in ARM_ON]) + cadence.suffix()
-           + profiles.suffix() + _tax.suffix() + _sva.suffix() + _dda.suffix() + _capa.suffix() + _impa.suffix() + _pca.suffix())
+           + profiles.suffix() + _tax.suffix() + _sva.suffix() + _dda.suffix() + _capa.suffix() + _impa.suffix() + _pca.suffix()
+           + _fxa.suffix())
     # THE PATHS THIS CALL WRITES, IN ORDER. Read only by the report line below, so
     # that what is printed is derived from what was written rather than restated.
     _wrote = []
@@ -552,6 +583,9 @@ def run_v34(M, universe_label, universe_tag, px, op, sc, bd, pc, mom20, port_vol
     if ARM_ON:
         _write_core(M, SFX, comp, subs, ARM_ON, bd, bh, curves, universe_label,
                     universe_tag, consts, _reb, _wrote, arm_reg, cadence, profiles)
+        if not _fxa.is_default():
+            _write_fixed(M, SFX, ARM_ON, bd, bh, start_capital, _REG[universe_tag],
+                         _reb, _wrote)
 
     # --- THE STOP ARMS, v5 AND v6, when selected by name ---
     # Same panel, same dates, same cap and tax as the core arms; the stop comes in
@@ -709,15 +743,40 @@ def run_arm(u, arm, rebal=None, out_dir=None):
             r["MeanNamesHeld"], r["CashShortSkips"] = "", ""
         rows += extra
     comp = pd.DataFrame(rows)
+    # naming: delegated -- out is paths.run_dir(u, arm, rebal), named by naming.path_tail; run.py passes no out_dir
     comp.to_csv(out / "comparison.csv", index=False)
 
     halves = [("2019-2022", 2019, 2022), ("2023-2026", 2023, 2026)]
     curves = [(arm.label, eq, dep), ("buy & hold equal-weight", bh, 100.0)]
+    # naming: delegated -- out is paths.run_dir(u, arm, rebal), named by naming.path_tail; run.py passes no out_dir
     sub_rows(curves, halves, {arm.label: audit}).to_csv(out / "subperiods.csv", index=False)
 
+    # naming: delegated -- out is paths.run_dir(u, arm, rebal), named by naming.path_tail; run.py passes no out_dir
     pd.DataFrame({"date": bd, arm.equity_column: eq.values,
                   "buyhold": bh.values}).to_csv(out / "equity.csv", index=False)
 
+    # THE FIXED-CAPITAL FIGURES (fixed_axis.py), in the arm directory beside
+    # comparison.csv. Written only with --fixed-capital, whose directory ends in
+    # "@fixed", so no other directory gains a file.
+    import fixed_axis as _fxa
+    if not _fxa.is_default():
+        import fixed_capital as fc
+        _base = float(_capital_axis.selected())
+        _reb = rebal if rebal is not None else 20
+        f_rows = [fc.figures(eq, _base, fc.STRATEGY, arm.label,
+                             fc.max_invested(audit.get("fixed"), _base), bd[0], bd[-1])]
+        f_years = fc.year_rows(eq, _base, fc.STRATEGY, arm.label)
+        b_rows, b_years, b_curves = fc.benchmark_rows(bh, u, bd, _base, _reb, bd[0], bd[-1])
+        # naming: delegated -- out is paths.run_dir(u, arm, rebal), named by naming.path_tail; run.py passes no out_dir
+        pd.DataFrame(f_rows + b_rows).to_csv(out / "fixed.csv", index=False)
+        # naming: delegated -- out is paths.run_dir(u, arm, rebal), named by naming.path_tail; run.py passes no out_dir
+        pd.DataFrame(f_years + b_years).to_csv(out / "fixed_years.csv", index=False)
+        # naming: delegated -- out is paths.run_dir(u, arm, rebal), named by naming.path_tail; run.py passes no out_dir
+        pd.DataFrame({"date": bd, "strategy": eq.values,
+                      **{f"{k}_fixed": v.values for k, v in b_curves.items()}}
+                     ).to_csv(out / "fixed_equity.csv", index=False)
+
+    # naming: delegated -- out is paths.run_dir(u, arm, rebal), named by naming.path_tail; run.py passes no out_dir
     (out / "params.json").write_text(json.dumps({
         "universe": u.label, "universe_tag": u.tag,
         "arm": arm.name, "mode": arm.mode, "sizing": arm.sizing,
@@ -757,6 +816,7 @@ def run_arm(u, arm, rebal=None, out_dir=None):
     ax[1].legend(loc="lower left", fontsize=8); ax[1].grid(alpha=.3)
     # THE RUN LABEL TRAVELS IN THE PNG'S Title METADATA, so a script can check
     # which run drew a chart without reading pixels. 2026-09-23.
+    # naming: delegated -- out is paths.run_dir(u, arm, rebal), named by naming.path_tail; run.py passes no out_dir
     plt.tight_layout(); plt.savefig(out / "chart.png", dpi=140, bbox_inches="tight", metadata={"Title": ax[0].get_title().split("\n")[0]})
     plt.close()
     return comp, out

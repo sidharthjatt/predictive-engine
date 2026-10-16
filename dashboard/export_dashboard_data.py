@@ -52,6 +52,7 @@ LABELS = {
     "capital": "Starting capital, rupees",
     "impact": "Market impact coefficient k",
     "pcap": "Participation cap, fraction of median volume",
+    "fixed": "Fixed capital (profits not reinvested)",
 }
 
 # Named cells for check f: (universe, arm). Setting: pit, tradeable, tax on,
@@ -227,6 +228,7 @@ def run_axes(params, run_txt, seg):
         "capital": cap,
         "impact": fmt(k),
         "pcap": "none" if pc is None else fmt(pc),
+        "fixed": "on" if params.get("fixed_capital") or "@fixed" in seg else "off",
     }
 
 
@@ -249,6 +251,8 @@ def expected_segment(ax):
         s += "@impact" + ax["impact"].replace(".", "p")
     if ax["pcap"] not in ("1", "none"):
         s += "@pcap" + ax["pcap"].replace(".", "p")
+    if ax["fixed"] == "on":
+        s += "@fixed"
     return s
 
 
@@ -271,6 +275,8 @@ def flags_for(ax, universe_sel, arm_sel):
         f.append(f"--impact {ax['impact']}")
     if ax["pcap"] not in NO_FLAG["pcap"]:
         f.append(f"--cap {ax['pcap']}")
+    if ax["fixed"] == "on":
+        f.append("--fixed-capital")
     return " ".join(f)
 
 
@@ -288,9 +294,17 @@ def cli_command(axes, ax):
 
 
 def flag_pairs(cmd):
-    """{"--flag": "value"} from a flag string where every flag takes one value."""
-    t = cmd.split()
-    return {t[i]: t[i + 1] for i in range(0, len(t) - 1, 2)}
+    """{"--flag": "value"} from a flag string. A flag followed by another flag, or
+    by nothing, is a switch (--fixed-capital) and maps to ""."""
+    t, out, i = cmd.split(), {}, 0
+    while i < len(t):
+        if i + 1 < len(t) and not t[i + 1].startswith("--"):
+            out[t[i]] = t[i + 1]
+            i += 2
+        else:
+            out[t[i]] = ""
+            i += 1
+    return out
 
 
 def weekly_index(dates):
@@ -415,6 +429,33 @@ def build_run(repo, folder, udir, seg, run_txt, index_files, checks):
         "basket_drawdown": [float(dd_b.iloc[i]) if i == 0 else float(wmin_b[wk.iloc[i]]) for i in pos],
     }
 
+    # FIXED-CAPITAL FIGURES, from the run's own fixed.csv and fixed_years.csv
+    # (results/fixed_capital.py). Present only in a --fixed-capital arm folder.
+    fixed = None
+    if (rdir / "fixed.csv").exists():
+        fx = read_table(rdir / "fixed.csv")
+        fy_ = read_table(rdir / "fixed_years.csv")
+        fixed = {}
+        for _, row in fx.iterrows():
+            yrs = fy_[fy_["Line"] == row["Line"]]
+            fixed[row["Line"]] = {
+                "config": row["Config"],
+                "avg_ann_ret": num(row["AvgAnnRet%"]),
+                "mean_full_year": num(row["MeanFullYear%"]),
+                "full_years": [int(y) for y in str(row["FullYears"]).split()]
+                              if isinstance(row["FullYears"], str) else [],
+                "max_dd_rs": num(row["MaxDD_Rs"]),
+                "max_dd_base": num(row["MaxDD_base%"]),
+                "max_dd_trough": row["MaxDD_trough"],
+                "max_invested_base": num(row["MaxInvested_base%"]),
+                "max_invested_date": (row["MaxInvested_date"]
+                                      if isinstance(row["MaxInvested_date"], str) else None),
+                "cagr": num(row[[c for c in fx.columns if c.startswith("CAGR%")][0]]),
+                "end_equity": num(row["FinalEquity"]),
+                "years": {int(y): {"pnl": num(p), "pct": num(q)}
+                          for y, p, q in zip(yrs["Year"], yrs["PnL_Rs"], yrs["Year%"])},
+            }
+
     peak, trough = deepest_episode(eq)
     index_block = None
     if idx_s is not None:
@@ -448,6 +489,8 @@ def build_run(repo, folder, udir, seg, run_txt, index_files, checks):
         "charges_breakdown": breakdown,
         "yearly": yearly,
         "equity": equity,
+        "fixed": fixed,
+        "fixed_twin": None,  # filled by the caller: the same run with fixed capital flipped
         "nt_verify": None,  # filled by the caller
         "_folder_ts": folder.name.split("_", 1)[0],
     }
@@ -493,7 +536,7 @@ def ladder(repo, runs_by_key, checks):
         ax = {"universe": r["universe"], "arm": r["arm"], "cadence": "20",
               "profile": "tradeable", "tax": "on", "survivorship": "pit", "dd": "off",
               "capital": str(int(r["capital"])), "impact": fmt(r["impact_k"]),
-              "pcap": fmt(r["pcap"])}
+              "pcap": fmt(r["pcap"]), "fixed": "off"}
         run = runs_by_key.get(key_of(ax))
         if run is None:
             missing += 1
@@ -610,7 +653,7 @@ def main():
                 default_cell = (ax["survivorship"] == "static" and ax["profile"] == "research"
                                 and ax["tax"] == "off" and ax["cadence"] == "20"
                                 and ax["dd"] == "off" and ax["capital"] == "1000000"
-                                and ax["impact"] == "0")
+                                and ax["impact"] == "0" and ax["fixed"] == "off")
                 cell = (ax["universe"], ax["arm"])
                 r["nt_verify"] = ("pass" if default_cell and cell in gated else
                                   "fail" if default_cell and cell in ungated else "not covered")
@@ -629,6 +672,19 @@ def main():
     for old, new in dropped:
         checks.append(f"Duplicate combination: dropped {old}, kept the newer {new}.")
     runs = sorted(by_key.values(), key=lambda r: key_of(r["axes"]))
+
+    # THE FIXED-CAPITAL TWIN: the run with every axis the same and fixed capital
+    # flipped. The Return methods view shows a run's fixed-capital figures only when
+    # its twin exists.
+    n_twin = 0
+    for r in runs:
+        tw = by_key.get(key_of({**r["axes"], "fixed": "off" if r["axes"]["fixed"] == "on" else "on"}))
+        if tw is not None:
+            r["fixed_twin"] = tw["id"]
+            n_twin += 1
+    checks.append(f"Fixed capital: {sum(1 for r in runs if r['axes']['fixed'] == 'on')} runs "
+                  f"with --fixed-capital; {n_twin} runs have a twin with fixed capital flipped "
+                  f"and every other setting the same.")
 
     # Arm directories outside any run folder (runs/<universe>/<seg>/) with a
     # combination no run folder holds: not exported, listed here.
@@ -680,6 +736,10 @@ def main():
             axes.append({"name": name, "label": LABELS[name], "default": "static",
                          "values": ["static", "pit"], "open_number": False,
                          "cli": {"static": "", "pit": "--survivorship pit"}})
+        elif name == "fixed":
+            axes.append({"name": name, "label": LABELS[name], "default": "off",
+                         "values": ["off", "on"], "open_number": False,
+                         "cli": {"off": "", "on": "--fixed-capital"}})
         else:
             flag = {"cadence": "--rebal", "dd": "--dd", "capital": "--capital",
                     "impact": "--impact", "pcap": "--cap"}[name]
@@ -791,7 +851,7 @@ def main():
     for u, arm in CHECK_F_CELLS:
         ax = {"universe": u, "arm": arm, "cadence": "20", "profile": "tradeable", "tax": "on",
               "survivorship": "pit", "dd": "off", "capital": "1000000", "impact": "0",
-              "pcap": "1"}
+              "pcap": "1", "fixed": "off"}
         r = by_key.get(key_of(ax))
         p = pub.get((u, arm), {})
         if r is None:

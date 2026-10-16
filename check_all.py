@@ -245,6 +245,12 @@ DELEGATES = (
     # names, the research refusal, the default path unchanged, and impact split from
     # flat slippage in the cost report. A second.
     ("impact_pcap_axis_test.py",              ["--quiet"], False, None),
+    # The fixed-capital axis: purchases never lift invested value above the book
+    # (nifty200 pit tradeable, v1 to v4, tax off and on), fixed and compounded runs
+    # identical while equity has not passed the base (nifty500 v4 pit tradeable, and
+    # a synthetic falling panel), and every test run reconciled from its own fills.
+    # About 40 seconds; reads the cached pit panels.
+    ("fixed_capital_test.py",                 ["--quiet"], False, None),
 
     # Cheap, and each already carries an exit status.
     ("results/leakage_check1_causality.py",   [], False, None),
@@ -937,9 +943,10 @@ def _run_axes(rec=None, tax_on=True):
     import capital_axis as _capa
     import impact_axis as _impa
     import pcap_axis as _pca
+    import fixed_axis as _fxa
     saved = (_cd._SELECTED, _pf.selected(), _tx.selected(), _ar._SELECTED,
              _sva.selected(), _dda.selected(), _capa._SELECTED, _impa._SELECTED,
-             _pca._SELECTED)
+             _pca._SELECTED, _fxa._SELECTED)
     try:
         _cd.set_selection(rec["cadence"] if rec else None)
         _pf.set_selection(rec["profile"] if rec else None)
@@ -950,6 +957,7 @@ def _run_axes(rec=None, tax_on=True):
         _capa.set_selection((rec or {}).get("capital"))
         _impa.set_selection((rec or {}).get("impact"))
         _pca.set_selection((rec or {}).get("pcap"))
+        _fxa.set_selection(bool((rec or {}).get("fixed")))
         yield
     finally:
         _cd.set_selection(saved[0]); _pf.set_selection(saved[1])
@@ -959,6 +967,7 @@ def _run_axes(rec=None, tax_on=True):
         _capa.set_selection(saved[6])
         _impa.set_selection(saved[7])
         _pca.set_selection(saved[8])
+        _fxa.set_selection(saved[9])
 
 
 def _tax_ledger(u, M, arm="v2", stems=("FY_EQUITY", "FY_TAX_STATEMENT"), rec=None):
@@ -994,8 +1003,9 @@ def _v34_equity_pair(M, rec, arm=None):
             import capital_axis as _capa
             import impact_axis as _impa
             import pcap_axis as _pca
+            import fixed_axis as _fxa
             out.append(M / f"{head}{_cd.suffix()}{_pf.suffix()}{_tx.suffix()}"
-                           f"{_sva.suffix()}{_dda.suffix()}{_capa.suffix() + _impa.suffix() + _pca.suffix()}.csv")
+                           f"{_sva.suffix()}{_dda.suffix()}{_capa.suffix() + _impa.suffix() + _pca.suffix() + _fxa.suffix()}.csv")
     return tuple(out)
 
 
@@ -1533,11 +1543,11 @@ def gate_data_source(res, sel):
             # A PIT ARTEFACT was built from the universe's point-in-time variant, so
             # it is checked against that variant's data: the with-survivorship
             # folder and the pit farm. "_pit" is followed only by the axes after it:
-            # drawdown limit, capital, impact, participation cap
-            # ("v34_params_v3_tax_pit_dd20_cap5000000_impact0p003_pcap0p1");
+            # drawdown limit, capital, impact, participation cap, fixed capital
+            # ("v34_params_v3_tax_pit_dd20_cap5000000_impact0p003_pcap0p1_fixed");
             # testing endswith("_pit") checked those against the static data.
             pit = re.search(r"_pit(_dd[0-9p]+(m[0-9p]+)?(f[0-9p]+)?)?(_cap[0-9]+)?"
-                            r"(_impact[0-9p]+)?(_pcap[0-9p]+)?$", f.stem) is not None
+                            r"(_impact[0-9p]+)?(_pcap[0-9p]+)?(_fixed)?$", f.stem) is not None
             if (t, pit) not in live:
                 from universes.registry import pit_variant
                 uu = pit_variant(u) if pit else u

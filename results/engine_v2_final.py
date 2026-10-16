@@ -123,12 +123,13 @@ def _c(path):
     import capital_axis as _capa
     import impact_axis as _impa
     import pcap_axis as _pca
+    import fixed_axis as _fxa
     _all_default = (cadence.is_default() and _pf.is_default() and _tax.is_default()
                     and _sva.is_default() and _dda.is_default()
-            and _capa.is_default() and _impa.is_default() and _pca.is_default())
+            and _capa.is_default() and _impa.is_default() and _pca.is_default() and _fxa.is_default())
     _sfx = ("" if _all_default
             else (cadence.suffix() + _pf.suffix() + _tax.suffix() + _sva.suffix()
-                  + _dda.suffix() + _capa.suffix() + _impa.suffix() + _pca.suffix()))
+                  + _dda.suffix() + _capa.suffix() + _impa.suffix() + _pca.suffix() + _fxa.suffix()))
     out = path if not _sfx else path.with_name(path.stem + _sfx + path.suffix)
     # WHAT THIS RUN ACTUALLY WROTE, RECORDED HERE BECAUSE HERE IS WHERE THE NAME
     # IS DECIDED. The step used to end by printing a hardcoded list of the
