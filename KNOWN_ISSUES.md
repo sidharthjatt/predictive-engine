@@ -520,10 +520,31 @@ which `run.py` prints at the end of `run.log`. The summary compares the arm with
 investable buy & hold held to the end and sold on the last day.
 - The run fails unless, to the paisa: cash reconciles every day; slippage and the
   itemised charges every fill; tax every financial year (by replaying
-  `tax_util.Ledger`); the totals; and the buy & hold, held and sold, against
-  `bh_held.held_lots`. `cost_reconcile_check.py` (check_all) runs this on all 32 cells
+  `tax_util.Ledger`); the per-fill charges and per-day tax against the run's totals;
+  and the buy & hold, held and sold, against `bh_held.held_lots`. The printed tax
+  total must also equal COST_TAX_YEARS `total_tax` summed and the ledger's final
+  `cum_tax`, within Rs 0.01 (`cost_report.check_tax_total`), and the per-year table
+  must add up to it. `cost_reconcile_check.py` (check_all) runs this on all 32 cells
   under both profiles with tax off and on, and each universe's buy & hold: 144
-  combinations.
+  combinations. `tax_total_test.py` (check_all) checks the printed tax figures on a
+  synthetic tax-on run.
+
+### The COSTS block left the 4% cess out of its tax total from 2026-10-14 to 2026-10-16
+
+From `b61621b` the ledger charged the cess, but `cost_report.strategy_totals` printed
+short + long tax. As a result, the COSTS block's tax total, gross profit, all costs and
+"of gross" percentages, and the DAILY_LOG totals, were short by the cess. Cash, every
+CAGR and drawdown, COST_TAX_YEARS, FY_TAX_STATEMENT and the dashboard were right.
+
+The block now prints the cess as its own row, in the summary, in the per-year table
+and for the buy & hold. Short + long + cess is the tax total.
+
+`tools/rebuild_costs_block.py` rewrote every affected block from its run's saved
+fills and tax years, without a backtest: 414 COST_SUMMARY and 414 DAILY_LOG files
+under `results_*/metrics/`, and in the run folders 397 of each plus 397 blocks in 173
+`run.log` files. Each rebuilt block reproduced the old one byte for byte with the old
+code first, and each carries one line saying it was rebuilt. Blocks from before
+`b61621b` charged no cess and were not changed.
 - Slippage in both profiles is `slippage.py`'s flat 0.15% of the reference price, the
   execution day's open (the close for the last-day sale where the open is missing).
   The size-sensitive term exists and no production caller uses it. The tradeable

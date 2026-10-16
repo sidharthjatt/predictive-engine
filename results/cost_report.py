@@ -361,6 +361,7 @@ def bh_costs(px, op, bd, start_capital, tax_on):
             "held_final": held_final, "sell_charges": sell, "sell_slippage": sell_slip,
             "tax": tx["total_tax"] if tax_on else 0.0, "stcg_tax": tx["stcg_tax"] if tax_on else 0.0,
             "ltcg_tax": tx["ltcg_tax"] if tax_on else 0.0,
+            "cess": tx["cess"] if tax_on else 0.0,
             "exemption_used": tx["exemption_used"] if tax_on else 0.0,
             "sold_final": sold_final if tax_on else sold_final + tx["total_tax"],
             "tax_if_on": tx["total_tax"]}
@@ -373,16 +374,24 @@ def strategy_totals(start_capital, final, fills, years):
     slip = float(fills["slippage_rs"].sum()) if len(fills) else 0.0
     stcg = float(years["stcg_tax"].sum())
     ltcg = float(years["ltcg_tax"].sum())
-    tax = stcg + ltcg
+    # THE TAX TOTAL IS total_tax, THE FIGURE THE LEDGER DEDUCTED FROM CASH. It is
+    # short + long + the 4% cess. Until 2026-10-16 this was stcg + ltcg, which left
+    # the cess out of the printed total, the gross profit and every "of gross"
+    # percentage from 2026-10-14, when tax_util began charging the cess. A
+    # COST_TAX_YEARS file from before then has no cess column and no cess.
+    cess = float(years["cess"].sum()) if "cess" in years.columns else 0.0
+    tax = float(years["total_tax"].sum())
     if "impact_rs" not in fills.columns:
         return {"final": final, "gross": final - start_capital + charges + slip + tax,
                 "by_type": tot, "charges": charges, "slippage": slip, "tax": tax,
-                "stcg": stcg, "ltcg": ltcg, "exemption_used": float(years["exemption_used"].sum()),
+                "stcg": stcg, "ltcg": ltcg, "cess": cess,
+                "exemption_used": float(years["exemption_used"].sum()),
                 "all_costs": charges + slip + tax}
     imp = float(fills["impact_rs"].sum()) if len(fills) else 0.0
     return {"final": final, "gross": final - start_capital + charges + slip + imp + tax,
             "by_type": tot, "charges": charges, "slippage": slip, "impact": imp, "tax": tax,
-            "stcg": stcg, "ltcg": ltcg, "exemption_used": float(years["exemption_used"].sum()),
+            "stcg": stcg, "ltcg": ltcg, "cess": cess,
+            "exemption_used": float(years["exemption_used"].sum()),
             "all_costs": charges + slip + imp + tax}
 
 
@@ -395,11 +404,11 @@ def bh_totals(bh, start_capital):
     sold_costs = bc + bs + sc_ + ss + bh["tax"]
     held = {"final": bh["held_final"], "gross": bh["held_final"] - start_capital + held_costs,
             "by_type": dict(bh["buy_charges"]), "charges": bc, "slippage": bs, "tax": 0.0,
-            "stcg": 0.0, "ltcg": 0.0, "exemption_used": 0.0, "all_costs": held_costs}
+            "stcg": 0.0, "ltcg": 0.0, "cess": 0.0, "exemption_used": 0.0, "all_costs": held_costs}
     sold = {"final": bh["sold_final"], "gross": bh["sold_final"] - start_capital + sold_costs,
             "by_type": {k: bh["buy_charges"][k] + bh["sell_charges"][k] for k, _ in CHARGES},
             "charges": bc + sc_, "slippage": bs + ss, "tax": bh["tax"], "stcg": bh["stcg_tax"],
-            "ltcg": bh["ltcg_tax"], "exemption_used": bh["exemption_used"],
+            "ltcg": bh["ltcg_tax"], "cess": bh["cess"], "exemption_used": bh["exemption_used"],
             "all_costs": sold_costs}
     return {"held": held, "sold": sold}
 
@@ -459,6 +468,7 @@ def summary_block(label, profile, tax_on, rebal, start_capital, equity, fills, y
     S = strategy_totals(start_capital, float(equity.iloc[-1]), fills, years)
     final, gross, tot, charges = S["final"], S["gross"], S["by_type"], S["charges"]
     slip, stcg, ltcg, tax, exu = S["slippage"], S["stcg"], S["ltcg"], S["tax"], S["exemption_used"]
+    cess = S["cess"]
     has_imp = "impact" in S
     L = ["=" * 90, f" COSTS -- {label}   cadence {rebal}, profile {profile}, tax {'on' if tax_on else 'off'}",
          "=" * 90,
@@ -479,6 +489,7 @@ def summary_block(label, profile, tax_on, rebal, start_capital, equity, fills, y
     row("tax, total", tax, 0)
     row("short-term", stcg)
     row("long-term", ltcg)
+    row("cess", cess)
     row("LTCG exemption used (not a cost)", exu)
     row("all costs", S["all_costs"], 0)
     if stop_arm:
@@ -488,12 +499,12 @@ def summary_block(label, profile, tax_on, rebal, start_capital, equity, fills, y
     L += ["", "  per financial year, as paid (Rs; last column % of the year's gross profit)",
           f"  {'FY':<11}{'gross profit':>15}{'charges':>13}{'slippage':>12}"
           + (f"{'impact':>12}" if has_imp else "")
-          + f"{'short tax':>12}{'long tax':>11}{'exempt used':>13}{'costs % gross':>15}"]
+          + f"{'short tax':>12}{'long tax':>11}{'cess':>11}{'exempt used':>13}{'costs % gross':>15}"]
     paid = years.dropna(subset=["deducted_on"]).copy()
     paid["paid_fy"] = paid["deducted_on"].map(T.financial_year)
     fyof = pd.Series([T.financial_year(d) for d in equity.index], index=equity.index)
     ffy = fills["date"].map(T.financial_year) if len(fills) else pd.Series(dtype=int)
-    prev, sums, imp_sum = start_capital, np.zeros(5), 0.0
+    prev, sums, imp_sum = start_capital, np.zeros(6), 0.0
     for fy in sorted(fyof.unique()):
         end = float(equity.loc[fyof[fyof == fy].index[-1]])
         fl = fills[ffy == fy] if len(fills) else fills
@@ -501,25 +512,27 @@ def summary_block(label, profile, tax_on, rebal, start_capital, equity, fills, y
         s_ = float(fl["slippage_rs"].sum()) if len(fl) else 0.0
         y = paid[paid["paid_fy"] == fy]
         st, lt, ex = (float(y[k].sum()) for k in ("stcg_tax", "ltcg_tax", "exemption_used"))
+        ce = float(y["cess"].sum()) if "cess" in y.columns else 0.0
         if has_imp:
             i_ = float(fl["impact_rs"].sum()) if len(fl) else 0.0
-            g = end - prev + c + s_ + i_ + st + lt
+            g = end - prev + c + s_ + i_ + st + lt + ce
             L.append(f"  {T.fy_label(fy):<11}{g:>15,.2f}{c:>13,.2f}{s_:>12,.2f}{i_:>12,.2f}"
-                     f"{st:>12,.2f}{lt:>11,.2f}{ex:>13,.2f}{_pct(c + s_ + i_ + st + lt, g):>15}"
+                     f"{st:>12,.2f}{lt:>11,.2f}{ce:>11,.2f}{ex:>13,.2f}"
+                     f"{_pct(c + s_ + i_ + st + lt + ce, g):>15}"
                      + (f"   tax settles {', '.join(y['fy'])}" if len(y) else ""))
             imp_sum += i_
         else:
-            g = end - prev + c + s_ + st + lt
+            g = end - prev + c + s_ + st + lt + ce
             settles = ", ".join(y["fy"]) if len(y) else ""
             L.append(f"  {T.fy_label(fy):<11}{g:>15,.2f}{c:>13,.2f}{s_:>12,.2f}{st:>12,.2f}{lt:>11,.2f}"
-                     f"{ex:>13,.2f}{_pct(c + s_ + st + lt, g):>15}"
+                     f"{ce:>11,.2f}{ex:>13,.2f}{_pct(c + s_ + st + lt + ce, g):>15}"
                      + (f"   tax settles {settles}" if settles else ""))
-        sums += (g, c, s_, st, lt)
+        sums += (g, c, s_, st, lt, ce)
         prev = end
     if has_imp and abs(imp_sum - S["impact"]) >= PAISA:
         _fail("totals", None, imp_sum - S["impact"], "per-year impact does not sum to the summary total")
     for got, want, what in ((sums[0], gross, "gross profit"), (sums[1], charges, "charges"),
-                            (sums[2], slip, "slippage"), (sums[3] + sums[4], tax, "tax")):
+                            (sums[2], slip, "slippage"), (sums[3] + sums[4] + sums[5], tax, "tax")):
         if abs(got - want) >= PAISA:
             _fail("totals", None, got - want, f"per-year {what} does not sum to the summary total")
     L.append("  Tax is shown in the year it left cash; COST_TAX_YEARS gives the year each amount was "
@@ -535,7 +548,7 @@ def summary_block(label, profile, tax_on, rebal, start_capital, equity, fills, y
               f"  {'gross profit':<34}{g_held:>18,.2f}{g_sold:>22,.2f}"]
         for nm, x, y in (("charges", bc, B["sold"]["charges"]), ("slippage", bs, B["sold"]["slippage"]),
                          ("tax, total", 0.0, bh["tax"]), ("  short-term", 0.0, bh["stcg_tax"]),
-                         ("  long-term", 0.0, bh["ltcg_tax"]),
+                         ("  long-term", 0.0, bh["ltcg_tax"]), ("  cess", 0.0, bh["cess"]),
                          ("  LTCG exemption used (not a cost)", 0.0, bh["exemption_used"]),
                          ("all costs", held_costs, sold_costs)):
             L.append(f"  {nm:<34}{x:>18,.2f}{y:>22,.2f}")
@@ -610,7 +623,7 @@ def read_run_costs(M, tag):
 
 def _book_figures(book, T_):
     out = {f"{book}/{k}": T_[k] for k in ("final", "gross", "charges", "slippage", "tax", "stcg",
-                                          "ltcg", "exemption_used", "all_costs")}
+                                          "ltcg", "cess", "exemption_used", "all_costs")}
     if "impact" in T_:
         out[f"{book}/impact"] = T_["impact"]
     out.update({f"{book}/{k}": T_["by_type"][k] for k, _ in CHARGES})
@@ -628,7 +641,7 @@ def summary_figures(text):
     out["strategy/gross"] = re.search(r"gross profit Rs ([-\d,.]+) =", text).group(1)
     names = {"charges, total": "charges", "charges": "charges", "slippage": "slippage",
              "impact": "impact",
-             "tax, total": "tax", "short-term": "stcg", "long-term": "ltcg",
+             "tax, total": "tax", "short-term": "stcg", "long-term": "ltcg", "cess": "cess",
              "LTCG exemption used (not a cost)": "exemption_used", "all costs": "all_costs",
              "final equity": "final", "gross profit": "gross",
              "of which drawdown exits": "exit_costs"}
@@ -653,12 +666,30 @@ def summary_figures(text):
     return out
 
 
-def daily_log_totals(M, tag, arm_name, final, bh, start_capital, tax_on, width):
+def check_tax_total(lines, years, engine_tax):
+    """The printed tax total must be COST_TAX_YEARS total_tax summed and the ledger's
+    final cum_tax, within Rs 0.01. Raises CostReconciliationError otherwise.
+
+    ADDED 2026-10-16. The block's own checks compared the per-year tax with the
+    summary total, and both were short + long, so a total that left the 4% cess out
+    agreed with itself. This compares the printed figure with the two sources that
+    carry what cash actually paid."""
+    printed = float(summary_figures("\n".join(lines))["strategy/tax"].replace(",", ""))
+    for want, what in ((float(years["total_tax"].sum()), "COST_TAX_YEARS total_tax summed"),
+                       (float(engine_tax), "the ledger's final cum_tax")):
+        if abs(printed - want) > 0.01:
+            _fail("totals", None, printed - want,
+                  f"the printed tax total Rs {printed:,.2f} is not {what}, Rs {want:,.2f}")
+
+
+def daily_log_totals(M, tag, arm_name, final, bh, start_capital, tax_on, width,
+                     summary_text=None):
     """The totals block that ends DAILY_LOG_<tag>.txt, as a list of lines.
 
     `final` is the arm's final equity from the engine's curve and `bh` is bh_costs'
     result for the universe. Raises CostReconciliationError if any figure differs
-    from COST_SUMMARY_<tag>.txt."""
+    from COST_SUMMARY_<tag>.txt, or from `summary_text` when given (the rebuild in
+    tools/rebuild_costs_block.py passes the block it is about to write)."""
     M = Path(M)
     fills, years = read_run_costs(M, tag)
     books = {"strategy": strategy_totals(start_capital, final, fills, years),
@@ -673,9 +704,11 @@ def daily_log_totals(M, tag, arm_name, final, bh, start_capital, tax_on, width):
         mine["strategy/exit_costs"] = exit_costs(fills)
     # `tag` is audit_step.artefact_tag(u, arm), passed in by make_daily_log
     summ = M / f"COST_SUMMARY_{tag}.txt"
-    if not summ.exists():
-        _fail("daily log", None, 0.0, f"{summ.name} is absent, so the totals cannot be checked")
-    theirs = summary_figures(summ.read_text())
+    if summary_text is None:
+        if not summ.exists():
+            _fail("daily log", None, 0.0, f"{summ.name} is absent, so the totals cannot be checked")
+        summary_text = summ.read_text()
+    theirs = summary_figures(summary_text)
     for k, v in theirs.items():
         got = f"{mine[k]:,.2f}"
         if got != v:
@@ -707,6 +740,7 @@ def daily_log_totals(M, tag, arm_name, final, bh, start_capital, tax_on, width):
         row("tax, total", T_["tax"], 0)
         row("short-term", T_["stcg"])
         row("long-term", T_["ltcg"])
+        row("cess", T_["cess"])
         row("LTCG exemption used (not a cost)", T_["exemption_used"])
         row("all costs", T_["all_costs"], 0)
         if b == "strategy" and _stop_arm:
@@ -742,6 +776,7 @@ def write(u, arm, tag, audit, equity, engine_tc, px, op, bd, start_capital, prof
                           cap_cuts=sum(1 for r in audit["skipped"] if r.get("reason") == "participation cap"),
                           stop_arm=getattr(arm, "stop", None) is not None,
                           dd=audit.get("dd"))
+    check_tax_total(lines, years, engine_tax)
     # naming: arm,cadence,profile,tax via artefact_tag -- `tag` is audit_step.artefact_tag(u, arm)
     out.to_csv(M / f"COSTS_{tag}.csv", index=False)
     # naming: arm,cadence,profile,tax via artefact_tag -- `tag` is audit_step.artefact_tag(u, arm)

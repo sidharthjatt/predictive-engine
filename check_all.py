@@ -251,6 +251,11 @@ DELEGATES = (
     # a synthetic falling panel), and every test run reconciled from its own fills.
     # About 40 seconds; reads the cached pit panels.
     ("fixed_capital_test.py",                 ["--quiet"], False, None),
+    # The COSTS block's tax figures against what cash paid: the printed tax total
+    # equals COST_TAX_YEARS total_tax and the ledger's cum_tax, and short + long +
+    # cess add up to it, in the summary, the per-year table and the buy & hold.
+    # A synthetic tax-on run. A second.
+    ("tax_total_test.py",                     ["--quiet"], False, None),
 
     # Cheap, and each already carries an exit status.
     ("results/leakage_check1_causality.py",   [], False, None),
