@@ -71,6 +71,12 @@ diagnostics/rebal_cadence_audit/
 # from the panels, and its params.json records the git state that produced them.
 runs/
 
+# The results dashboard's generated data and page: about 24 MB each, rebuilt from
+# runs/ by dashboard/export_dashboard_data.py and dashboard/build_dashboard.py, and
+# different on every rebuild. The scripts and the template are tracked.
+dashboard/dashboard_data.json
+dashboard/dashboard.html
+
 # ------------------------------------------------------------ bulk price data
 # ~396 MB of vendor OHLCV CSVs. Excluded for size, not for irrelevance -- the
 # project cannot run without them, so they must be restored from the backup

@@ -1527,6 +1527,23 @@ component.
 
 If you are about to propose an idea, it is probably in there.
 
+## Results dashboard
+
+`dashboard/` builds one HTML page that shows every finished run: the run with its
+equity, drawdown, yearly returns, costs and command; a grid over any two axes; up to
+six runs compared; the capital ladder; three ways of stating the return; a table of
+all runs; and the known issues. It reads finished runs under `runs/<timestamp>_*/`
+and the newest `diagnostics/capital_ladder_*.csv` only. It runs no backtest and
+writes nothing outside `dashboard/`. From the repository root:
+
+    ./venv/bin/python dashboard/export_dashboard_data.py
+    python3 dashboard/build_dashboard.py
+
+The page is `dashboard/dashboard.html`, built from `dashboard/dashboard_data.json`.
+Open it by double-clicking: it needs no network. Both files are about 24 MB, change
+on every rebuild and are not tracked. `dashboard/test_dashboard.py` drives the page
+in headless Chrome and needs Chrome installed.
+
 ## Repository layout
 
     results/          the research engine: features, model, walk-forward, backtest,
@@ -1539,6 +1556,8 @@ If you are about to propose an idea, it is probably in there.
                       reconciliations, and the membership rebuild
     docs/             published copies of two pipeline figures, for this README
     data/reference/   NSE press-release manifest, symbol rename map, circular index
+    dashboard/        the results dashboard: export, page builder, page template,
+                      browser test
     run_all.py        the whole pipeline, ordered, with a static check that no step
                       reads a file a later step writes
 

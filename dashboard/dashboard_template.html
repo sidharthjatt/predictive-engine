@@ -1,0 +1,916 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Backtest Runs Dashboard</title>
+<style>
+:root {
+  --bg: #f7f7f5; --panel: #ffffff; --ink: #1d1d1f; --muted: #5f6368; --line: #d9d9d6;
+  --accent: #1f5fbf; --dim: #a8a8a4; --good: #1b7a3d; --bad: #b3261e; --chip: #eef1f6;
+  --s1: #1f5fbf; --s2: #c2571a; --s3: #6b6b6b; --s4: #2a8a63; --s5: #8a3fb5; --s6: #b8860b;
+  --shade: 31, 95, 191; --tip: #ffffff; --tipink: #1d1d1f;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #141517; --panel: #1d1f22; --ink: #e8e8e6; --muted: #a2a6ab; --line: #34373b;
+    --accent: #7fb0ff; --dim: #5d6166; --good: #6fcf8e; --bad: #ff8a80; --chip: #262a30;
+    --s1: #7fb0ff; --s2: #ffa165; --s3: #b5b5b5; --s4: #6fd3a5; --s5: #cf9bf0; --s6: #e8c15a;
+    --shade: 127, 176, 255; --tip: #2a2d31; --tipink: #e8e8e6;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #141517; --panel: #1d1f22; --ink: #e8e8e6; --muted: #a2a6ab; --line: #34373b;
+  --accent: #7fb0ff; --dim: #5d6166; --good: #6fcf8e; --bad: #ff8a80; --chip: #262a30;
+  --s1: #7fb0ff; --s2: #ffa165; --s3: #b5b5b5; --s4: #6fd3a5; --s5: #cf9bf0; --s6: #e8c15a;
+  --shade: 127, 176, 255; --tip: #2a2d31; --tipink: #e8e8e6;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--bg); color: var(--ink);
+  font: 15px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+header { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; padding: 12px 16px;
+  border-bottom: 1px solid var(--line); background: var(--panel); position: sticky; top: 0; z-index: 5; }
+header h1 { font-size: 17px; margin: 0; }
+nav { display: flex; flex-wrap: wrap; gap: 4px; }
+nav button, .btn, .chip { font: inherit; color: var(--ink); background: var(--chip);
+  border: 1px solid var(--line); border-radius: 6px; padding: 4px 10px; cursor: pointer; }
+nav button[aria-current="page"], .chip[aria-pressed="true"], .btn.on {
+  background: var(--accent); color: var(--panel); border-color: var(--accent); }
+.chip.dim { color: var(--dim); border-style: dashed; }
+.chip.dim[aria-pressed="true"] { background: var(--dim); color: var(--panel); }
+button:focus-visible, select:focus-visible, input:focus-visible, svg:focus-visible, tr:focus-visible, summary:focus-visible {
+  outline: 2px solid var(--accent); outline-offset: 2px; }
+.tools { margin-left: auto; display: flex; gap: 6px; flex-wrap: wrap; }
+main { padding: 16px; max-width: 1280px; margin: 0 auto; }
+section.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 8px;
+  padding: 14px; margin: 0 0 14px; min-width: 0; }
+section.panel h2 { font-size: 15px; margin: 0 0 10px; overflow-wrap: anywhere; }
+section.panel li, section.panel p { overflow-wrap: anywhere; }
+td.wrap { white-space: normal; overflow-wrap: anywhere; }
+.axes { display: grid; gap: 8px; }
+.axis { display: grid; grid-template-columns: 220px 1fr; gap: 8px; align-items: start; }
+.axis .lab { color: var(--muted); font-size: 13px; padding-top: 5px; }
+.axis .chips { display: flex; flex-wrap: wrap; gap: 4px; }
+.tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+.tile { border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px; }
+.tile .k { color: var(--muted); font-size: 12px; }
+.tile .v { font-size: 20px; font-weight: 600; }
+.tile .s { color: var(--muted); font-size: 12px; }
+.row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.row2 > * { min-width: 0; }
+.scroll { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 13px; }
+th, td { padding: 4px 8px; border-bottom: 1px solid var(--line); text-align: right; white-space: nowrap; }
+th:first-child, td:first-child, td.l, th.l { text-align: left; }
+th { color: var(--muted); font-weight: 600; }
+th button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
+tr.click { cursor: pointer; }
+tr.click:hover td { background: var(--chip); }
+.muted { color: var(--muted); }
+.pass { color: var(--good); font-weight: 600; }
+.fail { color: var(--bad); font-weight: 600; }
+.cmd { display: flex; gap: 8px; align-items: flex-start; }
+.cmd code { flex: 1; display: block; padding: 8px; background: var(--chip); border-radius: 6px;
+  font: 13px/1.4 ui-monospace, Menlo, Consolas, monospace; overflow-x: auto; white-space: pre-wrap; word-break: break-all; }
+.ctrl { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 8px; }
+select, input[type="text"] { font: inherit; color: var(--ink); background: var(--panel);
+  border: 1px solid var(--line); border-radius: 6px; padding: 4px 6px; }
+svg.chart { display: block; width: 100%; height: auto; }
+svg.chart text { fill: var(--muted); font-size: 11px; }
+svg.chart .grid { stroke: var(--line); stroke-width: 1; }
+svg.chart .zero { stroke: var(--muted); stroke-width: 1; }
+.legend { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 13px; margin: 4px 0; }
+.legend i { display: inline-block; width: 14px; height: 3px; vertical-align: middle; margin-right: 5px; }
+#tip { position: fixed; pointer-events: none; z-index: 20; background: var(--tip); color: var(--tipink);
+  font-size: 12px; padding: 6px 8px; border-radius: 6px; max-width: 320px; display: none;
+  border: 1px solid var(--line); box-shadow: 0 2px 8px rgba(0,0,0,.25); }
+#tip b { font-weight: 600; }
+.problems { border: 1px solid var(--bad); border-radius: 8px; padding: 10px 14px; margin-bottom: 14px; background: var(--panel); }
+.problems h2 { color: var(--bad); }
+pre.ki { white-space: pre-wrap; font: 13px/1.45 ui-monospace, Menlo, Consolas, monospace; margin: 4px 0 0; }
+details { border-bottom: 1px solid var(--line); padding: 6px 0; }
+summary { cursor: pointer; }
+.cell { min-width: 70px; }
+.win { color: var(--muted); font-weight: normal; font-size: 13px; }
+.diffwin { display: inline-block; font-size: 11px; font-weight: 600; color: var(--bad); border: 1px solid var(--bad);
+  border-radius: 4px; padding: 0 4px; margin-left: 4px; white-space: nowrap; }
+details.settings > summary { font-weight: 600; font-size: 15px; margin-bottom: 8px; }
+details.settings:not([open]) > summary { margin-bottom: 0; }
+details.settings .sum { color: var(--muted); font-weight: normal; font-size: 13px; }
+.spread { color: var(--muted); font-style: italic; padding-top: 5px; }
+.lab2 { margin: 10px 0 4px; font-weight: 600; }
+.legend svg { vertical-align: middle; margin-right: 5px; }
+.sr { position: absolute; left: -9999px; }
+@media (max-width: 760px) {
+  .axis { grid-template-columns: 1fr; }
+  .row2 { grid-template-columns: 1fr; }
+  .tools { margin-left: 0; }
+}
+</style>
+</head>
+<body>
+<header>
+  <h1>Backtest runs</h1>
+  <nav id="nav" aria-label="Views"></nav>
+  <div class="tools">
+    <button class="btn" id="openFile" type="button">Open another file</button>
+    <input type="file" id="fileInput" accept=".json,application/json" class="sr" tabindex="-1" aria-hidden="true">
+    <button class="btn" id="theme" type="button" aria-label="Colour theme">Theme: auto</button>
+  </div>
+</header>
+<main id="main"></main>
+<div id="tip" role="status" aria-live="polite"></div>
+<script id="data" type="application/json">/*__DATA__*/null</script>
+<script>
+"use strict";
+// ---------------------------------------------------------------------------
+// Format check: the same rules as build_dashboard.py validate().
+// ---------------------------------------------------------------------------
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+const TOP = ["schema","generated_at","repo","data_end","command_template","axes","runs","ladder","known_issues","export_checks"];
+const RUN_FIELDS = ["id","path","axes","command","start_date","end_date","years","start_equity","end_equity","cagr","max_dd","max_dd_peak","max_dd_trough","basket","index","trades","rebalances","costs","charges_breakdown","yearly","equity","nt_verify","rounded_to"];
+const LADDER_FIELDS = ["universe","arm","survivorship","tax","profile","cadence","capital","impact","cap","cagr","basket_cagr","max_dd","impact_cost","slippage","capped_fills","tax_paid"];
+const EQ_FIELDS = ["dates","strategy","basket","index","drawdown","basket_drawdown"];
+const isNum = x => typeof x === "number" && isFinite(x);
+const numOrNull = x => x === null || isNum(x);
+const dateOrNull = x => x === null || (typeof x === "string" && DATE_RE.test(x));
+const isObj = x => x !== null && typeof x === "object" && !Array.isArray(x);
+
+function validate(d) {
+  const p = [];
+  if (!isObj(d)) return ["The file is not a JSON object."];
+  for (const k of TOP) if (!(k in d)) p.push(`Top-level field "${k}" is missing.`);
+  if (p.length) return p;
+  if (d.schema !== "pe-dashboard/1") p.push(`schema is ${JSON.stringify(d.schema)}, expected "pe-dashboard/1".`);
+  const r = d.repo;
+  if (!(isObj(r) && typeof r.head === "string" && typeof r.branch === "string" && typeof r.clean === "boolean"))
+    p.push("repo must hold head (string), branch (string) and clean (true or false).");
+  if (!dateOrNull(d.data_end)) p.push("data_end is not a YYYY-MM-DD date.");
+  if ("window" in d && !(isObj(d.window) && dateOrNull(d.window.start) && dateOrNull(d.window.end) && typeof d.window.reason === "string"))
+    p.push("window, when present, must hold start, end (dates) and reason (text).");
+  if (!(typeof d.command_template === "string" && d.command_template.includes("{args}")))
+    p.push("command_template must be a string containing {args}.");
+  const names = [];
+  if (!Array.isArray(d.axes) || !d.axes.length) p.push("axes must be a non-empty list.");
+  else d.axes.forEach((a, i) => {
+    const w = `axes[${i}]`;
+    if (!isObj(a)) { p.push(`${w} is not an object.`); return; }
+    for (const k of ["name","label","default","values","open_number","cli"]) if (!(k in a)) p.push(`${w} has no "${k}".`);
+    if (!["name","values","open_number","cli"].every(k => k in a)) return;
+    names.push(a.name);
+    if (!(Array.isArray(a.values) && a.values.every(v => typeof v === "string"))) p.push(`${w} (${a.name}): values must be a list of strings.`);
+    if (typeof a.default !== "string") p.push(`${w} (${a.name}): default must be a string.`);
+    if (a.open_number === true) {
+      if (!(typeof a.cli === "string" && a.cli.includes("{value}"))) p.push(`${w} (${a.name}): an open number axis needs cli as a string with {value}.`);
+    } else if (a.open_number === false) {
+      if (!(isObj(a.cli) && a.values.every(v => typeof a.cli[v] === "string"))) p.push(`${w} (${a.name}): cli must map every value to a flag string.`);
+    } else p.push(`${w} (${a.name}): open_number must be true or false.`);
+  });
+  if (!Array.isArray(d.runs)) p.push("runs must be a list.");
+  else {
+    const ids = new Set();
+    for (let i = 0; i < d.runs.length; i++) {
+      const run = d.runs[i];
+      let w = `runs[${i}]`;
+      if (!isObj(run)) { p.push(`${w} is not an object.`); continue; }
+      const miss = RUN_FIELDS.filter(k => !(k in run));
+      if (miss.length) { p.push(`${w} is missing ${miss.join(", ")}.`); continue; }
+      w = `run ${run.id}`;
+      if (ids.has(run.id)) p.push(`${w}: id appears twice.`);
+      ids.add(run.id);
+      if (!isObj(run.axes) || names.some(n => typeof run.axes[n] !== "string"))
+        p.push(`${w}: axes must give every axis (${names.join(", ")}) a string value.`);
+      for (const k of ["start_date","end_date","max_dd_peak","max_dd_trough"]) if (!dateOrNull(run[k])) p.push(`${w}: ${k} is not a YYYY-MM-DD date or null.`);
+      for (const k of ["years","start_equity","end_equity","cagr","max_dd","trades","rebalances"]) if (!numOrNull(run[k])) p.push(`${w}: ${k} is not a number or null.`);
+      if (typeof run.command !== "string") p.push(`${w}: command is not a string.`);
+      for (const b of ["basket","index"]) {
+        const v = run[b];
+        if (v === null && b === "index") continue;
+        if (!(isObj(v) && typeof v.name === "string" && ["start_equity","cagr","max_dd","end_equity"].every(k => numOrNull(v[k]))))
+          p.push(`${w}: ${b} must hold name, start_equity, cagr, max_dd and end_equity.`);
+      }
+      const c = run.costs;
+      if (!(isObj(c) && ["slippage","charges","impact","tax"].every(k => k in c && numOrNull(c[k])))) p.push(`${w}: costs must hold slippage, charges, impact and tax.`);
+      const cb = run.charges_breakdown;
+      if (cb !== null && !(isObj(cb) && Object.values(cb).every(isNum))) p.push(`${w}: charges_breakdown must map names to rupees.`);
+      if (!Array.isArray(run.yearly)) p.push(`${w}: yearly is not a list.`);
+      else if (!run.yearly.every(y => isObj(y) && isNum(y.year) && typeof y.full_year === "boolean" && ["strategy","basket","index","tax_paid"].every(k => numOrNull(y[k]))))
+        p.push(`${w}: a yearly entry is malformed.`);
+      const e = run.equity;
+      if (!(isObj(e) && EQ_FIELDS.every(k => k in e))) p.push(`${w}: equity must hold ${EQ_FIELDS.join(", ")}.`);
+      else {
+        const n = Array.isArray(e.dates) ? e.dates.length : -1;
+        if (n < 2 || !e.dates.every(x => typeof x === "string" && DATE_RE.test(x))) p.push(`${w}: equity.dates must be at least two YYYY-MM-DD dates.`);
+        for (const k of EQ_FIELDS.slice(1)) {
+          const v = e[k];
+          if (v === null && k === "index") continue;
+          if (!(Array.isArray(v) && v.length === n && v.every(isNum))) p.push(`${w}: equity.${k} must be ${n} numbers.`);
+        }
+      }
+      if (!(isObj(run.rounded_to) && Object.values(run.rounded_to).every(v => Number.isInteger(v))))
+        p.push(`${w}: rounded_to must map figure names to whole numbers of decimals.`);
+      if (!["pass","fail","not covered"].includes(run.nt_verify)) p.push(`${w}: nt_verify must be pass, fail or not covered.`);
+      if (p.length > 200) { p.push("More than 200 problems; stopped listing."); return p; }
+    }
+  }
+  if (!Array.isArray(d.ladder)) p.push("ladder must be a list.");
+  else for (let i = 0; i < d.ladder.length; i++) {
+    const miss = LADDER_FIELDS.filter(k => !isObj(d.ladder[i]) || !(k in d.ladder[i]));
+    if (miss.length) { p.push(`ladder[${i}] is missing ${miss.join(", ")}.`); break; }
+  }
+  if (!(Array.isArray(d.known_issues) && d.known_issues.every(k => isObj(k) && typeof k.title === "string" && typeof k.text === "string")))
+    p.push("known_issues must be a list of {title, text}.");
+  if (!(Array.isArray(d.export_checks) && d.export_checks.every(x => typeof x === "string")))
+    p.push("export_checks must be a list of strings.");
+  return p;
+}
+
+// ---------------------------------------------------------------------------
+// Formatting.
+// ---------------------------------------------------------------------------
+const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const pct = (x, d = 2) => x === null || x === undefined ? "–" : `${x.toFixed(d)}%`;
+const spct = (x, d = 2) => x === null || x === undefined ? "–" : `${x >= 0 ? "+" : "−"}${Math.abs(x).toFixed(d)}`;
+function groupIN(intStr) {
+  if (intStr.length <= 3) return intStr;
+  const last3 = intStr.slice(-3);
+  let rest = intStr.slice(0, -3);
+  const parts = [];
+  while (rest.length > 2) { parts.unshift(rest.slice(-2)); rest = rest.slice(0, -2); }
+  if (rest) parts.unshift(rest);
+  return parts.join(",") + "," + last3;
+}
+function inrFull(x, dec = 0) {
+  if (x === null || x === undefined) return "–";
+  const neg = x < 0, a = Math.abs(x).toFixed(dec);
+  const [i, f] = a.split(".");
+  return `${neg ? "−" : ""}Rs ${groupIN(i)}${f ? "." + f : ""}`;
+}
+function inr(x) {
+  if (x === null || x === undefined) return "–";
+  const a = Math.abs(x), s = x < 0 ? "−" : "";
+  if (a >= 1e7) return `${s}Rs ${(a / 1e7).toFixed(2)} crore`;
+  if (a >= 1e5) return `${s}Rs ${(a / 1e5).toFixed(2)} lakh`;
+  return `${s}Rs ${groupIN(Math.round(a).toString())}`;
+}
+function axisValueText(name, v) {
+  if (name === "capital" && /^\d+$/.test(v)) return inr(Number(v));
+  return v;
+}
+
+// ---------------------------------------------------------------------------
+// Data and state.
+// ---------------------------------------------------------------------------
+let DATA, AXES, AXN, RUNS, BYKEY, BYID;
+const keyOf = ax => AXN.map(n => ax[n]).join("|");
+function load(d) {
+  DATA = d; AXES = d.axes; AXN = AXES.map(a => a.name); RUNS = d.runs;
+  BYKEY = new Map(); BYID = new Map();
+  for (const r of RUNS) { BYKEY.set(keyOf(r.axes), r); BYID.set(r.id, r); }
+}
+const VIEWS = [["run","Run"],["grid","Grid"],["compare","Compare"],["ladder","Capital ladder"],["methods","Return methods"],["all","All runs"],["notes","Notes"]];
+const state = { view: "run", sel: {}, scale: "log", cmp: [], cmode: "index", grow: "", gcol: "", gmetric: "cagr",
+                lcell: "", lmetric: "cagr_minus_basket", lcap: "both", sort: "", sdir: 1, filter: "", setOpen: false };
+
+function readHash() {
+  const h = new URLSearchParams(location.hash.slice(1));
+  if (h.get("view") && VIEWS.some(v => v[0] === h.get("view"))) state.view = h.get("view");
+  for (const n of AXN) if (h.get("a." + n) !== null) state.sel[n] = h.get("a." + n);
+  for (const k of ["scale","cmode","grow","gcol","gmetric","lcell","lmetric","lcap","sort","filter"]) if (h.get(k) !== null) state[k] = h.get(k);
+  if (h.get("sdir")) state.sdir = Number(h.get("sdir")) === -1 ? -1 : 1;
+  if (h.get("cmp") !== null) state.cmp = h.get("cmp").split("~").filter(id => BYID.has(id)).slice(0, 6);
+}
+function writeHash() {
+  const h = new URLSearchParams();
+  h.set("view", state.view);
+  for (const n of AXN) h.set("a." + n, state.sel[n]);
+  for (const k of ["scale","cmode","grow","gcol","gmetric","lcell","lmetric","lcap","sort","filter"]) if (state[k] !== "") h.set(k, state[k]);
+  if (state.sdir === -1) h.set("sdir", "-1");
+  if (state.cmp.length) h.set("cmp", state.cmp.join("~"));
+  const s = "#" + h.toString();
+  if (location.hash !== s) history.replaceState(null, "", s);
+}
+function initSelection() {
+  const first = RUNS[0];
+  for (const a of AXES) {
+    const v = state.sel[a.name];
+    if (v === undefined || !a.values.includes(v)) state.sel[a.name] = first ? first.axes[a.name] : a.values[0];
+  }
+  const ok = n => AXN.includes(n);
+  if (!ok(state.grow)) state.grow = AXN.includes("universe") ? "universe" : AXN[0];
+  if (!ok(state.gcol) || state.gcol === state.grow) state.gcol = AXN.find(n => n !== state.grow && n === "arm") || AXN.find(n => n !== state.grow);
+}
+const current = () => BYKEY.get(keyOf(state.sel)) || null;
+const withAxis = (sel, n, v) => Object.assign({}, sel, {[n]: v});
+function openRun(r) { state.sel = Object.assign({}, r.axes); state.view = "run"; render(); window.scrollTo(0, 0); }
+
+// ---------------------------------------------------------------------------
+// Charts: inline SVG with a tooltip kept inside the window.
+// ---------------------------------------------------------------------------
+const TIP = document.getElementById("tip");
+function showTip(html, cx, cy) {
+  TIP.innerHTML = html; TIP.style.display = "block";
+  const w = TIP.offsetWidth, h = TIP.offsetHeight, vw = document.documentElement.clientWidth, vh = window.innerHeight;
+  let x = cx + 14, y = cy + 14;
+  if (x + w > vw - 4) x = Math.max(4, cx - w - 14);
+  if (y + h > vh - 4) y = Math.max(4, cy - h - 14);
+  TIP.style.left = x + "px"; TIP.style.top = y + "px";
+}
+function hideTip() { TIP.style.display = "none"; }
+const css = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+const SERIES_VARS = ["--s1","--s2","--s3","--s4","--s5","--s6"];
+function niceTicks(lo, hi, n) {
+  if (!(hi > lo)) { hi = lo + 1; }
+  const step0 = (hi - lo) / n, mag = Math.pow(10, Math.floor(Math.log10(step0)));
+  const step = [1, 2, 2.5, 5, 10].map(m => m * mag).find(s => s >= step0);
+  const out = [];
+  for (let v = Math.ceil(lo / step) * step; v <= hi + step * 1e-9; v += step) out.push(Number(v.toFixed(10)));
+  return out;
+}
+function logTicks(lo, hi) {
+  const out = [];
+  for (let e = Math.floor(Math.log10(lo)); e <= Math.ceil(Math.log10(hi)); e++)
+    for (const m of [1, 2, 5]) { const v = m * Math.pow(10, e); if (v >= lo * 0.999 && v <= hi * 1.001) out.push(v); }
+  return out.length >= 2 ? out : [lo, hi];
+}
+// spec: {series:[{name, color, xs:[number], ys:[number|null]}], xType:"time"|"log", yLog:bool,
+//        yFmt, xFmt, height, zero:bool}
+function lineChart(el, spec) {
+  const W = Math.max(320, el.clientWidth || 600), H = spec.height || 280;
+  const m = {l: 88, r: 12, t: 10, b: 28};
+  const all = spec.series.flatMap(s => s.ys.filter(v => v !== null && isFinite(v) && (!spec.yLog || v > 0)));
+  const xsAll = spec.series.flatMap(s => s.xs);
+  if (!all.length || !xsAll.length) { el.innerHTML = '<p class="muted">Nothing to draw.</p>'; return; }
+  let ylo = Math.min(...all), yhi = Math.max(...all);
+  if (spec.zero && !spec.yLog) { ylo = Math.min(ylo, 0); yhi = Math.max(yhi, 0); }
+  if (ylo === yhi) { ylo -= 1; yhi += 1; }
+  const xlo = Math.min(...xsAll), xhi = Math.max(...xsAll);
+  const fx = spec.xType === "log"
+    ? v => m.l + (Math.log(v) - Math.log(xlo)) / ((Math.log(xhi) - Math.log(xlo)) || 1) * (W - m.l - m.r)
+    : v => m.l + (v - xlo) / ((xhi - xlo) || 1) * (W - m.l - m.r);
+  const fy = spec.yLog
+    ? v => m.t + (Math.log(yhi) - Math.log(v)) / ((Math.log(yhi) - Math.log(ylo)) || 1) * (H - m.t - m.b)
+    : v => m.t + (yhi - v) / ((yhi - ylo) || 1) * (H - m.t - m.b);
+  const yt = spec.yLog ? logTicks(ylo, yhi) : niceTicks(ylo, yhi, 5);
+  let xt;
+  if (spec.xType === "time") {
+    const y0 = new Date(xlo).getUTCFullYear(), y1 = new Date(xhi).getUTCFullYear();
+    xt = []; for (let y = y0; y <= y1; y++) { const t = Date.UTC(y, 0, 1); if (t >= xlo && t <= xhi) xt.push(t); }
+    if (xt.length > 10) xt = xt.filter((_, i) => i % 2 === 0);
+  } else xt = [...new Set(xsAll)].sort((a, b) => a - b);
+  let s = `<svg class="chart" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" tabindex="0" role="img" aria-label="${esc(spec.label || "chart")}. Use left and right arrow keys to read values.">`;
+  for (const v of yt) s += `<line class="grid" x1="${m.l}" x2="${W - m.r}" y1="${fy(v)}" y2="${fy(v)}"/><text x="${m.l - 6}" y="${fy(v) + 4}" text-anchor="end">${esc(spec.yTick ? spec.yTick(v) : spec.yFmt(v))}</text>`;
+  if (spec.zero && !spec.yLog && ylo < 0 && yhi > 0) s += `<line class="zero" x1="${m.l}" x2="${W - m.r}" y1="${fy(0)}" y2="${fy(0)}"/>`;
+  for (const v of xt) s += `<text x="${fx(v)}" y="${H - 8}" text-anchor="${v === xhi ? "end" : v === xlo ? "start" : "middle"}">${esc(spec.xTick(v))}</text>`;
+  spec.series.forEach((se, k) => {
+    let d = "", pen = false;
+    se.xs.forEach((x, i) => {
+      const y = se.ys[i];
+      if (y === null || !isFinite(y) || (spec.yLog && y <= 0)) { pen = false; return; }
+      d += `${pen ? "L" : "M"}${fx(x).toFixed(1)},${fy(y).toFixed(1)}`; pen = true;
+    });
+    s += `<path d="${d}" fill="none" stroke="${se.color}" stroke-width="${se.width || 1.6}"${se.dash ? ` stroke-dasharray="${se.dash}"` : ""}/>`;
+    if (spec.markers) se.xs.forEach((x, i) => { const y = se.ys[i]; if (y !== null && isFinite(y)) s += `<circle cx="${fx(x)}" cy="${fy(y)}" r="3" fill="${se.color}"/>`; });
+  });
+  s += `<line class="cross" x1="0" x2="0" y1="${m.t}" y2="${H - m.b}" stroke="${css("--muted")}" stroke-dasharray="3,3" visibility="hidden"/>`;
+  s += `<rect x="${m.l}" y="${m.t}" width="${W - m.l - m.r}" height="${H - m.t - m.b}" fill="transparent"/></svg>`;
+  el.innerHTML = s;
+  const svg = el.querySelector("svg"), cross = svg.querySelector(".cross");
+  const base = spec.series.reduce((a, b) => (b.xs.length > a.xs.length ? b : a));
+  const nearest = (xs, x) => { let lo = 0, hi = xs.length - 1; while (hi - lo > 1) { const mid = (lo + hi) >> 1; if (xs[mid] <= x) lo = mid; else hi = mid; } return Math.abs(xs[lo] - x) <= Math.abs(xs[hi] - x) ? lo : hi; };
+  let cur = -1;
+  function show(i, cx, cy) {
+    cur = i; const x = base.xs[i];
+    cross.setAttribute("x1", fx(x)); cross.setAttribute("x2", fx(x)); cross.setAttribute("visibility", "visible");
+    let h = `<b>${esc(spec.xFmt(x))}</b>`;
+    for (const se of spec.series) {
+      const j = nearest(se.xs, x); const v = se.ys[j];
+      if (spec.xType === "log" && se.xs[j] !== x) continue;
+      h += `<br><span style="color:${se.color}">■</span> ${esc(se.name)}: ${esc(v === null ? "–" : spec.yFmt(v))}`;
+    }
+    showTip(h, cx, cy);
+  }
+  svg.addEventListener("mousemove", ev => {
+    const r = svg.getBoundingClientRect(), px = (ev.clientX - r.left) * W / r.width;
+    let best = 0, bd = Infinity;
+    base.xs.forEach((x, i) => { const dd = Math.abs(fx(x) - px); if (dd < bd) { bd = dd; best = i; } });
+    show(best, ev.clientX, ev.clientY);
+  });
+  svg.addEventListener("mouseleave", () => { hideTip(); cross.setAttribute("visibility", "hidden"); });
+  svg.addEventListener("blur", () => { hideTip(); cross.setAttribute("visibility", "hidden"); });
+  svg.addEventListener("keydown", ev => {
+    if (!["ArrowLeft","ArrowRight","Home","End"].includes(ev.key)) return;
+    ev.preventDefault();
+    const n = base.xs.length;
+    let i = cur < 0 ? 0 : cur;
+    if (ev.key === "ArrowLeft") i = Math.max(0, i - 1);
+    if (ev.key === "ArrowRight") i = Math.min(n - 1, i + 1);
+    if (ev.key === "Home") i = 0;
+    if (ev.key === "End") i = n - 1;
+    const r = svg.getBoundingClientRect();
+    show(i, r.left + fx(base.xs[i]) * r.width / W, r.top + r.height / 3);
+  });
+}
+// Grouped bars: groups [{label, values:[number|null]}], names, colors.
+function barChart(el, spec) {
+  const W = Math.max(320, el.clientWidth || 600), H = spec.height || 240;
+  const m = {l: 52, r: 10, t: 10, b: 28};
+  const vals = spec.groups.flatMap(g => g.values.filter(v => v !== null));
+  if (!vals.length) { el.innerHTML = '<p class="muted">Nothing to draw.</p>'; return; }
+  const lo = Math.min(0, ...vals), hi = Math.max(0, ...vals);
+  const fy = v => m.t + (hi - v) / ((hi - lo) || 1) * (H - m.t - m.b);
+  const gw = (W - m.l - m.r) / spec.groups.length, bw = Math.max(2, (gw * 0.8) / spec.names.length);
+  let s = `<svg class="chart" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" tabindex="0" role="img" aria-label="${esc(spec.label)}. Use left and right arrow keys to read values.">`;
+  for (const v of niceTicks(lo, hi, 5)) s += `<line class="grid" x1="${m.l}" x2="${W - m.r}" y1="${fy(v)}" y2="${fy(v)}"/><text x="${m.l - 6}" y="${fy(v) + 4}" text-anchor="end">${esc(spec.yFmt(v))}</text>`;
+  s += `<line class="zero" x1="${m.l}" x2="${W - m.r}" y1="${fy(0)}" y2="${fy(0)}"/>`;
+  spec.groups.forEach((g, i) => {
+    const x0 = m.l + i * gw + gw * 0.1;
+    g.values.forEach((v, k) => { if (v === null) return; const y = fy(Math.max(v, 0)), h = Math.abs(fy(v) - fy(0));
+      s += `<rect x="${x0 + k * bw}" y="${y}" width="${bw - 1}" height="${Math.max(h, 0.5)}" fill="${spec.colors[k]}"/>`; });
+    s += `<text x="${m.l + i * gw + gw / 2}" y="${H - 8}" text-anchor="middle">${esc(g.label)}</text>`;
+    s += `<rect class="hit" data-i="${i}" x="${m.l + i * gw}" y="${m.t}" width="${gw}" height="${H - m.t - m.b}" fill="transparent"/>`;
+  });
+  s += "</svg>";
+  el.innerHTML = s;
+  const svg = el.querySelector("svg");
+  let cur = -1;
+  const tipFor = i => { const g = spec.groups[i]; let h = `<b>${esc(g.tip || g.label)}</b>`; spec.names.forEach((n, k) => h += `<br><span style="color:${spec.colors[k]}">■</span> ${esc(n)}: ${esc(g.values[k] === null ? "–" : spec.yFmt(g.values[k]))}`); return h; };
+  svg.querySelectorAll(".hit").forEach(r => {
+    r.addEventListener("mousemove", ev => { cur = Number(r.dataset.i); showTip(tipFor(cur), ev.clientX, ev.clientY); });
+    r.addEventListener("mouseleave", hideTip);
+  });
+  svg.addEventListener("blur", hideTip);
+  svg.addEventListener("keydown", ev => {
+    if (!["ArrowLeft","ArrowRight"].includes(ev.key)) return;
+    ev.preventDefault();
+    cur = ev.key === "ArrowLeft" ? Math.max(0, cur - 1) : Math.min(spec.groups.length - 1, cur + 1);
+    const b = svg.getBoundingClientRect();
+    showTip(tipFor(cur), b.left + (m.l + cur * gw + gw / 2) * b.width / W, b.top + b.height / 3);
+  });
+}
+const tms = s => Date.parse(s + "T00:00:00Z");
+const dfmt = t => new Date(t).toISOString().slice(0, 10);
+const yTickYear = t => String(new Date(t).getUTCFullYear());
+function legend(items) { return `<div class="legend">${items.map(([n, c, dash]) => `<span><svg width="22" height="8" aria-hidden="true"><line x1="0" x2="22" y1="4" y2="4" stroke="${c}" stroke-width="2.5"${dash ? ` stroke-dasharray="${dash}"` : ""}/></svg>${esc(n)}</span>`).join("")}</div>`; }
+const isDark = () => document.documentElement.dataset.theme === "dark" || (document.documentElement.dataset.theme !== "light" && matchMedia("(prefers-color-scheme: dark)").matches);
+
+// ---------------------------------------------------------------------------
+// Per-run figures shown on the page.
+// ---------------------------------------------------------------------------
+// Checks a to d for one line: strategy, basket or index. null means not run.
+function lineChecks(r, line) {
+  const blk = line === "strategy" ? r : r[line], ser = r.equity[line];
+  if (!blk || !ser) return null;
+  const ddKey = {strategy: "drawdown", basket: "basket_drawdown", index: null}[line];
+  const c = (Math.pow(blk.end_equity / blk.start_equity, 1 / r.years) - 1) * 100;
+  const prod = r.yearly.reduce((p, y) => p * (1 + y[line] / 100), 1);
+  return {a: Math.abs(c - blk.cagr) <= 0.01,
+          b: ddKey ? Math.abs(Math.min(...r.equity[ddKey]) - blk.max_dd) <= 0.01 : null,
+          c: Math.abs(prod / (blk.end_equity / blk.start_equity) - 1) <= 0.001,
+          d: Math.abs(ser[ser.length - 1] - blk.end_equity) <= 1};
+}
+const totalCosts = r => ["slippage","charges","impact","tax"].reduce((s, k) => s + (r.costs[k] || 0), 0);
+const minusBasket = r => r.basket && r.basket.cagr !== null && r.cagr !== null ? r.cagr - r.basket.cagr : null;
+const minusIndex = r => r.index && r.index.cagr !== null && r.cagr !== null ? r.cagr - r.index.cagr : null;
+function cliCommand(ax) {
+  const parts = [];
+  for (const a of AXES) {
+    const v = ax[a.name];
+    if (a.open_number) { if (!(a.no_flag || [a.default]).includes(v)) parts.push(a.cli.replace("{value}", v)); }
+    else if (a.cli[v]) parts.push(a.cli[v]);
+  }
+  return DATA.command_template.replace("{args}", parts.join(" "));
+}
+function neighbours(sel) {
+  const out = [];
+  for (const a of AXES) for (const v of a.values) {
+    if (v === sel[a.name]) continue;
+    const r = BYKEY.get(keyOf(withAxis(sel, a.name, v)));
+    if (r) out.push({axis: a, value: v, run: r});
+  }
+  return out;
+}
+// The repository's basket name stays as it is in the data; the page adds what it is.
+const basketLabel = b => `${b.name}, rebalanced to equal weight daily, no costs; see Known issues`;
+const winOf = r => `${r.start_date} to ${r.end_date}`;
+const diffWin = (r, ref) => !!ref && (r.start_date !== ref.start_date || r.end_date !== ref.end_date);
+const winBadge = (r, ref) => diffWin(r, ref) ? `<span class="diffwin">different window: ${esc(winOf(r))}</span>` : "";
+const WIN_NOTE = "CAGRs over different windows are not directly comparable.";
+function settingsText(r) { return AXES.map(a => `${a.name} ${axisValueText(a.name, r.axes[a.name])}`).join(", "); }
+
+// ---------------------------------------------------------------------------
+// Views.
+// ---------------------------------------------------------------------------
+const MAIN = document.getElementById("main");
+const WIDE = "(min-width: 761px)";
+// spread: {axisName: "rows" | "columns"} for axes the Grid lays out instead of fixing.
+function axisControls(spread = {}) {
+  const open = matchMedia(WIDE).matches || state.setOpen;
+  const sum = AXES.map(a => spread[a.name] ? `${a.name} in ${spread[a.name]}` : axisValueText(a.name, state.sel[a.name])).join(" · ");
+  let h = `<section class="panel" aria-label="Settings"><details class="settings"${open ? " open" : ""}><summary>Settings <span class="sum">${esc(sum)}</span></summary><div class="axes">`;
+  for (const a of AXES) {
+    if (spread[a.name]) {
+      h += `<div class="axis"><div class="lab">${esc(a.label)}</div><div class="spread">Spread across the grid as its ${esc(spread[a.name])}</div></div>`;
+      continue;
+    }
+    h += `<div class="axis" role="group" aria-label="${esc(a.label)}"><div class="lab">${esc(a.label)}</div><div class="chips">`;
+    for (const v of a.values) {
+      const exists = BYKEY.has(keyOf(withAxis(state.sel, a.name, v)));
+      const on = state.sel[a.name] === v;
+      h += `<button type="button" class="chip${exists ? "" : " dim"}" aria-pressed="${on}" data-axis="${esc(a.name)}" data-v="${esc(v)}" title="${exists ? "" : "not run with the other current settings"}">${esc(axisValueText(a.name, v))}</button>`;
+    }
+    h += "</div></div>";
+  }
+  return h + "</div></details></section>";
+}
+function bindAxisControls() {
+  const det = MAIN.querySelector("details.settings");
+  if (det) det.addEventListener("toggle", () => { if (!matchMedia(WIDE).matches) state.setOpen = det.open; });
+  MAIN.querySelectorAll(".chip[data-axis]").forEach(b => b.addEventListener("click", () => {
+    state.sel[b.dataset.axis] = b.dataset.v; render();
+    const again = MAIN.querySelector(`.chip[data-axis="${CSS.escape(b.dataset.axis)}"][data-v="${CSS.escape(b.dataset.v)}"]`);
+    if (again) again.focus();
+  }));
+}
+function tile(k, v, s) { return `<div class="tile"><div class="k">${esc(k)}</div><div class="v">${v}</div>${s ? `<div class="s">${s}</div>` : ""}</div>`; }
+function runTable(rows, cols, onClickAttr) {
+  let h = `<div class="scroll"><table><thead><tr>${cols.map(c => `<th class="${c.l ? "l" : ""}">${esc(c.h)}</th>`).join("")}</tr></thead><tbody>`;
+  for (const r of rows) h += `<tr class="click" tabindex="0" ${onClickAttr(r)}>${cols.map(c => `<td class="${c.l ? "l" : ""}">${c.f(r)}</td>`).join("")}</tr>`;
+  return h + "</tbody></table></div>";
+}
+function bindRowOpen(root) {
+  root.querySelectorAll("tr[data-open]").forEach(tr => {
+    const go = () => openRun(BYID.get(tr.dataset.open));
+    tr.addEventListener("click", go);
+    tr.addEventListener("keydown", ev => { if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); go(); } });
+  });
+}
+function copyText(text, btn) {
+  const done = ok => { btn.textContent = ok ? "Copied" : "Select and copy"; setTimeout(() => btn.textContent = "Copy", 1500); };
+  if (navigator.clipboard && window.isSecureContext) navigator.clipboard.writeText(text).then(() => done(true), () => fallback());
+  else fallback();
+  function fallback() {
+    const ta = document.createElement("textarea"); ta.value = text; ta.style.position = "fixed"; ta.style.opacity = "0";
+    document.body.appendChild(ta); ta.select();
+    let ok = false; try { ok = document.execCommand("copy"); } catch (e) { ok = false; }
+    document.body.removeChild(ta); done(ok);
+  }
+}
+
+function viewRun() {
+  const r = current();
+  let h = axisControls();
+  if (!r) {
+    const nb = neighbours(state.sel);
+    h += `<section class="panel"><h2>This combination has not been run</h2>
+      <p>No finished run folder holds these settings. The command that would produce it:</p>
+      <div class="cmd"><code id="cmdText">${esc(cliCommand(state.sel))}</code><button class="btn" id="copyCmd" type="button">Copy</button></div>
+      <h2 style="margin-top:14px">Runs that differ in one setting (${nb.length})</h2>
+      ${nb.length ? runTable(nb, [{h: "Setting", l: 1, f: n => esc(n.axis.label)}, {h: "Value", l: 1, f: n => esc(axisValueText(n.axis.name, n.value))},
+        {h: "CAGR", f: n => pct(n.run.cagr)}, {h: "CAGR − basket", f: n => spct(minusBasket(n.run))}, {h: "Max DD", f: n => pct(n.run.max_dd)}],
+        n => `data-open="${esc(n.run.id)}"`) : '<p class="muted">None.</p>'}</section>`;
+    MAIN.innerHTML = h; bindAxisControls(); bindRowOpen(MAIN);
+    const b = document.getElementById("copyCmd"); b.addEventListener("click", () => copyText(document.getElementById("cmdText").textContent, b));
+    return;
+  }
+  const mb = minusBasket(r), rt = r.rounded_to || {};
+  const rnote = k => rt[k] === undefined ? "" : `rounded to ${rt[k]} decimals in the source`;
+  const ckl = ["strategy", "basket", "index"].map(l => [l, lineChecks(r, l)]);
+  const cell = v => v === null ? '<td class="muted">not run</td>' : `<td class="${v ? "pass" : "fail"}">${v ? "pass" : "fail"}</td>`;
+  const inCmp = state.cmp.includes(r.id);
+  h += `<section class="panel"><h2>${esc(r.axes.universe)} ${esc(r.axes.arm)} <span class="win">· window ${esc(winOf(r))}, ${r.years.toFixed(2)} years</span> <span class="muted">— ${esc(r.id)}</span></h2>
+    <div class="tiles">
+      ${tile("CAGR", pct(r.cagr), rnote("cagr"))}
+      ${tile("Basket CAGR", pct(r.basket && r.basket.cagr), r.basket ? esc(basketLabel(r.basket)) + "<br>" + rnote("basket_cagr") : "")}
+      ${tile("Index CAGR", pct(r.index && r.index.cagr), r.index ? esc(r.index.name) : "no index")}
+      ${tile("CAGR minus basket", spct(mb) + (mb === null ? "" : " pts"))}
+      ${tile("Max drawdown", pct(r.max_dd), `peak ${esc(r.max_dd_peak || "–")}, trough ${esc(r.max_dd_trough || "–")}; ${rnote("max_dd")}`)}
+      ${tile("Start equity", inr(r.start_equity), esc(r.start_date))}
+      ${tile("End equity", inr(r.end_equity), esc(r.end_date) + "; " + rnote("end_equity"))}
+      ${tile("Trades (fills)", r.trades === null ? "–" : groupIN(String(r.trades)))}
+      ${tile("Rebalances", r.rebalances === null ? "–" : String(r.rebalances))}
+    </div>
+    <p><button class="btn" id="addCmp" type="button" ${inCmp || state.cmp.length >= 6 ? "disabled" : ""}>${inCmp ? "In comparison" : state.cmp.length >= 6 ? "Comparison full (6)" : "Add to comparison"}</button>
+    <span class="muted">${state.cmp.length} of 6 in comparison</span></p></section>`;
+  h += `<section class="panel"><h2>Equity</h2><div class="ctrl"><span class="muted">Scale</span>
+      <button class="btn${state.scale === "log" ? " on" : ""}" data-scale="log" type="button" aria-pressed="${state.scale === "log"}">Log</button>
+      <button class="btn${state.scale === "linear" ? " on" : ""}" data-scale="linear" type="button" aria-pressed="${state.scale === "linear"}">Linear</button></div>
+      <div id="legEq"></div><div id="chEq"></div><p class="muted">Weekly points. The basket is the run's own basket curve, unscaled: it starts at ${inr(r.basket ? r.basket.start_equity : null)} because its first value already includes the first day's return. The index is scaled to the run's start equity.</p></section>`;
+  h += `<section class="panel"><h2>Drawdown</h2><div id="legDd"></div><div id="chDd"></div><p class="muted">Each point is the lowest daily drawdown inside that week.</p></section>`;
+  h += `<section class="panel"><h2>Year by year</h2><div id="legYr"></div><div id="chYr"></div>
+      <div class="scroll"><table><thead><tr><th>Year</th><th>Strategy</th><th>Basket</th><th>Index</th><th>Strategy − basket</th><th>Tax paid</th></tr></thead><tbody>
+      ${r.yearly.map(y => `<tr><td class="l">${y.year}${y.full_year ? "" : " <span class=muted>(part year)</span>"}</td><td>${pct(y.strategy)}</td><td>${pct(y.basket)}</td><td>${pct(y.index)}</td><td>${spct(y.basket === null ? null : y.strategy - y.basket)}</td><td>${inrFull(y.tax_paid)}</td></tr>`).join("")}
+      </tbody></table></div><p class="muted">Tax paid is grouped by the calendar year the payment left cash.</p></section>`;
+  const tc = totalCosts(r);
+  h += `<section class="panel"><h2>Costs</h2><div class="row2"><div class="scroll"><table><thead><tr><th>Cost</th><th>Rupees</th><th>Share of start equity</th></tr></thead><tbody>
+      ${["slippage","charges","impact","tax"].map(k => `<tr><td class="l">${k}</td><td>${inrFull(r.costs[k], 2)}</td><td>${r.costs[k] === null ? "–" : pct(r.costs[k] / r.start_equity * 100)}</td></tr>`).join("")}
+      <tr><td class="l"><b>total</b></td><td><b>${inrFull(tc, 2)}</b></td><td><b>${pct(tc / r.start_equity * 100)}</b></td></tr></tbody></table></div>
+      <div class="scroll"><table><thead><tr><th>Charge</th><th>Rupees</th><th>Share of start equity</th></tr></thead><tbody>
+      ${r.charges_breakdown ? Object.entries(r.charges_breakdown).map(([k, v]) => `<tr><td class="l">${esc(k)}</td><td>${inrFull(v, 2)}</td><td>${pct(v / r.start_equity * 100)}</td></tr>`).join("") : '<tr><td class="l muted" colspan="3">No breakdown in this run.</td></tr>'}
+      </tbody></table></div></div></section>`;
+  const off = BYKEY.get(keyOf(withAxis(r.axes, "tax", "off"))), on = BYKEY.get(keyOf(withAxis(r.axes, "tax", "on")));
+  const tr = [["CAGR", x => pct(x.cagr)], ["Basket CAGR", x => pct(x.basket && x.basket.cagr)], ["CAGR minus basket", x => spct(minusBasket(x))],
+              ["Max drawdown", x => pct(x.max_dd)], ["End equity", x => inr(x.end_equity)], ["Tax", x => inr(x.costs.tax)], ["All costs", x => inr(totalCosts(x))], ["Trades", x => String(x.trades)]];
+  h += `<section class="panel"><h2>Tax off and tax on</h2><div class="scroll"><table><thead><tr><th>Figure</th><th>Tax off</th><th>Tax on</th></tr></thead><tbody>
+      ${tr.map(([k, f]) => `<tr><td class="l">${k}</td><td>${off ? f(off) : "not run"}</td><td>${on ? f(on) : "not run"}</td></tr>`).join("")}</tbody></table></div></section>`;
+  const nb = neighbours(r.axes);
+  h += `<section class="panel"><h2>The same run with one setting changed (${nb.length})</h2>
+      ${nb.length ? runTable(nb, [{h: "Setting", l: 1, f: n => esc(n.axis.label)}, {h: "Value", l: 1, f: n => esc(axisValueText(n.axis.name, n.value))},
+        {h: "CAGR", f: n => pct(n.run.cagr)}, {h: "Δ CAGR", f: n => spct(n.run.cagr - r.cagr)}, {h: "CAGR − basket", f: n => spct(minusBasket(n.run))},
+        {h: "Max DD", f: n => pct(n.run.max_dd)}, {h: "End equity", f: n => inr(n.run.end_equity)}, {h: "Window", l: 1, f: n => winBadge(n.run, r) || "same"}], n => `data-open="${esc(n.run.id)}"`)
+        + `<p class="muted">Runs marked "different window" cover other dates than this run (${esc(winOf(r))}). ${WIN_NOTE}</p>` : '<p class="muted">None.</p>'}</section>`;
+  h += `<section class="panel"><h2>Command and checks</h2>
+      <p class="lab2">This run came from</p>
+      <div class="cmd"><code id="cmdBatch">${esc(r.command)}</code><button class="btn" id="copyBatch" type="button" aria-label="Copy the command this run came from">Copy</button></div>
+      <p class="lab2">To rerun only this run</p>
+      <div class="cmd"><code id="cmdOne">${esc(cliCommand(r.axes))}</code><button class="btn" id="copyOne" type="button" aria-label="Copy the command that reruns only this run">Copy</button></div>
+      <p class="muted">Run from the repository root. Path: ${esc(r.path)}</p>
+      <div class="scroll"><table><tbody>
+      <tr><td class="l">nt_verify</td><td class="l ${r.nt_verify === "pass" ? "pass" : r.nt_verify === "fail" ? "fail" : "muted"}">${esc(r.nt_verify)}</td></tr>
+      </tbody></table></div>
+      <div class="scroll"><table><thead><tr><th class="l">Check</th>${ckl.map(([l]) => `<th>${l}</th>`).join("")}</tr></thead><tbody>
+      ${[["a", "a. CAGR from start equity, end equity and years, within 0.01"], ["b", "b. Lowest weekly drawdown equals max drawdown, within 0.01"],
+         ["c", "c. Yearly returns compound to end / start, within 0.1%"], ["d", "d. Last weekly value equals end equity, within Rs 1"]]
+        .map(([k, t]) => `<tr><td class="l">${t}</td>${ckl.map(([, c]) => cell(c ? c[k] : null)).join("")}</tr>`).join("")}
+      </tbody></table></div><p class="muted">The index has no drawdown curve in the data and no max drawdown in the repository, so b is not run for it.</p></section>`;
+  MAIN.innerHTML = h;
+  bindAxisControls(); bindRowOpen(MAIN);
+  const b1 = document.getElementById("copyBatch"), b2 = document.getElementById("copyOne");
+  b1.addEventListener("click", () => copyText(r.command, b1));
+  b2.addEventListener("click", () => copyText(cliCommand(r.axes), b2));
+  MAIN.querySelectorAll("[data-scale]").forEach(x => x.addEventListener("click", () => { state.scale = x.dataset.scale; render(); }));
+  document.getElementById("addCmp").addEventListener("click", () => { if (!state.cmp.includes(r.id) && state.cmp.length < 6) state.cmp.push(r.id); render(); });
+  const xs = r.equity.dates.map(tms), c1 = css("--s1"), c2 = css("--s2"), c3 = css("--s3");
+  const eqS = [{name: "strategy", color: c1, xs, ys: r.equity.strategy, width: 2}, {name: "basket", color: c2, xs, ys: r.equity.basket}];
+  if (r.equity.index) eqS.push({name: "index", color: c3, xs, ys: r.equity.index});
+  document.getElementById("legEq").innerHTML = legend(eqS.map(s => [s.name, s.color]));
+  lineChart(document.getElementById("chEq"), {series: eqS, xType: "time", yLog: state.scale === "log", yFmt: inr, xFmt: dfmt, xTick: yTickYear, label: "Equity chart"});
+  const ddS = [{name: "strategy", color: c1, xs, ys: r.equity.drawdown, width: 2}, {name: "basket", color: c2, xs, ys: r.equity.basket_drawdown}];
+  document.getElementById("legDd").innerHTML = legend(ddS.map(s => [s.name, s.color]));
+  lineChart(document.getElementById("chDd"), {series: ddS, xType: "time", yFmt: v => pct(v), yTick: v => v.toFixed(0) + "%", xFmt: dfmt, xTick: yTickYear, zero: true, height: 220, label: "Drawdown chart"});
+  const hasIx = r.yearly.some(y => y.index !== null);
+  const names = hasIx ? ["strategy", "basket", "index"] : ["strategy", "basket"], cols = hasIx ? [c1, c2, c3] : [c1, c2];
+  document.getElementById("legYr").innerHTML = legend(names.map((n, i) => [n, cols[i]]));
+  barChart(document.getElementById("chYr"), {groups: r.yearly.map(y => ({label: String(y.year), tip: `${y.year}${y.full_year ? "" : " (part year)"}`, values: hasIx ? [y.strategy, y.basket, y.index] : [y.strategy, y.basket]})),
+    names, colors: cols, yFmt: v => pct(v), label: "Year by year returns"});
+}
+
+const METRICS = [["cagr", "CAGR", r => r.cagr, pct], ["minus_basket", "CAGR minus basket", minusBasket, spct], ["minus_index", "CAGR minus index", minusIndex, spct],
+  ["max_dd", "Max drawdown", r => r.max_dd, pct], ["end_equity", "End equity", r => r.end_equity, inr], ["tax", "Tax paid", r => r.costs.tax, inr], ["costs", "All costs", totalCosts, inr]];
+function viewGrid() {
+  const met = METRICS.find(m => m[0] === state.gmetric) || METRICS[0];
+  const ra = AXES.find(a => a.name === state.grow), ca = AXES.find(a => a.name === state.gcol);
+  const opt = (sel, skip) => AXES.map(a => `<option value="${esc(a.name)}" ${a.name === sel ? "selected" : ""} ${a.name === skip ? "disabled" : ""}>${esc(a.label)}</option>`).join("");
+  const ref = current();
+  let h = axisControls({[ra.name]: "rows", [ca.name]: "columns"}) + `<section class="panel"><h2>Grid</h2><div class="ctrl">
+    <label>Rows <select id="gRow">${opt(state.grow, state.gcol)}</select></label>
+    <label>Columns <select id="gCol">${opt(state.gcol, state.grow)}</select></label>
+    <label>Metric <select id="gMet">${METRICS.map(m => `<option value="${m[0]}" ${m[0] === met[0] ? "selected" : ""}>${m[1]}</option>`).join("")}</select></label></div>
+    <p class="muted">Other settings come from the settings panel above. Empty cells have not been run. ${ref ? `Cells marked "different window" cover other dates than the selected run (${esc(winOf(ref))}).` : `Cells marked "different window" differ from the most common window in the grid.`} ${WIN_NOTE}</p>`;
+  const cells = ra.values.map(rv => ca.values.map(cv => BYKEY.get(keyOf(Object.assign({}, state.sel, {[ra.name]: rv, [ca.name]: cv}))) || null));
+  const vals = cells.flat().filter(Boolean).map(met[2]).filter(v => v !== null);
+  let wref = ref;
+  if (!wref) { const cnt = new Map(); for (const r of cells.flat().filter(Boolean)) { const k = winOf(r); cnt.set(k, (cnt.get(k) || 0) + 1); }
+    const top = [...cnt.entries()].sort((a, b) => b[1] - a[1])[0]; wref = top ? cells.flat().find(r => r && winOf(r) === top[0]) : null; }
+  const lo = Math.min(...vals), hi = Math.max(...vals), rgb = css("--shade");
+  // Higher is better for every metric except costs and tax.
+  const better = met[0] === "tax" || met[0] === "costs" ? -1 : 1;
+  h += `<div class="scroll"><table><thead><tr><th class="l">${esc(ra.label)} \\ ${esc(ca.label)}</th>${ca.values.map(v => `<th>${esc(axisValueText(ca.name, v))}</th>`).join("")}</tr></thead><tbody>`;
+  ra.values.forEach((rv, i) => {
+    h += `<tr><th class="l">${esc(axisValueText(ra.name, rv))}</th>`;
+    ca.values.forEach((cv, j) => {
+      const r = cells[i][j];
+      const v = r ? met[2](r) : null;
+      if (!r || v === null) { h += `<td class="cell muted">${r ? "–" : ""}</td>`; return; }
+      let t = hi > lo ? (v - lo) / (hi - lo) : 0.5; if (better < 0) t = 1 - t;
+      const a = (0.08 + 0.55 * t).toFixed(3);
+      h += `<td class="cell"><button type="button" class="btn" style="background:rgba(${rgb},${a});width:100%" data-open="${esc(r.id)}" title="${esc(settingsText(r))}">${met[3](v)}${diffWin(r, wref) ? '<br><span class="diffwin">different window</span>' : ""}</button></td>`;
+    });
+    h += "</tr>";
+  });
+  h += "</tbody></table></div></section>";
+  MAIN.innerHTML = h;
+  bindAxisControls();
+  MAIN.querySelectorAll("button[data-open]").forEach(b => b.addEventListener("click", () => openRun(BYID.get(b.dataset.open))));
+  document.getElementById("gRow").addEventListener("change", e => { state.grow = e.target.value; render(); });
+  document.getElementById("gCol").addEventListener("change", e => { state.gcol = e.target.value; render(); });
+  document.getElementById("gMet").addEventListener("change", e => { state.gmetric = e.target.value; render(); });
+}
+
+function viewCompare() {
+  const rs = state.cmp.map(id => BYID.get(id)).filter(Boolean);
+  let h = `<section class="panel"><h2>Compare (${rs.length} of 6)</h2>`;
+  if (!rs.length) {
+    MAIN.innerHTML = h + '<p class="muted">No runs added. Open a run in the Run view and choose "Add to comparison".</p></section>'; return;
+  }
+  h += `<div class="ctrl"><button class="btn${state.cmode === "index" ? " on" : ""}" data-cm="index" type="button" aria-pressed="${state.cmode === "index"}">Indexed to 100</button>
+    <button class="btn${state.cmode === "rupees" ? " on" : ""}" data-cm="rupees" type="button" aria-pressed="${state.cmode === "rupees"}">Rupees</button>
+    <button class="btn" id="clearCmp" type="button">Remove all</button></div><div id="legC"></div><div id="chC"></div>`;
+  const diff = AXES.filter(a => new Set(rs.map(r => r.axes[a.name])).size > 1);
+  const shown = diff.length ? diff : AXES.slice(0, 2);
+  h += `<div class="scroll"><table><thead><tr><th class="l">Line</th>${shown.map(a => `<th class="l">${esc(a.name)}</th>`).join("")}<th>CAGR</th><th>Basket</th><th>CAGR − basket</th><th>Max DD</th><th>End equity</th><th>All costs</th><th class="l">Window</th><th></th></tr></thead><tbody>`;
+  const ref = current() || rs[0];
+  rs.forEach((r, i) => {
+    h += `<tr><td class="l"><span style="color:${css(SERIES_VARS[i])}">■</span> ${i + 1}</td>${shown.map(a => `<td class="l">${esc(axisValueText(a.name, r.axes[a.name]))}</td>`).join("")}
+      <td>${pct(r.cagr)}</td><td>${pct(r.basket && r.basket.cagr)}</td><td>${spct(minusBasket(r))}</td><td>${pct(r.max_dd)}</td><td>${inr(r.end_equity)}</td><td>${inr(totalCosts(r))}</td><td class="l">${winBadge(r, ref) || esc(winOf(r))}</td>
+      <td><button class="btn" data-open="${esc(r.id)}" type="button">Open</button> <button class="btn" data-rm="${esc(r.id)}" type="button">Remove</button></td></tr>`;
+  });
+  h += `</tbody></table></div><p class="muted">Windows are marked against ${current() ? "the run selected in the settings" : "line 1"} (${esc(winOf(ref))}). ${WIN_NOTE}</p><p class="muted">Settings shared by every line: ${esc(AXES.filter(a => !diff.includes(a)).map(a => `${a.name} ${axisValueText(a.name, rs[0].axes[a.name])}`).join(", "))}.</p></section>`;
+  MAIN.innerHTML = h;
+  MAIN.querySelectorAll("[data-cm]").forEach(b => b.addEventListener("click", () => { state.cmode = b.dataset.cm; render(); }));
+  MAIN.querySelectorAll("[data-rm]").forEach(b => b.addEventListener("click", () => { state.cmp = state.cmp.filter(x => x !== b.dataset.rm); render(); }));
+  MAIN.querySelectorAll("button[data-open]").forEach(b => b.addEventListener("click", () => openRun(BYID.get(b.dataset.open))));
+  document.getElementById("clearCmp").addEventListener("click", () => { state.cmp = []; render(); });
+  const series = rs.map((r, i) => ({name: `${i + 1}: ${r.axes.universe} ${r.axes.arm}`, color: css(SERIES_VARS[i]), xs: r.equity.dates.map(tms),
+    ys: state.cmode === "index" ? r.equity.strategy.map(v => v / r.equity.strategy[0] * 100) : r.equity.strategy}));
+  document.getElementById("legC").innerHTML = legend(series.map(s => [s.name, s.color]));
+  lineChart(document.getElementById("chC"), {series, xType: "time", yLog: true, yFmt: state.cmode === "index" ? (v => v.toFixed(1)) : inr, xFmt: dfmt, xTick: yTickYear, height: 320, label: "Comparison of equity"});
+}
+
+const LMETRICS = [["cagr_minus_basket", "CAGR minus basket", spct], ["cagr", "CAGR", pct], ["max_dd", "Max drawdown", pct], ["impact_cost", "Impact cost", inr]];
+// Rows where CAGR rises as k rises, within one cell, capital and cap, and the
+// largest such rise. Impact only adds cost, so a rise comes from the trade path.
+function ladderNoise(L) {
+  const groups = new Map();
+  for (const x of L) { const k = `${x.universe}|${x.arm}|${x.capital}|${x.cap}`; if (!groups.has(k)) groups.set(k, []); groups.get(k).push(x); }
+  let n = 0, max = 0;
+  for (const g of groups.values()) {
+    g.sort((p, q) => p.impact - q.impact);
+    for (let i = 1; i < g.length; i++) if (g[i].cagr > g[i - 1].cagr) { n++; max = Math.max(max, g[i].cagr - g[i - 1].cagr); }
+  }
+  return {n, total: L.length, max};
+}
+function viewLadder() {
+  const L = DATA.ladder;
+  const cellsList = [...new Set(L.map(x => `${x.universe} ${x.arm}`))];
+  let h = `<section class="panel"><h2>Capital ladder</h2>`;
+  if (!cellsList.length) { MAIN.innerHTML = h + '<p class="muted">No ladder rows in this file.</p></section>'; return; }
+  if (!cellsList.includes(state.lcell)) state.lcell = cellsList[0];
+  const met = LMETRICS.find(m => m[0] === state.lmetric) || LMETRICS[0];
+  const all = L.filter(x => `${x.universe} ${x.arm}` === state.lcell);
+  const capVals = [...new Set(L.map(x => x.cap))].sort((p, q) => q - p);
+  const fullCap = capVals[0];
+  if (state.lcap !== "both" && !capVals.map(String).includes(state.lcap)) state.lcap = "both";
+  const rows = state.lcap === "both" ? all : all.filter(x => String(x.cap) === state.lcap);
+  const fixed = all[0];
+  const ks = [...new Set(L.map(x => x.impact))].sort((p, q) => p - q);
+  // One light-to-dark ramp over k; in dark mode the ramp runs dim to bright.
+  const shade = k => { const t = ks.length > 1 ? ks.indexOf(k) / (ks.length - 1) : 1;
+    const lo = isDark() ? 38 : 80, hi = isDark() ? 88 : 22; return `hsl(215, 70%, ${(lo + (hi - lo) * t).toFixed(0)}%)`; };
+  const dashOf = c => c === fullCap ? "" : "6,4";
+  h += `<div class="ctrl"><label>Cell <select id="lCell">${cellsList.map(c => `<option ${c === state.lcell ? "selected" : ""}>${esc(c)}</option>`).join("")}</select></label>
+    <label>Metric <select id="lMet">${LMETRICS.map(m => `<option value="${m[0]}" ${m[0] === met[0] ? "selected" : ""}>${m[1]}</option>`).join("")}</select></label>
+    <span class="muted">Cap</span>${["both", ...capVals.map(String)].map(c => `<button type="button" class="btn${state.lcap === c ? " on" : ""}" aria-pressed="${state.lcap === c}" data-lcap="${c}">${c === "both" ? "Both" : "cap " + c}</button>`).join("")}</div>
+    <p class="muted">${esc(fixed.survivorship)}, ${esc(fixed.profile)}, tax ${esc(String(fixed.tax))}, cadence ${esc(String(fixed.cadence))}. Colour runs light to dark as k rises; solid lines are cap ${fullCap}, dashed lines are lower caps. Capital on a log scale.</p>
+    <div id="legL"></div><div id="chL"></div>`;
+  const nz = ladderNoise(L);
+  h += `<p class="muted">Neighbouring k values can differ by up to about ${nz.max.toFixed(1)} pt from trade-path differences alone: ${nz.n} of ${nz.total} rows show CAGR rising as k rises, which extra impact cost cannot cause, so gaps that small are noise.</p>`;
+  const lines = [...new Set(rows.map(x => `${x.impact}|${x.cap}`))].sort((p, q) => { const [k1, c1] = p.split("|").map(Number), [k2, c2] = q.split("|").map(Number); return c2 - c1 || k1 - k2; });
+  const caps = [...new Set(rows.map(x => x.capital))].sort((p, q) => p - q);
+  const lineName = l => { const [k, c] = l.split("|"); return `k ${k}, cap ${c}`; };
+  h += `<div class="scroll"><table><thead><tr><th class="l">Capital</th>${lines.map(l => `<th>${esc(lineName(l))}</th>`).join("")}</tr></thead><tbody>`;
+  for (const c of caps) h += `<tr><td class="l">${inr(c)}</td>${lines.map(l => { const x = rows.find(y => y.capital === c && `${y.impact}|${y.cap}` === l); return `<td>${x && x[met[0]] !== null && x[met[0]] !== undefined ? met[2](x[met[0]]) : ""}</td>`; }).join("")}</tr>`;
+  h += "</tbody></table></div></section>";
+  MAIN.innerHTML = h;
+  document.getElementById("lCell").addEventListener("change", e => { state.lcell = e.target.value; render(); });
+  document.getElementById("lMet").addEventListener("change", e => { state.lmetric = e.target.value; render(); });
+  MAIN.querySelectorAll("[data-lcap]").forEach(b => b.addEventListener("click", () => { state.lcap = b.dataset.lcap; render(); }));
+  const series = lines.map(l => { const [k, c] = l.split("|").map(Number);
+    const pts = rows.filter(y => `${y.impact}|${y.cap}` === l).sort((p, q) => p.capital - q.capital);
+    return {name: lineName(l), color: shade(k), dash: dashOf(c), xs: pts.map(p => p.capital), ys: pts.map(p => p[met[0]] === undefined ? null : p[met[0]])}; });
+  document.getElementById("legL").innerHTML = legend(series.map(s => [s.name, s.color, s.dash]));
+  lineChart(document.getElementById("chL"), {series, xType: "log", yFmt: met[2], xFmt: inr, xTick: inr, markers: true, zero: met[0] !== "impact_cost", height: 320, label: "Capital ladder chart"});
+}
+
+function viewMethods() {
+  const r = current();
+  let h = axisControls();
+  if (!r) { MAIN.innerHTML = h + '<section class="panel"><p>This combination has not been run. Pick settings with a run.</p></section>'; bindAxisControls(); return; }
+  const e = r.equity;
+  const lines = [["Strategy", r.cagr, "strategy", e.strategy], ["Basket", r.basket && r.basket.cagr, "basket", e.basket]];
+  if (r.index) lines.push(["Index", r.index.cagr, "index", e.index]);
+  const full = r.yearly.filter(y => y.full_year);
+  const yearsUsed = full.map(y => y.year);
+  h += `<section class="panel"><h2>Return methods — ${esc(r.axes.universe)} ${esc(r.axes.arm)}</h2>
+    <p class="muted">${esc(r.start_date)} to ${esc(r.end_date)}, ${r.years.toFixed(4)} years (calendar days / 365.25). Full calendar years used for the mean: ${yearsUsed.length ? esc(yearsUsed.join(", ")) : "none"}.</p>
+    <div class="scroll"><table><thead><tr><th class="l">Line</th><th>CAGR</th><th>Mean of full calendar years</th><th>Total gain / years, no compounding</th></tr></thead><tbody>`;
+  const expl = [];
+  for (const [name, cagr, key, series] of lines) {
+    const vals = full.map(y => y[key]).filter(v => v !== null);
+    const mean = vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null;
+    const simple = series ? (series[series.length - 1] / series[0] - 1) / r.years * 100 : null;
+    h += `<tr><td class="l">${name}</td><td>${pct(cagr)}</td><td>${pct(mean)}</td><td>${pct(simple)}</td></tr>`;
+    if (cagr !== null && mean !== null && simple !== null)
+      expl.push(`<li><b>${name}.</b> CAGR ${pct(cagr)} is the steady yearly rate that turns the start value into the end value. The mean of full years, ${pct(mean)}, averages the ${vals.length} yearly returns and ignores that losses and gains compound. Total gain divided by years, ${pct(simple)}, spreads the whole gain evenly with no compounding.</li>`);
+  }
+  h += `</tbody></table></div><ul>${expl.join("")}</ul>
+    <p>A fixed-capital backtest, where profits are taken out and not reinvested, is not in this data. Every run here reinvests everything.</p></section>`;
+  MAIN.innerHTML = h; bindAxisControls();
+}
+
+function viewAll() {
+  const cols = [...AXES.map(a => ({k: "ax." + a.name, h: a.name, l: 1, v: r => r.axes[a.name], f: r => esc(axisValueText(a.name, r.axes[a.name])), num: a.open_number})),
+    {k: "start", h: "Start", l: 1, v: r => r.start_date, f: r => esc(r.start_date)},
+    {k: "end", h: "End", l: 1, v: r => r.end_date, f: r => esc(r.end_date)},
+    {k: "cagr", h: "CAGR", v: r => r.cagr, f: r => pct(r.cagr), num: 1},
+    {k: "basket", h: "Basket", v: r => r.basket && r.basket.cagr, f: r => pct(r.basket && r.basket.cagr), num: 1},
+    {k: "mb", h: "CAGR − basket", v: minusBasket, f: r => spct(minusBasket(r)), num: 1},
+    {k: "dd", h: "Max DD", v: r => r.max_dd, f: r => pct(r.max_dd), num: 1},
+    {k: "end", h: "End equity", v: r => r.end_equity, f: r => inr(r.end_equity), num: 1},
+    {k: "tax", h: "Tax", v: r => r.costs.tax, f: r => inr(r.costs.tax), num: 1},
+    {k: "trades", h: "Trades", v: r => r.trades, f: r => String(r.trades), num: 1},
+    {k: "nt", h: "nt_verify", l: 1, v: r => r.nt_verify, f: r => esc(r.nt_verify)}];
+  // Every word of the filter must appear in the run's id or one of its settings.
+  const words = state.filter.trim().toLowerCase().split(/\s+/).filter(Boolean);
+  let rows = RUNS.filter(r => { const t = (r.id + " " + AXES.map(a => `${a.name} ${r.axes[a.name]}`).join(" ") + " nt_verify " + r.nt_verify).toLowerCase();
+    return words.every(w => t.includes(w)); });
+  const sc = cols.find(c => c.k === state.sort);
+  if (sc) rows = rows.slice().sort((a, b) => { let x = sc.v(a), y = sc.v(b);
+    if (sc.num) { x = x === null ? -Infinity : Number(x); y = y === null ? -Infinity : Number(y); return (x - y) * state.sdir; }
+    return String(x).localeCompare(String(y)) * state.sdir; });
+  let h = `<section class="panel"><h2>All runs (${rows.length} of ${RUNS.length})</h2>
+    <div class="ctrl"><label>Filter <input type="text" id="flt" value="${esc(state.filter)}" placeholder="e.g. nifty200 tradeable pit"></label></div>
+    <div class="scroll"><table><thead><tr>${cols.map(c => `<th class="${c.l ? "l" : ""}" aria-sort="${state.sort === c.k ? (state.sdir === 1 ? "ascending" : "descending") : "none"}"><button type="button" data-sort="${c.k}">${esc(c.h)}${state.sort === c.k ? (state.sdir === 1 ? " ▲" : " ▼") : ""}</button></th>`).join("")}</tr></thead><tbody>`;
+  for (const r of rows) h += `<tr class="click" tabindex="0" data-open="${esc(r.id)}">${cols.map(c => `<td class="${c.l ? "l" : ""}">${c.f(r)}</td>`).join("")}</tr>`;
+  h += "</tbody></table></div></section>";
+  MAIN.innerHTML = h; bindRowOpen(MAIN);
+  MAIN.querySelectorAll("[data-sort]").forEach(b => b.addEventListener("click", () => {
+    if (state.sort === b.dataset.sort) state.sdir = -state.sdir; else { state.sort = b.dataset.sort; state.sdir = 1; }
+    render(); const again = MAIN.querySelector(`[data-sort="${b.dataset.sort}"]`); if (again) again.focus(); }));
+  const f = document.getElementById("flt");
+  f.addEventListener("input", () => { state.filter = f.value; const pos = f.selectionStart; render(); const g = document.getElementById("flt"); g.focus(); g.setSelectionRange(pos, pos); });
+}
+
+function viewNotes() {
+  const d = DATA;
+  let h = `<section class="panel"><h2>Notes</h2><div class="scroll"><table><tbody>
+    <tr><td class="l">Repository</td><td class="l wrap">${esc(d.repo.head)} on ${esc(d.repo.branch)}, working tree ${d.repo.clean ? "clean" : "<span class=fail>not clean</span>"} at export</td></tr>
+    <tr><td class="l">Price data through</td><td class="l">${esc(d.data_end || "–")}</td></tr>
+    <tr><td class="l">Runs end</td><td class="l wrap">${esc([...new Set(RUNS.map(r => r.end_date))].sort().join(", "))}${d.window ? ". " + esc(d.window.reason) : ""}</td></tr>
+    <tr><td class="l">Exported</td><td class="l">${esc(d.generated_at)}</td></tr>
+    <tr><td class="l">Runs</td><td class="l">${RUNS.length}</td></tr>
+    <tr><td class="l">Command template</td><td class="l wrap"><code>${esc(d.command_template)}</code></td></tr></tbody></table></div></section>
+    <section class="panel"><h2>Export checks (${d.export_checks.length})</h2><ul>${d.export_checks.map(c => `<li class="${/\bFAIL\b/.test(c) ? "fail" : ""}">${esc(c)}</li>`).join("")}</ul></section>
+    <section class="panel"><h2>Known issues (${d.known_issues.length}), as written in KNOWN_ISSUES.md</h2>
+    ${d.known_issues.map(k => `<details><summary>${esc(k.title)}</summary><pre class="ki">${esc(k.text)}</pre></details>`).join("")}</section>`;
+  MAIN.innerHTML = h;
+}
+
+// ---------------------------------------------------------------------------
+// Shell.
+// ---------------------------------------------------------------------------
+function renderNav() {
+  const nav = document.getElementById("nav");
+  nav.innerHTML = VIEWS.map(([k, n]) => `<button type="button" data-view="${k}" ${state.view === k ? 'aria-current="page"' : ""}>${n}${k === "compare" && state.cmp.length ? ` (${state.cmp.length})` : ""}</button>`).join("");
+  nav.querySelectorAll("button").forEach(b => b.addEventListener("click", () => { state.view = b.dataset.view; render(); }));
+}
+let problemsHtml = "";
+function render() {
+  hideTip(); renderNav();
+  ({run: viewRun, grid: viewGrid, compare: viewCompare, ladder: viewLadder, methods: viewMethods, all: viewAll, notes: viewNotes})[state.view]();
+  if (problemsHtml) MAIN.insertAdjacentHTML("afterbegin", problemsHtml);
+  writeHash();
+}
+function themeInit() {
+  const b = document.getElementById("theme"), order = ["auto", "light", "dark"];
+  let t = "auto"; try { t = localStorage.getItem("pe-theme") || "auto"; } catch (e) {}
+  const apply = () => { if (t === "auto") delete document.documentElement.dataset.theme; else document.documentElement.dataset.theme = t; b.textContent = "Theme: " + t; };
+  apply();
+  b.addEventListener("click", () => { t = order[(order.indexOf(t) + 1) % 3]; try { localStorage.setItem("pe-theme", t); } catch (e) {} apply(); if (DATA) render(); });
+}
+function fileInit() {
+  const inp = document.getElementById("fileInput");
+  document.getElementById("openFile").addEventListener("click", () => inp.click());
+  inp.addEventListener("change", () => {
+    const f = inp.files && inp.files[0]; if (!f) return;
+    const rd = new FileReader();
+    rd.onload = () => {
+      let d, probs;
+      try { d = JSON.parse(rd.result); probs = validate(d); } catch (e) { probs = [`The file is not valid JSON: ${e.message}`]; }
+      if (probs.length) {
+        problemsHtml = `<div class="problems" role="alert"><h2>${esc(f.name)} was not loaded: ${probs.length} problem${probs.length === 1 ? "" : "s"}</h2><ul>${probs.map(x => `<li>${esc(x)}</li>`).join("")}</ul><p>The page still shows the previous data.</p></div>`;
+      } else {
+        problemsHtml = ""; load(d); state.cmp = state.cmp.filter(id => BYID.has(id)); initSelection();
+      }
+      inp.value = ""; render(); window.scrollTo(0, 0);
+    };
+    rd.readAsText(f);
+  });
+}
+let resizeT;
+window.addEventListener("resize", () => { clearTimeout(resizeT); resizeT = setTimeout(() => { if (DATA && ["run","compare","ladder"].includes(state.view)) render(); }, 200); });
+window.addEventListener("hashchange", () => { if (!DATA) return; readHash(); initSelection(); render(); });
+(function start() {
+  themeInit(); fileInit();
+  let d = null, probs;
+  try { d = JSON.parse(document.getElementById("data").textContent); probs = d === null ? ["No data is embedded in this page. Use \"Open another file\"."] : validate(d); }
+  catch (e) { probs = [`The embedded data is not valid JSON: ${e.message}`]; }
+  if (probs.length) {
+    MAIN.innerHTML = `<div class="problems" role="alert"><h2>The embedded data failed the format check</h2><ul>${probs.map(x => `<li>${esc(x)}</li>`).join("")}</ul></div>`;
+    return;
+  }
+  load(d); readHash(); initSelection(); render();
+})();
+</script>
+</body>
+</html>
