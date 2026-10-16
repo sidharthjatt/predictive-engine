@@ -40,7 +40,7 @@ import pandas as pd
 import arms.registry as arm_reg
 import config
 from config import read_table
-from universes.registry import REGISTRY, pit_variant
+from universes.registry import REGISTRY, pit_variant, has_pit, pit_refusal
 
 
 def adv_value(raw_dir, sym, cache={}):
@@ -83,6 +83,8 @@ def main():
         by_u.setdefault(t, []).append(arm)
     rows = []
     for tag, arms in by_u.items():
+        if not has_pit(REGISTRY[tag]):
+            raise SystemExit(pit_refusal(REGISTRY[tag]) + " The ladder reads pit cells only.")
         u = pit_variant(REGISTRY[tag])
         M = Path(u.metrics_dir)
         sel = "_" + "_".join(x for x in arm_reg.ARMS if x in arms)

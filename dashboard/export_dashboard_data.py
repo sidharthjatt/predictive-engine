@@ -490,6 +490,8 @@ def build_run(repo, folder, udir, seg, run_txt, index_files, checks):
         "yearly": yearly,
         "equity": equity,
         "fixed": fixed,
+        # THE BIAS LABEL of a static-only universe (registry Universe.bias_note), or None.
+        "bias_note": getattr(REGISTRY_ROWS.get(u), "bias_note", None),
         "fixed_twin": None,  # filled by the caller: the same run with fixed capital flipped
         "nt_verify": None,  # filled by the caller
         "_folder_ts": folder.name.split("_", 1)[0],
@@ -570,6 +572,7 @@ def key_of(ax):
 
 
 AXIS_ORDER = None  # set in main from naming.AXES
+REGISTRY_ROWS = {}  # set in main from universes.registry.REGISTRY
 
 
 def main():
@@ -587,6 +590,7 @@ def main():
     from arms.registry import ALL_ARMS
 
     AXIS_ORDER = ("universe",) + tuple(naming.AXES)
+    REGISTRY_ROWS.update(REGISTRY)
     checks = [f"Axes: universe is not in naming.AXES (it is chosen by --universe and "
               f"names the run folder); it is listed first, then naming.AXES in order: "
               f"{', '.join(naming.AXES)}."]
@@ -605,11 +609,12 @@ def main():
 
     # Price data end: the last date in the score panels the engine reads (static and
     # pit), not the index files, which some universes carry further.
-    from universes.registry import pit_variant
+    from universes.registry import pit_variant, has_pit
     import survivorship_axis as _sva
     panel_dates = set()
     for tag, u in REGISTRY.items():
-        for v in (u, pit_variant(u)):
+        # A static-only universe has no pit panel (registry.has_pit).
+        for v in ((u, pit_variant(u)) if has_pit(u) else (u,)):
             f = Path(v.score_cache)
             if f.exists():
                 panel_dates |= set(pd.read_parquet(f, columns=["date"])["date"].unique())
@@ -900,6 +905,7 @@ def main():
         "runs": runs,
         "ladder": lad,
         "known_issues": ki,
+        "bias_notes": {t: u.bias_note for t, u in REGISTRY.items() if u.bias_note},
         "export_checks": checks,
     }
     # naming: axis-free -- one file covers every run; it varies over no axis

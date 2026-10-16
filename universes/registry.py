@@ -386,8 +386,13 @@ class Universe:
     # THE POINT-IN-TIME SOURCES, 2026-10-10. Required, like the fields above, so a
     # new row cannot forget them. Read only by pit_variant(), i.e. only by a
     # --survivorship pit run; a static run never opens either path.
-    membership_file: Path          # data/raw/Survivorship_Bias/<Index>_membership.csv
-    survivorship_data_dir: Path    # data/raw/Final_With_Survivorship_Data/<folder>
+    #
+    # None ON A STATIC-ONLY ROW (2026-10-16): the three market-cap buckets came
+    # with no membership file and no with-survivorship prices. Still required, so
+    # None is written on the row as a statement. pit_variant() refuses such a row
+    # with PitNotAvailable; see has_pit().
+    membership_file: Optional[Path]          # data/raw/Survivorship_Bias/<Index>_membership.csv
+    survivorship_data_dir: Optional[Path]    # data/raw/Final_With_Survivorship_Data/<folder>
 
     # THE ONE FIELD THAT KEEPS A DEFAULT, and it is different in kind. It is read
     # as `u.engine_params_static or {}` and then as `_vals[k]` for every key in
@@ -395,6 +400,13 @@ class Universe:
     # static value raises KeyError. It fails LOUDLY on the only path where its
     # absence matters, which is exactly what the four fields above did not.
     engine_params_static: dict = None     # values for keys that are not computed
+
+    # THE BIAS LABEL OF A UNIVERSE WHOSE RESULTS CARRY A BIAS THAT CANNOT BE
+    # MEASURED (2026-10-16). None on the nine index universes, whose bias is
+    # measured by their pit runs. Where set, run.py prints it in the plan and
+    # RUN.txt, the engine prints it in run.log and writes it to the params files,
+    # and the dashboard and the survivorship sheet show it. "{n}" is filled.
+    bias_note: Optional[str] = None
 
     # DERIVED FROM THE TAG, NOT WRITTEN PER ROW. Until 2026-09-23 each row spelled
     # five paths: a symlink farm under data/raw/, a working panel pair under /tmp
@@ -442,7 +454,7 @@ class Universe:
         # said "49 constituents" on a run that scored 48.
         n = str(len(self.symbol_list))
         _fields = ("label", "survivorship", "validation_status",
-                   "engine_text", "chart_text", "engine_params_static")
+                   "engine_text", "chart_text", "engine_params_static", "bias_note")
         object.__setattr__(self, "_templates", {f: getattr(self, f) for f in _fields})
         for f in _fields:
             object.__setattr__(self, f, _fill_count(getattr(self, f), n))
@@ -1532,6 +1544,106 @@ _MICROCAP250 = Universe(
 )
 
 
+# THE THREE MARKET-CAP BUCKETS ARE APPENDED, NEVER INSERTED (2026-10-16). The
+# supplier delivered them as folders of stocks grouped by market capitalisation,
+# with no membership history and no with-survivorship prices, so they are static
+# only and pit_variant() refuses them. The bucket bounds are the supplier's folder
+# names; no unit is written anywhere until the owner confirms it with the supplier.
+#
+# THE INDEX IN ALL THREE IS "NIFTY 500.csv", spaced, byte-identical to
+# Final_NIFTY500_EoD_Data/NIFTY500.csv (SHA-256 02548e3c...b75b3). It is the broad
+# Nifty 500, not an index of any bucket. SCI.csv is in both mcap1500to5000 and
+# mcapover10000, the same bytes in each.
+#
+# {k} IN THE LABEL, MEASURED 2026-10-16 from the price files: names whose last row is
+# before BT_END_DATE (2026-05-29). mcap1500to5000: CIGNITITEC 2025-12-23, SANGHIIND
+# 2026-04-02. mcap5001to10000: none. mcapover10000: GSPL 2025-12-23, AIRTELPP
+# 2026-02-05. Names starting after BT_START_DATE: 184 of 478, 79 of 216, 158 of 538.
+_MCAP_INDEX = "NIFTY 500"
+
+
+def _bias_label(k):
+    return ("STATIC AND NOT AN INDEX. The supplier delivered these {n} names as a "
+            f"market-cap bucket, with no membership history. Only {k} of the {{n}} "
+            "stop trading before the window ends, so the list appears to hold the "
+            "bucket's members near the time of delivery, not the members at each "
+            "date. A stock that left the bucket or was delisted is likely missing; "
+            "a stock that grew into it is present for the whole window. Both the "
+            "strategy and its buy & hold therefore likely carry survivorship and "
+            "look-ahead bias, which cannot be measured without membership files. "
+            "The benchmark index is the broad NIFTY 500, not a bucket index.")
+
+
+def _mcap_row(tag, folder, bounds, k, colours):
+    src = _WITHOUT_SURV / folder
+    label = _bias_label(k)
+    return Universe(
+        tag=tag, label=f"Market cap {bounds} bucket ({{n}} constituents)",
+        raw_data_dir=src,
+        membership_file=None,
+        survivorship_data_dir=None,
+        survivorship=label + " Source: data/raw/Final_Without_Survivorship_Data/" + folder + ".",
+        symbol_list=_constituents(src, _MCAP_INDEX),
+        metrics_dir=ROOT / f"results_{tag}" / "metrics",
+        nautilus_scores=f"scores_{tag}.parquet",
+        nautilus_end=str(config.BT_END_DATE.date()),
+        purge_mode="trading",
+        index_name=_MCAP_INDEX,
+        # THE PUBLISHED CAP-WEIGHTED NIFTY 500. Benchmark only, never a tradable
+        # name. 6,612 rows, 03-01-2000..06-08-2026, as nifty500's.
+        index_file=src / f"{_MCAP_INDEX}.csv",
+        year_range=None, date_range=(config.BT_START_DATE, config.BT_END_DATE),
+        display_name=f"MARKET CAP {bounds}",
+        # MEASURED 2026-10-16, AGAINST FIFTY-FOUR SLOTS. Greedy maximin search over
+        # 6,000 random sRGB colours with L* 30-72 (generator seed 20261016),
+        # CIEDE2000 under normal vision, deuteranopia and protanopia, 18 colours for
+        # the three buckets in turn: the closest of the 18 to any existing slot is
+        # dE 4.66, the closest pair among them 4.77. Above the JND of 2.3, below
+        # microcap250's 5.48. Re-run palette_distance.py for the full report.
+        chart_colours=colours,
+        liquidity_note=None,
+        validation_status=("not measured on this universe. No seed-robustness, "
+                           "sub-period, shuffle or top-N work has been run here, "
+                           "and none of the validations on record was run on "
+                           "these {n} names."),
+        engine_params_keys=(
+            "universe", "model", "sizing", "exposure", "top_n", "buffer",
+            "rebalance_days", "avg_exposure_pct", "n_symbols", "sharpe",
+            "maxdd_pct", "cagr_pct", "cash_yield", "survivorship", "vs_buyhold",
+            "validation_status", "bias_note"),
+        engine_params_static={
+            "universe": f"Market cap {bounds} bucket ({{n}} constituents, "
+                        f"'NIFTY 500.csv' excluded by name -- the supplier's spelling)",
+            "bias_note": label,
+        },
+        engine_text={
+            "panel_what": f"Market cap {bounds} bucket score panel",
+            "bh_label": f"Equal-weight buy & hold (market cap {bounds} bucket, {{n}} names)",
+            "assert_index_absent": True,
+        },
+        chart_text={
+            "stem": f"chart_{tag}",
+            "index_window_end": "2026-08-06",
+            "dpi": 150,
+            "legend_fontsize": 8.5,
+            "rule_width": 100,
+            "diagnostics": False,
+        },
+        bias_note=label,
+    )
+
+
+_MCAP1500TO5000 = _mcap_row(
+    "mcap1500to5000", "Final_Universe_MarcketCap_1500_5000", "1500 to 5000", 2,
+    ("#3460fc", "#dc280c", "#f84850", "#8c9cd8", "#a4b084", "#24808c"))
+_MCAP5001TO10000 = _mcap_row(
+    "mcap5001to10000", "Final_Universe_MarcketCap_5001_10000", "5001 to 10000", 0,
+    ("#ac185c", "#4c10fc", "#749cac", "#18c4b8", "#50482c", "#845c48"))
+_MCAPOVER10000 = _mcap_row(
+    "mcapover10000", "Final_Universe_MarcketCap_GT_10000", "over 10000", 2,
+    ("#80b4ec", "#cc3cb0", "#2c6478", "#e0448c", "#449454", "#0488e0"))
+
+
 def _pit_constituents(raw_dir, index_name):
     """The tradable names in a with-survivorship folder, the index excluded.
 
@@ -1561,6 +1673,22 @@ def first_membership_date(u):
     return _sv._read_raw(u.membership_file)["effective_date"].min()
 
 
+class PitNotAvailable(ValueError):
+    """--survivorship pit asked of a universe that has no point-in-time sources."""
+
+
+def has_pit(u):
+    """True when u has a membership file and with-survivorship prices."""
+    return u.membership_file is not None and u.survivorship_data_dir is not None
+
+
+def pit_refusal(u):
+    """The sentence every caller prints when pit is asked of a static-only row."""
+    return (f"{u.tag} is static only: the supplier delivered no membership file and no "
+            f"with-survivorship prices for this market-cap bucket, so --survivorship pit "
+            f"cannot run it.")
+
+
 def pit_variant(u):
     """The point-in-time version of a static row. ONE RULE FOR EVERY UNIVERSE.
 
@@ -1573,6 +1701,8 @@ def pit_variant(u):
     """
     import dataclasses
     import pandas as _pd
+    if not has_pit(u):
+        raise PitNotAvailable(pit_refusal(u))
     d0, d1 = u.date_range
     start = max(_pd.Timestamp(d0), first_membership_date(u))
     t = u._templates
@@ -1599,12 +1729,15 @@ def use_pit(tags):
     selected. In place because every consumer looks a universe up in this dict.
     """
     for t in tags:
+        if not has_pit(REGISTRY[t]):
+            raise PitNotAvailable(pit_refusal(REGISTRY[t]))
+    for t in tags:
         if not REGISTRY[t].is_pit:
             REGISTRY[t] = pit_variant(REGISTRY[t])
 
 
 REGISTRY = {u.tag: u for u in (_MIDCAP150, _NIFTY100, _NIFTY50, _MIDCAP50, _MIDCAP100, _NIFTY200, _SMALLCAP250, _NIFTY500,
-                                  _MICROCAP250)}
+                                  _MICROCAP250, _MCAP1500TO5000, _MCAP5001TO10000, _MCAPOVER10000)}
 
 # THE METRICS DIRECTORY IS CREATED AT IMPORT, exactly as the midcap150 and
 # nifty100 config modules did with METRICS_DIR.mkdir(parents=True,
@@ -1648,7 +1781,7 @@ LIVE = list(REGISTRY.values())
 # are removed. A registered tag absent from THIS tuple would be dropped silently
 # from every combined report, which is why report_order() raises on one instead.
 REPORT_ORDER = ("nifty500", "nifty200", "nifty100", "nifty50", "midcap150", "midcap100", "midcap50", "smallcap250",
-                "microcap250")
+                "microcap250", "mcapover10000", "mcap5001to10000", "mcap1500to5000")
 
 
 # ---------------------------------------------------------------------------

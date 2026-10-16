@@ -207,6 +207,16 @@ LIVE_LIKE = (
 # gated; every v5/v6 figure was measured on the previous data delivery.
 NT_VERIFY_UNGATED = (
     ("midcap100", "v3", "holds different names from the open-valued baseline on 7 of 92 rebalances from 2024-10-23"),
+    # THE MARKET-CAP BUCKETS, 2026-10-16: mcapover10000 verifies on all four arms
+    # (92 of 92); these eight do not.
+    ("mcap1500to5000", "v1", "INCONCLUSIVE, measured 2026-10-16: ARM A, the reference copy, holds the engine's own symbol set on 64 of 92 rebalances, so nt_verify cannot judge the port; not investigated"),
+    ("mcap1500to5000", "v2", "INCONCLUSIVE, measured 2026-10-16: ARM A, the reference copy, holds the engine's own symbol set on 65 of 92 rebalances, so nt_verify cannot judge the port; not investigated"),
+    ("mcap1500to5000", "v3", "INCONCLUSIVE, measured 2026-10-16: ARM A, the reference copy, holds the engine's own symbol set on 66 of 92 rebalances, so nt_verify cannot judge the port; not investigated"),
+    ("mcap1500to5000", "v4", "INCONCLUSIVE, measured 2026-10-16: ARM A, the reference copy, holds the engine's own symbol set on 65 of 92 rebalances, so nt_verify cannot judge the port; not investigated"),
+    ("mcap5001to10000", "v1", "INCONCLUSIVE, measured 2026-10-16: ARM A, the reference copy, holds the engine's own symbol set on 86 of 92 rebalances, so nt_verify cannot judge the port; not investigated"),
+    ("mcap5001to10000", "v2", "INCONCLUSIVE, measured 2026-10-16: ARM A, the reference copy, holds the engine's own symbol set on 86 of 92 rebalances, so nt_verify cannot judge the port; not investigated"),
+    ("mcap5001to10000", "v3", "INCONCLUSIVE, measured 2026-10-16: ARM A, the reference copy, holds the engine's own symbol set on 83 of 92 rebalances, so nt_verify cannot judge the port; not investigated"),
+    ("mcap5001to10000", "v4", "INCONCLUSIVE, measured 2026-10-16: ARM A, the reference copy, holds the engine's own symbol set on 86 of 92 rebalances, so nt_verify cannot judge the port; not investigated"),
 )
 
 DELEGATES = (
@@ -308,7 +318,14 @@ DELEGATES = (
                    ("smallcap250", "v1"), ("smallcap250", "v2"), ("smallcap250", "v3"), ("smallcap250", "v4"),
                    ("nifty500", "v1"), ("nifty500", "v2"), ("nifty500", "v3"), ("nifty500", "v4"),
                    ("microcap250", "v1"), ("microcap250", "v2"), ("microcap250", "v3"),
-                   ("microcap250", "v4"))
+                   ("microcap250", "v4"),
+                   # THE MARKET-CAP BUCKETS, ADDED 2026-10-16: static, research, tax off.
+                   ("mcap1500to5000", "v1"), ("mcap1500to5000", "v2"),
+                   ("mcap1500to5000", "v3"), ("mcap1500to5000", "v4"),
+                   ("mcap5001to10000", "v1"), ("mcap5001to10000", "v2"),
+                   ("mcap5001to10000", "v3"), ("mcap5001to10000", "v4"),
+                   ("mcapover10000", "v1"), ("mcapover10000", "v2"),
+                   ("mcapover10000", "v3"), ("mcapover10000", "v4"))
       if (t, a) not in {(u, x) for u, x, _ in NT_VERIFY_UNGATED}],
 
     # SLOW. validate_engine.py iterates the certified universes inside one run,

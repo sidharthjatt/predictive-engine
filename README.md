@@ -5,7 +5,8 @@ twenty-five ideas that were tested against it.
 
 > **NAMING.** Every universe has one name, used in code, file names, output and
 > current docs: `nifty50`, `nifty100`, `nifty200`, `nifty500`, `midcap50`,
-> `midcap100`, `midcap150`, `smallcap250`, `microcap250`. The short tags `mid`, `n100` and
+> `midcap100`, `midcap150`, `smallcap250`, `microcap250`, and the three static-only
+> market-cap buckets `mcap1500to5000`, `mcap5001to10000`, `mcapover10000`. The short tags `mid`, `n100` and
 > `n50` were retired on 2026-09-18 and are refused with an error that lists the
 > valid names. They still appear in dated records, pre-registrations and old
 > diagnostics, which are left as written; `mid` there means `midcap150`, `n100`
@@ -57,7 +58,8 @@ python3.12 -m venv venv
 ```
 
 `run.py` runs any combination: `--universe` (nifty50, nifty100, nifty200, nifty500,
-midcap50, midcap100, midcap150, smallcap250, microcap250), `--arm` (v1 to v4),
+midcap50, midcap100, midcap150, smallcap250, microcap250, mcap1500to5000,
+mcap5001to10000, mcapover10000), `--arm` (v1 to v4),
 `--rebal <days>` (default 20), `--tax on|off` (default off) and
 `--profile research|tradeable` (default research). For example:
 
@@ -314,6 +316,73 @@ pipeline trades on a price it could not have seen.
 
 ## Results
 
+### The market-cap buckets, static only, 2026-10-16
+
+**mcap1500to5000:** STATIC AND NOT AN INDEX. The supplier delivered these 478 names as a market-cap bucket, with no membership history. Only 2 of the 478 stop trading before the window ends, so the list appears to hold the bucket's members near the time of delivery, not the members at each date. A stock that left the bucket or was delisted is likely missing; a stock that grew into it is present for the whole window. Both the strategy and its buy & hold therefore likely carry survivorship and look-ahead bias, which cannot be measured without membership files. The benchmark index is the broad NIFTY 500, not a bucket index.
+
+**mcap5001to10000:** STATIC AND NOT AN INDEX. The supplier delivered these 216 names as a market-cap bucket, with no membership history. Only 0 of the 216 stop trading before the window ends, so the list appears to hold the bucket's members near the time of delivery, not the members at each date. A stock that left the bucket or was delisted is likely missing; a stock that grew into it is present for the whole window. Both the strategy and its buy & hold therefore likely carry survivorship and look-ahead bias, which cannot be measured without membership files. The benchmark index is the broad NIFTY 500, not a bucket index.
+
+**mcapover10000:** STATIC AND NOT AN INDEX. The supplier delivered these 538 names as a market-cap bucket, with no membership history. Only 2 of the 538 stop trading before the window ends, so the list appears to hold the bucket's members near the time of delivery, not the members at each date. A stock that left the bucket or was delisted is likely missing; a stock that grew into it is present for the whole window. Both the strategy and its buy & hold therefore likely carry survivorship and look-ahead bias, which cannot be measured without membership files. The benchmark index is the broad NIFTY 500, not a bucket index.
+
+v1 to v4, tax off and on, research and tradeable, cadence 20, Rs 10 lakh, window 2019-01-01
+to 2026-05-29, one run per cell. CAGR and MaxDD are each cell's `v34_comparison` row; the
+basket is that file's equal-weight buy & hold (untaxed, daily rebalanced); NIFTY 500 is the
+price index over the same dates; tax paid is COST_TAX_YEARS `total_tax`, cess included.
+mcap1500to5000's basket CAGR is one name-day: ELCIDIN's auction on 2024-10-29, which no arm
+traded (KNOWN_ISSUES.md). nt_verify verifies the four mcapover10000 cells; the other eight are
+not gated (KNOWN_ISSUES.md). There are no pit figures: no membership files exist.
+
+| universe | arm | profile | tax | CAGR% | basket CAGR% | NIFTY 500 CAGR% | MaxDD% | tax paid Rs |
+|---|---|---|---|---:|---:|---:|---:|---:|
+| mcap1500to5000 | v1 | research | off | 54.03 | 146.88 | 12.94 | -41.52 | 0.00 |
+| mcap1500to5000 | v2 | research | off | 27.82 | 146.88 | 12.94 | -21.92 | 0.00 |
+| mcap1500to5000 | v3 | research | off | 58.54 | 146.88 | 12.94 | -50.93 | 0.00 |
+| mcap1500to5000 | v4 | research | off | 30.59 | 146.88 | 12.94 | -31.29 | 0.00 |
+| mcap1500to5000 | v1 | research | on | 44.31 | 146.88 | 12.94 | -41.52 | 3,012,581.25 |
+| mcap1500to5000 | v2 | research | on | 23.46 | 146.88 | 12.94 | -21.92 | 740,496.86 |
+| mcap1500to5000 | v3 | research | on | 49.82 | 146.88 | 12.94 | -50.93 | 3,840,342.01 |
+| mcap1500to5000 | v4 | research | on | 25.78 | 146.88 | 12.94 | -31.29 | 877,937.15 |
+| mcap1500to5000 | v1 | tradeable | off | 38.40 | 146.88 | 12.94 | -45.12 | 0.00 |
+| mcap1500to5000 | v2 | tradeable | off | 20.67 | 146.88 | 12.94 | -22.54 | 0.00 |
+| mcap1500to5000 | v3 | tradeable | off | 38.42 | 146.88 | 12.94 | -48.09 | 0.00 |
+| mcap1500to5000 | v4 | tradeable | off | 21.44 | 146.88 | 12.94 | -26.05 | 0.00 |
+| mcap1500to5000 | v1 | tradeable | on | 32.36 | 146.88 | 12.94 | -45.12 | 1,277,810.50 |
+| mcap1500to5000 | v2 | tradeable | on | 17.84 | 146.88 | 12.94 | -22.54 | 442,105.88 |
+| mcap1500to5000 | v3 | tradeable | on | 33.53 | 146.88 | 12.94 | -48.09 | 1,343,365.48 |
+| mcap1500to5000 | v4 | tradeable | on | 18.54 | 146.88 | 12.94 | -26.05 | 466,087.49 |
+| mcap5001to10000 | v1 | research | off | 62.82 | 28.67 | 12.94 | -34.26 | 0.00 |
+| mcap5001to10000 | v2 | research | off | 39.04 | 28.67 | 12.94 | -20.88 | 0.00 |
+| mcap5001to10000 | v3 | research | off | 53.65 | 28.67 | 12.94 | -38.72 | 0.00 |
+| mcap5001to10000 | v4 | research | off | 37.83 | 28.67 | 12.94 | -24.68 | 0.00 |
+| mcap5001to10000 | v1 | research | on | 53.28 | 28.67 | 12.94 | -34.25 | 5,790,530.74 |
+| mcap5001to10000 | v2 | research | on | 32.70 | 28.67 | 12.94 | -20.86 | 1,776,992.51 |
+| mcap5001to10000 | v3 | research | on | 46.45 | 28.67 | 12.94 | -40.96 | 3,823,494.12 |
+| mcap5001to10000 | v4 | research | on | 31.88 | 28.67 | 12.94 | -24.70 | 1,606,394.33 |
+| mcap5001to10000 | v1 | tradeable | off | 53.54 | 28.67 | 12.94 | -31.22 | 0.00 |
+| mcap5001to10000 | v2 | tradeable | off | 35.52 | 28.67 | 12.94 | -19.96 | 0.00 |
+| mcap5001to10000 | v3 | tradeable | off | 52.42 | 28.67 | 12.94 | -33.08 | 0.00 |
+| mcap5001to10000 | v4 | tradeable | off | 35.90 | 28.67 | 12.94 | -21.44 | 0.00 |
+| mcap5001to10000 | v1 | tradeable | on | 46.87 | 28.67 | 12.94 | -31.18 | 4,005,621.26 |
+| mcap5001to10000 | v2 | tradeable | on | 30.30 | 28.67 | 12.94 | -19.96 | 1,500,928.75 |
+| mcap5001to10000 | v3 | tradeable | on | 45.75 | 28.67 | 12.94 | -34.55 | 3,548,519.25 |
+| mcap5001to10000 | v4 | tradeable | on | 30.57 | 28.67 | 12.94 | -22.37 | 1,461,474.70 |
+| mcapover10000 | v1 | research | off | 48.71 | 25.29 | 12.94 | -32.59 | 0.00 |
+| mcapover10000 | v2 | research | off | 32.77 | 25.29 | 12.94 | -18.59 | 0.00 |
+| mcapover10000 | v3 | research | off | 53.22 | 25.29 | 12.94 | -35.21 | 0.00 |
+| mcapover10000 | v4 | research | off | 34.87 | 25.29 | 12.94 | -22.05 | 0.00 |
+| mcapover10000 | v1 | research | on | 41.05 | 25.29 | 12.94 | -32.57 | 2,561,541.15 |
+| mcapover10000 | v2 | research | on | 27.66 | 25.29 | 12.94 | -18.59 | 1,108,753.82 |
+| mcapover10000 | v3 | research | on | 44.94 | 25.29 | 12.94 | -35.34 | 3,172,371.00 |
+| mcapover10000 | v4 | research | on | 29.62 | 25.29 | 12.94 | -22.10 | 1,263,059.76 |
+| mcapover10000 | v1 | tradeable | off | 48.44 | 25.29 | 12.94 | -32.58 | 0.00 |
+| mcapover10000 | v2 | tradeable | off | 32.75 | 25.29 | 12.94 | -18.59 | 0.00 |
+| mcapover10000 | v3 | tradeable | off | 53.19 | 25.29 | 12.94 | -35.66 | 0.00 |
+| mcapover10000 | v4 | tradeable | off | 34.82 | 25.29 | 12.94 | -22.29 | 0.00 |
+| mcapover10000 | v1 | tradeable | on | 40.92 | 25.29 | 12.94 | -32.59 | 2,540,468.25 |
+| mcapover10000 | v2 | tradeable | on | 27.65 | 25.29 | 12.94 | -18.59 | 1,107,937.76 |
+| mcapover10000 | v3 | tradeable | on | 44.81 | 25.29 | 12.94 | -35.73 | 3,151,393.61 |
+| mcapover10000 | v4 | tradeable | on | 29.58 | 25.29 | 12.94 | -22.29 | 1,259,998.15 |
+
 ### Read these first
 
 - **The supplier's data delivery of 2026-10-10 replaced the prices, and every cell was
@@ -410,6 +479,18 @@ The tax ledger now follows the Income-tax Act in four places it did not before: 
 | microcap250 | v2 | 32.11 | -22.63 | 26.90 | -22.63 | 1.81 | 26.87 | 33.37 | -6.47 |
 | microcap250 | v3 | 67.11 | -40.97 | 55.53 | -40.99 | 1.85 | 55.68 | 33.37 | +22.16 |
 | microcap250 | v4 | 39.41 | -20.61 | 33.08 | -22.40 | 1.85 | 33.13 | 33.37 | -0.29 |
+| mcap1500to5000 | v1 | 54.03 | -41.52 | 44.31 | -41.52 | 1.70 | 44.36 | 79.79 | -35.48 |
+| mcap1500to5000 | v2 | 27.82 | -21.92 | 23.46 | -21.92 | 1.71 | 23.22 | 79.79 | -56.33 |
+| mcap1500to5000 | v3 | 58.54 | -50.93 | 49.82 | -50.93 | 1.69 | 49.82 | 79.79 | -29.97 |
+| mcap1500to5000 | v4 | 30.59 | -31.29 | 25.78 | -31.29 | 1.63 | 25.60 | 79.79 | -54.01 |
+| mcap5001to10000 | v1 | 62.82 | -34.26 | 53.28 | -34.25 | 2.06 | 53.72 | 33.52 | +19.76 |
+| mcap5001to10000 | v2 | 39.04 | -20.88 | 32.70 | -20.86 | 2.10 | 33.00 | 33.52 | -0.82 |
+| mcap5001to10000 | v3 | 53.65 | -38.72 | 46.45 | -40.96 | 1.67 | 46.58 | 33.52 | +12.93 |
+| mcap5001to10000 | v4 | 37.83 | -24.68 | 31.88 | -24.70 | 1.86 | 32.11 | 33.52 | -1.64 |
+| mcapover10000 | v1 | 48.71 | -32.59 | 41.05 | -32.57 | 1.70 | 41.01 | 24.04 | +17.01 |
+| mcapover10000 | v2 | 32.77 | -18.59 | 27.66 | -18.59 | 1.87 | 27.73 | 24.04 | +3.62 |
+| mcapover10000 | v3 | 53.22 | -35.21 | 44.94 | -35.34 | 1.63 | 44.69 | 24.04 | +20.90 |
+| mcapover10000 | v4 | 34.87 | -22.05 | 29.62 | -22.10 | 1.76 | 29.67 | 24.04 | +5.58 |
 
 **static, tradeable profile**
 
@@ -451,6 +532,18 @@ The tax ledger now follows the Income-tax Act in four places it did not before: 
 | microcap250 | v2 | 32.26 | -21.73 | 27.19 | -21.73 | 1.83 | 27.17 | 33.37 | -6.18 |
 | microcap250 | v3 | 62.32 | -45.44 | 54.51 | -45.43 | 1.83 | 54.66 | 33.37 | +21.14 |
 | microcap250 | v4 | 39.45 | -20.64 | 33.13 | -22.41 | 1.85 | 33.18 | 33.37 | -0.24 |
+| mcap1500to5000 | v1 | 38.40 | -45.12 | 32.36 | -45.12 | 1.39 | 31.99 | 79.79 | -47.43 |
+| mcap1500to5000 | v2 | 20.67 | -22.54 | 17.84 | -22.54 | 1.46 | 17.58 | 79.79 | -61.95 |
+| mcap1500to5000 | v3 | 38.42 | -48.09 | 33.53 | -48.09 | 1.36 | 33.11 | 79.79 | -46.26 |
+| mcap1500to5000 | v4 | 21.44 | -26.05 | 18.54 | -26.05 | 1.39 | 18.32 | 79.79 | -61.25 |
+| mcap5001to10000 | v1 | 53.54 | -31.22 | 46.87 | -31.18 | 1.90 | 47.29 | 33.52 | +13.35 |
+| mcap5001to10000 | v2 | 35.52 | -19.96 | 30.30 | -19.96 | 2.02 | 30.60 | 33.52 | -3.22 |
+| mcap5001to10000 | v3 | 52.42 | -33.08 | 45.75 | -34.55 | 1.69 | 46.09 | 33.52 | +12.23 |
+| mcap5001to10000 | v4 | 35.90 | -21.44 | 30.57 | -22.37 | 1.84 | 30.80 | 33.52 | -2.95 |
+| mcapover10000 | v1 | 48.44 | -32.58 | 40.92 | -32.59 | 1.70 | 40.87 | 24.04 | +16.88 |
+| mcapover10000 | v2 | 32.75 | -18.59 | 27.65 | -18.59 | 1.87 | 27.73 | 24.04 | +3.61 |
+| mcapover10000 | v3 | 53.19 | -35.66 | 44.81 | -35.73 | 1.62 | 44.56 | 24.04 | +20.77 |
+| mcapover10000 | v4 | 34.82 | -22.29 | 29.58 | -22.29 | 1.76 | 29.64 | 24.04 | +5.54 |
 
 **pit, research profile**
 
@@ -492,6 +585,9 @@ The tax ledger now follows the Income-tax Act in four places it did not before: 
 | microcap250 | v2 | 21.46 | -13.56 | 18.04 | -16.01 | 1.29 | 17.93 | 29.66 | -11.62 |
 | microcap250 | v3 | 37.07 | -32.46 | 30.54 | -32.78 | 1.16 | 30.53 | 29.66 | +0.88 |
 | microcap250 | v4 | 30.07 | -17.93 | 25.17 | -20.09 | 1.46 | 25.21 | 29.66 | -4.49 |
+| mcap1500to5000 | v1-v4 | not available: no membership file for this supplier bucket | | | | | | | |
+| mcap5001to10000 | v1-v4 | not available: no membership file for this supplier bucket | | | | | | | |
+| mcapover10000 | v1-v4 | not available: no membership file for this supplier bucket | | | | | | | |
 
 **pit, tradeable profile**
 
@@ -533,6 +629,9 @@ The tax ledger now follows the Income-tax Act in four places it did not before: 
 | microcap250 | v2 | 21.46 | -13.56 | 18.04 | -16.01 | 1.29 | 17.93 | 29.66 | -11.62 |
 | microcap250 | v3 | 37.08 | -32.46 | 30.54 | -32.80 | 1.16 | 30.53 | 29.66 | +0.88 |
 | microcap250 | v4 | 30.07 | -17.93 | 25.17 | -20.09 | 1.46 | 25.21 | 29.66 | -4.49 |
+| mcap1500to5000 | v1-v4 | not available: no membership file for this supplier bucket | | | | | | | |
+| mcap5001to10000 | v1-v4 | not available: no membership file for this supplier bucket | | | | | | | |
+| mcapover10000 | v1-v4 | not available: no membership file for this supplier bucket | | | | | | | |
 
 <!-- end of tax-on tables -->
 
@@ -1597,8 +1696,10 @@ rebuild.
 public. It comes from the owner of this repository: ask them for a copy.** It is
 vendor OHLCV, not redistributed here, and nothing runs without it.
 
-The pipeline reads exactly one folder, 1,024 MB, 1,634 CSV files. Put it at this path,
-with these nine subfolders, one per universe:
+The pipeline reads exactly one folder, 2,869 CSV files: 1,634 in the nine index
+folders (1,024 MB) and 1,235 in the three market-cap bucket folders the supplier added
+on 2026-10-16 (about 650 MB). Put it at this path, with these twelve subfolders, one per
+universe:
 
     data/raw/Final_Without_Survivorship_Data/
         Final_NIFTY50_EoD_Data/            nifty50       51 CSV   (50 constituents + Nifty 50.csv)
@@ -1610,11 +1711,16 @@ with these nine subfolders, one per universe:
         Final_NIFTYMidCap150_EoD_Data/     midcap150    149 CSV   (148 + NIFTY MIDCAP 150.csv)
         Final_NIFTYSmallCap250_EoD_Data/   smallcap250  249 CSV   (248 + NIFTY SMLCAP 250.csv)
         Final_NiftyMicroCap250_EoD_Data/   microcap250  242 CSV   (241 + NIFTY MICROCAP250.csv)
+        Final_Universe_MarcketCap_1500_5000/   mcap1500to5000   479 CSV   (478 + NIFTY 500.csv)
+        Final_Universe_MarcketCap_5001_10000/  mcap5001to10000  217 CSV   (216 + NIFTY 500.csv)
+        Final_Universe_MarcketCap_GT_10000/    mcapover10000    539 CSV   (538 + NIFTY 500.csv)
 
 Each folder holds one CSV per constituent, named by NSE symbol (`ABB.csv`), and one
 for the published index. A universe's constituents are whatever CSVs are in its
 folder, so an extra or missing file changes that universe and every figure on it.
-For one universe only, copy just its folder; for the published figures, all nine.
+For one universe only, copy just its folder; for the published figures, all twelve.
+The three market-cap folders are static only (no membership files); see "The
+market-cap buckets" under Results and KNOWN_ISSUES.md.
 Other folders the owner's copy may have under `data/raw/` are not read by the
 pipeline: `Final_With_Survivorship_Data/` (1,470 MB) and `Survivorship_Bias/` (1 MB).
 `survivorship_attribution.py` alone reads `Survivorship_Bias/` and the price files of

@@ -183,6 +183,13 @@ def resolve_universes(name):
     universe twice on one chart.
     """
     if name in ("all", None):
+        # UNDER --survivorship pit, "all" IS THE UNIVERSES THAT HAVE POINT-IN-TIME
+        # SOURCES (owner's decision, 2026-10-16). The static-only ones are left out,
+        # and main() prints them and RUN.txt records them; see PIT_LEFT_OUT.
+        import survivorship_axis as _sva
+        from universes.registry import has_pit
+        if not _sva.is_default():
+            return [u for u in REGISTRY.values() if has_pit(u)]
         return list(REGISTRY.values())
     want = [t.strip() for t in str(name).split(",") if t.strip()]
     if not want:
@@ -393,6 +400,10 @@ def _universe_artefacts_in_shared_metrics():
             if f.is_file() and _UNIVERSE_ARTEFACT.search(f.name)]
 
 
+# The universes "--universe all --survivorship pit" leaves out, as (tag, reason);
+# filled by main() and written to RUN.txt.
+PIT_LEFT_OUT = []
+
 # The Nautilus steps a pit run leaves out; see build_plan.
 PIT_NOT_RUN = ("nt_export_scores.py", "nt_execute.py")
 
@@ -437,6 +448,9 @@ def print_plan(plan, args, show_paths=False):
     if not _sva.is_default():
         print(f"  survivorship: {_sva.selected()} (point-in-time membership, "
               f"with-survivorship prices; static is the default)")
+    for u in unis:
+        if getattr(u, "bias_note", None):
+            print(f"  BIAS ({u.tag}): {u.bias_note}")
     import capital_axis as _capa
     if not _capa.is_default():
         print(f"  starting capital: Rs {_capa.selected():,} (default Rs {_capa.DEFAULT:,})")
@@ -765,7 +779,16 @@ def main(argv=None):
     import survivorship_axis as _sva
     _sva.set_selection(args.survivorship)
     if not _sva.is_default():
-        from universes.registry import use_pit
+        from universes.registry import use_pit, has_pit, pit_refusal
+        if args.universe in ("all", None):
+            PIT_LEFT_OUT[:] = [(u.tag, pit_refusal(u)) for u in REGISTRY.values()
+                               if not has_pit(u)]
+            for _t, _why in PIT_LEFT_OUT:
+                print(f"  LEFT OUT of --survivorship pit: {_why}")
+        else:
+            _bad = [u for u in resolve_universes(args.universe) if not has_pit(u)]
+            if _bad:
+                ap.error(" ".join(pit_refusal(u) for u in _bad))
         use_pit([u.tag for u in resolve_universes(args.universe)])
 
     plan = build_plan(args)
@@ -904,7 +927,7 @@ def collect_run_folder(plan, args, t_start, dest, thin=None):
         f"cadence   : {reb}\n"
         f"profile   : {_pf.selected()}\n"
         f"tax       : {'on' if _tax.selected() else 'off'}\n"
-        + _survivorship_section(plan) + _dd_section() + _capital_section()
+        + _survivorship_section(plan) + _bias_section(plan) + _dd_section() + _capital_section()
         + _impact_pcap_section() + _fixed_section() +
         f"steps     : {len(plan['pipeline'])} pipeline, {len(plan['arm_runs'])} arm runs\n"
         f"artefacts : {copied} copied from their canonical locations\n"
@@ -918,6 +941,13 @@ def collect_run_folder(plan, args, t_start, dest, thin=None):
             print(f"    {m}")
 
 
+def _bias_section(plan):
+    """RUN.txt's bias lines: one per selected universe that carries a bias label
+    (Universe.bias_note), none otherwise, so every other RUN.txt is unchanged."""
+    return "".join(f"bias      : {u.tag} -- {u.bias_note}\n"
+                   for u in plan["universes"] if getattr(u, "bias_note", None))
+
+
 def _survivorship_section(plan):
     """RUN.txt's survivorship lines: none in a static run, so a static RUN.txt is
     unchanged; in a pit run the mode and each universe's pit record."""
@@ -925,6 +955,7 @@ def _survivorship_section(plan):
     if _sva.is_default():
         return ""
     out = [f"survivorship : {_sva.selected()}"]
+    out += [f"left out  : {t} -- {why}" for t, why in PIT_LEFT_OUT]
     for u in plan["universes"]:
         out.append(f"--- {u.tag} point-in-time record ---")
         out += plan["pit_records"][u.tag]["lines"]
@@ -1285,6 +1316,11 @@ def _execute(plan, args, state):
     # universe construction produced the numbers under it.
     import survivorship as sv
     print(f"SURVIVORSHIP: {sv.describe_state()}\n")
+    # THE BIAS LABEL of every selected universe that carries one (Universe.bias_note),
+    # in the log as well as RUN.txt, so no figure under it travels without it.
+    for u in plan["universes"]:
+        if getattr(u, "bias_note", None):
+            print(f"BIAS ({u.tag}): {u.bias_note}\n")
 
     # CALENDAR SESSIONS THE DATA LACKS, REPORTED ONLY. A session inside the window
     # where fewer than half of the names spanning it have a row is printed here

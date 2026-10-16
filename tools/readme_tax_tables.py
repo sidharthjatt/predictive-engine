@@ -29,7 +29,7 @@ for _p in (ROOT, ROOT / "results"):
 
 import arms.registry as arm_reg
 from config import read_table
-from universes.registry import REGISTRY
+from universes.registry import REGISTRY, has_pit
 
 BEGIN = "<!-- tax-on tables: written by tools/readme_tax_tables.py; do not edit by hand -->"
 END = "<!-- end of tax-on tables -->"
@@ -87,6 +87,12 @@ def block():
     for surv, profile, prof, pit in SETTINGS:
         L += [f"**{surv}, {profile} profile**", "", head, "|---|---|" + "---:|" * 8]
         for tag, u in REGISTRY.items():
+            if pit and not has_pit(u):
+                # A STATIC-ONLY UNIVERSE HAS NO PIT ROW, and says so rather than
+                # leaving a gap or a guess (registry.has_pit).
+                L.append(f"| {tag} | v1-v4 | not available: no membership file for this "
+                         f"supplier bucket |" + " |" * 7)
+                continue
             for arm in arm_reg.ARMS:
                 L.append("| " + " | ".join([tag, arm] + row(u.metrics_dir, tag, arm, prof, pit))
                          + " |")

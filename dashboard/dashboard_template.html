@@ -578,6 +578,7 @@ function viewRun() {
   const ckl = ["strategy", "basket", "index"].map(l => [l, lineChecks(r, l)]);
   const cell = v => v === null ? '<td class="muted">not run</td>' : `<td class="${v ? "pass" : "fail"}">${v ? "pass" : "fail"}</td>`;
   const inCmp = state.cmp.includes(r.id);
+  if (r.bias_note) h += biasPanel(r);
   h += `<section class="panel"><h2>${esc(r.axes.universe)} ${esc(r.axes.arm)} <span class="win">· window ${esc(winOf(r))}, ${r.years.toFixed(2)} years</span> <span class="muted">— ${esc(r.id)}</span></h2>
     <div class="tiles">
       ${tile("CAGR", pct(r.cagr), rnote("cagr"))}
@@ -786,6 +787,7 @@ function viewMethods() {
   const r = current();
   let h = axisControls();
   if (!r) { MAIN.innerHTML = h + '<section class="panel"><p>This combination has not been run. Pick settings with a run.</p></section>'; bindAxisControls(); return; }
+  if (r.bias_note) h += biasPanel(r);
   const e = r.equity;
   const lines = [["Strategy", r.cagr, "strategy", e.strategy], ["Basket", r.basket && r.basket.cagr, "basket", e.basket]];
   if (r.index) lines.push(["Index", r.index.cagr, "index", e.index]);
@@ -876,6 +878,12 @@ function viewAll() {
   f.addEventListener("input", () => { state.filter = f.value; const pos = f.selectionStart; render(); const g = document.getElementById("flt"); g.focus(); g.setSelectionRange(pos, pos); });
 }
 
+// The bias label of a universe whose results carry a bias that cannot be measured
+// (universes/registry.py, Universe.bias_note), shown above its figures.
+function biasPanel(r) {
+  return `<section class="panel"><h2>Bias: ${esc(r.axes.universe)}</h2><p class="wrap"><b>${esc(r.bias_note)}</b></p></section>`;
+}
+
 function viewNotes() {
   const d = DATA;
   let h = `<section class="panel"><h2>Notes</h2><div class="scroll"><table><tbody>
@@ -885,6 +893,7 @@ function viewNotes() {
     <tr><td class="l">Exported</td><td class="l">${esc(d.generated_at)}</td></tr>
     <tr><td class="l">Runs</td><td class="l">${RUNS.length}</td></tr>
     <tr><td class="l">Command template</td><td class="l wrap"><code>${esc(d.command_template)}</code></td></tr></tbody></table></div></section>
+    ${d.bias_notes && Object.keys(d.bias_notes).length ? `<section class="panel"><h2>Universes with a bias label (${Object.keys(d.bias_notes).length})</h2><div class="scroll"><table><tbody>${Object.entries(d.bias_notes).map(([t, n]) => `<tr><td class="l">${esc(t)}</td><td class="l wrap">${esc(n)}</td></tr>`).join("")}</tbody></table></div></section>` : ""}
     <section class="panel"><h2>Export checks (${d.export_checks.length})</h2><ul>${d.export_checks.map(c => `<li class="${/\bFAIL\b/.test(c) ? "fail" : ""}">${esc(c)}</li>`).join("")}</ul></section>
     <section class="panel"><h2>Known issues (${d.known_issues.length}), as written in KNOWN_ISSUES.md</h2>
     ${d.known_issues.map(k => `<details><summary>${esc(k.title)}</summary><pre class="ki">${esc(k.text)}</pre></details>`).join("")}</section>`;

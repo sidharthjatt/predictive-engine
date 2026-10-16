@@ -48,6 +48,9 @@ results_nifty200/metrics/
 results_smallcap250/metrics/
 results_nifty500/metrics/
 results_microcap250/metrics/
+results_mcap1500to5000/metrics/
+results_mcap5001to10000/metrics/
+results_mcapover10000/metrics/
 
 # Derived from the score panels by run_all.py STEP 16; stale the moment those
 # are rebuilt.

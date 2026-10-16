@@ -37,6 +37,12 @@ curves, not cut. Pit rows use each universe's pit window. microcap250's pit wind
 starts on 2021-10-29, and its pit cells say so ("from 2021-10-29"); every other
 pit window equals the static one.
 
+THE THREE MARKET-CAP BUCKETS (2026-10-16) follow microcap250. They are static only:
+the supplier delivered no membership file for them, so every pit row reads "not
+available: no membership file for this supplier bucket" and is never filled. Their
+static figures carry the bias label in universes/registry.py (Universe.bias_note),
+which the sheet prints in a NOTES block below each table.
+
 AVERAGE DRAWDOWN is the mean, over every trading day in the window, of
 equity / running peak - 1, so a day at a peak counts as 0.
 
@@ -61,7 +67,9 @@ from config import read_table                                  # noqa: E402
 from universes.registry import REGISTRY                        # noqa: E402
 
 COLUMNS = ("smallcap250", "midcap150", "midcap100", "midcap50", "nifty500",
-           "nifty200", "nifty100", "nifty50", "microcap250")
+           "nifty200", "nifty100", "nifty50", "microcap250",
+           "mcap1500to5000", "mcap5001to10000", "mcapover10000")
+NO_PIT = "not available: no membership file for this supplier bucket"
 ARMS = ("v1", "v2", "v3", "v4")
 ROWS = ("pit, tax off: CAGR", "pit, tax on: CAGR",
         "static, tax off: CAGR", "static, tax on: CAGR",
@@ -117,9 +125,12 @@ def check(what, got, want):
 def universe_block(u):
     """{arm: {row: value}} for one universe, every figure checked."""
     M = Path(u.metrics_dir)
+    from universes.registry import has_pit
+    pit = has_pit(u)
+    sfx = ("", "_tax", "_pit", "_tax_pit") if pit else ("", "_tax")
     eq = {s: read_table(M / f"v34_equity{s}.csv", parse_dates=["date"]).set_index("date")
-          for s in ("", "_tax", "_pit", "_tax_pit")}
-    pit_start = eq["_pit"].index[0]
+          for s in sfx}
+    pit_start = eq["_pit"].index[0] if pit else eq[""].index[0]
     static_start = eq[""].index[0]
     ref = eq[""]["buyhold"]
     check(f"{u.tag} equal-weight basket CAGR", cagr(ref), published(M, "", BH_ROW)[0])
@@ -128,11 +139,24 @@ def universe_block(u):
     out = {}
     for a in ARMS:
         col, lab = arm_reg.ARMS[a].equity_column, arm_reg.ARMS[a].label
-        so, sn, po, pn = (eq[s][col] for s in ("", "_tax", "_pit", "_tax_pit"))
+        so, sn = eq[""][col], eq["_tax"][col]
+        po, pn = (eq["_pit"][col], eq["_tax_pit"][col]) if pit else (None, None)
         for s, e in (("", so), ("_tax", sn), ("_pit", po), ("_tax_pit", pn)):
+            if e is None:
+                continue
             c, d = published(M, s, lab)
             check(f"{u.tag} {a} v34_comparison{s} CAGR", cagr(e), c)
             check(f"{u.tag} {a} v34_comparison{s} MaxDD", maxdd(e), d)
+        if not pit:
+            out[a] = {"pit, tax off: CAGR": NO_PIT, "pit, tax on: CAGR": NO_PIT,
+                      "static, tax off: CAGR": cagr(so), "static, tax on: CAGR": cagr(sn),
+                      "NSE index: CAGR": cagr(nse), "NSE index: MaxDD": maxdd(nse),
+                      "static, tax off: MaxDD": maxdd(so),
+                      "static, tax off: average drawdown": avgdd(so),
+                      "pit, tax off: MaxDD": NO_PIT, "pit, tax off: average drawdown": NO_PIT,
+                      "equal-weight basket (untaxed, daily rebalanced): CAGR": cagr(ref),
+                      "equal-weight basket (untaxed, daily rebalanced): MaxDD": maxdd(ref)}
+            continue
         out[a] = {"pit, tax off: CAGR": cagr(po), "pit, tax on: CAGR": cagr(pn),
                   "static, tax off: CAGR": cagr(so), "static, tax on: CAGR": cagr(sn),
                   "NSE index: CAGR": cagr(nse), "NSE index: MaxDD": maxdd(nse),
@@ -153,7 +177,11 @@ def tables():
         t = pd.DataFrame(index=list(ROWS), columns=list(COLUMNS), dtype=object)
         for u, (vals, late, start) in blocks.items():
             for r in ROWS:
-                s = f"{vals[a][r]:.2f}"
+                v = vals[a][r]
+                if isinstance(v, str):
+                    t.loc[r, u] = v
+                    continue
+                s = f"{v:.2f}"
                 if late and r.startswith("pit"):
                     s += f" (from {start.date()})"
                 t.loc[r, u] = s
@@ -170,11 +198,17 @@ def main():
     # split each into an extra column.
     buf = io.StringIO()
     w = csv.writer(buf, lineterminator="\n")
+    notes = [(t_, REGISTRY[t_].bias_note) for t_ in COLUMNS if REGISTRY[t_].bias_note]
     for a, t in tabs.items():
         w.writerow([f"arm {a} ({arm_reg.ARMS[a].label}), research profile"])
         w.writerow(["row"] + list(t.columns))
         for r in t.index:
             w.writerow([r] + [str(v) for v in t.loc[r]])
+        w.writerow([])
+    if notes:
+        w.writerow(["NOTES"])
+        for t_, n_ in notes:
+            w.writerow([t_, n_])
         w.writerow([])
     # naming: axis-free -- one fixed export of the research profile, static and pit
     OUT_CSV.write_text(buf.getvalue())
@@ -182,6 +216,12 @@ def main():
         for a, t in tabs.items():
             # naming: axis-free -- one sheet per arm in the fixed export above
             t.to_excel(xw, sheet_name=a, index_label="row")
+            if notes:
+                # The bias label of each static-only universe, below its table.
+                # naming: axis-free -- part of the same sheet
+                pd.DataFrame({"row": [f"NOTE {t_}" for t_, _ in notes],
+                              "text": [n_ for _, n_ in notes]}).to_excel(
+                    xw, sheet_name=a, index=False, startrow=len(t) + 2)
     print(f"wrote {OUT_CSV.relative_to(ROOT)} and {OUT_XLSX.relative_to(ROOT)}: "
           f"{len(tabs)} arms x {len(ROWS)} rows x {len(COLUMNS)} universes, every "
           f"CAGR and MaxDD equal to the published figure")

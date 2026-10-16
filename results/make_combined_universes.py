@@ -178,7 +178,10 @@ from universes.registry import CERTIFIED as PAIR_CHART  # noqa: E402
 #
 # RE-CONFIRMED AT 9 ON 2026-10-10, AND THE PAIR DID NOT MOVE. microcap250 was
 # added that day and nothing on it has been run or validated.
-PAIR_CHART_REGISTRY_SIZE = 9
+#
+# RE-CONFIRMED AT 12 ON 2026-10-16, AND THE PAIR DID NOT MOVE. The three static-only
+# market-cap buckets were added that day.
+PAIR_CHART_REGISTRY_SIZE = 12
 
 _unknown_pair = set(PAIR_CHART) - set(REGISTRY)
 if _unknown_pair:

@@ -910,6 +910,24 @@ On 2026-10-15, between 20:49 and 20:53, `data/raw/` was restored from an older c
 
 `check_all` now runs `check_data.py` and `check_data.py --pit` (both read-only) as GATE 0, before any gate that rebuilds a farm. Any missing, different or extra price file stops the run and names the file. `run.py` still checks only the pit inputs before a pit run. A pipeline run outside `check_all` on a mismatched copy is not stopped by this gate.
 
+The supplier's mcapover10000 folder (`Final_Universe_MarcketCap_GT_10000`, delivered 2026-10-16) also held PRIVISCL. The owner removed it before the folder was added to the manifest, recording its SHA-256 first: `ef38652256706b98fd302651aa12a66f650f21eb8ce1f90992c391fb9fe77268`, the same file removed on 2026-10-10. It has no line in the manifest, so a restore that brings it back is an extra file at GATE 0.
+
+### The three market-cap buckets are static only, and their bias cannot be measured
+
+`mcap1500to5000`, `mcap5001to10000` and `mcapover10000` (2026-10-16) are the supplier's folders `Final_Universe_MarcketCap_1500_5000`, `_5001_10000` and `_GT_10000`. They hold 478, 216 and 538 names plus `NIFTY 500.csv`, the broad index, which is byte-identical to nifty500's `NIFTY500.csv`. The bucket bounds carry no unit until the owner confirms it with the supplier. Each row's `bias_note` (`universes/registry.py`) is printed in the plan, RUN.txt, `v2FINAL_params`, the dashboard and the survivorship sheet:
+
+> STATIC AND NOT AN INDEX. The supplier delivered these {n} names as a market-cap bucket, with no membership history. Only {k} of the {n} stop trading before the window ends, so the list appears to hold the bucket's members near the time of delivery, not the members at each date. A stock that left the bucket or was delisted is likely missing; a stock that grew into it is present for the whole window. Both the strategy and its buy & hold therefore likely carry survivorship and look-ahead bias, which cannot be measured without membership files. The benchmark index is the broad NIFTY 500, not a bucket index.
+
+{k} is 2 of 478, 0 of 216 and 2 of 538. Names with no price row before 2019-01-01: 184, 79 and 158.
+
+There are no membership files and no with-survivorship prices. `pit_variant()` raises `PitNotAvailable` for these rows. `run.py --survivorship pit` refuses them when named, and leaves them out of `--universe all`, printing them and recording them in RUN.txt (`left out`).
+
+SCI is in both mcap1500to5000 and mcapover10000, with the same bytes. Each bucket treats it as its own constituent.
+
+mcap1500to5000's equal-weight basket is dominated by one name-day. ELCIDIN's close goes from 3.53 (2024-06-21, its previous row) to 213,800.00 on 2024-10-29: a daily return of +6,056,557%, matching the price-discovery auction held for investment companies on that date. The basket is the daily mean of every name's return, so that day alone multiplies it about 147 times. Its CAGR (146.88%) and every basket figure for this bucket describe that event, not the bucket. No arm traded ELCIDIN; the strategy figures do not contain the day. The price files are the supplier's and are not edited. The bucket's other moves beyond 50% in a day are SUVEN 2020-01-21 (-93%), ELCIDIN 2022-05-25 (-88%), AGI 2019-08-19 (-66%) and BCG 2025-07-14 (+99%).
+
+nt_verify gates 4 of the 12 bucket cells: mcapover10000 v1 to v4 verify 92 of 92. The other 8, mcap1500to5000 and mcap5001to10000 v1 to v4, are in `NT_VERIFY_UNGATED`. Each is INCONCLUSIVE because ARM A, the reference copy, holds the engine's own symbol set on only 64 to 66 (mcap1500to5000) or 83 to 86 (mcap5001to10000) of 92 rebalances. Not investigated.
+
 ### The NSE trading calendar is frozen data with no generator and no way to extend it
 
 `data/nse_trading_calendar.csv` is tracked and filters every panel (`results/engine_core._load_calendar`, `_check_calendar`). It was built once from a retired universe's raw files by `results/make_trading_calendar.py`. Both the script and the files were deleted in 2fe48ff. The calendar ends on 2026-06-08, and nothing in the repository appends to it. Any data past that date needs a new source of sessions, and that source has not been chosen. Do not hand-edit it: a wrong tail changes every backtest window.

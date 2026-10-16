@@ -288,7 +288,7 @@ def _registry_tags():
 #
 # UPDATE IT BY HAND when a row is added or removed. That is the point: a number
 # derived from the table it is checking would agree with any table.
-PIPELINE_ROW_COUNT = 58
+PIPELINE_ROW_COUNT = 76
 
 PIPELINE_ORDER = [
     ("STEP 10a", "build_scores.py",            "midcap150"),
@@ -373,6 +373,20 @@ PIPELINE_ORDER = [
     ("STEP 10.10", "engine_v2_final.py",        "microcap250"),
     ("STEP 10.11", "make_audit.py",             "microcap250"),
     ("STEP 10.12", "make_chart.py",             "microcap250"),
+    # THE THREE MARKET-CAP BUCKETS, ADDED 2026-10-16. Static only: the supplier
+    # delivered no membership files for them (universes/registry.py).
+    ("STEP 10.13", "build_scores.py",           "mcap1500to5000"),
+    ("STEP 10.14", "engine_v2_final.py",        "mcap1500to5000"),
+    ("STEP 10.15", "make_audit.py",             "mcap1500to5000"),
+    ("STEP 10.16", "make_chart.py",             "mcap1500to5000"),
+    ("STEP 10.17", "build_scores.py",           "mcap5001to10000"),
+    ("STEP 10.18", "engine_v2_final.py",        "mcap5001to10000"),
+    ("STEP 10.19", "make_audit.py",             "mcap5001to10000"),
+    ("STEP 10.20", "make_chart.py",             "mcap5001to10000"),
+    ("STEP 10.21", "build_scores.py",           "mcapover10000"),
+    ("STEP 10.22", "engine_v2_final.py",        "mcapover10000"),
+    ("STEP 10.23", "make_audit.py",             "mcapover10000"),
+    ("STEP 10.24", "make_chart.py",             "mcapover10000"),
     # MOVED FROM STEP 10i, and the move is load-bearing rather than cosmetic.
     # The combined chart is generic over the selection, so it needed per-trade
     # logs from two retired universes (deleted 2026-09-11), written by their
@@ -431,6 +445,9 @@ PIPELINE_ORDER = [
     ("STEP 17.01", "bh_lots_after_tax.py",     "smallcap250"),
     ("STEP 17.02", "bh_lots_after_tax.py",     "nifty500"),
     ("STEP 17.03", "bh_lots_after_tax.py",     "microcap250"),
+    ("STEP 17.04", "bh_lots_after_tax.py",     "mcap1500to5000"),
+    ("STEP 17.05", "bh_lots_after_tax.py",     "mcap5001to10000"),
+    ("STEP 17.06", "bh_lots_after_tax.py",     "mcapover10000"),
     ("STEP 18a", "tax_report.py",              "midcap150"),
     ("STEP 18b", "tax_report.py",              "nifty100"),
     ("STEP 18c", "tax_report.py",              "nifty50"),
@@ -440,6 +457,9 @@ PIPELINE_ORDER = [
     ("STEP 18.01", "tax_report.py",            "smallcap250"),
     ("STEP 18.02", "tax_report.py",            "nifty500"),
     ("STEP 18.03", "tax_report.py",            "microcap250"),
+    ("STEP 18.04", "tax_report.py",            "mcap1500to5000"),
+    ("STEP 18.05", "tax_report.py",            "mcap5001to10000"),
+    ("STEP 18.06", "tax_report.py",            "mcapover10000"),
 ]
 
 

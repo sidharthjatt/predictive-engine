@@ -197,6 +197,17 @@ def exec_script(ws):
         openRun(nt); state.view='methods'; render();
         out.push('no twin (' + nt.id + '): no-data line ' + MAIN.innerText.includes('is not in this data') + ', fixed block ' + MAIN.querySelectorAll('h3').length);
         return out.join(' || '); })()""")
+    step("bias label on a market-cap bucket run", """(() => { const r = RUNS.find(x => x.axes.universe==='mcapover10000' && x.axes.arm==='v1');
+        if (!r) return 'no run';
+        const out = [];
+        for (const v of ['run', 'methods']) { openRun(r); state.view = v; render();
+          const h = [...MAIN.querySelectorAll('section.panel h2')].map(x => x.textContent).find(t => t.startsWith('Bias'));
+          out.push(v + ': ' + (h || 'no bias panel')); }
+        state.view = 'notes'; render();
+        out.push('notes: ' + ([...MAIN.querySelectorAll('h2')].map(x => x.textContent).find(t => t.startsWith('Universes with a bias')) || 'none'));
+        const o = RUNS.find(x => x.axes.universe==='nifty200'); openRun(o); state.view='run'; render();
+        out.push('nifty200 bias panel: ' + [...MAIN.querySelectorAll('section.panel h2')].some(x => x.textContent.startsWith('Bias')));
+        return out.join(' || '); })()""")
     # Grid interactions.
     step("grid: rows capital, cols impact, metric minus_basket", """(() => { state.view='grid'; state.grow='capital'; state.gcol='impact'; state.gmetric='minus_basket'; render();
         const b = MAIN.querySelectorAll('td.cell button'); const empty = MAIN.querySelectorAll('td.cell:not(:has(button))').length;
