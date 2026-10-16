@@ -286,6 +286,102 @@
   every month written to metrics/leakage_purge_gaps_trading.csv
 
 
+====================================================================================================
+ CHECK 2 (TRADING RULE) -- TRAINING MASK AND PURGE -- MARKET CAP 1500 to 5000 (mcap1500to5000)
+====================================================================================================
+
+  panel raw_panel_mcap1500to5000_20.parquet   rows 1,411,729   symbols 478
+  purge_mode from the registry: 'trading'      HORIZON = 20 TRADING rows   PURGE_EMBARGO = 2
+  scoring months considered: 126   trained: 126   skipped by the engine: 0
+
+  WHERE THE LABEL ACTUALLY REACHES -- gap distribution, in TRADING days
+    min 2   p5 2   median 2   p95 2   max 2
+
+    months with gap <  0 (label reaches INTO the scored month): 0
+    months with gap == 0 (label observes the first scored day):  0
+    months with gap >  0 (purge holds):                          126
+
+  REPORTED, NOT GATED -- score_monthly's docstring claims the gap is at least PURGE_EMBARGO (2) by construction.
+    months with gap < 2: 0 of 126
+
+  THE TIGHTEST MONTHS (smallest gaps):
+  month     first scored  latest train  label observes   gap td  gap cal
+  2016-01   2016-01-01    2015-12-01    2015-12-30            2        2
+  2016-02   2016-02-01    2015-12-30    2016-01-28            2        4
+  2016-03   2016-03-01    2016-01-29    2016-02-26            2        4
+  2016-04   2016-04-01    2016-02-26    2016-03-30            2        2
+  2016-05   2016-05-02    2016-03-28    2016-04-28            2        4
+  2016-06   2016-06-01    2016-05-02    2016-05-30            2        2
+  2016-07   2016-07-01    2016-06-01    2016-06-29            2        2
+  2016-08   2016-08-01    2016-06-29    2016-07-28            2        4
+
+  every month written to metrics/leakage_purge_gaps_trading.csv
+
+
+====================================================================================================
+ CHECK 2 (TRADING RULE) -- TRAINING MASK AND PURGE -- MARKET CAP 5001 to 10000 (mcap5001to10000)
+====================================================================================================
+
+  panel raw_panel_mcap5001to10000_20.parquet   rows 677,949   symbols 216
+  purge_mode from the registry: 'trading'      HORIZON = 20 TRADING rows   PURGE_EMBARGO = 2
+  scoring months considered: 126   trained: 126   skipped by the engine: 0
+
+  WHERE THE LABEL ACTUALLY REACHES -- gap distribution, in TRADING days
+    min 2   p5 2   median 2   p95 2   max 2
+
+    months with gap <  0 (label reaches INTO the scored month): 0
+    months with gap == 0 (label observes the first scored day):  0
+    months with gap >  0 (purge holds):                          126
+
+  REPORTED, NOT GATED -- score_monthly's docstring claims the gap is at least PURGE_EMBARGO (2) by construction.
+    months with gap < 2: 0 of 126
+
+  THE TIGHTEST MONTHS (smallest gaps):
+  month     first scored  latest train  label observes   gap td  gap cal
+  2016-01   2016-01-01    2015-12-01    2015-12-30            2        2
+  2016-02   2016-02-01    2015-12-30    2016-01-28            2        4
+  2016-03   2016-03-01    2016-01-29    2016-02-26            2        4
+  2016-04   2016-04-01    2016-02-26    2016-03-30            2        2
+  2016-05   2016-05-02    2016-03-28    2016-04-28            2        4
+  2016-06   2016-06-01    2016-05-02    2016-05-30            2        2
+  2016-07   2016-07-01    2016-06-01    2016-06-29            2        2
+  2016-08   2016-08-01    2016-06-29    2016-07-28            2        4
+
+  every month written to metrics/leakage_purge_gaps_trading.csv
+
+
+====================================================================================================
+ CHECK 2 (TRADING RULE) -- TRAINING MASK AND PURGE -- MARKET CAP over 10000 (mcapover10000)
+====================================================================================================
+
+  panel raw_panel_mcapover10000_20.parquet   rows 1,941,475   symbols 538
+  purge_mode from the registry: 'trading'      HORIZON = 20 TRADING rows   PURGE_EMBARGO = 2
+  scoring months considered: 126   trained: 126   skipped by the engine: 0
+
+  WHERE THE LABEL ACTUALLY REACHES -- gap distribution, in TRADING days
+    min 2   p5 2   median 2   p95 2   max 2
+
+    months with gap <  0 (label reaches INTO the scored month): 0
+    months with gap == 0 (label observes the first scored day):  0
+    months with gap >  0 (purge holds):                          126
+
+  REPORTED, NOT GATED -- score_monthly's docstring claims the gap is at least PURGE_EMBARGO (2) by construction.
+    months with gap < 2: 0 of 126
+
+  THE TIGHTEST MONTHS (smallest gaps):
+  month     first scored  latest train  label observes   gap td  gap cal
+  2016-01   2016-01-01    2015-12-01    2015-12-30            2        2
+  2016-02   2016-02-01    2015-12-30    2016-01-28            2        4
+  2016-03   2016-03-01    2016-01-29    2016-02-26            2        4
+  2016-04   2016-04-01    2016-02-26    2016-03-30            2        2
+  2016-05   2016-05-02    2016-03-28    2016-04-28            2        4
+  2016-06   2016-06-01    2016-05-02    2016-05-30            2        2
+  2016-07   2016-07-01    2016-06-01    2016-06-29            2        2
+  2016-08   2016-08-01    2016-06-29    2016-07-28            2        4
+
+  every month written to metrics/leakage_purge_gaps_trading.csv
+
+
   RULE TESTED: the TRADING purge, cut = cal[pos(first) - HORIZON - PURGE_EMBARGO], which is what
   engine_core.score_monthly runs for both live universes. The calendar rule is the sibling check.
-  RESULT: PASS -- gated: the gap from the last training row's label to the first scored date is > 0 trading days in every trained month, 1134 month-universe pair(s) across 9 universe(s) (microcap250 126, midcap100 126, midcap150 126, midcap50 126, nifty100 126, nifty200 126, nifty50 126, nifty500 126, smallcap250 126). Gap >= PURGE_EMBARGO is reported above, not gated.
+  RESULT: PASS -- gated: the gap from the last training row's label to the first scored date is > 0 trading days in every trained month, 1512 month-universe pair(s) across 12 universe(s) (mcap1500to5000 126, mcap5001to10000 126, mcapover10000 126, microcap250 126, midcap100 126, midcap150 126, midcap50 126, nifty100 126, nifty200 126, nifty50 126, nifty500 126, smallcap250 126). Gap >= PURGE_EMBARGO is reported above, not gated.

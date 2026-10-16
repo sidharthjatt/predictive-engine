@@ -1241,7 +1241,427 @@
   fills whose PREVIOUS session is a recorded decision date: 986 of 986
 
 
+====================================================================================================
+ CHECK B -- EXECUTION TIMING FROM THE FILL RECORD -- MARKET CAP 1500 to 5000 (mcap1500to5000), arm v1
+====================================================================================================
+
+  fills file      nautilus/reports/mcap1500to5000/v1/fills.csv
+  arm             v1 -- v1 invvol, 100% invested   (segment 'v1',
+                  from nt_run.reports_segment, the writer's own rule)
+  fills recorded  1,050
+  on 0.05 grid    953 of 1,050 fill prices (90.8%)
+  price panel     v_mcap1500to5000_expanding.parquet
+  reconstruction  price * (1 +/- 0.0015) rounded to that date's NSE tick
+                  (nt_data.quote_frame and _round_to, the port's own rule)
+  tolerance       half of that date's tick: exact equality on the grid
+
+  MATCHES, PER CANDIDATE (a fill may match more than one)
+    (a) that day's OPEN      -- the design         1050 of 1,050
+    (b) that day's CLOSE     -- same-day close      116 of 1,050
+    (c) previous CLOSE       -- signal-day close    119 of 1,050
+    (d) previous OPEN                                64 of 1,050
+
+  fills matching (a): 1,050 of 1,050
+  fills matching NOTHING: 0
+  fills matching (a) UNIQUELY: 825
+  fills matching (a) AND another candidate (ambiguous, prices within half a
+    tick of each other -- a limit of the instrument, not an exception): 225
+
+  EXCEPTIONS -- fills NOT matching the fill day's open: 0
+
+  FILLS EXECUTING AT A CLOSE RATHER THAN AN OPEN: 0
+
+  every fill date on the panel's trading calendar: 1,050 of 1,050
+  fills whose PREVIOUS session is a recorded decision date: 1,050 of 1,050
+
+
+====================================================================================================
+ CHECK B -- EXECUTION TIMING FROM THE FILL RECORD -- MARKET CAP 1500 to 5000 (mcap1500to5000), arm v2
+====================================================================================================
+
+  fills file      nautilus/reports/mcap1500to5000/v2/fills.csv
+  arm             v2 -- v2 invvol, breadth-scaled   (segment 'v2',
+                  from nt_run.reports_segment, the writer's own rule)
+  fills recorded  1,197
+  on 0.05 grid    1,096 of 1,197 fill prices (91.6%)
+  price panel     v_mcap1500to5000_expanding.parquet
+  reconstruction  price * (1 +/- 0.0015) rounded to that date's NSE tick
+                  (nt_data.quote_frame and _round_to, the port's own rule)
+  tolerance       half of that date's tick: exact equality on the grid
+
+  MATCHES, PER CANDIDATE (a fill may match more than one)
+    (a) that day's OPEN      -- the design         1197 of 1,197
+    (b) that day's CLOSE     -- same-day close      121 of 1,197
+    (c) previous CLOSE       -- signal-day close    129 of 1,197
+    (d) previous OPEN                                69 of 1,197
+
+  fills matching (a): 1,197 of 1,197
+  fills matching NOTHING: 0
+  fills matching (a) UNIQUELY: 956
+  fills matching (a) AND another candidate (ambiguous, prices within half a
+    tick of each other -- a limit of the instrument, not an exception): 241
+
+  EXCEPTIONS -- fills NOT matching the fill day's open: 0
+
+  FILLS EXECUTING AT A CLOSE RATHER THAN AN OPEN: 0
+
+  every fill date on the panel's trading calendar: 1,197 of 1,197
+  fills whose PREVIOUS session is a recorded decision date: 1,197 of 1,197
+
+
+====================================================================================================
+ CHECK B -- EXECUTION TIMING FROM THE FILL RECORD -- MARKET CAP 1500 to 5000 (mcap1500to5000), arm v3
+====================================================================================================
+
+  fills file      nautilus/reports/mcap1500to5000/v3/fills.csv
+  arm             v3 -- v3 provol, 100% invested   (segment 'v3',
+                  from nt_run.reports_segment, the writer's own rule)
+  fills recorded  1,059
+  on 0.05 grid    964 of 1,059 fill prices (91.0%)
+  price panel     v_mcap1500to5000_expanding.parquet
+  reconstruction  price * (1 +/- 0.0015) rounded to that date's NSE tick
+                  (nt_data.quote_frame and _round_to, the port's own rule)
+  tolerance       half of that date's tick: exact equality on the grid
+
+  MATCHES, PER CANDIDATE (a fill may match more than one)
+    (a) that day's OPEN      -- the design         1059 of 1,059
+    (b) that day's CLOSE     -- same-day close      113 of 1,059
+    (c) previous CLOSE       -- signal-day close    119 of 1,059
+    (d) previous OPEN                                63 of 1,059
+
+  fills matching (a): 1,059 of 1,059
+  fills matching NOTHING: 0
+  fills matching (a) UNIQUELY: 838
+  fills matching (a) AND another candidate (ambiguous, prices within half a
+    tick of each other -- a limit of the instrument, not an exception): 221
+
+  EXCEPTIONS -- fills NOT matching the fill day's open: 0
+
+  FILLS EXECUTING AT A CLOSE RATHER THAN AN OPEN: 0
+
+  every fill date on the panel's trading calendar: 1,059 of 1,059
+  fills whose PREVIOUS session is a recorded decision date: 1,059 of 1,059
+
+
+====================================================================================================
+ CHECK B -- EXECUTION TIMING FROM THE FILL RECORD -- MARKET CAP 1500 to 5000 (mcap1500to5000), arm v4
+====================================================================================================
+
+  fills file      nautilus/reports/mcap1500to5000/v4/fills.csv
+  arm             v4 -- v4 provol, breadth-scaled   (segment 'v4',
+                  from nt_run.reports_segment, the writer's own rule)
+  fills recorded  1,197
+  on 0.05 grid    1,096 of 1,197 fill prices (91.6%)
+  price panel     v_mcap1500to5000_expanding.parquet
+  reconstruction  price * (1 +/- 0.0015) rounded to that date's NSE tick
+                  (nt_data.quote_frame and _round_to, the port's own rule)
+  tolerance       half of that date's tick: exact equality on the grid
+
+  MATCHES, PER CANDIDATE (a fill may match more than one)
+    (a) that day's OPEN      -- the design         1197 of 1,197
+    (b) that day's CLOSE     -- same-day close      121 of 1,197
+    (c) previous CLOSE       -- signal-day close    129 of 1,197
+    (d) previous OPEN                                69 of 1,197
+
+  fills matching (a): 1,197 of 1,197
+  fills matching NOTHING: 0
+  fills matching (a) UNIQUELY: 956
+  fills matching (a) AND another candidate (ambiguous, prices within half a
+    tick of each other -- a limit of the instrument, not an exception): 241
+
+  EXCEPTIONS -- fills NOT matching the fill day's open: 0
+
+  FILLS EXECUTING AT A CLOSE RATHER THAN AN OPEN: 0
+
+  every fill date on the panel's trading calendar: 1,197 of 1,197
+  fills whose PREVIOUS session is a recorded decision date: 1,197 of 1,197
+
+
+====================================================================================================
+ CHECK B -- EXECUTION TIMING FROM THE FILL RECORD -- MARKET CAP 5001 to 10000 (mcap5001to10000), arm v1
+====================================================================================================
+
+  fills file      nautilus/reports/mcap5001to10000/v1/fills.csv
+  arm             v1 -- v1 invvol, 100% invested   (segment 'v1',
+                  from nt_run.reports_segment, the writer's own rule)
+  fills recorded  886
+  on 0.05 grid    831 of 886 fill prices (93.8%)
+  price panel     v_mcap5001to10000_expanding.parquet
+  reconstruction  price * (1 +/- 0.0015) rounded to that date's NSE tick
+                  (nt_data.quote_frame and _round_to, the port's own rule)
+  tolerance       half of that date's tick: exact equality on the grid
+
+  MATCHES, PER CANDIDATE (a fill may match more than one)
+    (a) that day's OPEN      -- the design          886 of 886
+    (b) that day's CLOSE     -- same-day close       32 of 886
+    (c) previous CLOSE       -- signal-day close     61 of 886
+    (d) previous OPEN                                18 of 886
+
+  fills matching (a): 886 of 886
+  fills matching NOTHING: 0
+  fills matching (a) UNIQUELY: 783
+  fills matching (a) AND another candidate (ambiguous, prices within half a
+    tick of each other -- a limit of the instrument, not an exception): 103
+
+  EXCEPTIONS -- fills NOT matching the fill day's open: 0
+
+  FILLS EXECUTING AT A CLOSE RATHER THAN AN OPEN: 0
+
+  every fill date on the panel's trading calendar: 886 of 886
+  fills whose PREVIOUS session is a recorded decision date: 886 of 886
+
+
+====================================================================================================
+ CHECK B -- EXECUTION TIMING FROM THE FILL RECORD -- MARKET CAP 5001 to 10000 (mcap5001to10000), arm v2
+====================================================================================================
+
+  fills file      nautilus/reports/mcap5001to10000/v2/fills.csv
+  arm             v2 -- v2 invvol, breadth-scaled   (segment 'v2',
+                  from nt_run.reports_segment, the writer's own rule)
+  fills recorded  1,064
+  on 0.05 grid    996 of 1,064 fill prices (93.6%)
+  price panel     v_mcap5001to10000_expanding.parquet
+  reconstruction  price * (1 +/- 0.0015) rounded to that date's NSE tick
+                  (nt_data.quote_frame and _round_to, the port's own rule)
+  tolerance       half of that date's tick: exact equality on the grid
+
+  MATCHES, PER CANDIDATE (a fill may match more than one)
+    (a) that day's OPEN      -- the design         1064 of 1,064
+    (b) that day's CLOSE     -- same-day close       38 of 1,064
+    (c) previous CLOSE       -- signal-day close     81 of 1,064
+    (d) previous OPEN                                23 of 1,064
+
+  fills matching (a): 1,064 of 1,064
+  fills matching NOTHING: 0
+  fills matching (a) UNIQUELY: 934
+  fills matching (a) AND another candidate (ambiguous, prices within half a
+    tick of each other -- a limit of the instrument, not an exception): 130
+
+  EXCEPTIONS -- fills NOT matching the fill day's open: 0
+
+  FILLS EXECUTING AT A CLOSE RATHER THAN AN OPEN: 0
+
+  every fill date on the panel's trading calendar: 1,064 of 1,064
+  fills whose PREVIOUS session is a recorded decision date: 1,064 of 1,064
+
+
+====================================================================================================
+ CHECK B -- EXECUTION TIMING FROM THE FILL RECORD -- MARKET CAP 5001 to 10000 (mcap5001to10000), arm v3
+====================================================================================================
+
+  fills file      nautilus/reports/mcap5001to10000/v3/fills.csv
+  arm             v3 -- v3 provol, 100% invested   (segment 'v3',
+                  from nt_run.reports_segment, the writer's own rule)
+  fills recorded  882
+  on 0.05 grid    829 of 882 fill prices (94.0%)
+  price panel     v_mcap5001to10000_expanding.parquet
+  reconstruction  price * (1 +/- 0.0015) rounded to that date's NSE tick
+                  (nt_data.quote_frame and _round_to, the port's own rule)
+  tolerance       half of that date's tick: exact equality on the grid
+
+  MATCHES, PER CANDIDATE (a fill may match more than one)
+    (a) that day's OPEN      -- the design          882 of 882
+    (b) that day's CLOSE     -- same-day close       33 of 882
+    (c) previous CLOSE       -- signal-day close     68 of 882
+    (d) previous OPEN                                19 of 882
+
+  fills matching (a): 882 of 882
+  fills matching NOTHING: 0
+  fills matching (a) UNIQUELY: 769
+  fills matching (a) AND another candidate (ambiguous, prices within half a
+    tick of each other -- a limit of the instrument, not an exception): 113
+
+  EXCEPTIONS -- fills NOT matching the fill day's open: 0
+
+  FILLS EXECUTING AT A CLOSE RATHER THAN AN OPEN: 0
+
+  every fill date on the panel's trading calendar: 882 of 882
+  fills whose PREVIOUS session is a recorded decision date: 882 of 882
+
+
+====================================================================================================
+ CHECK B -- EXECUTION TIMING FROM THE FILL RECORD -- MARKET CAP 5001 to 10000 (mcap5001to10000), arm v4
+====================================================================================================
+
+  fills file      nautilus/reports/mcap5001to10000/v4/fills.csv
+  arm             v4 -- v4 provol, breadth-scaled   (segment 'v4',
+                  from nt_run.reports_segment, the writer's own rule)
+  fills recorded  1,058
+  on 0.05 grid    990 of 1,058 fill prices (93.6%)
+  price panel     v_mcap5001to10000_expanding.parquet
+  reconstruction  price * (1 +/- 0.0015) rounded to that date's NSE tick
+                  (nt_data.quote_frame and _round_to, the port's own rule)
+  tolerance       half of that date's tick: exact equality on the grid
+
+  MATCHES, PER CANDIDATE (a fill may match more than one)
+    (a) that day's OPEN      -- the design         1058 of 1,058
+    (b) that day's CLOSE     -- same-day close       38 of 1,058
+    (c) previous CLOSE       -- signal-day close     79 of 1,058
+    (d) previous OPEN                                23 of 1,058
+
+  fills matching (a): 1,058 of 1,058
+  fills matching NOTHING: 0
+  fills matching (a) UNIQUELY: 930
+  fills matching (a) AND another candidate (ambiguous, prices within half a
+    tick of each other -- a limit of the instrument, not an exception): 128
+
+  EXCEPTIONS -- fills NOT matching the fill day's open: 0
+
+  FILLS EXECUTING AT A CLOSE RATHER THAN AN OPEN: 0
+
+  every fill date on the panel's trading calendar: 1,058 of 1,058
+  fills whose PREVIOUS session is a recorded decision date: 1,058 of 1,058
+
+
+====================================================================================================
+ CHECK B -- EXECUTION TIMING FROM THE FILL RECORD -- MARKET CAP over 10000 (mcapover10000), arm v1
+====================================================================================================
+
+  fills file      nautilus/reports/mcapover10000/v1/fills.csv
+  arm             v1 -- v1 invvol, 100% invested   (segment 'v1',
+                  from nt_run.reports_segment, the writer's own rule)
+  fills recorded  1,026
+  on 0.05 grid    1,010 of 1,026 fill prices (98.4%)
+  price panel     v_mcapover10000_expanding.parquet
+  reconstruction  price * (1 +/- 0.0015) rounded to that date's NSE tick
+                  (nt_data.quote_frame and _round_to, the port's own rule)
+  tolerance       half of that date's tick: exact equality on the grid
+
+  MATCHES, PER CANDIDATE (a fill may match more than one)
+    (a) that day's OPEN      -- the design         1026 of 1,026
+    (b) that day's CLOSE     -- same-day close       13 of 1,026
+    (c) previous CLOSE       -- signal-day close     92 of 1,026
+    (d) previous OPEN                                14 of 1,026
+
+  fills matching (a): 1,026 of 1,026
+  fills matching NOTHING: 0
+  fills matching (a) UNIQUELY: 914
+  fills matching (a) AND another candidate (ambiguous, prices within half a
+    tick of each other -- a limit of the instrument, not an exception): 112
+
+  EXCEPTIONS -- fills NOT matching the fill day's open: 0
+
+  FILLS EXECUTING AT A CLOSE RATHER THAN AN OPEN: 0
+
+  every fill date on the panel's trading calendar: 1,026 of 1,026
+  fills whose PREVIOUS session is a recorded decision date: 1,026 of 1,026
+
+
+====================================================================================================
+ CHECK B -- EXECUTION TIMING FROM THE FILL RECORD -- MARKET CAP over 10000 (mcapover10000), arm v2
+====================================================================================================
+
+  fills file      nautilus/reports/mcapover10000/v2/fills.csv
+  arm             v2 -- v2 invvol, breadth-scaled   (segment 'v2',
+                  from nt_run.reports_segment, the writer's own rule)
+  fills recorded  1,177
+  on 0.05 grid    1,160 of 1,177 fill prices (98.6%)
+  price panel     v_mcapover10000_expanding.parquet
+  reconstruction  price * (1 +/- 0.0015) rounded to that date's NSE tick
+                  (nt_data.quote_frame and _round_to, the port's own rule)
+  tolerance       half of that date's tick: exact equality on the grid
+
+  MATCHES, PER CANDIDATE (a fill may match more than one)
+    (a) that day's OPEN      -- the design         1177 of 1,177
+    (b) that day's CLOSE     -- same-day close       19 of 1,177
+    (c) previous CLOSE       -- signal-day close    107 of 1,177
+    (d) previous OPEN                                17 of 1,177
+
+  fills matching (a): 1,177 of 1,177
+  fills matching NOTHING: 0
+  fills matching (a) UNIQUELY: 1,041
+  fills matching (a) AND another candidate (ambiguous, prices within half a
+    tick of each other -- a limit of the instrument, not an exception): 136
+
+  EXCEPTIONS -- fills NOT matching the fill day's open: 0
+
+  FILLS EXECUTING AT A CLOSE RATHER THAN AN OPEN: 0
+
+  every fill date on the panel's trading calendar: 1,177 of 1,177
+  fills whose PREVIOUS session is a recorded decision date: 1,177 of 1,177
+
+
+====================================================================================================
+ CHECK B -- EXECUTION TIMING FROM THE FILL RECORD -- MARKET CAP over 10000 (mcapover10000), arm v3
+====================================================================================================
+
+  fills file      nautilus/reports/mcapover10000/v3/fills.csv
+  arm             v3 -- v3 provol, 100% invested   (segment 'v3',
+                  from nt_run.reports_segment, the writer's own rule)
+  fills recorded  1,017
+  on 0.05 grid    1,000 of 1,017 fill prices (98.3%)
+  price panel     v_mcapover10000_expanding.parquet
+  reconstruction  price * (1 +/- 0.0015) rounded to that date's NSE tick
+                  (nt_data.quote_frame and _round_to, the port's own rule)
+  tolerance       half of that date's tick: exact equality on the grid
+
+  MATCHES, PER CANDIDATE (a fill may match more than one)
+    (a) that day's OPEN      -- the design         1017 of 1,017
+    (b) that day's CLOSE     -- same-day close       13 of 1,017
+    (c) previous CLOSE       -- signal-day close     92 of 1,017
+    (d) previous OPEN                                15 of 1,017
+
+  fills matching (a): 1,017 of 1,017
+  fills matching NOTHING: 0
+  fills matching (a) UNIQUELY: 903
+  fills matching (a) AND another candidate (ambiguous, prices within half a
+    tick of each other -- a limit of the instrument, not an exception): 114
+
+  EXCEPTIONS -- fills NOT matching the fill day's open: 0
+
+  FILLS EXECUTING AT A CLOSE RATHER THAN AN OPEN: 0
+
+  every fill date on the panel's trading calendar: 1,017 of 1,017
+  fills whose PREVIOUS session is a recorded decision date: 1,017 of 1,017
+
+
+====================================================================================================
+ CHECK B -- EXECUTION TIMING FROM THE FILL RECORD -- MARKET CAP over 10000 (mcapover10000), arm v4
+====================================================================================================
+
+  fills file      nautilus/reports/mcapover10000/v4/fills.csv
+  arm             v4 -- v4 provol, breadth-scaled   (segment 'v4',
+                  from nt_run.reports_segment, the writer's own rule)
+  fills recorded  1,179
+  on 0.05 grid    1,162 of 1,179 fill prices (98.6%)
+  price panel     v_mcapover10000_expanding.parquet
+  reconstruction  price * (1 +/- 0.0015) rounded to that date's NSE tick
+                  (nt_data.quote_frame and _round_to, the port's own rule)
+  tolerance       half of that date's tick: exact equality on the grid
+
+  MATCHES, PER CANDIDATE (a fill may match more than one)
+    (a) that day's OPEN      -- the design         1179 of 1,179
+    (b) that day's CLOSE     -- same-day close       19 of 1,179
+    (c) previous CLOSE       -- signal-day close    107 of 1,179
+    (d) previous OPEN                                17 of 1,179
+
+  fills matching (a): 1,179 of 1,179
+  fills matching NOTHING: 0
+  fills matching (a) UNIQUELY: 1,043
+  fills matching (a) AND another candidate (ambiguous, prices within half a
+    tick of each other -- a limit of the instrument, not an exception): 136
+
+  EXCEPTIONS -- fills NOT matching the fill day's open: 0
+
+  FILLS EXECUTING AT A CLOSE RATHER THAN AN OPEN: 0
+
+  every fill date on the panel's trading calendar: 1,179 of 1,179
+  fills whose PREVIOUS session is a recorded decision date: 1,179 of 1,179
+
+
   INPUT READ (gitignored; holds whatever last wrote it):
+    mcap1500to5000/v1 nautilus/reports/mcap1500to5000/v1/fills.csv  (1,050 fills)
+    mcap1500to5000/v2 nautilus/reports/mcap1500to5000/v2/fills.csv  (1,197 fills)
+    mcap1500to5000/v3 nautilus/reports/mcap1500to5000/v3/fills.csv  (1,059 fills)
+    mcap1500to5000/v4 nautilus/reports/mcap1500to5000/v4/fills.csv  (1,197 fills)
+    mcap5001to10000/v1 nautilus/reports/mcap5001to10000/v1/fills.csv  (886 fills)
+    mcap5001to10000/v2 nautilus/reports/mcap5001to10000/v2/fills.csv  (1,064 fills)
+    mcap5001to10000/v3 nautilus/reports/mcap5001to10000/v3/fills.csv  (882 fills)
+    mcap5001to10000/v4 nautilus/reports/mcap5001to10000/v4/fills.csv  (1,058 fills)
+    mcapover10000/v1 nautilus/reports/mcapover10000/v1/fills.csv  (1,026 fills)
+    mcapover10000/v2 nautilus/reports/mcapover10000/v2/fills.csv  (1,177 fills)
+    mcapover10000/v3 nautilus/reports/mcapover10000/v3/fills.csv  (1,017 fills)
+    mcapover10000/v4 nautilus/reports/mcapover10000/v4/fills.csv  (1,179 fills)
     microcap250/v1   nautilus/reports/microcap250/v1/fills.csv  (856 fills)
     microcap250/v2   nautilus/reports/microcap250/v2/fills.csv  (988 fills)
     microcap250/v3   nautilus/reports/microcap250/v3/fills.csv  (836 fills)
@@ -1279,4 +1699,4 @@
     smallcap250/v3   nautilus/reports/smallcap250/v3/fills.csv  (911 fills)
     smallcap250/v4   nautilus/reports/smallcap250/v4/fills.csv  (1,083 fills)
   ungated, reported only: 0 fill(s) not matching the day's open exactly.
-  RESULT: PASS -- gated: 0 fills match a close without matching the open, and 0 fills fall off the trading calendar, on 36 universe/arm cell(s) (9 universes x 4 arms). Not gated: that every fill matches the day's open (reported above).
+  RESULT: PASS -- gated: 0 fills match a close without matching the open, and 0 fills fall off the trading calendar, on 48 universe/arm cell(s) (12 universes x 4 arms). Not gated: that every fill matches the day's open (reported above).

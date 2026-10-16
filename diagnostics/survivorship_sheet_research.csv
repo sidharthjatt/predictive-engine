@@ -1,60 +1,65 @@
 "arm v1 (v1 invvol, 100% invested), research profile"
-row,smallcap250,midcap150,midcap100,midcap50,nifty500,nifty200,nifty100,nifty50,microcap250
-"pit, tax off: CAGR",44.90,33.03,39.47,26.61,57.40,37.57,25.72,16.66,30.00 (from 2021-10-29)
-"pit, tax on: CAGR",38.44,28.19,33.09,22.05,48.76,32.22,21.68,14.40,25.15 (from 2021-10-29)
-"static, tax off: CAGR",37.00,45.28,35.68,36.27,37.97,42.98,26.55,20.90,53.07
-"static, tax on: CAGR",31.08,37.55,30.36,31.49,33.10,36.80,22.39,17.68,43.30
-NSE index: CAGR,16.99,18.70,18.20,18.66,12.94,12.34,11.28,10.95,21.27
-NSE index: MaxDD,-46.31,-38.67,-40.16,-43.07,-38.30,-38.22,-38.10,-38.44,-57.47
-"static, tax off: MaxDD",-43.70,-33.32,-36.48,-34.34,-45.24,-34.61,-32.23,-36.02,-42.45
-"static, tax off: average drawdown",-5.40,-4.76,-6.19,-3.81,-8.72,-5.69,-4.82,-5.11,-6.51
-"pit, tax off: MaxDD",-41.88,-38.01,-32.75,-34.86,-37.52,-32.13,-32.36,-40.58,-31.54 (from 2021-10-29)
-"pit, tax off: average drawdown",-5.43,-5.55,-4.86,-4.60,-4.62,-4.99,-5.18,-6.15,-7.86 (from 2021-10-29)
-"equal-weight basket (untaxed, daily rebalanced): CAGR",26.56,24.94,26.25,23.72,25.60,25.12,23.91,20.45,27.89
-"equal-weight basket (untaxed, daily rebalanced): MaxDD",-48.95,-37.67,-38.89,-37.92,-41.56,-38.03,-37.40,-37.31,-48.60
+row,smallcap250,midcap150,midcap100,midcap50,nifty500,nifty200,nifty100,nifty50,microcap250,mcap1500to5000,mcap5001to10000,mcapover10000
+"pit, tax off: CAGR",44.90,33.03,39.47,26.61,57.40,37.57,25.72,16.66,30.00 (from 2021-10-29),not available: no membership file for this supplier bucket,not available: no membership file for this supplier bucket,not available: no membership file for this supplier bucket
+"pit, tax on: CAGR",38.44,28.19,33.09,22.05,48.76,32.22,21.68,14.40,25.15 (from 2021-10-29),not available: no membership file for this supplier bucket,not available: no membership file for this supplier bucket,not available: no membership file for this supplier bucket
+"static, tax off: CAGR",37.00,45.28,35.68,36.27,37.97,42.98,26.55,20.90,53.07,54.03,62.82,48.71
+"static, tax on: CAGR",31.08,37.55,30.36,31.49,33.10,36.80,22.39,17.68,43.30,44.31,53.28,41.05
+NSE index: CAGR,16.99,18.70,18.20,18.66,12.94,12.34,11.28,10.95,21.27,12.94,12.94,12.94
+NSE index: MaxDD,-46.31,-38.67,-40.16,-43.07,-38.30,-38.22,-38.10,-38.44,-57.47,-38.30,-38.30,-38.30
+"static, tax off: MaxDD",-43.70,-33.32,-36.48,-34.34,-45.24,-34.61,-32.23,-36.02,-42.45,-41.52,-34.26,-32.59
+"static, tax off: average drawdown",-5.40,-4.76,-6.19,-3.81,-8.72,-5.69,-4.82,-5.11,-6.51,-6.33,-4.39,-4.61
+"pit, tax off: MaxDD",-41.88,-38.01,-32.75,-34.86,-37.52,-32.13,-32.36,-40.58,-31.54 (from 2021-10-29),not available: no membership file for this supplier bucket,not available: no membership file for this supplier bucket,not available: no membership file for this supplier bucket
+"pit, tax off: average drawdown",-5.43,-5.55,-4.86,-4.60,-4.62,-4.99,-5.18,-6.15,-7.86 (from 2021-10-29),not available: no membership file for this supplier bucket,not available: no membership file for this supplier bucket,not available: no membership file for this supplier bucket
+"equal-weight basket (untaxed, daily rebalanced): CAGR",26.56,24.94,26.25,23.72,25.60,25.12,23.91,20.45,27.89,146.88,28.67,25.29
+"equal-weight basket (untaxed, daily rebalanced): MaxDD",-48.95,-37.67,-38.89,-37.92,-41.56,-38.03,-37.40,-37.31,-48.60,-49.75,-48.69,-40.92
 
 "arm v2 (v2 invvol, breadth-scaled), research profile"
-row,smallcap250,midcap150,midcap100,midcap50,nifty500,nifty200,nifty100,nifty50,microcap250
-"pit, tax off: CAGR",26.29,23.30,25.09,20.69,32.50,26.23,14.31,12.84,21.46 (from 2021-10-29)
-"pit, tax on: CAGR",22.33,19.61,21.01,17.43,27.57,22.33,12.09,10.69,18.04 (from 2021-10-29)
-"static, tax off: CAGR",24.35,33.74,25.04,27.29,26.14,32.48,21.82,14.65,32.11
-"static, tax on: CAGR",20.63,28.75,21.32,23.55,22.43,27.40,18.37,12.20,26.90
-NSE index: CAGR,16.99,18.70,18.20,18.66,12.94,12.34,11.28,10.95,21.27
-NSE index: MaxDD,-46.31,-38.67,-40.16,-43.07,-38.30,-38.22,-38.10,-38.44,-57.47
-"static, tax off: MaxDD",-25.01,-17.64,-27.33,-24.22,-28.70,-24.70,-19.33,-20.03,-22.63
-"static, tax off: average drawdown",-3.88,-3.35,-4.60,-2.89,-6.20,-3.57,-2.69,-4.10,-3.71
-"pit, tax off: MaxDD",-26.41,-15.02,-22.02,-23.27,-18.06,-19.25,-15.84,-21.47,-13.56 (from 2021-10-29)
-"pit, tax off: average drawdown",-4.57,-4.08,-3.79,-3.52,-3.49,-3.26,-3.96,-4.00,-4.09 (from 2021-10-29)
-"equal-weight basket (untaxed, daily rebalanced): CAGR",26.56,24.94,26.25,23.72,25.60,25.12,23.91,20.45,27.89
-"equal-weight basket (untaxed, daily rebalanced): MaxDD",-48.95,-37.67,-38.89,-37.92,-41.56,-38.03,-37.40,-37.31,-48.60
+row,smallcap250,midcap150,midcap100,midcap50,nifty500,nifty200,nifty100,nifty50,microcap250,mcap1500to5000,mcap5001to10000,mcapover10000
+"pit, tax off: CAGR",26.29,23.30,25.09,20.69,32.50,26.23,14.31,12.84,21.46 (from 2021-10-29),not available: no membership file for this supplier bucket,not available: no membership file for this supplier bucket,not available: no membership file for this supplier bucket
+"pit, tax on: CAGR",22.33,19.61,21.01,17.43,27.57,22.33,12.09,10.69,18.04 (from 2021-10-29),not available: no membership file for this supplier bucket,not available: no membership file for this supplier bucket,not available: no membership file for this supplier bucket
+"static, tax off: CAGR",24.35,33.74,25.04,27.29,26.14,32.48,21.82,14.65,32.11,27.82,39.04,32.77
+"static, tax on: CAGR",20.63,28.75,21.32,23.55,22.43,27.40,18.37,12.20,26.90,23.46,32.70,27.66
+NSE index: CAGR,16.99,18.70,18.20,18.66,12.94,12.34,11.28,10.95,21.27,12.94,12.94,12.94
+NSE index: MaxDD,-46.31,-38.67,-40.16,-43.07,-38.30,-38.22,-38.10,-38.44,-57.47,-38.30,-38.30,-38.30
+"static, tax off: MaxDD",-25.01,-17.64,-27.33,-24.22,-28.70,-24.70,-19.33,-20.03,-22.63,-21.92,-20.88,-18.59
+"static, tax off: average drawdown",-3.88,-3.35,-4.60,-2.89,-6.20,-3.57,-2.69,-4.10,-3.71,-4.67,-3.22,-3.01
+"pit, tax off: MaxDD",-26.41,-15.02,-22.02,-23.27,-18.06,-19.25,-15.84,-21.47,-13.56 (from 2021-10-29),not available: no membership file for this supplier bucket,not available: no membership file for this supplier bucket,not available: no membership file for this supplier bucket
+"pit, tax off: average drawdown",-4.57,-4.08,-3.79,-3.52,-3.49,-3.26,-3.96,-4.00,-4.09 (from 2021-10-29),not available: no membership file for this supplier bucket,not available: no membership file for this supplier bucket,not available: no membership file for this supplier bucket
+"equal-weight basket (untaxed, daily rebalanced): CAGR",26.56,24.94,26.25,23.72,25.60,25.12,23.91,20.45,27.89,146.88,28.67,25.29
+"equal-weight basket (untaxed, daily rebalanced): MaxDD",-48.95,-37.67,-38.89,-37.92,-41.56,-38.03,-37.40,-37.31,-48.60,-49.75,-48.69,-40.92
 
 "arm v3 (v3 provol, 100% invested), research profile"
-row,smallcap250,midcap150,midcap100,midcap50,nifty500,nifty200,nifty100,nifty50,microcap250
-"pit, tax off: CAGR",58.57,35.86,49.28,24.48,58.88,42.95,26.50,15.72,37.07 (from 2021-10-29)
-"pit, tax on: CAGR",50.18,30.38,41.77,20.59,50.16,36.95,22.15,12.76,30.54 (from 2021-10-29)
-"static, tax off: CAGR",51.09,42.64,34.67,33.55,39.36,42.77,31.50,23.26,67.11
-"static, tax on: CAGR",43.99,36.26,29.40,29.81,34.44,36.50,26.69,20.27,55.53
-NSE index: CAGR,16.99,18.70,18.20,18.66,12.94,12.34,11.28,10.95,21.27
-NSE index: MaxDD,-46.31,-38.67,-40.16,-43.07,-38.30,-38.22,-38.10,-38.44,-57.47
-"static, tax off: MaxDD",-37.21,-41.01,-50.19,-35.60,-59.74,-37.80,-37.34,-33.84,-40.97
-"static, tax off: average drawdown",-5.38,-7.98,-11.01,-4.79,-13.60,-7.41,-6.40,-4.87,-8.43
-"pit, tax off: MaxDD",-38.52,-45.44,-38.01,-39.93,-44.14,-32.91,-30.44,-47.56,-32.46 (from 2021-10-29)
-"pit, tax off: average drawdown",-5.68,-8.26,-5.55,-6.51,-6.26,-6.23,-5.61,-7.65,-8.43 (from 2021-10-29)
-"equal-weight basket (untaxed, daily rebalanced): CAGR",26.56,24.94,26.25,23.72,25.60,25.12,23.91,20.45,27.89
-"equal-weight basket (untaxed, daily rebalanced): MaxDD",-48.95,-37.67,-38.89,-37.92,-41.56,-38.03,-37.40,-37.31,-48.60
+row,smallcap250,midcap150,midcap100,midcap50,nifty500,nifty200,nifty100,nifty50,microcap250,mcap1500to5000,mcap5001to10000,mcapover10000
+"pit, tax off: CAGR",58.57,35.86,49.28,24.48,58.88,42.95,26.50,15.72,37.07 (from 2021-10-29),not available: no membership file for this supplier bucket,not available: no membership file for this supplier bucket,not available: no membership file for this supplier bucket
+"pit, tax on: CAGR",50.18,30.38,41.77,20.59,50.16,36.95,22.15,12.76,30.54 (from 2021-10-29),not available: no membership file for this supplier bucket,not available: no membership file for this supplier bucket,not available: no membership file for this supplier bucket
+"static, tax off: CAGR",51.09,42.64,34.67,33.55,39.36,42.77,31.50,23.26,67.11,58.54,53.65,53.22
+"static, tax on: CAGR",43.99,36.26,29.40,29.81,34.44,36.50,26.69,20.27,55.53,49.82,46.45,44.94
+NSE index: CAGR,16.99,18.70,18.20,18.66,12.94,12.34,11.28,10.95,21.27,12.94,12.94,12.94
+NSE index: MaxDD,-46.31,-38.67,-40.16,-43.07,-38.30,-38.22,-38.10,-38.44,-57.47,-38.30,-38.30,-38.30
+"static, tax off: MaxDD",-37.21,-41.01,-50.19,-35.60,-59.74,-37.80,-37.34,-33.84,-40.97,-50.93,-38.72,-35.21
+"static, tax off: average drawdown",-5.38,-7.98,-11.01,-4.79,-13.60,-7.41,-6.40,-4.87,-8.43,-7.90,-8.09,-6.65
+"pit, tax off: MaxDD",-38.52,-45.44,-38.01,-39.93,-44.14,-32.91,-30.44,-47.56,-32.46 (from 2021-10-29),not available: no membership file for this supplier bucket,not available: no membership file for this supplier bucket,not available: no membership file for this supplier bucket
+"pit, tax off: average drawdown",-5.68,-8.26,-5.55,-6.51,-6.26,-6.23,-5.61,-7.65,-8.43 (from 2021-10-29),not available: no membership file for this supplier bucket,not available: no membership file for this supplier bucket,not available: no membership file for this supplier bucket
+"equal-weight basket (untaxed, daily rebalanced): CAGR",26.56,24.94,26.25,23.72,25.60,25.12,23.91,20.45,27.89,146.88,28.67,25.29
+"equal-weight basket (untaxed, daily rebalanced): MaxDD",-48.95,-37.67,-38.89,-37.92,-41.56,-38.03,-37.40,-37.31,-48.60,-49.75,-48.69,-40.92
 
 "arm v4 (v4 provol, breadth-scaled), research profile"
-row,smallcap250,midcap150,midcap100,midcap50,nifty500,nifty200,nifty100,nifty50,microcap250
-"pit, tax off: CAGR",31.39,24.80,28.72,20.94,32.25,26.04,14.29,12.09,30.07 (from 2021-10-29)
-"pit, tax on: CAGR",26.86,21.02,24.14,17.66,27.28,22.31,12.19,10.04,25.17 (from 2021-10-29)
-"static, tax off: CAGR",27.87,37.10,26.21,25.53,29.66,38.74,27.07,16.72,39.41
-"static, tax on: CAGR",23.66,31.84,22.43,22.15,25.61,32.93,23.10,14.04,33.08
-NSE index: CAGR,16.99,18.70,18.20,18.66,12.94,12.34,11.28,10.95,21.27
-NSE index: MaxDD,-46.31,-38.67,-40.16,-43.07,-38.30,-38.22,-38.10,-38.44,-57.47
-"static, tax off: MaxDD",-33.49,-20.18,-37.46,-25.77,-36.55,-26.94,-20.15,-19.33,-20.61
-"static, tax off: average drawdown",-4.95,-4.46,-6.71,-3.93,-8.98,-5.14,-3.65,-4.33,-5.25
-"pit, tax off: MaxDD",-23.89,-20.19,-24.56,-25.28,-26.78,-21.71,-21.25,-25.54,-17.93 (from 2021-10-29)
-"pit, tax off: average drawdown",-4.95,-5.65,-4.15,-4.11,-5.53,-4.58,-4.78,-5.34,-5.04 (from 2021-10-29)
-"equal-weight basket (untaxed, daily rebalanced): CAGR",26.56,24.94,26.25,23.72,25.60,25.12,23.91,20.45,27.89
-"equal-weight basket (untaxed, daily rebalanced): MaxDD",-48.95,-37.67,-38.89,-37.92,-41.56,-38.03,-37.40,-37.31,-48.60
+row,smallcap250,midcap150,midcap100,midcap50,nifty500,nifty200,nifty100,nifty50,microcap250,mcap1500to5000,mcap5001to10000,mcapover10000
+"pit, tax off: CAGR",31.39,24.80,28.72,20.94,32.25,26.04,14.29,12.09,30.07 (from 2021-10-29),not available: no membership file for this supplier bucket,not available: no membership file for this supplier bucket,not available: no membership file for this supplier bucket
+"pit, tax on: CAGR",26.86,21.02,24.14,17.66,27.28,22.31,12.19,10.04,25.17 (from 2021-10-29),not available: no membership file for this supplier bucket,not available: no membership file for this supplier bucket,not available: no membership file for this supplier bucket
+"static, tax off: CAGR",27.87,37.10,26.21,25.53,29.66,38.74,27.07,16.72,39.41,30.59,37.83,34.87
+"static, tax on: CAGR",23.66,31.84,22.43,22.15,25.61,32.93,23.10,14.04,33.08,25.78,31.88,29.62
+NSE index: CAGR,16.99,18.70,18.20,18.66,12.94,12.34,11.28,10.95,21.27,12.94,12.94,12.94
+NSE index: MaxDD,-46.31,-38.67,-40.16,-43.07,-38.30,-38.22,-38.10,-38.44,-57.47,-38.30,-38.30,-38.30
+"static, tax off: MaxDD",-33.49,-20.18,-37.46,-25.77,-36.55,-26.94,-20.15,-19.33,-20.61,-31.29,-24.68,-22.05
+"static, tax off: average drawdown",-4.95,-4.46,-6.71,-3.93,-8.98,-5.14,-3.65,-4.33,-5.25,-5.44,-5.05,-4.72
+"pit, tax off: MaxDD",-23.89,-20.19,-24.56,-25.28,-26.78,-21.71,-21.25,-25.54,-17.93 (from 2021-10-29),not available: no membership file for this supplier bucket,not available: no membership file for this supplier bucket,not available: no membership file for this supplier bucket
+"pit, tax off: average drawdown",-4.95,-5.65,-4.15,-4.11,-5.53,-4.58,-4.78,-5.34,-5.04 (from 2021-10-29),not available: no membership file for this supplier bucket,not available: no membership file for this supplier bucket,not available: no membership file for this supplier bucket
+"equal-weight basket (untaxed, daily rebalanced): CAGR",26.56,24.94,26.25,23.72,25.60,25.12,23.91,20.45,27.89,146.88,28.67,25.29
+"equal-weight basket (untaxed, daily rebalanced): MaxDD",-48.95,-37.67,-38.89,-37.92,-41.56,-38.03,-37.40,-37.31,-48.60,-49.75,-48.69,-40.92
+
+NOTES
+mcap1500to5000,"STATIC AND NOT AN INDEX. The supplier delivered these 478 names as a market-cap bucket, with no membership history. Only 2 of the 478 stop trading before the window ends, so the list appears to hold the bucket's members near the time of delivery, not the members at each date. A stock that left the bucket or was delisted is likely missing; a stock that grew into it is present for the whole window. Both the strategy and its buy & hold therefore likely carry survivorship and look-ahead bias, which cannot be measured without membership files. The benchmark index is the broad NIFTY 500, not a bucket index."
+mcap5001to10000,"STATIC AND NOT AN INDEX. The supplier delivered these 216 names as a market-cap bucket, with no membership history. Only 0 of the 216 stop trading before the window ends, so the list appears to hold the bucket's members near the time of delivery, not the members at each date. A stock that left the bucket or was delisted is likely missing; a stock that grew into it is present for the whole window. Both the strategy and its buy & hold therefore likely carry survivorship and look-ahead bias, which cannot be measured without membership files. The benchmark index is the broad NIFTY 500, not a bucket index."
+mcapover10000,"STATIC AND NOT AN INDEX. The supplier delivered these 538 names as a market-cap bucket, with no membership history. Only 2 of the 538 stop trading before the window ends, so the list appears to hold the bucket's members near the time of delivery, not the members at each date. A stock that left the bucket or was delisted is likely missing; a stock that grew into it is present for the whole window. Both the strategy and its buy & hold therefore likely carry survivorship and look-ahead bias, which cannot be measured without membership files. The benchmark index is the broad NIFTY 500, not a bucket index."
 
