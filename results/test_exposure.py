@@ -363,6 +363,9 @@ def backtest_exposure(px, op, sc, dates, pc, mom20, port_vol=None,
     # THE STARTING CAPITAL: capital_axis.selected() unless a caller passes one.
     _cap0 = _capital_axis.selected() if start_capital is None else start_capital
     shares, cash = {}, _cap0
+    # SALES WAITING FOR A ROW: {symbol: the session the sale fell due}. See
+    # touch point 4.
+    _owed = {}
     cum_tc, n_trades = 0.0, 0
     eq, pending, expo_log = [], None, []
     # THE TAX LEDGER. None at the default, and `ledger is None` is the only test
@@ -471,74 +474,65 @@ def backtest_exposure(px, op, sc, dates, pc, mom20, port_vol=None,
                         "reason": f"capital-gains tax assessed, Rs {_due:,.2f}",
                         "detail": "section 3(9): one lump sum, before this day's fills"})
 
-        # TOUCH POINT 4 -- FORCED EXIT ON A SYMBOL GOING UNTRADEABLE.
+        # TOUCH POINT 4 -- A SALE THAT WAITED FOR A ROW (since 2026-10-16).
         #
-        # THIS CANNOT LIVE IN THE SELL BRANCH BELOW. That branch runs only inside
-        # `if pending is not None`, i.e. on an EXECUTION day, so a symbol that goes
-        # untradeable mid-cycle would not be sold until the next rebalance -- by
-        # which time its price is already the frozen ffill. Measured with the exit
-        # in the sell branch: dCAGR +0.00 on every arm, because PATANJALI's forced
-        # exit landed on 2019-11-27, the day the strategy sold it anyway.
+        # A name is traded only on a session that has a row for it
+        # (engine_core.tradeable_on, results/tradability.py). A sale that fell due
+        # on a session with no row was recorded in _owed instead of filling at the
+        # forward-filled open, a price nobody quoted. Here, at each session's open,
+        # every owed name that has a row today is sold at today's open, the rule
+        # every other sell uses. One with no row today stays owed; a name whose
+        # file has ended is never sold and stays valued at its last close.
         #
-        # BLOCKING ENTRY IS NOT ENOUGH ON ITS OWN, and NaN-ing the price is worse
-        # than the defect: the sell branch's `if np.isnan(pr) or pr <= 0: continue`
-        # would skip the position and strand it at a frozen mark for the whole gap
-        # -- for HEXT that is 1,069 sessions holding a delisted company at 762.55.
+        # This replaces the forced exit that sold a holding on the session BEFORE a
+        # gap of two or more sessions. That exit read whether the next session had
+        # a row and how long the gap ran, both dated after the decision, and so
+        # looked ahead (KNOWN_ISSUES.md).
         #
-        # SELLS ON THE LAST DAY THAT STILL HAS A REAL PRICE, at today's OPEN with
-        # the usual slippage, which is the same rule every other sell uses. The map
-        # marks the gap from the FIRST MISSING session, so today's open is real.
-        if engine_core.TRADEABLE is not None and i + 1 < len(dates):
-            _nxt = dates[i + 1]
-            for s in [x for x in shares if not engine_core.tradeable_on(x, _nxt)]:
-                pr = opens.get(s, np.nan)
-                if np.isnan(pr) or pr <= 0:
-                    continue
-                # SYMMETRIC CAP -- same helper, same semantics as the BUY.
-                # Until 2026-09-22 SELLs were uncapped: an exit sold the whole
-                # holding whatever the symbol's median volume was, so a position
-                # the cap would not have let you BUILD could always be unwound in
-                # one session. What the cap cannot do is carry the remainder --
-                # the engine has no order state -- so an uncapped remainder STAYS
-                # HELD and is logged, rather than vanishing.
-                q = int(shares[s])
-                _capped = _participation_limit(s, dt, participation_cap, vol20)
-                _left = 0
-                if _capped is not None:
-                    _lim, _med = _capped
-                    if q > _lim:
-                        if audit is not None:
-                            audit["skipped"].append({"date": dt, "side": "SELL", "symbol": s,
-                                "reason": "participation cap",
-                                "detail": f"wanted {q:,} sh, capped to {_lim:,} "
-                                          f"({participation_cap:.0%} of prior-20d "
-                                          f"median {_med:,.0f}); remainder stays held"})
-                        _left = q - _lim
-                        q = _lim
-                if q < 1:
-                    continue
-                _ref = pr
-                pr, _pend = _fill_price("SELL", s, dt, pr, q)
-                tc = calc_tc(pr, q, "SELL")
-                cash += q * pr - tc; cum_tc += tc; n_trades += 1
-                _cost_fill(dt, "SELL", s, q, _ref, pr, tc, "forced exit", _pend)
-                _commit_impact(_pend)
-                if ledger is not None:
-                    ledger.sell(s, q, round(pr, 2), dt)
-                if audit is not None:
-                    audit["trades"].append({"date": dt, "action": "SELL", "symbol": s,
-                        "qty": q, "price": round(pr, 2), "value": round(q*pr, 2),
-                        "tc": round(tc, 2)})
-                    # LOGGED ON BOTH SIDES. The trade row makes the cash move
-                    # reconcile; the skipped row is what makes the REASON visible
-                    # in the daily log's section [A] and its run-level tally.
-                    audit["skipped"].append({"date": dt, "side": "SELL", "symbol": s,
-                        "reason": "forced exit: untradeable from next session",
-                        "detail": f"no raw price row from {_nxt.date()}"})
-                if _left:
-                    shares[s] = _left
-                else:
-                    del shares[s]
+        # The participation cap applies as to every sell; a capped leftover stays
+        # owed and is tried again the next session. A name back in the keep list
+        # at the next decision is no longer owed (see the decision below).
+        for s in [x for x in list(_owed) if x in shares]:
+            if not engine_core.tradeable_on(s, dt):
+                continue
+            pr = opens.get(s, np.nan)
+            if np.isnan(pr) or pr <= 0:
+                continue
+            q = int(shares[s])
+            _capped = _participation_limit(s, dt, participation_cap, vol20)
+            _left = 0
+            if _capped is not None:
+                _lim, _med = _capped
+                if q > _lim:
+                    if audit is not None:
+                        audit["skipped"].append({"date": dt, "side": "SELL", "symbol": s,
+                            "reason": "participation cap",
+                            "detail": f"wanted {q:,} sh, capped to {_lim:,} "
+                                      f"({participation_cap:.0%} of prior-20d "
+                                      f"median {_med:,.0f}); remainder stays owed"})
+                    _left = q - _lim
+                    q = _lim
+            if q < 1:
+                continue
+            _ref = pr
+            pr, _pend = _fill_price("SELL", s, dt, pr, q)
+            tc = calc_tc(pr, q, "SELL")
+            cash += q * pr - tc; cum_tc += tc; n_trades += 1
+            _cost_fill(dt, "SELL", s, q, _ref, pr, tc, "owed sale", _pend)
+            _commit_impact(_pend)
+            if ledger is not None:
+                ledger.sell(s, q, round(pr, 2), dt)
+            if audit is not None:
+                audit["trades"].append({"date": dt, "action": "SELL", "symbol": s,
+                    "qty": q, "price": round(pr, 2), "value": round(q*pr, 2),
+                    "tc": round(tc, 2)})
+            if _left:
+                shares[s] = _left
+            else:
+                del shares[s]
+                del _owed[s]
+        for s in [x for x in list(_owed) if x not in shares]:
+            del _owed[s]
 
         # TOUCH POINT 7 -- FORCED EXIT ON A NAME LEAVING THE INDEX. Pit mode only;
         # in static mode, or with no membership loaded, nothing here runs.
@@ -606,6 +600,16 @@ def backtest_exposure(px, op, sc, dates, pc, mom20, port_vol=None,
                             audit["skipped"].append({"date": dt, "side": "SELL", "symbol": s,
                                 "reason": "no open price (NaN/<=0)", "detail": ""})
                         continue
+                    # NO ROW TODAY: THE SALE IS OWED, NOT FILLED at the forward-filled
+                    # open. Touch point 4 sells it at the open of its next session
+                    # with a row. setdefault keeps the session it first fell due.
+                    if not engine_core.tradeable_on(s, dt):
+                        if s not in _owed and audit is not None:
+                            audit["skipped"].append({"date": dt, "side": "SELL", "symbol": s,
+                                "reason": "untradeable: no row this session, sale owed",
+                                "detail": "sold at the open of the next session with a row"})
+                        _owed.setdefault(s, dt)
+                        continue
                     # SYMMETRIC CAP -- the same helper the BUY and the forced
                     # exit use. A name the cap would not let you build can no
                     # longer be unwound in one session either. The uncapped
@@ -650,16 +654,22 @@ def backtest_exposure(px, op, sc, dates, pc, mom20, port_vol=None,
                 # below to size and fill every buy. `prices` is today's close, which
                 # is not knowable when the order is sent. See value_at_open above.
                 vp = opens if value_at_open else prices
-                port_val = sum(q * vp[s] for s, q in shares.items()
-                               if not np.isnan(vp.get(s, np.nan))) + cash
+                # A HELD NAME WITH NO ROW TODAY has no open; it is valued at its
+                # last close, which `prices` carries forward. With a row, or with
+                # no rule loaded, this is vp[s] exactly as before.
+                def _vp(s_):
+                    return vp.get(s_, np.nan) if engine_core.tradeable_on(s_, dt) \
+                        else prices.get(s_, np.nan)
+                port_val = sum(q * _vp(s) for s, q in shares.items()
+                               if not np.isnan(_vp(s))) + cash
                 if _fixed:
                     # THE FIXED-CAPITAL RING-FENCE (fixed_axis.py). Profit above the
                     # base is held back from every purchase; below the base the book
                     # is the equity, so a loss is not topped up.
                     _book = min(_cap0, port_val)
                     _reserve = max(0.0, port_val - _cap0)
-                    _held_open = sum(q_ * vp[s_] for s_, q_ in shares.items()
-                                     if not np.isnan(vp.get(s_, np.nan)))
+                    _held_open = sum(q_ * _vp(s_) for s_, q_ in shares.items()
+                                     if not np.isnan(_vp(s_)))
                     invest_val = _book * targets["_exposure"] * 0.98
                 else:
                     invest_val = port_val * targets["_exposure"] * 0.98
@@ -692,7 +702,7 @@ def backtest_exposure(px, op, sc, dates, pc, mom20, port_vol=None,
                         if s == "_exposure" or s in shares:
                             continue
                         pr_ = opens.get(s, np.nan)
-                        if np.isnan(pr_) or pr_ <= 0:
+                        if np.isnan(pr_) or pr_ <= 0 or not engine_core.tradeable_on(s, dt):
                             continue
                         tgt_sum += w
                     need = invest_val * tgt_sum
@@ -710,17 +720,19 @@ def backtest_exposure(px, op, sc, dates, pc, mom20, port_vol=None,
                             audit["skipped"].append({"date": dt, "side": "BUY", "symbol": s,
                                 "reason": "no open price (NaN/<=0)", "detail": ""})
                         continue
-                    # TOUCH POINT 5 -- BLOCKED ENTRY. The other half of the forced
-                    # exit above: never buy into a hole. This reason exists because
+                    # TOUCH POINT 5 -- NO BUY ON A SESSION WITH NO ROW. The buy is
+                    # dropped, not carried forward. This reason exists because
                     # "no open price (NaN/<=0)" cannot fire here -- ffill always
                     # supplies a price, which is why that reason fires ZERO times
                     # across every midcap150 and nifty100 trail while PATANJALI still filled
-                    # 33,575 shares on a date with no raw row.
+                    # 33,575 shares on a date with no raw row. Since 2026-10-16 any
+                    # session with no row blocks the buy, however long the gap, and
+                    # the first row after a gap is tradeable.
                     if not engine_core.tradeable_on(s, dt):
                         if audit is not None:
                             audit["skipped"].append({"date": dt, "side": "BUY", "symbol": s,
-                                "reason": "untradeable: no raw price row",
-                                "detail": "inside a gap in the symbol's own history"})
+                                "reason": "untradeable: no row this session",
+                                "detail": "no trade in a name on a session without a row"})
                         continue
                     # SIZE AT THE BASE RATE, THEN CHARGE IMPACT ON THE SIZE.
                     # The size-sensitive rate depends on q and q depends on the
@@ -806,8 +818,8 @@ def backtest_exposure(px, op, sc, dates, pc, mom20, port_vol=None,
                     _fixed_log.append({
                         "date": dt, "port_val": port_val, "book": _book,
                         "reserve": _reserve, "held_before_buys": _held_open,
-                        "held_after": sum(q_ * vp[s_] for s_, q_ in shares.items()
-                                          if not np.isnan(vp.get(s_, np.nan))),
+                        "held_after": sum(q_ * _vp(s_) for s_, q_ in shares.items()
+                                          if not np.isnan(_vp(s_))),
                         "cash_after": cash})
                 _reserve = 0.0
             pending = None
@@ -830,7 +842,7 @@ def backtest_exposure(px, op, sc, dates, pc, mom20, port_vol=None,
                     if dq >= 0:
                         continue
                     raw = opens.get(s, np.nan)
-                    if np.isnan(raw) or raw <= 0:
+                    if np.isnan(raw) or raw <= 0 or not engine_core.tradeable_on(s, dt):
                         if audit is not None:
                             audit["skipped"].append({"date": dt, "side": "SELL", "symbol": s,
                                 "reason": "dd trim: no open price (NaN/<=0)", "detail": ""})
@@ -913,6 +925,9 @@ def backtest_exposure(px, op, sc, dates, pc, mom20, port_vol=None,
         # ordinary fills and before the end-of-window tax settlement below.
         if end_sale and i == len(dates) - 1:
             for s in list(shares.keys()):
+                # No row on the last session: not sold, valued at its last close.
+                if not engine_core.tradeable_on(s, dt):
+                    continue
                 raw = opens.get(s, np.nan)
                 if np.isnan(raw) or raw <= 0:
                     raw = prices.get(s, np.nan)
@@ -1046,6 +1061,10 @@ def backtest_exposure(px, op, sc, dates, pc, mom20, port_vol=None,
                          else {s: 1.0/len(top) for s in top})
                 w["_exposure"] = expo
                 pending = (w, keep)
+                # AN OWED SALE IS CANCELLED when this decision keeps the name: the
+                # newer decision wins (owner's decision, 2026-10-16).
+                for s_ in [x for x in _owed if x in keep]:
+                    del _owed[s_]
 
                 if audit is not None:
                     pv_now = sum(q * prices[k] for k, q in shares.items()

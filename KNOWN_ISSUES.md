@@ -723,9 +723,9 @@ noise-test records are superseded".
 All four arms, all eight universes:
 - GATE 9 (`check_b_exec_timing`, leakage checks 1 and 2), GATE 6 and GATE 7 tax.
 - `tax_report.py`, `bh_lots_after_tax.py`, `cost_reconcile_check.py`.
-- `nautilus/nt_verify.py`: 35 of the 36 cells of the nine universes are gated;
-  midcap100 v3 is not (see below). No v5 or v6 cell is gated, and no pit cell is
-  covered (see "Pit cells are not covered by nt_verify").
+- `nautilus/nt_verify.py`: 39 of the 48 cells of the twelve universes are gated;
+  midcap100 v3 and the eight mcap1500to5000 and mcap5001to10000 cells are not (see
+  below). No v5 or v6 cell is gated, and no pit cell is covered (see "Pit cells are not covered by nt_verify").
 - The cleaned after-tax noise test (`results/noise_parallel.py`).
 
 All four arms, nifty100 and midcap150 only: `verify_v34_arms.py`, with the one-share
@@ -898,7 +898,7 @@ in the window.
 
 ### The price data is not in the repository and can only come from the owner
 
-The pipeline reads `data/raw/Final_Without_Survivorship_Data/`, nine folders and 1,634 CSVs, which is untracked vendor OHLCV. A clone cannot run without a copy from the owner. `check_data.py` compares a copy against the tracked `data/RAW_DATA_SHA256.txt` and fails on any missing, changed or extra file. The files carry vendor columns (`source`, `_window*`, `_dq_score`, `_gap_filled`, `_merged_at`) that show a private merged extract, and no document describes those columns. There is no licence and no fetch script. If the owner's copy is lost, it cannot be rebuilt from this repository.
+The pipeline reads `data/raw/Final_Without_Survivorship_Data/`, twelve folders and 2,868 CSVs, which is untracked vendor OHLCV. A clone cannot run without a copy from the owner. `check_data.py` compares a copy against the tracked `data/RAW_DATA_SHA256.txt` and fails on any missing, changed or extra file. The files carry vendor columns (`source`, `_window*`, `_dq_score`, `_gap_filled`, `_merged_at`) that show a private merged extract, and no document describes those columns. There is no licence and no fetch script. If the owner's copy is lost, it cannot be rebuilt from this repository.
 
 `survivorship_attribution.py` also reads `data/raw/Survivorship_Bias/*_membership.csv` and the price files of `Final_With_Survivorship_Data/`. Neither is in the checksum manifest.
 
@@ -934,7 +934,7 @@ SCI is in both mcap1500to5000 and mcapover10000, with the same bytes. Each bucke
 
 mcap1500to5000's moves beyond 50% in a day are SUVEN 2020-01-21 (-93%) and AGI 2019-08-19 (-66%); no arm held either across the move. BCG 2025-07-14 is +99%.
 
-nt_verify gates 4 of the 12 bucket cells: mcapover10000 v1 to v4 verify 92 of 92. The other 8, mcap1500to5000 and mcap5001to10000 v1 to v4, are in `NT_VERIFY_UNGATED`. Each is INCONCLUSIVE because ARM A, the reference copy, holds the engine's own symbol set on only 65 to 67 (mcap1500to5000, 477 names; 64 to 66 with ELCIDIN) or 83 to 86 (mcap5001to10000) of 92 rebalances. Not investigated.
+nt_verify gates 4 of the 12 bucket cells: mcapover10000 v1 to v4 verify 92 of 92. The other 8, mcap1500to5000 and mcap5001to10000 v1 to v4, are in `NT_VERIFY_UNGATED`. The engine trades a name only on a session with a row and defers a due sale to the next row (see "The engine's tradeability guard read rows dated after the decision day" below); ARM A and the port do not. Measured 2026-10-17 on the engine with the rule: mcap1500to5000 v1 to v4 are INCONCLUSIVE, ARM A holding the engine's symbol set on 73, 80, 70 and 79 of 92 rebalances; mcap5001to10000 v1 and v3 on 89 and 84; mcap5001to10000 v2 and v4 verify 92 of 92. All eight stay ungated until ARM A and the port apply the rule.
 
 ### The NSE trading calendar is frozen data with no generator and no way to extend it
 
@@ -972,18 +972,23 @@ participation-cap code reads either.
 - 17% to 28% of in-window trading-day rows score below 0.9, on large liquid names
   as well as small ones. Nothing is filtered, because the scale is undocumented.
 
-### Neither buy & hold passes through the tradability guard
+### The engine's tradeability guard read rows dated after the decision day (fixed 2026-10-16)
 
-The reference buy & hold (`px.pct_change().mean(axis=1)`, results/v34_common.py:256)
-and the investable held-lots buy & hold (results/bh_held.py) are built from the
-forward-filled price panel without consulting results/tradability.py. The guard
-gates the strategy's trades only.
+Until 2026-10-16 the engine (`results/test_exposure.py`, `results/engine_core.py`) blocked a name only across a gap of two or more sessions without a row, a length known only from the date of the next row, and sold a held name at the open of the last session before such a gap because the next session had no row. Both decisions read rows dated after the decision day. A one-session gap was not blocked, so a name was also bought or sold on a session without a row, at the forward-filled open, a price nobody quoted. `tradability_causality_test.py` fails five of its six cases on that code and passes all six on the current one; its `--real` replay of mcap5001to10000 v1 (KAMAHOLD, no row on 2019-03-18 and 2019-03-19) fails on that code too.
 
-On the current data this changes nothing: tradability.gaps() finds no interior gap
-in any universe inside the window. It would matter after a data refresh that
-brings back a price hole, because a multi-year hole enters both benchmarks as one
-large daily return. tradability.gaps() also trims rows to the window before
-pairing them, so a hole that starts before 2019-01-01 is not reported at all.
+The rule since then: a name is traded only on a session with a row, a valid open and close on the calendar. On any other session nothing in it is bought or sold. A held name keeps its position at its last close; a sale due that session is owed and fills at the open of the next session with a row; a buy due that session is not made. An owed sale is cancelled if the next decision keeps the name, and a leftover capped by the participation cap stays owed. The first row after a gap is tradeable.
+
+The change moved 64 published cells, all 16 of each of mcap1500to5000, mcap5001to10000, smallcap250 pit and nifty500 pit (the last two through MAHSCOOTER, force-sold on 2025-10-28 before a two-session gap and now held until a rebalance sells it on 2026-02-06). Every universe was rerun on 2026-10-17, static and pit, four settings each. Every other cell's trades, holdings, equity, comparison and tax files are byte-identical. Their run parameters, cost summaries and daily logs were rewritten with the new commit hash and run date and with the cess column of commit 328c74a, which no run had written for them before, and their Nautilus reports with new random event ids. The README tables carry the new figures.
+
+SANGHIIND (mcap1500to5000): its file ends on 2026-04-02, close 50.15. A sale owed on it never fills, so all 16 cells hold it from 2026-04-02 to 2026-05-29 at 50.15. Why the file ends is not known to the repository, so that value is an assumption. Each run's RUN.txt and run.log give the shares and value, and the end equity, CAGR and maximum drawdown with the position valued at zero from 2026-04-03 (`results/stuck_positions.py`). Research tax off, v1: 49,466 shares, Rs 2,480,719.90; CAGR 46.19% as run, 43.04% at zero. Until 2026-10-16 the engine sold it on 2026-04-09 at 51.0, the 2026-04-02 open less slippage, on a session with no row. The other files that end before 2026-05-29 (GSPL, CIGNITITEC, AIRTELPP) are not held on their last row in any cell.
+
+Not changed with it. The legend in `results/make_daily_log.py` still reads "untradeable  no raw price row, or a forced exit before a gap". It is printed in every DAILY_LOG, so rewording it would rewrite that file in every cell; the new skip reasons start with "untradeable:" and fall under it. Gate G4 of `results/drawdown_exit_measure.py` counts forced exits. No gate runs that script (check_all only imports it), its patch anchor already fails (see "The drawdown-exit measurement" above), and the v5/v6 verdict stands as recorded. nt_attribution (ARM A) and the Nautilus port still trade on sessions without a row; see the nt_verify paragraph under the market-cap buckets.
+
+### The buy & hold baskets do not apply the row rule
+
+The strategy trades a name only on sessions with a row (results/tradability.py). The reference buy & hold (`px.pct_change().mean(axis=1)`, results/v34_common.py) and the investable held-lots buy & hold (results/bh_held.py) are built from the forward-filled price panel and do not consult it, so a gap enters them as zero returns followed by one return at the next row.
+
+On the 2026-10-16 data, interior gaps exist in microcap250 (static and pit), the pit files of midcap50, smallcap250 and nifty500, and all three market-cap buckets (mcap1500to5000: 28 names with a gap of two or more sessions). A gap that starts before 2019-01-01 enters the baskets the same way.
 
 ### The farm's copy fallback trusts size and modification time
 

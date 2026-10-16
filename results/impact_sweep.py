@@ -77,7 +77,7 @@ CAPS = (1.00, 0.10)
 
 def panel(tag):
     u = REGISTRY[tag]
-    # The untradeable-name guard the engines load for this universe.
+    # The row rule the engines load for this universe (results/tradability.py).
     engine_core.set_tradeability(u)
     src = config.require_cache(u.score_cache, what=f"{tag} score panel")
     p = read_table(src, parse_dates=["date"])

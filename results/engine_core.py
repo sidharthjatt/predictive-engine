@@ -87,46 +87,53 @@ def membership_for(u):
 # ---------------------------------------------------------------------------
 # TRADEABILITY -- the third, PRICE-SIDE flag. See results/tradability.py.
 # ---------------------------------------------------------------------------
-# {symbol: frozenset(dates the backtest may not transact on)}, or None for "no
-# guard". Held here, next to MEMBERSHIP, for the same reason and read the same way:
+# {symbol: frozenset(sessions with a row)}, or None for "no rule". Held here, next
+# to MEMBERSHIP, for the same reason and read the same way:
 # test_exposure.backtest_exposure consults it directly rather than taking it as an
-# argument, so all 25 of its call sites inherit the guard without a signature
-# change. Threading a parameter through 25 sites is how a guard ends up applied in
+# argument, so all 25 of its call sites inherit the rule without a signature
+# change. Threading a parameter through 25 sites is how a rule ends up applied in
 # four places and absent in twenty-one.
+#
+# THE RULE, SINCE 2026-10-16 (results/tradability.py). A name is traded only on a
+# session with a row for it. tradeable_on(symbol, dt) answers that for `dt` alone,
+# so no decision on day i reads a row dated after day i. Until 2026-10-16 this held
+# a map of blocked sessions built from gaps of two or more sessions, whose length
+# is known only from the next row, and test_exposure sold a holding the session
+# before such a gap. tradability_causality_test.py fails on that code.
 #
 # THE LEAK THIS GUARDS AGAINST. module_state.py records the hazard: a module global
 # set by one in-process step and never restored silently changes every later step.
 # rebal_cadence_sweep.py did exactly that with test_exposure.REBAL, which is why
 # cadence is a parameter and not a global. Tradeability is different in kind -- it
 # is a property of a UNIVERSE's raw data, stable for the whole run, like MEMBERSHIP
-# -- but the leak is still real: midcap150's map left in place while nifty100 runs
-# would block symbols that do not exist in nifty100 and silently do nothing, or worse, share
-# a ticker. So the tag is stored beside the map and set_tradeability() refuses a
-# mismatch rather than trusting the caller to clear it.
+# -- but the leak is still real: midcap150's sets left in place while nifty100 runs
+# would block every nifty100 name, or worse, share a ticker. So the tag is stored
+# beside the sets.
 TRADEABLE = None
 TRADEABLE_TAG = None
 
 
 def set_tradeability(u, enabled=True):
-    """Load (or clear) the untradeable map for universe `u`. Returns the map."""
+    """Load (or clear) the sessions-with-a-row sets for universe `u`. Returns them."""
     global TRADEABLE, TRADEABLE_TAG
     if not enabled:
         TRADEABLE, TRADEABLE_TAG = None, None
         return None
     import tradability
-    TRADEABLE = tradability.untradeable(
-        u.prepare_data_dir(), _load_calendar(),
-        config.BT_START_DATE, config.BT_END_DATE)
+    TRADEABLE = tradability.sessions_with_row(u.prepare_data_dir(), _load_calendar())
     TRADEABLE_TAG = u.tag
     return TRADEABLE
 
 
 def tradeable_on(symbol, dt):
-    """False only when a guard is loaded AND it blocks this (symbol, date)."""
+    """True when no rule is loaded, or when `symbol` has a row on `dt` itself.
+
+    Only `dt` is looked up. A symbol with no file has no rows and is never
+    tradeable."""
     if TRADEABLE is None:
         return True
-    blocked = TRADEABLE.get(symbol)
-    return blocked is None or dt not in blocked
+    rows = TRADEABLE.get(symbol)
+    return rows is not None and dt in rows
 
 
 try:

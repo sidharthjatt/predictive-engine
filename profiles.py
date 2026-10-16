@@ -12,7 +12,7 @@ WHY A PROFILE AND NOT A NUMBER
     one flag rather than a number somebody has to remember to pass.
 
 WHY THIS IS SEPARATE FROM THE DATA GUARDS
-    The interior-gap guard (results/tradability.py) corrects something that is
+    The row rule (results/tradability.py) corrects something that is
     WRONG: a fill at a price that did not trade. There is no version of the
     strategy that wanted it, so it applies unconditionally.
 

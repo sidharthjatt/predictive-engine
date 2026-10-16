@@ -219,6 +219,11 @@ WHY THIS FILE EXISTS, AND WHY IT EXISTS TODAY
   price basis     adj_close canonical, repaired at the load boundary
   execution       decisions on close, fills at next open; interior-gap
                   tradability guard active; value_at_open=True
+                  [Note added 2026-10-17, the registration above is unchanged:
+                  that guard read rows dated after the decision day and was
+                  replaced on 2026-10-16 by the row rule. See KNOWN_ISSUES.md,
+                  "The engine's tradeability guard read rows dated after the
+                  decision day".]
   training data   UNCHANGED. The model is NOT refitted on held-out data and the
                   walk-forward stops where it stops today.
 

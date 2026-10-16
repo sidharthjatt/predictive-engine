@@ -30,12 +30,20 @@ WHY A SEPARATE, PRICE-SIDE FLAG AND NOT bad_ret OR scorable
     +24,772.7% PATANJALI figure came from. Widening scorable would re-introduce
     exactly that. This is a third flag and it gates TRANSACTING, not ranking.
 
-THE WINDOW
-    Untradeable from the FIRST MISSING SESSION through the RESUMPTION SESSION
-    inclusive, plus `wait` further sessions. The last raw row before the gap is NOT
-    included: it has a real price and is precisely where a forced exit fills. The
-    resumption session IS included, because its own close is the one cell most
-    likely to be fabricated -- see resumption_report() below.
+THE RULE THE ENGINE APPLIES, SINCE 2026-10-16: sessions_with_row()
+    A name is traded only on a session that has a row for it: a valid open and
+    close, on the trading calendar. On any other session nothing in it is bought or
+    sold. A held name keeps its position, valued at its last close, and a sale due
+    on such a session waits for the next session with a row, at that session's
+    open. engine_core.tradeable_on(symbol, dt) asks only whether `dt` itself has a
+    row, so no decision reads a row dated after it.
+
+    UNTIL 2026-10-16 THE ENGINE USED untradeable() BELOW, AND IT LOOKED AHEAD. It
+    blocked a gap only when two or more sessions were missing, a length known only
+    from the date of the next row, and test_exposure sold a holding at the open of
+    the last session before the gap because the next session had no row. Both read
+    rows dated after the decision day. untradeable() and gaps() are kept for the
+    measurement scripts that report on gaps; no backtest reads them.
 
 READ-ONLY AGAINST THE RAW DATA. Nothing here changes a price.
 """
@@ -44,8 +52,8 @@ from pathlib import Path
 import config
 from paths import list_dir
 
-MIN_GAP = 2          # a gap of this many missing sessions or more is guarded
-WAIT = 0             # further sessions blocked after the resumption session
+MIN_GAP = 2          # untradeable() only: gaps this long or longer are reported
+WAIT = 0             # untradeable() only: sessions reported after the resumption
 
 # Axis c is a REPORT, not a repair. A resumption close that matches the
 # pre-gap close is only suspicious when a coincidence is implausible: 20 of the 21
@@ -73,6 +81,29 @@ def _rows(data_dir, cal):
         if "date" not in d.columns:
             continue
         out[f.stem] = sorted(x for x in d["date"] if x in cal)
+    return out
+
+
+def sessions_with_row(data_dir, cal):
+    """{symbol: frozenset(sessions on which the symbol has a row)}.
+
+    A row is a calendar session with an open and a close above zero: the rows
+    engine_core.build_panel keeps as prices, measured equal to the panel's own
+    (date, symbol) pairs on 2026-10-16. A symbol is tradeable on `dt` only if `dt`
+    is in its set. The set is built once from the whole file, but the only
+    question asked of it is about one date at a time, so no answer depends on a
+    later row.
+    """
+    out = {}
+    for f in list_dir(data_dir, "*.csv"):
+        d = config.read_price_csv(f)
+        if "date" not in d.columns:
+            continue
+        ok = d["date"].isin(cal)
+        for c in ("open", "close"):
+            if c in d.columns:
+                ok &= d[c] > 0
+        out[f.stem] = frozenset(d.loc[ok, "date"])
     return out
 
 

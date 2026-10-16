@@ -241,8 +241,9 @@ def run(u, arm=None):
     # THE TRAIL MUST BE PRODUCED UNDER THE SAME GUARD AS THE CURVE IT IS CHECKED
     # AGAINST. This step re-runs the backtest with logging on and reconciles the
     # result against the engine's published curve to within a paisa, refusing to
-    # write anything if it disagrees. The engine now loads the tradeability guard;
-    # a trail built without it would differ by the forced exit and this step would
+    # write anything if it disagrees. The engine loads the row rule (no trade in a
+    # name on a session without a row); a trail built without it would differ by
+    # every owed sale and refused buy, and this step would
     # correctly refuse to write -- so the audit would vanish for a reason that is
     # not a fault.
     import engine_core as _ec

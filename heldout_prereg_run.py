@@ -212,7 +212,7 @@ def universe_series(u, W):
     order. The two differences are marked EXTENSION and PINNED, and there are no
     others; a third would make this a different backtest wearing the same name.
     """
-    engine_core.set_tradeability(u)          # the interior-gap guard, per section 1
+    engine_core.set_tradeability(u)          # section 1's guard; the row rule since 2026-10-16
     src = config.require_cache(u.score_cache,
                                what=f"{u.tag} score panel")
     p = read_table(src, parse_dates=["date"])

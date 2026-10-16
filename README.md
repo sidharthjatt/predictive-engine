@@ -311,8 +311,10 @@ exchange and SEBI fees, GST, and the per-scrip DP charge on sells — computed i
 `results/qbeast_in_charges.py`, plus 15 bps of slippage on top. Idle cash earns
 nothing, which is deliberate and conservative.
 
-Decisions are made on the close and orders fill at the next open. Nothing in the
-pipeline trades on a price it could not have seen.
+Decisions are made on the close and orders fill at the next open. A name is traded
+only on a session with a row; a sale due on a session without one fills at the open of
+its next row. Nothing in the pipeline trades on a price it could not have seen or
+decides on a row dated after the decision.
 
 ## Results
 
@@ -329,43 +331,46 @@ to 2026-05-29, one run per cell. CAGR and MaxDD are each cell's `v34_comparison`
 basket is that file's equal-weight buy & hold (untaxed, daily rebalanced); NIFTY 500 is the
 price index over the same dates; tax paid is COST_TAX_YEARS `total_tax`, cess included.
 mcap1500to5000 is 477 names: the owner removed ELCIDIN on 2026-10-16, whose auction-day
-gain could not have been traded (KNOWN_ISSUES.md). nt_verify verifies the four
-mcapover10000 cells; the other eight are not gated (KNOWN_ISSUES.md). There are no pit figures: no membership files exist.
+gain could not have been traded (KNOWN_ISSUES.md). Rerun 2026-10-17 under the row rule:
+a name is traded only on a session with a row. SANGHIIND's file ends on 2026-04-02, so
+every mcap1500to5000 cell holds it to the end at its last close, 50.15, an assumption;
+each run's RUN.txt gives the figures with it valued at zero (KNOWN_ISSUES.md). nt_verify
+verifies the four mcapover10000 cells; the other eight are not gated (KNOWN_ISSUES.md). There are no pit figures: no membership files exist.
 
 | universe | arm | profile | tax | CAGR% | basket CAGR% | NIFTY 500 CAGR% | MaxDD% | tax paid Rs |
 |---|---|---|---|---:|---:|---:|---:|---:|
-| mcap1500to5000 | v1 | research | off | 50.17 | 25.92 | 12.94 | -40.93 | 0.00 |
-| mcap1500to5000 | v2 | research | off | 29.15 | 25.92 | 12.94 | -17.68 | 0.00 |
-| mcap1500to5000 | v3 | research | off | 58.72 | 25.92 | 12.94 | -49.16 | 0.00 |
-| mcap1500to5000 | v4 | research | off | 34.97 | 25.92 | 12.94 | -21.10 | 0.00 |
-| mcap1500to5000 | v1 | research | on | 41.15 | 25.92 | 12.94 | -40.93 | 2,449,158.78 |
-| mcap1500to5000 | v2 | research | on | 24.44 | 25.92 | 12.94 | -17.68 | 820,223.45 |
-| mcap1500to5000 | v3 | research | on | 49.84 | 25.92 | 12.94 | -49.16 | 4,067,248.40 |
-| mcap1500to5000 | v4 | research | on | 29.35 | 25.92 | 12.94 | -21.10 | 1,166,237.84 |
-| mcap1500to5000 | v1 | tradeable | off | 42.78 | 25.92 | 12.94 | -42.01 | 0.00 |
-| mcap1500to5000 | v2 | tradeable | off | 22.29 | 25.92 | 12.94 | -17.86 | 0.00 |
-| mcap1500to5000 | v3 | tradeable | off | 48.61 | 25.92 | 12.94 | -42.86 | 0.00 |
-| mcap1500to5000 | v4 | tradeable | off | 25.65 | 25.92 | 12.94 | -17.48 | 0.00 |
-| mcap1500to5000 | v1 | tradeable | on | 35.97 | 25.92 | 12.94 | -42.01 | 1,630,840.44 |
-| mcap1500to5000 | v2 | tradeable | on | 19.03 | 25.92 | 12.94 | -17.86 | 508,312.80 |
-| mcap1500to5000 | v3 | tradeable | on | 41.45 | 25.92 | 12.94 | -42.86 | 2,333,031.33 |
-| mcap1500to5000 | v4 | tradeable | on | 21.77 | 25.92 | 12.94 | -17.48 | 639,857.39 |
-| mcap5001to10000 | v1 | research | off | 62.82 | 28.67 | 12.94 | -34.26 | 0.00 |
-| mcap5001to10000 | v2 | research | off | 39.04 | 28.67 | 12.94 | -20.88 | 0.00 |
-| mcap5001to10000 | v3 | research | off | 53.65 | 28.67 | 12.94 | -38.72 | 0.00 |
-| mcap5001to10000 | v4 | research | off | 37.83 | 28.67 | 12.94 | -24.68 | 0.00 |
-| mcap5001to10000 | v1 | research | on | 53.28 | 28.67 | 12.94 | -34.25 | 5,790,530.74 |
-| mcap5001to10000 | v2 | research | on | 32.70 | 28.67 | 12.94 | -20.86 | 1,776,992.51 |
-| mcap5001to10000 | v3 | research | on | 46.45 | 28.67 | 12.94 | -40.96 | 3,823,494.12 |
-| mcap5001to10000 | v4 | research | on | 31.88 | 28.67 | 12.94 | -24.70 | 1,606,394.33 |
-| mcap5001to10000 | v1 | tradeable | off | 53.54 | 28.67 | 12.94 | -31.22 | 0.00 |
-| mcap5001to10000 | v2 | tradeable | off | 35.52 | 28.67 | 12.94 | -19.96 | 0.00 |
-| mcap5001to10000 | v3 | tradeable | off | 52.42 | 28.67 | 12.94 | -33.08 | 0.00 |
-| mcap5001to10000 | v4 | tradeable | off | 35.90 | 28.67 | 12.94 | -21.44 | 0.00 |
-| mcap5001to10000 | v1 | tradeable | on | 46.87 | 28.67 | 12.94 | -31.18 | 4,005,621.26 |
-| mcap5001to10000 | v2 | tradeable | on | 30.30 | 28.67 | 12.94 | -19.96 | 1,500,928.75 |
-| mcap5001to10000 | v3 | tradeable | on | 45.75 | 28.67 | 12.94 | -34.55 | 3,548,519.25 |
-| mcap5001to10000 | v4 | tradeable | on | 30.57 | 28.67 | 12.94 | -22.37 | 1,461,474.70 |
+| mcap1500to5000 | v1 | research | off | 46.19 | 25.92 | 12.94 | -42.64 | 0.00 |
+| mcap1500to5000 | v2 | research | off | 28.21 | 25.92 | 12.94 | -17.32 | 0.00 |
+| mcap1500to5000 | v3 | research | off | 53.54 | 25.92 | 12.94 | -49.14 | 0.00 |
+| mcap1500to5000 | v4 | research | off | 33.79 | 25.92 | 12.94 | -21.04 | 0.00 |
+| mcap1500to5000 | v1 | research | on | 37.69 | 25.92 | 12.94 | -42.64 | 2,126,380.43 |
+| mcap1500to5000 | v2 | research | on | 23.60 | 25.92 | 12.94 | -17.40 | 780,476.47 |
+| mcap1500to5000 | v3 | research | on | 45.37 | 25.92 | 12.94 | -49.14 | 3,249,848.13 |
+| mcap1500to5000 | v4 | research | on | 28.32 | 25.92 | 12.94 | -21.04 | 1,094,102.85 |
+| mcap1500to5000 | v1 | tradeable | off | 41.62 | 25.92 | 12.94 | -41.45 | 0.00 |
+| mcap1500to5000 | v2 | tradeable | off | 22.15 | 25.92 | 12.94 | -17.48 | 0.00 |
+| mcap1500to5000 | v3 | tradeable | off | 48.61 | 25.92 | 12.94 | -42.72 | 0.00 |
+| mcap1500to5000 | v4 | tradeable | off | 25.46 | 25.92 | 12.94 | -17.41 | 0.00 |
+| mcap1500to5000 | v1 | tradeable | on | 34.90 | 25.92 | 12.94 | -41.45 | 1,609,345.42 |
+| mcap1500to5000 | v2 | tradeable | on | 18.89 | 25.92 | 12.94 | -17.48 | 509,136.74 |
+| mcap1500to5000 | v3 | tradeable | on | 41.13 | 25.92 | 12.94 | -42.72 | 2,308,735.50 |
+| mcap1500to5000 | v4 | tradeable | on | 21.62 | 25.92 | 12.94 | -17.41 | 636,222.91 |
+| mcap5001to10000 | v1 | research | off | 61.96 | 28.67 | 12.94 | -34.21 | 0.00 |
+| mcap5001to10000 | v2 | research | off | 39.07 | 28.67 | 12.94 | -20.86 | 0.00 |
+| mcap5001to10000 | v3 | research | off | 54.06 | 28.67 | 12.94 | -38.53 | 0.00 |
+| mcap5001to10000 | v4 | research | off | 38.27 | 28.67 | 12.94 | -24.63 | 0.00 |
+| mcap5001to10000 | v1 | research | on | 52.59 | 28.67 | 12.94 | -34.20 | 5,575,227.17 |
+| mcap5001to10000 | v2 | research | on | 32.74 | 28.67 | 12.94 | -20.85 | 1,779,953.73 |
+| mcap5001to10000 | v3 | research | on | 46.65 | 28.67 | 12.94 | -42.18 | 3,951,270.20 |
+| mcap5001to10000 | v4 | research | on | 32.30 | 28.67 | 12.94 | -24.65 | 1,647,520.14 |
+| mcap5001to10000 | v1 | tradeable | off | 53.42 | 28.67 | 12.94 | -31.11 | 0.00 |
+| mcap5001to10000 | v2 | tradeable | off | 35.51 | 28.67 | 12.94 | -20.00 | 0.00 |
+| mcap5001to10000 | v3 | tradeable | off | 52.22 | 28.67 | 12.94 | -33.06 | 0.00 |
+| mcap5001to10000 | v4 | tradeable | off | 35.92 | 28.67 | 12.94 | -21.65 | 0.00 |
+| mcap5001to10000 | v1 | tradeable | on | 46.81 | 28.67 | 12.94 | -31.11 | 3,969,447.28 |
+| mcap5001to10000 | v2 | tradeable | on | 30.30 | 28.67 | 12.94 | -19.96 | 1,498,716.31 |
+| mcap5001to10000 | v3 | tradeable | on | 45.59 | 28.67 | 12.94 | -35.82 | 3,501,137.11 |
+| mcap5001to10000 | v4 | tradeable | on | 30.60 | 28.67 | 12.94 | -22.35 | 1,462,360.92 |
 | mcapover10000 | v1 | research | off | 48.71 | 25.29 | 12.94 | -32.59 | 0.00 |
 | mcapover10000 | v2 | research | off | 32.77 | 25.29 | 12.94 | -18.59 | 0.00 |
 | mcapover10000 | v3 | research | off | 53.22 | 25.29 | 12.94 | -35.21 | 0.00 |
@@ -479,14 +484,14 @@ The tax ledger now follows the Income-tax Act in four places it did not before: 
 | microcap250 | v2 | 32.11 | -22.63 | 26.90 | -22.63 | 1.81 | 26.87 | 33.37 | -6.47 |
 | microcap250 | v3 | 67.11 | -40.97 | 55.53 | -40.99 | 1.85 | 55.68 | 33.37 | +22.16 |
 | microcap250 | v4 | 39.41 | -20.61 | 33.08 | -22.40 | 1.85 | 33.13 | 33.37 | -0.29 |
-| mcap1500to5000 | v1 | 54.03 | -41.52 | 44.31 | -41.52 | 1.70 | 44.36 | 79.79 | -35.48 |
-| mcap1500to5000 | v2 | 27.82 | -21.92 | 23.46 | -21.92 | 1.71 | 23.22 | 79.79 | -56.33 |
-| mcap1500to5000 | v3 | 58.54 | -50.93 | 49.82 | -50.93 | 1.69 | 49.82 | 79.79 | -29.97 |
-| mcap1500to5000 | v4 | 30.59 | -31.29 | 25.78 | -31.29 | 1.63 | 25.60 | 79.79 | -54.01 |
-| mcap5001to10000 | v1 | 62.82 | -34.26 | 53.28 | -34.25 | 2.06 | 53.72 | 33.52 | +19.76 |
-| mcap5001to10000 | v2 | 39.04 | -20.88 | 32.70 | -20.86 | 2.10 | 33.00 | 33.52 | -0.82 |
-| mcap5001to10000 | v3 | 53.65 | -38.72 | 46.45 | -40.96 | 1.67 | 46.58 | 33.52 | +12.93 |
-| mcap5001to10000 | v4 | 37.83 | -24.68 | 31.88 | -24.70 | 1.86 | 32.11 | 33.52 | -1.64 |
+| mcap1500to5000 | v1 | 46.19 | -42.64 | 37.69 | -42.64 | 1.51 | 37.77 | 31.33 | +6.36 |
+| mcap1500to5000 | v2 | 28.21 | -17.32 | 23.60 | -17.40 | 1.72 | 23.36 | 31.33 | -7.73 |
+| mcap1500to5000 | v3 | 53.54 | -49.14 | 45.37 | -49.14 | 1.58 | 45.32 | 31.33 | +14.04 |
+| mcap1500to5000 | v4 | 33.79 | -21.04 | 28.32 | -21.04 | 1.77 | 28.14 | 31.33 | -3.01 |
+| mcap5001to10000 | v1 | 61.96 | -34.21 | 52.59 | -34.20 | 2.04 | 53.02 | 33.52 | +19.07 |
+| mcap5001to10000 | v2 | 39.07 | -20.86 | 32.74 | -20.85 | 2.10 | 33.05 | 33.52 | -0.78 |
+| mcap5001to10000 | v3 | 54.06 | -38.53 | 46.65 | -42.18 | 1.67 | 46.79 | 33.52 | +13.13 |
+| mcap5001to10000 | v4 | 38.27 | -24.63 | 32.30 | -24.65 | 1.87 | 32.53 | 33.52 | -1.22 |
 | mcapover10000 | v1 | 48.71 | -32.59 | 41.05 | -32.57 | 1.70 | 41.01 | 24.04 | +17.01 |
 | mcapover10000 | v2 | 32.77 | -18.59 | 27.66 | -18.59 | 1.87 | 27.73 | 24.04 | +3.62 |
 | mcapover10000 | v3 | 53.22 | -35.21 | 44.94 | -35.34 | 1.63 | 44.69 | 24.04 | +20.90 |
@@ -532,14 +537,14 @@ The tax ledger now follows the Income-tax Act in four places it did not before: 
 | microcap250 | v2 | 32.26 | -21.73 | 27.19 | -21.73 | 1.83 | 27.17 | 33.37 | -6.18 |
 | microcap250 | v3 | 62.32 | -45.44 | 54.51 | -45.43 | 1.83 | 54.66 | 33.37 | +21.14 |
 | microcap250 | v4 | 39.45 | -20.64 | 33.13 | -22.41 | 1.85 | 33.18 | 33.37 | -0.24 |
-| mcap1500to5000 | v1 | 38.40 | -45.12 | 32.36 | -45.12 | 1.39 | 31.99 | 79.79 | -47.43 |
-| mcap1500to5000 | v2 | 20.67 | -22.54 | 17.84 | -22.54 | 1.46 | 17.58 | 79.79 | -61.95 |
-| mcap1500to5000 | v3 | 38.42 | -48.09 | 33.53 | -48.09 | 1.36 | 33.11 | 79.79 | -46.26 |
-| mcap1500to5000 | v4 | 21.44 | -26.05 | 18.54 | -26.05 | 1.39 | 18.32 | 79.79 | -61.25 |
-| mcap5001to10000 | v1 | 53.54 | -31.22 | 46.87 | -31.18 | 1.90 | 47.29 | 33.52 | +13.35 |
-| mcap5001to10000 | v2 | 35.52 | -19.96 | 30.30 | -19.96 | 2.02 | 30.60 | 33.52 | -3.22 |
-| mcap5001to10000 | v3 | 52.42 | -33.08 | 45.75 | -34.55 | 1.69 | 46.09 | 33.52 | +12.23 |
-| mcap5001to10000 | v4 | 35.90 | -21.44 | 30.57 | -22.37 | 1.84 | 30.80 | 33.52 | -2.95 |
+| mcap1500to5000 | v1 | 41.62 | -41.45 | 34.90 | -41.45 | 1.48 | 34.44 | 31.33 | +3.57 |
+| mcap1500to5000 | v2 | 22.15 | -17.48 | 18.89 | -17.48 | 1.53 | 18.62 | 31.33 | -12.44 |
+| mcap1500to5000 | v3 | 48.61 | -42.72 | 41.13 | -42.72 | 1.61 | 40.69 | 31.33 | +9.80 |
+| mcap1500to5000 | v4 | 25.46 | -17.41 | 21.62 | -17.41 | 1.60 | 21.41 | 31.33 | -9.71 |
+| mcap5001to10000 | v1 | 53.42 | -31.11 | 46.81 | -31.11 | 1.89 | 47.23 | 33.52 | +13.29 |
+| mcap5001to10000 | v2 | 35.51 | -20.00 | 30.30 | -19.96 | 2.01 | 30.60 | 33.52 | -3.22 |
+| mcap5001to10000 | v3 | 52.22 | -33.06 | 45.59 | -35.82 | 1.68 | 45.94 | 33.52 | +12.07 |
+| mcap5001to10000 | v4 | 35.92 | -21.65 | 30.60 | -22.35 | 1.84 | 30.82 | 33.52 | -2.92 |
 | mcapover10000 | v1 | 48.44 | -32.58 | 40.92 | -32.59 | 1.70 | 40.87 | 24.04 | +16.88 |
 | mcapover10000 | v2 | 32.75 | -18.59 | 27.65 | -18.59 | 1.87 | 27.73 | 24.04 | +3.61 |
 | mcapover10000 | v3 | 53.19 | -35.66 | 44.81 | -35.73 | 1.62 | 44.56 | 24.04 | +20.77 |
@@ -573,14 +578,14 @@ The tax ledger now follows the Income-tax Act in four places it did not before: 
 | nifty200 | v2 | 26.23 | -19.25 | 22.33 | -19.25 | 1.48 | 22.39 | 18.57 | +3.76 |
 | nifty200 | v3 | 42.95 | -32.91 | 36.95 | -32.91 | 1.37 | 37.03 | 18.57 | +18.38 |
 | nifty200 | v4 | 26.04 | -21.71 | 22.31 | -21.71 | 1.25 | 22.40 | 18.57 | +3.74 |
-| smallcap250 | v1 | 44.90 | -41.88 | 38.44 | -41.88 | 1.52 | 38.34 | 23.42 | +15.02 |
-| smallcap250 | v2 | 26.29 | -26.41 | 22.33 | -26.41 | 1.50 | 22.30 | 23.42 | -1.09 |
-| smallcap250 | v3 | 58.57 | -38.52 | 50.18 | -38.52 | 1.77 | 49.97 | 23.42 | +26.76 |
-| smallcap250 | v4 | 31.39 | -23.89 | 26.86 | -23.89 | 1.60 | 26.73 | 23.42 | +3.44 |
-| nifty500 | v1 | 57.40 | -37.52 | 48.76 | -37.52 | 1.83 | 48.82 | 21.53 | +27.23 |
-| nifty500 | v2 | 32.50 | -18.06 | 27.57 | -18.18 | 1.78 | 27.62 | 21.53 | +6.04 |
-| nifty500 | v3 | 58.88 | -44.14 | 50.16 | -44.14 | 1.67 | 50.16 | 21.53 | +28.63 |
-| nifty500 | v4 | 32.25 | -26.78 | 27.28 | -26.78 | 1.63 | 27.28 | 21.53 | +5.75 |
+| smallcap250 | v1 | 44.68 | -41.88 | 38.27 | -41.88 | 1.52 | 38.16 | 23.42 | +14.85 |
+| smallcap250 | v2 | 26.23 | -26.41 | 22.28 | -26.41 | 1.49 | 22.25 | 23.42 | -1.14 |
+| smallcap250 | v3 | 58.32 | -38.52 | 49.99 | -38.52 | 1.77 | 49.78 | 23.42 | +26.57 |
+| smallcap250 | v4 | 31.31 | -23.89 | 26.79 | -23.89 | 1.60 | 26.67 | 23.42 | +3.37 |
+| nifty500 | v1 | 57.12 | -37.52 | 48.53 | -37.52 | 1.83 | 48.60 | 21.53 | +27.00 |
+| nifty500 | v2 | 32.40 | -18.06 | 27.50 | -18.18 | 1.78 | 27.54 | 21.53 | +5.97 |
+| nifty500 | v3 | 58.58 | -44.14 | 49.92 | -44.14 | 1.66 | 49.92 | 21.53 | +28.39 |
+| nifty500 | v4 | 32.14 | -26.78 | 27.20 | -26.78 | 1.62 | 27.20 | 21.53 | +5.67 |
 | microcap250 | v1 | 30.00 | -31.54 | 25.15 | -32.81 | 1.06 | 24.68 | 29.66 | -4.51 |
 | microcap250 | v2 | 21.46 | -13.56 | 18.04 | -16.01 | 1.29 | 17.93 | 29.66 | -11.62 |
 | microcap250 | v3 | 37.07 | -32.46 | 30.54 | -32.78 | 1.16 | 30.53 | 29.66 | +0.88 |
@@ -617,14 +622,14 @@ The tax ledger now follows the Income-tax Act in four places it did not before: 
 | nifty200 | v2 | 26.23 | -19.25 | 22.33 | -19.25 | 1.48 | 22.39 | 18.57 | +3.76 |
 | nifty200 | v3 | 42.95 | -32.91 | 36.95 | -32.91 | 1.37 | 37.03 | 18.57 | +18.38 |
 | nifty200 | v4 | 26.04 | -21.71 | 22.31 | -21.71 | 1.25 | 22.40 | 18.57 | +3.74 |
-| smallcap250 | v1 | 46.68 | -42.41 | 38.41 | -42.41 | 1.52 | 38.30 | 23.42 | +14.99 |
-| smallcap250 | v2 | 26.29 | -26.41 | 22.33 | -26.41 | 1.50 | 22.30 | 23.42 | -1.09 |
-| smallcap250 | v3 | 58.80 | -38.76 | 50.07 | -38.76 | 1.78 | 49.86 | 23.42 | +26.65 |
-| smallcap250 | v4 | 31.40 | -23.89 | 26.86 | -23.89 | 1.60 | 26.74 | 23.42 | +3.44 |
-| nifty500 | v1 | 55.57 | -37.51 | 48.79 | -37.51 | 1.84 | 48.85 | 21.53 | +27.26 |
-| nifty500 | v2 | 32.50 | -18.06 | 27.57 | -18.18 | 1.78 | 27.62 | 21.53 | +6.04 |
-| nifty500 | v3 | 59.60 | -44.08 | 50.70 | -44.08 | 1.68 | 50.70 | 21.53 | +29.17 |
-| nifty500 | v4 | 32.25 | -26.78 | 27.29 | -26.78 | 1.63 | 27.29 | 21.53 | +5.76 |
+| smallcap250 | v1 | 46.35 | -42.41 | 38.32 | -42.41 | 1.52 | 38.22 | 23.42 | +14.90 |
+| smallcap250 | v2 | 26.23 | -26.41 | 22.28 | -26.41 | 1.49 | 22.25 | 23.42 | -1.14 |
+| smallcap250 | v3 | 58.54 | -38.76 | 49.88 | -38.76 | 1.77 | 49.67 | 23.42 | +26.46 |
+| smallcap250 | v4 | 31.32 | -23.89 | 26.80 | -23.89 | 1.60 | 26.67 | 23.42 | +3.38 |
+| nifty500 | v1 | 55.29 | -37.51 | 48.56 | -37.51 | 1.83 | 48.63 | 21.53 | +27.03 |
+| nifty500 | v2 | 32.40 | -18.06 | 27.50 | -18.18 | 1.78 | 27.54 | 21.53 | +5.97 |
+| nifty500 | v3 | 59.31 | -44.08 | 50.46 | -44.08 | 1.68 | 50.46 | 21.53 | +28.93 |
+| nifty500 | v4 | 32.14 | -26.78 | 27.20 | -26.78 | 1.62 | 27.20 | 21.53 | +5.67 |
 | microcap250 | v1 | 30.00 | -31.54 | 25.15 | -32.81 | 1.06 | 24.68 | 29.66 | -4.51 |
 | microcap250 | v2 | 21.46 | -13.56 | 18.04 | -16.01 | 1.29 | 17.93 | 29.66 | -11.62 |
 | microcap250 | v3 | 37.08 | -32.46 | 30.54 | -32.80 | 1.16 | 30.53 | 29.66 | +0.88 |
@@ -816,6 +821,8 @@ delivery to compare with. 102 of its 241 names have no row before 2019-01-01 and
 none before 2021-01-01, so the early part of the window ranks fewer names.
 
 ### SUPERSEDED 2026-10-14 for its tax-on figures (tax-off figures still current) -- Point-in-time (pit) results, 2026-10-10: every universe, arm and profile
+
+**smallcap250 and nifty500: every figure in this section, tax off included, is superseded.** They were rerun on 2026-10-17 under the row rule (KNOWN_ISSUES.md, "The engine's tradeability guard read rows dated after the decision day"); the current figures are in the tax-on tables above.
 
 Produced by `run.py --survivorship pit` (four settings per universe: research and
 tradeable, tax off and on, arms v1 to v4, cadence 20) and compared with the static runs
@@ -1467,12 +1474,10 @@ see the note under the table above):
 | v3 provol, 100% invested | 2 of 8: nifty100, midcap150 | 6 |
 | v4 provol, breadth-scaled | 5 of 8: nifty100, midcap150, nifty50, midcap100, smallcap250 | 3 |
 
-All four arms verify on nifty100 and midcap150. check_all gates every verified cell,
-16 in all, since 2026-09-26; the 16 that do not verify are listed in `check_all.py`.
-The port picks the same names as the reference on every rebalance of all 32 cells;
-the 16 failures are share-count differences that nt_verify cannot explain as
-quantization, on the 0.01 tick grid. Not investigated; see `KNOWN_ISSUES.md`. Every
-Nautilus figure for a cell marked not verified is unverified.
+All four arms verify on nifty100 and midcap150. The table is the 2026-09-26
+measurement. check_all now gates 39 cells; the 9 that do not verify (midcap100 v3 and
+eight market-cap bucket cells) are listed in `check_all.py` with their reasons. Every
+Nautilus figure for a cell that is not gated is unverified.
 
 > *Superseded 2026-09-26: this block first read "No v1 or v3 cell is verified by
 > nt_verify on any universe" (v1 0 of 8, v3 0 of 8, both 8 inconclusive). The
@@ -1733,7 +1738,7 @@ python3 check_data.py
 ```
 
 It compares every file against the tracked manifest `data/RAW_DATA_SHA256.txt`
-(SHA-256 per file) and exits 0 only if all 1,634 match and no extra file is present;
+(SHA-256 per file) and exits 0 only if all 2,868 match and no extra file is present;
 otherwise it lists each missing, different or extra file. It needs only the Python
 standard library. For a copy holding one universe, check just that folder (this
 form reads universes/registry.py, so it needs the venv):

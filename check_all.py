@@ -207,16 +207,19 @@ LIVE_LIKE = (
 # gated; every v5/v6 figure was measured on the previous data delivery.
 NT_VERIFY_UNGATED = (
     ("midcap100", "v3", "holds different names from the open-valued baseline on 7 of 92 rebalances from 2024-10-23"),
-    # THE MARKET-CAP BUCKETS, 2026-10-16: mcapover10000 verifies on all four arms
-    # (92 of 92); these eight do not.
-    ("mcap1500to5000", "v1", "INCONCLUSIVE, measured 2026-10-16 on 477 names: ARM A, the reference copy, holds the engine's own symbol set on 66 of 92 rebalances, so nt_verify cannot judge the port; not investigated"),
-    ("mcap1500to5000", "v2", "INCONCLUSIVE, measured 2026-10-16 on 477 names: ARM A, the reference copy, holds the engine's own symbol set on 67 of 92 rebalances, so nt_verify cannot judge the port; not investigated"),
-    ("mcap1500to5000", "v3", "INCONCLUSIVE, measured 2026-10-16 on 477 names: ARM A, the reference copy, holds the engine's own symbol set on 65 of 92 rebalances, so nt_verify cannot judge the port; not investigated"),
-    ("mcap1500to5000", "v4", "INCONCLUSIVE, measured 2026-10-16 on 477 names: ARM A, the reference copy, holds the engine's own symbol set on 67 of 92 rebalances, so nt_verify cannot judge the port; not investigated"),
-    ("mcap5001to10000", "v1", "INCONCLUSIVE, measured 2026-10-16: ARM A, the reference copy, holds the engine's own symbol set on 86 of 92 rebalances, so nt_verify cannot judge the port; not investigated"),
-    ("mcap5001to10000", "v2", "INCONCLUSIVE, measured 2026-10-16: ARM A, the reference copy, holds the engine's own symbol set on 86 of 92 rebalances, so nt_verify cannot judge the port; not investigated"),
-    ("mcap5001to10000", "v3", "INCONCLUSIVE, measured 2026-10-16: ARM A, the reference copy, holds the engine's own symbol set on 83 of 92 rebalances, so nt_verify cannot judge the port; not investigated"),
-    ("mcap5001to10000", "v4", "INCONCLUSIVE, measured 2026-10-16: ARM A, the reference copy, holds the engine's own symbol set on 86 of 92 rebalances, so nt_verify cannot judge the port; not investigated"),
+    # THE MARKET-CAP BUCKETS: mcapover10000 verifies on all four arms (92 of 92).
+    # These eight stay ungated until nt_attribution and the port apply the
+    # engine's row rule (owner's decision, 2026-10-16). Measured 2026-10-17, after
+    # the rule went into the engine: mcap5001to10000 v2 and v4 now verify, the
+    # other six are INCONCLUSIVE.
+    ("mcap1500to5000", "v1", "INCONCLUSIVE, measured 2026-10-17: ARM A holds the engine's own symbol set on 73 of 92 rebalances; the engine trades a name only on sessions with a row and defers a due sale to the next row (results/tradability.py); nt_attribution and the port do not, so nt_verify cannot judge the port here"),
+    ("mcap1500to5000", "v2", "INCONCLUSIVE, measured 2026-10-17: ARM A holds the engine's own symbol set on 80 of 92 rebalances; the engine trades a name only on sessions with a row and defers a due sale to the next row (results/tradability.py); nt_attribution and the port do not, so nt_verify cannot judge the port here"),
+    ("mcap1500to5000", "v3", "INCONCLUSIVE, measured 2026-10-17: ARM A holds the engine's own symbol set on 70 of 92 rebalances; the engine trades a name only on sessions with a row and defers a due sale to the next row (results/tradability.py); nt_attribution and the port do not, so nt_verify cannot judge the port here"),
+    ("mcap1500to5000", "v4", "INCONCLUSIVE, measured 2026-10-17: ARM A holds the engine's own symbol set on 79 of 92 rebalances; the engine trades a name only on sessions with a row and defers a due sale to the next row (results/tradability.py); nt_attribution and the port do not, so nt_verify cannot judge the port here"),
+    ("mcap5001to10000", "v1", "INCONCLUSIVE, measured 2026-10-17: ARM A holds the engine's own symbol set on 89 of 92 rebalances; the engine trades a name only on sessions with a row and defers a due sale to the next row (results/tradability.py); nt_attribution and the port do not, so nt_verify cannot judge the port here"),
+    ("mcap5001to10000", "v2", "VERIFIED 92 of 92, measured 2026-10-17, not gated: the engine trades a name only on sessions with a row and defers a due sale to the next row (results/tradability.py); nt_attribution and the port do not, so the agreement holds only while no owed sale or refused buy reaches this arm's selection"),
+    ("mcap5001to10000", "v3", "INCONCLUSIVE, measured 2026-10-17: ARM A holds the engine's own symbol set on 84 of 92 rebalances; the engine trades a name only on sessions with a row and defers a due sale to the next row (results/tradability.py); nt_attribution and the port do not, so nt_verify cannot judge the port here"),
+    ("mcap5001to10000", "v4", "VERIFIED 92 of 92, measured 2026-10-17, not gated: the engine trades a name only on sessions with a row and defers a due sale to the next row (results/tradability.py); nt_attribution and the port do not, so the agreement holds only while no owed sale or refused buy reaches this arm's selection"),
 )
 
 DELEGATES = (
@@ -266,6 +269,12 @@ DELEGATES = (
     # cess add up to it, in the summary, the per-year table and the buy & hold.
     # A synthetic tax-on run. A second.
     ("tax_total_test.py",                     ["--quiet"], False, None),
+    # The row rule (results/tradability.py): rows dated after day i change no trade
+    # up to day i; an owed sale fills at the next row's open; a capped owed sale is
+    # cancelled when kept again; an ended file is held at its last close; no buy on
+    # a session with no row. A synthetic universe on calendar sessions; about 10
+    # seconds. The engine before 2026-10-16 fails five of its six cases.
+    ("tradability_causality_test.py",         ["--quiet"], False, None),
 
     # Cheap, and each already carries an exit status.
     ("results/leakage_check1_causality.py",   [], False, None),

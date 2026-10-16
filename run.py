@@ -915,6 +915,13 @@ def collect_run_folder(plan, args, t_start, dest, thin=None):
     import profiles as _pf
     import tax as _tax
     import time as _time
+    # HOLDINGS WHOSE PRICE FILE ENDS BEFORE THE WINDOW (results/stuck_positions.py):
+    # printed into run.log here and written to RUN.txt below. None in most runs,
+    # and then neither file gains a line.
+    import stuck_positions as _stuck
+    stuck = _stuck.run_lines(plan["universes"], plan["arms"])
+    for line in stuck:
+        print(line)
     dest.mkdir(parents=True, exist_ok=True)
     # started/finished are epoch seconds. check_all.py --since reads them to find
     # the runs that finished after --since and what they selected; see
@@ -928,7 +935,7 @@ def collect_run_folder(plan, args, t_start, dest, thin=None):
         f"profile   : {_pf.selected()}\n"
         f"tax       : {'on' if _tax.selected() else 'off'}\n"
         + _survivorship_section(plan) + _bias_section(plan) + _dd_section() + _capital_section()
-        + _impact_pcap_section() + _fixed_section() +
+        + _impact_pcap_section() + _fixed_section() + "".join(l + "\n" for l in stuck) +
         f"steps     : {len(plan['pipeline'])} pipeline, {len(plan['arm_runs'])} arm runs\n"
         f"artefacts : {copied} copied from their canonical locations\n"
         f"log       : run.log\n"
