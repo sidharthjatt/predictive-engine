@@ -924,6 +924,44 @@ No arm held ELCIDIN, but every strategy figure for the bucket moved: the score p
 
 As with PRIVISCL, the removal is the absence of the file from `data/raw/` and of its line from the manifest. No code excludes it. A restore that brings it back is an extra file at GATE 0.
 
+### Four price drops are not adjusted for a corporate action
+
+On 2026-10-16 every static and pit price file in the window was searched for a one-session close move above +100% or below -50%. Across the twelve universes, every hit is one of four events. There is no rise above 100%.
+
+| event | close move (adj_close) | NSE circular in `data/reference/nse_circulars_2019_2026.csv` |
+|---|---|---|
+| AGI (then HSIL) 2019-08-19 | -66.5% (-68.2%) | NSE/CML/41921, 2019-08-21, "Trade for Trade - HSIL Limited (HSIL)" |
+| THOMASCOOK 2019-12-05 | -53.2% (-55.6%) | NSE/CML/42847, 2019-12-06, "Trade for Trade - Thomas Cook (India) Limited (THOMASCOOK)" |
+| SUVEN 2020-01-21 | -93.0% (-93.0%) | NSE/CML/43306, 2020-01-23, "Trade for Trade - Suven Life Sciences Limited (SUVEN)" |
+| TATACHEM 2020-03-04 | -52.8% (-56.2%) | NSE/FAOP/43745, 2020-03-03, "Adjustment of Futures and Options contracts in the security TATA Chemicals Limited (TATACHEM)" |
+
+Each drop is read as a demerger, but no circular title says so, and the reading is not confirmed. The supplier's prices are adjusted for splits and bonuses but not for these events.
+
+No published cell held any of the four across its move. As of 2026-10-17 no holdings file on disk (2,331 files, every axis) holds one of them on the session before its move or on the day itself.
+
+Each is in its universe's equal-weight basket and lowers that basket's return on one day. Contribution to that day's basket return, in percentage points:
+
+| universe | price set | event | pp |
+|---|---|---|---|
+| midcap150 | pit | THOMASCOOK | -0.46 |
+| midcap150 | pit | TATACHEM | -0.46 |
+| midcap50 | pit | TATACHEM | -1.23 |
+| nifty200 | pit | TATACHEM | -0.31 |
+| smallcap250 | pit | SUVEN | -0.52 |
+| smallcap250 | static | TATACHEM | -0.33 |
+| smallcap250 | pit | TATACHEM | -0.29 |
+| nifty500 | pit | THOMASCOOK | -0.13 |
+| nifty500 | pit | SUVEN | -0.23 |
+| nifty500 | static | TATACHEM | -0.14 |
+| nifty500 | pit | TATACHEM | -0.13 |
+| microcap250 | static | THOMASCOOK | -0.36 |
+| mcap1500to5000 | static | AGI | -0.22 |
+| mcap1500to5000 | static | SUVEN | -0.30 |
+| mcap5001to10000 | static | THOMASCOOK | -0.38 |
+| mcapover10000 | static | TATACHEM | -0.13 |
+
+The owner kept the four stocks because they could be traded. Only the price adjustment is missing.
+
 ### The three market-cap buckets are static only, and their bias cannot be measured
 
 `mcap1500to5000`, `mcap5001to10000` and `mcapover10000` (2026-10-16) are the supplier's folders `Final_Universe_MarcketCap_1500_5000`, `_5001_10000` and `_GT_10000`. They hold 477, 216 and 538 names plus `NIFTY 500.csv`, the broad index, which is byte-identical to nifty500's `NIFTY500.csv`. The bucket bounds carry no unit until the owner confirms it with the supplier. Each row's `bias_note` (`universes/registry.py`) is printed in the plan, RUN.txt, `v2FINAL_params`, the dashboard and the survivorship sheet:
