@@ -209,17 +209,17 @@ NT_VERIFY_UNGATED = (
     ("midcap100", "v3", "holds different names from the open-valued baseline on 7 of 92 rebalances from 2024-10-23"),
     # THE MARKET-CAP BUCKETS: mcapover10000 verifies on all four arms (92 of 92).
     # These eight stay ungated until nt_attribution and the port apply the
-    # engine's row rule (owner's decision, 2026-10-16). Measured 2026-10-17, after
-    # the rule went into the engine: mcap5001to10000 v2 and v4 now verify, the
-    # other six are INCONCLUSIVE.
+    # engine's row rule, and are then gated together (owner's decision,
+    # 2026-10-17). Measured 2026-10-17, after the rule went into the engine:
+    # mcap5001to10000 v2 and v4 verify, the other six are INCONCLUSIVE.
     ("mcap1500to5000", "v1", "INCONCLUSIVE, measured 2026-10-17: ARM A holds the engine's own symbol set on 73 of 92 rebalances; the engine trades a name only on sessions with a row and defers a due sale to the next row (results/tradability.py); nt_attribution and the port do not, so nt_verify cannot judge the port here"),
     ("mcap1500to5000", "v2", "INCONCLUSIVE, measured 2026-10-17: ARM A holds the engine's own symbol set on 80 of 92 rebalances; the engine trades a name only on sessions with a row and defers a due sale to the next row (results/tradability.py); nt_attribution and the port do not, so nt_verify cannot judge the port here"),
     ("mcap1500to5000", "v3", "INCONCLUSIVE, measured 2026-10-17: ARM A holds the engine's own symbol set on 70 of 92 rebalances; the engine trades a name only on sessions with a row and defers a due sale to the next row (results/tradability.py); nt_attribution and the port do not, so nt_verify cannot judge the port here"),
     ("mcap1500to5000", "v4", "INCONCLUSIVE, measured 2026-10-17: ARM A holds the engine's own symbol set on 79 of 92 rebalances; the engine trades a name only on sessions with a row and defers a due sale to the next row (results/tradability.py); nt_attribution and the port do not, so nt_verify cannot judge the port here"),
     ("mcap5001to10000", "v1", "INCONCLUSIVE, measured 2026-10-17: ARM A holds the engine's own symbol set on 89 of 92 rebalances; the engine trades a name only on sessions with a row and defers a due sale to the next row (results/tradability.py); nt_attribution and the port do not, so nt_verify cannot judge the port here"),
-    ("mcap5001to10000", "v2", "VERIFIED 92 of 92, measured 2026-10-17, not gated: the engine trades a name only on sessions with a row and defers a due sale to the next row (results/tradability.py); nt_attribution and the port do not, so the agreement holds only while no owed sale or refused buy reaches this arm's selection"),
+    ("mcap5001to10000", "v2", "VERIFIED 92 of 92, measured 2026-10-17, not gated: it verifies only because no owed sale or refused buy reaches this arm's selection; nt_attribution and the port do not apply the engine's row rule (results/tradability.py), and all eight bucket cells are gated together once they do"),
     ("mcap5001to10000", "v3", "INCONCLUSIVE, measured 2026-10-17: ARM A holds the engine's own symbol set on 84 of 92 rebalances; the engine trades a name only on sessions with a row and defers a due sale to the next row (results/tradability.py); nt_attribution and the port do not, so nt_verify cannot judge the port here"),
-    ("mcap5001to10000", "v4", "VERIFIED 92 of 92, measured 2026-10-17, not gated: the engine trades a name only on sessions with a row and defers a due sale to the next row (results/tradability.py); nt_attribution and the port do not, so the agreement holds only while no owed sale or refused buy reaches this arm's selection"),
+    ("mcap5001to10000", "v4", "VERIFIED 92 of 92, measured 2026-10-17, not gated: it verifies only because no owed sale or refused buy reaches this arm's selection; nt_attribution and the port do not apply the engine's row rule (results/tradability.py), and all eight bucket cells are gated together once they do"),
 )
 
 DELEGATES = (
@@ -454,8 +454,12 @@ def _needs(label):
 # is not this checker's business to fix; what IS its business is that the number
 # does not GROW unnoticed. The check below ignores the script's exit code and
 # fails only when the count rises above this baseline. A fall is not reported
-# and does not lower the baseline; known-defect markers do not count either.
-NAMING_UNDECLARED_BASELINE = 111
+# and does not lower the baseline on its own; known-defect markers do not count.
+#
+# 100 SINCE 2026-10-17, the count on e8aade2 (54 sites). THE BASELINE MAY ONLY GO
+# DOWN: lower it by hand when writes are declared, and never raise it to make
+# room for a new undeclared write. See KNOWN_ISSUES.md.
+NAMING_UNDECLARED_BASELINE = 100
 
 # MODULES KNOWN NOT TO IMPORT, EACH WITH ITS REASON. An unlisted failure is a
 # gate-1 failure; so is a LISTED module that starts importing, because an

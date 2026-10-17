@@ -856,6 +856,10 @@ this check.
 
 The README "How to run" commands (`check_data.py`, venv build, `./venv/bin/python run.py ...`) were run in a fresh copy with a fresh venv on 2026-09-29, and five combinations reproduced byte for byte. `check_all.py` GATE 1 imports every module under the interpreter it runs in, so a missing package fails it by name. Nothing runs the commands the documentation gives. Module docstrings still say `python3 <script>` in about 30 places (e.g. `validate_sizing.py:71`, `gate_compare.py:29`). On the owner's machine `python3` is 3.11 without lightgbm, and every child step inherits the launching interpreter (`sys.executable`). Only `check_data.py` works under plain `python3`, because it uses the standard library alone. Use `./venv/bin/python` for everything else.
 
+### naming_declare_check.py finds 100 undeclared write calls, and check_all reads the count, not the exit code
+
+`naming_declare_check.py` finds 100 write calls across 54 sites with no `# naming:` directive. Its own gate 1 (DECLARE) exits 1 for them. check_all runs it as a GATE 5 delegate, ignores that exit code, and fails only when the count rises above `NAMING_UNDECLARED_BASELINE` in `check_all.py`. The baseline is 100 as of this commit (111 before); it may only go down.
+
 ### Run the gates after `git add`, and quote that run
 
 naming_declare_check.py and check_all.py scan the working tree, untracked files
