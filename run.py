@@ -20,7 +20,7 @@ TWO KINDS OF STEP, AND THEY SELECT DIFFERENTLY
     exists to provide.
 
     PIPELINE STEPS are the scripts run_all.PIPELINE_ORDER lists. The per-universe
-    ones (build_scores, engine_v2_final, make_audit, make_chart, bh_lots_after_tax,
+    ones (build_scores, engine_v2_final, audit_step, make_chart, bh_lots_after_tax,
     tax_report) each take a Universe, so a NEW universe is one row in
     universes/registry.py and gets every step and every arm with no code change.
 
@@ -938,7 +938,7 @@ def main(argv=None):
     # IT ASKS A QUESTION check_pipeline_order CANNOT. That checker reasons per
     # SCRIPT and keeps each script's earliest position, so a merged step that runs
     # at several positions collapses to one and its per-invocation edges vanish --
-    # make_chart.py to 10d, make_audit.py to 10c, 10c before 10d, no inversion.
+    # make_chart.py to 10d, audit_step.py to 10c, 10c before 10d, no inversion.
     # This walks the RESOLVED PLAN, one entry per invocation, and asks whether the
     # writer of each DECLARED input comes earlier in that same plan.
     #

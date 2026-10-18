@@ -147,7 +147,7 @@ AXIS_SUFFIX_ASSIGN = re.compile(
 # results/make_daily_log.py:218-220, inside `load(M, tag)`, where BOTH the metrics
 # directory and the universe tag are FUNCTION PARAMETERS -- the directory is not
 # even known well enough to print, which is why it shows as `?`. The reads are
-# genuine: the trail files are written by make_audit.py.
+# genuine: the trail files are written by audit_step.py.
 #
 # RESOLVING THEM MEANS BINDING A PARAMETER TO A DIRECTORY, WHICH IS THE SAME
 # CAPABILITY AS BINDING A LOOP VARIABLE -- and that capability was DECLINED on
@@ -556,7 +556,7 @@ def analyse(pipeline, results_root=None, resolver=None, helpers=None,
     # ------------------------------------------------------------------
     # KEEPING THE EARLIEST POSITION PER SCRIPT, plus unioning each script's reads
     # and writes across its rows below, means a merged step COLLAPSES TO ONE
-    # POSITION. make_chart.py becomes 10d and make_audit.py becomes 10c; 10c
+    # POSITION. make_chart.py becomes 10d and audit_step.py becomes 10c; 10c
     # precedes 10d, so no inversion exists here to report -- even when the nifty100
     # invocation at 10h depends on a writer at 10g that midcap150's invocation at 10d was
     # made to demand. That happened: on 2026-09-17 a cold `--universe all` died at
@@ -586,7 +586,7 @@ def analyse(pipeline, results_root=None, resolver=None, helpers=None,
     W, Rd, U = {}, {}, {}
     missing = []
     # ONE ROW AT A TIME, AND THE RESULTS UNIONED PER SCRIPT. A merged step appears
-    # at several positions with a DIFFERENT universe each time -- make_audit.py is
+    # at several positions with a DIFFERENT universe each time -- audit_step.py is
     # STEP 10c for midcap150 and STEP 10g for nifty100 -- and it genuinely writes both
     # universes' files across the run. Scanning once would resolve only one of
     # them; scanning per row and unioning gives the script the full write set it
@@ -659,7 +659,7 @@ def analyse(pipeline, results_root=None, resolver=None, helpers=None,
                                    [f"{step_of[s]} {s}" for s in later]))
         # ONCE PER SCRIPT, NOT ONCE PER ROW. U is unioned across a merged step's
         # rows, so iterating it inside the per-row loop reported every unresolved
-        # key as many times as the script appears -- make_audit.py's two entries
+        # key as many times as the script appears -- audit_step.py's two entries
         # printed four times and the count read 8 where the real figure is 2.
         # An inflated count in a checker is the same defect class as a deflated
         # one: the number stops meaning what it says.
@@ -794,7 +794,7 @@ def enforce(pipeline, covered, results_root=None, verbose=False, resolver=None,
 #     make_chart.py is STEP 10d for midcap150 and STEP 10h for nifty100 -- and
 #     check_pipeline_order keeps the EARLIEST position per script
 #     (check_pipeline_order.py:430) and unions each script's reads and writes across
-#     its rows (468-469). So make_chart.py collapses to 10d, make_audit.py to 10c,
+#     its rows (468-469). So make_chart.py collapses to 10d, audit_step.py to 10c,
 #     10c precedes 10d, and no inversion exists to report. Its "0 inversions" is
 #     correct for what it measures and silent about this.
 #

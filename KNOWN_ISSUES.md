@@ -1102,7 +1102,9 @@ The old files last exist at commit `aebf1da`. Each function moved unchanged; a n
 | `check_plan_order.py` (standalone), `check_plan_order.analyse()`, `.enforce()` | `check_pipeline_order.py --plan`, `check_pipeline_order.plan_analyse()`, `.plan_enforce()` |
 | `results/stuck_positions.py`, `run_lines()`, `cell_lines()`, `last_rows()` | `results/tradability.py`, the same names |
 | `results/arm_sources.py`, `equity_path_and_series()`, `trades_path()`, `describe()`, `deployed_pct()`, `available()` | `results/make_chart.py`, the same names; `make_combined_universes.py` calls them as `make_chart.<name>` |
-<!-- merge-map-end -->
+| `results/make_audit.py <universe>`, the pipeline step `make_audit.py` | `results/audit_step.py <universe>`; the twelve PIPELINE_ORDER rows name `audit_step.py` with the same labels |
+
+`results/build_scores.py` was not merged into `results/build_scores_step.py`: `experiments/DRAWDOWN_STOP_PREREG.txt` names build_scores_step.py as the source of the production seeds, and a pre-registered file is not edited.
 
 ### Ten tests became cases of engine_tests.py on 2026-10-18
 

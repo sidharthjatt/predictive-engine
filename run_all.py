@@ -28,12 +28,12 @@ ORDER:
   === MIDCAP150 ===
   10a. build_scores (midcap150)    -> MidCap150 scores (SLOW)
   10b. engine_v2_final (midcap150) -> MidCap150 v2 FINAL
-  10c. make_audit (midcap150)      -> MidCap150 daily audit CSVs
+  10c. audit_step (midcap150)      -> MidCap150 daily audit CSVs
   10d. make_chart (midcap150)      -> MidCap150 chart + cap-weighted index benchmark
   === NIFTY 100 ===
   10e. build_scores (nifty100)     -> Nifty 100 scores (SLOW)
   10f. engine_v2_final (nifty100)  -> Nifty 100 v2 FINAL
-  10g. make_audit (nifty100)       -> Nifty 100 daily audit CSVs
+  10g. audit_step (nifty100)       -> Nifty 100 daily audit CSVs
   10h. make_chart (nifty100)       -> Nifty 100 chart + cap-weighted index benchmark
   === ACROSS UNIVERSES ===
   12b. make_combined_universes -> the published comparison figure
@@ -115,9 +115,9 @@ STEP_DIRS = (ROOT / "results", ROOT / "nautilus", ROOT)
 
 # A step whose body lives in a shared helper must be scanned WITH that helper, or
 # the static ordering check loses the edges the helper writes. results/audit_step.py
-# holds the one audit implementation the two per-universe entry points call.
+# was such a helper until 2026-10-18; it is now the step itself (make_audit.py was
+# merged into it), so it needs no entry here.
 STEP_HELPERS = {
-    "make_audit.py":         (R / "audit_step.py",),
     # ONE ENTRY FOR BOTH ROWS. STEP_HELPERS is keyed by script, and after the
     # step 3 merge the two build_scores rows name the same script, so they share
     # this entry rather than needing one each. STEP_HELPERS shrinks with every
@@ -293,11 +293,11 @@ PIPELINE_ROW_COUNT = 76
 PIPELINE_ORDER = [
     ("STEP 10a", "build_scores.py",            "midcap150"),
     ("STEP 10b", "engine_v2_final.py",         "midcap150"),
-    ("STEP 10c", "make_audit.py",              "midcap150"),
+    ("STEP 10c", "audit_step.py",              "midcap150"),
     ("STEP 10d", "make_chart.py",              "midcap150"),
     ("STEP 10e", "build_scores.py",            "nifty100"),
     ("STEP 10f", "engine_v2_final.py",         "nifty100"),
-    ("STEP 10g", "make_audit.py",              "nifty100"),
+    ("STEP 10g", "audit_step.py",              "nifty100"),
     ("STEP 10h", "make_chart.py",              "nifty100"),
     # nifty50, ADDED 2026-09-18. NEW LABELS, NOT 10i-10l. 10i meant
     # make_combined_universes.py until it moved to STEP 12b, and reusing any of
@@ -306,20 +306,20 @@ PIPELINE_ORDER = [
     # it left STEPS 0-9 and 11-14 as gaps rather than renumbering.
     ("STEP 10m", "build_scores.py",            "nifty50"),
     ("STEP 10n", "engine_v2_final.py",         "nifty50"),
-    ("STEP 10o", "make_audit.py",              "nifty50"),
+    ("STEP 10o", "audit_step.py",              "nifty50"),
     ("STEP 10p", "make_chart.py",              "nifty50"),
     # midcap50, ADDED 2026-09-18. NEW LABELS AGAIN, 10q-10t, and not 10i-10l
     # for the reason the nifty50 block states: a reused label makes every log
     # written before the reuse ambiguous.
     ("STEP 10q", "build_scores.py",            "midcap50"),
     ("STEP 10r", "engine_v2_final.py",         "midcap50"),
-    ("STEP 10s", "make_audit.py",              "midcap50"),
+    ("STEP 10s", "audit_step.py",              "midcap50"),
     ("STEP 10t", "make_chart.py",              "midcap50"),
     # midcap100, ADDED 2026-09-19. NEW LABELS AGAIN, 10u-10x, same rule: a
     # reused label makes every log written before the reuse ambiguous.
     ("STEP 10u", "build_scores.py",            "midcap100"),
     ("STEP 10v", "engine_v2_final.py",         "midcap100"),
-    ("STEP 10w", "make_audit.py",              "midcap100"),
+    ("STEP 10w", "audit_step.py",              "midcap100"),
     ("STEP 10x", "make_chart.py",              "midcap100"),
     # nifty200, ADDED 2026-09-19, AND THE 10-SERIES IS NOW EXHAUSTED.
     #
@@ -338,7 +338,7 @@ PIPELINE_ORDER = [
     # that keeps this readable, and smallcap250 is next.
     ("STEP 10y",  "build_scores.py",           "nifty200"),
     ("STEP 10z",  "engine_v2_final.py",        "nifty200"),
-    ("STEP 10za", "make_audit.py",             "nifty200"),
+    ("STEP 10za", "audit_step.py",             "nifty200"),
     ("STEP 10zb", "make_chart.py",             "nifty200"),
     # ---------------------------------------------------------------------
     # FROM HERE THE LABELS ARE NUMERIC: STEP 10.01, 10.02, ... Adopted
@@ -361,31 +361,31 @@ PIPELINE_ORDER = [
     # smallcap250, ADDED 2026-09-19 -- THE FIRST UNIVERSE ON THE NEW SCHEME.
     ("STEP 10.01", "build_scores.py",           "smallcap250"),
     ("STEP 10.02", "engine_v2_final.py",        "smallcap250"),
-    ("STEP 10.03", "make_audit.py",             "smallcap250"),
+    ("STEP 10.03", "audit_step.py",             "smallcap250"),
     ("STEP 10.04", "make_chart.py",             "smallcap250"),
     # nifty500, ADDED 2026-09-19. THE EIGHTH AND LAST SUPPLIER FOLDER.
     ("STEP 10.05", "build_scores.py",           "nifty500"),
     ("STEP 10.06", "engine_v2_final.py",        "nifty500"),
-    ("STEP 10.07", "make_audit.py",             "nifty500"),
+    ("STEP 10.07", "audit_step.py",             "nifty500"),
     ("STEP 10.08", "make_chart.py",             "nifty500"),
     # microcap250, ADDED 2026-10-10 with the supplier's ninth folder.
     ("STEP 10.09", "build_scores.py",           "microcap250"),
     ("STEP 10.10", "engine_v2_final.py",        "microcap250"),
-    ("STEP 10.11", "make_audit.py",             "microcap250"),
+    ("STEP 10.11", "audit_step.py",             "microcap250"),
     ("STEP 10.12", "make_chart.py",             "microcap250"),
     # THE THREE MARKET-CAP BUCKETS, ADDED 2026-10-16. Static only: the supplier
     # delivered no membership files for them (universes/registry.py).
     ("STEP 10.13", "build_scores.py",           "mcap1500to5000"),
     ("STEP 10.14", "engine_v2_final.py",        "mcap1500to5000"),
-    ("STEP 10.15", "make_audit.py",             "mcap1500to5000"),
+    ("STEP 10.15", "audit_step.py",             "mcap1500to5000"),
     ("STEP 10.16", "make_chart.py",             "mcap1500to5000"),
     ("STEP 10.17", "build_scores.py",           "mcap5001to10000"),
     ("STEP 10.18", "engine_v2_final.py",        "mcap5001to10000"),
-    ("STEP 10.19", "make_audit.py",             "mcap5001to10000"),
+    ("STEP 10.19", "audit_step.py",             "mcap5001to10000"),
     ("STEP 10.20", "make_chart.py",             "mcap5001to10000"),
     ("STEP 10.21", "build_scores.py",           "mcapover10000"),
     ("STEP 10.22", "engine_v2_final.py",        "mcapover10000"),
-    ("STEP 10.23", "make_audit.py",             "mcapover10000"),
+    ("STEP 10.23", "audit_step.py",             "mcapover10000"),
     ("STEP 10.24", "make_chart.py",             "mcapover10000"),
     # MOVED FROM STEP 10i, and the move is load-bearing rather than cosmetic.
     # The combined chart is generic over the selection, so it needed per-trade
@@ -516,7 +516,7 @@ PIPELINE_ORDER = [
 # bearing for anyone deciding whether these could be computed -- it is why they
 # were not -- so it is corrected rather than left.
 def _step_label(script, tag):
-    """The PIPELINE_ORDER label for one invocation: "STEP 10c make_audit.py".
+    """The PIPELINE_ORDER label for one invocation: "STEP 10c audit_step.py".
 
     `tag` is the universe the producing invocation runs for, or None for a
     whole-run step. Raises rather than defaulting, because a producer that is not
@@ -593,7 +593,7 @@ def _required_inputs():
         # because an earlier default run had left the file on disk.
         out["make_chart.py"].append(
             (paths.tagged_artefact(u, "daily_trades"),
-             _step_label("make_audit.py", u.tag), f"u:{u.tag},v2", RUN_AXES))
+             _step_label("audit_step.py", u.tag), f"u:{u.tag},v2", RUN_AXES))
         out["make_chart.py"].append(
             (paths.tagged_artefact(u, "daily_trades_v1"),
              _step_label("engine_v2_final.py", u.tag), f"u:{u.tag},v1", RUN_AXES))
@@ -616,7 +616,7 @@ def _required_inputs():
         # selected instead of being demanded regardless.
         out["make_combined_universes.py"].append(
             (paths.tagged_artefact(u, "daily_trades"),
-             _step_label("make_audit.py", u.tag), f"u:{u.tag},v2", RUN_AXES))
+             _step_label("audit_step.py", u.tag), f"u:{u.tag},v2", RUN_AXES))
         # UNIVERSE-TAGGED. The port loads the parquet for each SELECTED universe,
         # and a run that selected one universe has one of these.
         out["nt_execute.py"].append(

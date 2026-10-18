@@ -103,7 +103,7 @@ def scan():
             if not _takes_universe(src, p):
                 continue
             # THE __main__ GUARD'S OWN SUBSCRIPT IS NOT A DEFECT. It supplies the
-            # argument for a direct `python results/make_audit.py midcap150`, which
+            # argument for a direct `python results/audit_step.py midcap150`, which
             # is how these are run by hand, and it survives the collapse as
             # REGISTRY[sys.argv[1]] or equivalent. Only main() itself is scanned.
             tree = ast.parse(src, filename=str(p))
