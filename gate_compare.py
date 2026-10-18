@@ -73,17 +73,48 @@ PROVENANCE_FIELDS = (
     ("git_state", "note"),
 )
 
+# APPROVED BY THE OWNER ON 2026-10-18, FOR EXACTLY THESE FILES AND FIELDS. A rerun on
+# another day writes another run_date, and validate_topn and shuffle_test stamp the
+# commit and tree state into their own `git` block. Each entry is scoped to the file
+# names it names; a block of None is a top-level field. Nothing else is masked.
+#   (file-name prefixes, block, field)
+APPROVED_FIELDS = (
+    (("v34_params", "v2FINAL_params"), None, "run_date"),
+    (("topn_params.json", "shuffle_params.json"), "git", "commit"),
+    (("topn_params.json", "shuffle_params.json"), "git", "working_tree_dirty"),
+    (("topn_params.json", "shuffle_params.json"), "git", "modified_or_untracked_files"),
+    (("topn_params.json", "shuffle_params.json"), "git", "note"),
+)
+
 
 _ABSENT = object()
 
 
-def _strip_provenance(doc):
-    """`doc` without the named provenance fields. Returns (doc, [fields removed])."""
+def masked_fields(name):
+    """[(block or None, field)] masked for a JSON file of this name."""
+    return list(PROVENANCE_FIELDS) + [(b, f) for pre, b, f in APPROVED_FIELDS
+                                      if name.endswith(".json") and name.startswith(pre)]
+
+
+def _get(doc, block, field):
+    if block is None:
+        return doc.get(field, _ABSENT)
+    blk = doc.get(block)
+    return blk.get(field, _ABSENT) if isinstance(blk, dict) else _ABSENT
+
+
+def _strip_provenance(doc, name=""):
+    """`doc` without the masked fields for its file name. Returns (doc, [fields removed])."""
     if not isinstance(doc, dict):
         return doc, []
     out = dict(doc)
     removed = []
-    for block, field in PROVENANCE_FIELDS:
+    for block, field in masked_fields(name):
+        if block is None:
+            if field in out:
+                out.pop(field)
+                removed.append(field)
+            continue
         blk = out.get(block)
         if isinstance(blk, dict) and field in blk:
             blk = dict(blk)
@@ -340,8 +371,8 @@ def compare(bp, lp):
         # Calling it EXACT would hide that the file moved at all, which is the
         # other half of the same defect: an accepted difference has to stay
         # visible in the report or the next reader cannot tell it was accepted.
-        sa, ra = _strip_provenance(a)
-        sb, rb = _strip_provenance(b)
+        sa, ra = _strip_provenance(a, bp.name)
+        sb, rb = _strip_provenance(b, bp.name)
         if (ra or rb) and sa == sb:
             # NAME THE FIELDS THAT MOVED, NOT THE FIELDS THAT ARE EXCLUDED. The
             # first version printed all four whenever all four were present, so a
@@ -349,9 +380,8 @@ def compare(bp, lp):
             # the tree state and the note had moved too. An accepted exception that
             # overstates itself is the same defect as one that hides: the reader
             # cannot tell what was actually forgiven.
-            moved = [f"{blk}.{f}" for blk, f in PROVENANCE_FIELDS
-                     if isinstance(a.get(blk), dict) and isinstance(b.get(blk), dict)
-                     and a[blk].get(f, _ABSENT) != b[blk].get(f, _ABSENT)]
+            moved = [f if blk is None else f"{blk}.{f}" for blk, f in masked_fields(bp.name)
+                     if _get(a, blk, f) != _get(b, blk, f)]
             return "PROVENANCE", (", ".join(moved) + " only") if moved else "identical"
         return "DIFFERS", f"keys {sorted(k for k in set(a) | set(b) if a.get(k) != b.get(k))}"
     if bp.suffix != ".csv":

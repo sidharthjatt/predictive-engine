@@ -68,7 +68,7 @@ layout exactly as it is:
 
 ```
 run.py  run_all.py  paths.py  config.py  check_all.py  check_data.py
-cadence.py  profiles.py  module_state.py  check_pipeline_order.py  (+ root tools)
+cadence.py  profiles.py  check_pipeline_order.py  (+ root tools)
 results/     the engine, the steps, and the shared libraries
 nautilus/    the execution port (STEP 16, STEP 17)
 universes/   registry.py — the single definition of what a universe is
@@ -94,12 +94,12 @@ indicates which files a run actually touches. Measured 2026-09-13 by resolving
 imports them. Changing one changes a run.
 
     steps    build_scores          build_scores_step      engine_v2_final
-             make_audit            audit_step             make_chart
+             audit_step            make_chart
              make_combined_universes                      make_daily_log
              (one of each since the collapse; each takes a Universe. The list
              was measured 2026-09-13 with the per-universe pairs, since merged.)
     libs     engine_core  test_exposure  v34_common  features_v2
-             arm_sources  survivorship   tradability  qbeast_in_charges
+             survivorship tradability  qbeast_in_charges
 
 **MEASUREMENT TOOLS AND PROBES (17).** **The pipeline never runs any of these.**
 Every one is cited as evidence in a tracked document, so none is dead — but none

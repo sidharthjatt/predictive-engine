@@ -72,7 +72,7 @@ def yearly_sum_check(eq, base):
 
     Each float converts to Decimal exactly, so the sum telescopes exactly. It
     checks the yearly table is complete and anchored at the base; it cannot catch
-    an engine error, which fixed_capital_test.py's trade-log reconciliation does."""
+    an engine error, which `engine_tests.py fixed_capital`'s trade-log reconciliation does."""
     with localcontext() as ctx:
         ctx.prec = 400          # wide enough that no float's exact value is rounded
         vals = [Decimal(float(base))]
