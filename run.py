@@ -1053,11 +1053,11 @@ def collect_run_folder(plan, args, t_start, dest, thin=None):
     import profiles as _pf
     import tax as _tax
     import time as _time
-    # HOLDINGS WHOSE PRICE FILE ENDS BEFORE THE WINDOW (results/stuck_positions.py):
+    # HOLDINGS WHOSE PRICE FILE ENDS BEFORE THE WINDOW (results/tradability.py, run_lines):
     # printed into run.log here and written to RUN.txt below. None in most runs,
     # and then neither file gains a line.
-    import stuck_positions as _stuck
-    stuck = _stuck.run_lines(plan["universes"], plan["arms"])
+    import tradability
+    stuck = tradability.run_lines(plan["universes"], plan["arms"])
     for line in stuck:
         print(line)
     dest.mkdir(parents=True, exist_ok=True)

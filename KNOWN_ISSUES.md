@@ -1100,6 +1100,7 @@ The old files last exist at commit `aebf1da`. Each function moved unchanged; a n
 | `environment_check.py`, `environment_check.require(script, repo)` | `python_floor.py`, `python_floor.require_drive(script, repo)` |
 | `module_state.py`, `module_state.pinned()` and its helpers | `run.py`, `pinned()`, `snapshot()`, `restore()`, `WATCHED` |
 | `check_plan_order.py` (standalone), `check_plan_order.analyse()`, `.enforce()` | `check_pipeline_order.py --plan`, `check_pipeline_order.plan_analyse()`, `.plan_enforce()` |
+| `results/stuck_positions.py`, `run_lines()`, `cell_lines()`, `last_rows()` | `results/tradability.py`, the same names |
 <!-- merge-map-end -->
 
 ### Ten tests became cases of engine_tests.py on 2026-10-18
