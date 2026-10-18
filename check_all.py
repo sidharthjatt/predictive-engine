@@ -277,6 +277,11 @@ DELEGATES = (
     # a session with no row. A synthetic universe on calendar sessions; about 10
     # seconds. The engine before 2026-10-16 fails five of its six cases.
     ("engine_tests.py", ["tradability_causality", "--quiet"], False, None),
+    # results/survivorship.py on synthetic membership files: static mode is a
+    # no-op, the validation gate rejects each failure mode, and the point-in-time
+    # lookup holds at its boundaries. 55 checks, about a second. Writes only into
+    # a tempfile.mkdtemp folder, which it does not delete. Wired 2026-10-18.
+    ("results/test_survivorship.py",          [], False, None),
 
     # Cheap, and each already carries an exit status.
     ("results/leakage_check1_causality.py",   [], False, None),
