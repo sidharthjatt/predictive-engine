@@ -350,7 +350,7 @@ PIPELINE_ORDER = [
     # save two awkward labels would create a THIRD naming world.
     #
     # UNIQUENESS IS THE ONLY MACHINE CONTRACT. Order comes from LIST POSITION
-    # -- check_plan_order.py:70 builds its pos map from enumerate(pipeline) --
+    # -- check_pipeline_order.plan_analyse() builds its pos map from enumerate(pipeline) --
     # and nothing parses or sorts a label. _step_label() matches rows by
     # (script, tag) and treats the string as opaque. The label must be unique
     # because it is a dict key there and part of check_all's GATE 2/GATE 4
@@ -424,12 +424,12 @@ PIPELINE_ORDER = [
     #
     # THE ROWS ARE UNCONDITIONAL AND THE STEP RETURNS EARLY AT tax=off. The
     # plan is therefore IDENTICAL under --tax on and --tax off, which is what
-    # lets check_plan_order reason about one order instead of two. See
+    # lets the plan check reason about one order instead of two. See
     # results/tax_report.main().
     # bh_lots_after_tax, ADDED 2026-09-19, AND IT IS A ROW RATHER THAN AN IMPORT
     # ON PURPOSE. STEP 18 composes TAX_TURNOVER from its own FY_EQUITY and this
     # step's BH_LOTS file, so the dependency is REAL; hiding it inside a
-    # tax_report import would make it invisible to check_plan_order, which walks
+    # tax_report import would make it invisible to the plan check, which walks
     # the resolved plan and asks whether each declared input's writer comes
     # earlier in that same plan. It returns early at tax=off, like STEP 18.
     #
@@ -607,7 +607,7 @@ def _required_inputs():
         # trade log, which that plan never writes, while the step itself reads only
         # selected_tags() (make_combined_universes.py:184). Latent since step 6 and
         # invisible because midcap150's file was always on disk; found by
-        # check_plan_order.py on its first run.
+        # the plan check (check_pipeline_order.py --plan) on its first run.
         #
         # STEP 12b IS STILL A WHOLE-RUN STEP. Its invocation carries tag=None, so
         # entry_applies() resolves `u:` against the run's selection -- the correct
@@ -672,7 +672,7 @@ def entry_applies(e, tag, usel, asel, label="", script=""):
     """Is this REQUIRED_INPUTS entry required by THIS INVOCATION?
 
     ONE DEFINITION, CALLED FROM TWO PLACES: check_inputs() below, which asks it at
-    run time about files on disk, and check_plan_order.py, which asks it at plan
+    run time about files on disk, and check_pipeline_order.plan_analyse(), which asks it at plan
     time about ordering. A second copy of this predicate is exactly the shape this
     repository keeps finding -- the two would answer differently the day one is
     edited, and the ordering check would then be verifying a rule the runtime does
@@ -729,7 +729,7 @@ def entry_applies(e, tag, usel, asel, label="", script=""):
     # two sit on the same tuple, so spending that word here would give it two
     # meanings in one place.
     # IMPORTED LOCALLY, as cadence and profiles are in this file. run_all is
-    # imported by check_plan_order via runpy at module scope and must not pull an
+    # imported by the plan check via runpy at module scope and must not pull an
     # axis module in at import time.
     import tax as _tax
 
@@ -911,7 +911,7 @@ def check_inputs(label, script, tag):
 
     def _wanted(e):
         """This invocation's view of one entry. See entry_applies() above -- ONE
-        definition, shared with check_plan_order.py."""
+        definition, shared with check_pipeline_order.plan_analyse()."""
         return entry_applies(e, tag, _usel, _sel, label, Path(script).name)
 
     _found = []

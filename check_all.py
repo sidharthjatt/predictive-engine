@@ -225,7 +225,7 @@ DELEGATES = (
     # The four that were already here.
     ("registry_coverage_check.py",            [], False, None),
     ("check_pipeline_order.py",               [], False, None),
-    ("check_plan_order.py",                   [], False, None),
+    ("check_pipeline_order.py",               ["--plan"], False, None),
     ("naming_declare_check.py",               [], False, None),
     # The gate run_all.py applies before a run: declared defects and declarations
     # that do not hold fail it. Judged by its exit code, so check_all fails

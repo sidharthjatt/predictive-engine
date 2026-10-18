@@ -949,9 +949,9 @@ def main(argv=None):
     # IT RUNS FOR --list AND --dry-run TOO, deliberately: the question is about the
     # plan, and a plan you can print is a plan you can check.
     if plan["pipeline"] and plan.get("_run_all"):
-        import check_plan_order
+        import check_pipeline_order
         _ra = plan["_run_all"]
-        check_plan_order.enforce(
+        check_pipeline_order.plan_enforce(
             plan["pipeline"], _ra["REQUIRED_INPUTS"],
             {u.tag for u in plan["universes"]}, {a.name for a in plan["arms"]},
             _ra["entry_applies"])
