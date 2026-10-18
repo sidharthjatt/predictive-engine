@@ -93,9 +93,8 @@ WHAT THIS DOES ABOUT IT
                          (registry.gated()) since 2026-09-25.
 
 WHICH GATE NEVER ASSERTS, AND WHY
-    GATE 5, even with --since and --slow. Three of its delegates can never
-    assert inside this runner: gate_compare.py needs an artefact pair,
-    topn_centralise_check.py has no stored baseline, and
+    GATE 5, even with --since and --slow. Two of its delegates can never
+    assert inside this runner: gate_compare.py needs an artefact pair, and
     leakage_check4_corpactions.py has no pass condition. Any skipped delegate
     makes GATE 5 a skip, so it is always one. Its delegates still run and a
     failing one still fails the run.
@@ -452,7 +451,7 @@ def _needs(label):
 # fails only when the count rises above this baseline. A fall is not reported
 # and does not lower the baseline on its own; known-defect markers do not count.
 #
-# 100 SINCE 2026-10-17, the count on e8aade2 (54 sites). THE BASELINE MAY ONLY GO
+# 81 SINCE 2026-10-18, the count on 4a4b427 (40 sites). THE BASELINE MAY ONLY GO
 # DOWN: lower it by hand when writes are declared, and never raise it to make
 # room for a new undeclared write. See KNOWN_ISSUES.md.
 NAMING_UNDECLARED_BASELINE = 81

@@ -131,7 +131,7 @@ not price and the look-ahead note into its run.log, RUN.txt and params JSON.
   first pit rebalance. A pit figure is to be reported beside static over the same
   window.
 - Run on all nine universes, four settings each, on 2026-10-10
-  (`diagnostics/pit_vs_static_20261010.csv`, `results/pit_compare.py`). Tax-on pit CAGR
+  (`diagnostics/pit_vs_static_20261010.csv`, `results/survivorship_sheet.py pit-compare`). Tax-on pit CAGR
   is above static in 12 of 36 research cells (nifty500 and smallcap250 on all four
   arms, midcap100 v1, v3 and v4, nifty200 v3). Not investigated beyond one cell: on
   nifty500 v1 the names only the pit universe holds account for Rs 2.4 lakh of the
@@ -1091,6 +1091,25 @@ superseded, and do not re-run either module expecting the current method.
 
 ## Code and maintenance
 
+### Six report scripts became subcommands on 2026-10-18
+
+The old files last exist at commit `4a4b427`. Each subcommand takes the old arguments, writes the same files in the same format and returns the same exit code; on 2026-10-18 each old and new pair gave byte-identical output on the same inputs (the xlsx cell by cell). To reproduce an older record, run the new command:
+
+| old command | new command |
+|---|---|
+| `results/tax_on_all_arms.py` | `tools/cell_reports.py tax-on-all-arms` |
+| `results/tradeable_tax_grid.py` | `tools/cell_reports.py tradeable-tax-grid` |
+| `tools/tax_fix_old_new.py --old DIR` | `tools/cell_reports.py tax-fix-old-new --old DIR` |
+| `results/cell_table.py OUT.csv [--root DIR]` | `tools/cell_reports.py cell-table OUT.csv [--root DIR]` |
+| `results/cell_compare.py OLD.csv NEW.csv OUT.csv` | `tools/cell_reports.py cell-compare OLD.csv NEW.csv OUT.csv` |
+| `results/pit_compare.py OUT.csv [universe ...]` | `results/survivorship_sheet.py pit-compare OUT.csv [universe ...]` |
+
+Three limits, measured that day and the same in old and new:
+
+- `diagnostics/tax_on_all_arms.csv` and `diagnostics/tradeable_tax_all_arms.csv` were last written on 2026-10-14. Regenerated now, each has 48 rows: the 36 committed rows byte for byte, plus 12 for the three market-cap buckets, which joined `gated()` on 2026-10-16. The committed files were left as they are.
+- `tax-fix-old-new` reads every registered universe at four settings, pit included, so it stops with FileNotFoundError on the three buckets, which have no pit runs.
+- `pit-compare` with no universe named stops the same way on the buckets. Name the nine pit universes.
+
 ### Twelve scripts were removed on 2026-10-18
 
 They last exist at commit `27b3eb5`. Nothing imported them, and no gate or pipeline step ran them. The records they wrote stay in `diagnostics/` and `experiments/`, and other text in this file that names them describes that history.
@@ -1282,10 +1301,10 @@ These four cannot, and are kept as records, not rebuilt:
   writer is in git history only (`git show 50280df:results/noise_parallel.py`).
 - `diagnostics/tax_on_all_arms_uncleaned_20260927.csv` and
   `diagnostics/tradeable_tax_all_arms_uncleaned_20260927.csv`: the outputs of
-  `results/tax_on_all_arms.py` and `results/tradeable_tax_grid.py` on the prices
-  before the 2026-09-27 cleaning, renamed by hand in b39b513. The scripts are tracked
-  and write only the undated names, and the uncleaned panels they read no longer
-  exist.
+  `results/tax_on_all_arms.py` and `results/tradeable_tax_grid.py` (now
+  `tools/cell_reports.py tax-on-all-arms` and `tradeable-tax-grid`) on the prices
+  before the 2026-09-27 cleaning, renamed by hand in b39b513. The subcommands write
+  only the undated names, and the uncleaned panels they read no longer exist.
 
 ### A file that nothing imports or runs is not necessarily dead
 

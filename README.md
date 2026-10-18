@@ -826,7 +826,8 @@ none before 2021-01-01, so the early part of the window ranks fewer names.
 
 Produced by `run.py --survivorship pit` (four settings per universe: research and
 tradeable, tax off and on, arms v1 to v4, cadence 20) and compared with the static runs
-above by `results/pit_compare.py`; every row, both profiles, is in
+above by `results/survivorship_sheet.py pit-compare` (until 2026-10-18
+`results/pit_compare.py`); every row, both profiles, is in
 `diagnostics/pit_vs_static_20261010.csv`. Every figure is one run (n=1). The static
 figures above are unchanged.
 
