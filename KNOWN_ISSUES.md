@@ -1098,6 +1098,7 @@ The old files last exist at commit `aebf1da`. Each function moved unchanged; a n
 | old | now |
 |---|---|
 | `environment_check.py`, `environment_check.require(script, repo)` | `python_floor.py`, `python_floor.require_drive(script, repo)` |
+| `module_state.py`, `module_state.pinned()` and its helpers | `run.py`, `pinned()`, `snapshot()`, `restore()`, `WATCHED` |
 <!-- merge-map-end -->
 
 ### Ten tests became cases of engine_tests.py on 2026-10-18
