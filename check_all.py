@@ -235,45 +235,48 @@ DELEGATES = (
     # No call site may pass an arm's mode and sizing and drop its drawdown stop:
     # v5 and v6 share v1's and v3's mode and sizing. Static; a second.
     ("stop_callsite_check.py",                [], False, None),
+    # THE TEN TESTS BELOW ARE CASES OF engine_tests.py SINCE 2026-10-18, one row per
+    # old file, each run as its own subprocess. Never run two cases in one process:
+    # cache_key and noise_harness change the state of modules they import.
     # The drawdown stop's edge cases on a synthetic panel, engine and reference
     # copy: exit on a rebalance day, capped and unopened exit sales, the tax
     # assessment day, the last two days, a re-entry with no fill, low breadth.
-    ("drawdown_stop_test.py",                 ["--quiet"], False, None),
+    ("engine_tests.py", ["drawdown_stop", "--quiet"], False, None),
     # The drawdown-limit axis on a synthetic panel: the partial sells and top-ups
     # it adds, the band, the floor, the cap, a missing open, a gap through the
     # limit, tax on, and the refusal on a stop arm. Every case is reconciled to
     # the paisa by cost_report. A few seconds.
-    ("dd_overlay_test.py",                    ["--quiet"], False, None),
+    ("engine_tests.py", ["dd_overlay", "--quiet"], False, None),
     # The tax rules of 2026-10-14 on hand-worked cases, to the paisa: the
     # calendar-month holding period, short loss against long gain, carry-forward
     # with its 8-year limit and oldest-first order, the 4% cess, and the engine's
     # Ledger carrying a loss forward. A second.
-    ("tax_rules_test.py",                     ["--quiet"], False, None),
+    ("engine_tests.py", ["tax_rules", "--quiet"], False, None),
     # The starting-capital axis on a synthetic panel: validation, names, the default
     # path unchanged, the engine and the buy & hold at a selected capital, and one
     # definition of the default. A second.
-    ("capital_axis_test.py",                  ["--quiet"], False, None),
+    ("engine_tests.py", ["capital_axis", "--quiet"], False, None),
     # The market-impact and participation-cap axes on a synthetic panel: validation,
     # names, the research refusal, the default path unchanged, and impact split from
     # flat slippage in the cost report. A second.
-    ("impact_pcap_axis_test.py",              ["--quiet"], False, None),
+    ("engine_tests.py", ["impact_pcap_axis", "--quiet"], False, None),
     # The fixed-capital axis: purchases never lift invested value above the book
     # (nifty200 pit tradeable, v1 to v4, tax off and on), fixed and compounded runs
     # identical while equity has not passed the base (nifty500 v4 pit tradeable, and
     # a synthetic falling panel), and every test run reconciled from its own fills.
     # About 40 seconds; reads the cached pit panels.
-    ("fixed_capital_test.py",                 ["--quiet"], False, None),
+    ("engine_tests.py", ["fixed_capital", "--quiet"], False, None),
     # The COSTS block's tax figures against what cash paid: the printed tax total
     # equals COST_TAX_YEARS total_tax and the ledger's cum_tax, and short + long +
     # cess add up to it, in the summary, the per-year table and the buy & hold.
     # A synthetic tax-on run. A second.
-    ("tax_total_test.py",                     ["--quiet"], False, None),
+    ("engine_tests.py", ["tax_total", "--quiet"], False, None),
     # The row rule (results/tradability.py): rows dated after day i change no trade
     # up to day i; an owed sale fills at the next row's open; a capped owed sale is
     # cancelled when kept again; an ended file is held at its last close; no buy on
     # a session with no row. A synthetic universe on calendar sessions; about 10
     # seconds. The engine before 2026-10-16 fails five of its six cases.
-    ("tradability_causality_test.py",         ["--quiet"], False, None),
+    ("engine_tests.py", ["tradability_causality", "--quiet"], False, None),
 
     # Cheap, and each already carries an exit status.
     ("results/leakage_check1_causality.py",   [], False, None),
@@ -286,10 +289,10 @@ DELEGATES = (
     ("results/ratio_clean_check.py",          [], False, None),
     # A cache or noise record from other code or other data must be refused.
     # Writes only into a temporary directory. A few seconds.
-    ("cache_key_test.py",                     [], False, None),
+    ("engine_tests.py", ["cache_key"], False, None),
     # results/noise_parallel.py's scheduler, baseline gate, resume, stale key,
     # void and verdicts on synthetic draws. Nothing is fitted. A few seconds.
-    ("noise_harness_test.py",                 [], False, None),
+    ("engine_tests.py", ["noise_harness"], False, None),
     ("results/check_b_exec_timing.py",        [], False, None),
     ("nautilus/verify_next_open_execution.py", [], False, None),
     ("tax_acceptance_check.py",               [], False, None),

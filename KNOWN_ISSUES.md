@@ -457,7 +457,7 @@ they describe the uncapped, flat-slippage strategy. Nothing compares them with t
 engine: `nt_verify.py` checks research-profile cells only. Treat every engine figure
 with the cap or impact on as unverified by the port.
 
-### Fixed capital (--fixed-capital) is gated by fixed_capital_test.py only
+### Fixed capital (--fixed-capital) is gated by engine_tests.py fixed_capital only
 
 `nautilus/nt_strategy.py` and `nautilus/nt_attribution.py` size every rebalance from
 the whole portfolio and have no fixed-capital rule, and `nt_verify.py` checks
@@ -465,7 +465,7 @@ compounded research cells only. A run with `--fixed-capital` that reaches the Na
 steps writes its reports under the run's `@fixed` folder, but they describe the
 compounded strategy. Nothing compares a fixed-capital engine figure with the port.
 
-What does check the mode is `fixed_capital_test.py`, a check_all delegate:
+What does check the mode is `engine_tests.py fixed_capital`, a check_all delegate:
 - On every execution day, purchases never lift invested value above the book. Run on
   nifty200, pit, tradeable, v1 to v4, tax off and on.
 - The fixed and compounded runs are identical up to the session before the first
@@ -526,7 +526,7 @@ investable buy & hold held to the end and sold on the last day.
   `cum_tax`, within Rs 0.01 (`cost_report.check_tax_total`), and the per-year table
   must add up to it. `cost_reconcile_check.py` (check_all) runs this on all 32 cells
   under both profiles with tax off and on, and each universe's buy & hold: 144
-  combinations. `tax_total_test.py` (check_all) checks the printed tax figures on a
+  combinations. `engine_tests.py tax_total` (check_all) checks the printed tax figures on a
   synthetic tax-on run.
 
 ### The COSTS block left the 4% cess out of its tax total from 2026-10-14 to 2026-10-16
@@ -587,7 +587,7 @@ experiments/EXPERIMENTS.md for old against new.
   long-term gains only; oldest loss first; set off before the LTCG exemption.
 - Cess: 4% health and education cess on the tax.
 
-`tax_rules_test.py` (in check_all) checks each rule on a hand-worked case to the paisa.
+`engine_tests.py tax_rules` (in check_all) checks each rule on a hand-worked case to the paisa.
 
 Still left out:
 - Surcharge. It depends on the person's total income, which a backtest does not know.
@@ -1090,6 +1090,27 @@ superseded, and do not re-run either module expecting the current method.
 ---
 
 ## Code and maintenance
+
+### Ten tests became cases of engine_tests.py on 2026-10-18
+
+The old files last exist at commit `24614bb`. Each old file's body is one function of `engine_tests.py`, unchanged apart from indentation, and runs only when its case is named; check_all runs each case as its own subprocess. On 2026-10-18 every old file and its case, run without `--quiet` on the same tree, gave the same exit code and byte-identical output. To rerun an older record, use the new command:
+
+| old command | new command |
+|---|---|
+| `capital_axis_test.py [--quiet]` | `engine_tests.py capital_axis [--quiet]` |
+| `dd_overlay_test.py [--quiet]` | `engine_tests.py dd_overlay [--quiet]` |
+| `drawdown_stop_test.py [--quiet]` | `engine_tests.py drawdown_stop [--quiet]` |
+| `fixed_capital_test.py [--quiet]` | `engine_tests.py fixed_capital [--quiet]` |
+| `impact_pcap_axis_test.py [--quiet]` | `engine_tests.py impact_pcap_axis [--quiet]` |
+| `tax_rules_test.py [--quiet]` | `engine_tests.py tax_rules [--quiet]` |
+| `tax_total_test.py [--quiet] [--module PATH]` | `engine_tests.py tax_total [--quiet] [--module PATH]` |
+| `tradability_causality_test.py [--quiet] [--real]` | `engine_tests.py tradability_causality [--quiet] [--real]` |
+| `cache_key_test.py` | `engine_tests.py cache_key` |
+| `noise_harness_test.py` | `engine_tests.py noise_harness` |
+
+Three comments in engine files still name the old files: `results/engine_core.py` (tradability_causality_test.py), `results/fixed_capital.py` and `results/test_exposure.py` (fixed_capital_test.py). They are left until those files change for another reason, because engine_core.py's bytes are in the fit-cache key.
+
+`naming_declare_check.py` names a write site by its outermost function, so the writes in these tests are now counted under `engine_tests.py::_cache_key` and the like: the call count is unchanged and the site count falls.
 
 ### Six report scripts became subcommands on 2026-10-18
 
