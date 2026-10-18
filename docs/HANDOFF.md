@@ -18,9 +18,9 @@ python3 check_data.py
 It compares every file with the tracked manifest `data/RAW_DATA_SHA256.txt` and
 exits 0 only when all 2,868 files match and no extra file is present.
 
-**There is no fetch script and no licence.** The only downloader in the project,
-`results/extract_membership.py`, retrieves NSE press releases for the
-survivorship work, not prices. Nothing records what may be done with the data.
+**There is no fetch script and no licence.** The project has no downloader; the
+membership files come from the supplier. Nothing records what may be done with
+the data.
 
 ### The other blockers, in the order they will bite
 
@@ -101,16 +101,14 @@ imports them. Changing one changes a run.
     libs     engine_core  test_exposure  v34_common  features_v2
              arm_sources  survivorship   tradability  qbeast_in_charges
 
-**MEASUREMENT TOOLS AND PROBES (25).** **The pipeline never runs any of these.**
+**MEASUREMENT TOOLS AND PROBES (17).** **The pipeline never runs any of these.**
 Every one is cited as evidence in a tracked document, so none is dead — but none
 executes unless a person runs it by hand.
 
-    attribution_v2          calendar_coverage_probe
-    check_a_close_values    check_b_exec_timing     diagnose_alpha
-    drawdown_exit_measure   extract_membership      leakage_check1_causality
+    attribution_v2          check_a_close_values    check_b_exec_timing
+    drawdown_exit_measure   leakage_check1_causality
     leakage_check2_purge    leakage_check4_corpactions
-    purge_fix_measure       purge_mode_probe        rebal_cadence_sweep
-    repair_membership       save_ewma_comparison    seed_noise_measure
+    purge_fix_measure       rebal_cadence_sweep     seed_noise_measure
     seed_noise_report       shuffle_test            tax_util
     test_survivorship
     validate_breadth_live   validate_engine         validate_topn

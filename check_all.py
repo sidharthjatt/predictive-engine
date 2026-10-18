@@ -351,9 +351,6 @@ DELEGATES = (
      "cannot run standalone: needs two positional artefact paths plus "
      "--universe, --arm and --since, and this runner has no artefact pair to "
      "hand it"),
-    ("topn_centralise_check.py", [], False,
-     "report mode compares a before/after pair and only "
-     "diagnostics/topn_hash_after.csv exists; no baseline is stored in the tree"),
     ("results/leakage_check4_corpactions.py", [], False,
      "descriptive, no pass condition definable without a corporate-action "
      "dataset or a ruling on how many unexplained candidates are acceptable; "
@@ -395,7 +392,6 @@ RETIRED_DELEGATES = {
 # here is a FAILURE below, not a blank, so the next one cannot slip in unnamed.
 SKIP_SHORT = {
     "gate_compare.py": "needs an artefact pair this runner does not have",
-    "topn_centralise_check.py": "no before/after baseline stored in the tree",
     "results/leakage_check4_corpactions.py": "no pass condition definable",
     "results/leakage_check2_purge.py": "RETIRED, superseded by "
                                        "leakage_check2_trading_purge.py",
@@ -459,7 +455,7 @@ def _needs(label):
 # 100 SINCE 2026-10-17, the count on e8aade2 (54 sites). THE BASELINE MAY ONLY GO
 # DOWN: lower it by hand when writes are declared, and never raise it to make
 # room for a new undeclared write. See KNOWN_ISSUES.md.
-NAMING_UNDECLARED_BASELINE = 100
+NAMING_UNDECLARED_BASELINE = 81
 
 # MODULES KNOWN NOT TO IMPORT, EACH WITH ITS REASON. An unlisted failure is a
 # gate-1 failure; so is a LISTED module that starts importing, because an

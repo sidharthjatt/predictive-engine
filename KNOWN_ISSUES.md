@@ -1091,6 +1091,22 @@ superseded, and do not re-run either module expecting the current method.
 
 ## Code and maintenance
 
+### Twelve scripts were removed on 2026-10-18
+
+They last exist at commit `27b3eb5`. Nothing imported them, and no gate or pipeline step ran them. The records they wrote stay in `diagnostics/` and `experiments/`, and other text in this file that names them describes that history.
+
+- `data_artefact_report.py`: nothing ran it.
+- `results/calendar_coverage_probe.py`: stops with IndexError on the 2026-10-10 data, which has no calendar-excluded date for it to examine.
+- `results/extract_membership.py`, `diagnostics/membership/extract_membership_fixed.py`, `results/repair_membership.py`: superseded by the supplier's membership files.
+- `tools/rebuild_costs_block.py`: a one-time repair of the COSTS blocks, done on 2026-10-16.
+- `make_v34_report.py`, `results/v34_provenance.py`: v34 records from two data deliveries ago.
+- `topn_centralise_check.py`: always skipped by check_all; it had no stored baseline.
+- `results/purge_mode_probe.py`: each panel's sidecar now records the code and source key it was built from.
+- `results/diagnose_alpha.py`: nothing ran it.
+- `results/save_ewma_comparison.py`: left check_all on 2026-09-23, and nothing ran it after that.
+
+They held 19 of the 100 undeclared write calls, so `NAMING_UNDECLARED_BASELINE` is now 81 (40 sites).
+
 ### Three backtest implementations and one port, and which one each check tests
 
 - `results/test_exposure.backtest_exposure` is the shipping engine. It produces every published figure, and `validate_engine.py`, `audit_step.py`, `tax_report.py` and the sweeps all run it.
