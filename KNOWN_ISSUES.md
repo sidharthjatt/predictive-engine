@@ -1091,6 +1091,15 @@ superseded, and do not re-run either module expecting the current method.
 
 ## Code and maintenance
 
+### Six helper modules were merged into the files that use them on 2026-10-18
+
+The old files last exist at commit `aebf1da`. Each function moved unchanged; a name that collided with one already in the receiving file was renamed, and calls through the old module name now call the function directly.
+
+| old | now |
+|---|---|
+| `environment_check.py`, `environment_check.require(script, repo)` | `python_floor.py`, `python_floor.require_drive(script, repo)` |
+<!-- merge-map-end -->
+
 ### Ten tests became cases of engine_tests.py on 2026-10-18
 
 The old files last exist at commit `24614bb`. Each old file's body is one function of `engine_tests.py`, unchanged apart from indentation, and runs only when its case is named; check_all runs each case as its own subprocess. On 2026-10-18 every old file and its case, run without `--quiet` on the same tree, gave the same exit code and byte-identical output. To rerun an older record, use the new command:

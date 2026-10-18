@@ -51,8 +51,7 @@ import python_floor  # before any third-party import
 python_floor.require("run.py")
 
 ROOT = Path(__file__).resolve().parent
-import environment_check  # also before any third-party import
-environment_check.require("run.py", ROOT)
+python_floor.require_drive("run.py", ROOT)  # also before any third-party import
 for _p in (str(ROOT), str(ROOT / "results"), str(ROOT / "nautilus")):
     if _p not in sys.path:
         sys.path.insert(0, _p)
