@@ -1106,7 +1106,7 @@ The old files last exist at commit `4a4b427`. Each subcommand takes the old argu
 
 Three limits, measured that day and the same in old and new:
 
-- `diagnostics/tax_on_all_arms.csv` and `diagnostics/tradeable_tax_all_arms.csv` were last written on 2026-10-14. Regenerated now, each has 48 rows: the 36 committed rows byte for byte, plus 12 for the three market-cap buckets, which joined `gated()` on 2026-10-16. The committed files were left as they are.
+- `diagnostics/tax_on_all_arms.csv` and `diagnostics/tradeable_tax_all_arms.csv` were last written on 2026-10-14. Regenerated now, each has 48 rows: the 36 committed rows byte for byte, plus 12 for the three market-cap buckets, which joined `gated()` on 2026-10-16. Both were republished with the 48 rows on 2026-10-18. Their only code reader, `results/noise_parallel.py`'s sigma-0 baseline, looks rows up by universe and covers none of the buckets, so it reads the same figures as before.
 - `tax-fix-old-new` reads every registered universe at four settings, pit included, so it stops with FileNotFoundError on the three buckets, which have no pit runs.
 - `pit-compare` with no universe named stops the same way on the buckets. Name the nine pit universes.
 
