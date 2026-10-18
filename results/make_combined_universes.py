@@ -58,7 +58,7 @@ import arms.registry as arm_reg
 import naming
 import cadence
 import profiles
-import arm_sources
+import make_chart
 
 import survivorship as sv
 from config import read_table  # the one CSV/parquet reader: config.read_table
@@ -294,7 +294,7 @@ def main():
             "eq": eq, "index": index,
             "inv": json.loads(pjf.read_text())["avg_exposure_pct"],
             # ONE ENTRY PER AVAILABLE SELECTED ARM. Where each arm's curve and
-            # per-trade log live is arm_sources' problem, not this chart's:
+            # per-trade log live is make_chart's problem, not this chart's:
             # three files under three naming conventions, and four charts each
             # rediscovering that is four chances to disagree.
             "arms": _load_arms(Path(eqf).parent, t, sel),
@@ -452,14 +452,14 @@ def _load_arms(M, tag, sel):
         # THE SOURCE FILE IS RECORDED, for the reason the withdrawal of this very
         # chart established: a figure that cannot say what it read cannot be
         # checked after the fact.
-        src, eq = arm_sources.equity_path_and_series(M, tag, n)
-        lg = arm_sources.trades_path(M, tag, n)
+        src, eq = make_chart.equity_path_and_series(M, tag, n)
+        lg = make_chart.trades_path(M, tag, n)
         if eq is None or lg is None:
             print(f"    {tag}/{n}: no curve or trade log for this run's axes "
                   f"-- not plotted")
             continue
-        print(f"    {tag}/{n}: {arm_sources.describe(src, len(eq), 'sessions')}")
-        print(f"    {tag}/{n}: {arm_sources.describe(lg)}")
+        print(f"    {tag}/{n}: {make_chart.describe(src, len(eq), 'sessions')}")
+        print(f"    {tag}/{n}: {make_chart.describe(lg)}")
         out[n] = {"eq": eq, "b": before_tc(eq, lg), "src": src, "log": lg}
     return out
 

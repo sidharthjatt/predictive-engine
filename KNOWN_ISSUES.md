@@ -1101,6 +1101,7 @@ The old files last exist at commit `aebf1da`. Each function moved unchanged; a n
 | `module_state.py`, `module_state.pinned()` and its helpers | `run.py`, `pinned()`, `snapshot()`, `restore()`, `WATCHED` |
 | `check_plan_order.py` (standalone), `check_plan_order.analyse()`, `.enforce()` | `check_pipeline_order.py --plan`, `check_pipeline_order.plan_analyse()`, `.plan_enforce()` |
 | `results/stuck_positions.py`, `run_lines()`, `cell_lines()`, `last_rows()` | `results/tradability.py`, the same names |
+| `results/arm_sources.py`, `equity_path_and_series()`, `trades_path()`, `describe()`, `deployed_pct()`, `available()` | `results/make_chart.py`, the same names; `make_combined_universes.py` calls them as `make_chart.<name>` |
 <!-- merge-map-end -->
 
 ### Ten tests became cases of engine_tests.py on 2026-10-18
