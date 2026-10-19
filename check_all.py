@@ -231,10 +231,12 @@ DELEGATES = (
     # that do not hold fail it. Judged by its exit code, so check_all fails
     # whenever run_all.py would refuse to start.
     ("naming_declare_check.py",               ["--gate-declared-only"], False, None),
-    ("platform_identity_check.py",            [], False, None),
+    # THE FOUR CHECKS BELOW AND FURTHER DOWN ARE CASES OF code_checks.py SINCE
+    # 2026-10-19, one row per old file, each run as its own subprocess.
+    ("code_checks.py", ["platform_identity"], False, None),
     # No call site may pass an arm's mode and sizing and drop its drawdown stop:
     # v5 and v6 share v1's and v3's mode and sizing. Static; a second.
-    ("stop_callsite_check.py",                [], False, None),
+    ("code_checks.py", ["stop_callsite"], False, None),
     # THE TEN TESTS BELOW ARE CASES OF engine_tests.py SINCE 2026-10-18, one row per
     # old file, each run as its own subprocess. Never run two cases in one process:
     # cache_key and noise_harness change the state of modules they import.
@@ -304,8 +306,8 @@ DELEGATES = (
     # Charges, slippage and tax reconciled to the paisa (results/cost_report.py) on
     # every universe and arm, both profiles, tax off and on, and the buy & hold:
     # 144 combinations, nothing written. About 4 minutes.
-    ("cost_reconcile_check.py",               [], False, None),
-    ("transitional_asserts_check.py",         [], False, None),
+    ("code_checks.py", ["cost_reconcile"], False, None),
+    ("code_checks.py", ["transitional_asserts"], False, None),
 
     # THE PORT AGAINST THE REFERENCE FOR EVERY ARM, on the certified universes.
     # Wired 2026-09-26 after a re-run on the current data and numerics passed 92
@@ -436,7 +438,7 @@ def _needs(label):
         return [u.score_cache for u in every] + [
             ROOT / "nautilus" / "reports" / u.tag / a / "fills.csv"
             for u in every for a in _A]
-    if label == "cost_reconcile_check.py":
+    if label == "code_checks.py cost_reconcile":
         return [u.score_cache for u in _R.values()]
     if label == "verify_v34_arms.py":
         return [u.score_cache for u in two]
@@ -895,7 +897,7 @@ def gate_delegates(res, slow):
                              f"{n} undeclared writes "
                              f"(baseline {NAMING_UNDECLARED_BASELINE})")
             continue
-        if r.returncode == 3 and name == "platform_identity_check.py":
+        if r.returncode == 3 and label == "code_checks.py platform_identity":
             # A NAMED SKIP, NOT A PASS: outside a git checkout with no tracked-file
             # manifest the tracked .py files cannot be listed. The reason is the
             # delegate's last line.

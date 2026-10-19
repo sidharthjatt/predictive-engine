@@ -524,7 +524,7 @@ investable buy & hold held to the end and sold on the last day.
   and the buy & hold, held and sold, against `bh_held.held_lots`. The printed tax
   total must also equal COST_TAX_YEARS `total_tax` summed and the ledger's final
   `cum_tax`, within Rs 0.01 (`cost_report.check_tax_total`), and the per-year table
-  must add up to it. `cost_reconcile_check.py` (check_all) runs this on all 32 cells
+  must add up to it. `code_checks.py cost_reconcile` (check_all) runs this on all 32 cells
   under both profiles with tax off and on, and each universe's buy & hold: 144
   combinations. `engine_tests.py tax_total` (check_all) checks the printed tax figures on a
   synthetic tax-on run.
@@ -722,7 +722,7 @@ noise-test records are superseded".
 
 All four arms, all eight universes:
 - GATE 9 (`check_b_exec_timing`, leakage checks 1 and 2), GATE 6 and GATE 7 tax.
-- `tax_report.py`, `bh_lots_after_tax.py`, `cost_reconcile_check.py`.
+- `tax_report.py`, `bh_lots_after_tax.py`, `code_checks.py cost_reconcile`.
 - `nautilus/nt_verify.py`: 39 of the 48 cells of the twelve universes are gated;
   midcap100 v3 and the eight mcap1500to5000 and mcap5001to10000 cells are not (see
   below). No v5 or v6 cell is gated, and no pit cell is covered (see "Pit cells are not covered by nt_verify").
@@ -839,14 +839,14 @@ a data gap, look here first.
 pandas grouped and rolling variance, and its default CSV float parser, gave different
 bits on macOS and Linux. The pipeline uses numpy replacements (`results/numerics.py`)
 and reads every CSV through `config.read_table` (`float_precision="round_trip"`).
-`platform_identity_check.py` (GATE 5) fails on any direct `pd.read_csv` or pandas
+`code_checks.py platform_identity` (GATE 5) fails on any direct `pd.read_csv` or pandas
 rolling or grouped variance in a tracked file. On 2026-09-24, midcap50 v2 built on macOS
 arm64, linux/arm64 and linux/amd64 (the amd64 one under Rosetta) gave byte-identical
 panels and CSVs. The other seven universes have not been rebuilt off the Mac.
 
-### platform_identity_check needs a git checkout or a tracked-file manifest
+### code_checks.py platform_identity needs a git checkout or a tracked-file manifest
 
-`platform_identity_check.py` lists the tracked `.py` files with `git ls-files`. Outside
+`code_checks.py platform_identity` lists the tracked `.py` files with `git ls-files`. Outside
 a checkout it falls back to `TRACKED_FILES_SHA256.txt` ("<sha256>  <path>" per line),
 whose listed files must still match; with neither it exits 3, which check_all reports
 as a named skip. No such manifest is in the tree yet, so a copy without `.git` skips
@@ -1090,6 +1090,17 @@ superseded, and do not re-run either module expecting the current method.
 ---
 
 ## Code and maintenance
+
+### Four checks became cases of code_checks.py on 2026-10-19
+
+The old files last exist at commit `b2742a1`. Each old file's body is one function of `code_checks.py`, unchanged apart from indentation, and the case name is removed from `sys.argv` before it runs. One exception: `stop_callsite_check.py` imported `tracked_py` and `SKIP` from `platform_identity_check.py`, so those two, with `subprocess`, `Path`, `ROOT` and `MANIFEST`, are at module level, and stop_callsite's body no longer has that import or its `sys.path` line. On 2026-10-19 each old file and its case gave the same exit code; the output differed only in the tracked-file count (117 before, 114 after the merge) and in cost_reconcile's elapsed minutes.
+
+| old command | new command |
+|---|---|
+| `stop_callsite_check.py` | `code_checks.py stop_callsite` |
+| `transitional_asserts_check.py` | `code_checks.py transitional_asserts` |
+| `platform_identity_check.py` | `code_checks.py platform_identity` |
+| `cost_reconcile_check.py [--universe=<tag>[,<tag>...]]` | `code_checks.py cost_reconcile [--universe=<tag>[,<tag>...]]` |
 
 ### Six helper modules were merged into the files that use them on 2026-10-18
 

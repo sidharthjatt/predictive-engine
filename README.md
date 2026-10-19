@@ -208,7 +208,7 @@ section of `data/reference/TAX_AND_CHARGES.docx` is out of date, and its tax rul
 the ones the code uses.
 
 `./venv/bin/python check_all.py` runs the repository's checks. Outside a git checkout
-`platform_identity_check.py` is reported as a named skip, and most delegates skip
+`code_checks.py platform_identity` is reported as a named skip, and most delegates skip
 until the runs they check have been made.
 
 ## The noise test, measured on the previous data delivery (2026-09-29)
