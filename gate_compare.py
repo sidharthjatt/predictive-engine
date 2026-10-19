@@ -87,13 +87,36 @@ APPROVED_FIELDS = (
 )
 
 
+# APPROVED BY THE OWNER ON 2026-10-19 FOR runs/<universe>/<arm>/params.json ONLY: the
+# per-cell params file a run writes under the repository's runs/ folder. A rerun on
+# another day writes another run_date and the commit and tree state it ran at. The
+# copies inside each run folder, runs/<folder>/runs/..., are not covered.
+RUN_PARAMS_FIELDS = (
+    (None, "run_date"),
+    ("git_state", "commit"),
+    ("git_state", "working_tree_dirty"),
+    ("git_state", "modified_or_untracked_files"),
+    ("git_state", "note"),
+)
+RUNS_DIR = Path(__file__).resolve().parent / "runs"
+
+
+def is_run_params(path):
+    """True only for <repository>/runs/<universe>/<arm>/params.json."""
+    q = Path(path).resolve()
+    return q.name == "params.json" and q.parent.parent.parent == RUNS_DIR
+
+
 _ABSENT = object()
 
 
-def masked_fields(name):
-    """[(block or None, field)] masked for a JSON file of this name."""
-    return list(PROVENANCE_FIELDS) + [(b, f) for pre, b, f in APPROVED_FIELDS
-                                      if name.endswith(".json") and name.startswith(pre)]
+def masked_fields(name, path=None):
+    """[(block or None, field)] masked for a JSON file of this name (and path)."""
+    out = list(PROVENANCE_FIELDS) + [(b, f) for pre, b, f in APPROVED_FIELDS
+                                     if name.endswith(".json") and name.startswith(pre)]
+    if path is not None and is_run_params(path):
+        out += [x for x in RUN_PARAMS_FIELDS if x not in out]
+    return out
 
 
 def _get(doc, block, field):
@@ -103,13 +126,13 @@ def _get(doc, block, field):
     return blk.get(field, _ABSENT) if isinstance(blk, dict) else _ABSENT
 
 
-def _strip_provenance(doc, name=""):
-    """`doc` without the masked fields for its file name. Returns (doc, [fields removed])."""
+def _strip_provenance(doc, name="", path=None):
+    """`doc` without the masked fields for its file. Returns (doc, [fields removed])."""
     if not isinstance(doc, dict):
         return doc, []
     out = dict(doc)
     removed = []
-    for block, field in masked_fields(name):
+    for block, field in masked_fields(name, path):
         if block is None:
             if field in out:
                 out.pop(field)
@@ -371,8 +394,8 @@ def compare(bp, lp):
         # Calling it EXACT would hide that the file moved at all, which is the
         # other half of the same defect: an accepted difference has to stay
         # visible in the report or the next reader cannot tell it was accepted.
-        sa, ra = _strip_provenance(a, bp.name)
-        sb, rb = _strip_provenance(b, bp.name)
+        sa, ra = _strip_provenance(a, bp.name, lp)
+        sb, rb = _strip_provenance(b, bp.name, lp)
         if (ra or rb) and sa == sb:
             # NAME THE FIELDS THAT MOVED, NOT THE FIELDS THAT ARE EXCLUDED. The
             # first version printed all four whenever all four were present, so a
@@ -380,7 +403,7 @@ def compare(bp, lp):
             # the tree state and the note had moved too. An accepted exception that
             # overstates itself is the same defect as one that hides: the reader
             # cannot tell what was actually forgiven.
-            moved = [f if blk is None else f"{blk}.{f}" for blk, f in masked_fields(bp.name)
+            moved = [f if blk is None else f"{blk}.{f}" for blk, f in masked_fields(bp.name, lp)
                      if _get(a, blk, f) != _get(b, blk, f)]
             return "PROVENANCE", (", ".join(moved) + " only") if moved else "identical"
         return "DIFFERS", f"keys {sorted(k for k in set(a) | set(b) if a.get(k) != b.get(k))}"
