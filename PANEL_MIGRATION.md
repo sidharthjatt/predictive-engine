@@ -270,14 +270,14 @@ buys consistency and nothing else.
 sorted.**
 
 - Execution order comes from LIST POSITION, never from the string:
-  `check_plan_order.py:70` builds `pos` from `enumerate(pipeline)`, and
+  `check_pipeline_order.plan_analyse()` builds `pos` from `enumerate(pipeline)`, and
   `check_pipeline_order` keeps the earliest list index per script.
 - Nothing extracts the number, the series or the letter. No regex reads a
   label. `run_all._step_label()` matches whole rows by **(script, tag)** and
   treats the label as opaque.
 - The one sort, `sorted(unresolved)` at `check_pipeline_order.py:701`, orders an
   ERROR PRINTOUT.
-- What the label must be is UNIQUE: it is a dict key in `check_plan_order`'s
+- What the label must be is UNIQUE: it is a dict key in `plan_analyse()`'s
   `pos` map and part of `check_all`'s GATE 2 / GATE 4 failure identity.
 
 **A CORRECTION TO COMMIT `615e257`.** That commit justified `10za`/`10zb` with

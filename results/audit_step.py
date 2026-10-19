@@ -31,7 +31,7 @@ SIZING IS VALUED AT THE OPEN, WITH NO OPT-OUT
     only one side moved.
 
 THE ENTRY POINTS STAY SEPARATE, DELIBERATELY
-    results/make_audit.py is the thin entry point, invoked once per universe by
+    main(u) below (results/make_audit.py until 2026-10-18) is the entry point, invoked once per universe by
     its own PIPELINE_ORDER row, rather than one call covering every universe. check_pipeline_order.analyse keys its ordering dicts BY
     SCRIPT NAME (`order = {scr: i ...}`), so three entries sharing one name collapse
     to a single position and the 10c-before-10d ordering it exists to enforce becomes

@@ -1022,7 +1022,7 @@ The rule since then: a name is traded only on a session with a row, a valid open
 
 The change moved 64 published cells, all 16 of each of mcap1500to5000, mcap5001to10000, smallcap250 pit and nifty500 pit (the last two through MAHSCOOTER, force-sold on 2025-10-28 before a two-session gap and now held until a rebalance sells it on 2026-02-06). Every universe was rerun on 2026-10-17, static and pit, four settings each. Every other cell's trades, holdings, equity, comparison and tax files are byte-identical. Their run parameters, cost summaries and daily logs were rewritten with the new commit hash and run date and with the cess column of commit 328c74a, which no run had written for them before, and their Nautilus reports with new random event ids. The README tables carry the new figures.
 
-SANGHIIND (mcap1500to5000): its file ends on 2026-04-02, close 50.15. A sale owed on it never fills, so all 16 cells hold it from 2026-04-02 to 2026-05-29 at 50.15. Why the file ends is not known to the repository, so that value is an assumption. Each run's RUN.txt and run.log give the shares and value, and the end equity, CAGR and maximum drawdown with the position valued at zero from 2026-04-03 (`results/stuck_positions.py`). Research tax off, v1: 49,466 shares, Rs 2,480,719.90; CAGR 46.19% as run, 43.04% at zero. Until 2026-10-16 the engine sold it on 2026-04-09 at 51.0, the 2026-04-02 open less slippage, on a session with no row. The other files that end before 2026-05-29 (GSPL, CIGNITITEC, AIRTELPP) are not held on their last row in any cell.
+SANGHIIND (mcap1500to5000): its file ends on 2026-04-02, close 50.15. A sale owed on it never fills, so all 16 cells hold it from 2026-04-02 to 2026-05-29 at 50.15. Why the file ends is not known to the repository, so that value is an assumption. Each run's RUN.txt and run.log give the shares and value, and the end equity, CAGR and maximum drawdown with the position valued at zero from 2026-04-03 (`results/tradability.py`, `run_lines()`). Research tax off, v1: 49,466 shares, Rs 2,480,719.90; CAGR 46.19% as run, 43.04% at zero. Until 2026-10-16 the engine sold it on 2026-04-09 at 51.0, the 2026-04-02 open less slippage, on a session with no row. The other files that end before 2026-05-29 (GSPL, CIGNITITEC, AIRTELPP) are not held on their last row in any cell.
 
 Not changed with it. The legend in `results/make_daily_log.py` still reads "untradeable  no raw price row, or a forced exit before a gap". It is printed in every DAILY_LOG, so rewording it would rewrite that file in every cell; the new skip reasons start with "untradeable:" and fall under it. Gate G4 of `results/drawdown_exit_measure.py` counts forced exits. No gate runs that script (check_all only imports it), its patch anchor already fails (see "The drawdown-exit measurement" above), and the v5/v6 verdict stands as recorded. nt_attribution (ARM A) and the Nautilus port still trade on sessions without a row; see the nt_verify paragraph under the market-cap buckets.
 
@@ -1123,7 +1123,7 @@ The old files last exist at commit `24614bb`. Each old file's body is one functi
 | `cache_key_test.py` | `engine_tests.py cache_key` |
 | `noise_harness_test.py` | `engine_tests.py noise_harness` |
 
-Three comments in engine files still name the old files: `results/engine_core.py` (tradability_causality_test.py), `results/fixed_capital.py` and `results/test_exposure.py` (fixed_capital_test.py). They are left until those files change for another reason, because engine_core.py's bytes are in the fit-cache key.
+Two comments in engine files still name the old files: `results/engine_core.py` (tradability_causality_test.py) and `results/test_exposure.py` (fixed_capital_test.py). The one in `results/fixed_capital.py` was fixed on 2026-10-18. They are left until those files change for another reason: engine_core.py's bytes are in the fit-cache key, and the source of test_exposure.backtest_exposure is hashed into `diagnostics/drawdown_exit.txt`.
 
 `naming_declare_check.py` names a write site by its outermost function, so the writes in these tests are now counted under `engine_tests.py::_cache_key` and the like: the call count is unchanged and the site count falls.
 
@@ -1200,8 +1200,8 @@ No check compares the two, so they can drift apart, and `_present`'s docstring s
 
 Four axes name an artefact (naming.AXES: arm, cadence, profile, tax). naming.tail()
 composes them, but about eight sites still build the suffix by hand, among them
-results/arm_sources.py:57, audit_step.py:169, make_chart.py:168 and
-make_combined_universes.py:422. naming_declare_check.py and naming.CARRIES verify
+make_chart.py:83 (`_axes`, moved there from arm_sources.py on 2026-10-18),
+audit_step.py:169, make_chart.py:376 and make_combined_universes.py:422. naming_declare_check.py and naming.CARRIES verify
 that writers carry the axes they declare. Readers are not checked. A reader that
 misses an axis resolves to the default file, and when the check it feeds re-ran
 under the same default it reports a match that could not have failed; this
@@ -1223,10 +1223,10 @@ credited to all of them, and no check would notice.
 
 ### run_all.PIPELINE_ORDER is written out by hand -- DEFERRED
 
-`run_all.PIPELINE_ORDER` lists 58 rows, one per (step, universe) (`PIPELINE_ROW_COUNT`,
+`run_all.PIPELINE_ORDER` lists 76 rows, one per (step, universe) (`PIPELINE_ROW_COUNT`,
 run_all.py:291). Adding a universe means adding six rows with new labels, so a universe
-is not yet just a registry row. The labels are keys: GATE 2, check_pipeline_order,
-check_plan_order and the run logs name steps by them. Generating the rows would renumber
+is not yet just a registry row. The labels are keys: GATE 2, check_pipeline_order (its
+order check and its --plan check) and the run logs name steps by them. Generating the rows would renumber
 every step, including the irregular `10za` and `10.01`, and every reader would have to
 move in one change. The owner deferred this on 2026-09-25.
 
@@ -1422,7 +1422,7 @@ is kept outside the repository, in a git bundle the owner holds.
   (`tempfile.mkdtemp`, lines 81 and 130) and never removes them.
 - `paths.py:39` still calls the score panel a `.csv`; `config.read_table`'s docstring
   names `csv_reader_check.py`, which no longer exists; `results/engine_v2_final.py:180`
-  and `:261` and `results/arm_sources.py:5` name the deleted `make_final_chart_fair.py`;
+  and `:261` and `results/make_chart.py:62` (moved from arm_sources.py:5) name the deleted `make_final_chart_fair.py`;
   `results/validate_engine.py:57` and `:380` mention `FINAL_val_*.csv`.
 - `diagnostics/gate_verdicts.txt:80` says the live purge rule is tested by no script;
   `results/leakage_check2_trading_purge.py` tests it.

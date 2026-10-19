@@ -108,8 +108,7 @@ from arms.registry import ARMS, ALL_ARMS, SHIPPING as SHIPPING_ARMS            #
 #     MEMBERSHIP is listed below because it IS a module global; the rest are out of
 #     scope and stay out of scope rather than being half-covered.
 #
-# USAGE
-#     from module_state import pinned
+# USAGE (pinned() is defined below, in this file)
 #     with pinned():
 #         step.main()
 #
