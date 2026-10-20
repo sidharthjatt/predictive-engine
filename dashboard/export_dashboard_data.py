@@ -595,6 +595,13 @@ def ladder(repo, runs_by_key, checks):
     return out
 
 
+# The headline figures the staleness check compares, as the run view shows them.
+HEADLINE = (("cagr", lambda r: r["cagr"]), ("max_dd", lambda r: r["max_dd"]),
+            ("end_equity", lambda r: r["end_equity"]),
+            ("basket_cagr", lambda r: r["basket"] and r["basket"]["cagr"]),
+            ("tax", lambda r: r["costs"]["tax"]))
+
+
 def key_of(ax):
     return tuple(ax[a] for a in AXIS_ORDER)
 
@@ -665,7 +672,7 @@ def main():
     published, superseded = published_list(repo)
     runs, ad_hoc, folders = [], [], sorted(p for p in (repo / "runs").iterdir()
                                            if p.is_dir() and re.match(r"^\d{8}T\d{6}_", p.name))
-    skipped_unfinished, skipped_superseded = [], []
+    skipped_unfinished, skipped_superseded, superseded_dirs = [], [], []
     for name in sorted((published | superseded) - {p.name for p in folders}):
         checks.append(f"Published list FAIL: {name} is in {PUBLISHED_LIST.name} but there is "
                       f"no such run folder.")
@@ -678,6 +685,7 @@ def main():
             continue
         if folder.name in superseded:
             skipped_superseded.append(folder.name)
+            superseded_dirs.append((folder, read_run_txt(rt)))
             continue
         run_txt = read_run_txt(rt)
         sel = folder.name.split("_", 1)[1]
@@ -723,6 +731,38 @@ def main():
     runs = sorted(by_key.values(), key=lambda r: key_of(r["axes"]))
     ad_hoc.sort(key=lambda r: (r["_folder_ts"], key_of(r["axes"])))
     ad_hoc_keys = {key_of(r["axes"]) for r in ad_hoc}
+
+    # STALENESS OF THE PUBLISHED LIST, READ ONLY. For every published combination, any
+    # run of it in a newer folder (ad hoc or listed as superseded) whose headline
+    # figures differ means PUBLISHED_RUNS.txt no longer names the latest result. Only
+    # reported; nothing is replaced. A superseded folder's runs are read only when it
+    # is newer than the published folder of the same combination.
+    later = list(ad_hoc)
+    for folder, run_txt in superseded_dirs:
+        ts = folder.name.split("_", 1)[0]
+        for udir in sorted(p.name for p in (folder / "runs").iterdir() if p.is_dir()):
+            for sdir in sorted((folder / "runs" / udir).iterdir()):
+                if not ((sdir / "params.json").exists() and (sdir / "comparison.csv").exists()):
+                    continue
+                pub = by_key.get(key_of(run_axes(json.loads((sdir / "params.json").read_text()),
+                                                 run_txt, sdir.name)))
+                if pub is not None and ts > pub["_folder_ts"]:
+                    later.append(build_run(repo, folder, udir, sdir.name, run_txt, index_files, checks))
+    stale = []
+    for r in sorted(later, key=lambda r: (key_of(r["axes"]), r["_folder_ts"])):
+        pub = by_key.get(key_of(r["axes"]))
+        if pub is None or r["_folder_ts"] <= pub["_folder_ts"]:
+            continue
+        diffs = [f"{name} {f(pub)} vs {f(r)}" for name, f in HEADLINE if f(pub) != f(r)]
+        if diffs:
+            combo = pub["id"].split("/", 1)[1]
+            stale.append(f"{PUBLISHED_LIST.name} needs updating: {combo} is published from "
+                         f"{pub['id'].split('/')[0]}, and the newer {r['id'].split('/')[0]} "
+                         f"differs ({'; '.join(diffs)}).")
+    checks.append(f"Published list staleness: {len(stale)} published combinations have a newer "
+                  f"run with different headline figures (CAGR, max drawdown, final value, "
+                  f"basket CAGR, tax); {len(later)} newer or unlisted runs compared."
+                  + "".join(" STALE: " + s for s in stale))
 
     # THE FIXED-CAPITAL TWIN: the run with every axis the same and fixed capital
     # flipped. The Return methods view shows a run's fixed-capital figures only when
@@ -969,6 +1009,9 @@ def main():
     print(f"repository clean before: {porcelain == ''}, after: {after == ''}")
     for c in checks:
         print(" -", c[:400] + (" ..." if len(c) > 400 else ""))
+    # run.py's refresh passes these lines on to the run's output.
+    for s in stale:
+        print(f"WARNING: {s}")
 
 
 if __name__ == "__main__":

@@ -1316,7 +1316,9 @@ def refresh_dashboard():
     subprocesses, within DASHBOARD_TIMEOUT_S together. Both write to temporary files in
     dashboard/, which replace the live files only when both steps succeed: on any
     error or timeout one warning line is printed and the previous dashboard is left
-    as it was. The page is replaced before the data file, so the page that opens is
+    as it was. Any warning the export prints about dashboard/PUBLISHED_RUNS.txt (a
+    newer run of a published combination with different headline figures) is passed
+    on, one line each. The page is replaced before the data file, so the page that opens is
     never older than the data. Called only after the run folder and run.log exist;
     the run's own outputs and exit code do not depend on it.
     """
@@ -1336,8 +1338,13 @@ def refresh_dashboard():
             if p.returncode != 0:
                 raise RuntimeError(f"{Path(cmd[1]).name} exited {p.returncode}: "
                                    f"{_last_line(p.stderr or p.stdout)}")
+            if Path(cmd[1]).name == "export_dashboard_data.py":
+                export_out = p.stdout
         _os.replace(tmp_html, d / "dashboard.html")
         _os.replace(tmp_json, d / "dashboard_data.json")
+        # The export's read-only staleness check of dashboard/PUBLISHED_RUNS.txt.
+        stale = [x for x in export_out.splitlines()
+                 if x.startswith("WARNING: PUBLISHED_RUNS.txt needs updating")]
     except subprocess.TimeoutExpired:
         print(f"  WARNING: dashboard not refreshed: timed out after {DASHBOARD_TIMEOUT_S} s; "
               f"the previous dashboard is unchanged.", flush=True)
@@ -1354,6 +1361,8 @@ def refresh_dashboard():
                 pass
     print(f"  dashboard refreshed in {_time.time() - t0:.1f} s -> dashboard/dashboard.html",
           flush=True)
+    for x in stale:
+        print(f"  {x}", flush=True)
 
 
 def readme_table_check():

@@ -1684,7 +1684,10 @@ behind the published figures (`[published]`) and the earlier runs they replaced
 with unusual settings, appears only under "Ad hoc runs", labelled as such: it never
 replaces a published cell and feeds neither the export's check f nor the ladder. A
 rerun is published only when its folder is moved into `[published]` and the one it
-replaces into `[superseded]`.
+replaces into `[superseded]`. The refresh prints "PUBLISHED_RUNS.txt needs updating"
+when a newer run of a published combination has a different CAGR, max drawdown, final
+value, basket CAGR or tax; to update, move that newer folder's name from wherever it is
+into `[published]` and the folder it names as published into `[superseded]`.
 
 ## Repository layout
 
