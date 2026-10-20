@@ -82,6 +82,24 @@ files and `@cap<rupees>` to folders, and appears in chart titles, params.json an
 RUN.txt. The default is defined once, in `capital_axis.py`. `nautilus/nt_verify.py
 --capital=<rupees>` checks the port at that capital (static, research, tax off).
 
+A capital other than the default needs `--profile tradeable` and an explicit `--impact K`
+(0 allowed). `run.py` refuses it under the research profile, which has no participation
+cap and no market impact and so shows the same return at any capital, and refuses it
+under tradeable without `--impact`, listing the values `results/impact_sweep.py`
+measures.
+
+**Capacity.** After every run `capacity.py` compares each buy fill with the stock's
+average traded value over the 20 sessions before it, and measures the buy value the
+participation cap left unfilled. `run.log` and `RUN.txt` get one `capacity` line per arm,
+and a `CAPACITY WARNING` line when the 95th-percentile fill is above 10% of that value,
+any fill is above 25%, or the cap left more than 5% unfilled. The dashboard shows the
+same figures per run, a red badge on the run page and a Capacity column in "All runs".
+It reads the run's artefacts and changes no results file. Measured 2026-10-20: at the
+default Rs 10 lakh, 174 of the 345 published cells at impact 0 pass a threshold. Every
+one has a single fill above 25%; in six universes the 95th percentile is also above 10%,
+and in 12 market-cap cells the cap also left more than 5% unfilled. In mcap1500to5000 v1
+one fill is 74.7 times the stock's 20-day average traded value.
+
 `--impact K` (default 0, off) adds square-root market impact to every buy and sell:
 the fill pays the flat 0.15% plus K x sqrt(order shares / prior-20-session median
 volume), the formula in `slippage.py`. `--cap F` (default the profile's own, 1.0 under

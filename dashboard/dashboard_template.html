@@ -89,6 +89,8 @@ svg.chart .zero { stroke: var(--muted); stroke-width: 1; }
 .problems h2 { color: var(--bad); }
 .adhoc { border: 2px solid var(--bad); }
 .adhoc h2 .tag { color: var(--bad); }
+.badge-bad { display: inline-block; color: #fff; background: var(--bad); border-radius: 4px; padding: 1px 7px; font-size: 0.8em; font-weight: 700; vertical-align: middle; }
+.capwarn { border: 2px solid var(--bad); }
 pre.ki { white-space: pre-wrap; font: 13px/1.45 ui-monospace, Menlo, Consolas, monospace; margin: 4px 0 0; }
 details { border-bottom: 1px solid var(--line); padding: 6px 0; }
 summary { cursor: pointer; }
@@ -214,6 +216,9 @@ function validate(d) {
       }
       if (!(isObj(run.rounded_to) && Object.values(run.rounded_to).every(v => Number.isInteger(v))))
         p.push(`${w}: rounded_to must map figure names to whole numbers of decimals.`);
+      const cp = run.capacity;
+      if (cp !== undefined && cp !== null && !(isObj(cp) && ["median_pct_adv","p95_pct_adv","max_pct_adv","unfilled_cap_pct"].every(k => numOrNull(cp[k])) && (cp.warning === null || cp.warning === undefined || typeof cp.warning === "string")))
+        p.push(`${w}: capacity must be null or hold the capacity figures and a warning.`);
       if (!["pass","fail","not covered"].includes(run.nt_verify)) p.push(`${w}: nt_verify must be pass, fail or not covered.`);
       if (p.length > 200) { p.push("More than 200 problems; stopped listing."); return p; }
     }
@@ -486,7 +491,11 @@ function cliCommand(ax) {
   const parts = [];
   for (const a of AXES) {
     const v = ax[a.name];
-    if (a.open_number) { if (!(a.no_flag || [a.default]).includes(v)) parts.push(a.cli.replace("{value}", v)); }
+    // required_with: the flag is given even at a no_flag value when that axis is off
+    // its default (run.py needs --impact with --capital).
+    const req = a.required_with && AXES.find(x => x.name === a.required_with);
+    const forced = req && !(req.no_flag || [req.default]).includes(ax[req.name]);
+    if (a.open_number) { if (forced || !(a.no_flag || [a.default]).includes(v)) parts.push(a.cli.replace("{value}", v)); }
     else if (a.cli[v]) parts.push(a.cli[v]);
   }
   return DATA.command_template.replace("{args}", parts.join(" "));
@@ -599,6 +608,9 @@ function viewRun() {
   const cmpBtn = ad ? '<p class="muted">Ad hoc runs are not added to the comparison.</p>' : `<p><button class="btn" id="addCmp" type="button" ${inCmp || state.cmp.length >= 6 ? "disabled" : ""}>${inCmp ? "In comparison" : state.cmp.length >= 6 ? "Comparison full (6)" : "Add to comparison"}</button>
     <span class="muted">${state.cmp.length} of 6 in comparison</span></p>`;
   if (r.bias_note) h += biasPanel(r);
+  if (r.capacity && r.capacity.warning) h += `<section class="panel capwarn"><h2><span class="badge-bad">CAPACITY WARNING</span></h2>
+    <p class="wrap">${esc(r.capacity.warning)}. The universe may not absorb orders of this size; the return is not reliable at this capital.</p>
+    <p class="muted">${esc(capText(r.capacity))}</p></section>`;
   h += `<section class="panel"><h2>${esc(r.axes.universe)} ${esc(r.axes.arm)} <span class="win">· window ${esc(winOf(r))}, ${r.years.toFixed(2)} years</span> <span class="muted">— ${esc(r.id)}</span></h2>
     <div class="tiles">
       ${tile("CAGR", pct(r.cagr), rnote("cagr"))}
@@ -866,6 +878,13 @@ function fixedBlock(fx, comp) {
   return h;
 }
 
+// capacity.py's figures for one run, as one line; "not measured" when absent.
+function capText(c) {
+  if (!c) return "not measured";
+  const f = x => x === null || x === undefined ? "n/a" : `${x.toFixed(2)}%`;
+  return `Buy fills against 20-day average traded value: median ${f(c.median_pct_adv)}, 95th percentile ${f(c.p95_pct_adv)}, largest ${f(c.max_pct_adv)}; cap left ${f(c.unfilled_cap_pct)} of buy value unfilled.`;
+}
+const capBadge = r => !r.capacity ? '<span class="muted">not measured</span>' : r.capacity.warning ? '<span class="badge-bad">WARNING</span>' : "ok";
 function viewAll() {
   const cols = [...AXES.map(a => ({k: "ax." + a.name, h: a.name, l: 1, v: r => r.axes[a.name], f: r => esc(axisValueText(a.name, r.axes[a.name])), num: a.open_number})),
     {k: "start", h: "Start", l: 1, v: r => r.start_date, f: r => esc(r.start_date)},
@@ -877,7 +896,8 @@ function viewAll() {
     {k: "end", h: "End equity", v: r => r.end_equity, f: r => inr(r.end_equity), num: 1},
     {k: "tax", h: "Tax", v: r => r.costs.tax, f: r => inr(r.costs.tax), num: 1},
     {k: "trades", h: "Trades", v: r => r.trades, f: r => String(r.trades), num: 1},
-    {k: "nt", h: "nt_verify", l: 1, v: r => r.nt_verify, f: r => esc(r.nt_verify)}];
+    {k: "nt", h: "nt_verify", l: 1, v: r => r.nt_verify, f: r => esc(r.nt_verify)},
+    {k: "cap", h: "Capacity", l: 1, v: r => !r.capacity ? "" : r.capacity.warning ? "WARNING" : "ok", f: capBadge}];
   // Every word of the filter must appear in the run's id or one of its settings.
   const words = state.filter.trim().toLowerCase().split(/\s+/).filter(Boolean);
   let rows = RUNS.filter(r => { const t = (r.id + " " + AXES.map(a => `${a.name} ${r.axes[a.name]}`).join(" ") + " nt_verify " + r.nt_verify).toLowerCase();

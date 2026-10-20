@@ -5,8 +5,9 @@ capital_ladder.py -- named cells at several starting capitals, from their run ar
         --capitals 500000,1000000,2500000,5000000,10000000,20000000,50000000
 
 Reads the artefacts of `run.py --survivorship pit --profile tradeable --tax on
---capital C [--impact K] [--cap F]` runs (cadence 20, no --dd), already made; it
-runs nothing. --impacts and --pcaps (default 0 and 1.0, the tradeable defaults)
+--capital C --impact K [--cap F]` runs (cadence 20, no --dd), already made; it
+runs nothing. run.py needs --impact with any capital but the default, 0 included,
+so the k-0 rows come from `--impact 0`. --impacts and --pcaps (default 0 and 1.0, the tradeable defaults)
 add those axes to the grid. Per cell, capital, k and cap:
 
     cagr, maxdd           the arm's row of v34_comparison<sfx>.csv

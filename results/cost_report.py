@@ -646,11 +646,20 @@ def summary_figures(text):
              "final equity": "final", "gross profit": "gross",
              "of which drawdown exits": "exit_costs"}
     names.update({nm: k for k, nm in CHARGES})
+    # EACH FIGURE IS READ WHOLE, AT ANY WIDTH. The label is the fixed 34 characters
+    # after the indent; the figures follow it. A figure is printed with ",.2f", so
+    # it always ends in exactly two decimals, which separates two figures even when
+    # a wide one fills its column and touches the next. The percent columns end in
+    # "%" and are not rupee figures. Until 2026-10-20 the figures were sliced at
+    # fixed columns (36:52, 36:54, 54:76), which cut any figure wider than its
+    # column: from Rs 1,000 crore up a run failed its reconciliation on a
+    # truncated copy of a correct figure.
+    rupees = re.compile(r"-?\d{1,3}(?:,\d{3})*\.\d{2}(?![\d%])")
     i = next(j for j, x in enumerate(lines) if x.rstrip().endswith("of gross"))
     for x in lines[i + 1:]:
         if not x.strip():
             break
-        out[f"strategy/{names[x[2:36].strip()]}"] = x[36:52].strip()
+        out[f"strategy/{names[x[2:36].strip()]}"] = rupees.findall(x[36:])[0]
     i = next((j for j, x in enumerate(lines) if x.rstrip().endswith("sold on the last day")
               and "held to the end" in x), None)
     if i is not None:
@@ -658,8 +667,7 @@ def summary_figures(text):
             if x.startswith("  all costs, % of gross profit"):
                 break
             k = names[x[2:36].strip()]
-            out[f"held/{k}"] = x[36:54].strip()
-            out[f"sold/{k}"] = x[54:76].strip()
+            out[f"held/{k}"], out[f"sold/{k}"] = rupees.findall(x[36:])[:2]
     m = re.search(r"with tax on it would pay Rs ([-\d,.]+)\.", text)
     if m:
         out["sold/tax_if_on"] = m.group(1)

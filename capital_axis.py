@@ -49,6 +49,41 @@ def segment():
     return "" if is_default() else f"@cap{selected()}"
 
 
+def refusal(profile, impact_given):
+    """Why run.py refuses this capital, or None.
+
+    A capital other than DEFAULT is refused under the research profile, which has
+    no participation cap and no market impact and so gives the same return at any
+    size, and under the tradeable profile unless --impact is given, 0 included.
+    The values listed are results/impact_sweep.py's K_VALUES."""
+    if is_default():
+        return None
+    if profile == "research":
+        return (f"--capital {selected():,} needs --profile tradeable: the research profile "
+                f"ignores capital size (it has no participation cap and no market impact, so "
+                f"every capital gives the same return). Use --profile tradeable with "
+                f"--impact K.")
+    if not impact_given:
+        return (f"--capital {selected():,} needs an explicit --impact K under the tradeable "
+                f"profile: no impact coefficient is assumed. Give --impact 0 for no market "
+                f"impact, or one of the values results/impact_sweep.py measures: "
+                f"{', '.join(f'{k:g}' for k in sweep_k_values())}.")
+    return None
+
+
+def sweep_k_values():
+    """results/impact_sweep.py's K_VALUES, read from its source without importing it
+    (it imports the engine)."""
+    import ast
+    from pathlib import Path
+    src = (Path(__file__).resolve().parent / "results" / "impact_sweep.py").read_text()
+    for node in ast.parse(src).body:
+        if isinstance(node, ast.Assign) and any(getattr(t, "id", "") == "K_VALUES"
+                                                 for t in node.targets):
+            return tuple(ast.literal_eval(node.value))
+    raise RuntimeError("results/impact_sweep.py defines no K_VALUES")
+
+
 def label():
     """The chart-title fragment, "" at the default."""
     return "" if is_default() else f"capital Rs {selected():,}"

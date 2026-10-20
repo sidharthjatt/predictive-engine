@@ -299,7 +299,8 @@ def flags_for(ax, universe_sel, arm_sel):
         f.append(f"--dd {ax['dd']}")
     if ax["capital"] not in NO_FLAG["capital"]:
         f.append(f"--capital {ax['capital']}")
-    if ax["impact"] not in NO_FLAG["impact"]:
+    # run.py refuses a capital other than the default without --impact, 0 included.
+    if ax["impact"] not in NO_FLAG["impact"] or ax["capital"] not in NO_FLAG["capital"]:
         f.append(f"--impact {ax['impact']}")
     if ax["pcap"] not in NO_FLAG["pcap"]:
         f.append(f"--cap {ax['pcap']}")
@@ -310,11 +311,12 @@ def flags_for(ax, universe_sel, arm_sel):
 
 def cli_command(axes, ax):
     """The flags the exported cli rules give for one run, in axes order."""
-    out = []
+    out, by = [], {a["name"]: a for a in axes}
     for a in axes:
         v = ax[a["name"]]
         if a["open_number"]:
-            if v not in a["no_flag"]:
+            req = a.get("required_with")
+            if v not in a["no_flag"] or (req and ax[req] not in by[req]["no_flag"]):
                 out.append(a["cli"].replace("{value}", v))
         elif a["cli"].get(v):
             out.append(a["cli"][v])
@@ -394,6 +396,7 @@ def build_run(repo, folder, udir, seg, run_txt, index_files, checks):
         return p if p.exists() else None
 
     costs_f, years_f = mfile("COSTS", ".csv"), mfile("COST_TAX_YEARS", ".csv")
+    skipped_f = mfile("daily_skipped", ".csv")
     fy_f, log_f = mfile("FY_TAX_STATEMENT", ".csv"), mfile("DAILY_LOG", ".txt")
 
     costs = {"slippage": None, "charges": None, "impact": None, "tax": None}
@@ -406,6 +409,13 @@ def build_run(repo, folder, udir, seg, run_txt, index_files, checks):
         names = [n for n in ("brokerage", "stt", "exchange_txn", "sebi", "stamp_duty",
                              "ipft", "dp", "gst") if n in c]
         breakdown = {n: float(c[n].sum()) for n in names}
+    # CAPACITY (capacity.py): fills against the stock's 20-day average traded value,
+    # and what the cap left unfilled. None when the run folder holds no COSTS file.
+    capacity = None
+    if costs_f:
+        import capacity as _capacity
+        capacity = _capacity.measure(c, read_table(skipped_f) if skipped_f else None,
+                                     RAW_DIRS[(u, ax["survivorship"])], CAP_CACHE)
     if years_f:
         costs["tax"] = float(read_table(years_f)["total_tax"].sum())
 
@@ -518,6 +528,7 @@ def build_run(repo, folder, udir, seg, run_txt, index_files, checks):
         "yearly": yearly,
         "equity": equity,
         "fixed": fixed,
+        "capacity": capacity,
         # THE BIAS LABEL of a static-only universe (registry Universe.bias_note), or None.
         "bias_note": getattr(REGISTRY_ROWS.get(u), "bias_note", None),
         "fixed_twin": None,  # filled by the caller: the same run with fixed capital flipped
@@ -608,6 +619,8 @@ def key_of(ax):
 
 AXIS_ORDER = None  # set in main from naming.AXES
 REGISTRY_ROWS = {}  # set in main from universes.registry.REGISTRY
+RAW_DIRS = {}  # (universe tag, "static" | "pit") -> raw price directory, set in main
+CAP_CACHE = {}  # capacity.py's per-symbol price series, shared by every run of one export
 
 
 def main():
@@ -653,6 +666,11 @@ def main():
             f = Path(v.score_cache)
             if f.exists():
                 panel_dates |= set(pd.read_parquet(f, columns=["date"])["date"].unique())
+    _sva.set_selection(None)
+    for tag, u in REGISTRY.items():
+        RAW_DIRS[(tag, "static")] = u.raw_data_dir
+        if has_pit(u):
+            RAW_DIRS[(tag, "pit")] = pit_variant(u).raw_data_dir
     _sva.set_selection(None)
     panel_dates = sorted(pd.Timestamp(d) for d in panel_dates)
     data_end = panel_dates[-1] if panel_dates else None
@@ -759,6 +777,10 @@ def main():
             stale.append(f"{PUBLISHED_LIST.name} needs updating: {combo} is published from "
                          f"{pub['id'].split('/')[0]}, and the newer {r['id'].split('/')[0]} "
                          f"differs ({'; '.join(diffs)}).")
+    _cw = [r for r in runs if r["capacity"] and r["capacity"]["warning"]]
+    checks.append(f"Capacity (capacity.py): {sum(1 for r in runs if r['capacity'])} of {len(runs)} "
+                  f"published runs measured; {len(_cw)} pass a threshold"
+                  + (": " + "; ".join(r["id"] for r in _cw) if _cw else "") + ".")
     checks.append(f"Published list staleness: {len(stale)} published combinations have a newer "
                   f"run with different headline figures (CAGR, max drawdown, final value, "
                   f"basket CAGR, tax); {len(later)} newer or unlisted runs compared."
@@ -840,7 +862,10 @@ def main():
             axes.append({"name": name, "label": LABELS[name], "default": default,
                          "values": num_sorted(seen(name)), "open_number": True,
                          "cli": f"{flag} {{value}}",
-                         "no_flag": sorted(NO_FLAG[name])})
+                         "no_flag": sorted(NO_FLAG[name]),
+                         # The flag is given even at a no_flag value when this axis is
+                         # off its default: run.py needs --impact with --capital.
+                         **({"required_with": "capital"} if name == "impact" else {})})
     checks.append("Open number axes carry a no_flag list: values that take no flag. "
                   "pcap is \"none\" under the research profile (no cap) and \"1\" is "
                   "tradeable's own cap; neither takes --cap.")

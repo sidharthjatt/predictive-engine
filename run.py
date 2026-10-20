@@ -912,6 +912,13 @@ def main(argv=None):
             _axis.check_profile()
         except ValueError as e:
             ap.error(str(e))
+    # A STARTING CAPITAL OTHER THAN THE DEFAULT NEEDS A COST MODEL THAT SEES SIZE.
+    # The research profile has no participation cap and no market impact, so every
+    # capital gives the same return; and under tradeable the impact coefficient is
+    # a choice the run must state, 0 included (impact_axis.py chooses none).
+    _why = _capa.refusal(_prof.selected(), args.impact is not None)
+    if _why:
+        ap.error(_why)
 
     import survivorship_axis as _sva
     _sva.set_selection(args.survivorship)
@@ -1059,6 +1066,12 @@ def collect_run_folder(plan, args, t_start, dest, thin=None):
     stuck = tradability.run_lines(plan["universes"], plan["arms"])
     for line in stuck:
         print(line)
+    # CAN THE UNIVERSE ABSORB THESE ORDERS (capacity.py)? Printed into run.log here
+    # and written to RUN.txt below; read from this run's own artefacts, so no
+    # results file changes.
+    cap_lines = _capacity_lines(plan, t_start)
+    for line in cap_lines:
+        print(f"  {line}")
     dest.mkdir(parents=True, exist_ok=True)
     # started/finished are epoch seconds. check_all.py --since reads them to find
     # the runs that finished after --since and what they selected; see
@@ -1072,7 +1085,8 @@ def collect_run_folder(plan, args, t_start, dest, thin=None):
         f"profile   : {_pf.selected()}\n"
         f"tax       : {'on' if _tax.selected() else 'off'}\n"
         + _survivorship_section(plan) + _bias_section(plan) + _dd_section() + _capital_section()
-        + _impact_pcap_section() + _fixed_section() + "".join(l + "\n" for l in stuck) +
+        + _impact_pcap_section() + _fixed_section() + "".join(l + "\n" for l in stuck)
+        + "".join(l + "\n" for l in cap_lines) +
         f"steps     : {len(plan['pipeline'])} pipeline, {len(plan['arm_runs'])} arm runs\n"
         f"artefacts : {copied} copied from their canonical locations\n"
         f"log       : run.log\n"
@@ -1083,6 +1097,32 @@ def collect_run_folder(plan, args, t_start, dest, thin=None):
         print(f"  {len(failed)} could not be copied (the run itself succeeded):")
         for m in failed[:5]:
             print(f"    {m}")
+
+
+def _capacity_lines(plan, t_start):
+    """capacity.lines for every arm run this invocation audited, from its COSTS_ and
+    daily_skipped_ files. An arm whose COSTS file this run did not write gets one
+    "not measured" line; a failure to measure is reported, never raised, because the
+    run's results are already complete."""
+    import capacity
+    import audit_step as _as
+    from config import read_table
+    out, cache = [], {}
+    for u, a in plan["arm_runs"]:
+        name = f"{u.tag} {a.name}"
+        try:
+            tag = _as.artefact_tag(u, a)
+            cf = Path(u.metrics_dir) / f"COSTS_{tag}.csv"
+            if not cf.exists() or cf.stat().st_mtime < t_start:
+                out.append(f"capacity  : {name}: not measured (this run wrote no {cf.name})")
+                continue
+            sf = Path(u.metrics_dir) / f"daily_skipped_{tag}.csv"
+            sk = read_table(sf, parse_dates=["date"]) if sf.exists() else None
+            m = capacity.measure(read_table(cf, parse_dates=["date"]), sk, u.raw_data_dir, cache)
+            out += capacity.lines(name, m)
+        except Exception as e:
+            out.append(f"capacity  : {name}: not measured ({type(e).__name__}: {e})")
+    return out
 
 
 def _bias_section(plan):
