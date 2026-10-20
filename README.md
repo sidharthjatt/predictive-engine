@@ -89,16 +89,22 @@ under tradeable without `--impact`, listing the values `results/impact_sweep.py`
 measures.
 
 **Capacity.** After every run `capacity.py` compares each buy fill with the stock's
-average traded value over the 20 sessions before it, and measures the buy value the
-participation cap left unfilled. `run.log` and `RUN.txt` get one `capacity` line per arm,
-and a `CAPACITY WARNING` line when the 95th-percentile fill is above 10% of that value,
-any fill is above 25%, or the cap left more than 5% unfilled. The dashboard shows the
-same figures per run, a red badge on the run page and a Capacity column in "All runs".
-It reads the run's artefacts and changes no results file. Measured 2026-10-20: at the
-default Rs 10 lakh, 174 of the 345 published cells at impact 0 pass a threshold. Every
-one has a single fill above 25%; in six universes the 95th percentile is also above 10%,
-and in 12 market-cap cells the cap also left more than 5% unfilled. In mcap1500to5000 v1
-one fill is 74.7 times the stock's 20-day average traded value.
+average traded value over the 20 sessions before it, counting NSE rows only, and
+measures the buy value the participation cap left unfilled. The price files mix NSE and
+BSE rows day by day, and a BSE row's volume is BSE's alone (KNOWN_ISSUES.md, "The price
+files mix NSE and BSE rows"). A fill with no NSE row in its 20 sessions is not
+measurable and is counted, never estimated. `run.log` and `RUN.txt` get one `capacity`
+line per arm, and a `CAPACITY WARNING` line when the 95th-percentile fill is above 10% of
+that value, any fill is above 25%, or the cap left more than 5% unfilled. The dashboard
+shows the same figures per run, on the run page, and in a Capacity column in "All runs"
+with a red badge for a warning. It reads the run's artefacts and changes no results
+file. Measured 2026-10-20: at the default Rs 10 lakh, 120 of the 345 published cells at
+impact 0 pass a threshold, all in nifty500, smallcap250, microcap250 and the three
+market-cap buckets; none in nifty50, nifty100, nifty200, midcap50, midcap100 or
+midcap150, and none of the three candidates. Every warned cell has a single fill above
+25%; 42 also have the 95th percentile above 10%, and 12 market-cap cells also had more
+than 5% left unfilled by the cap. 16,898 of their 156,536 buy fills (10.8%) are not
+measurable, from 2.6% in nifty50 to 34.0% in mcap1500to5000.
 
 `--impact K` (default 0, off) adds square-root market impact to every buy and sell:
 the fill pays the flat 0.15% plus K x sqrt(order shares / prior-20-session median

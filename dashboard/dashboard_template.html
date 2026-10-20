@@ -217,7 +217,7 @@ function validate(d) {
       if (!(isObj(run.rounded_to) && Object.values(run.rounded_to).every(v => Number.isInteger(v))))
         p.push(`${w}: rounded_to must map figure names to whole numbers of decimals.`);
       const cp = run.capacity;
-      if (cp !== undefined && cp !== null && !(isObj(cp) && ["median_pct_adv","p95_pct_adv","max_pct_adv","unfilled_cap_pct"].every(k => numOrNull(cp[k])) && (cp.warning === null || cp.warning === undefined || typeof cp.warning === "string")))
+      if (cp !== undefined && cp !== null && !(isObj(cp) && ["median_pct_adv","p95_pct_adv","max_pct_adv","unfilled_cap_pct","not_measurable_pct"].every(k => numOrNull(cp[k])) && (cp.warning === null || cp.warning === undefined || typeof cp.warning === "string")))
         p.push(`${w}: capacity must be null or hold the capacity figures and a warning.`);
       if (!["pass","fail","not covered"].includes(run.nt_verify)) p.push(`${w}: nt_verify must be pass, fail or not covered.`);
       if (p.length > 200) { p.push("More than 200 problems; stopped listing."); return p; }
@@ -608,6 +608,7 @@ function viewRun() {
   const cmpBtn = ad ? '<p class="muted">Ad hoc runs are not added to the comparison.</p>' : `<p><button class="btn" id="addCmp" type="button" ${inCmp || state.cmp.length >= 6 ? "disabled" : ""}>${inCmp ? "In comparison" : state.cmp.length >= 6 ? "Comparison full (6)" : "Add to comparison"}</button>
     <span class="muted">${state.cmp.length} of 6 in comparison</span></p>`;
   if (r.bias_note) h += biasPanel(r);
+  if (r.capacity && !r.capacity.warning) h += `<section class="panel"><h2>Capacity</h2><p class="muted">${esc(capText(r.capacity))}</p></section>`;
   if (r.capacity && r.capacity.warning) h += `<section class="panel capwarn"><h2><span class="badge-bad">CAPACITY WARNING</span></h2>
     <p class="wrap">${esc(r.capacity.warning)}. The universe may not absorb orders of this size; the return is not reliable at this capital.</p>
     <p class="muted">${esc(capText(r.capacity))}</p></section>`;
@@ -882,9 +883,11 @@ function fixedBlock(fx, comp) {
 function capText(c) {
   if (!c) return "not measured";
   const f = x => x === null || x === undefined ? "n/a" : `${x.toFixed(2)}%`;
-  return `Buy fills against 20-day average traded value: median ${f(c.median_pct_adv)}, 95th percentile ${f(c.p95_pct_adv)}, largest ${f(c.max_pct_adv)}; cap left ${f(c.unfilled_cap_pct)} of buy value unfilled.`;
+  const nm = c.not_measurable_fills === undefined ? "" : ` ${c.not_measurable_fills.toLocaleString("en-IN")} of ${c.buy_fills.toLocaleString("en-IN")} buy fills not measurable (${f(c.not_measurable_pct)}): no NSE row in their 20 sessions.`;
+  return `Buy fills against 20-day average traded value, NSE rows only: median ${f(c.median_pct_adv)}, 95th percentile ${f(c.p95_pct_adv)}, largest ${f(c.max_pct_adv)}; cap left ${f(c.unfilled_cap_pct)} of buy value unfilled.${nm}`;
 }
-const capBadge = r => !r.capacity ? '<span class="muted">not measured</span>' : r.capacity.warning ? '<span class="badge-bad">WARNING</span>' : "ok";
+const capNm = c => c.not_measurable_pct === undefined ? "" : ` <span class="muted">${c.not_measurable_pct.toFixed(1)}% not measurable</span>`;
+const capBadge = r => !r.capacity ? '<span class="muted">not measured</span>' : (r.capacity.warning ? '<span class="badge-bad">WARNING</span>' : "ok") + capNm(r.capacity);
 function viewAll() {
   const cols = [...AXES.map(a => ({k: "ax." + a.name, h: a.name, l: 1, v: r => r.axes[a.name], f: r => esc(axisValueText(a.name, r.axes[a.name])), num: a.open_number})),
     {k: "start", h: "Start", l: 1, v: r => r.start_date, f: r => esc(r.start_date)},

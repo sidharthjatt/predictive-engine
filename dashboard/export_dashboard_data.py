@@ -778,8 +778,12 @@ def main():
                          f"{pub['id'].split('/')[0]}, and the newer {r['id'].split('/')[0]} "
                          f"differs ({'; '.join(diffs)}).")
     _cw = [r for r in runs if r["capacity"] and r["capacity"]["warning"]]
-    checks.append(f"Capacity (capacity.py): {sum(1 for r in runs if r['capacity'])} of {len(runs)} "
-                  f"published runs measured; {len(_cw)} pass a threshold"
+    _nm = sum(r["capacity"]["not_measurable_fills"] for r in runs if r["capacity"])
+    _nb = sum(r["capacity"]["buy_fills"] for r in runs if r["capacity"])
+    checks.append(f"Capacity (capacity.py, NSE rows only): {sum(1 for r in runs if r['capacity'])} of "
+                  f"{len(runs)} published runs measured; {_nm:,} of {_nb:,} buy fills not measurable "
+                  f"({_nm / _nb * 100 if _nb else 0:.1f}%, no NSE row in their 20 sessions); "
+                  f"{len(_cw)} pass a threshold"
                   + (": " + "; ".join(r["id"] for r in _cw) if _cw else "") + ".")
     checks.append(f"Published list staleness: {len(stale)} published combinations have a newer "
                   f"run with different headline figures (CAGR, max drawdown, final value, "

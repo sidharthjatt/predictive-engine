@@ -173,7 +173,7 @@ def validate(d):
             if cp is not None and not (isinstance(cp, dict)
                                        and all(num_or_null(cp.get(k)) for k in
                                                ("median_pct_adv", "p95_pct_adv", "max_pct_adv",
-                                                "unfilled_cap_pct"))
+                                                "unfilled_cap_pct", "not_measurable_pct"))
                                        and (cp.get("warning") is None or isinstance(cp["warning"], str))):
                 p.append(f"{w}: capacity must be null or hold the capacity figures and a warning.")
             if run["nt_verify"] not in ("pass", "fail", "not covered"):

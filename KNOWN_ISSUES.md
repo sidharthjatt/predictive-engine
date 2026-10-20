@@ -1089,6 +1089,85 @@ superseded, and do not re-run either module expecting the current method.
 
 ---
 
+### The price files mix NSE and BSE rows, so the volume column is not one series
+
+Measured 2026-10-20. Every stock price file in `data/raw/` holds one row per day,
+merged from three sources (`upstox`, `dhan`, `kite`), and each row's `exchange` column
+says NSE or BSE. The two are mixed day by day within one file. Prices on the two
+exchanges are close; volumes are not, because a BSE row carries BSE's volume alone.
+COCHINSHIP on 2019-07-26 is a BSE row with 1,811 shares; in 2019 its median daily traded
+value is Rs 1.27 crore on NSE rows and Rs 0.07 crore on BSE rows, which are 126 of its 245
+sessions. Some files are BSE-only for the whole window (GRANDOAK). No file, folder name or
+note says which exchange or which volume unit was intended.
+
+BSE rows as a share of rows from 2019-01-01 to 2026-05-29:
+
+| universe | static | pit |
+|---|---:|---:|
+| nifty50 | 3.0% | 2.8% |
+| nifty100 | 4.4% | 4.2% |
+| nifty200 | 5.8% | 6.1% |
+| nifty500 | 6.2% | 6.5% |
+| midcap50 | 5.8% | 5.7% |
+| midcap100 | 7.2% | 7.6% |
+| midcap150 | 6.1% | 6.9% |
+| smallcap250 | 7.0% | 7.9% |
+| microcap250 | 8.9% | 10.1% |
+| mcapover10000 | 6.7% | no pit |
+| mcap5001to10000 | 11.4% | no pit |
+| mcap1500to5000 | 16.6% | no pit |
+
+3,338 rows in all files have an empty `exchange` but a filled `_exchange` (NSE or BSE);
+most are flat bars (open, high, low and close equal), 1,163 of them with volume 0.
+
+**Where volume is used.**
+- Three of the 17 model features (`results/features_v2.py`): `amihud_20` (|return| over
+  close x volume, 20-day mean), `turnover_z` (5-day against 60-day mean volume) and
+  `vol_price_div` (the direction of 5-day against 20-day mean volume). Every feature is
+  then z-scored across stocks each day, so one stock's volume moves every stock's value
+  on that day.
+- The tradeable participation cap and market impact: `results/tradability.py`
+  `median_volume`, the prior-20-session median volume (`vol20`), read by
+  `results/test_exposure.py` and `slippage.py`.
+- `capacity.py`, the capacity warning. Since 2026-10-20 it counts NSE rows only
+  (`exchange == NSE`) and reports a fill with no NSE row in its 20 sessions as not
+  measurable. Nothing else leaves the BSE rows out.
+
+**Measured sensitivity, in a scratch copy only.** BSE rows' volume was set to missing,
+prices left as they are; the volume features and the cap's median were taken over the NSE
+rows inside each window, and the panel was rebuilt. nifty200 static, research, tax off:
+
+| arm | CAGR% published | CAGR% NSE volume | MaxDD% published | MaxDD% NSE volume | final value published | final value NSE volume |
+|---|---:|---:|---:|---:|---:|---:|
+| v1 | 42.98 | 46.34 | -34.61 | -35.80 | 14,125,095.43 | 16,775,133.05 |
+| v2 | 32.48 | 33.83 | -24.70 | -21.71 | 8,027,776.47 | 8,655,892.01 |
+| v3 | 42.77 | 51.83 | -37.80 | -45.49 | 13,971,688.27 | 22,037,836.63 |
+| v4 | 38.74 | 39.34 | -26.94 | -24.47 | 11,298,590.07 | 11,671,078.40 |
+
+nifty200 pit, tradeable, tax on:
+
+| arm | CAGR% published | CAGR% NSE volume | MaxDD% published | MaxDD% NSE volume | final value published | final value NSE volume |
+|---|---:|---:|---:|---:|---:|---:|
+| v1 | 32.22 | 28.41 | -32.13 | -30.61 | 7,913,071.86 | 6,372,316.18 |
+| v3 | 36.95 | 33.67 | -32.91 | -31.85 | 10,266,220.06 | 8,579,474.80 |
+
+Every one of the 92 rebalances picked a different set of names in both panels. The
+treatment also changed which rows can be scored: a row is scored only when all 17
+features exist, and a name whose volume windows held no NSE row lost its score. In the
+static window 16,602 of 323,071 scorable stock-days (5.1%) were lost; the median number of
+scored names per day fell from 178 to 168. The two effects are not separated, so neither
+version is the correct one: the published figures read BSE volume as if it were NSE's,
+and the NSE-only figures drop names the published runs could choose. Each figure is one
+run (n=1).
+
+**The candidates.** The published figures of nifty200 v3, nifty200 v1 and midcap100 v1
+(pit, tradeable, tax on) carry this uncertainty. On nifty200 v3 and v1 it is of the size in
+the second table.
+
+**Not fixed in the engine.** The engine, the participation cap and the features read
+every row as delivered. A fix needs NSE-only volume from the data supplier; until it
+arrives every published figure stands as computed, with this entry.
+
 ## Code and maintenance
 
 ### Four checks became cases of code_checks.py on 2026-10-19

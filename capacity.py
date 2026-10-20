@@ -7,12 +7,21 @@ dashboard/export_dashboard_data.py puts it in each run's "capacity" block.
 
     order % ADV   each buy fill's value (qty x fill price) as a percent of the
                   stock's average traded value (close x volume) over the 20
-                  sessions before the fill, from the raw price files (the measure
-                  of tools/capital_ladder.py)
+                  sessions before the fill, from the raw price files, counting
+                  NSE rows only (exchange == NSE) and averaging over the NSE rows
+                  inside those 20 sessions
+    not measurable  a buy fill with no NSE row in its 20 sessions; never estimated,
+                  counted and shown as a number and a share of the buy fills
     unfilled cap  the buy value the participation cap left unfilled, as a percent of
                   the buy value wanted: for each "participation cap" BUY row of
                   daily_skipped, (wanted - capped) shares at that day's close, over
                   that plus every buy fill's value
+
+WHY NSE ROWS ONLY. The supplier's price files mix NSE and BSE rows day by day, and a
+BSE row's volume is BSE's alone, a small fraction of NSE's for most names
+(KNOWN_ISSUES.md, "The price files mix NSE and BSE rows"). The engine, the
+participation cap and the model features still read every row; only this measure
+leaves the BSE rows out.
 
 A WARNING is given when any threshold below is passed. They say when the run's
 fills are large next to what the stock trades, which no profile prices in full: the
@@ -30,7 +39,10 @@ UNFILLED_CAP_PCT = 5.0     # buy value the participation cap left unfilled
 
 def _raw(raw_dir, sym, cache):
     """(close, average traded value over the 20 sessions before each date) for one
-    symbol, as Series indexed by date; None when the file is absent."""
+    symbol, as Series indexed by date; None when the file is absent. The traded
+    value counts NSE rows only and is averaged over the NSE rows among those 20
+    sessions; it is missing when there is none. A file with no exchange column has
+    no NSE row. The close is every row's."""
     key = (str(raw_dir), sym)
     if key not in cache:
         import config
@@ -39,7 +51,9 @@ def _raw(raw_dir, sym, cache):
             cache[key] = None
         else:
             d = config.read_price_csv(f).set_index("date").sort_index()
-            cache[key] = (d["close"], (d["close"] * d["volume"]).rolling(20).mean().shift(1))
+            nse = (d["exchange"] == "NSE") if "exchange" in d.columns else False
+            tv = (d["close"] * d["volume"]).where(nse)
+            cache[key] = (d["close"], tv.rolling(20, min_periods=1).mean().shift(1))
     return cache[key]
 
 
@@ -80,7 +94,10 @@ def measure(costs, skipped, raw_dir, cache=None):
             if close == close:
                 unfilled += (w - q) * float(close)
     pct.sort()
+    n_out = len(buys) - len(pct)
     out = {"buy_fills": len(buys), "measured_fills": len(pct),
+           "not_measurable_fills": n_out,
+           "not_measurable_pct": n_out / len(buys) * 100 if len(buys) else 0.0,
            "median_pct_adv": _pct(pct, 0.5), "p95_pct_adv": _pct(pct, 0.95),
            "max_pct_adv": pct[-1] if pct else None,
            "unfilled_cap_pct": unfilled / (filled + unfilled) * 100 if filled + unfilled else 0.0}
@@ -106,8 +123,10 @@ def lines(name, m):
     """The run.log and RUN.txt lines for one universe and arm."""
     f = lambda x: "n/a" if x is None else f"{x:.2f}%"
     out = [f"capacity  : {name}: {m['buy_fills']:,} buy fills, of 20-day average traded value "
-           f"median {f(m['median_pct_adv'])}, 95th percentile {f(m['p95_pct_adv'])}, largest "
-           f"{f(m['max_pct_adv'])}; cap left {m['unfilled_cap_pct']:.2f}% of buy value unfilled"]
+           f"(NSE rows only) median {f(m['median_pct_adv'])}, 95th percentile "
+           f"{f(m['p95_pct_adv'])}, largest {f(m['max_pct_adv'])}; "
+           f"{m['not_measurable_fills']:,} not measurable ({m['not_measurable_pct']:.1f}%, no NSE "
+           f"row in their 20 sessions); cap left {m['unfilled_cap_pct']:.2f}% of buy value unfilled"]
     if m["warning"]:
         out.append(f"CAPACITY WARNING: {name}: {m['warning']}. The universe may not absorb orders "
                    f"of this size; the return is not reliable at this capital.")
