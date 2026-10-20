@@ -564,12 +564,18 @@ def _step_label(script, tag):
 #
 # build_scores_step already declared `# naming: axis-free` on both writes. That was
 # a CLAIM; it is now a measured one.
-AXIS_FREE = ""                      # the name carries no run axis at all
-RUN_AXES = "cadence,profile,tax,survivorship"  # the axes _present() composes, in writer order
-# TAX JOINED 2026-09-23. It was missing, so `--tax on --rebal 10` refused at
-# STEP 10t asking for daily_trades_<tag>_r10.csv while make_audit had written
-# daily_trades_<tag>_r10_tax.csv -- and at the default cadence the guard was
-# satisfied by the UNTAXED file, which is the substitution it exists to refuse.
+import naming as _naming
+AXIS_FREE = ()                      # the name carries no run axis at all
+# Every axis the writers put in a name, taken from naming.AXES. The arm is left
+# out because it is part of the stem (daily_trades_v1_<tag> against
+# daily_trades_<tag>), not of the tail.
+#
+# This was a hand-kept string, "cadence,profile,tax,survivorship", and it fell
+# behind naming.AXES when dd, capital, impact, pcap and fixed were added. A v1 or
+# v2 run with any of those five asked for the default cell's unsuffixed trade
+# file, so on a fresh clone it stopped at STEP 10p, and where that file existed
+# the check passed without looking at the file the run had written.
+RUN_AXES = tuple(a for a in _naming.AXES if a != "arm")
 
 
 def _required_inputs():
@@ -826,7 +832,6 @@ def check_inputs(label, script, tag):
     of it -- which is what made step 8 possible.
     """
     import arms.registry as _ar
-    import cadence as _cd
     _sel = set(_ar.selected_names())
 
     def _present(f, axes):
@@ -864,7 +869,6 @@ def check_inputs(label, script, tag):
         therefore asks for the name THIS RUN'S AXES PRODUCE, built the same way the
         producers build it, rather than for the canonical name with a fallback.
         """
-        import profiles as _pf
         # ONLY THE AXES THIS INPUT'S NAME ACTUALLY CARRIES. This used to compose
         # both suffixes onto every input, which is how a correct refusal came to
         # be raised against a file that does not and should not exist: the score
@@ -872,32 +876,10 @@ def check_inputs(label, script, tag):
         # of it for build_scores to have written. Measured; see the block above
         # _required_inputs(). An input that DOES carry an axis is unchanged, and
         # the substitution refusal below is unchanged with it.
-        _sfx = ""
-        if "cadence" in axes and not _cd.is_default():
-            _sfx += _cd.suffix()
-        if "profile" in axes and not _pf.is_default():
-            _sfx += _pf.suffix()
-        import tax as _tx
-        if "tax" in axes and not _tx.is_default():
-            _sfx += _tx.suffix()
-        import survivorship_axis as _sva
-        if "survivorship" in axes and not _sva.is_default():
-            _sfx += _sva.suffix()
-        import dd_axis as _dda
-        if "dd" in axes and not _dda.is_default():
-            _sfx += _dda.suffix()
-        import capital_axis as _capa
-        if "capital" in axes and not _capa.is_default():
-            _sfx += _capa.suffix()
-        import impact_axis as _impa
-        if "impact" in axes and not _impa.is_default():
-            _sfx += _impa.suffix()
-        import pcap_axis as _pca
-        if "pcap" in axes and not _pca.is_default():
-            _sfx += _pca.suffix()
-        import fixed_axis as _fxa
-        if "fixed" in axes and not _fxa.is_default():
-            _sfx += _fxa.suffix()
+        #
+        # naming.tail composes the suffixes the writers use, in their order, so
+        # the check cannot list a different set of axes from the writers.
+        _sfx = _naming.tail(axes)
         want = f if not _sfx else f.with_name(f.stem + _sfx + f.suffix)
         if want.exists():
             return True

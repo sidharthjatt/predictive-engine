@@ -49,6 +49,9 @@ repository folder itself may be on an external drive; `run.py` notes it and runs
 ```
 # 1. put the price data at data/raw/Final_Without_Survivorship_Data/ and check it
 python3 check_data.py
+#    for --survivorship pit runs, also put Final_With_Survivorship_Data/ and
+#    Survivorship_Bias/ in data/raw/ and check them
+python3 check_data.py --pit
 # 2. build the environment with Python 3.12
 python3.12 --version          # must print 3.12.x; 3.12.13 reproduces the results
 python3.12 -m venv venv
@@ -1744,7 +1747,8 @@ rebuild.
 public. It comes from the owner of this repository: ask them for a copy.** It is
 vendor OHLCV, not redistributed here, and nothing runs without it.
 
-The pipeline reads exactly one folder, 2,868 CSV files: 1,634 in the nine index
+A static run (the default, and every published figure outside the pit tables) reads
+one folder, 2,868 CSV files: 1,634 in the nine index
 folders (1,024 MB) and 1,234 in the three market-cap bucket folders the supplier added
 on 2026-10-16 (about 650 MB). Put it at this path, with these twelve subfolders, one per
 universe:
@@ -1769,10 +1773,18 @@ folder, so an extra or missing file changes that universe and every figure on it
 For one universe only, copy just its folder; for the published figures, all twelve.
 The three market-cap folders are static only (no membership files); see "The
 market-cap buckets" under Results and KNOWN_ISSUES.md.
-Other folders the owner's copy may have under `data/raw/` are not read by the
-pipeline: `Final_With_Survivorship_Data/` (1,470 MB) and `Survivorship_Bias/` (1 MB).
-`survivorship_attribution.py` alone reads `Survivorship_Bias/` and the price files of
-`Final_With_Survivorship_Data/`; neither is in the checksum manifest.
+A `--survivorship pit` run also reads two more folders: `Final_With_Survivorship_Data/`
+(1,470 MB, the with-survivorship prices) and `Survivorship_Bias/` (1 MB, the membership
+files). Copy both into `data/raw/` for pit runs; static runs do not need them. Their
+2,288 checked files are in a second manifest, `data/RAW_DATA_SHA256_PIT.txt`, which
+`check_data.py --pit` checks. `run.py` checks the selected universes' part of it before
+a pit run starts. The three market-cap bucket folders have no pit data.
+
+**Disk space.** About 3 GB for the data (1.6 GB static, 1.4 GB pit). The score and raw
+panels under `cache/` grow to about 6 GB once all twelve universes have been built.
+Each run folder under `runs/` is a copy of that run's outputs, 12 to 43 MB for one
+universe and more for a run of all of them, so `runs/` keeps growing until old
+folders are deleted.
 
 **Check your copy before running anything:**
 
@@ -1803,6 +1815,7 @@ git clone https://github.com/sidharthjatt/predictive-engine.git
 cd predictive-engine
 # copy the price data into data/raw/ -- see "The price data"
 python3 check_data.py
+python3 check_data.py --pit     # only if you copied the pit data
 python3.12 -m venv venv
 ./venv/bin/python -m pip install -r requirements.txt -c installed_versions.txt
 ```
@@ -1826,10 +1839,23 @@ Every run writes a folder under `runs/` with its artefacts and `run.log`.
 universe builds its score panel, which dominates: midcap50 6.5 min, nifty50 8.8,
 midcap100 11.9, nifty100 16.0, midcap150 17.0, nifty200 29.6, smallcap250 34.5,
 nifty500 74.7 (measured while other work shared the machine; treat them as upper
-bounds). A REPEAT run reuses the panel: 13-35 s for one midcap50 cell, across the
+bounds). The four universes added later, timed from the score-panel step in their
+first runs: microcap250 18.5 min (2026-10-10), mcap5001to10000 18.2,
+mcap1500to5000 39.0 and mcapover10000 55.3 (2026-10-16). A REPEAT run reuses the
+panel: 13-35 s for one midcap50 cell, across the
 48 combinations of arm, tax, profile and cadence swept that day.
 
-**Everything:** `./venv/bin/python run_all.py` runs all eight universes and all
+**Every successful run then refreshes the dashboard** (see "Results dashboard"),
+which none of the times above include: about 1 minute (57 s measured on 2026-10-21
+with 206 run folders). The time grows with the number of run folders under `runs/`.
+
+**One run at a time per folder.** A second `run.py` started while one is active in
+the same folder refuses to start and names the active run. Runs share the canonical
+output files and a run folder collects every file modified after its run started, so
+two runs at once would copy each other's files. To run in parallel, use separate
+clones.
+
+**Everything:** `./venv/bin/python run_all.py` runs all twelve universes and all
 four arms.
 
 `./venv/bin/python nautilus/nt_verify.py --universe=nifty100` runs the

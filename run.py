@@ -1280,6 +1280,49 @@ def runs_finished_since(since):
     return sorted(out, key=lambda r: (r["started"], r["folder"].name))
 
 
+RUN_LOCK = ROOT / "runs" / ".run.lock"
+
+
+def take_run_lock(dest):
+    """Refuse to start while another run is active in this folder.
+
+    Two runs started together in one folder copied each other's files into
+    their run folders: collect_run_folder takes every artefact modified after
+    the run started, and it cannot tell which run wrote a file. Collecting only
+    files a run wrote would not be enough either, because two runs of the same
+    cell write the same canonical files and the later write replaces the earlier
+    one. So only one run may be active at a time.
+
+    The lock is an flock on runs/.run.lock, so the operating system releases it
+    when the process exits, including on a crash or kill. The file holds the
+    active run's details for the refusal message; it is not the lock itself, and
+    a leftover file does not block anything.
+    """
+    import fcntl
+    import time as _time
+    fh = open(RUN_LOCK, "a+")
+    try:
+        fcntl.flock(fh, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except BlockingIOError:
+        fh.seek(0)
+        who = fh.read().strip() or "(the active run wrote no details)"
+        fh.close()
+        raise SystemExit(
+            "REFUSING TO START -- another run is active in this folder:\n"
+            + "".join(f"  {line}\n" for line in who.splitlines())
+            + "  Two runs at once would copy each other's files into their run "
+              "folders.\n  Wait for it to finish, or run from a separate clone. "
+              "Nothing has run.")
+    fh.seek(0)
+    fh.truncate()
+    fh.write(f"run folder : runs/{dest.name}\n"
+             f"pid        : {_os.getpid()}\n"
+             f"started    : {_time.strftime('%Y-%m-%d %H:%M:%S')}\n"
+             f"command    : {' '.join(sys.argv)}\n")
+    fh.flush()
+    return fh
+
+
 def execute(plan, args):
     """Run the plan, and make a failure impossible to mistake for a result.
 
@@ -1300,6 +1343,9 @@ def execute(plan, args):
     state = {"step": "before the first step", "pending": [], "t_start": None}
     dest = run_folder(plan, args)
     (ROOT / "runs").mkdir(exist_ok=True)
+    # Held until this process exits, which releases it. Kept in a local so the
+    # file handle is not closed early.
+    lock = take_run_lock(dest)  # noqa: F841
     log_tmp = ROOT / "runs" / f".{dest.name}.log.inprogress"
     fh = open(log_tmp, "w")
     out, err = _sys.stdout, _sys.stderr
