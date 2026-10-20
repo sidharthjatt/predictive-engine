@@ -11,8 +11,14 @@ source of each is named next to it below.
 What counts as a run: every directory runs/<timestamp>_<selection>/runs/<universe>/<seg>/
 that holds params.json and comparison.csv, inside a run folder whose RUN.txt has a
 "finished" line. One run is one universe and one arm under one setting of every
-axis. If two folders hold the same combination, the one in the newer run folder
-is kept and the other is listed in export_checks.
+axis.
+
+PUBLISHED OR AD HOC. dashboard/PUBLISHED_RUNS.txt names the run folders behind the
+published figures, and the earlier runs of those combinations that they superseded.
+A run from a published folder goes in "runs": it is the one run shown for its
+combination, and only these runs feed check f and the ladder. A superseded folder is
+not shown. A run from any other folder goes in "ad_hoc": it is shown apart, labelled
+ad hoc, and never replaces a published cell, even when it holds the same combination.
 """
 import argparse
 import ast
@@ -28,6 +34,28 @@ import pandas as pd
 
 HERE = Path(__file__).resolve().parent
 DEFAULT_REPO = HERE.parent
+PUBLISHED_LIST = HERE / "PUBLISHED_RUNS.txt"
+
+
+def published_list(repo):
+    """(published, superseded): the folder names under the [published] and
+    [superseded] headings of PUBLISHED_RUNS.txt. Blank lines and # lines are skipped."""
+    out, head = {"published": set(), "superseded": set()}, None
+    for line in (Path(repo) / "dashboard" / PUBLISHED_LIST.name).read_text().splitlines():
+        s = line.strip()
+        if not s or s.startswith("#"):
+            continue
+        if s in ("[published]", "[superseded]"):
+            head = s[1:-1]
+            continue
+        if head is None:
+            raise SystemExit(f"{PUBLISHED_LIST.name}: {s} comes before any heading")
+        out[head].add(s)
+    both = out["published"] & out["superseded"]
+    if both:
+        raise SystemExit(f"{PUBLISHED_LIST.name}: listed as both published and superseded: "
+                         + ", ".join(sorted(both)))
+    return out["published"], out["superseded"]
 
 
 def read_table(path, **kw):
@@ -587,7 +615,7 @@ def main():
     import naming
     import config
     from universes.registry import REGISTRY
-    from arms.registry import ALL_ARMS
+    from arms.registry import ARMS
 
     AXIS_ORDER = ("universe",) + tuple(naming.AXES)
     REGISTRY_ROWS.update(REGISTRY)
@@ -634,13 +662,22 @@ def main():
 
     gated, ungated = nt_verify_cells(repo)
 
-    runs, folders = [], sorted(p for p in (repo / "runs").iterdir()
-                               if p.is_dir() and re.match(r"^\d{8}T\d{6}_", p.name))
-    skipped_unfinished = []
+    published, superseded = published_list(repo)
+    runs, ad_hoc, folders = [], [], sorted(p for p in (repo / "runs").iterdir()
+                                           if p.is_dir() and re.match(r"^\d{8}T\d{6}_", p.name))
+    skipped_unfinished, skipped_superseded = [], []
+    for name in sorted((published | superseded) - {p.name for p in folders}):
+        checks.append(f"Published list FAIL: {name} is in {PUBLISHED_LIST.name} but there is "
+                      f"no such run folder.")
     for folder in folders:
         rt = folder / "RUN.txt"
         if not rt.exists() or "finished" not in read_run_txt(rt):
             skipped_unfinished.append(folder.name)
+            if folder.name in published:
+                checks.append(f"Published list FAIL: {folder.name} has no finished line.")
+            continue
+        if folder.name in superseded:
+            skipped_superseded.append(folder.name)
             continue
         run_txt = read_run_txt(rt)
         sel = folder.name.split("_", 1)[1]
@@ -662,12 +699,18 @@ def main():
                 cell = (ax["universe"], ax["arm"])
                 r["nt_verify"] = ("pass" if default_cell and cell in gated else
                                   "fail" if default_cell and cell in ungated else "not covered")
-                runs.append(r)
+                (runs if folder.name in published else ad_hoc).append(r)
     if skipped_unfinished:
         checks.append(f"Skipped {len(skipped_unfinished)} run folders with no finished line: "
                       + ", ".join(skipped_unfinished))
+    checks.append(f"Published list: {len(published)} run folders in {PUBLISHED_LIST.name} hold "
+                  f"the published figures; {len(skipped_superseded)} folders it names as "
+                  f"superseded (earlier runs of published combinations) are not shown; "
+                  f"{len(ad_hoc)} runs from {len({r['id'].split('/')[0] for r in ad_hoc})} other "
+                  f"folders are shown apart as ad hoc and feed neither check f nor the ladder.")
 
-    # One run per combination: keep the newer run folder.
+    # One run per combination among the published folders. Two listed folders that
+    # hold the same combination are a fault in the list: the newer is kept.
     by_key, dropped = {}, []
     for r in sorted(runs, key=lambda r: r["_folder_ts"]):
         k = key_of(r["axes"])
@@ -675,8 +718,11 @@ def main():
             dropped.append((by_key[k]["id"], r["id"]))
         by_key[k] = r
     for old, new in dropped:
-        checks.append(f"Duplicate combination: dropped {old}, kept the newer {new}.")
+        checks.append(f"Published list FAIL: two listed folders hold one combination: "
+                      f"dropped {old}, kept the newer {new}.")
     runs = sorted(by_key.values(), key=lambda r: key_of(r["axes"]))
+    ad_hoc.sort(key=lambda r: (r["_folder_ts"], key_of(r["axes"])))
+    ad_hoc_keys = {key_of(r["axes"]) for r in ad_hoc}
 
     # THE FIXED-CAPITAL TWIN: the run with every axis the same and fixed capital
     # flipped. The Return methods view shows a run's fixed-capital figures only when
@@ -699,7 +745,7 @@ def main():
             continue
         prm = json.loads(p.read_text())
         ax = run_axes(prm, {}, p.parent.name)
-        if key_of(ax) not in by_key:
+        if key_of(ax) not in by_key and key_of(ax) not in ad_hoc_keys:
             orphan.append(f"runs/{p.parts[-3]}/{p.parent.name} (written {prm.get('run_date')})")
     if orphan:
         checks.append(f"Not exported: {len(orphan)} arm directories under runs/<universe>/ have "
@@ -710,7 +756,8 @@ def main():
     def seen(name):
         return [v for v in dict.fromkeys(r["axes"][name] for r in runs)]
     uni_vals = list(REGISTRY)
-    arm_vals = list(ALL_ARMS)
+    # The core arms only. The stop arms (v5, v6) have no finished run folder.
+    arm_vals = list(ARMS)
 
     def num_sorted(vals):
         def k(v):
@@ -759,93 +806,97 @@ def main():
                   "tradeable's own cap; neither takes --cap.")
 
     # Strip helper fields.
-    for r in runs:
+    for r in runs + ad_hoc:
         r.pop("_folder_ts", None)
 
     # ---------------- checks a to f ----------------
-    fails = {"a": [], "b": [], "c": [], "d": [], "e": []}
-    for r in runs:
-        if None in (r["start_equity"], r["end_equity"], r["cagr"]):
-            fails["a"].append(f"{r['id']}: missing figure")
-        else:
-            c = ((r["end_equity"] / r["start_equity"]) ** (1 / r["years"]) - 1) * 100
-            if abs(c - r["cagr"]) > 0.01:
-                fails["a"].append(f"{r['id']}: recomputed {c:.4f} vs {r['cagr']}")
-        lo = min(r["equity"]["drawdown"])
-        if r["max_dd"] is None or abs(lo - r["max_dd"]) > 0.01:
-            fails["b"].append(f"{r['id']}: weekly lowest {lo:.4f} vs max_dd {r['max_dd']}")
-        prod = 1.0
-        for y in r["yearly"]:
-            prod *= 1 + y["strategy"] / 100
-        ratio = r["end_equity"] / r["start_equity"]
-        if abs(prod / ratio - 1) > 0.001:
-            fails["c"].append(f"{r['id']}: product {prod:.6f} vs {ratio:.6f}")
-        if abs(r["equity"]["strategy"][-1] - r["end_equity"]) > 1:
-            fails["d"].append(f"{r['id']}: last weekly {r['equity']['strategy'][-1]:.2f} "
-                              f"vs end_equity {r['end_equity']:.2f}")
-        built = cli_command(axes, r["axes"])
-        own = r["command"].split("run.py ", 1)[1]
-        b_tok, o_tok = flag_pairs(built), flag_pairs(own)
-        o_uni, o_arm = o_tok.pop("--universe"), o_tok.pop("--arm")
-        b_tok.pop("--universe"), b_tok.pop("--arm")
-        uni_ok = o_uni == "all" or r["axes"]["universe"] in o_uni.split(",")
-        arm_ok = (o_arm == "all" and r["axes"]["arm"] in ("v1", "v2", "v3", "v4")) or \
-            r["axes"]["arm"] in o_arm.split(",")
-        if b_tok != o_tok or not uni_ok or not arm_ok:
-            fails["e"].append(f"{r['id']}: built '{built}' vs own '{own}'")
-    names = {
-        "a": "CAGR recomputed from start_equity, end_equity and years matches cagr within 0.01",
-        "b": "the lowest weekly drawdown equals max_dd within 0.01",
-        "c": "the yearly strategy returns multiplied together equal end_equity / start_equity within 0.1%",
-        "d": "the last weekly strategy value equals end_equity within Rs 1",
-        "e": ("the command built from the axes' cli rules matches the run's own command "
-              "(the same flags and values apart from --universe and --arm, in any order; the "
-              "run's universe and arm inside the command's --universe and --arm selection)"),
-    }
-    for k in "abcde":
-        if fails[k]:
-            checks.append(f"Check {k} FAIL on {len(fails[k])} of {len(runs)} runs: {names[k]}. "
-                          + " | ".join(fails[k]))
-        else:
-            checks.append(f"Check {k} pass on all {len(runs)} runs: {names[k]}.")
-
-    # Checks a to d on the basket and the index. The index has no drawdown curve in
-    # the export and the repository writes no index max_dd, so b is not run for it.
-    for line, curve, dd_key in (("basket", "basket", "basket_drawdown"), ("index", "index", None)):
-        f = {"a": [], "b": [], "c": [], "d": []}
-        n = 0
-        for r in runs:
-            blk, ser = r[line], r["equity"][curve]
-            if blk is None or ser is None:
-                continue
-            n += 1
-            st, en = blk["start_equity"], blk["end_equity"]
-            c = ((en / st) ** (1 / r["years"]) - 1) * 100
-            if abs(c - blk["cagr"]) > 0.01:
-                f["a"].append(f"{r['id']}: recomputed {c:.4f} vs {blk['cagr']}")
-            if dd_key:
-                lo = min(r["equity"][dd_key])
-                if abs(lo - blk["max_dd"]) > 0.01:
-                    f["b"].append(f"{r['id']}: weekly lowest {lo:.4f} vs max_dd {blk['max_dd']}")
+    # Checks a to e run on the published runs and, apart, on the ad hoc runs.
+    for group, rows in (("published", runs), ("ad hoc", ad_hoc)):
+        if not rows:
+            continue
+        fails = {"a": [], "b": [], "c": [], "d": [], "e": []}
+        for r in rows:
+            if None in (r["start_equity"], r["end_equity"], r["cagr"]):
+                fails["a"].append(f"{r['id']}: missing figure")
+            else:
+                c = ((r["end_equity"] / r["start_equity"]) ** (1 / r["years"]) - 1) * 100
+                if abs(c - r["cagr"]) > 0.01:
+                    fails["a"].append(f"{r['id']}: recomputed {c:.4f} vs {r['cagr']}")
+            lo = min(r["equity"]["drawdown"])
+            if r["max_dd"] is None or abs(lo - r["max_dd"]) > 0.01:
+                fails["b"].append(f"{r['id']}: weekly lowest {lo:.4f} vs max_dd {r['max_dd']}")
             prod = 1.0
             for y in r["yearly"]:
-                prod *= 1 + y[line] / 100
-            if abs(prod / (en / st) - 1) > 0.001:
-                f["c"].append(f"{r['id']}: product {prod:.6f} vs {en / st:.6f}")
-            if abs(ser[-1] - en) > 1:
-                f["d"].append(f"{r['id']}: last weekly {ser[-1]:.2f} vs end_equity {en:.2f}")
-        for k in "abcd":
-            if k == "b" and not dd_key:
-                checks.append(f"Check {k} ({line}) not run: the export has no {line} drawdown "
-                              f"curve and the repository writes no {line} max_dd.")
-            elif f[k]:
-                checks.append(f"Check {k} ({line}) FAIL on {len(f[k])} of {n} runs. "
-                              + " | ".join(f[k]))
+                prod *= 1 + y["strategy"] / 100
+            ratio = r["end_equity"] / r["start_equity"]
+            if abs(prod / ratio - 1) > 0.001:
+                fails["c"].append(f"{r['id']}: product {prod:.6f} vs {ratio:.6f}")
+            if abs(r["equity"]["strategy"][-1] - r["end_equity"]) > 1:
+                fails["d"].append(f"{r['id']}: last weekly {r['equity']['strategy'][-1]:.2f} "
+                                  f"vs end_equity {r['end_equity']:.2f}")
+            built = cli_command(axes, r["axes"])
+            own = r["command"].split("run.py ", 1)[1]
+            b_tok, o_tok = flag_pairs(built), flag_pairs(own)
+            o_uni, o_arm = o_tok.pop("--universe"), o_tok.pop("--arm")
+            b_tok.pop("--universe"), b_tok.pop("--arm")
+            uni_ok = o_uni == "all" or r["axes"]["universe"] in o_uni.split(",")
+            arm_ok = (o_arm == "all" and r["axes"]["arm"] in ("v1", "v2", "v3", "v4")) or \
+                r["axes"]["arm"] in o_arm.split(",")
+            if b_tok != o_tok or not uni_ok or not arm_ok:
+                fails["e"].append(f"{r['id']}: built '{built}' vs own '{own}'")
+        names = {
+            "a": "CAGR recomputed from start_equity, end_equity and years matches cagr within 0.01",
+            "b": "the lowest weekly drawdown equals max_dd within 0.01",
+            "c": "the yearly strategy returns multiplied together equal end_equity / start_equity within 0.1%",
+            "d": "the last weekly strategy value equals end_equity within Rs 1",
+            "e": ("the command built from the axes' cli rules matches the run's own command "
+                  "(the same flags and values apart from --universe and --arm, in any order; the "
+                  "run's universe and arm inside the command's --universe and --arm selection)"),
+        }
+        for k in "abcde":
+            if fails[k]:
+                checks.append(f"Check {k} FAIL on {len(fails[k])} of {len(rows)} {group} runs: {names[k]}. "
+                              + " | ".join(fails[k]))
             else:
-                checks.append(f"Check {k} ({line}) pass on all {n} runs with {"an" if line == "index" else "a"} {line}.")
+                checks.append(f"Check {k} pass on all {len(rows)} {group} runs: {names[k]}.")
+
+        # Checks a to d on the basket and the index. The index has no drawdown curve in
+        # the export and the repository writes no index max_dd, so b is not run for it.
+        for line, curve, dd_key in (("basket", "basket", "basket_drawdown"), ("index", "index", None)):
+            f = {"a": [], "b": [], "c": [], "d": []}
+            n = 0
+            for r in rows:
+                blk, ser = r[line], r["equity"][curve]
+                if blk is None or ser is None:
+                    continue
+                n += 1
+                st, en = blk["start_equity"], blk["end_equity"]
+                c = ((en / st) ** (1 / r["years"]) - 1) * 100
+                if abs(c - blk["cagr"]) > 0.01:
+                    f["a"].append(f"{r['id']}: recomputed {c:.4f} vs {blk['cagr']}")
+                if dd_key:
+                    lo = min(r["equity"][dd_key])
+                    if abs(lo - blk["max_dd"]) > 0.01:
+                        f["b"].append(f"{r['id']}: weekly lowest {lo:.4f} vs max_dd {blk['max_dd']}")
+                prod = 1.0
+                for y in r["yearly"]:
+                    prod *= 1 + y[line] / 100
+                if abs(prod / (en / st) - 1) > 0.001:
+                    f["c"].append(f"{r['id']}: product {prod:.6f} vs {en / st:.6f}")
+                if abs(ser[-1] - en) > 1:
+                    f["d"].append(f"{r['id']}: last weekly {ser[-1]:.2f} vs end_equity {en:.2f}")
+            for k in "abcd":
+                if k == "b" and not dd_key:
+                    checks.append(f"Check {k} ({line}) not run: the export has no {line} drawdown "
+                                  f"curve and the repository writes no {line} max_dd.")
+                elif f[k]:
+                    checks.append(f"Check {k} ({line}) FAIL on {len(f[k])} of {n} {group} runs. "
+                                  + " | ".join(f[k]))
+                else:
+                    checks.append(f"Check {k} ({line}) pass on all {n} {group} runs with {"an" if line == "index" else "a"} {line}.")
 
     # rounded_to: the column names recorded per run become the decimals seen.
-    for r in runs:
+    for r in runs + ad_hoc:
         r["rounded_to"] = {k: ROUNDED[col] for k, col in r["rounded_to"].items()}
     checks.append("rounded_to gives, per run, the decimals of the figures read from "
                   "comparison.csv: " + ", ".join(f"{c} {d}" for c, d in sorted(ROUNDED.items()))
@@ -903,6 +954,7 @@ def main():
         "command_template": "./venv/bin/python run.py {args}",
         "axes": axes,
         "runs": runs,
+        "ad_hoc": ad_hoc,
         "ladder": lad,
         "known_issues": ki,
         "bias_notes": {t: u.bias_note for t, u in REGISTRY.items() if u.bias_note},
@@ -911,7 +963,8 @@ def main():
     # naming: axis-free -- one file covers every run; it varies over no axis
     Path(a.out).write_text(json.dumps(out, allow_nan=False))
     after = git(repo, "status", "--porcelain")
-    print(f"runs: {len(runs)} ({', '.join(f'{k} {v}' for k, v in sorted(by_profile.items()))})")
+    print(f"runs: {len(runs)} ({', '.join(f'{k} {v}' for k, v in sorted(by_profile.items()))}); "
+          f"ad hoc: {len(ad_hoc)}")
     print(f"wrote {a.out}: {Path(a.out).stat().st_size:,} bytes")
     print(f"repository clean before: {porcelain == ''}, after: {after == ''}")
     for c in checks:

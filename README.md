@@ -1671,6 +1671,21 @@ Open it by double-clicking: it needs no network. Both files are about 24 MB, cha
 on every rebuild and are not tracked. `dashboard/test_dashboard.py` drives the page
 in headless Chrome and needs Chrome installed.
 
+**After every successful `run.py` run the dashboard is rebuilt** with the two
+commands above, within 120 seconds; on any error or timeout it prints one warning
+line, leaves the previous dashboard as it was, and the run's exit code is unchanged.
+It then compares README.md's tax-on tables with `tools/readme_tax_tables.py --print`
+and prints one warning line naming any table that differs. Neither writes outside
+`dashboard/`.
+
+**Published and ad hoc runs.** `dashboard/PUBLISHED_RUNS.txt` names the run folders
+behind the published figures (`[published]`) and the earlier runs they replaced
+(`[superseded]`, not shown). A run from any other folder, such as a demonstration
+with unusual settings, appears only under "Ad hoc runs", labelled as such: it never
+replaces a published cell and feeds neither the export's check f nor the ladder. A
+rerun is published only when its folder is moved into `[published]` and the one it
+replaces into `[superseded]`.
+
 ## Repository layout
 
     results/          the research engine: features, model, walk-forward, backtest,

@@ -87,6 +87,8 @@ svg.chart .zero { stroke: var(--muted); stroke-width: 1; }
 #tip b { font-weight: 600; }
 .problems { border: 1px solid var(--bad); border-radius: 8px; padding: 10px 14px; margin-bottom: 14px; background: var(--panel); }
 .problems h2 { color: var(--bad); }
+.adhoc { border: 2px solid var(--bad); }
+.adhoc h2 .tag { color: var(--bad); }
 pre.ki { white-space: pre-wrap; font: 13px/1.45 ui-monospace, Menlo, Consolas, monospace; margin: 4px 0 0; }
 details { border-bottom: 1px solid var(--line); padding: 6px 0; }
 summary { cursor: pointer; }
@@ -166,12 +168,15 @@ function validate(d) {
       if (!(isObj(a.cli) && a.values.every(v => typeof a.cli[v] === "string"))) p.push(`${w} (${a.name}): cli must map every value to a flag string.`);
     } else p.push(`${w} (${a.name}): open_number must be true or false.`);
   });
-  if (!Array.isArray(d.runs)) p.push("runs must be a list.");
-  else {
-    const ids = new Set();
-    for (let i = 0; i < d.runs.length; i++) {
-      const run = d.runs[i];
-      let w = `runs[${i}]`;
+  // ad_hoc is optional: runs from folders not in dashboard/PUBLISHED_RUNS.txt, checked by
+  // the same rules as runs. An id is unique across both.
+  const ids = new Set();
+  for (const field of ["runs", "ad_hoc"]) {
+    if (field === "ad_hoc" && !(field in d)) continue;
+    if (!Array.isArray(d[field])) { p.push(`${field} must be a list.`); continue; }
+    for (let i = 0; i < d[field].length; i++) {
+      const run = d[field][i];
+      let w = `${field}[${i}]`;
       if (!isObj(run)) { p.push(`${w} is not an object.`); continue; }
       const miss = RUN_FIELDS.filter(k => !(k in run));
       if (miss.length) { p.push(`${w} is missing ${miss.join(", ")}.`); continue; }
@@ -261,22 +266,26 @@ function axisValueText(name, v) {
 // ---------------------------------------------------------------------------
 // Data and state.
 // ---------------------------------------------------------------------------
-let DATA, AXES, AXN, RUNS, BYKEY, BYID;
+let DATA, AXES, AXN, RUNS, BYKEY, BYID, ADHOC, ADHOC_BYID;
 const keyOf = ax => AXN.map(n => ax[n]).join("|");
 function load(d) {
   DATA = d; AXES = d.axes; AXN = AXES.map(a => a.name); RUNS = d.runs;
   BYKEY = new Map(); BYID = new Map();
   for (const r of RUNS) { BYKEY.set(keyOf(r.axes), r); BYID.set(r.id, r); }
+  // Ad hoc runs are kept apart: they are never in BYKEY, so no published cell, grid,
+  // comparison or ladder figure can come from one.
+  ADHOC = d.ad_hoc || []; ADHOC_BYID = new Map(ADHOC.map(r => [r.id, r]));
 }
-const VIEWS = [["run","Run"],["grid","Grid"],["compare","Compare"],["ladder","Capital ladder"],["methods","Return methods"],["all","All runs"],["notes","Notes"]];
+const VIEWS = [["run","Run"],["grid","Grid"],["compare","Compare"],["ladder","Capital ladder"],["methods","Return methods"],["all","All runs"],["adhoc","Ad hoc runs"],["notes","Notes"]];
 const state = { view: "run", sel: {}, scale: "log", cmp: [], cmode: "index", grow: "", gcol: "", gmetric: "cagr",
-                lcell: "", lmetric: "cagr_minus_basket", lcap: "both", sort: "", sdir: 1, filter: "", setOpen: false };
+                lcell: "", lmetric: "cagr_minus_basket", lcap: "both", sort: "", sdir: 1, filter: "", setOpen: false, adhoc: "" };
 
 function readHash() {
   const h = new URLSearchParams(location.hash.slice(1));
   if (h.get("view") && VIEWS.some(v => v[0] === h.get("view"))) state.view = h.get("view");
   for (const n of AXN) if (h.get("a." + n) !== null) state.sel[n] = h.get("a." + n);
   for (const k of ["scale","cmode","grow","gcol","gmetric","lcell","lmetric","lcap","sort","filter"]) if (h.get(k) !== null) state[k] = h.get(k);
+  state.adhoc = h.get("adhoc") || "";
   if (h.get("sdir")) state.sdir = Number(h.get("sdir")) === -1 ? -1 : 1;
   if (h.get("cmp") !== null) state.cmp = h.get("cmp").split("~").filter(id => BYID.has(id)).slice(0, 6);
 }
@@ -284,7 +293,7 @@ function writeHash() {
   const h = new URLSearchParams();
   h.set("view", state.view);
   for (const n of AXN) h.set("a." + n, state.sel[n]);
-  for (const k of ["scale","cmode","grow","gcol","gmetric","lcell","lmetric","lcap","sort","filter"]) if (state[k] !== "") h.set(k, state[k]);
+  for (const k of ["scale","cmode","grow","gcol","gmetric","lcell","lmetric","lcap","sort","filter","adhoc"]) if (state[k] !== "") h.set(k, state[k]);
   if (state.sdir === -1) h.set("sdir", "-1");
   if (state.cmp.length) h.set("cmp", state.cmp.join("~"));
   const s = "#" + h.toString();
@@ -302,7 +311,8 @@ function initSelection() {
 }
 const current = () => BYKEY.get(keyOf(state.sel)) || null;
 const withAxis = (sel, n, v) => Object.assign({}, sel, {[n]: v});
-function openRun(r) { state.sel = Object.assign({}, r.axes); state.view = "run"; render(); window.scrollTo(0, 0); }
+function openRun(r) { state.adhoc = ""; state.sel = Object.assign({}, r.axes); state.view = "run"; render(); window.scrollTo(0, 0); }
+function openAdhoc(r) { state.adhoc = r.id; state.view = "run"; render(); window.scrollTo(0, 0); }
 
 // ---------------------------------------------------------------------------
 // Charts: inline SVG with a tooltip kept inside the window.
@@ -557,9 +567,17 @@ function copyText(text, btn) {
   }
 }
 
+const ADHOC_NOTE = "This run's folder is not in dashboard/PUBLISHED_RUNS.txt. It is not a published figure, it replaces no published cell, and it feeds neither the export's check f nor the capital ladder.";
+function adhocPanel(r) {
+  return `<section class="panel adhoc"><h2><span class="tag">AD HOC</span> · not a published figure</h2>
+    <p class="wrap">${esc(ADHOC_NOTE)}</p><p class="muted">Settings: ${esc(settingsText(r))}</p>
+    <p><button class="btn" id="leaveAdhoc" type="button">Back to the published runs</button></p></section>`;
+}
 function viewRun() {
-  const r = current();
-  let h = axisControls();
+  const ad = state.adhoc ? ADHOC_BYID.get(state.adhoc) || null : null;
+  if (state.adhoc && !ad) state.adhoc = "";
+  const r = ad || current();
+  let h = ad ? adhocPanel(ad) : axisControls();
   if (!r) {
     const nb = neighbours(state.sel);
     h += `<section class="panel"><h2>This combination has not been run</h2>
@@ -578,6 +596,8 @@ function viewRun() {
   const ckl = ["strategy", "basket", "index"].map(l => [l, lineChecks(r, l)]);
   const cell = v => v === null ? '<td class="muted">not run</td>' : `<td class="${v ? "pass" : "fail"}">${v ? "pass" : "fail"}</td>`;
   const inCmp = state.cmp.includes(r.id);
+  const cmpBtn = ad ? '<p class="muted">Ad hoc runs are not added to the comparison.</p>' : `<p><button class="btn" id="addCmp" type="button" ${inCmp || state.cmp.length >= 6 ? "disabled" : ""}>${inCmp ? "In comparison" : state.cmp.length >= 6 ? "Comparison full (6)" : "Add to comparison"}</button>
+    <span class="muted">${state.cmp.length} of 6 in comparison</span></p>`;
   if (r.bias_note) h += biasPanel(r);
   h += `<section class="panel"><h2>${esc(r.axes.universe)} ${esc(r.axes.arm)} <span class="win">· window ${esc(winOf(r))}, ${r.years.toFixed(2)} years</span> <span class="muted">— ${esc(r.id)}</span></h2>
     <div class="tiles">
@@ -591,8 +611,7 @@ function viewRun() {
       ${tile("Trades (fills)", r.trades === null ? "–" : groupIN(String(r.trades)))}
       ${tile("Rebalances", r.rebalances === null ? "–" : String(r.rebalances))}
     </div>
-    <p><button class="btn" id="addCmp" type="button" ${inCmp || state.cmp.length >= 6 ? "disabled" : ""}>${inCmp ? "In comparison" : state.cmp.length >= 6 ? "Comparison full (6)" : "Add to comparison"}</button>
-    <span class="muted">${state.cmp.length} of 6 in comparison</span></p></section>`;
+    ${cmpBtn}</section>`;
   h += `<section class="panel"><h2>Equity</h2><div class="ctrl"><span class="muted">Scale</span>
       <button class="btn${state.scale === "log" ? " on" : ""}" data-scale="log" type="button" aria-pressed="${state.scale === "log"}">Log</button>
       <button class="btn${state.scale === "linear" ? " on" : ""}" data-scale="linear" type="button" aria-pressed="${state.scale === "linear"}">Linear</button></div>
@@ -609,13 +628,14 @@ function viewRun() {
       <div class="scroll"><table><thead><tr><th>Charge</th><th>Rupees</th><th>Share of start equity</th></tr></thead><tbody>
       ${r.charges_breakdown ? Object.entries(r.charges_breakdown).map(([k, v]) => `<tr><td class="l">${esc(k)}</td><td>${inrFull(v, 2)}</td><td>${pct(v / r.start_equity * 100)}</td></tr>`).join("") : '<tr><td class="l muted" colspan="3">No breakdown in this run.</td></tr>'}
       </tbody></table></div></div></section>`;
-  const off = BYKEY.get(keyOf(withAxis(r.axes, "tax", "off"))), on = BYKEY.get(keyOf(withAxis(r.axes, "tax", "on")));
+  // For an ad hoc run the two sections below are left out: they look up published runs.
+  const off = ad ? null : BYKEY.get(keyOf(withAxis(r.axes, "tax", "off"))), on = ad ? null : BYKEY.get(keyOf(withAxis(r.axes, "tax", "on")));
   const tr = [["CAGR", x => pct(x.cagr)], ["Basket CAGR", x => pct(x.basket && x.basket.cagr)], ["CAGR minus basket", x => spct(minusBasket(x))],
               ["Max drawdown", x => pct(x.max_dd)], ["End equity", x => inr(x.end_equity)], ["Tax", x => inr(x.costs.tax)], ["All costs", x => inr(totalCosts(x))], ["Trades", x => String(x.trades)]];
-  h += `<section class="panel"><h2>Tax off and tax on</h2><div class="scroll"><table><thead><tr><th>Figure</th><th>Tax off</th><th>Tax on</th></tr></thead><tbody>
+  if (!ad) h += `<section class="panel"><h2>Tax off and tax on</h2><div class="scroll"><table><thead><tr><th>Figure</th><th>Tax off</th><th>Tax on</th></tr></thead><tbody>
       ${tr.map(([k, f]) => `<tr><td class="l">${k}</td><td>${off ? f(off) : "not run"}</td><td>${on ? f(on) : "not run"}</td></tr>`).join("")}</tbody></table></div></section>`;
-  const nb = neighbours(r.axes);
-  h += `<section class="panel"><h2>The same run with one setting changed (${nb.length})</h2>
+  const nb = ad ? [] : neighbours(r.axes);
+  if (!ad) h += `<section class="panel"><h2>The same run with one setting changed (${nb.length})</h2>
       ${nb.length ? runTable(nb, [{h: "Setting", l: 1, f: n => esc(n.axis.label)}, {h: "Value", l: 1, f: n => esc(axisValueText(n.axis.name, n.value))},
         {h: "CAGR", f: n => pct(n.run.cagr)}, {h: "Δ CAGR", f: n => spct(n.run.cagr - r.cagr)}, {h: "CAGR − basket", f: n => spct(minusBasket(n.run))},
         {h: "Max DD", f: n => pct(n.run.max_dd)}, {h: "End equity", f: n => inr(n.run.end_equity)}, {h: "Window", l: 1, f: n => winBadge(n.run, r) || "same"}], n => `data-open="${esc(n.run.id)}"`)
@@ -636,11 +656,12 @@ function viewRun() {
       </tbody></table></div><p class="muted">The index has no drawdown curve in the data and no max drawdown in the repository, so b is not run for it.</p></section>`;
   MAIN.innerHTML = h;
   bindAxisControls(); bindRowOpen(MAIN);
+  if (ad) document.getElementById("leaveAdhoc").addEventListener("click", () => { state.adhoc = ""; render(); });
   const b1 = document.getElementById("copyBatch"), b2 = document.getElementById("copyOne");
   b1.addEventListener("click", () => copyText(r.command, b1));
   b2.addEventListener("click", () => copyText(cliCommand(r.axes), b2));
   MAIN.querySelectorAll("[data-scale]").forEach(x => x.addEventListener("click", () => { state.scale = x.dataset.scale; render(); }));
-  document.getElementById("addCmp").addEventListener("click", () => { if (!state.cmp.includes(r.id) && state.cmp.length < 6) state.cmp.push(r.id); render(); });
+  if (!ad) document.getElementById("addCmp").addEventListener("click", () => { if (!state.cmp.includes(r.id) && state.cmp.length < 6) state.cmp.push(r.id); render(); });
   const xs = r.equity.dates.map(tms), c1 = css("--s1"), c2 = css("--s2"), c3 = css("--s3");
   const eqS = [{name: "strategy", color: c1, xs, ys: r.equity.strategy, width: 2}, {name: "basket", color: c2, xs, ys: r.equity.basket}];
   if (r.equity.index) eqS.push({name: "index", color: c3, xs, ys: r.equity.index});
@@ -878,6 +899,21 @@ function viewAll() {
   f.addEventListener("input", () => { state.filter = f.value; const pos = f.selectionStart; render(); const g = document.getElementById("flt"); g.focus(); g.setSelectionRange(pos, pos); });
 }
 
+function viewAdhoc() {
+  let h = `<section class="panel adhoc"><h2><span class="tag">AD HOC</span> runs (${ADHOC.length})</h2>
+    <p class="wrap">Finished runs whose folder is not in dashboard/PUBLISHED_RUNS.txt: a demonstration, a test or a rerun not yet published. None of them is a published figure, replaces a published cell, or feeds check f or the capital ladder.</p>`;
+  if (!ADHOC.length) h += '<p class="muted">None.</p>';
+  else h += runTable(ADHOC, [{h: "Run folder", l: 1, f: r => esc(r.id)}, {h: "Settings", l: 1, f: r => esc(settingsText(r))},
+    {h: "CAGR", f: r => pct(r.cagr)}, {h: "Basket", f: r => pct(r.basket && r.basket.cagr)}, {h: "Max DD", f: r => pct(r.max_dd)},
+    {h: "End equity", f: r => inr(r.end_equity)}, {h: "Tax", f: r => inr(r.costs.tax)}], r => `data-adhoc="${esc(r.id)}"`);
+  MAIN.innerHTML = h + "</section>";
+  MAIN.querySelectorAll("tr[data-adhoc]").forEach(tr => {
+    const go = () => openAdhoc(ADHOC_BYID.get(tr.dataset.adhoc));
+    tr.addEventListener("click", go);
+    tr.addEventListener("keydown", ev => { if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); go(); } });
+  });
+}
+
 // The bias label of a universe whose results carry a bias that cannot be measured
 // (universes/registry.py, Universe.bias_note), shown above its figures.
 function biasPanel(r) {
@@ -891,7 +927,7 @@ function viewNotes() {
     <tr><td class="l">Price data through</td><td class="l">${esc(d.data_end || "–")}</td></tr>
     <tr><td class="l">Runs end</td><td class="l wrap">${esc([...new Set(RUNS.map(r => r.end_date))].sort().join(", "))}${d.window ? ". " + esc(d.window.reason) : ""}</td></tr>
     <tr><td class="l">Exported</td><td class="l">${esc(d.generated_at)}</td></tr>
-    <tr><td class="l">Runs</td><td class="l">${RUNS.length}</td></tr>
+    <tr><td class="l">Runs</td><td class="l">${RUNS.length} published, ${ADHOC.length} ad hoc</td></tr>
     <tr><td class="l">Command template</td><td class="l wrap"><code>${esc(d.command_template)}</code></td></tr></tbody></table></div></section>
     ${d.bias_notes && Object.keys(d.bias_notes).length ? `<section class="panel"><h2>Universes with a bias label (${Object.keys(d.bias_notes).length})</h2><div class="scroll"><table><tbody>${Object.entries(d.bias_notes).map(([t, n]) => `<tr><td class="l">${esc(t)}</td><td class="l wrap">${esc(n)}</td></tr>`).join("")}</tbody></table></div></section>` : ""}
     <section class="panel"><h2>Export checks (${d.export_checks.length})</h2><ul>${d.export_checks.map(c => `<li class="${/\bFAIL\b/.test(c) ? "fail" : ""}">${esc(c)}</li>`).join("")}</ul></section>
@@ -906,12 +942,12 @@ function viewNotes() {
 function renderNav() {
   const nav = document.getElementById("nav");
   nav.innerHTML = VIEWS.map(([k, n]) => `<button type="button" data-view="${k}" ${state.view === k ? 'aria-current="page"' : ""}>${n}${k === "compare" && state.cmp.length ? ` (${state.cmp.length})` : ""}</button>`).join("");
-  nav.querySelectorAll("button").forEach(b => b.addEventListener("click", () => { state.view = b.dataset.view; render(); }));
+  nav.querySelectorAll("button").forEach(b => b.addEventListener("click", () => { state.view = b.dataset.view; state.adhoc = ""; render(); }));
 }
 let problemsHtml = "";
 function render() {
   hideTip(); renderNav();
-  ({run: viewRun, grid: viewGrid, compare: viewCompare, ladder: viewLadder, methods: viewMethods, all: viewAll, notes: viewNotes})[state.view]();
+  ({run: viewRun, grid: viewGrid, compare: viewCompare, ladder: viewLadder, methods: viewMethods, all: viewAll, adhoc: viewAdhoc, notes: viewNotes})[state.view]();
   if (problemsHtml) MAIN.insertAdjacentHTML("afterbegin", problemsHtml);
   writeHash();
 }

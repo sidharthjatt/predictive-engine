@@ -1293,7 +1293,107 @@ def execute(plan, args):
         if not fh.closed:
             fh.close()
     log_tmp.rename(dest / "run.log")
+    # AFTER THE RUN IS COMPLETE AND ONLY ON SUCCESS. Neither call raises or changes
+    # the exit code, and neither writes outside dashboard/.
+    refresh_dashboard()
+    readme_table_check()
     return 0
+
+
+DASHBOARD_TIMEOUT_S = 120
+
+
+def _last_line(text):
+    lines = [x for x in (text or "").strip().splitlines() if x.strip()]
+    return lines[-1].strip() if lines else "no output"
+
+
+def refresh_dashboard():
+    """Re-export dashboard/dashboard_data.json and rebuild dashboard/dashboard.html, so
+    the page includes the run that just finished.
+
+    Runs dashboard/export_dashboard_data.py and then dashboard/build_dashboard.py as
+    subprocesses, within DASHBOARD_TIMEOUT_S together. Both write to temporary files in
+    dashboard/, which replace the live files only when both steps succeed: on any
+    error or timeout one warning line is printed and the previous dashboard is left
+    as it was. The page is replaced before the data file, so the page that opens is
+    never older than the data. Called only after the run folder and run.log exist;
+    the run's own outputs and exit code do not depend on it.
+    """
+    import subprocess
+    import time as _time
+    d = ROOT / "dashboard"
+    tmp_json, tmp_html = d / ".dashboard_data.json.tmp", d / ".dashboard.html.tmp"
+    t0 = _time.time()
+    try:
+        for cmd in ([sys.executable, str(d / "export_dashboard_data.py"), "--out", str(tmp_json)],
+                    [sys.executable, str(d / "build_dashboard.py"),
+                     "--data", str(tmp_json), "--out", str(tmp_html)]):
+            left = DASHBOARD_TIMEOUT_S - (_time.time() - t0)
+            if left <= 0:
+                raise subprocess.TimeoutExpired(cmd, DASHBOARD_TIMEOUT_S)
+            p = subprocess.run(cmd, cwd=ROOT, capture_output=True, text=True, timeout=left)
+            if p.returncode != 0:
+                raise RuntimeError(f"{Path(cmd[1]).name} exited {p.returncode}: "
+                                   f"{_last_line(p.stderr or p.stdout)}")
+        _os.replace(tmp_html, d / "dashboard.html")
+        _os.replace(tmp_json, d / "dashboard_data.json")
+    except subprocess.TimeoutExpired:
+        print(f"  WARNING: dashboard not refreshed: timed out after {DASHBOARD_TIMEOUT_S} s; "
+              f"the previous dashboard is unchanged.", flush=True)
+        return
+    except Exception as e:
+        print(f"  WARNING: dashboard not refreshed: {type(e).__name__}: {_last_line(str(e))}; "
+              f"the previous dashboard is unchanged.", flush=True)
+        return
+    finally:
+        for f in (tmp_json, tmp_html):
+            try:
+                f.unlink(missing_ok=True)
+            except OSError:
+                pass
+    print(f"  dashboard refreshed in {_time.time() - t0:.1f} s -> dashboard/dashboard.html",
+          flush=True)
+
+
+def readme_table_check():
+    """Read-only: compare README.md's tax-on tables with tools/readme_tax_tables.py
+    --print, which writes nothing. Prints one warning line naming each table that
+    differs, and nothing when they agree. Writes no file."""
+    import subprocess
+    begin = "<!-- tax-on tables: written by tools/readme_tax_tables.py; do not edit by hand -->"
+    end = "<!-- end of tax-on tables -->"
+
+    def tables(block):
+        """{table heading: its lines}; the lines before the first table under "preamble"."""
+        out, name = {"preamble": []}, "preamble"
+        for line in block.splitlines():
+            if re.match(r"^\*\*(static|pit), (research|tradeable) profile\*\*$", line):
+                name = line.strip("*")
+                out[name] = []
+            else:
+                out[name].append(line.rstrip())
+        return out
+
+    try:
+        p = subprocess.run([sys.executable, str(ROOT / "tools" / "readme_tax_tables.py"), "--print"],
+                           cwd=ROOT, capture_output=True, text=True, timeout=DASHBOARD_TIMEOUT_S,
+                           env={**_os.environ, "PYTHONDONTWRITEBYTECODE": "1"})
+        if p.returncode != 0:
+            raise RuntimeError(f"exited {p.returncode}: {_last_line(p.stderr or p.stdout)}")
+        s = (ROOT / "README.md").read_text()
+        if begin not in s or end not in s:
+            raise RuntimeError("README.md has no tax-on table markers")
+        have = tables(s[s.index(begin):s.index(end) + len(end)])
+        want = tables(p.stdout.strip("\n"))
+    except Exception as e:
+        print(f"  WARNING: README tax-on table check not run: {type(e).__name__}: "
+              f"{_last_line(str(e))}", flush=True)
+        return
+    bad = [n for n in dict.fromkeys(list(want) + list(have)) if want.get(n) != have.get(n)]
+    if bad:
+        print(f"  WARNING: README tax-on tables differ from tools/readme_tax_tables.py --print: "
+              f"{'; '.join(bad)}", flush=True)
 
 
 def _pit_setup(plan):

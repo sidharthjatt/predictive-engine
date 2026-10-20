@@ -79,6 +79,10 @@ runs/
 # different on every rebuild. The scripts and the template are tracked.
 dashboard/dashboard_data.json
 dashboard/dashboard.html
+# run.py's refresh writes these first and swaps them in; one is left only if a
+# refresh is killed part way.
+dashboard/.dashboard_data.json.tmp
+dashboard/.dashboard.html.tmp
 
 # ------------------------------------------------------------ bulk price data
 # ~396 MB of vendor OHLCV CSVs. Excluded for size, not for irrelevance -- the

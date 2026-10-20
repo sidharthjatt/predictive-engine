@@ -95,12 +95,17 @@ def validate(d):
                     p.append(f"{w} ({a['name']}): cli must map every value to a flag string.")
             else:
                 p.append(f"{w} ({a['name']}): open_number must be true or false.")
-    if not isinstance(d["runs"], list):
-        p.append("runs must be a list.")
-    else:
-        ids = set()
-        for i, run in enumerate(d["runs"]):
-            w = f"runs[{i}]"
+    # ad_hoc is optional: runs from folders not in dashboard/PUBLISHED_RUNS.txt, held
+    # apart from runs and checked by the same rules. An id is unique across both.
+    ids = set()
+    for field in ("runs", "ad_hoc"):
+        if field == "ad_hoc" and field not in d:
+            continue
+        if not isinstance(d[field], list):
+            p.append(f"{field} must be a list.")
+            continue
+        for i, run in enumerate(d[field]):
+            w = f"{field}[{i}]"
             if not isinstance(run, dict):
                 p.append(f"{w} is not an object.")
                 continue
@@ -207,7 +212,8 @@ def main():
     html = tpl.replace("/*__DATA__*/null", embedded, 1)
     # naming: axis-free -- one file covers every run; it varies over no axis
     Path(a.out).write_text(html)
-    print(f"format check passed: {len(d['runs'])} runs, {len(d['ladder'])} ladder rows")
+    print(f"format check passed: {len(d['runs'])} runs, {len(d.get('ad_hoc', []))} ad hoc runs, "
+          f"{len(d['ladder'])} ladder rows")
     print(f"wrote {a.out}: {Path(a.out).stat().st_size:,} bytes")
 
 
