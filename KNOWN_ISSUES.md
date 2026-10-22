@@ -887,18 +887,25 @@ A correct measurement over the cases in hand, written as "every universe" or "no
 
 ## Data, calendar and cleaning
 
-### Prices are cleaned at the load boundary; the rule is not causal
+### No forward-looking repair, label or cross-section since 2026-10-22; one pit look-ahead remains
 
-`experiments/DATA_CLEANING_SPEC.txt`, implemented in `results/ratio_clean.py` and called
-from `engine_core.build_panel` just before `canonical_price`. The rule: an adj_close/close
-ratio move that comes back within 0.1% within five sessions takes the previous ratio for
-the whole event. It touches 0.39% to 0.54% of rows in the window. The raw files are
-unchanged. `results/ratio_clean_check.py` (check_all) fails if a reverting event is left
-in the window.
-- Whether a session is cleaned depends on up to five later sessions. It is a data repair
-  and a live book cannot compute it on the day.
-- `results/leakage_check4_corpactions.py` reads the raw files and neither checks the
-  cleaning nor is affected by it.
+The ratio cleaning (`results/ratio_clean.py`, `experiments/DATA_CLEANING_SPEC.txt`) was removed. It decided whether to repair session t from up to five later sessions. adj_close is now used as delivered, with `canonical_price`'s close fallback only. Every published figure before 2026-10-22 was computed with the cleaning and the other leaks below, and is to be replaced, not rebuilt.
+
+Fixed the same day, each a read of a value dated after the decision:
+- Training labels: `fwd_ret` is the close 20 of the symbol's own rows ahead. A row is now used to train for a month only if its `label_end` is on or before the purge limit, two sessions before the month (`engine_core.training_set`). Before the fix nifty100 static had no such row; smallcap250 pit had 37 row-uses in 6 of 126 months, the furthest 25 sessions past the limit.
+- The training target `y_rank` is ranked per month over the labels that had ended by the limit. It was ranked once over every label in `build_panel`.
+- `amihud_20` uses the unadjusted close times volume. adj_close is back-adjusted for later dividends and volume is not.
+- Pit cross-sections: the z-score peer group, the equal-weight market behind `beta_60` and `idio_vol_60`, and v2/v4 breadth use only the members on the date.
+- `tv`, the median portfolio vol over the whole backtest window, is gone with the `voltgt` and `both` modes that read it. No arm used them.
+- `nautilus/nt_data.quote_frame` no longer back-fills the first month's tick reference from that month's own close. Those rows take the fixed `TICK_SIZE`; no fill falls on them.
+
+STILL LOOKS AHEAD, NOT FIXED: PIT ROWS BEFORE THE FIRST EFFECTIVE DATE. `survivorship.member_mask` keeps every row before the membership file's first effective date, because no membership is defined there. Those rows are in the pit folder only because the symbol is a member on that date or later, so the training set and the cross-sections before that date are chosen by later membership. Measured 2026-10-22 on the code before these fixes:
+- smallcap250 pit (first date 2016-04-29): 550,235 training-eligible rows before it, 249,412 of them from symbols that join only on a later list; 72.8% of all training row-uses.
+- nifty100 pit (first date 2006-09-01): 47,811 rows, 9,486 from later joiners; 14.4% of training row-uses.
+
+Rows after the first date for non-members never enter training. Options: (a) train a pit run only on rows on or after the first effective date, with the first scored month moved to the first month with 5,000 such rows; (b) before the first date, keep only symbols in the first list (removes the later joiners, keeps the survivors of that list); (c) leave it and quote pit figures with this note. The membership files themselves carry look-ahead as well (`survivorship.LOOKAHEAD_NOTE`). Static mode is today's members throughout and is not point-in-time at all.
+
+`results/leakage_check2_trading_purge.py` checks the label-end rule on the cached panels. Its earlier version recovered the latest training date and added 20 sessions on the panel calendar, which is right only for a symbol with no missing sessions, so it passed while the leak above existed.
 
 ### The price data is not in the repository and can only come from the owner
 

@@ -50,10 +50,8 @@ from universes.registry import REGISTRY, certified
 from v34_common import ann_vol_pct, _git_state
 import profiles as _prof            # the run's execution-realism profile
 from config import read_table  # the one CSV/parquet reader: config.read_table
-from numerics import rolling_std  # platform-identical variance: results/numerics.py
 
 N_SHUFFLES = 100
-VOL_WIN = 60
 ALPHA = 0.05                      # the bar, fixed in the spec before any number
 ARMS = [("v1", "invvol", "none"), ("v2", "invvol", "breadth"),
         ("v3", "provol", "none"), ("v4", "provol", "breadth")]
@@ -112,15 +110,14 @@ def permute_scores(sc, seed):
     return pd.DataFrame(V, index=sc.index, columns=sc.columns)
 
 
-def run_arm(sizing, mode, px, op, sc, bd, pc, mom20, port_vol, tv):
+def run_arm(sizing, mode, px, op, sc, bd, pc, mom20):
     test_exposure.TOP_N = config.TOP_N
     test_exposure.BUFFER = config.BUFFER
     # RESEARCH-ONLY, DECLARED. This caller passes no vol20, so it could not
     # apply a participation cap even if one were selected; research_only()
     # makes that a statement rather than an accident, and STOPS the run if
     # --profile ever reaches here. See profiles.research_only.
-    eq, tc, ntr, expo = backtest_exposure(px, op, sc, bd, pc, mom20, port_vol,
-                                          drawdown_stop=None, mode=mode, target_vol=tv, sizing=sizing, participation_cap=_prof.research_only(__name__))
+    eq, tc, ntr, expo = backtest_exposure(px, op, sc, bd, pc, mom20, drawdown_stop=None, mode=mode, sizing=sizing, participation_cap=_prof.research_only(__name__))
     m = metrics(eq, "arm", tc, ntr)
     return {"CAGR%": float(m["CAGR%"]), "Sharpe": float(m["Sharpe"]),
             "MaxDD%": float(m["MaxDD%"]), "AnnVol%": ann_vol_pct(eq),
@@ -167,9 +164,6 @@ def run_universe(uni, cfg, out):
                   & (px.index <= config.BT_END_DATE)]
     pc = precompute(px)
     mom20 = px / px.shift(20) - 1
-    idx = (1 + px.pct_change().mean(axis=1).fillna(0)).cumprod()
-    port_vol = rolling_std(idx.pct_change(), VOL_WIN) * np.sqrt(252)
-    tv = port_vol.loc[bd].median()
     bh = 1_000_000 * (1 + px.pct_change().loc[bd].mean(axis=1).fillna(0)).cumprod()
     mbh = metrics(bh, "bh")
 
@@ -185,7 +179,7 @@ def run_universe(uni, cfg, out):
     W(f"  bar           p < {ALPHA} on CAGR, one-sided, fixed in the spec")
     W("")
 
-    real = {tag: run_arm(sz, md, px, op, sc, bd, pc, mom20, port_vol, tv)
+    real = {tag: run_arm(sz, md, px, op, sc, bd, pc, mom20)
             for tag, sz, md in ARMS}
 
     ship = shipped_v2(cfg["metrics_dir"])
@@ -208,7 +202,7 @@ def run_universe(uni, cfg, out):
     for s in range(N_SHUFFLES):
         shuf = permute_scores(sc, s)
         for tag, sz, md in ARMS:
-            r = run_arm(sz, md, px, op, shuf, bd, pc, mom20, port_vol, tv)
+            r = run_arm(sz, md, px, op, shuf, bd, pc, mom20)
             r.update({"seed": s, "arm": tag})
             draws.append(r)
     D = pd.DataFrame(draws)

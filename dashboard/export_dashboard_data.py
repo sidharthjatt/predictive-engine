@@ -67,7 +67,7 @@ def read_table(path, **kw):
 
 # Axis values that take no flag on the command line.
 NO_FLAG = {"cadence": {"20"}, "dd": {"off"}, "capital": {"1000000"}, "impact": {"0"},
-           "pcap": {"1", "none"}}
+           "pcap": {"1", "none"}, "start": {"2019-01-01"}}
 
 LABELS = {
     "universe": "Universe",
@@ -81,6 +81,7 @@ LABELS = {
     "impact": "Market impact coefficient k",
     "pcap": "Participation cap, fraction of median volume",
     "fixed": "Fixed capital (profits not reinvested)",
+    "start": "Backtest start date",
 }
 
 # Named cells for check f: (universe, arm). Setting: pit, tradeable, tax on,
@@ -257,7 +258,17 @@ def run_axes(params, run_txt, seg):
         "impact": fmt(k),
         "pcap": "none" if pc is None else fmt(pc),
         "fixed": "on" if params.get("fixed_capital") or "@fixed" in seg else "off",
+        "start": _start_of(params, seg),
     }
+
+
+def _start_of(params, seg):
+    """The run's backtest start as YYYY-MM-DD: params bt_start, else the @s segment,
+    else the default. Every run before 2026-10-22 started at the default."""
+    if params.get("bt_start"):
+        return str(params["bt_start"])
+    m = re.search(r"@s(\d{4})(\d{2})(\d{2})", seg)
+    return f"{m.group(1)}-{m.group(2)}-{m.group(3)}" if m else "2019-01-01"
 
 
 def expected_segment(ax):
@@ -281,6 +292,8 @@ def expected_segment(ax):
         s += "@pcap" + ax["pcap"].replace(".", "p")
     if ax["fixed"] == "on":
         s += "@fixed"
+    if ax["start"] != "2019-01-01":
+        s += "@s" + ax["start"].replace("-", "")
     return s
 
 
@@ -306,6 +319,8 @@ def flags_for(ax, universe_sel, arm_sel):
         f.append(f"--cap {ax['pcap']}")
     if ax["fixed"] == "on":
         f.append("--fixed-capital")
+    if ax["start"] not in NO_FLAG["start"]:
+        f.append(f"--start {ax['start']}")
     return " ".join(f)
 
 
@@ -577,7 +592,7 @@ def ladder(repo, runs_by_key, checks):
         ax = {"universe": r["universe"], "arm": r["arm"], "cadence": "20",
               "profile": "tradeable", "tax": "on", "survivorship": "pit", "dd": "off",
               "capital": str(int(r["capital"])), "impact": fmt(r["impact_k"]),
-              "pcap": fmt(r["pcap"]), "fixed": "off"}
+              "pcap": fmt(r["pcap"]), "fixed": "off", "start": "2019-01-01"}
         run = runs_by_key.get(key_of(ax))
         if run is None:
             missing += 1
@@ -721,7 +736,8 @@ def main():
                 default_cell = (ax["survivorship"] == "static" and ax["profile"] == "research"
                                 and ax["tax"] == "off" and ax["cadence"] == "20"
                                 and ax["dd"] == "off" and ax["capital"] == "1000000"
-                                and ax["impact"] == "0" and ax["fixed"] == "off")
+                                and ax["impact"] == "0" and ax["fixed"] == "off"
+                                and ax["start"] == "2019-01-01")
                 cell = (ax["universe"], ax["arm"])
                 r["nt_verify"] = ("pass" if default_cell and cell in gated else
                                   "fail" if default_cell and cell in ungated else "not covered")
@@ -860,9 +876,9 @@ def main():
                          "cli": {"off": "", "on": "--fixed-capital"}})
         else:
             flag = {"cadence": "--rebal", "dd": "--dd", "capital": "--capital",
-                    "impact": "--impact", "pcap": "--cap"}[name]
+                    "impact": "--impact", "pcap": "--cap", "start": "--start"}[name]
             default = {"cadence": "20", "dd": "off", "capital": "1000000", "impact": "0",
-                       "pcap": "1"}[name]
+                       "pcap": "1", "start": "2019-01-01"}[name]
             axes.append({"name": name, "label": LABELS[name], "default": default,
                          "values": num_sorted(seen(name)), "open_number": True,
                          "cli": f"{flag} {{value}}",
@@ -976,7 +992,7 @@ def main():
     for u, arm in CHECK_F_CELLS:
         ax = {"universe": u, "arm": arm, "cadence": "20", "profile": "tradeable", "tax": "on",
               "survivorship": "pit", "dd": "off", "capital": "1000000", "impact": "0",
-              "pcap": "1", "fixed": "off"}
+              "pcap": "1", "fixed": "off", "start": "2019-01-01"}
         r = by_key.get(key_of(ax))
         p = pub.get((u, arm), {})
         if r is None:

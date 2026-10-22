@@ -11,10 +11,12 @@
 # how many draws are finished per universe.
 set -u -o pipefail
 cd "$(dirname "$0")/.." || exit 1
+# The active venv's python, or the interpreter named in $PYTHON.
+PY="${PYTHON:-python}"
 case "${1:-}" in
     1|2|3) ;;
     *) echo "usage: scripts/run_noise_stage.sh 1|2|3" >&2; exit 2 ;;
 esac
 mkdir -p noise_runs/cleaned/logs
-caffeinate -ims ./venv/bin/python results/noise_parallel.py stage "$1" \
+caffeinate -ims "$PY" results/noise_parallel.py stage "$1" \
     --out noise_runs/cleaned 2>&1 | tee -a "noise_runs/cleaned/logs/stage$1.log"

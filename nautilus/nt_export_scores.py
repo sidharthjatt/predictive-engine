@@ -48,12 +48,11 @@ from config import read_table  # the one CSV/parquet reader: config.read_table
 OUT_DIR = Path(__file__).resolve().parent / "data"
 # Date window from config.py. The old year cut emitted June-2026 rows that
 # nt_run.py then re-filtered by date; one cut in one place is enough.
-BT_START_DATE, BT_END_DATE = config.BT_START_DATE, config.BT_END_DATE
 
 
 def export(cache_path: Path, out_path: Path, tag: str) -> pd.DataFrame:
     """`year_end` is gone. It was declared and never read -- the year cut moved to
-    config.BT_START_DATE/BT_END_DATE ("one cut in one place is enough", above) and
+    config.BT_START_DATE/config.BT_END_DATE ("one cut in one place is enough", above) and
     the parameter was left behind, so three call sites passed 2026 and one passed
     2025 to something that ignored all four. A dead argument that looks like a
     per-universe window is worse than none."""
@@ -64,7 +63,7 @@ def export(cache_path: Path, out_path: Path, tag: str) -> pd.DataFrame:
     df = read_table(cache_path, usecols=["date", "symbol", "score"], parse_dates=["date"])
     print(f"  cache rows        : {len(df):,}")
 
-    df = df[(df["date"] >= BT_START_DATE) & (df["date"] <= BT_END_DATE)]
+    df = df[(df["date"] >= config.BT_START_DATE) & (df["date"] <= config.BT_END_DATE)]
     df = df.dropna(subset=["score"]).sort_values(["date", "symbol"]).reset_index(drop=True)
 
     # --- checks: the strategy cannot rank what it cannot see ---

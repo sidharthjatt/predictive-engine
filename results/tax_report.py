@@ -56,7 +56,6 @@ import pandas as pd
 import tax as _tax
 import tax_util as T
 from config import read_table  # the one CSV/parquet reader: config.read_table
-from numerics import rolling_std  # platform-identical variance: results/numerics.py
 
 # The four stems. Composed through naming.name() -- the only composer measured to
 # carry all four axes without modification (naming.CARRIES, re-probed 2026-09-17).
@@ -288,8 +287,6 @@ def main(u):
     sc = p.pivot_table(index="date", columns="symbol", values="score")
     pc = precompute(px)
     mom20 = px / px.shift(20) - 1
-    idx = (1 + px.pct_change().mean(axis=1).fillna(0)).cumprod()
-    port_vol = rolling_std(idx.pct_change(), 60) * np.sqrt(252)
     bd = u.trading_days(px.index)   # the universe's window; see engine_v2_final
 
     # EVERY SELECTED ARM, SINCE 2026-09-26. This ran v2 alone and wrote v2's four
@@ -301,19 +298,19 @@ def main(u):
     import arms.registry as arm_reg
     M = Path(u.metrics_dir)
     for arm in arm_reg.selected():
-        _one_arm(u, arm, M, px, op, sc, bd, pc, mom20, port_vol,
+        _one_arm(u, arm, M, px, op, sc, bd, pc, mom20,
                  cadence, profiles, backtest_exposure, audit_step)
 
 
-def _one_arm(u, arm, M, px, op, sc, bd, pc, mom20, port_vol,
+def _one_arm(u, arm, M, px, op, sc, bd, pc, mom20,
              cadence, profiles, backtest_exposure, audit_step):
     """One arm's taxed backtest, its four artefacts and its TAX_TURNOVER."""
     an = arm.name
     audit = {k: [] for k in
              ("holdings", "summary", "trades", "ranking", "decisions", "skipped")}
     eq, _tc, _ntr, _expo = backtest_exposure(
-        px, op, sc, bd, pc, mom20, port_vol, **arm.kwargs,
-        target_vol=port_vol.loc[bd].median(), rebal=cadence.selected(),
+        px, op, sc, bd, pc, mom20, **arm.kwargs,
+        rebal=cadence.selected(),
         audit=audit, tax_enabled=True, **profiles.cap_kwargs(u))
 
     # THE TAG COMES FROM audit_step.artefact_tag, NOT FROM u.tag ALONE, so these

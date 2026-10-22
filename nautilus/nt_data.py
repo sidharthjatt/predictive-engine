@@ -319,9 +319,16 @@ def quote_frame(symbol, px, op, start, end):
     df = df.reset_index(drop=True)
     _m = pd.to_datetime(df["date"]).dt.to_period("M")
     _last = df.groupby(_m)["close"].last()
-    _ref = _m.map(_last.shift(1)).ffill().bfill().to_numpy()
+    # NO REFERENCE FROM A LATER DATE. The symbol's first month in the frame has no
+    # previous-month close. Until 2026-10-22 .bfill() gave it that month's own last
+    # close, a price from later in the month. Those rows now take the fixed
+    # TICK_SIZE, the tick used when the dated rule is not applied. They are the
+    # first month of the frame (the warm-up, or a listing month), before a name
+    # has the history to be scored, so no fill falls on them.
+    _ref = _m.map(_last.shift(1)).ffill().to_numpy()
     if TICK_MODE == "nse":
-        df["tick"] = [nse_tick(float(_ref[k]), pd.Timestamp(d))
+        df["tick"] = [float(TICK_SIZE) if _ref[k] != _ref[k]
+                      else nse_tick(float(_ref[k]), pd.Timestamp(d))
                       for k, d in enumerate(df["date"])]
     else:
         df["tick"] = float(TICK_SIZE)

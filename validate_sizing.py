@@ -84,12 +84,11 @@ sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "results"))
 import config
 from engine_core import (backtest, precompute, metrics, score_monthly,
-                         TOP_N, START_CAPITAL, HORIZON)
+                         score_floor, TOP_N, START_CAPITAL, HORIZON)
 from universes.registry import REGISTRY
 from seed_cache_key import seed_cache_key
 from config import read_table  # the one CSV/parquet reader: config.read_table
 # Date window from config.py, NOT engine_core's year ints -- see config.py.
-BT_START_DATE, BT_END_DATE = config.BT_START_DATE, config.BT_END_DATE
 
 # ALL FOUR PANEL PATHS come from universes/registry.py -- the single definition.
 # The label is u.name, the "Nifty 100"/"MidCap150" spelling this file has always
@@ -187,7 +186,7 @@ def main():
     px = p.pivot_table(index="date", columns="symbol", values="close").ffill()
     op = p.pivot_table(index="date", columns="symbol", values="open").ffill()
     sc = p.pivot_table(index="date", columns="symbol", values="score")
-    bd = px.index[(px.index >= BT_START_DATE) & (px.index <= BT_END_DATE)]
+    bd = px.index[(px.index >= config.BT_START_DATE) & (px.index <= config.BT_END_DATE)]
     pc = precompute(px)
     print(f"\n  score panel : {score_path}")
     print(f"                {px.shape[1]} symbols, {len(px)} dates, "
@@ -206,9 +205,10 @@ def main():
     print(comp.to_string(index=False))
 
     if "--run" not in sys.argv:
+        _floor = score_floor()
         n_months = len(sorted(read_table(U["raw_perm"], usecols=["date"],
                                           parse_dates=["date"])
-                              .query("date.dt.year >= 2016")["date"]
+                              .query("date >= @_floor")["date"]
                               .dt.to_period("M").unique()))
         print("\n" + "=" * 110)
         print(" COST")
@@ -264,7 +264,7 @@ def main():
         pxs = ps.pivot_table(index="date", columns="symbol", values="close").ffill()
         ops = ps.pivot_table(index="date", columns="symbol", values="open").ffill()
         scs = ps.pivot_table(index="date", columns="symbol", values="score")
-        bds = pxs.index[(pxs.index >= BT_START_DATE) & (pxs.index <= BT_END_DATE)]
+        bds = pxs.index[(pxs.index >= config.BT_START_DATE) & (pxs.index <= config.BT_END_DATE)]
         pcs = precompute(pxs)
         e_e, _, _, _, _ = backtest(pxs, ops, scs, bds, pcs, sizing="equal")
         e_i, _, _, _, _ = backtest(pxs, ops, scs, bds, pcs, sizing="invvol")
@@ -289,12 +289,12 @@ def main():
     for hname, y0, y1 in HALVES:
         # INTERSECTED WITH THE BACKTEST WINDOW, not sliced from the full panel.
         # Slicing px.index by year alone let the late half run to the end of the
-        # price data (2026-06-08) while the full period stopped at BT_END_DATE,
+        # price data (2026-06-08) while the full period stopped at config.BT_END_DATE,
         # so the two ended on different days in the same report. engine_core.main()
         # had that bug; it affected only a retired universe, is recorded in
         # KNOWN_ISSUES.md, and went with main() on 2026-09-24.
         hd = px.index[(px.index.year >= y0) & (px.index.year <= y1)
-                      & (px.index >= BT_START_DATE) & (px.index <= BT_END_DATE)]
+                      & (px.index >= config.BT_START_DATE) & (px.index <= config.BT_END_DATE)]
         e_e, _, _, _, _ = backtest(px, op, sc, hd, pc, sizing="equal")
         e_i, _, _, _, _ = backtest(px, op, sc, hd, pc, sizing="invvol")
         bhh = START_CAPITAL * (1 + px.pct_change().loc[hd].mean(axis=1).fillna(0)).cumprod()
@@ -340,7 +340,7 @@ def main():
     # pass/fail criteria are untouched; nothing below feeds back into `passed`.
     #
     # It uses the same HALVES constant and the same window intersection as T3, so
-    # the late half ends on BT_END_DATE rather than on the last day of the price
+    # the late half ends on config.BT_END_DATE rather than on the last day of the price
     # panel. Every arm the script already runs appears, plus equal-weight buy &
     # hold of the same universe as a constant reference line carrying the same
     # columns.
@@ -350,7 +350,7 @@ def main():
     sp_rows = []
     for hname, y0, y1 in HALVES:
         hd = px.index[(px.index.year >= y0) & (px.index.year <= y1)
-                      & (px.index >= BT_START_DATE) & (px.index <= BT_END_DATE)]
+                      & (px.index >= config.BT_START_DATE) & (px.index <= config.BT_END_DATE)]
         e_e, _, _, _, _ = backtest(px, op, sc, hd, pc, sizing="equal")
         e_i, _, _, _, _ = backtest(px, op, sc, hd, pc, sizing="invvol")
         bhh = START_CAPITAL * (1 + px.pct_change().loc[hd].mean(axis=1).fillna(0)).cumprod()

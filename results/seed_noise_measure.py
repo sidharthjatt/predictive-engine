@@ -40,23 +40,21 @@ import pandas as pd
 from joblib import Parallel, delayed
 
 import config
-from engine_core import FEATS_V2, _fit_seed, PURGE, precompute, metrics
+from engine_core import FEATS_V2, _fit_seed, training_set, score_floor, precompute, metrics
 import test_exposure
 from test_exposure import backtest_exposure
 from universes.registry import REGISTRY
 from v34_common import ann_vol_pct
 import profiles as _prof            # the run's execution-realism profile
 from config import read_table  # the one CSV/parquet reader: config.read_table
-from numerics import rolling_std  # platform-identical variance: results/numerics.py
 
 PROD_SEEDS = [7, 42, 99, 1, 2, 3, 11, 22, 33, 101]
 EXTRA_SEEDS = [1000 + i for i in range(30)]
 SEEDS = PROD_SEEDS + EXTRA_SEEDS              # 40 total, production first
 K_GRID = [1, 2, 3, 5, 10, 20, 40]
 M_SUBSETS = 50
-VOL_WIN = 60
 ARMS = [("v1", "invvol", "none"), ("v2", "invvol", "breadth")]
-REQUIRED_RAW = ["date", "symbol", "open", "close", "y_rank", "scorable"]
+REQUIRED_RAW = ["date", "symbol", "open", "close", "fwd_ret", "label_end", "scorable"]
 
 # THE RAW PANEL PATHS, THE METRICS DIRECTORY AND THE SYMBOL LIST come from
 # universes/registry.py -- the single definition. The LABEL stays local: it is
@@ -116,17 +114,20 @@ def fit_all_seeds(p, uni):
         print(f"      recovering per-seed store {store.name}", flush=True)
         return np.load(store)
     S = np.full((len(p), len(SEEDS)), np.nan, dtype=np.float32)
-    months = sorted(p.loc[p["date"].dt.year >= 2016, "ym"].unique())
+    months = sorted(p.loc[p["date"] >= score_floor(), "ym"].unique())
+    cal = np.array(sorted(p["date"].unique()))
+    pos = {d: i for i, d in enumerate(cal)}
     t0 = time.time()
     for k, ym in enumerate(months):
         first = p.loc[p.ym == ym, "date"].min()
-        cut = first - pd.Timedelta(days=PURGE)      # CURRENT production purge
-        tr = (p["date"] <= cut) & p["y_rank"].notna()
-        te = (p["ym"] == ym) & p["scorable"]
-        if tr.sum() < 5000 or te.sum() == 0:
+        ts = training_set(p, cal, pos[np.datetime64(first)])   # production's rule
+        if ts is None:
             continue
-        Xtr = p.loc[tr, FEATS_V2].to_numpy()
-        ytr = p.loc[tr, "y_rank"].to_numpy()
+        tri, ytr = ts
+        te = (p["ym"] == ym) & p["scorable"]
+        if len(ytr) < 5000 or te.sum() == 0:
+            continue
+        Xtr = p.loc[tri, FEATS_V2].to_numpy()
         Xte = p.loc[te, FEATS_V2].to_numpy()
         pr = Parallel(n_jobs=min(10, os.cpu_count() or 1),
                       backend="loky")(delayed(_fit_seed)(sd, Xtr, ytr, Xte)
@@ -135,7 +136,7 @@ def fit_all_seeds(p, uni):
         if k % 20 == 0:
             el = (time.time() - t0) / 60
             print(f"      [{uni}] month {k+1}/{len(months)} {ym} "
-                  f"train {tr.sum():,}  elapsed {el:.1f} min", flush=True)
+                  f"train {len(ytr):,}  elapsed {el:.1f} min", flush=True)
     # PERSIST FIRST. Nothing between the loop and this line.
     np.save(store, S)
     print(f"      [{uni}] fitting complete, persisted {store.name}", flush=True)
@@ -149,9 +150,6 @@ def make_backtester(p):
     bd = px.index[(px.index >= config.BT_START_DATE) & (px.index <= config.BT_END_DATE)]
     pc = precompute(px)
     mom20 = px / px.shift(20) - 1
-    idx = (1 + px.pct_change().mean(axis=1).fillna(0)).cumprod()
-    pv = rolling_std(idx.pct_change(), VOL_WIN) * np.sqrt(252)
-    tv = pv.loc[bd].median()
     di = {d: i for i, d in enumerate(px.index)}
     si = {s: i for i, s in enumerate(px.columns)}
     ri = p["date"].map(di).to_numpy()
@@ -167,8 +165,7 @@ def make_backtester(p):
         # apply a participation cap even if one were selected; research_only()
         # makes that a statement rather than an accident, and STOPS the run if
         # --profile ever reaches here. See profiles.research_only.
-        eq, tc, n, expo = backtest_exposure(px, op, sc, bd, pc, mom20, pv,
-                                            drawdown_stop=None, mode=mode, target_vol=tv, sizing=sizing, participation_cap=_prof.research_only(__name__))
+        eq, tc, n, expo = backtest_exposure(px, op, sc, bd, pc, mom20, drawdown_stop=None, mode=mode, sizing=sizing, participation_cap=_prof.research_only(__name__))
         m = metrics(eq, "a", tc, n)
         yearly = {int(y): round(float((g.iloc[-1] / g.iloc[0] - 1) * 100), 2)
                   for y, g in eq.groupby(eq.index.year) if len(g) > 2}
@@ -205,8 +202,7 @@ def run_universe(uni, cfg, W):
     W("=" * 100)
     W("")
     W(f"  seeds fitted {len(SEEDS)}  (first 10 = production set, rest new)")
-    W(f"  purge: CURRENT production, {PURGE} calendar days -- deliberately not the")
-    W("         corrected one, so the shipped result is one draw of this distribution")
+    W("  purge: production's, engine_core.training_set (trading sessions, label end)")
     W(f"  sub-ensembles: K in {K_GRID}, {M_SUBSETS} random subsets per K (K=40 has one)")
     W("")
 

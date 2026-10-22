@@ -10,6 +10,8 @@
 # keeps the machine awake while it runs.
 set -u -o pipefail
 cd "$(dirname "$0")/.." || exit 1
+# The active venv's python, or the interpreter named in $PYTHON.
+PY="${PYTHON:-python}"
 mkdir -p noise_runs/seed_band
-caffeinate -ims ./venv/bin/python results/seed_band_fit.py fit "$@" 2>&1 \
+caffeinate -ims "$PY" results/seed_band_fit.py fit "$@" 2>&1 \
     | tee -a noise_runs/seed_band/fit.log

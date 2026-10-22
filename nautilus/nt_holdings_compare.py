@@ -26,6 +26,7 @@ sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import nt_run
 import paths
+import config
 from config import read_table  # the one CSV/parquet reader: config.read_table
 
 
@@ -43,7 +44,7 @@ def _universe():
 
 def main():
     u = _universe()
-    strat = nt_run.run("2019-01-01", nt_run.UNIVERSES[u.tag]["end"], universe=u.tag)
+    strat = nt_run.run(str(config.BT_START_DATE.date()), nt_run.UNIVERSES[u.tag]["end"], universe=u.tag)
 
     port = pd.DataFrame(strat.holdings_log)
     if port.empty:

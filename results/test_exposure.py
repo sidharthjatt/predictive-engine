@@ -13,12 +13,11 @@ THIS APPROACH works at market level and never blocks an individual stock:
   A. BREADTH: invest the fraction of capital equal to the fraction of stocks with
      positive momentum; hold the rest in cash. In a crash breadth falls and cash
      rises, while good stocks are still bought.
-  B. VOL-TARGET: high portfolio vol -> lower exposure. Vol tends to rise BEFORE a crash.
-  C. BOTH: min(breadth, voltgt).
+  B. CONST: a fixed exposure, the control breadth is compared against.
 
-PROTOCOL: no threshold is tuned. Target vol is the median realised vol, which is
-parameter-free. Crash periods are reported separately, to show whether the method
-actually protected capital or merely cut returns.
+The vol-target and min(breadth, vol-target) modes were removed on 2026-10-22: their
+target was the median portfolio vol over the whole backtest window, a value no
+decision could know on its own date, and no arm used them.
 
 The experiment's own main(), which read a fixed /tmp/v5_expanding.csv from a
 retired universe and wrote into results/metrics/, was removed on 2026-09-27;
@@ -79,7 +78,6 @@ CASH_YIELD = 0.0        # no yield assumed on idle cash
 # BACKTEST WINDOW -- imported from config.py, the single definition.
 # Date-based and inclusive. The old year cut (BT_START, BT_END = 2019, 2026)
 # ran to 2026-06-08, six trading days beyond this window.
-BT_START_DATE, BT_END_DATE = config.BT_START_DATE, config.BT_END_DATE
 M = config.METRICS_DIR
 
 
@@ -113,6 +111,23 @@ _DD_FROM_SELECTION = object()
 _FIXED_FROM_SELECTION = object()
 
 
+def breadth_momentum(mom20, dt):
+    """The 20-day momentum breadth is computed over: mom20 on `dt`, present values.
+
+    IN A PIT RUN, ONLY THE MEMBERS ON `dt`. The price panel holds every name in
+    the pit folder, and a name is in that folder because it is a member on some
+    date, possibly a later one; counting a non-member on `dt` would let a later
+    membership change today's exposure. When no list is in force on `dt` (before
+    the first effective date) every name counts, as in static mode. Since
+    2026-10-22."""
+    m = mom20.loc[dt].dropna()
+    if sv.is_pit() and engine_core.MEMBERSHIP is not None:
+        _members = engine_core.MEMBERSHIP.members_on(dt)
+        if _members:
+            m = m[[str(k).upper() in _members for k in m.index]]
+    return m
+
+
 def _participation_limit(sym, dt, participation_cap, vol20):
     """The cap in shares for one (symbol, date), or None when it does not apply.
 
@@ -144,8 +159,8 @@ def _median_volume(sym, dt, vol20):
     return None if (med != med or med <= 0) else med
 
 
-def backtest_exposure(px, op, sc, dates, pc, mom20, port_vol=None,
-                      mode="none", target_vol=None, audit=None, sizing="invvol",
+def backtest_exposure(px, op, sc, dates, pc, mom20,
+                      mode="none", audit=None, sizing="invvol",
                       const_expo=None, value_at_open=True, rebal=None,
                       funding="cash", participation_cap=_CAP_REQUIRED, vol20=_VOL20_REQUIRED,
                       tax_enabled=False, impact_k=None, impact_out=None,
@@ -302,7 +317,7 @@ def backtest_exposure(px, op, sc, dates, pc, mom20, port_vol=None,
             f"this call measures the research strategy under a "
             f"'{__import__('profiles').selected()}' label.\n"
             f"  Pass vol20=tradability.median_volume(u.prepare_data_dir(), "
-            f"_load_calendar(), BT_START_DATE, BT_END_DATE) as both engines and "
+            f"_load_calendar(), config.BT_START_DATE, config.BT_END_DATE) as both engines and "
             f"v34_common do, or declare the intent with "
             f"profiles.research_only(__name__) if this caller is research-only.")
     # THE EXEMPTION MAP IS BUILT ONCE, FROM THE VOLUME SERIES, BEFORE ANY FILL.
@@ -956,7 +971,7 @@ def backtest_exposure(px, op, sc, dates, pc, mom20, port_vol=None,
             # NO NORMAL REBALANCE WHILE THE STOP HOLDS THE ARM OUT. Breadth, when
             # the stop asks for it, is computed exactly as mode="breadth" does.
             def _breadth():
-                _m = mom20.loc[dt].dropna()
+                _m = breadth_momentum(mom20, dt)
                 return float((_m > 0).mean()) if len(_m) else 1.0
             _grid = _reentry_check = _st.grid_allows_order(i, _breadth)
             if not _grid:
@@ -965,11 +980,8 @@ def backtest_exposure(px, op, sc, dates, pc, mom20, port_vol=None,
             if mode == "none":
                 expo = 1.0
             elif mode == "breadth":
-                m = mom20.loc[dt].dropna()
+                m = breadth_momentum(mom20, dt)
                 expo = float((m > 0).mean()) if len(m) else 1.0
-            elif mode == "voltgt":
-                pv = port_vol.loc[dt] if (port_vol is not None and dt in port_vol.index) else np.nan
-                expo = min(1.0, target_vol / pv) if (not np.isnan(pv) and pv > 0) else 1.0
             elif mode == "const":
                 # The T3 control of experiments/BREADTH_LIVE_SPEC.txt. Holds a
                 # FIXED exposure so that breadth can be compared against the same
@@ -979,12 +991,8 @@ def backtest_exposure(px, op, sc, dates, pc, mom20, port_vol=None,
                 if const_expo is None:
                     raise ValueError('mode="const" requires const_expo')
                 expo = float(const_expo)
-            elif mode == "both":
-                m = mom20.loc[dt].dropna()
-                b = float((m > 0).mean()) if len(m) else 1.0
-                pv = port_vol.loc[dt] if (port_vol is not None and dt in port_vol.index) else np.nan
-                v = min(1.0, target_vol / pv) if (not np.isnan(pv) and pv > 0) else 1.0
-                expo = min(b, v)
+            else:
+                raise ValueError(f"mode must be 'none', 'breadth' or 'const', got {mode!r}")
             expo = max(0.0, min(1.0, expo))
             expo_log.append(expo)
 
@@ -1070,7 +1078,7 @@ def backtest_exposure(px, op, sc, dates, pc, mom20, port_vol=None,
                     pv_now = sum(q * prices[k] for k, q in shares.items()
                                  if not np.isnan(prices.get(k, np.nan))) + cash
                     held = set(shares.keys())
-                    m_ = mom20.loc[dt].dropna()
+                    m_ = breadth_momentum(mom20, dt)
                     npos, ntot = int((m_ > 0).sum()), int(len(m_))
                     audit["decisions"].append({
                         "decided_on": dt, "breadth_pos": npos, "breadth_total": ntot,

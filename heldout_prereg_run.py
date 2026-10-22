@@ -33,10 +33,9 @@ THE TRAP THIS SCRIPT EXISTS TO AVOID
     ONLY THE BACKTEST'S DATE INDEX IS EXTENDED. `bd` runs to the last panel date
     instead of to BT_END_DATE. Everything else is the shipping engine's own call.
 
-    AND target_vol IS PINNED TO THE IN-SAMPLE WINDOW. results/engine_v2_final.py
-    computes `tv = port_vol.loc[bd].median()`, so extending `bd` would recompute it
-    over held-out data -- a refit, small but real, and on exactly the data under
-    test. `tv` here is the median over the IN-SAMPLE dates only.
+    target_vol, which was pinned to the in-sample median here, no longer exists: it
+    was a whole-window median that only the removed vol-target modes read
+    (2026-10-22).
 
 WHAT LICENSES THE EXTENSION, AND IT IS CHECKED RATHER THAN ASSUMED
     If extending the date index changed anything before 2026-05-29, the held-out
@@ -87,7 +86,6 @@ from test_exposure import backtest_exposure, TOP_N, BUFFER
 from build_scores_step import SEEDS
 from universes.registry import REGISTRY
 from config import read_table  # the one CSV/parquet reader: config.read_table
-from numerics import rolling_std  # platform-identical variance: results/numerics.py
 
 PREREG = ROOT / "experiments" / "HELDOUT_PREREG.txt"
 OUT = ROOT / "diagnostics" / "heldout_prereg_result.txt"
@@ -111,7 +109,6 @@ RESULT_MARKER = "[HELDOUT-PREREG-RESULT-BLOCK]"
 # against the file rather than against my memory of it.
 PREREG_COMMIT = "806a7fbba9a41a954e0ac75bc5a8064ecbabd414"
 PREREG_ASSUMED_N = 65          # section 3, "roughly 65 pooled sessions"
-VOL_WIN = 60                   # engine_v2_final's window for port_vol
 REPRO_TOL = 1e-12              # exact zero is expected; see the reproduction gate
 
 
@@ -221,8 +218,6 @@ def universe_series(u, W):
     sc = p.pivot_table(index="date", columns="symbol", values="score")
     pc = precompute(px)
     mom20 = px / px.shift(20) - 1
-    idx = (1 + px.pct_change().mean(axis=1).fillna(0)).cumprod()
-    port_vol = rolling_std(idx.pct_change(), VOL_WIN) * np.sqrt(252)
 
     bd_in = px.index[(px.index >= config.BT_START_DATE)
                      & (px.index <= config.BT_END_DATE)]
@@ -231,10 +226,6 @@ def universe_series(u, W):
     bd_ext = px.index[(px.index >= config.BT_START_DATE)]
     held = [d for d in bd_ext if d > config.BT_END_DATE]
 
-    # PINNED -- target_vol over the IN-SAMPLE dates. engine_v2_final computes this
-    # over `bd`; using bd_ext would fit a parameter on the held-out window.
-    tv = port_vol.loc[bd_in].median()
-
     W(f"    {u.tag:<5} in-sample window  {bd_in[0].date()} .. {bd_in[-1].date()}"
       f"   ({len(bd_in):,} sessions)   BT_END_DATE is {config.BT_END_DATE.date()}")
     if bd_in[-1] != config.BT_END_DATE:
@@ -242,13 +233,11 @@ def universe_series(u, W):
           f"day on or before BT_END_DATE)")
     W(f"    {u.tag:<5} extended window   {bd_ext[0].date()} .. {bd_ext[-1].date()}"
       f"   ({len(bd_ext):,} sessions)   held out: {len(held)}")
-    W(f"    {u.tag:<5} target_vol        {tv:.6f}  PINNED to the in-sample median")
 
     audit = {k: [] for k in
              ("holdings", "summary", "trades", "ranking", "decisions", "skipped")}
     eq, tc, n_tr, expo = backtest_exposure(
-        px, op, sc, bd_ext, pc, mom20, port_vol,
-        drawdown_stop=None, mode="breadth", target_vol=tv, rebal=cadence.selected(),
+        px, op, sc, bd_ext, pc, mom20, drawdown_stop=None, mode="breadth", rebal=cadence.selected(),
         participation_cap=profiles.participation_cap(), audit=audit)
 
     # ------------------------------------------------------------------
@@ -283,7 +272,7 @@ def universe_series(u, W):
     ex = (r_v2 - inv_lag * r_uni).dropna()
     return (ex[ex.index <= config.BT_END_DATE],
             ex[ex.index > config.BT_END_DATE],
-            {"tag": u.tag, "held": held, "n_trades": n_tr, "expo": expo, "tv": tv})
+            {"tag": u.tag, "held": held, "n_trades": n_tr, "expo": expo})
 
 
 def main():
@@ -302,7 +291,6 @@ def main():
     W("  THE EXTENSION")
     W("    score panel        NOT rebuilt, NOT refitted, read from the permanent cache")
     W("    backtest window    extended at the END only, to the last panel date")
-    W("    target_vol         PINNED to the in-sample median (not recomputed)")
     W("")
 
     ins, outs, details = {}, {}, []

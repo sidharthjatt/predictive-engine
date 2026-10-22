@@ -10,15 +10,15 @@ WHAT THE PANEL USES (corrected 2026-09-27)
     stopped being true when engine_core.canonical_price was added: build_panel
     reads open, high, low, close, adj_close and volume, takes adj_close as the
     price wherever it lies inside the raw day's [low, high] (close otherwise), and
-    scales open, high and low by the same ratio. Since 2026-09-27 a reverting
-    adj_close/close excursion of up to five sessions is first replaced by the
-    previous session's ratio (results/ratio_clean.py,
-    experiments/DATA_CLEANING_SPEC.txt).
+    scales open, high and low by the same ratio. From 2026-09-27 to 2026-10-22 a
+    reverting adj_close/close excursion of up to five sessions was first replaced
+    by the previous session's ratio (results/ratio_clean.py, now deleted, which
+    looked up to five sessions ahead).
 
     THIS SCRIPT READS THE RAW FILES, NOT THE PANEL. Its close-to-close returns
     (part 2) are raw close returns, which are not the returns the engine trades
     on; its close against adj_close comparison (part 1) is a comparison of the two
-    raw columns. Neither passes through canonical_price or the cleaning.
+    raw columns. Neither passes through canonical_price.
 
 MEASURED HERE
     1. how often close and adj_close differ, and by how much

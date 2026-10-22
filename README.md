@@ -457,11 +457,11 @@ verifies the four mcapover10000 cells; the other eight are not gated (KNOWN_ISSU
   not to be read as an edge, and the tradeable profile is ungated. Report:
   `diagnostics/cleaned_noise.txt`. The earlier tests on the uncleaned prices are
   superseded.
-- **The cleaning, 2026-09-27.** On about 0.4% of rows adj_close/close moved for one
-  to five sessions and came back, which no corporate action does. Those sessions
-  now take the previous session's ratio (`experiments/DATA_CLEANING_SPEC.txt`).
-  The rule reads up to five later sessions to decide, so it is a data repair and
-  not something a live book could compute on the day.
+- **The cleaning, 2026-09-27 to 2026-10-22.** On about 0.4% of rows adj_close/close
+  moved for one to five sessions and came back. Those sessions took the previous
+  session's ratio (`experiments/DATA_CLEANING_SPEC.txt`). The rule read up to five
+  later sessions, so it was removed on 2026-10-22 with the other look-ahead fixes in
+  KNOWN_ISSUES.md. The figures below were computed with it and are to be replaced.
 - **The survivorship bias is permanent.** Every universe is today's index members
   backfilled to 2019 (see "What is wrong with these results").
 

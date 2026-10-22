@@ -62,7 +62,13 @@ EXTREME_RET_LO = -0.35
 
 
 def add_stock_features(df):
-    """Per-stock features. df needs: date, open, high, low, close, volume."""
+    """Per-stock features. df needs: date, open, high, low, close, volume, raw_close.
+
+    `close` is the adjusted price and every return-based feature uses it.
+    `raw_close` is the unadjusted close, used only for amihud_20's rupee volume:
+    adj_close is back-adjusted for dividends paid AFTER the row's date and volume
+    is not, so a rupee volume built from adj_close would depend on later sessions.
+    """
     df = df.sort_values("date").copy()
     c = df["close"]
     v = df["volume"]
@@ -97,7 +103,7 @@ def add_stock_features(df):
 
     # ---------------- D. LIQUIDITY / VOLUME ----------------
     # Amihud illiquidity: |return| / rupee volume. High = illiquid = risk premium
-    rupee_vol = c * v
+    rupee_vol = df["raw_close"] * v
     df["amihud_20"] = (r.abs() / (rupee_vol + 1)).rolling(20).mean() * 1e9
     vm = v.rolling(60).mean()
     vs = rolling_std(v, 60)
@@ -125,15 +131,21 @@ def add_stock_features(df):
     return df
 
 
-def add_market_relative_features(panel):
+def add_market_relative_features(panel, member_col=None):
     """Beta and idiosyncratic volatility, measured against the market.
     Market = the equal-weight return of the universe (past-only, no lookahead).
     This has to happen at panel level because the market is built from all stocks.
+
+    `member_col` names a boolean column; when given, the market on each date is
+    the mean over the rows where it is True. build_panel passes the point-in-time
+    membership, so in a pit run the market is the members on the date. None, or
+    an all-True column, averages every row, as static mode does.
     """
     panel = panel.sort_values(["symbol", "date"]).copy()
 
-    # market return: the mean of all available stocks each day (point-in-time)
-    mkt = panel.groupby("date")["ret_1d"].mean().rename("mkt_ret")
+    # market return: the mean of the available stocks each day (point-in-time)
+    _in = panel if member_col is None else panel[panel[member_col].astype(bool)]
+    mkt = _in.groupby("date")["ret_1d"].mean().rename("mkt_ret")
     panel = panel.merge(mkt, on="date", how="left")
 
     # beta = cov(y, x) / var(x) over 60d; idio_vol = std(y - beta*x) over 60d

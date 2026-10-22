@@ -47,14 +47,12 @@ ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "results"))
 import config
-from engine_core import metrics, precompute, BT_START, BT_END
+from engine_core import metrics, precompute
 import test_exposure
 from test_exposure import backtest_exposure
 import profiles as _prof            # the run's execution-realism profile
 from config import read_table  # the one CSV/parquet reader: config.read_table
-from numerics import rolling_std  # platform-identical variance: results/numerics.py
 
-VOL_WIN = 60
 TOPNS = [8, 12, 16, 20]
 MAX_DD_WORSE = 2.0
 CONCENTRATION_FACTOR = 0.5
@@ -94,16 +92,14 @@ def run(drop=(), top_n=8):
     px = q.pivot_table(index="date", columns="symbol", values="close").ffill()
     op = q.pivot_table(index="date", columns="symbol", values="open").ffill()
     sc = q.pivot_table(index="date", columns="symbol", values="score")
-    bd = px.index[(px.index.year >= BT_START) & (px.index.year <= BT_END)]
+    bd = px.index[(px.index >= config.BT_START_DATE) & (px.index <= config.BT_END_DATE)]
     pc = precompute(px); m20 = px / px.shift(20) - 1
-    ix = (1 + px.pct_change().mean(axis=1).fillna(0)).cumprod()
-    pv = rolling_std(ix.pct_change(), VOL_WIN) * np.sqrt(252)
     # RESEARCH-ONLY, DECLARED. This caller passes no vol20, so it could not
     # apply a participation cap even if one were selected; research_only()
     # makes that a statement rather than an accident, and STOPS the run if
     # --profile ever reaches here. See profiles.research_only.
-    eq, tc, n, _ = backtest_exposure(px, op, sc, bd, pc, m20, pv, drawdown_stop=None, mode="breadth",
-                                     target_vol=pv.loc[bd].median(), participation_cap=_prof.research_only(__name__))
+    eq, tc, n, _ = backtest_exposure(px, op, sc, bd, pc, m20, drawdown_stop=None, mode="breadth",
+                                     participation_cap=_prof.research_only(__name__))
     bh = 1_000_000 * (1 + px.pct_change().loc[bd].mean(axis=1).fillna(0)).cumprod()
     m = metrics(eq, "s", tc, n); mb = metrics(bh, "b")
     return m, mb, m["CAGR%"] - mb["CAGR%"], n

@@ -68,6 +68,7 @@ for _p in (ROOT, ROOT / "results"):
 import pandas as pd                                            # noqa: E402
 
 import arms.registry as arm_reg                                # noqa: E402
+import config                                                  # noqa: E402
 from config import read_table                                  # noqa: E402
 from universes.registry import REGISTRY, check_tags            # noqa: E402
 
@@ -83,7 +84,6 @@ ROWS = ("pit, tax off: CAGR", "pit, tax on: CAGR",
         "pit, tax off: MaxDD", "pit, tax off: average drawdown",
         "equal-weight basket (untaxed, daily rebalanced): CAGR",
         "equal-weight basket (untaxed, daily rebalanced): MaxDD")
-WINDOW = (pd.Timestamp("2019-01-01"), pd.Timestamp("2026-05-29"))
 BH_ROW = "buy & hold equal-weight"
 OUT_CSV = ROOT / "diagnostics" / "survivorship_sheet_research.csv"
 OUT_XLSX = ROOT / "diagnostics" / "survivorship_sheet_research.xlsx"
@@ -114,11 +114,11 @@ def published(M, sfx, label):
 
 
 def nse_index(u):
-    """The close series of u's own NSE index file over WINDOW."""
+    """The close series of u's own NSE index file over the backtest window."""
     d = read_table(u.index_file)
     d["date"] = pd.to_datetime(d["date"], dayfirst=True)
     c = d.sort_values("date").set_index("date")["close"]
-    return c.loc[WINDOW[0]:WINDOW[1]]
+    return c.loc[config.BT_START_DATE:config.BT_END_DATE]
 
 
 def check(what, got, want):

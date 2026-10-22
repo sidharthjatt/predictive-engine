@@ -55,7 +55,6 @@ from features_v2 import (FEATS_V2, add_stock_features,
                          add_market_relative_features, cross_sectional_normalize)
 from config import read_table  # the one CSV/parquet reader: config.read_table
 from numerics import rolling_std  # platform-identical variance: results/numerics.py
-import ratio_clean  # reverting adj_close/close events: experiments/DATA_CLEANING_SPEC.txt
 
 # The point-in-time membership history, or None. This is the ONE place it is held,
 # so `engine_core.MEMBERSHIP` is what every consumer reads -- test_exposure included.
@@ -160,7 +159,7 @@ except Exception as _e:
 # validate_sizing.py imports TOP_N from HERE while running on the live
 # universes -- the two definitions agree at 8 and nothing enforces it.
 # See KNOWN_ISSUES.md and experiments/TOPN_SPEC.txt Part A.
-HORIZON, REBAL, TOP_N, BUFFER, VOL_WIN, PURGE = 20, 20, 8, 16, 60, 32
+HORIZON, REBAL, TOP_N, BUFFER, VOL_WIN = 20, 20, 8, 16, 60
 
 # Status label for a checklist row that is RECORDED, not computed. It exists so
 # that no row can quietly go back to asserting a verdict this run did not reach.
@@ -175,7 +174,6 @@ import capital_axis as _capital_axis  # noqa: E402
 # THE DEFAULT, defined once in capital_axis.py. A run's capital is
 # capital_axis.selected(); this name stays for callers that want the default.
 START_CAPITAL = _capital_axis.DEFAULT
-BT_START, BT_END = 2019, 2026
 M = config.METRICS_DIR
 
 
@@ -229,19 +227,14 @@ M = config.METRICS_DIR
 PRICE_COLS = ["date", "open", "high", "low", "close", "adj_close", "volume"]
 
 
-def canonical_price(raw, exempt=None):
+def canonical_price(raw):
     """Return (df, n_fallback) with adj_close as the price column.
 
     `raw` needs open/high/low/close/adj_close. The returned frame carries the same
     column names -- `close` now HOLDS the canonical price, and open/high/low are on
     that same basis -- so every downstream consumer inherits the switch without
     knowing it happened. adj_close is dropped: keeping it would leave two columns
-    claiming to be the adjusted price, one of them the unrepaired original.
-
-    `exempt` is a boolean array over raw's rows, or None. True rows skip the
-    [low, high] fallback: build_panel passes ratio_clean's event rows, whose
-    adj_close is close times the previous session's ratio by construction
-    (experiments/DATA_CLEANING_SPEC.txt, rule 6). None changes nothing.
+    claiming to be the adjusted price.
     """
     d = raw.copy()
     a, lo, hi = d["adj_close"], d["low"], d["high"]
@@ -249,8 +242,6 @@ def canonical_price(raw, exempt=None):
     # adj_close belongs to the same session as the bar it is filed under. Scaling
     # first would make the comparison circular and always pass.
     bad = (a <= 0) | (a < lo) | (a > hi)
-    if exempt is not None:
-        bad = bad & ~pd.Series(exempt, index=d.index)
     price = a.where(~bad, d["close"])
     # close > 0 on every row of every universe (checked: 0 non-positive closes in
     # 1,546,394 rows), so this division cannot produce an inf through the fallback.
@@ -394,7 +385,7 @@ def thin_sessions(data_dir, lo=None, hi=None, share=THIN_SESSION_SHARE):
             if span[i] and rows[i] < share * span[i]]
 
 
-def build_panel(horizon, data_dir, pin_scorable=None, clean=True):
+def build_panel(horizon, data_dir, pin_scorable=None):
     """Build the full feature panel from one universe's raw stock CSVs.
 
     `data_dir` IS REQUIRED, AND THAT IS THE POINT. It used to default to None and
@@ -408,13 +399,22 @@ def build_panel(horizon, data_dir, pin_scorable=None, clean=True):
     (This previously lived in engine_v2.py and was nearly lost when that file was
     deleted. It is permanent here now.)
 
-    `clean` runs results/ratio_clean.py on each file before canonical_price
-    (experiments/DATA_CLEANING_SPEC.txt). It is True for every published panel.
-    False exists for one caller: a noise draw whose farm was cleaned and then
-    perturbed before it got here, which must not be cleaned a second time
-    (experiments/CLEANED_NOISE_PREREG.txt). Such a farm carries a boolean
-    `clean_exempt` column marking the cleaned rows, and with clean=False it is
-    passed to canonical_price as the exemption the cleaning would have given.
+    NO SESSION'S PRICE DEPENDS ON A LATER SESSION. Until 2026-10-22 each file was
+    passed through results/ratio_clean.py first, which decided whether to repair
+    session t by looking up to five sessions ahead. That repair is gone: adj_close
+    is used as delivered, with the close fallback of canonical_price only.
+
+    THE LABEL CARRIES THE DATE IT ENDS ON. `fwd_ret` is the close `horizon` of the
+    symbol's own rows ahead, and `label_end` is that row's date. A symbol with
+    missing sessions has a label that ends later than `horizon` sessions after its
+    row; score_monthly uses a row for training only once `label_end` has passed
+    the purge limit (training_set). No training rank is computed here.
+
+    IN A PIT RUN THE CROSS-SECTIONS ARE THE MEMBERS ON THE DATE. The equal-weight
+    market behind beta_60 and idio_vol_60 and the z-score peer group take only the
+    rows survivorship.member_mask keeps: members on the date, and every row before
+    the first effective date (where no membership is defined). In static mode the
+    mask keeps every row.
     """
     if data_dir is None:
         raise ValueError(
@@ -436,32 +436,23 @@ def build_panel(horizon, data_dir, pin_scorable=None, clean=True):
     _removed = _check_calendar(_cal, _pre, tag=str(Path(_src).name))
     _dropped = 0
     _fallback = {}
-    _cleaned = {}
     for f in list_dir(_src, "*.csv"):
         raw = config.read_price_csv(f).sort_values("date")
         # THE LOAD BOUNDARY. adj_close is selected here and resolved into `close`
         # by canonical_price immediately, so the panel below -- and therefore every
         # px/op pivot every consumer builds from it -- is on the adjusted basis.
-        # This is the ONLY place the choice is made.
-        _pre = (not clean) and ("clean_exempt" in raw.columns)
-        raw = (raw[PRICE_COLS + ["clean_exempt"]].dropna(subset=PRICE_COLS) if _pre
-               else raw[PRICE_COLS].dropna())
-        # Reverting adj_close/close events take the previous session's ratio
-        # here, before canonical_price applies the ratio to the whole bar. The
-        # raw file is not touched. experiments/DATA_CLEANING_SPEC.txt.
-        if clean:
-            raw, _exempt, _events = ratio_clean.clean(raw, _cal)
-            if _events:
-                _cleaned[f.stem] = int(_exempt.sum())
-        else:
-            _exempt = (raw.pop("clean_exempt").astype(bool).to_numpy() if _pre
-                       else None)
-        raw, _nfb = canonical_price(raw, exempt=_exempt)
+        # This is the ONLY place the choice is made. The unadjusted close is kept
+        # as raw_close for amihud_20 alone: adj_close is back-adjusted for
+        # dividends paid after the row's date, so a rupee volume built from it
+        # would depend on later sessions.
+        raw = raw[PRICE_COLS].dropna()
+        raw["raw_close"] = raw["close"]
+        raw, _nfb = canonical_price(raw)
         if _nfb:
             _fallback[f.stem] = _nfb
         # Market-holiday rows are removed BEFORE any feature is computed, so a
-        # phantom session cannot enter a rolling window, the market return, the
-        # union date index, or an execution price.
+        # phantom session cannot enter a rolling window, the market return,
+        # the union date index, or an execution price.
         _n = len(raw)
         raw = raw[raw["date"].isin(_cal)]
         _dropped += _n - len(raw)
@@ -470,6 +461,7 @@ def build_panel(horizon, data_dir, pin_scorable=None, clean=True):
         d = add_stock_features(raw)
         d["symbol"] = f.stem
         d["fwd_ret"] = d["close"].shift(-horizon) / d["close"] - 1
+        d["label_end"] = d["date"].shift(-horizon)
         # THE LABEL MUST ALSO BE PROTECTED, not just the features. fwd_ret spans
         # [t+1, t+horizon]; if a flagged artefact sits anywhere in that span the
         # label is a data error rather than a return, so it is dropped. Masking
@@ -478,7 +470,7 @@ def build_panel(horizon, data_dir, pin_scorable=None, clean=True):
         b = d["bad_ret"].astype(float).shift(-1)
         fwd_bad = b[::-1].rolling(horizon, min_periods=1).max()[::-1]
         d.loc[fwd_bad.fillna(0) > 0, "fwd_ret"] = np.nan
-        frames.append(d)
+        frames.append(d.drop(columns=["raw_close"]))
     p = pd.concat(frames, ignore_index=True)
     print(f"    trading calendar: {len(_removed)} non-trading date(s) removed, "
           f"{_dropped:,} rows across {len(frames)} symbols")
@@ -490,14 +482,9 @@ def build_panel(horizon, data_dir, pin_scorable=None, clean=True):
     print(f"    canonical price: adj_close on {len(p) - _tfb:,} rows, "
           f"close fallback on {_tfb:,} "
           f"({', '.join(f'{k} {v}' for k, v in sorted(_fallback.items())) or 'none'})")
-    if clean:
-        print(f"    ratio cleaning: {sum(_cleaned.values()):,} rows on {len(_cleaned)} "
-              f"symbols take the previous session's adj_close/close ratio "
-              f"(experiments/DATA_CLEANING_SPEC.txt)")
-    else:
-        print("    ratio cleaning: OFF for this build (clean=False); the farm is "
-              "expected to be cleaned already")
-    p = add_market_relative_features(p)
+    # Point-in-time membership, per row. All True in static mode.
+    p["member"] = sv.member_mask(p, MEMBERSHIP)
+    p = add_market_relative_features(p, member_col="member")
 
     # PRICES ARE NO LONGER FILTERED BY FEATURE AVAILABILITY.
     #     This used to be `p = p.dropna(subset=FEATS_V2)`, and every consumer then
@@ -549,10 +536,18 @@ def build_panel(horizon, data_dir, pin_scorable=None, clean=True):
             list(zip(p["date"], p["symbol"])), index=p.index).isin(pin_scorable)
         scorable = scorable & _pin
 
-    # The cross-sectional z-score is computed over the SCORABLE rows only, so the
-    # peer group for a given day is unchanged from before. Normalising over the
-    # full panel would silently widen it, because a row missing one feature would
-    # still contribute to the mean and standard deviation of the other sixteen.
+    # TOUCH POINT 1 -- point-in-time membership, applied to the SCORE side only,
+    # and BEFORE the z-score, so a name that is not a member on the date is
+    # neither scored nor part of the peer group the members are scored against.
+    # Rows are never dropped: `p` is also the price panel every consumer pivots,
+    # and deleting prices for a non-price reason lets the downstream ffill bridge
+    # the hole (+24,772.7% on PATANJALI). In static mode `member` is all True.
+    scorable = scorable & p["member"]
+
+    # The cross-sectional z-score is computed over the SCORABLE rows only.
+    # Normalising over the full panel would silently widen the peer group, because
+    # a row missing one feature would still contribute to the mean and standard
+    # deviation of the other sixteen.
     z = cross_sectional_normalize(p.loc[scorable].copy(), FEATS_V2)
     p.loc[scorable, FEATS_V2] = z[FEATS_V2].to_numpy()
     p.loc[~scorable, FEATS_V2] = np.nan
@@ -564,38 +559,16 @@ def build_panel(horizon, data_dir, pin_scorable=None, clean=True):
     # none inside any backtest window -- but the flag has to mean what it says.
     scorable = p[FEATS_V2].notna().all(axis=1)
 
-    # TOUCH POINT 1 -- point-in-time membership, applied to the SCORE side only.
-    #
-    # The integration note specifies `p = sv.apply_to_panel(p, membership)` directly
-    # after `p = p.dropna(subset=FEATS_V2)`. That line no longer exists: it was
-    # removed in the price/score separation described above, and `p` is now the
-    # COMBINED panel -- every consumer pivots close and open out of this same frame
-    # (engine_v2_final.py:65-67). Dropping rows from it would therefore delete
-    # PRICES for a non-price reason and let the downstream ffill bridge the hole,
-    # which is precisely the failure the note warns about and precisely the one this
-    # engine already suffered (+24,772.7% on PATANJALI).
-    #
-    # So membership is folded into `scorable` instead, which is the mechanism that
-    # replaced the dropna and means exactly what is wanted: an ineligible name gets
-    # NO SCORE and cannot be ranked, while its price stays real for valuation,
-    # execution, momentum, the sale itself, and buy&hold. apply_to_panel is still
-    # what decides eligibility -- it is handed a (date, symbol) projection of the
-    # scorable rows, never the prices.
-    #
-    # In static mode apply_to_panel returns its argument unchanged, the length test
-    # below is an equality, and `scorable` is not touched at all.
-    _elig = sv.apply_to_panel(p.loc[scorable, ["date", "symbol"]], MEMBERSHIP)
-    if len(_elig) != int(scorable.sum()):
-        scorable = scorable & pd.Series(p.index.isin(_elig.index), index=p.index)
-
     p["scorable"] = scorable
     p["year"] = p["date"].dt.year
-    # The label's cross-sectional rank is likewise taken within the scorable set,
-    # so a row that cannot be scored also cannot distort another row's rank.
-    p["y_rank"] = np.nan
-    p.loc[scorable, "y_rank"] = (p.loc[scorable]
-                                 .groupby("date")["fwd_ret"].rank(pct=True))
     return p
+
+
+# THE COLUMNS score_monthly NEEDS FROM A build_panel PANEL, and the columns the
+# raw panel cache keeps. One list, read by every caller that trims a panel before
+# scoring it.
+SCORE_INPUT_COLS = (["date", "symbol", "open", "close", "year", "fwd_ret", "label_end",
+                     "scorable"] + FEATS_V2)
 
 
 def precompute(px, vol_win=VOL_WIN):
@@ -728,47 +701,71 @@ def _fit_seed(sd, Xtr, ytr, Xte, n_jobs=1):
 PURGE_EMBARGO = 2
 
 
-def score_monthly(raw, seeds, purge=PURGE, purge_mode="trading"):
-    """Monthly expanding-window scoring with a purged training set.
+def score_floor():
+    """The first day of the first month score_monthly scores (start_axis.score_floor):
+    three years before the backtest start, 2016-01-01 for the default start."""
+    import start_axis
+    return start_axis.score_floor()
 
-    PURGE_MODE -- "trading" (default, CORRECT) or "calendar" (legacy, FROZEN USE).
 
-    THE DEFECT THE "trading" MODE FIXES, measured 2026-09-01 and recorded in
-    diagnostics/LEAKAGE_AUDIT.txt:
-        The legacy cut is `first_scored - Timedelta(days=32)`. That is 32 CALENDAR
-        days. The label is `close.shift(-HORIZON)`, which is 20 TRADING ROWS.
-        Twenty trading rows span about 28 calendar days normally and MORE across a
-        holiday cluster, so the margin is roughly four days and IT VARIES. Measured
-        on both live universes: the label reached INTO the scored month in 7 of 126
-        months and touched its first day in 21 more -- the same 7 and 21 on both,
-        because the cause is the shared NSE holiday calendar.
+def training_set(p, cal, i_first, horizon=HORIZON, embargo=PURGE_EMBARGO):
+    """The training rows and targets for a period whose first session is cal[i_first].
 
-    THE CORRECTION, entirely in trading rows on the panel's own calendar:
-        j_max = i_first - HORIZON - PURGE_EMBARGO ;  cut = cal[j_max]
-    so gap = i_first - (j + HORIZON) >= PURGE_EMBARGO BY CONSTRUCTION. It cannot
-    underflow, because a holiday shifts the date but never the row count.
+    -> (index of training rows in `p`, their y_rank as an array), or None when
+    i_first is too early for any row to qualify.
 
-    THE EMBARGO IS 2 ROWS. One clears the scored month. The second clears the
+    `p` is a panel from build_panel (date, scorable, fwd_ret, label_end); `cal` is
+    the sorted array of its dates. A row trains the model only when all of these
+    hold, in TRADING SESSIONS on the panel's own calendar:
+
+        date      <= cal[i_first - horizon - embargo]    the cut
+        label_end <= cal[i_first - embargo]              the purge limit
+        scorable, and fwd_ret present
+
+    THE LABEL-END TEST IS THE 2026-10-22 FIX. The label is the close `horizon` of
+    the symbol's OWN rows ahead, so for a symbol with missing sessions it ends
+    later than `horizon` sessions after the row, and a row before the cut could
+    carry a label ending inside the scored month. Until then only the row's date
+    was checked. Measured before the fix: none on nifty100 static; 37 row-uses
+    in 6 of 126 months on smallcap250 pit, the furthest 25 sessions past the limit.
+
+    THE TARGET IS RANKED HERE, PER PERIOD. y_rank is the percentile rank of
+    fwd_ret among the qualifying rows of the same date, so no row's target is
+    shaped by a label that had not ended by the limit. It was ranked once over
+    every label in build_panel until 2026-10-22.
+
+    THE EMBARGO IS 2 SESSIONS. One clears the scored month. The second clears the
     close at i_first - 1, which is the BASE PRICE of the scored period's first
     return -- the strategy signals at a close and fills at the next open, so a
     label observing that close has observed the scored period's starting price.
-    It is not larger: a bigger embargo removes training rows, which would change
-    results for a reason unrelated to leakage.
-
-    WHY "calendar" STILL EXISTS. The retired universes' builders pinned
-    purge_mode="calendar" so their published numbers could not move, and
-    results/leakage_check2_purge.py still audits that rule as a record. THE
-    DEFAULT IS THE CORRECT MODE so that anything new gets it right; legacy
-    behaviour must be asked for by name.
-
-    THE HEADLINE MOVES UNDER "trading", AND THE MOVE IS NOT AN IMPROVEMENT. It is
-    not distinguishable from re-fit variation -- see EXPERIMENTS.md entry 29,
-    which measured the seed noise floor at sd 0.97 to 2.14 CAGR points against a
-    purge effect of -0.12 and -0.52. The new numbers are the CORRECT ones to
-    carry, not better ones.
     """
-    if purge_mode not in ("trading", "calendar"):
-        raise ValueError(f"purge_mode must be 'trading' or 'calendar', got {purge_mode!r}")
+    j = i_first - horizon - embargo
+    if j < 0:
+        return None
+    cut = pd.Timestamp(cal[j])
+    limit = pd.Timestamp(cal[i_first - embargo])
+    ok = ((p["date"] <= cut) & p["scorable"] & p["fwd_ret"].notna()
+          & (p["label_end"] <= limit))
+    y = p.loc[ok].groupby("date")["fwd_ret"].rank(pct=True)
+    return y.index, y.to_numpy()
+
+
+def score_monthly(raw, seeds, purge_mode="trading"):
+    """Monthly expanding-window scoring with a purged training set (training_set).
+
+    PURGE_MODE IS "trading" AND NOTHING ELSE. The calendar rule (`first -
+    Timedelta(days=32)`) was removed on 2026-10-22: no universe used it, and it
+    could not express the label-end limit. Every registry row declares "trading";
+    anything else is refused rather than silently scored another way.
+
+    THE HEADLINE MOVED WHEN THE TRADING RULE REPLACED THE CALENDAR ONE, AND THE
+    MOVE WAS NOT AN IMPROVEMENT. It was not distinguishable from re-fit variation
+    -- EXPERIMENTS.md entry 29 measured the seed noise floor at sd 0.97 to 2.14
+    CAGR points against a purge effect of -0.12 and -0.52.
+    """
+    if purge_mode != "trading":
+        raise ValueError(f"purge_mode must be 'trading', got {purge_mode!r}; the "
+                         f"calendar rule was removed on 2026-10-22")
     p = raw.sort_values(["date", "symbol"]).reset_index(drop=True).copy()
     p["score"] = np.nan
     p["ym"] = p["date"].dt.to_period("M")
@@ -780,29 +777,23 @@ def score_monthly(raw, seeds, purge=PURGE, purge_mode="trading"):
     # parallel (below), so a line per seed would be ten interleaved lines from
     # worker processes per month rather than a measure of progress.
     import time as _time
-    _months = sorted(p.loc[p["date"].dt.year >= 2016, "ym"].unique())
+    _months = sorted(p.loc[p["date"] >= score_floor(), "ym"].unique())
     _t0 = _time.time()
     for _k, ym in enumerate(_months, start=1):
         _first = p.loc[p.ym == ym, "date"].min()
-        if purge_mode == "calendar":
-            cut = _first - pd.Timedelta(days=purge)
-        else:
-            _j = _pos[np.datetime64(_first)] - HORIZON - PURGE_EMBARGO
-            if _j < 0:
-                continue
-            cut = pd.Timestamp(_cal[_j])
-        tr = (p["date"] <= cut) & p["y_rank"].notna()
+        _ts = training_set(p, _cal, _pos[np.datetime64(_first)])
+        if _ts is None:
+            continue
+        _tri, ytr = _ts
         # Only scorable rows are predicted. The panel now carries price-only rows
         # whose features are NaN; scoring those would feed NaN into the model and
         # produce a rank for a name the model cannot actually assess. They keep
         # score = NaN, so sc.loc[dt].dropna() leaves them out of the ranking while
         # their PRICE still counts for valuation, momentum and buy&hold.
-        te = (p["ym"] == ym) & p["scorable"] if "scorable" in p.columns \
-            else (p["ym"] == ym)
-        if tr.sum() < 5000 or te.sum() == 0:
+        te = (p["ym"] == ym) & p["scorable"]
+        if len(ytr) < 5000 or te.sum() == 0:
             continue
-        Xtr = p.loc[tr, FEATS_V2].to_numpy()
-        ytr = p.loc[tr, "y_rank"].to_numpy()
+        Xtr = p.loc[_tri, FEATS_V2].to_numpy()
         Xte = p.loc[te, FEATS_V2].to_numpy()
         if PARALLEL_SEEDS and len(seeds) > 1:
             # One process per seed, each single-threaded.

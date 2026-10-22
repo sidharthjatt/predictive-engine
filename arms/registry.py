@@ -158,8 +158,7 @@ class Arm:
 
     `mode` and `sizing` are passed straight to test_exposure.backtest_exposure:
         mode   -- "none" (always 100% invested) | "breadth" (scale by breadth)
-                  the function also accepts "voltgt", "const" and "both", which
-                  no named arm uses.
+                  the function also accepts "const", which no named arm uses.
         sizing -- "invvol" (w = 1/vol) | "provol" (w = vol) | "equal"
     `stop` is None for the core four. For v5 and v6 it is REGISTERED_STOP and
     `parent` names the core arm the stop is added to.
@@ -372,7 +371,7 @@ _STOP_BY_PARAMS = {(a.mode, a.sizing): a for a in STOP_ARMS.values()}
 def by_params(mode, sizing):
     """The named arm for a (mode, sizing) pair, or None if it is not one of the four.
 
-    backtest_exposure accepts modes ("voltgt", "const", "both") and a sizing
+    backtest_exposure accepts a mode ("const") and a sizing
     ("equal") that no named arm uses, so this is deliberately partial: a caller that
     needs a name for an unnamed combination should say so in its own terms rather
     than have one invented here. See path_segment().

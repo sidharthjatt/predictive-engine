@@ -7,18 +7,16 @@ different names, and why. Read-only; writes diagnostics/nifty500_baseline_trace.
 
 In experiments/CLEANED_NOISE_PREREG.txt nifty500's unperturbed run sits below all ten
 of its draws on every arm. This rebuilds each draw's panel exactly as
-results/noise_parallel.one_draw does (clean, perturb, build_panel(clean=False)),
+results/noise_parallel.one_draw does (perturb, build_panel),
 scores it with the production ensemble only up to --end (every month to --end is
 fitted exactly as a full run fits it; later months are not fitted), runs the four
 arms, research profile, tax on, and compares the names held each day with the same
 backtest on the unperturbed panel.
 
 For each draw and arm it reports the first day the names differ, the decision behind
-it, the names that differ, their ranks and scores on both sides, and three checks:
+it, the names that differ, their ranks and scores on both sides, and two checks:
   ties      -- is either side's score of a swapped name exactly equal to another
                name's score (a tie broken by symbol order in the stable sort)?
-  exempt    -- does a clean_exempt row fall in the swapped names' 252-session
-               feature window?
   features  -- for every feature, the swapped names' change against sigma 0 on the
                decision day, in units of that feature's cross-sectional sd.
 It also counts, over the whole panel, how each feature moves between sigma 0 and the
@@ -47,7 +45,7 @@ import numpy as np
 import pandas as pd
 
 import noise_parallel as NP
-from paths import list_dir
+import config
 from config import read_table  # the one CSV/parquet reader: config.read_table
 
 OUT = ROOT / "diagnostics" / "nifty500_baseline_trace.txt"
@@ -64,25 +62,20 @@ def args(argv):
 
 
 def panel(tag, sigma, seed, work):
-    """-> raw feature panel of the farm cleaned then perturbed, as one_draw builds it."""
+    """-> raw feature panel of the perturbed farm, as one_draw builds it."""
     from engine_core import build_panel, HORIZON
+    from price_noise_measure import perturb_farm
     from universes.registry import REGISTRY
     u = REGISTRY[tag]
     src = u.prepare_data_dir()
     wd = work / NP.draw_name(tag, seed)
     shutil.rmtree(wd, ignore_errors=True)
     try:
-        NP.perturb_cleaned_farm(src, wd / "farm", sigma, seed)
-        exempt = {}
-        for f in list_dir(wd / "farm", "*.csv"):
-            d = read_table(f, usecols=["date", "clean_exempt"])
-            d = d[d["clean_exempt"]]
-            if len(d):
-                exempt[f.stem] = set(pd.to_datetime(d["date"], dayfirst=True))
-        raw = build_panel(HORIZON, data_dir=wd / "farm", clean=False)
+        perturb_farm(src, wd / "farm", sigma, seed)
+        raw = build_panel(HORIZON, data_dir=wd / "farm")
     finally:
         shutil.rmtree(wd, ignore_errors=True)
-    return raw, exempt
+    return raw
 
 
 # naming: delegated -- `cache` is built by main() under WORK and names universe, seed and end
@@ -98,11 +91,11 @@ def score(raw, tag, end, cache=None):
 
 
 def _score(raw, tag, end):
-    from engine_core import score_monthly
+    from engine_core import score_monthly, SCORE_INPUT_COLS
     from features_v2 import FEATS_V2
     from price_noise_measure import SEEDS
     from universes.registry import REGISTRY
-    keep = ["date", "symbol", "open", "close", "year", "y_rank", "scorable"] + FEATS_V2
+    keep = SCORE_INPUT_COLS
     r = raw.loc[raw["date"] <= pd.Timestamp(end), keep]
     return score_monthly(r, SEEDS, purge_mode=REGISTRY[tag].purge_mode)
 
@@ -114,7 +107,6 @@ def backtests(raw, scored, tag, end):
     import engine_core as ec
     import arms.registry as arm_reg
     from engine_core import precompute
-    from numerics import rolling_std
     from test_exposure import backtest_exposure
     from universes.registry import REGISTRY
     ec.set_tradeability(REGISTRY[tag])
@@ -125,13 +117,10 @@ def backtests(raw, scored, tag, end):
     bd = px.index[(px.index >= config.BT_START_DATE) & (px.index <= config.BT_END_DATE)]
     pc = precompute(px)
     mom20 = px / px.shift(20) - 1
-    idx = (1 + px.pct_change().mean(axis=1).fillna(0)).cumprod()
-    pv = rolling_std(idx.pct_change(), NP.VOL_WIN) * np.sqrt(252)
-    tv = pv.loc[bd].median()
     out = {}
     for name, arm in arm_reg.ARMS.items():
         audit = {k: [] for k in ("holdings", "summary", "trades", "ranking", "decisions", "skipped")}
-        backtest_exposure(px, op, sc, bd, pc, mom20, pv, target_vol=tv, audit=audit,
+        backtest_exposure(px, op, sc, bd, pc, mom20, audit=audit,
                           rebal=NP.REBAL, tax_enabled=True, participation_cap=None, **arm.kwargs)
         h = pd.DataFrame(audit["holdings"])
         h = h[h["date"] <= pd.Timestamp(end)]
@@ -182,13 +171,12 @@ def main(argv):
     L = [f"nifty500 baseline trace -- ./venv/bin/python results/nifty500_baseline_trace.py "
          + " ".join(argv), f"universe {tag}; scores fitted to {end}; research profile, tax on, cadence 20", ""]
     t0 = time.time()
-    raw0, ex0 = panel(tag, 0.0, 0, WORK)
+    raw0 = panel(tag, 0.0, 0, WORK)
     r = raw0.sort_values(["symbol", "date"])
     ret = r.groupby("symbol")["close"].pct_change()
-    win = (r["date"] >= pd.Timestamp("2019-01-01")) & ret.notna()
+    win = (r["date"] >= config.BT_START_DATE) & ret.notna()
     L.append(f"sigma 0: {int((ret[win] == 0).sum()):,} of {int(win.sum()):,} close-to-close returns "
-             f"in the window are exactly zero ({(ret[win] == 0).mean() * 100:.2f}%); "
-             f"clean_exempt rows {sum(len(v) for v in ex0.values()):,} in {len(ex0)} files")
+             f"in the window are exactly zero ({(ret[win] == 0).mean() * 100:.2f}%)")
     s0 = score(raw0, tag, end, WORK / f"scores_{tag}_s0_{end}.parquet")
     bt0 = backtests(raw0, s0, tag, end)
     L.append(f"sigma 0 panel and scores: {(time.time() - t0) / 60:.1f} min")
@@ -209,10 +197,10 @@ def main(argv):
     causal_seed = int(a["causal"]) if a["causal"] else None
     for seed in seeds:
         t1 = time.time()
-        rawd, exd = panel(tag, NP.SIGMA, seed, WORK)
+        rawd = panel(tag, NP.SIGMA, seed, WORK)
         m = raw0[["date", "symbol"] + FEATS_V2].merge(rawd[["date", "symbol"] + FEATS_V2],
                                                        on=["date", "symbol"], suffixes=("_0", "_d"))
-        m = m[m["date"] >= pd.Timestamp("2019-01-01")]
+        m = m[m["date"] >= config.BT_START_DATE]
         L.append(f"seed {seed}: feature change against sigma 0 over the window "
                  "(mean change / cross-sectional sd, share of rows changed by more than 0.01 sd)")
         parts = []
@@ -231,7 +219,7 @@ def main(argv):
                           "r0": ret.to_numpy()}).merge(
             pd.DataFrame({"date": rd["date"].to_numpy(), "symbol": rd["symbol"].to_numpy(),
                           "rd": retd.to_numpy()}), on=["date", "symbol"])
-        j = j[(j["date"] >= pd.Timestamp("2019-01-01")) & j["r0"].notna() & j["rd"].notna()]
+        j = j[(j["date"] >= config.BT_START_DATE) & j["r0"].notna() & j["rd"].notna()]
         flip = (j["r0"] > 0) != (j["rd"] > 0)
         up0 = (j["r0"] > 0).astype(float).groupby(j["symbol"]).transform(lambda x: x.rolling(20).mean())
         upd = (j["rd"] > 0).astype(float).groupby(j["symbol"]).transform(lambda x: x.rolling(20).mean())
@@ -255,8 +243,6 @@ def main(argv):
             sw = only0 + onlyd
             tie0 = any((sc0 == sc0.get(s)).sum() > 1 for s in sw if s in sc0)
             tied = any((scd == scd.get(s)).sum() > 1 for s in sw if s in scd)
-            lo = dec - pd.Timedelta(days=380)
-            exe = [s for s in sw if any(lo <= x <= dec for x in ex0.get(s, ()))]
             fd = feature_delta(raw0, rawd, dec, sw)
             top = sorted(FEATS_V2, key=lambda f: -np.nan_to_num(
                 np.nanmax(np.abs(np.array(list(fd[f].values()), dtype=float)), initial=0.0)))[:3]
@@ -267,13 +253,12 @@ def main(argv):
             L.append(f"      ranks sigma 0 {rk0}  draw {rkd}")
             L.append(f"      scores sigma 0 " + ", ".join(f"{s} {sc0.get(s, np.nan):.6f}" for s in sw)
                      + "  draw " + ", ".join(f"{s} {scd.get(s, np.nan):.6f}" for s in sw))
-            L.append(f"      exact score tie: sigma 0 {tie0}, draw {tied}; clean_exempt row in the "
-                     f"swapped names' last 380 days: {exe or 'none'}")
+            L.append(f"      exact score tie: sigma 0 {tie0}, draw {tied}")
             L.append("      largest feature moves (sd): " + "; ".join(
                 f"{f} " + ",".join(f"{s} {v:+.3f}" for s, v in fd[f].items()) for f in top))
             rows.append(dict(seed=seed, arm=arm, first_day=str(d.date()), decided=str(dec.date()),
                              sigma0_only=" ".join(only0), draw_only=" ".join(onlyd),
-                             score_tie_sigma0=tie0, score_tie_draw=tied, exempt_in_window=" ".join(exe),
+                             score_tie_sigma0=tie0, score_tie_draw=tied,
                              top_features=" ".join(top)))
         if seed == causal_seed:
             mix = raw0.copy()

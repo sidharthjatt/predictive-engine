@@ -53,8 +53,6 @@ from test_exposure import backtest_exposure, calc_tc, SLIPPAGE
 import capital_axis  # noqa: E402
 from universes.registry import REGISTRY
 from config import read_table  # the one CSV/parquet reader: config.read_table
-from numerics import rolling_std  # platform-identical variance: results/numerics.py
-VOL_WIN=60
 HALVES=[("2019-2022",2019,2022),("2023-2026",2023,2026)]
 
 # ---------------------------------------------------------------------------
@@ -178,16 +176,14 @@ def main(u):
         op=p.pivot_table(index="date",columns="symbol",values="open").ffill()
         sc=p.pivot_table(index="date",columns="symbol",values="score")
         pc=precompute(px); mom20=px/px.shift(20)-1
-        idx=(1+px.pct_change().mean(axis=1).fillna(0)).cumprod()
-        pv=rolling_std(idx.pct_change(), VOL_WIN)*np.sqrt(252)
         bd=u.trading_days(px.index)   # the universe's window; see engine_v2_final
-        kw=dict(target_vol=pv.loc[bd].median(),rebal=cadence.selected(),
+        kw=dict(rebal=cadence.selected(),
                 **arm.kwargs,**profiles.cap_kwargs(u))
-        v2_off,_,_,_=backtest_exposure(px,op,sc,bd,pc,mom20,pv,audit=None,tax_enabled=False,**kw)
+        v2_off,_,_,_=backtest_exposure(px,op,sc,bd,pc,mom20,audit=None,tax_enabled=False,**kw)
         a={k:[] for k in ("holdings","summary","trades","ranking","decisions","skipped")}
-        v2_on ,_,_,_=backtest_exposure(px,op,sc,bd,pc,mom20,pv,audit=a,tax_enabled=True,**kw)
+        v2_on ,_,_,_=backtest_exposure(px,op,sc,bd,pc,mom20,audit=a,tax_enabled=True,**kw)
         a2={k:[] for k in ("holdings","summary","trades","ranking","decisions","skipped")}
-        v2_last,_,_,_=backtest_exposure(px,op,sc,bd,pc,mom20,pv,audit=a2,tax_enabled=True,
+        v2_last,_,_,_=backtest_exposure(px,op,sc,bd,pc,mom20,audit=a2,tax_enabled=True,
                                         end_sale=True,**kw)
         stmt,_=T.liability_schedule(a["tax"]["lots"],bd)
 

@@ -27,6 +27,7 @@ sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import nt_run
 import paths
+import config
 from config import read_table  # the one CSV/parquet reader: config.read_table
 
 
@@ -46,7 +47,7 @@ THRESHOLD_PCT = 0.5      # first day the curves differ by more than this
 
 def main():
     u = _universe()
-    strat = nt_run.run("2019-01-01", nt_run.UNIVERSES[u.tag]["end"], universe=u.tag)
+    strat = nt_run.run(str(config.BT_START_DATE.date()), nt_run.UNIVERSES[u.tag]["end"], universe=u.tag)
 
     port = pd.DataFrame(strat.daily_equity)
     if port.empty:

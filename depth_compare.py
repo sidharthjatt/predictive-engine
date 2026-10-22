@@ -63,7 +63,7 @@ def run_mode(u, mode, raw_dir, syms):
         print(f"    volume loaded for {n} symbols", flush=True)
     U = nt_run.UNIVERSES[u]
     with contextlib.redirect_stdout(io.StringIO()):
-        s = nt_run.run("2019-01-01", U["end"], quiet=True, universe=u)
+        s = nt_run.run(str(config.BT_START_DATE.date()), U["end"], quiet=True, universe=u)
     nt_data.set_depth_mode("unlimited")
     return s
 

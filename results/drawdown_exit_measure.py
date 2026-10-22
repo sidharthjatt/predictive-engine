@@ -80,13 +80,11 @@ from universes.registry import REGISTRY, certified
 import measured_universes
 from engine_core import precompute, metrics
 from config import read_table  # the one CSV/parquet reader: config.read_table
-from numerics import rolling_std  # platform-identical variance: results/numerics.py
 
 # ---------------------------------------------------------------- constants
 THRESHOLDS = [0.10, 0.125, 0.15, 0.20, 0.25]   # spec section 6, fixed in advance
 WAITS = [5, 20, 40]                            # spec section 12, fixed in advance
 DD_RE_DD_FRAC = 0.5                            # revision 1 only; unused in rev 2
-VOL_WIN = 60
 SEED_FLOOR = {"nifty100": 0.97, "midcap150": 1.39}       # entry 29, v2, CAGR ONLY
 
 OUT = ROOT / "diagnostics" / "drawdown_exit.txt"
@@ -244,20 +242,18 @@ def load(tag):
     bd = px.index[(px.index >= config.BT_START_DATE) & (px.index <= config.BT_END_DATE)]
     pc = precompute(px)
     mom20 = px / px.shift(20) - 1
-    idx = (1 + px.pct_change().mean(axis=1).fillna(0)).cumprod()
-    port_vol = rolling_std(idx.pct_change(), VOL_WIN) * np.sqrt(252)
-    return label, M, px, op, sc, bd, pc, mom20, port_vol, port_vol.loc[bd].median()
+    return label, M, px, op, sc, bd, pc, mom20
 
 
 def run(fn, ns, ctx, threshold, wait=None):
-    label, M, px, op, sc, bd, pc, mom20, port_vol, tv = ctx
+    label, M, px, op, sc, bd, pc, mom20 = ctx
     ns["DD_THRESHOLD"] = threshold
     ns["DD_RE_WAIT"] = wait if wait is not None else WAITS[0]
     ns.pop("_DD_EVENTS_OUT", None)
     audit = {k: [] for k in ("holdings", "summary", "trades", "ranking",
                              "decisions", "skipped")}
-    eq, tc, n, expo = fn(px, op, sc, bd, pc, mom20, port_vol, mode="breadth",
-                         target_vol=tv, sizing="invvol", audit=audit)
+    eq, tc, n, expo = fn(px, op, sc, bd, pc, mom20, mode="breadth",
+                         sizing="invvol", audit=audit)
     m = metrics(eq, f"v2 dd={threshold}", tc, n)
     r = eq.pct_change().dropna()
     return dict(threshold=threshold, wait=wait, cagr=float(m["CAGR%"]), sharpe=float(m["Sharpe"]),
@@ -273,7 +269,7 @@ def gate_timing(res, ctx, w):
     """G2. Every exit fill at the NEXT session's OPEN, zero at any close, and
     exactly one session after its trigger. Four candidate prices are tested, not
     one, so 'matches the open' can be told apart from 'matches everything'."""
-    label, M, px, op, sc, bd, pc, mom20, port_vol, tv = ctx
+    label, M, px, op, sc, bd, pc, mom20 = ctx
     cal = list(bd)
     pos = {d: i for i, d in enumerate(cal)}
     SLIP = test_exposure.SLIPPAGE

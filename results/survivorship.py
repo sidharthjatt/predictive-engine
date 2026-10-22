@@ -643,13 +643,27 @@ def apply_to_panel(panel: pd.DataFrame, membership: Membership | None,
         return panel
     if panel.empty:
         return panel
+    return panel[member_mask(panel, membership, date_col, symbol_col)].copy()
+
+
+def member_mask(panel, membership, date_col="date", symbol_col="symbol"):
+    """Boolean array over `panel`'s rows: True where the row is a member on its date.
+
+    The rule apply_to_panel applies, as a mask: True for every row in static mode
+    or with no membership; in pit mode True where the symbol is in the list in
+    force on the row's date, and on every row before the first effective date,
+    where no membership is defined. build_panel uses it for the market return, the
+    z-score peer group and the scorable flag.
+    """
+    if not is_pit() or membership is None or panel.empty:
+        return np.ones(len(panel), dtype=bool)
     pos = membership._pos(panel[date_col])
     syms = panel[symbol_col].astype(str).str.upper().values
     keep = np.zeros(len(panel), dtype=bool)
     for i, (p, s) in enumerate(zip(pos, syms)):
         if p < 0 or s in membership.lists[p]:
             keep[i] = True
-    return panel[keep].copy()
+    return keep
 
 
 def buyhold_columns(columns, first_date, membership):

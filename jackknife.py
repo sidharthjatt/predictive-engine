@@ -33,7 +33,7 @@ reproduce the pipeline's own v2 and buy & hold equity curves in v2FINAL_equity.c
 EXACTLY -- same dates, same values -- or it stops. mid_jackknife.py had no such
 gate; n100_jackknife.py had one at 0.05 CAGR points.
 
-THE WINDOW IS config.BT_START_DATE .. BT_END_DATE, THE PIPELINE'S, SINCE 2026-09-25.
+THE WINDOW IS config.BT_START_DATE .. config.BT_END_DATE, THE PIPELINE'S, SINCE 2026-09-25.
 Both originals cut the backtest with engine_core's integer years (2019..2026),
 which runs to the calendar's last session, 2026-06-08: 1,842 sessions against the
 pipeline's 1,836 to 2026-05-29. Those six extra days are the whole of the gap the
@@ -61,13 +61,10 @@ from test_exposure import backtest_exposure
 import arms.registry as arm_reg
 import profiles as _prof            # the run's execution-realism profile
 from config import read_table  # the one CSV/parquet reader: config.read_table
-from numerics import rolling_std  # platform-identical variance: results/numerics.py
 
-VOL_WIN = 60
 N_RANDOM = 200
 SEED = 0
 DROP_SIZE = 8
-BT_START_DATE, BT_END_DATE = config.BT_START_DATE, config.BT_END_DATE
 
 _U = None
 _P = None
@@ -113,17 +110,13 @@ def curves(drop=()):
     px = q.pivot_table(index="date", columns="symbol", values="close").ffill()
     op = q.pivot_table(index="date", columns="symbol", values="open").ffill()
     sc = q.pivot_table(index="date", columns="symbol", values="score")
-    bd = px.index[(px.index >= BT_START_DATE) & (px.index <= BT_END_DATE)]
+    bd = px.index[(px.index >= config.BT_START_DATE) & (px.index <= config.BT_END_DATE)]
     pc = precompute(px); mom20 = px / px.shift(20) - 1
-    idx = (1 + px.pct_change().mean(axis=1).fillna(0)).cumprod()
-    pv = rolling_std(idx.pct_change(), VOL_WIN) * np.sqrt(252)
     # RESEARCH-ONLY, DECLARED. This caller passes no vol20, so it could not
     # apply a participation cap even if one were selected; research_only()
     # makes that a statement rather than an accident, and STOPS the run if
     # --profile ever reaches here. See profiles.research_only.
-    eq, tc, n, _ = backtest_exposure(px, op, sc, bd, pc, mom20, pv,
-                                     drawdown_stop=None, mode="breadth", target_vol=pv.loc[bd].median(),
-                                     participation_cap=_prof.research_only(__name__))
+    eq, tc, n, _ = backtest_exposure(px, op, sc, bd, pc, mom20, drawdown_stop=None, mode="breadth", participation_cap=_prof.research_only(__name__))
     bh = 1_000_000 * (1 + px.pct_change().loc[bd].mean(axis=1).fillna(0)).cumprod()
     return eq, bh, tc, n
 

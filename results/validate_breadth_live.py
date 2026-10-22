@@ -76,16 +76,14 @@ sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "results"))
 
 import config
-from engine_core import (precompute, metrics, score_monthly, HORIZON, VOL_WIN,
+from engine_core import (precompute, metrics, score_monthly, score_floor, HORIZON,
                          START_CAPITAL)
 from test_exposure import backtest_exposure
 from universes.registry import REGISTRY
 import profiles as _prof            # the run's execution-realism profile
 from config import read_table  # the one CSV/parquet reader: config.read_table
-from numerics import rolling_std  # platform-identical variance: results/numerics.py
 
 # Date window from config.py, NOT engine_core's year ints -- see config.py.
-BT_START_DATE, BT_END_DATE = config.BT_START_DATE, config.BT_END_DATE
 
 # ALL FOUR PANEL PATHS AND THE METRICS DIRECTORY come from
 # universes/registry.py -- the single definition. The label is u.name, the
@@ -127,14 +125,12 @@ def panel_parts(p):
     sc = p.pivot_table(index="date", columns="symbol", values="score")
     pc = precompute(px)
     mom20 = px / px.shift(20) - 1
-    idx = (1 + px.pct_change().mean(axis=1).fillna(0)).cumprod()
-    port_vol = rolling_std(idx.pct_change(), VOL_WIN) * np.sqrt(252)
-    return px, op, sc, pc, mom20, port_vol
+    return px, op, sc, pc, mom20
 
 
 def window_dates(px, y0=None, y1=None):
     """The backtest window, optionally narrowed to a year range."""
-    m = (px.index >= BT_START_DATE) & (px.index <= BT_END_DATE)
+    m = (px.index >= config.BT_START_DATE) & (px.index <= config.BT_END_DATE)
     if y0 is not None:
         m &= (px.index.year >= y0) & (px.index.year <= y1)
     return px.index[m]
@@ -142,15 +138,12 @@ def window_dates(px, y0=None, y1=None):
 
 def run_mode(parts, dd, mode, const_expo=None):
     """One backtest. Returns (metrics dict, realised mean exposure)."""
-    px, op, sc, pc, mom20, port_vol = parts
-    target_vol = port_vol.loc[dd].median()
+    px, op, sc, pc, mom20 = parts
     # RESEARCH-ONLY, DECLARED. This caller passes no vol20, so it could not
     # apply a participation cap even if one were selected; research_only()
     # makes that a statement rather than an accident, and STOPS the run if
     # --profile ever reaches here. See profiles.research_only.
-    eq, tc, ntr, expo = backtest_exposure(px, op, sc, dd, pc, mom20, port_vol,
-                                          drawdown_stop=None, mode=mode, target_vol=target_vol,
-                                          const_expo=const_expo, participation_cap=_prof.research_only(__name__))
+    eq, tc, ntr, expo = backtest_exposure(px, op, sc, dd, pc, mom20, drawdown_stop=None, mode=mode, const_expo=const_expo, participation_cap=_prof.research_only(__name__))
     return metrics(eq, mode, tc, ntr), float(expo)
 
 
@@ -214,7 +207,7 @@ def main():
     W(f" BREADTH VALIDATION ON A LIVE UNIVERSE -- {U['label']} ({u})")
     W("=" * 104)
     W(f"  spec    experiments/BREADTH_LIVE_SPEC.txt")
-    W(f"  window  {BT_START_DATE.date()} to {BT_END_DATE.date()} inclusive")
+    W(f"  window  {config.BT_START_DATE.date()} to {config.BT_END_DATE.date()} inclusive")
     W("  T1 and T2 are copied verbatim from results/validate_breadth.py, which")
     W("  stays frozen. T3 is new and is REPORTED, NOT GATED.")
 
@@ -230,8 +223,9 @@ def main():
                                     what=f"{U['label']} raw feature panel")
 
     if "--run" not in sys.argv:
+        _floor = score_floor()
         n_months = len(read_table(raw_path, usecols=["date"], parse_dates=["date"])
-                       .query("date.dt.year >= 2016")["date"].dt.to_period("M")
+                       .query("date >= @_floor")["date"].dt.to_period("M")
                        .unique())
         cached = sum(_t1_cache(u, i, s, raw_path).exists()
                      for i, s in enumerate(SEED_SETS))
@@ -360,7 +354,7 @@ def main():
     t2.to_csv(M / "breadth_live_t2.csv", index=False)
     t3.to_csv(M / "breadth_live_t3.csv", index=False)
     params = {"universe": u, "label": U["label"],
-              "window": [str(BT_START_DATE.date()), str(BT_END_DATE.date())],
+              "window": [str(config.BT_START_DATE.date()), str(config.BT_END_DATE.date())],
               "seed_sets": SEED_SETS, "dd_bar_points": DD_BAR,
               "dd_bar_note": "underived; copied from validate_breadth.py, not recalibrated",
               "criteria": {k: bool(v) for k, v in passed.items()},

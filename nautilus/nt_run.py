@@ -305,7 +305,9 @@ if __name__ == "__main__":
     _picked = check_tags(argv_universes(sys.argv), UNIVERSES)
     uni = _picked[-1] if _picked else _DEFAULT_UNIVERSE
     if "--full" in sys.argv:
-        run("2019-01-01", UNIVERSES[uni]["end"], universe=uni)
+        run(str(config.BT_START_DATE.date()), UNIVERSES[uni]["end"], universe=uni)
     else:
-        print(f"SMOKE TEST: full {uni} universe, 2019 only\n")
-        run("2019-01-01", "2019-12-31", universe=uni)
+        _s = config.BT_START_DATE
+        print(f"SMOKE TEST: full {uni} universe, one year from {_s.date()}\n")
+        run(str(_s.date()), str((_s + pd.DateOffset(years=1) - pd.Timedelta(days=1)).date()),
+            universe=uni)

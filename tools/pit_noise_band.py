@@ -48,9 +48,7 @@ import pandas as pd
 
 import config
 from config import read_table
-from numerics import rolling_std
 
-VOL_WIN = 60
 REBAL = 20
 
 
@@ -102,9 +100,6 @@ class Cell:
         self.bd = u.trading_days(self.px.index)
         self.pc = precompute(self.px)
         self.mom20 = self.px / self.px.shift(20) - 1
-        idx = (1 + self.px.pct_change().mean(axis=1).fillna(0)).cumprod()
-        self.port_vol = rolling_std(idx.pct_change(), VOL_WIN) * np.sqrt(252)
-        self.tv = self.port_vol.loc[self.bd].median()
         self.capkw = profiles.cap_kwargs(u)
 
     def score_panel(self, cols):
@@ -118,7 +113,7 @@ class Cell:
         from test_exposure import backtest_exposure
         a = arm_reg.ARMS[arm]
         eq, *_ = backtest_exposure(self.px, self.op, sc, self.bd, self.pc, self.mom20,
-                                   self.port_vol, target_vol=self.tv, rebal=REBAL,
+                                   rebal=REBAL,
                                    tax_enabled=True, audit=None, mode=a.mode,
                                    sizing=a.sizing, drawdown_stop=None, **self.capkw)
         return eq

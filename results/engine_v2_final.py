@@ -56,7 +56,6 @@ import profiles as _prof            # the run's execution-realism profile
 import survivorship as sv
 import naming
 from config import read_table  # the one CSV/parquet reader: config.read_table
-from numerics import rolling_std  # platform-identical variance: results/numerics.py
 
 REBAL, VOL_WIN = 20, 60
 # REBAL ABOVE IS THE DEFAULT AND STAYS 20. The cadence this RUN selected is read
@@ -74,7 +73,6 @@ START_CAPITAL = _capital_axis.DEFAULT
 # BACKTEST WINDOW -- imported from config.py, the single definition.
 # Date-based and inclusive. The old year cut (BT_START, BT_END = 2019, 2026)
 # ran to 2026-06-08, six trading days beyond this window.
-BT_START_DATE, BT_END_DATE = config.BT_START_DATE, config.BT_END_DATE
 
 
 # THE PATHS THIS RUN COMPOSED, IN THE ORDER IT WROTE THEM. Filled by _c() and read
@@ -124,12 +122,13 @@ def _c(path):
     import impact_axis as _impa
     import pcap_axis as _pca
     import fixed_axis as _fxa
+    import start_axis as _sta
     _all_default = (cadence.is_default() and _pf.is_default() and _tax.is_default()
                     and _sva.is_default() and _dda.is_default()
-            and _capa.is_default() and _impa.is_default() and _pca.is_default() and _fxa.is_default())
+            and _capa.is_default() and _impa.is_default() and _pca.is_default() and _fxa.is_default() and _sta.is_default())
     _sfx = ("" if _all_default
             else (cadence.suffix() + _pf.suffix() + _tax.suffix() + _sva.suffix()
-                  + _dda.suffix() + _capa.suffix() + _impa.suffix() + _pca.suffix() + _fxa.suffix()))
+                  + _dda.suffix() + _capa.suffix() + _impa.suffix() + _pca.suffix() + _fxa.suffix() + _sta.suffix()))
     out = path if not _sfx else path.with_name(path.stem + _sfx + path.suffix)
     # WHAT THIS RUN ACTUALLY WROTE, RECORDED HERE BECAUSE HERE IS WHERE THE NAME
     # IS DECIDED. The step used to end by printing a hardcoded list of the
@@ -194,9 +193,6 @@ def main(u):
     bd = u.trading_days(px.index)
     pc = precompute(px)
     mom20 = px / px.shift(20) - 1
-    idx = (1 + px.pct_change().mean(axis=1).fillna(0)).cumprod()
-    port_vol = rolling_std(idx.pct_change(), VOL_WIN) * np.sqrt(252)
-    tv = port_vol.loc[bd].median()
 
     # baseline (inv-vol, always invested) and final (breadth-scaled)
     # The baseline's per-trade log is captured and persisted below. v1 rebalances
@@ -233,14 +229,10 @@ def main(u):
     # is exact.
     import profiles as _prof
     _capkw = _prof.cap_kwargs(u)
-    base_eq, tcb, nb, base_expo = backtest_exposure(px, op, sc, bd, pc, mom20, port_vol,
-                                                    mode="none", target_vol=tv,
-                                                    drawdown_stop=None,
+    base_eq, tcb, nb, base_expo = backtest_exposure(px, op, sc, bd, pc, mom20, mode="none", drawdown_stop=None,
                                                     audit=base_audit, rebal=_reb,
                                                     tax_enabled=_taxon, **_capkw)
-    fin_eq, tcf, nf, expo = backtest_exposure(px, op, sc, bd, pc, mom20, port_vol,
-                                              mode="breadth", target_vol=tv,
-                                              drawdown_stop=None,
+    fin_eq, tcf, nf, expo = backtest_exposure(px, op, sc, bd, pc, mom20, mode="breadth", drawdown_stop=None,
                                               rebal=_reb, tax_enabled=_taxon,
                                               **_capkw)
     # THE BUY & HOLD BASKET: every name in static mode; in pit mode the members on
@@ -423,7 +415,7 @@ def main(u):
     import v34_common
     _arm_audits = {}
     v34_comp, v34_subs, _ = v34_common.run_v34(
-        M, u.label, tag, px, op, sc, bd, pc, mom20, port_vol, tv,
+        M, u.label, tag, px, op, sc, bd, pc, mom20,
         backtest_exposure,
         base_eq, tcb, nb, fin_eq, tcf, nf, expo,
         _capital_axis.selected(),
@@ -527,7 +519,7 @@ def main(u):
               "capital-gains\n  tax. --tax on charges it.")
     print(f"""
   Standing caveat: the universe is today's {len(u.symbol_list)} index members backfilled to
-  {BT_START_DATE.date()}, so every line above carries survivorship bias of unknown sign. See
+  {config.BT_START_DATE.date()}, so every line above carries survivorship bias of unknown sign. See
   diagnostics/survivorship_attribution.txt for what has been estimated.
 """)
 

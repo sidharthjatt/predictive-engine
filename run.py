@@ -599,6 +599,10 @@ def print_plan(plan, args, show_paths=False):
     if not _pca.is_default():
         print(f"  participation cap: {_pca.selected():g} of prior-20-session median volume "
               f"(the profile's own is {_pca._profile_cap():g})")
+    import start_axis as _sta
+    if not _sta.is_default():
+        print(f"  backtest start: {_sta.selected().date()} (default "
+              f"{_sta.DEFAULT.date()}); scoring from {_sta.score_floor().date()}")
     import fixed_axis as _fxa
     if not _fxa.is_default():
         print(f"  fixed capital: positions sized from min(base, equity), base Rs "
@@ -725,6 +729,20 @@ def _dd_floor_arg(s):
     if not (0 < x <= 100):
         raise argparse.ArgumentTypeError(f"{x:g} -- the floor must be above 0 and at most 100 percent")
     return x
+
+
+def _start_arg(s):
+    """--start value: a date, YYYY-MM-DD, before the backtest end."""
+    import pandas as _pd
+    import config as _cfg
+    try:
+        t = _pd.Timestamp(s)
+    except ValueError:
+        raise argparse.ArgumentTypeError(f"{s!r} is not a date (YYYY-MM-DD)")
+    if t >= _cfg.BT_END_DATE:
+        raise argparse.ArgumentTypeError(f"{t.date()} -- the start must be before the "
+                                         f"backtest end, {_cfg.BT_END_DATE.date()}")
+    return t
 
 
 def _capital_arg(s):
@@ -873,6 +891,11 @@ def main(argv=None):
                     help="size every rebalance from min(--capital, equity) and never "
                          "reinvest profit above it (default off, compounded). Refused "
                          "with --dd and the stop arms. See fixed_axis.py.")
+    # THE ELEVENTH AXIS, 2026-10-22. Default 2019-01-01: every published run starts there.
+    ap.add_argument("--start", type=_start_arg, default=None, metavar="YYYY-MM-DD",
+                    help="backtest start (default 2019-01-01). Scoring starts three "
+                         "years earlier. A pit run starts at the later of this and the "
+                         "first membership row. See start_axis.py.")
     ap.add_argument("--list", action="store_true", help="resolve and print the plan, run nothing")
     ap.add_argument("--dry-run", action="store_true",
                     help="like --list, and show every output location")
@@ -919,6 +942,10 @@ def main(argv=None):
     _why = _capa.refusal(_prof.selected(), args.impact is not None)
     if _why:
         ap.error(_why)
+
+    # BEFORE use_pit: a pit row takes its start from the static row's window.
+    import start_axis as _sta
+    _sta.set_selection(args.start)
 
     import survivorship_axis as _sva
     _sva.set_selection(args.survivorship)
@@ -1085,7 +1112,8 @@ def collect_run_folder(plan, args, t_start, dest, thin=None):
         f"profile   : {_pf.selected()}\n"
         f"tax       : {'on' if _tax.selected() else 'off'}\n"
         + _survivorship_section(plan) + _bias_section(plan) + _dd_section() + _capital_section()
-        + _impact_pcap_section() + _fixed_section() + "".join(l + "\n" for l in stuck)
+        + _impact_pcap_section() + _fixed_section() + _start_section()
+        + "".join(l + "\n" for l in stuck)
         + "".join(l + "\n" for l in cap_lines) +
         f"steps     : {len(plan['pipeline'])} pipeline, {len(plan['arm_runs'])} arm runs\n"
         f"artefacts : {copied} copied from their canonical locations\n"
@@ -1177,6 +1205,12 @@ def _fixed_section():
     return "" if _fxa.is_default() else "fixed     : on\n"
 
 
+def _start_section():
+    """RUN.txt's backtest-start line: none at the default, so RUN.txt is unchanged."""
+    import start_axis as _sta
+    return "" if _sta.is_default() else f"start     : {_sta.selected().date()}\n"
+
+
 def _thin_section(thin):
     """RUN.txt's report of calendar sessions the data lacks; "" when not computed."""
     if thin is None:
@@ -1254,6 +1288,8 @@ def read_run_record(folder):
             "pcap": float(kv["pcap"]) if kv.get("pcap") else None,
             # Absent from every RUN.txt of a compounded run.
             "fixed": kv.get("fixed") == "on",
+            # Absent from every RUN.txt of a run from the default start.
+            "start": kv.get("start"),
             "pipeline_steps": int(m.group(1)), "arm_runs": int(m.group(2)),
             "started": started, "finished": finished}
 

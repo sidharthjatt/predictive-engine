@@ -751,7 +751,6 @@ Exit 0 when every case passes, 1 otherwise.
     import fixed_axis
     import fixed_capital as fc
     from engine_core import precompute
-    from numerics import rolling_std
     from test_exposure import backtest_exposure
 
     QUIET = "--quiet" in sys.argv
@@ -832,9 +831,6 @@ Exit 0 when every case passes, 1 otherwise.
             self.bd = u.trading_days(self.px.index)
             self.pc = precompute(self.px)
             self.mom20 = self.px / self.px.shift(20) - 1
-            idx = (1 + self.px.pct_change().mean(axis=1).fillna(0)).cumprod()
-            self.port_vol = rolling_std(idx.pct_change(), 60) * np.sqrt(252)
-            self.tv = self.port_vol.loc[self.bd].median()
             with contextlib.redirect_stdout(io.StringIO()):
                 self.capkw = profiles.cap_kwargs(u)
 
@@ -844,8 +840,7 @@ Exit 0 when every case passes, 1 otherwise.
             audit = blank()
             with contextlib.redirect_stdout(io.StringIO()):
                 eq, tc, n, _ = backtest_exposure(
-                    self.px, self.op, self.sc, self.bd, self.pc, self.mom20, self.port_vol,
-                    target_vol=self.tv, rebal=20, tax_enabled=tax, audit=audit,
+                    self.px, self.op, self.sc, self.bd, self.pc, self.mom20, rebal=20, tax_enabled=tax, audit=audit,
                     mode=a.mode, sizing=a.sizing, drawdown_stop=None, dd_overlay=None,
                     fixed_capital=fixed, start_capital=int(BASE), **self.capkw)
             return eq, audit

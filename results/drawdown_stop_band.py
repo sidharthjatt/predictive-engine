@@ -59,14 +59,12 @@ import pandas as pd
 import config
 import arms.registry as arm_reg
 from config import read_table
-from numerics import rolling_std
 from seed_band_fit import UNIVERSES, SEEDS20, store_path, inputs, is_done
 
 GEN_SEED = 20261002
 N_SUBSETS = 10 + 40   # 50 distinct subsets of 10 seeds
 SUBSET_SIZE = 10
 REBAL = 20
-VOL_WIN = 60
 SETTINGS = (("research", False), ("research", True), ("tradeable", False), ("tradeable", True))
 COMPARISONS = (("v5", "v1"), ("v6", "v3"))
 METRICS = ("MaxDD%", "CAGR%", "Sharpe", "Calmar")
@@ -124,9 +122,6 @@ class Universe:
                                 & (self.px.index <= config.BT_END_DATE)]
         self.pc = precompute(self.px)
         self.mom20 = self.px / self.px.shift(20) - 1
-        idx = (1 + self.px.pct_change().mean(axis=1).fillna(0)).cumprod()
-        self.port_vol = rolling_std(idx.pct_change(), VOL_WIN) * np.sqrt(252)
-        self.tv = self.port_vol.loc[self.bd].median()
         self.capkw = {}
         for prof in ("research", "tradeable"):
             profiles.set_selection(prof)
@@ -148,7 +143,7 @@ class Universe:
         kw = {"mode": a.mode, "sizing": a.sizing,
               "drawdown_stop": a.stop if a.stop is not None else None}
         eq, *_ = backtest_exposure(self.px, self.op, sc, self.bd, self.pc, self.mom20,
-                                   self.port_vol, target_vol=self.tv, rebal=REBAL,
+                                   rebal=REBAL,
                                    tax_enabled=tax, audit=None, **kw,
                                    **self.capkw[profile])
         return eq

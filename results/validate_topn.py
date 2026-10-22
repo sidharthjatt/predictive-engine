@@ -90,7 +90,6 @@ from universes.registry import REGISTRY, certified
 from v34_common import arm_row, held_and_skips, _git_state
 import profiles as _prof            # the run's execution-realism profile
 from config import read_table  # the one CSV/parquet reader: config.read_table
-from numerics import rolling_std  # platform-identical variance: results/numerics.py
 
 VOL_WIN = 60
 BUFFER_PINNED = 16
@@ -158,7 +157,7 @@ def panel_fingerprint(px, op, sc):
     return h.hexdigest()
 
 
-def run_arm(top_n, px, op, sc, dates, pc, mom20, port_vol, tv, label):
+def run_arm(top_n, px, op, sc, dates, pc, mom20, label):
     """One arm over one date range. BUFFER is pinned for every call."""
     test_exposure.TOP_N = top_n
     test_exposure.BUFFER = BUFFER_PINNED
@@ -168,9 +167,7 @@ def run_arm(top_n, px, op, sc, dates, pc, mom20, port_vol, tv, label):
     # apply a participation cap even if one were selected; research_only()
     # makes that a statement rather than an accident, and STOPS the run if
     # --profile ever reaches here. See profiles.research_only.
-    eq, tc, ntr, expo = backtest_exposure(px, op, sc, dates, pc, mom20, port_vol,
-                                          drawdown_stop=None, mode="breadth", target_vol=tv,
-                                          audit=audit, participation_cap=_prof.research_only(__name__))
+    eq, tc, ntr, expo = backtest_exposure(px, op, sc, dates, pc, mom20, drawdown_stop=None, mode="breadth", audit=audit, participation_cap=_prof.research_only(__name__))
     # backtest_exposure returns the MEAN exposure already, as a scalar.
     dep = float(expo) * 100
     row = arm_row(eq, label, tc, ntr, dep)
@@ -210,9 +207,6 @@ def run_universe(uni, cfg, out):
                   & (px.index <= config.BT_END_DATE)]
     pc = precompute(px)
     mom20 = px / px.shift(20) - 1
-    idx = (1 + px.pct_change().mean(axis=1).fillna(0)).cumprod()
-    port_vol = rolling_std(idx.pct_change(), VOL_WIN) * np.sqrt(252)
-    tv = port_vol.loc[bd].median()
 
     W("=" * 100)
     W(f" TOP_N VALIDATION -- {cfg['label']} ({uni})")
@@ -229,7 +223,7 @@ def run_universe(uni, cfg, out):
 
     full, curves = {}, {}
     for tn in (INCUMBENT, CHALLENGER):
-        row, eq = run_arm(tn, px, op, sc, bd, pc, mom20, port_vol, tv,
+        row, eq = run_arm(tn, px, op, sc, bd, pc, mom20,
                           f"TOP_N={tn} BUFFER={BUFFER_PINNED}")
         full[tn], curves[tn] = row, eq
 
@@ -267,7 +261,7 @@ def run_universe(uni, cfg, out):
                       & (px.index >= config.BT_START_DATE)
                       & (px.index <= config.BT_END_DATE)]
         for tn in (INCUMBENT, CHALLENGER):
-            row, _ = run_arm(tn, px, op, sc, hd, pc, mom20, port_vol, tv,
+            row, _ = run_arm(tn, px, op, sc, hd, pc, mom20,
                              f"TOP_N={tn} BUFFER={BUFFER_PINNED}")
             row["Period"] = hname
             row["FirstDate"] = str(hd[0].date())

@@ -290,10 +290,6 @@ DELEGATES = (
     ("results/leakage_check2_trading_purge.py", [], False, None),
     ("results/validate_topn.py",              [], False, None),
     ("results/check_a_close_values.py",       [], False, None),
-    # Re-derives the cleaned prices from the raw files and fails if a reverting
-    # adj_close/close event of five sessions or fewer is left inside the
-    # backtest window. experiments/DATA_CLEANING_SPEC.txt. About 60 s.
-    ("results/ratio_clean_check.py",          [], False, None),
     # A cache or noise record from other code or other data must be refused.
     # Writes only into a temporary directory. A few seconds.
     ("engine_tests.py", ["cache_key"], False, None),
@@ -367,19 +363,10 @@ DELEGATES = (
 )
 
 
-# RETIRED, AND NOT IN THE TABLE ABOVE. results/leakage_check2_purge.py audits the
-# CALENDAR purge rule, which engine_core.score_monthly no longer takes --
-# purge_mode defaults to "trading". Its 14 failing months are the legacy defect
-# the trading mode fixed, not a live leak, so wiring it would make this runner
-# permanently red for a path production does not execute. The live rule IS now
-# tested, by results/leakage_check2_trading_purge.py, which is in the table: gap
-# min = median = max = 2 trading days across 252 month-universe pairs. The file
-# is kept in the tree as the calendar-rule record and is not deleted.
-RETIRED_DELEGATES = {
-    "results/leakage_check2_purge.py":
-        "retired 2026-09-22: audits the calendar purge rule the engine no longer "
-        "uses; superseded by results/leakage_check2_trading_purge.py",
-}
+# RETIRED, AND NOT IN THE TABLE ABOVE. None since 2026-10-22, when
+# results/leakage_check2_purge.py was deleted with the calendar purge rule it
+# audited.
+RETIRED_DELEGATES = {}
 
 # THE VERDICT LINE NAMES EVERY DELEGATE THAT DID NOT ASSERT, AND THIS IS WHERE THE
 # WORDS COME FROM. Added 2026-09-22.
@@ -402,8 +389,6 @@ RETIRED_DELEGATES = {
 SKIP_SHORT = {
     "gate_compare.py": "needs an artefact pair this runner does not have",
     "results/leakage_check4_corpactions.py": "no pass condition definable",
-    "results/leakage_check2_purge.py": "RETIRED, superseded by "
-                                       "leakage_check2_trading_purge.py",
 }
 SLOW_SHORT = "refits the model; needs --slow"
 
@@ -428,8 +413,7 @@ def _needs(label):
     every = _gated()
     if label == "results/leakage_check2_trading_purge.py":
         return [u.raw_cache for u in every]
-    if label in ("results/leakage_check1_causality.py",
-                 "results/ratio_clean_check.py"):
+    if label == "results/leakage_check1_causality.py":
         return [u.data_dir for u in every]
     if label == "results/validate_topn.py":
         return [u.score_cache for u in two] + [u.metrics_dir / "v34_comparison.csv" for u in two]
@@ -461,10 +445,11 @@ def _needs(label):
 # fails only when the count rises above this baseline. A fall is not reported
 # and does not lower the baseline on its own; known-defect markers do not count.
 #
-# 81 SINCE 2026-10-18, the count on 4a4b427 (40 sites). THE BASELINE MAY ONLY GO
+# 71 SINCE 2026-10-22, the count after the look-ahead fixes, which deleted four
+# files (81 from 2026-10-18, the count on 4a4b427). THE BASELINE MAY ONLY GO
 # DOWN: lower it by hand when writes are declared, and never raise it to make
 # room for a new undeclared write. See KNOWN_ISSUES.md.
-NAMING_UNDECLARED_BASELINE = 81
+NAMING_UNDECLARED_BASELINE = 71
 
 # MODULES KNOWN NOT TO IMPORT, EACH WITH ITS REASON. An unlisted failure is a
 # gate-1 failure; so is a LISTED module that starts importing, because an
@@ -984,9 +969,10 @@ def _run_axes(rec=None, tax_on=True):
     import impact_axis as _impa
     import pcap_axis as _pca
     import fixed_axis as _fxa
+    import start_axis as _sta
     saved = (_cd._SELECTED, _pf.selected(), _tx.selected(), _ar._SELECTED,
              _sva.selected(), _dda.selected(), _capa._SELECTED, _impa._SELECTED,
-             _pca._SELECTED, _fxa._SELECTED)
+             _pca._SELECTED, _fxa._SELECTED, _sta._SELECTED)
     try:
         _cd.set_selection(rec["cadence"] if rec else None)
         _pf.set_selection(rec["profile"] if rec else None)
@@ -998,6 +984,7 @@ def _run_axes(rec=None, tax_on=True):
         _impa.set_selection((rec or {}).get("impact"))
         _pca.set_selection((rec or {}).get("pcap"))
         _fxa.set_selection(bool((rec or {}).get("fixed")))
+        _sta.set_selection((rec or {}).get("start"))
         yield
     finally:
         _cd.set_selection(saved[0]); _pf.set_selection(saved[1])
@@ -1008,6 +995,7 @@ def _run_axes(rec=None, tax_on=True):
         _impa.set_selection(saved[7])
         _pca.set_selection(saved[8])
         _fxa.set_selection(saved[9])
+        _sta.set_selection(saved[10])
 
 
 def _tax_ledger(u, M, arm="v2", stems=("FY_EQUITY", "FY_TAX_STATEMENT"), rec=None):
@@ -1044,8 +1032,9 @@ def _v34_equity_pair(M, rec, arm=None):
             import impact_axis as _impa
             import pcap_axis as _pca
             import fixed_axis as _fxa
+            import start_axis as _sta
             out.append(M / f"{head}{_cd.suffix()}{_pf.suffix()}{_tx.suffix()}"
-                           f"{_sva.suffix()}{_dda.suffix()}{_capa.suffix() + _impa.suffix() + _pca.suffix() + _fxa.suffix()}.csv")
+                           f"{_sva.suffix()}{_dda.suffix()}{_capa.suffix() + _impa.suffix() + _pca.suffix() + _fxa.suffix() + _sta.suffix()}.csv")
     return tuple(out)
 
 

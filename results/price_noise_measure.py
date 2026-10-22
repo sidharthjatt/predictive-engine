@@ -138,14 +138,13 @@ import pandas as pd                                           # noqa: E402
 
 import config                                                 # noqa: E402
 import engine_core as _ec                                     # noqa: E402
-from engine_core import (build_panel, score_monthly, HORIZON,  # noqa: E402
-                         FEATS_V2, precompute, metrics)
+from engine_core import (build_panel, score_monthly, HORIZON, SCORE_INPUT_COLS,  # noqa: E402
+                         precompute, metrics)
 from test_exposure import backtest_exposure                   # noqa: E402
 from universes.registry import REGISTRY                       # noqa: E402
 from v34_common import ann_vol_pct                            # noqa: E402
 import arms.registry as arm_reg                               # noqa: E402
 from config import read_table  # the one CSV/parquet reader: config.read_table
-from numerics import rolling_std  # platform-identical variance: results/numerics.py
 
 # THE PRODUCTION ENSEMBLE, NOT A CHOICE MADE HERE. Same ten seeds
 # build_scores_step.py uses; if that list moves, this one must move with it or
@@ -158,7 +157,6 @@ SEEDS = [7, 42, 99, 1, 2, 3, 11, 22, 33, 101]
 NOISE_LEVELS = [0.0001, 0.0005, 0.001, 0.005]
 NOISE_SEEDS = [101, 202, 303, 404, 505]
 
-VOL_WIN = 60
 DIAG = ROOT / "diagnostics"
 RUNS_CSV = DIAG / "price_noise_runs.csv"
 REPORT = DIAG / "price_noise.txt"
@@ -327,7 +325,7 @@ def perturb_farm(src, dst, sigma, noise_seed):
 def run_arm(u, data_dir):
     """Rebuild the panel from data_dir and run v2. Returns (metrics, holdings)."""
     raw = build_panel(HORIZON, data_dir=data_dir)
-    keep = ["date", "symbol", "open", "close", "year", "y_rank", "scorable"] + FEATS_V2
+    keep = SCORE_INPUT_COLS
     raw = raw[keep]
     p = score_monthly(raw, SEEDS, purge_mode=u.purge_mode)
     p = p[["date", "symbol", "open", "close", "score", "year"]]
@@ -343,15 +341,11 @@ def run_arm(u, data_dir):
     bd = px.index[(px.index >= config.BT_START_DATE) & (px.index <= config.BT_END_DATE)]
     pc = precompute(px)
     mom20 = px / px.shift(20) - 1
-    idx = (1 + px.pct_change().mean(axis=1).fillna(0)).cumprod()
-    pv = rolling_std(idx.pct_change(), VOL_WIN) * np.sqrt(252)
-    tv = pv.loc[bd].median()
 
     audit = {k: [] for k in ("holdings", "summary", "trades", "ranking",
                              "decisions", "skipped")}
     arm = arm_reg.ARMS["v2"]
-    eq, tc, n, _expo = backtest_exposure(px, op, sc, bd, pc, mom20, pv,
-                                         target_vol=tv, audit=audit, rebal=20,
+    eq, tc, n, _expo = backtest_exposure(px, op, sc, bd, pc, mom20, audit=audit, rebal=20,
                                          tax_enabled=False, participation_cap=None,
                                          **arm.kwargs)
     m = metrics(eq, arm.label, tc, n)

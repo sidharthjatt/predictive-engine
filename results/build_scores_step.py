@@ -52,8 +52,7 @@ for _p in (str(ROOT), str(ROOT / "results")):
         sys.path.insert(0, _p)
 
 import config                                                  # noqa: E402
-from engine_core import build_panel, score_monthly, HORIZON   # noqa: E402
-from features_v2 import FEATS_V2                              # noqa: E402
+from engine_core import build_panel, score_monthly, HORIZON, SCORE_INPUT_COLS  # noqa: E402
 
 # The production ensemble. Identical in all four originals; not a universe property.
 SEEDS = [7, 42, 99, 1, 2, 3, 11, 22, 33, 101]
@@ -114,8 +113,7 @@ def run(u):
     else:
         got = set(raw["symbol"].unique())
 
-    keep = ["date", "symbol", "open", "close", "year", "y_rank", "scorable"] + FEATS_V2
-    raw = raw[keep]
+    raw = raw[SCORE_INPUT_COLS]
     config.write_panel(raw, u.raw_cache)
     config.write_cache_source(u.raw_cache, u, key)
     print(f"    done {(time.time()-t0)/60:.1f} min, {len(raw):,} rows", flush=True)

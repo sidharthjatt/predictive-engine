@@ -1,88 +1,50 @@
 """
-leakage_check2_trading_purge.py -- CHECK 2 of experiments/LEAKAGE_SPEC.txt,
-asked of the purge rule PRODUCTION ACTUALLY USES.
+leakage_check2_trading_purge.py -- CHECK 2 of experiments/LEAKAGE_SPEC.txt: no
+training label ends after the purge limit of the month it trains.
 ==============================================================================
 
-WHY THIS FILE EXISTS
+WHAT IS CHECKED
 
-    leakage_check2_purge.py builds the training cut the CALENDAR way,
-    `first - Timedelta(days=PURGE)`, and reports that it does not hold in 7 of
-    105 months on each live universe. engine_core.score_monthly has defaulted to
-    purge_mode="trading" since the leakage fix and both live universes are
-    registered with purge_mode='trading', so that check describes a path
-    production does not take. Measured 2026-09-21 and recorded in
-    diagnostics/gate_verdicts.txt: THE LIVE PURGE RULE WAS TESTED BY NO SCRIPT IN
-    THIS TREE. This is that test.
+    For every month score_monthly would train, the training rows are taken from
+    engine_core.training_set -- the function score_monthly calls, not a copy of
+    it -- on the universe's cached raw panel. For each row the date its label
+    ends (`label_end`, the symbol's own row HORIZON rows ahead) is placed on the
+    panel's calendar, and
 
-    leakage_check2_purge.py IS NOT MODIFIED AND IS NOT REPLACED. It stays as the
-    record of what the calendar rule does, which is the reason the trading rule
-    exists. The two are siblings, not versions.
+        gap = position(first scored session) - position(latest label_end)
 
-    IT IS NOT CALLED "CHECK 3". experiments/LEAKAGE_SPEC.txt:140 already assigns
-    CHECK 3 to NORMALISATION SCOPE, and that check's script is absent from this
-    tree -- the spec names diagnostics/leakage_check3_normalisation.txt at line
-    254 and nothing writes it. Taking the number would hide that gap.
+    in trading sessions. THE GATE IS gap >= PURGE_EMBARGO IN EVERY TRAINED MONTH
+    ON EVERY GATED UNIVERSE. training_set promises that by construction; this
+    checks the promise on the real panels.
 
-THE RULE IS READ FROM THE ENGINE, NOT REIMPLEMENTED -- AND HERE IS THE EXACT
-CLAIM, BECAUSE IT IS NOT "score_monthly WAS CALLED AND ASKED FOR ITS CUT".
+    A second assertion: every training target is a rank within the training
+    rows of its own date, so it lies in (0, 1]. A target ranked over labels that
+    had not ended would still lie there, which is why the label-end test above is
+    the gate and this one only catches a malformed target.
 
-    engine_core.score_monthly computes the cut INLINE inside its month loop
-    (engine_core.py:657-661) and never returns, stores or exposes it:
+WHY IT WAS REWRITTEN ON 2026-10-22
 
-        _j  = _pos[np.datetime64(_first)] - HORIZON - PURGE_EMBARGO
-        cut = pd.Timestamp(_cal[_j])
-        tr  = (p["date"] <= cut) & p["y_rank"].notna()
+    The previous version recovered the latest training DATE and added HORIZON
+    sessions on the panel's calendar. That measures where a label ends for a
+    symbol with no missing sessions only. A symbol's label is HORIZON of its own
+    rows ahead, so across a gap it ends later; the old check passed on 252 of 252
+    month-universe pairs while smallcap250 pit had labels ending up to 25
+    sessions past the limit. The label end date is now in the panel and is read
+    directly.
 
-    There is no entry point that yields the cut, so it cannot be called directly
-    for this purpose. What is called instead is score_monthly ITSELF, unmodified,
-    with the real panel and the universe's registered purge_mode -- so the three
-    lines above are the ones that execute. Only the model fit is replaced, by a
-    stub that returns zeros in place of engine_core._fit_seed.
+    The calendar-rule sibling, leakage_check2_purge.py, was deleted the same day
+    with the calendar rule itself.
 
-    WHY STUBBING THE FIT IS SAFE HERE. The cut, the training mask and the month
-    loop are computed BEFORE _fit_seed is reached and do not depend on it or on
-    the seeds. Replacing the fit changes how long the run takes and the scores it
-    produces; it cannot change which rows were selected for training, which is the
-    only thing this check reads. The scores are discarded.
-
-    HOW THE CUT IS RECOVERED, EXACTLY. The stub records len(ytr), the number of
-    training rows the engine actually selected for that month. score_monthly sorts
-    the panel by (date, symbol) and the mask is `date <= cut AND y_rank notna`, so
-    those rows are the first len(ytr) eligible rows in date order and the LAST
-    TRAINING ROW'S DATE is element len(ytr)-1 of the date-sorted eligible dates.
-    That recovery is exact, and it is the latest training date -- not the cut --
-    that decides whether a label reaches into the scored month.
-
-WHAT IS MEASURED, PER SCORING MONTH THAT ACTUALLY TRAINED
-
-    latest_train    the date of the last row the engine put in the training set
-    label_observes  where that row's label lands: HORIZON trading rows later on
-                    the panel's own calendar, the same arithmetic
-                    leakage_check2_purge.py uses
-    gap             first scored date minus that, in TRADING days
-
-    gap > 0   the purge holds.
-    gap == 0  the label observes the first scored day.
-    gap < 0   THE LABEL REACHES INTO THE SCORED MONTH -- leakage, of that size.
-
-    THE GATE IS gap > 0 IN EVERY MONTH ON EVERY LIVE UNIVERSE, which is the
-    condition leakage_check2_purge.py already calls "purge holds". The margin
-    against PURGE_EMBARGO is reported but NOT gated: score_monthly's docstring
-    claims gap >= PURGE_EMBARGO by construction, and reporting where that claim
-    sits is useful, but failing the run on it would be gating a stronger
-    condition than the one that defines leakage.
-
-    MONTHS THE ENGINE SKIPS ARE NOT INVENTED INTO THE COUNT. score_monthly skips
-    a month when _j < 0, when fewer than 5,000 training rows survive, or when
-    nothing is scorable; those months never train and never produce a label that
-    could reach anywhere. They are counted and reported as skipped.
+MONTHS THE ENGINE SKIPS ARE NOT INVENTED INTO THE COUNT. A month with no
+qualifying cut, fewer than 5,000 training rows, or nothing scorable never trains;
+those months are counted and reported as skipped.
 
 USAGE
 
-    ./venv/bin/python results/leakage_check2_trading_purge.py
+    python results/leakage_check2_trading_purge.py
 
-    Writes diagnostics/leakage_check2_trading_purge.txt. Exits non-zero if the
-    purge does not hold in any month on any live universe.
+    Writes diagnostics/leakage_check2_trading_purge.txt. Exits non-zero if any
+    trained month on any gated universe has a label ending inside its purge window.
 """
 import sys
 import warnings
@@ -103,177 +65,115 @@ from universes.registry import REGISTRY, gated              # noqa: E402
 from config import read_table  # the one CSV/parquet reader: config.read_table
 
 LABELS = {u.tag: u.display_name for u in gated()}
-UNIVERSES = {u.tag: (u.raw_cache, u.purge_mode, LABELS[u.tag])
-             for u in gated()}
-
-# One seed. The training mask does not depend on the seed list and the fit is
-# stubbed, so more seeds would repeat the same month loop for nothing.
-PROBE_SEEDS = [7]
+UNIVERSES = {u.tag: (u.raw_cache, LABELS[u.tag]) for u in gated()}
 
 
-def run(uni, perm, purge_mode, label, W):
+def run(uni, perm, label, W):
     src = config.require_cache(perm, what=f"{uni} raw panel")
-    raw = read_table(src, parse_dates=["date"])
+    raw = read_table(src, parse_dates=["date", "label_end"])
 
     W("=" * 100)
-    W(f" CHECK 2 (TRADING RULE) -- TRAINING MASK AND PURGE -- {label} ({uni})")
+    W(f" CHECK 2 (TRADING RULE) -- TRAINING LABELS AGAINST THE PURGE LIMIT -- {label} ({uni})")
     W("=" * 100)
     W("")
     W(f"  panel {src.name}   rows {len(raw):,}   symbols {raw['symbol'].nunique()}")
-    W(f"  purge_mode from the registry: {purge_mode!r}      "
-      f"HORIZON = {HORIZON} TRADING rows   PURGE_EMBARGO = {PURGE_EMBARGO}")
-    if purge_mode != "trading":
-        W(f"  THIS UNIVERSE IS NOT REGISTERED FOR THE TRADING RULE. Reported and "
-          f"not skipped, so the disagreement is visible.")
+    W(f"  HORIZON = {HORIZON} rows of the symbol's own history   "
+      f"PURGE_EMBARGO = {PURGE_EMBARGO} sessions")
 
-    # The panel exactly as score_monthly orders it, so recovered positions match.
+    # The panel exactly as score_monthly orders it.
     p = raw.sort_values(["date", "symbol"]).reset_index(drop=True)
     cal = np.array(sorted(p["date"].unique()))
     pos = {d: i for i, d in enumerate(cal)}
-    elig_dates = p.loc[p["y_rank"].notna(), "date"].to_numpy()
-
     ym_col = p["date"].dt.to_period("M")
-    months = sorted(ym_col[p["date"].dt.year >= 2016].unique())
+    months = sorted(ym_col[p["date"] >= _ec.score_floor()].unique())
 
-    seen = []
-    orig = _ec._fit_seed
-
-    def _stub(sd, Xtr, ytr, Xte, n_jobs=1):
-        # len(ytr) recovers the cut; len(Xte) identifies WHICH month this was.
-        seen.append((int(len(ytr)), int(len(Xte))))
-        return np.zeros(len(Xte))
-
-    _par = _ec.PARALLEL_SEEDS
-    _ec.PARALLEL_SEEDS = False
-    _ec._fit_seed = _stub
-    try:
-        _ec.score_monthly(raw, PROBE_SEEDS, purge_mode=purge_mode)
-    finally:
-        _ec._fit_seed = orig
-        _ec.PARALLEL_SEEDS = _par
-
-    # WHICH MONTHS TRAINED IS MATCHED, NOT ASSUMED. score_monthly calls the fit
-    # once per trained month in month order and silently skips the rest, so the
-    # trained set is a SUBSEQUENCE of the candidates and its position is not known
-    # in advance. Each call's len(Xte) is that month's scorable-row count, which is
-    # computable here from the panel alone, so the calls are aligned to months by
-    # walking the candidates in order and matching that count. An alignment that
-    # does not consume every call is a failure of this harness and says so rather
-    # than reporting a month's gap under another month's name.
-    scorable = p["scorable"] if "scorable" in p.columns else pd.Series(True, index=p.index)
-    trained_months, k = [], 0
+    rows, skipped, bad_target = [], 0, 0
     for ym in months:
-        if k >= len(seen):
-            break
-        if int(((ym_col == ym) & scorable).sum()) == seen[k][1]:
-            trained_months.append(ym)
-            k += 1
-    if k != len(seen):
-        raise SystemExit(
-            f"{uni}: aligned {k} of {len(seen)} fit calls to months. This harness "
-            f"cannot say which month each training set belonged to; no gap is "
-            f"reported rather than reporting one against the wrong month.")
-    n_trained, n_cand = len(seen), len(months)
-    W(f"  scoring months considered: {n_cand}   trained: {n_trained}   "
-      f"skipped by the engine: {n_cand - n_trained}")
-    W("")
-
-    rows = []
-    for ym, (n_tr, _n_te) in zip(trained_months, seen):
         first = p.loc[ym_col == ym, "date"].min()
-        latest = pd.Timestamp(elig_dates[n_tr - 1])
-        i = pos[np.datetime64(latest)]
-        j = min(i + HORIZON, len(cal) - 1)
-        observed = pd.Timestamp(cal[j])
+        i = pos[np.datetime64(first)]
+        ts = _ec.training_set(p, cal, i)
+        te = (ym_col == ym) & p["scorable"]
+        if ts is None or len(ts[1]) < 5000 or not te.any():
+            skipped += 1
+            continue
+        tri, y = ts
+        bad_target += int(((y <= 0) | (y > 1)).sum())
+        latest_end = p.loc[tri, "label_end"].max()
+        j = pos[np.datetime64(latest_end)]
         rows.append({"month": str(ym), "first_scored": str(first.date()),
-                     "train_rows": n_tr, "latest_train": str(latest.date()),
-                     "label_observes": str(observed.date()),
-                     "gap_trading_days": pos[np.datetime64(first)] - j,
-                     "gap_calendar_days": (first - observed).days})
+                     "train_rows": len(y), "latest_label_end": str(latest_end.date()),
+                     "gap_trading_days": i - j,
+                     "gap_calendar_days": (first - latest_end).days})
+    W(f"  scoring months considered: {len(months)}   trained: {len(rows)}   "
+      f"skipped by the engine's rule: {skipped}")
+    W("")
 
     D = pd.DataFrame(rows)
     if D.empty:
         W("  NO MONTH TRAINED. Nothing to assert.")
-        return {"trained": 0, "neg": 0, "zero": 0, "below_embargo": 0}
+        return {"trained": 0, "below": 0, "bad_target": 0}
 
     g = D["gap_trading_days"]
-    neg, zero = D[g < 0], D[g == 0]
-    W("  WHERE THE LABEL ACTUALLY REACHES -- gap distribution, in TRADING days")
-    W(f"    min {g.min()}   p5 {np.percentile(g,5):.0f}   median {g.median():.0f}"
-      f"   p95 {np.percentile(g,95):.0f}   max {g.max()}")
-    W("")
-    W(f"    months with gap <  0 (label reaches INTO the scored month): {len(neg)}")
-    W(f"    months with gap == 0 (label observes the first scored day):  {len(zero)}")
-    W(f"    months with gap >  0 (purge holds):                          "
-      f"{len(D) - len(neg) - len(zero)}")
-    W("")
-    if len(neg):
-        W("    THE PURGE DOES NOT HOLD IN THESE MONTHS:")
-        for _, r in neg.iterrows():
-            W(f"      {r['month']}  first scored {r['first_scored']}  "
-              f"latest train {r['latest_train']}  label observes "
-              f"{r['label_observes']}  overlap {-r['gap_trading_days']} trading days")
-        W("")
     below = D[g < PURGE_EMBARGO]
-    W(f"  REPORTED, NOT GATED -- score_monthly's docstring claims the gap is at "
-      f"least PURGE_EMBARGO ({PURGE_EMBARGO}) by construction.")
-    W(f"    months with gap < {PURGE_EMBARGO}: {len(below)} of {len(D)}"
-      + (f"   tightest: {', '.join(below.nsmallest(5,'gap_trading_days')['month'])}"
-         if len(below) else ""))
+    W("  WHERE THE LATEST TRAINING LABEL ENDS -- gap to the first scored session, in "
+      "TRADING sessions")
+    W(f"    min {g.min()}   p5 {np.percentile(g, 5):.0f}   median {g.median():.0f}"
+      f"   p95 {np.percentile(g, 95):.0f}   max {g.max()}")
+    W(f"    months with gap < {PURGE_EMBARGO} (a label ends inside the purge window): "
+      f"{len(below)} of {len(D)}")
+    W(f"    training targets outside (0, 1]: {bad_target}")
     W("")
+    if len(below):
+        W("    THE PURGE DOES NOT HOLD IN THESE MONTHS:")
+        for _, r in below.iterrows():
+            W(f"      {r['month']}  first scored {r['first_scored']}  latest label end "
+              f"{r['latest_label_end']}  gap {r['gap_trading_days']} sessions")
+        W("")
     W("  THE TIGHTEST MONTHS (smallest gaps):")
-    W(f"  {'month':<10}{'first scored':<14}{'latest train':<14}"
-      f"{'label observes':<16}{'gap td':>7}{'gap cal':>9}")
+    W(f"  {'month':<10}{'first scored':<14}{'latest label':<14}{'gap td':>7}{'gap cal':>9}")
     for _, r in D.nsmallest(8, "gap_trading_days").iterrows():
-        W(f"  {r['month']:<10}{r['first_scored']:<14}{r['latest_train']:<14}"
-          f"{r['label_observes']:<16}{r['gap_trading_days']:>7}"
-          f"{r['gap_calendar_days']:>9}")
+        W(f"  {r['month']:<10}{r['first_scored']:<14}{r['latest_label_end']:<14}"
+          f"{r['gap_trading_days']:>7}{r['gap_calendar_days']:>9}")
     W("")
-    md = REGISTRY[uni].metrics_dir   # not the panel's directory: panels live under cache/ since 2026-09-23
+    md = REGISTRY[uni].metrics_dir
     # naming: axis-free -- the per-month gap table for one universe under the
     # live purge rule. It describes the TRAINING MASK, not a strategy result, so
     # it varies over no arm, cadence, profile or tax selection; the universe is
-    # carried by the directory it is written into, as its calendar-rule sibling
-    # leakage_purge_gaps.csv already is.
+    # carried by the directory it is written into.
     D.to_csv(md / "leakage_purge_gaps_trading.csv", index=False)
     W(f"  every month written to {md.name}/leakage_purge_gaps_trading.csv")
     W("")
-    return {"trained": len(D), "neg": len(neg), "zero": len(zero),
-            "below_embargo": len(below)}
+    return {"trained": len(D), "below": len(below), "bad_target": bad_target}
 
 
 def main():
     out = []
     res = {}
-    for uni, (perm, pm, label) in UNIVERSES.items():
-        res[uni] = run(uni, perm, pm, label, out.append)
+    for uni, (perm, label) in UNIVERSES.items():
+        res[uni] = run(uni, perm, label, out.append)
         out.append("")
 
-    tot_neg = sum(r["neg"] for r in res.values())
-    tot_zero = sum(r["zero"] for r in res.values())
     tot_tr = sum(r["trained"] for r in res.values())
-    bad = {u: r for u, r in res.items() if r["neg"] or r["zero"]}
-    out.append("  RULE TESTED: the TRADING purge, "
-               "cut = cal[pos(first) - HORIZON - PURGE_EMBARGO], which is what")
-    out.append("  engine_core.score_monthly runs for both live universes. The "
-               "calendar rule is the sibling check.")
+    bad = {u: r for u, r in res.items() if r["below"] or r["bad_target"]}
+    out.append("  RULE TESTED: engine_core.training_set, the rule score_monthly runs: "
+               "row date <= cal[i - HORIZON - PURGE_EMBARGO]")
+    out.append("  and label_end <= cal[i - PURGE_EMBARGO], targets ranked within the "
+               "qualifying rows of each date.")
     if bad:
-        out.append(f"  RESULT: FAIL -- the purge does not hold in "
-                   f"{tot_neg} month(s) with a label reaching into the scored "
-                   f"month and {tot_zero} month(s) at gap 0, of {tot_tr} trained "
-                   f"month-universe pair(s), on: " + ", ".join(sorted(bad)) + ".")
+        out.append("  RESULT: FAIL -- a training label ends inside the purge window, or "
+                   "a target is malformed, on: "
+                   + ", ".join(f"{u} ({r['below']} month(s), {r['bad_target']} target(s))"
+                               for u, r in sorted(bad.items())) + ".")
         rc = 1
     else:
         per = ", ".join(f"{u} {r['trained']}" for u, r in sorted(res.items()))
-        out.append(f"  RESULT: PASS -- gated: the gap from the last training row's "
-                   f"label to the first scored date is > 0 trading days in every "
+        out.append(f"  RESULT: PASS -- the latest training label ends at least "
+                   f"{PURGE_EMBARGO} sessions before the first scored session in every "
                    f"trained month, {tot_tr} month-universe pair(s) across "
-                   f"{len(res)} universe(s) ({per}). Gap >= PURGE_EMBARGO is "
-                   f"reported above, not gated.")
+                   f"{len(res)} universe(s) ({per}).")
         rc = 0
     # naming: axis-free -- one report on the training mask under the live purge
-    # rule, covering both universes, which are named inside the file. It varies
-    # over no published axis, exactly as leakage_check2_purge.txt does.
+    # rule, covering every gated universe, which are named inside the file.
     (ROOT / "diagnostics" / "leakage_check2_trading_purge.txt").write_text(
         "\n".join(out) + "\n")
     print("\n".join(out))

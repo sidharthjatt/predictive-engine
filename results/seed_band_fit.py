@@ -61,7 +61,7 @@ import pandas as pd
 from joblib import Parallel, delayed
 
 import config
-from engine_core import _fit_seed, HORIZON, PURGE_EMBARGO
+from engine_core import _fit_seed, training_set, score_floor
 from features_v2 import FEATS_V2
 from build_scores_step import SEEDS as PROD_SEEDS
 from universes.registry import REGISTRY
@@ -92,8 +92,10 @@ def sha256_file(path):
 
 
 def fit_code_key():
-    """sha256 of the code that decides the stored numbers: fit_seeds and _fit_seed."""
-    src = inspect.getsource(fit_seeds) + inspect.getsource(_fit_seed)
+    """sha256 of the code that decides the stored numbers: fit_seeds, training_set
+    and _fit_seed."""
+    src = (inspect.getsource(fit_seeds) + inspect.getsource(training_set)
+           + inspect.getsource(_fit_seed))
     return hashlib.sha256(src.encode()).hexdigest()
 
 
@@ -115,20 +117,18 @@ def fit_seeds(p, purge_mode):
     S = np.full((len(p), len(SEEDS20)), np.nan)
     cal = np.array(sorted(p["date"].unique()))
     pos = {d: i for i, d in enumerate(cal)}
-    months = sorted(p.loc[p["date"].dt.year >= 2016, "ym"].unique())
+    months = sorted(p.loc[p["date"] >= score_floor(), "ym"].unique())
     t0 = time.time()
     for k, ym in enumerate(months, start=1):
         first = p.loc[p.ym == ym, "date"].min()
-        j = pos[np.datetime64(first)] - HORIZON - PURGE_EMBARGO
-        if j < 0:
+        ts = training_set(p, cal, pos[np.datetime64(first)])
+        if ts is None:
             continue
-        cut = pd.Timestamp(cal[j])
-        tr = (p["date"] <= cut) & p["y_rank"].notna()
+        tri, ytr = ts
         te = (p["ym"] == ym) & p["scorable"]
-        if tr.sum() < 5000 or te.sum() == 0:
+        if len(ytr) < 5000 or te.sum() == 0:
             continue
-        Xtr = p.loc[tr, FEATS_V2].to_numpy()
-        ytr = p.loc[tr, "y_rank"].to_numpy()
+        Xtr = p.loc[tri, FEATS_V2].to_numpy()
         Xte = p.loc[te, FEATS_V2].to_numpy()
         pr = Parallel(n_jobs=WORKERS, backend="loky")(
             delayed(_fit_seed)(sd, Xtr, ytr, Xte) for sd in SEEDS20)

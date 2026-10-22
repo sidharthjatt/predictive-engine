@@ -49,9 +49,7 @@ import test_exposure
 from test_exposure import backtest_exposure
 import profiles as _prof            # the run's execution-realism profile
 from config import read_table  # the one CSV/parquet reader: config.read_table
-from numerics import rolling_std  # platform-identical variance: results/numerics.py
 
-VOL_WIN = 60
 TOPNS = [5, 8, 12, 16, 20]
 RATIOS = [1.0, 1.5, 2.0, 3.0]
 BASE = (8, 16)          # the incumbent, TOP_N=8 at the 2.0x ratio
@@ -77,14 +75,12 @@ def cell(px, op, sc, y0, y1, top_n, buf):
     test_exposure.BUFFER = buf
     bd = px.index[(px.index.year >= y0) & (px.index.year <= y1)]
     pc = precompute(px); m20 = px / px.shift(20) - 1
-    ix = (1 + px.pct_change().mean(axis=1).fillna(0)).cumprod()
-    pv = rolling_std(ix.pct_change(), VOL_WIN) * np.sqrt(252)
     # RESEARCH-ONLY, DECLARED. This caller passes no vol20, so it could not
     # apply a participation cap even if one were selected; research_only()
     # makes that a statement rather than an accident, and STOPS the run if
     # --profile ever reaches here. See profiles.research_only.
-    eq, tc, n, _ = backtest_exposure(px, op, sc, bd, pc, m20, pv, drawdown_stop=None, mode="breadth",
-                                     target_vol=pv.loc[bd].median(), participation_cap=_prof.research_only(__name__))
+    eq, tc, n, _ = backtest_exposure(px, op, sc, bd, pc, m20, drawdown_stop=None, mode="breadth",
+                                     participation_cap=_prof.research_only(__name__))
     bh = 1_000_000 * (1 + px.pct_change().loc[bd].mean(axis=1).fillna(0)).cumprod()
     m = metrics(eq, "s", tc, n); mb = metrics(bh, "b")
     return dict(top_n=top_n, buffer=buf, cagr=m["CAGR%"], sharpe=m["Sharpe"],

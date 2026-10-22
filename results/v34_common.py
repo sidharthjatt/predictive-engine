@@ -42,7 +42,6 @@ import universes.registry as _uni_registry
 import naming
 import survivorship as _survivorship
 from config import read_table  # the one CSV/parquet reader: config.read_table
-from numerics import rolling_std  # platform-identical variance: results/numerics.py
 
 
 def deployed_none(expo):
@@ -61,11 +60,13 @@ def _dd_params():
     import impact_axis as _impa
     import pcap_axis as _pca
     import fixed_axis as _fxa
+    import start_axis as _sta
     return (({} if _dda.is_default() else {"dd": _dda.params()})
             | ({} if _capa.is_default() else {"capital": _capa.selected()})
             | ({} if _impa.is_default() else {"impact_k": _impa.selected()})
             | ({} if _pca.is_default() else {"participation_cap": _pca.selected()})
-            | ({} if _fxa.is_default() else {"fixed_capital": True}))
+            | ({} if _fxa.is_default() else {"fixed_capital": True})
+            | ({} if _sta.is_default() else {"bt_start": str(_sta.selected().date())}))
 
 
 def _window_label(eq=None):
@@ -358,9 +359,10 @@ def _write_stop(M, stop_rows, stop_curves, stop_audits, bd, bh, halves,
     import impact_axis as _impa
     import pcap_axis as _pca
     import fixed_axis as _fxa
+    import start_axis as _sta
     SFX = (arm_reg.stop_selection_suffix() + cadence.suffix() + profiles.suffix()
             + _tax.suffix() + _sva.suffix() + _dda.suffix() + _capa.suffix() + _impa.suffix() + _pca.suffix()
-            + _fxa.suffix())
+            + _fxa.suffix() + _sta.suffix())
     rows = stop_rows + [arm_row(bh, "buy & hold equal-weight", 0, 0, 100.0)]
     rows[-1]["MeanNamesHeld"], rows[-1]["CashShortSkips"] = "", ""
     pd.DataFrame(rows).to_csv(M / f"v34_stop_comparison{SFX}.csv", index=False)
@@ -413,8 +415,8 @@ def _write_stop(M, stop_rows, stop_curves, stop_audits, bd, bh, halves,
 # naming: arm,cadence,profile via SFX -- every artefact this step writes is
 # named `<stem>{SFX}.<ext>` with SFX composed at v34_common.py:300 from
 # selection_suffix() + cadence.suffix() + profiles.suffix().
-def run_v34(M, universe_label, universe_tag, px, op, sc, bd, pc, mom20, port_vol,
-            tv, backtest_exposure, v1_eq, v1_tc, v1_n, v2_eq, v2_tc, v2_n, v2_expo,
+def run_v34(M, universe_label, universe_tag, px, op, sc, bd, pc, mom20,
+            backtest_exposure, v1_eq, v1_tc, v1_n, v2_eq, v2_tc, v2_n, v2_expo,
             start_capital, halves, consts, v1_audit=None, audits_out=None, v1_expo=1.0):
     """Run v3 and v4, assemble all four arms plus buy & hold, write the outputs.
 
@@ -462,8 +464,8 @@ def run_v34(M, universe_label, universe_tag, px, op, sc, bd, pc, mom20, port_vol
     _capkw = _prof.cap_kwargs(_REG[universe_tag])
     a2 = _blank()
     if "v2" in sel:
-        backtest_exposure(px, op, sc, bd, pc, mom20, port_vol, mode="breadth",
-                          target_vol=tv, sizing="invvol", drawdown_stop=None,
+        backtest_exposure(px, op, sc, bd, pc, mom20, mode="breadth",
+                          sizing="invvol", drawdown_stop=None,
                           audit=a2, rebal=_reb,
                           tax_enabled=_taxon, **_capkw)
 
@@ -479,16 +481,14 @@ def run_v34(M, universe_label, universe_tag, px, op, sc, bd, pc, mom20, port_vol
     v4_eq = v4_tc = v4_n = None
     v4_expo = 0.0
     if "v3" in sel:
-        v3_eq, v3_tc, v3_n, v3_expo = backtest_exposure(px, op, sc, bd, pc, mom20, port_vol,
-                                                        mode="none", target_vol=tv,
-                                                        sizing="provol", drawdown_stop=None,
+        v3_eq, v3_tc, v3_n, v3_expo = backtest_exposure(px, op, sc, bd, pc, mom20, mode="none", sizing="provol", drawdown_stop=None,
                                                         audit=a3,
                                                         rebal=_reb, tax_enabled=_taxon,
                                                         **_capkw)
     if "v4" in sel:
         v4_eq, v4_tc, v4_n, v4_expo = backtest_exposure(px, op, sc, bd, pc, mom20,
-                                                        port_vol, mode="breadth",
-                                                        target_vol=tv, sizing="provol",
+                                                        mode="breadth",
+                                                        sizing="provol",
                                                         drawdown_stop=None,
                                                         audit=a4, rebal=_reb,
                                                         tax_enabled=_taxon, **_capkw)
@@ -570,9 +570,10 @@ def run_v34(M, universe_label, universe_tag, px, op, sc, bd, pc, mom20, port_vol
     import impact_axis as _impa
     import pcap_axis as _pca
     import fixed_axis as _fxa
+    import start_axis as _sta
     SFX = (arm_reg.selection_suffix([n for n, *_ in ARM_ON]) + cadence.suffix()
            + profiles.suffix() + _tax.suffix() + _sva.suffix() + _dda.suffix() + _capa.suffix() + _impa.suffix() + _pca.suffix()
-           + _fxa.suffix())
+           + _fxa.suffix() + _sta.suffix())
     # THE PATHS THIS CALL WRITES, IN ORDER. Read only by the report line below, so
     # that what is printed is derived from what was written rather than restated.
     _wrote = []
@@ -596,8 +597,7 @@ def run_v34(M, universe_label, universe_tag, px, op, sc, bd, pc, mom20, port_vol
     for _a in arm_reg.selected_stop():
         _au = _blank()
         _au["costs"] = {"fills": [], "days": []}
-        _eq, _tc, _n, _expo = backtest_exposure(px, op, sc, bd, pc, mom20, port_vol,
-                                                target_vol=tv, audit=_au, rebal=_reb,
+        _eq, _tc, _n, _expo = backtest_exposure(px, op, sc, bd, pc, mom20, audit=_au, rebal=_reb,
                                                 tax_enabled=_taxon, **_a.kwargs,
                                                 **_capkw)
         _r = arm_row(_eq, _a.label, _tc, _n, _expo * 100)
@@ -677,9 +677,6 @@ def run_arm(u, arm, rebal=None, out_dir=None):
     bd = u.trading_days(px.index)
     pc = precompute(px)
     mom20 = px / px.shift(20) - 1
-    idx = (1 + px.pct_change().mean(axis=1).fillna(0)).cumprod()
-    port_vol = rolling_std(idx.pct_change(), 60) * np.sqrt(252)
-    tv = port_vol.loc[bd].median()
 
     # THE PROFILE'S CAP, RESOLVED ONCE AND PASSED AS AN ARGUMENT.
     # profiles.py records why this is not a global on test_exposure: cadence.py
@@ -696,8 +693,7 @@ def run_arm(u, arm, rebal=None, out_dir=None):
     # --tax on reported untaxed numbers under a taxed run folder.
     import tax as _tax_axis
     eq, tc, ntr, expo = backtest_exposure(
-        px, op, sc, bd, pc, mom20, port_vol,
-        target_vol=tv, audit=audit, **arm.kwargs,
+        px, op, sc, bd, pc, mom20, audit=audit, **arm.kwargs,
         tax_enabled=_tax_axis.selected(),
         # EVERY universe is valued at the open. The two that opted out of this
         # correction were two retired universes, and they are gone.
@@ -728,8 +724,7 @@ def run_arm(u, arm, rebal=None, out_dir=None):
     if _tax_axis.selected():
         import bh_held
         eq_l, tc_l, ntr_l, _ = backtest_exposure(
-            px, op, sc, bd, pc, mom20, port_vol,
-            target_vol=tv, audit=None, **arm.kwargs,
+            px, op, sc, bd, pc, mom20, audit=None, **arm.kwargs,
             tax_enabled=True, end_sale=True,
             value_at_open=True, rebal=rebal, **_capkw)
         hb = bh_held.held_lots(px, op, bd)
@@ -759,6 +754,7 @@ def run_arm(u, arm, rebal=None, out_dir=None):
     # comparison.csv. Written only with --fixed-capital, whose directory ends in
     # "@fixed", so no other directory gains a file.
     import fixed_axis as _fxa
+    import start_axis as _sta
     if not _fxa.is_default():
         import fixed_capital as fc
         _base = float(_capital_axis.selected())

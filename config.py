@@ -80,17 +80,17 @@ EQUITY_CURVES_DIR.mkdir(parents=True, exist_ok=True)
 # Inclusive on both ends. Price data runs to 2026-06-08, so this cut is real and
 # drops six trading days: 2026-06-01 through 2026-06-08.
 #
-# THE NAMES ARE DELIBERATELY NOT BT_START / BT_END.
-#   engine_core.py:93 defines BT_START, BT_END as YEAR INTEGERS (2019, 2026) and
-#   is deliberately not changed -- it is a retired universe's provenance.
-#   Two constants with the same name and different types in one repository is
-#   how a previous mismatch happened, so these carry _DATE and are Timestamps.
+# THE NAMES CARRY _DATE AND ARE Timestamps: engine_core once defined BT_START and
+# BT_END as year integers, and two constants with one name and two types is how a
+# previous mismatch happened.
 #
-# Scripts that import the int form from engine_core (jackknife.py, topn_test.py,
-# experiments/sizing_test.py) therefore keep
-# the OLD year window and keep running. Their outputs stay internally consistent
-# but describe a different window from anything using the constants below.
-BT_START_DATE = _pd.Timestamp("2019-01-01")
+# THE START IS ONE SETTING SINCE 2026-10-22. BT_START_DEFAULT is the default and
+# BT_START_DATE the value in force; run.py --start changes it through
+# start_axis.set_selection, which also moves every registry row's window. Read
+# BT_START_DATE at call time, never copy it at import. engine_core's integer
+# year pair, which topn_test.py read, was removed the same day.
+BT_START_DEFAULT = _pd.Timestamp("2019-01-01")
+BT_START_DATE = BT_START_DEFAULT
 BT_END_DATE = _pd.Timestamp("2026-05-29")
 
 # ---------------------------------------------------------------------------
@@ -134,8 +134,8 @@ BUFFER = 16
 # is a trap for the next reader.
 #
 # The backtest window is BT_START_DATE / BT_END_DATE above, and the walk-forward
-# split is not date constants at all -- it is the expanding monthly retrain with a
-# 32-day purge in engine_core.score_monthly().
+# split is not date constants at all -- it is the expanding monthly retrain with
+# the trading-session purge of engine_core.training_set.
 
 # ---------------------------------------------------------------------------
 # Feature engineering window settings (CAUSAL ONLY -- only past data is used)
@@ -353,9 +353,10 @@ def panel_code_key():
     code would have been read as the output of the new. Covered: the functions
     that build and score the panel, the feature functions and their constants,
     results/numerics.py, the seed list, HORIZON and the purge constants, the
-    trading calendar and the LightGBM version. results/ratio_clean.py, the
-    adj_close/close cleaning, since 2026-09-27. Nothing else, so an edit to the
-    backtest code does not force a 75-minute rebuild.
+    scoring floor (start_axis.score_floor), the trading calendar and the LightGBM
+    version. Nothing else, so an edit to the
+    backtest code does not force a 75-minute rebuild. results/ratio_clean.py was
+    covered from 2026-09-27 until it was removed on 2026-10-22.
     """
     import hashlib
     import inspect
@@ -363,18 +364,16 @@ def panel_code_key():
     import engine_core as ec
     import features_v2 as fv
     import numerics
-    import ratio_clean
     from build_scores_step import SEEDS
     h = hashlib.sha256()
     for fn in (ec.canonical_price, ec._load_calendar, ec._check_calendar,
-               ec.build_panel, ec._fit_seed, ec.score_monthly,
+               ec.build_panel, ec._fit_seed, ec.training_set, ec.score_monthly,
                fv.add_stock_features, fv.add_market_relative_features,
                fv.cross_sectional_normalize):
         h.update(_code_tokens(inspect.getsource(fn)).encode())
     h.update(_code_tokens(Path(numerics.__file__).read_text()).encode())
-    h.update(_code_tokens(Path(ratio_clean.__file__).read_text()).encode())
     h.update(_data_lines(ec.TRADING_CALENDAR))
-    h.update(repr((list(SEEDS), ec.HORIZON, ec.PURGE, ec.PURGE_EMBARGO,
+    h.update(repr((list(SEEDS), ec.HORIZON, ec.PURGE_EMBARGO, str(ec.score_floor().date()),
                    list(fv.FEATS_V2), fv.EXTREME_RET_HI, fv.EXTREME_RET_LO,
                    lightgbm.__version__)).encode())
     return "sha256:" + h.hexdigest()
@@ -425,13 +424,14 @@ def write_cache_source(cache_path, u, key):
 
 def pit_membership_key(u):
     """What else a pit panel depends on: the membership file's bytes and the code
-    that applies it (survivorship.apply_to_panel and its RENAMES). Static panels
+    that applies it (survivorship.apply_to_panel, member_mask and RENAMES). Static panels
     carry no such field, so their sidecars are unchanged."""
     import hashlib
     import inspect
     import survivorship as _sv
     h = hashlib.sha256(Path(u.membership_file).read_bytes())
     h.update(_code_tokens(inspect.getsource(_sv.apply_to_panel)).encode())
+    h.update(_code_tokens(inspect.getsource(_sv.member_mask)).encode())
     h.update(repr(sorted(_sv.RENAMES.items())).encode())
     return "sha256:" + h.hexdigest()
 

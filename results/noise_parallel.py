@@ -56,11 +56,13 @@ ONE PROCESS PER DRAW, EACH WITH A FIXED NUMBER OF LOKY WORKERS
     (see cmd_run).
 
 PER DRAW
-    1. clean every constituent file, then perturb its adj_close, with
-       perturb_cleaned_farm below, into the draw's own scratch folder
-       <work>/<tag>_s<seed>/. The perturbation comes after the cleaning.
-    2. rebuild the raw panel with build_panel(clean=False), so the farm is not
-       cleaned a second time, and refit the production 10-seed monthly ensemble.
+    1. perturb every constituent file's adj_close with
+       price_noise_measure.perturb_farm into the draw's own scratch folder
+       <work>/<tag>_s<seed>/. Until 2026-10-22 each file was first passed through
+       results/ratio_clean.py, which looked up to five sessions ahead; that
+       cleaning is gone, so the draws are of the delivered prices.
+    2. rebuild the raw panel with build_panel and refit the production 10-seed
+       monthly ensemble.
     3. on that one panel: the four arms of arms.registry, tax on, headline (nothing
        sold at the end, the last partial year settled), cadence 20, under the
        research profile (no cap) and the tradeable profile (profiles.PROFILES cap,
@@ -101,10 +103,11 @@ from paths import list_dir
 _SCRIPT_SHA = hashlib.sha256(Path(__file__).read_bytes()).hexdigest()[:16]
 
 SIGMA = 0.0001
-VOL_WIN = 60
 REBAL = 20
 PROFILES = ("research", "tradeable")
-PYTHON = str(ROOT / "venv" / "bin" / "python")
+# The interpreter running this harness starts every draw, so the environment it
+# was launched from is the one each child uses.
+PYTHON = sys.executable
 DEFAULT_WORK = "/tmp/noise_parallel"
 
 # FIXED BY experiments/CLEANED_NOISE_PREREG.txt.
@@ -168,12 +171,11 @@ def one_draw(tag, seed, sigma, work, loky):
     import bh_held
     import profiles
     import tradability
-    from engine_core import build_panel, score_monthly, precompute, HORIZON, _load_calendar
-    from features_v2 import FEATS_V2
-    from numerics import rolling_std
+    from engine_core import (build_panel, score_monthly, precompute, HORIZON, _load_calendar,
+                             SCORE_INPUT_COLS)
     from test_exposure import backtest_exposure
     from universes.registry import REGISTRY
-    from price_noise_measure import SEEDS
+    from price_noise_measure import SEEDS, perturb_farm
 
     _loky_pool(ec, loky)
     u = REGISTRY[tag]
@@ -183,10 +185,10 @@ def one_draw(tag, seed, sigma, work, loky):
     wd = Path(work) / draw_name(tag, seed)
     shutil.rmtree(wd, ignore_errors=True)
     try:
-        rows, cross = perturb_cleaned_farm(src, wd / "farm", sigma, seed)
+        rows, cross = perturb_farm(src, wd / "farm", sigma, seed)
         t_perturb = time.time()
-        raw = build_panel(HORIZON, data_dir=wd / "farm", clean=False)
-        keep = ["date", "symbol", "open", "close", "year", "y_rank", "scorable"] + FEATS_V2
+        raw = build_panel(HORIZON, data_dir=wd / "farm")
+        keep = SCORE_INPUT_COLS
         p = score_monthly(raw[keep], SEEDS, purge_mode=u.purge_mode)
         del raw
         t_panel = time.time()
@@ -198,9 +200,6 @@ def one_draw(tag, seed, sigma, work, loky):
         bd = px.index[(px.index >= config.BT_START_DATE) & (px.index <= config.BT_END_DATE)]
         pc = precompute(px)
         mom20 = px / px.shift(20) - 1
-        idx = (1 + px.pct_change().mean(axis=1).fillna(0)).cumprod()
-        pv = rolling_std(idx.pct_change(), VOL_WIN) * np.sqrt(252)
-        tv = pv.loc[bd].median()
         vol20 = tradability.median_volume(src, _load_calendar(),
                                           config.BT_START_DATE, config.BT_END_DATE)
         cap_kw = {"research": {"participation_cap": None},
@@ -212,8 +211,7 @@ def one_draw(tag, seed, sigma, work, loky):
                 ta = time.time()
                 audit = {k: [] for k in ("holdings", "summary", "trades", "ranking",
                                          "decisions", "skipped")}
-                eq, _tc, ntr, _ = backtest_exposure(px, op, sc, bd, pc, mom20, pv,
-                                                    target_vol=tv, audit=audit,
+                eq, _tc, ntr, _ = backtest_exposure(px, op, sc, bd, pc, mom20, audit=audit,
                                                     rebal=REBAL, tax_enabled=True,
                                                     **cap_kw[prof], **arm.kwargs)
                 binds = sum(1 for r in audit["skipped"]
@@ -239,58 +237,6 @@ def one_draw(tag, seed, sigma, work, loky):
             "loky_workers": loky, "run_date": time.strftime("%Y-%m-%d %H:%M"),
             "script_sha256": _SCRIPT_SHA, "perturb_sha256": _SCRIPT_SHA,
             **key}
-
-
-def perturb_cleaned_farm(src, dst, sigma, noise_seed):
-    """Clean every price CSV, then perturb it, and write the farm. -> (rows, crossings).
-
-    The order of experiments/CLEANED_NOISE_PREREG.txt: each file is cleaned with
-    results/ratio_clean.clean on exactly the rows engine_core.build_panel would
-    clean (PRICE_COLS, dropna, sorted by date, calendar sessions), and only then
-    is adj_close multiplied by (1 + eps), eps ~ Normal(0, sigma). The generator is
-    price_noise_measure.perturb_farm's: one numpy Generator per noise seed, one
-    draw per row of each file in file order, files in sorted order.
-
-    Each file gains a boolean `clean_exempt` column marking the cleaned rows, and
-    the panel is built with build_panel(clean=False), which reads it as
-    canonical_price's exemption and does not clean a second time. At sigma 0 the
-    panel equals the published one; the baseline gate checks the figures.
-
-    `crossings` counts rows whose perturbed adj_close leaves the raw [low, high]
-    and is not exempt, so canonical_price will fall back to close there.
-    """
-    import numpy as np
-    import config
-    import ratio_clean
-    from engine_core import PRICE_COLS, _load_calendar
-    from config import read_table
-    cal = _load_calendar()
-    dst = Path(dst)
-    dst.mkdir(parents=True, exist_ok=True)
-    rng = np.random.default_rng(noise_seed)
-    n_rows = n_cross = 0
-    for f in list_dir(src, "*.csv"):
-        df = read_table(f)
-        d = config.read_price_csv(f).sort_values("date")[PRICE_COLS].dropna()
-        cleaned, exempt, _ev = ratio_clean.clean(d, cal)
-        ex = np.zeros(len(df), dtype=bool)
-        if exempt.any():
-            rows = d.index[exempt]
-            df.loc[rows, "adj_close"] = cleaned.loc[rows, "adj_close"]
-            ex[df.index.get_indexer(rows)] = True
-        if sigma > 0:
-            a = df["adj_close"].to_numpy(dtype=float)
-            a = a * (1.0 + rng.normal(0.0, sigma, size=len(df)))
-            lo = df["low"].to_numpy(dtype=float)
-            hi = df["high"].to_numpy(dtype=float)
-            n_cross += int(np.sum(((a <= 0) | (a < lo) | (a > hi)) & ~ex))
-            df["adj_close"] = a
-        df["clean_exempt"] = ex
-        n_rows += len(df)
-        # naming: axis-free -- a scratch copy of the farm under --work, deleted
-        # after the draw; an input to one measurement, never an artefact
-        df.to_csv(dst / f.name, index=False)
-    return n_rows, n_cross
 
 
 def write_atomic(path, text):

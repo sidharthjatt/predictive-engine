@@ -60,9 +60,7 @@ import engine_core as _ec                                     # noqa: E402
 import arms.registry as arm_reg                               # noqa: E402
 import bh_held                                                # noqa: E402
 from config import read_table                                 # noqa: E402
-from engine_core import build_panel, score_monthly, precompute, HORIZON  # noqa: E402
-from features_v2 import FEATS_V2                              # noqa: E402
-from numerics import rolling_std                              # noqa: E402
+from engine_core import build_panel, score_monthly, precompute, HORIZON, SCORE_INPUT_COLS  # noqa: E402
 from test_exposure import backtest_exposure                   # noqa: E402
 from universes.registry import REGISTRY, check_tags           # noqa: E402
 from price_noise_measure import SEEDS, perturb_farm, script_fingerprint as _pn_fp  # noqa: E402
@@ -72,7 +70,6 @@ from price_noise_measure import SEEDS, perturb_farm, script_fingerprint as _pn_f
 UNIVERSES = ("midcap150", "nifty500")
 SIGMA = 0.0001
 NOISE_SEEDS = [101, 202, 303, 404, 505, 606, 707, 808, 909, 1010]
-VOL_WIN = 60
 RUNS = ROOT / "diagnostics" / "after_tax_noise_runs.csv"
 REPORT = ROOT / "diagnostics" / "after_tax_noise.txt"
 GATE_TOL = 0.005
@@ -98,7 +95,7 @@ def published(u):
 def one_run(u, data_dir):
     """Rebuild the panel from data_dir; return (v2 CAGR, bh CAGR, v2 tax, v2 final)."""
     raw = build_panel(HORIZON, data_dir=data_dir)
-    keep = ["date", "symbol", "open", "close", "year", "y_rank", "scorable"] + FEATS_V2
+    keep = SCORE_INPUT_COLS
     p = score_monthly(raw[keep], SEEDS, purge_mode=u.purge_mode)
     p = p[["date", "symbol", "open", "close", "score", "year"]]
     _ec.set_tradeability(u)
@@ -108,13 +105,10 @@ def one_run(u, data_dir):
     bd = px.index[(px.index >= config.BT_START_DATE) & (px.index <= config.BT_END_DATE)]
     pc = precompute(px)
     mom20 = px / px.shift(20) - 1
-    idx = (1 + px.pct_change().mean(axis=1).fillna(0)).cumprod()
-    pv = rolling_std(idx.pct_change(), VOL_WIN) * np.sqrt(252)
     audit = {k: [] for k in ("holdings", "summary", "trades", "ranking",
                              "decisions", "skipped")}
     arm = arm_reg.ARMS["v2"]
-    eq, _tc, _n, _ = backtest_exposure(px, op, sc, bd, pc, mom20, pv,
-                                       target_vol=pv.loc[bd].median(), audit=audit,
+    eq, _tc, _n, _ = backtest_exposure(px, op, sc, bd, pc, mom20, audit=audit,
                                        rebal=20, tax_enabled=True, participation_cap=None,
                                        **arm.kwargs)
     bh = bh_held.held_lots(px, op, bd)["eq_headline"]

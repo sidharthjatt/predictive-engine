@@ -51,6 +51,7 @@ def load_raw(d):
         x = config.read_price_csv(f)[["date", "open", "high", "low", "close",
                                       "volume"]].dropna().sort_values("date")
         x["symbol"] = f.stem
+        x["raw_close"] = x["close"]   # amihud_20's rupee volume uses the unadjusted close
         frames.append(x)
     return pd.concat(frames, ignore_index=True)
 
@@ -74,6 +75,7 @@ def corrupt(raw, t, mode, seed):
         # cannot masquerade as agreement.
         base = rng.uniform(50, 5000, size=n)
         c.loc[fut, "close"] = base
+        c.loc[fut, "raw_close"] = base
         c.loc[fut, "open"] = base * rng.uniform(0.97, 1.03, size=n)
         c.loc[fut, "high"] = base * rng.uniform(1.00, 1.08, size=n)
         c.loc[fut, "low"] = base * rng.uniform(0.92, 1.00, size=n)
@@ -83,7 +85,7 @@ def corrupt(raw, t, mode, seed):
         for sym, g in c[fut].groupby("symbol"):
             idx = g.index.to_numpy()
             perm = rng.permutation(idx)
-            for col in PRICE_COLS + ["volume"]:
+            for col in PRICE_COLS + ["raw_close", "volume"]:
                 c.loc[idx, col] = c.loc[perm, col].to_numpy()
     else:
         raise ValueError(mode)
