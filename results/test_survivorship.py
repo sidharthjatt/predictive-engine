@@ -705,15 +705,17 @@ def test_ordinary_equities_are_not_rejected():
 # main
 # ---------------------------------------------------------------------------
 
-def test_pit_keeps_rows_before_first_row():
-    """Rows dated before the first effective date stay scorable, for training."""
+def test_pit_keeps_first_list_before_first_row():
+    """Before the first effective date only the first list's symbols stay, for
+    training: a symbol that joins on a later list is not chosen by that list."""
     m = sv.load(valid_file())
     sv.set_mode("pit")
     p = pd.DataFrame({"date": pd.to_datetime(["2019-01-02", "2019-01-02"]),
                       "symbol": ["RELIANCE", "MARUTI"], "close": [1.0, 2.0]})
     out = sv.apply_to_panel(p, m)
     sv.set_mode("static")
-    assert len(out) == 2, f"rows before the first row were dropped: {len(out)} of 2"
+    assert list(out["symbol"]) == ["RELIANCE"], \
+        f"before the first row, kept {list(out['symbol'])}, expected the first list's RELIANCE only"
 
 
 def test_load_applies_renames():
@@ -781,7 +783,8 @@ TESTS = [
     ("switch: pit with membership=None passes through", test_pit_mode_with_none_membership_is_noop),
     ("switch: empty panel survives", test_empty_panel_survives),
     ("switch: does not mutate input", test_apply_to_panel_does_not_mutate_input),
-    ("switch: pit keeps rows before the first row", test_pit_keeps_rows_before_first_row),
+    ("switch: pit keeps the first list before the first row",
+     test_pit_keeps_first_list_before_first_row),
 
     ("pit: load applies the validated renames", test_load_applies_renames),
     ("pit: static buy & hold basket is unchanged", test_buyhold_columns_static_is_identity),

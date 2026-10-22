@@ -626,10 +626,11 @@ def apply_to_panel(panel: pd.DataFrame, membership: Membership | None,
     permanently in the pipeline. In "pit" mode it drops every (date, symbol) row
     where the symbol was not in the index on that date.
 
-    ROWS BEFORE THE FIRST EFFECTIVE DATE ARE KEPT. There is no membership to
-    restrict them to, and the model needs history to train on before the first
-    pit rebalance. They are never traded: a pit universe's backtest window starts
-    at the first session on or after the first effective date
+    ROWS BEFORE THE FIRST EFFECTIVE DATE ARE KEPT FOR THE FIRST LIST'S SYMBOLS.
+    No list is in force there, and the model needs history to train on before the
+    first pit rebalance; keeping every symbol would choose rows by later
+    membership (member_mask). They are never traded: a pit universe's backtest
+    window starts at the first session on or after the first effective date
     (universes.registry.pit_variant).
 
     PRICES ARE NOT DROPPED FROM THE EXECUTION PATH BY THIS FUNCTION. Apply it to
@@ -651,9 +652,16 @@ def member_mask(panel, membership, date_col="date", symbol_col="symbol"):
 
     The rule apply_to_panel applies, as a mask: True for every row in static mode
     or with no membership; in pit mode True where the symbol is in the list in
-    force on the row's date, and on every row before the first effective date,
-    where no membership is defined. build_panel uses it for the market return, the
+    force on the row's date, and, before the first effective date, where the
+    symbol is in the FIRST list. build_panel uses it for the market return, the
     z-score peer group and the scorable flag.
+
+    BEFORE THE FIRST DATE, THE FIRST LIST, SINCE 2026-10-22. No list is in force
+    there. Until then every row before it was kept, and those symbols are in the
+    pit folder only because they are members on some later date, so the training
+    set and the cross-sections before the first date were chosen by later
+    membership. A pit run never decides before the first effective date, so the
+    first list is known whenever a decision uses a row from before it.
     """
     if not is_pit() or membership is None or panel.empty:
         return np.ones(len(panel), dtype=bool)
@@ -661,7 +669,7 @@ def member_mask(panel, membership, date_col="date", symbol_col="symbol"):
     syms = panel[symbol_col].astype(str).str.upper().values
     keep = np.zeros(len(panel), dtype=bool)
     for i, (p, s) in enumerate(zip(pos, syms)):
-        if p < 0 or s in membership.lists[p]:
+        if s in membership.lists[max(p, 0)]:
             keep[i] = True
     return keep
 

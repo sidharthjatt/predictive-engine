@@ -750,7 +750,7 @@ def training_set(p, cal, i_first, horizon=HORIZON, embargo=PURGE_EMBARGO):
     return y.index, y.to_numpy()
 
 
-def score_monthly(raw, seeds, purge_mode="trading"):
+def score_monthly(raw, seeds, purge_mode="trading", through=None):
     """Monthly expanding-window scoring with a purged training set (training_set).
 
     PURGE_MODE IS "trading" AND NOTHING ELSE. The calendar rule (`first -
@@ -762,6 +762,11 @@ def score_monthly(raw, seeds, purge_mode="trading"):
     MOVE WAS NOT AN IMPROVEMENT. It was not distinguishable from re-fit variation
     -- EXPERIMENTS.md entry 29 measured the seed noise floor at sd 0.97 to 2.14
     CAGR points against a purge effect of -0.12 and -0.52.
+
+    `through`, a date or None: score only the months whose first session is on or
+    before it. None scores every month, as every pipeline run does. It exists for
+    tools/lookahead_proof.py, whose cut and noise variants need no month after the
+    cut date; a month's model and scores do not depend on later months.
     """
     if purge_mode != "trading":
         raise ValueError(f"purge_mode must be 'trading', got {purge_mode!r}; the "
@@ -777,7 +782,11 @@ def score_monthly(raw, seeds, purge_mode="trading"):
     # parallel (below), so a line per seed would be ten interleaved lines from
     # worker processes per month rather than a measure of progress.
     import time as _time
-    _months = sorted(p.loc[p["date"] >= score_floor(), "ym"].unique())
+    _sel = p["date"] >= score_floor()
+    if through is not None:
+        _firsts = p.groupby("ym")["date"].transform("min")
+        _sel &= _firsts <= pd.Timestamp(through)
+    _months = sorted(p.loc[_sel, "ym"].unique())
     _t0 = _time.time()
     for _k, ym in enumerate(_months, start=1):
         _first = p.loc[p.ym == ym, "date"].min()

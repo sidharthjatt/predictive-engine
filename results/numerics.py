@@ -68,23 +68,38 @@ def rolling_std(obj, window, min_periods=None):
 def group_mean_std(values, groups):
     """Per-row mean and sample standard deviation of `values` within `groups`.
 
-    Replaces groupby(groups).transform("mean") / ("std"). The values are laid
-    out as a (group x position) matrix and reduced with numpy nanmean and
-    nanvar along rows. Returns two arrays aligned with `values`.
+    Replaces groupby(groups).transform("mean") / ("std"). NaN is ignored; a group
+    with no value has mean NaN and one with fewer than two has sd NaN. Returns two
+    arrays aligned with `values`.
+
+    EACH GROUP DEPENDS ON ITS OWN VALUES ONLY, SINCE 2026-10-22. Until then the
+    values were laid out as one (group x position) matrix as wide as the LARGEST
+    group and reduced with nanmean and nanvar along rows. numpy's pairwise
+    summation splits a row by the row's length, so the last bits of every date's
+    mean and sd depended on the widest cross-section of any date, later dates
+    included: tools/lookahead_proof.py found the z-scored features of 2009 changed
+    when data after 2019 was removed. Now each group's sum is math.fsum, the
+    correctly rounded sum, which depends only on the group's values (not their
+    order or any other group), and is the same on every platform.
     """
+    import math
     v = np.asarray(values, dtype="float64")
     gcode, _ = pd.factorize(np.asarray(groups), sort=True)
     order = np.argsort(gcode, kind="stable")
     counts = np.bincount(gcode)
-    pos = np.empty(len(v), dtype=np.int64)
-    starts = np.concatenate([[0], np.cumsum(counts)[:-1]])
-    pos[order] = np.arange(len(v)) - np.repeat(starts, counts)
-    M = np.full((len(counts), counts.max() if len(counts) else 0), np.nan)
-    M[gcode, pos] = v
-    with np.errstate(all="ignore"):
-        import warnings
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore", RuntimeWarning)
-            mu = np.nanmean(M, axis=1)
-            sd = np.sqrt(np.nanvar(M, axis=1, ddof=1))
-    return mu[gcode], sd[gcode]
+    bounds = np.concatenate([[0], np.cumsum(counts)])
+    mu_g = np.full(len(counts), np.nan)
+    sd_g = np.full(len(counts), np.nan)
+    sv = v[order]
+    for g in range(len(counts)):
+        x = sv[bounds[g]:bounds[g + 1]]
+        x = x[~np.isnan(x)]
+        n = len(x)
+        if n == 0:
+            continue
+        m = math.fsum(x.tolist()) / n
+        mu_g[g] = m
+        if n > 1:
+            d = x - m
+            sd_g[g] = math.sqrt(math.fsum((d * d).tolist()) / (n - 1))
+    return mu_g[gcode], sd_g[gcode]

@@ -117,14 +117,15 @@ def breadth_momentum(mom20, dt):
     IN A PIT RUN, ONLY THE MEMBERS ON `dt`. The price panel holds every name in
     the pit folder, and a name is in that folder because it is a member on some
     date, possibly a later one; counting a non-member on `dt` would let a later
-    membership change today's exposure. When no list is in force on `dt` (before
-    the first effective date) every name counts, as in static mode. Since
-    2026-10-22."""
+    membership change today's exposure. Before the first effective date, where no
+    list is in force, the first list is used, the rule survivorship.member_mask
+    applies there. Since 2026-10-22."""
     m = mom20.loc[dt].dropna()
-    if sv.is_pit() and engine_core.MEMBERSHIP is not None:
-        _members = engine_core.MEMBERSHIP.members_on(dt)
-        if _members:
-            m = m[[str(k).upper() in _members for k in m.index]]
+    M = engine_core.MEMBERSHIP
+    if sv.is_pit() and M is not None:
+        _members = M.lists[0] if pd.Timestamp(dt) < pd.Timestamp(M.dates[0]) \
+            else M.members_on(dt)
+        m = m[[str(k).upper() in _members for k in m.index]]
     return m
 
 
@@ -1069,6 +1070,12 @@ def backtest_exposure(px, op, sc, dates, pc, mom20,
                          else {s: 1.0/len(top) for s in top})
                 w["_exposure"] = expo
                 pending = (w, keep)
+                # The order exactly as planned, unrounded, for tools/lookahead_proof.py.
+                # Audit only: nothing reads it back.
+                if audit is not None:
+                    audit.setdefault("orders", []).append(
+                        {"decided_on": dt, "ranked": list(rk.index), "weights": dict(w),
+                         "keep": sorted(keep)})
                 # AN OWED SALE IS CANCELLED when this decision keeps the name: the
                 # newer decision wins (owner's decision, 2026-10-16).
                 for s_ in [x for x in _owed if x in keep]:

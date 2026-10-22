@@ -887,7 +887,7 @@ A correct measurement over the cases in hand, written as "every universe" or "no
 
 ## Data, calendar and cleaning
 
-### No forward-looking repair, label or cross-section since 2026-10-22; one pit look-ahead remains
+### No forward-looking repair, label or cross-section since 2026-10-22
 
 The ratio cleaning (`results/ratio_clean.py`, `experiments/DATA_CLEANING_SPEC.txt`) was removed. It decided whether to repair session t from up to five later sessions. adj_close is now used as delivered, with `canonical_price`'s close fallback only. Every published figure before 2026-10-22 was computed with the cleaning and the other leaks below, and is to be replaced, not rebuilt.
 
@@ -899,11 +899,13 @@ Fixed the same day, each a read of a value dated after the decision:
 - `tv`, the median portfolio vol over the whole backtest window, is gone with the `voltgt` and `both` modes that read it. No arm used them.
 - `nautilus/nt_data.quote_frame` no longer back-fills the first month's tick reference from that month's own close. Those rows take the fixed `TICK_SIZE`; no fill falls on them.
 
-STILL LOOKS AHEAD, NOT FIXED: PIT ROWS BEFORE THE FIRST EFFECTIVE DATE. `survivorship.member_mask` keeps every row before the membership file's first effective date, because no membership is defined there. Those rows are in the pit folder only because the symbol is a member on that date or later, so the training set and the cross-sections before that date are chosen by later membership. Measured 2026-10-22 on the code before these fixes:
-- smallcap250 pit (first date 2016-04-29): 550,235 training-eligible rows before it, 249,412 of them from symbols that join only on a later list; 72.8% of all training row-uses.
-- nifty100 pit (first date 2006-09-01): 47,811 rows, 9,486 from later joiners; 14.4% of training row-uses.
+THE Z-SCORE'S LAST BITS DEPENDED ON LATER DATES, FIXED 2026-10-22. `numerics.group_mean_std` laid every date's values into one matrix as wide as the largest cross-section of any date and reduced it with numpy's nanmean and nanvar. numpy splits each row for pairwise summation by the row's length, so every date's mean and sd, and therefore every z-scored feature, depended in its last bits on the widest later cross-section. `tools/lookahead_proof.py` found it on its first run: nifty50 static with data after 2019-03-29 removed changed the 2009 features in the 15th to 16th significant digit and moved model scores in the third decimal. Each date's sum is now `math.fsum`, which depends only on that date's values and is the same on every platform.
 
-Rows after the first date for non-members never enter training. Options: (a) train a pit run only on rows on or after the first effective date, with the first scored month moved to the first month with 5,000 such rows; (b) before the first date, keep only symbols in the first list (removes the later joiners, keeps the survivors of that list); (c) leave it and quote pit figures with this note. The membership files themselves carry look-ahead as well (`survivorship.LOOKAHEAD_NOTE`). Static mode is today's members throughout and is not point-in-time at all.
+PIT ROWS BEFORE THE FIRST EFFECTIVE DATE, FIXED 2026-10-22. No list is in force before the membership file's first effective date. Until 2026-10-22 `survivorship.member_mask` kept every row there, and those symbols are in the pit folder only because they are members on that date or later, so the training set and the cross-sections before that date were chosen by later membership. Now a row before the first date is kept only if its symbol is in the first list (`lists[0]`), and `test_exposure.breadth_momentum` uses the same rule. A pit run never decides before the first effective date, so the first list is known whenever it is used. Training-eligible rows before the first date:
+- smallcap250 pit (2016-04-29): 550,235 before, 300,591 after (137 symbols, all in the first list); 59.6% of training row-uses over 2016-01 to 2026-05 are still dated before it.
+- nifty100 pit (2006-09-01): 47,811 before, 38,323 after (63 symbols); 11.9% of training row-uses.
+
+The first list keeps the survivors of that list, which is the membership known on the first date. Rows after the first date for non-members never enter training. The membership files themselves carry look-ahead (`survivorship.LOOKAHEAD_NOTE`). Static mode is today's members throughout and is not point-in-time at all.
 
 `results/leakage_check2_trading_purge.py` checks the label-end rule on the cached panels. Its earlier version recovered the latest training date and added 20 sessions on the panel calendar, which is right only for a symbol with no missing sessions, so it passed while the leak above existed.
 
