@@ -1,0 +1,834 @@
+VERIFICATION OF diagnostics/result_runs_20261023.csv (160 rows, 40 run folders)
+2026-10-24. Read-only except step 5, which wrote only under a temporary work folder.
+No strategy code or data changed. Repository at 7061f31 when checked.
+
+VERDICTS
+  1. Code used         PASS  40 of 40 runs on commits containing all look-ahead fixes;
+                             21 clean, 19 dirty by one diagnostics file, none touching code
+  2. Numbers           PASS  0 of 160 rows differ (strategy CAGR, MaxDD, index CAGR, MaxDD)
+  3. Rules             PASS  1 rule set per arm across 40 runs; 0 rule violations in
+                             108,613 buys and 107,289 sells
+  4. Data              PASS  40 of 40 runs on the right folder and membership; 0 of 520
+                             holdings/trades/cost files contain a removed symbol
+  5. Look-ahead test   PASS  nifty50 W1 static, cut 2022-12-30: 50 of 50 decision dates per
+                             arm identical; 0 differing values against the published run
+
+
+1. CODE USED
+
+Commit and dirty flag recorded in each run folder's params (results_<u>/metrics/
+v34_params*.json and the four runs/<u>/<arm>/params.json; all five agree in every folder):
+
+  20261023T113615_nifty50_all_r20                            a4d19ede731f dirty=False files=0
+  20261023T114652_nifty50_all_r20_tax                        a4d19ede731f dirty=True files=1
+  20261023T114745_nifty100_all_r20                           a4d19ede731f dirty=True files=1
+  20261023T120348_nifty100_all_r20_tax                       a4d19ede731f dirty=True files=1
+  20261023T120511_midcap150_all_r20                          a4d19ede731f dirty=True files=1
+  20261023T122349_midcap150_all_r20_tax                      a4d19ede731f dirty=True files=1
+  20261023T122536_smallcap250_all_r20                        a4d19ede731f dirty=True files=1
+  20261023T125053_smallcap250_all_r20_tax                    a4d19ede731f dirty=True files=1
+  20261023T125324_nifty500_all_r20                           a4d19ede731f dirty=True files=1
+  20261023T135236_nifty500_all_r20_tax                       a4d19ede731f dirty=True files=1
+  20261023T144338_nifty50_all_r20_pit                        16709ddb5e90 dirty=False files=0
+  20261023T145309_nifty50_all_r20_tax_pit                    16709ddb5e90 dirty=False files=0
+  20261023T145413_nifty100_all_r20_pit                       16709ddb5e90 dirty=False files=0
+  20261023T151039_nifty100_all_r20_tax_pit                   16709ddb5e90 dirty=False files=0
+  20261023T151211_midcap150_all_r20_pit                      16709ddb5e90 dirty=False files=0
+  20261023T153137_midcap150_all_r20_tax_pit                  16709ddb5e90 dirty=False files=0
+  20261023T153335_smallcap250_all_r20_pit                    16709ddb5e90 dirty=False files=0
+  20261023T160029_smallcap250_all_r20_tax_pit                16709ddb5e90 dirty=False files=0
+  20261023T160321_nifty500_all_r20_pit                       16709ddb5e90 dirty=False files=0
+  20261023T170907_nifty500_all_r20_tax_pit                   16709ddb5e90 dirty=False files=0
+  20261023T172958_nifty50_all_r20_s20070924                  343d0f2d8f94 dirty=True files=1
+  20261023T174305_nifty50_all_r20_tax_s20070924              343d0f2d8f94 dirty=True files=1
+  20261023T174453_nifty100_all_r20_s20070924                 343d0f2d8f94 dirty=True files=1
+  20261023T180657_nifty100_all_r20_tax_s20070924             343d0f2d8f94 dirty=True files=1
+  20261023T180927_midcap150_all_r20_s20160930                343d0f2d8f94 dirty=True files=1
+  20261023T182922_midcap150_all_r20_tax_s20160930            343d0f2d8f94 dirty=True files=1
+  20261023T183137_smallcap250_all_r20_s20160429              343d0f2d8f94 dirty=True files=1
+  20261023T185912_smallcap250_all_r20_tax_s20160429          343d0f2d8f94 dirty=True files=1
+  20261023T190212_nifty500_all_r20_s20091214                 343d0f2d8f94 dirty=True files=1
+  20261023T201639_nifty500_all_r20_tax_s20091214             343d0f2d8f94 dirty=True files=1
+  20261023T214337_nifty500_all_r20_pit_s20091214             e8b71d91c176 dirty=False files=0
+  20261023T230408_nifty500_all_r20_tax_pit_s20091214         e8b71d91c176 dirty=False files=0
+  20261023T234527_nifty50_all_r20_pit_s20070924              d44dc2489345 dirty=False files=0
+  20261023T235849_nifty50_all_r20_tax_pit_s20070924          d44dc2489345 dirty=False files=0
+  20261024T000035_nifty100_all_r20_pit_s20070924             d44dc2489345 dirty=False files=0
+  20261024T002302_nifty100_all_r20_tax_pit_s20070924         d44dc2489345 dirty=False files=0
+  20261024T002512_midcap150_all_r20_pit_s20160930            d44dc2489345 dirty=False files=0
+  20261024T004627_midcap150_all_r20_tax_pit_s20160930        d44dc2489345 dirty=False files=0
+  20261024T004843_smallcap250_all_r20_pit_s20160429          d44dc2489345 dirty=False files=0
+  20261024T011821_smallcap250_all_r20_tax_pit_s20160429      d44dc2489345 dirty=False files=0
+
+Look-ahead fix commits. Every recorded commit (a4d19ed, 16709dd, 343d0f2, e8b71d9,
+d44dc24) has all three as ancestors (git merge-base --is-ancestor):
+  05bbcd7 2026-09-04 Make test_exposure.backtest_exposure authoritative: fix the sizing lookahead, add its validation suite
+  5d926b4 2026-10-22 Remove look-ahead from prices, labels, pit cross-sections and vol targeting; make the start a setting
+  536927b 2026-10-22 Close the last pit leak, make z-scores independent of later dates, add the look-ahead proof tool
+a4d19ed (2026-10-23, the look-ahead proof on smallcap250 pit and a 2007 start) is a proof
+and tool change, not a fix; it is also an ancestor of every recorded commit.
+
+Code across the five commits: git diff --stat a4d19ed d44dc24 -- '*.py' shows one file,
+check_all.py (the Gate 8 regex, 4 insertions, 3 deletions). No strategy, scoring or engine
+file differs between any two runs.
+
+The 19 dirty runs (chunk 1 except its first run, and all of chunk 3). The params record a
+count, not a name. results/v34_common.py _git_state counts lines of `git status
+--porcelain`, which excludes ignored files, so every dirty run had exactly one tracked-
+modified or untracked file. The file is identified by timing:
+  chunk 1  diagnostics/result_runs_20261023.csv was created 11:46:36. The first chunk 1
+           run wrote its params at 11:44:40 (clean); the second at 11:46:58 (dirty, 1).
+           The CSV was untracked until 16709dd, which adds only that file.
+  chunk 3  diagnostics/pit_vs_static_investigation_20261023.txt was created 17:36:40,
+           untracked until e8b71d9. The first chunk 3 run wrote its params at 17:41:40.
+           The CSV's chunk 3 rows were not yet appended during the runs, or the count
+           would be 2.
+Neither file is code. The uncommitted diff is not recoverable as a diff, but no commit
+after a dirty batch changes a .py file other than check_all.py, and a second dirty file
+would have raised the count to 2.
+
+
+2. NUMBERS
+
+Recomputed with new code (no run.log, no HEADLINE block, no earlier reader):
+  strategy  results_<u>/metrics/v34_equity*.csv, the arm's column, every session.
+  index     the raw index CSV named by the universe's index_file, close on every
+            session of the run's equity file (all sessions present in every row).
+  CAGR      (last / first) ** (365.25 / calendar days between first and last session) - 1
+  MaxDD     min over sessions of value / running peak - 1
+Compared with the CSV at 2 decimals. A sessions/252 year convention was also tried and
+differs on all 160 rows, so the published CAGR is calendar-year based.
+Index files read:
+  data/raw/Final_Without_Survivorship_Data/Final_NIFTY50_EoD_Data/Nifty 50.csv
+  data/raw/Final_Without_Survivorship_Data/Final_NIFTY100_EoD_Data/NIFTY 100.csv
+  data/raw/Final_Without_Survivorship_Data/Final_NIFTYMidCap150_EoD_Data/NIFTY MIDCAP 150.csv
+  data/raw/Final_Without_Survivorship_Data/Final_NIFTYSmallCap250_EoD_Data/NIFTY SMLCAP 250.csv
+  data/raw/Final_Without_Survivorship_Data/Final_NIFTY500_EoD_Data/NIFTY500.csv
+
+Result: 0 of 160 rows differ. Per row (csv = strategy CAGR, MaxDD, index CAGR, MaxDD):
+
+  universe    mode   win arm tax  csv cagr/dd  idx cagr/dd               recomputed                             ok  sessions idx_sessions
+  nifty50     static W1  v1  off  (20.38, -35.73, 10.95, -38.44)         (20.38, -35.73, 10.95, -38.44)         yes  1835  1835
+  nifty50     static W1  v2  off  (13.18, -18.33, 10.95, -38.44)         (13.18, -18.33, 10.95, -38.44)         yes  1835  1835
+  nifty50     static W1  v3  off  (25.86, -35.4, 10.95, -38.44)          (25.86, -35.4, 10.95, -38.44)          yes  1835  1835
+  nifty50     static W1  v4  off  (15.09, -19.74, 10.95, -38.44)         (15.09, -19.74, 10.95, -38.44)         yes  1835  1835
+  nifty50     static W1  v1  on   (16.8, -35.73, 10.95, -38.44)          (16.8, -35.73, 10.95, -38.44)          yes  1835  1835
+  nifty50     static W1  v2  on   (11.23, -18.33, 10.95, -38.44)         (11.23, -18.33, 10.95, -38.44)         yes  1835  1835
+  nifty50     static W1  v3  on   (21.81, -35.4, 10.95, -38.44)          (21.81, -35.4, 10.95, -38.44)          yes  1835  1835
+  nifty50     static W1  v4  on   (12.96, -20.63, 10.95, -38.44)         (12.96, -20.63, 10.95, -38.44)         yes  1835  1835
+  nifty100    static W1  v1  off  (31.63, -31.72, 11.28, -38.1)          (31.63, -31.72, 11.28, -38.1)          yes  1835  1835
+  nifty100    static W1  v2  off  (20.56, -14.69, 11.28, -38.1)          (20.56, -14.69, 11.28, -38.1)          yes  1835  1835
+  nifty100    static W1  v3  off  (32.51, -37.49, 11.28, -38.1)          (32.51, -37.49, 11.28, -38.1)          yes  1835  1835
+  nifty100    static W1  v4  off  (24.37, -16.02, 11.28, -38.1)          (24.37, -16.02, 11.28, -38.1)          yes  1835  1835
+  nifty100    static W1  v1  on   (26.56, -31.72, 11.28, -38.1)          (26.56, -31.72, 11.28, -38.1)          yes  1835  1835
+  nifty100    static W1  v2  on   (17.25, -14.69, 11.28, -38.1)          (17.25, -14.69, 11.28, -38.1)          yes  1835  1835
+  nifty100    static W1  v3  on   (27.36, -37.49, 11.28, -38.1)          (27.36, -37.49, 11.28, -38.1)          yes  1835  1835
+  nifty100    static W1  v4  on   (20.7, -16.36, 11.28, -38.1)           (20.7, -16.36, 11.28, -38.1)           yes  1835  1835
+  midcap150   static W1  v1  off  (38.24, -41.27, 18.7, -38.67)          (38.24, -41.27, 18.7, -38.67)          yes  1835  1835
+  midcap150   static W1  v2  off  (31.46, -21.6, 18.7, -38.67)           (31.46, -21.6, 18.7, -38.67)           yes  1835  1835
+  midcap150   static W1  v3  off  (48.46, -48.21, 18.7, -38.67)          (48.46, -48.21, 18.7, -38.67)          yes  1835  1835
+  midcap150   static W1  v4  off  (36.66, -24.75, 18.7, -38.67)          (36.66, -24.75, 18.7, -38.67)          yes  1835  1835
+  midcap150   static W1  v1  on   (32.68, -41.28, 18.7, -38.67)          (32.68, -41.28, 18.7, -38.67)          yes  1835  1835
+  midcap150   static W1  v2  on   (26.74, -21.6, 18.7, -38.67)           (26.74, -21.6, 18.7, -38.67)           yes  1835  1835
+  midcap150   static W1  v3  on   (41.78, -48.21, 18.7, -38.67)          (41.78, -48.21, 18.7, -38.67)          yes  1835  1835
+  midcap150   static W1  v4  on   (31.51, -24.75, 18.7, -38.67)          (31.51, -24.75, 18.7, -38.67)          yes  1835  1835
+  smallcap250 static W1  v1  off  (44.5, -38.98, 16.99, -46.31)          (44.5, -38.98, 16.99, -46.31)          yes  1835  1835
+  smallcap250 static W1  v2  off  (26.51, -27.62, 16.99, -46.31)         (26.51, -27.62, 16.99, -46.31)         yes  1835  1835
+  smallcap250 static W1  v3  off  (41.0, -41.1, 16.99, -46.31)           (41.0, -41.1, 16.99, -46.31)           yes  1835  1835
+  smallcap250 static W1  v4  off  (25.22, -36.03, 16.99, -46.31)         (25.22, -36.03, 16.99, -46.31)         yes  1835  1835
+  smallcap250 static W1  v1  on   (38.0, -38.99, 16.99, -46.31)          (38.0, -38.99, 16.99, -46.31)          yes  1835  1835
+  smallcap250 static W1  v2  on   (22.43, -27.61, 16.99, -46.31)         (22.43, -27.61, 16.99, -46.31)         yes  1835  1835
+  smallcap250 static W1  v3  on   (36.0, -41.09, 16.99, -46.31)          (36.0, -41.09, 16.99, -46.31)          yes  1835  1835
+  smallcap250 static W1  v4  on   (21.42, -36.21, 16.99, -46.31)         (21.42, -36.21, 16.99, -46.31)         yes  1835  1835
+  nifty500    static W1  v1  off  (43.58, -44.26, 12.94, -38.3)          (43.58, -44.26, 12.94, -38.3)          yes  1835  1835
+  nifty500    static W1  v2  off  (30.64, -27.0, 12.94, -38.3)           (30.64, -27.0, 12.94, -38.3)           yes  1835  1835
+  nifty500    static W1  v3  off  (44.99, -55.72, 12.94, -38.3)          (44.99, -55.72, 12.94, -38.3)          yes  1835  1835
+  nifty500    static W1  v4  off  (32.33, -36.99, 12.94, -38.3)          (32.33, -36.99, 12.94, -38.3)          yes  1835  1835
+  nifty500    static W1  v1  on   (36.86, -44.27, 12.94, -38.3)          (36.86, -44.27, 12.94, -38.3)          yes  1835  1835
+  nifty500    static W1  v2  on   (26.01, -26.99, 12.94, -38.3)          (26.01, -26.99, 12.94, -38.3)          yes  1835  1835
+  nifty500    static W1  v3  on   (38.44, -55.82, 12.94, -38.3)          (38.44, -55.82, 12.94, -38.3)          yes  1835  1835
+  nifty500    static W1  v4  on   (27.58, -36.99, 12.94, -38.3)          (27.58, -36.99, 12.94, -38.3)          yes  1835  1835
+  nifty50     pit    W1  v1  off  (18.06, -32.25, 10.95, -38.44)         (18.06, -32.25, 10.95, -38.44)         yes  1835  1835
+  nifty50     pit    W1  v2  off  (13.51, -17.28, 10.95, -38.44)         (13.51, -17.28, 10.95, -38.44)         yes  1835  1835
+  nifty50     pit    W1  v3  off  (19.28, -30.18, 10.95, -38.44)         (19.28, -30.18, 10.95, -38.44)         yes  1835  1835
+  nifty50     pit    W1  v4  off  (16.02, -17.05, 10.95, -38.44)         (16.02, -17.05, 10.95, -38.44)         yes  1835  1835
+  nifty50     pit    W1  v1  on   (15.23, -32.29, 10.95, -38.44)         (15.23, -32.29, 10.95, -38.44)         yes  1835  1835
+  nifty50     pit    W1  v2  on   (11.55, -17.33, 10.95, -38.44)         (11.55, -17.33, 10.95, -38.44)         yes  1835  1835
+  nifty50     pit    W1  v3  on   (16.53, -30.19, 10.95, -38.44)         (16.53, -30.19, 10.95, -38.44)         yes  1835  1835
+  nifty50     pit    W1  v4  on   (13.72, -17.06, 10.95, -38.44)         (13.72, -17.06, 10.95, -38.44)         yes  1835  1835
+  nifty100    pit    W1  v1  off  (20.38, -31.54, 11.28, -38.1)          (20.38, -31.54, 11.28, -38.1)          yes  1835  1835
+  nifty100    pit    W1  v2  off  (15.81, -16.22, 11.28, -38.1)          (15.81, -16.22, 11.28, -38.1)          yes  1835  1835
+  nifty100    pit    W1  v3  off  (22.53, -34.29, 11.28, -38.1)          (22.53, -34.29, 11.28, -38.1)          yes  1835  1835
+  nifty100    pit    W1  v4  off  (15.62, -24.95, 11.28, -38.1)          (15.62, -24.95, 11.28, -38.1)          yes  1835  1835
+  nifty100    pit    W1  v1  on   (16.67, -31.53, 11.28, -38.1)          (16.67, -31.53, 11.28, -38.1)          yes  1835  1835
+  nifty100    pit    W1  v2  on   (13.28, -16.21, 11.28, -38.1)          (13.28, -16.21, 11.28, -38.1)          yes  1835  1835
+  nifty100    pit    W1  v3  on   (20.12, -34.29, 11.28, -38.1)          (20.12, -34.29, 11.28, -38.1)          yes  1835  1835
+  nifty100    pit    W1  v4  on   (13.21, -24.96, 11.28, -38.1)          (13.21, -24.96, 11.28, -38.1)          yes  1835  1835
+  midcap150   pit    W1  v1  off  (38.67, -41.78, 18.7, -38.67)          (38.67, -41.78, 18.7, -38.67)          yes  1835  1835
+  midcap150   pit    W1  v2  off  (26.4, -20.5, 18.7, -38.67)            (26.4, -20.5, 18.7, -38.67)            yes  1835  1835
+  midcap150   pit    W1  v3  off  (43.31, -44.34, 18.7, -38.67)          (43.31, -44.34, 18.7, -38.67)          yes  1835  1835
+  midcap150   pit    W1  v4  off  (30.53, -21.52, 18.7, -38.67)          (30.53, -21.52, 18.7, -38.67)          yes  1835  1835
+  midcap150   pit    W1  v1  on   (31.92, -40.6, 18.7, -38.67)           (31.92, -40.6, 18.7, -38.67)           yes  1835  1835
+  midcap150   pit    W1  v2  on   (22.38, -20.54, 18.7, -38.67)          (22.38, -20.54, 18.7, -38.67)          yes  1835  1835
+  midcap150   pit    W1  v3  on   (38.4, -44.41, 18.7, -38.67)           (38.4, -44.41, 18.7, -38.67)           yes  1835  1835
+  midcap150   pit    W1  v4  on   (26.2, -21.54, 18.7, -38.67)           (26.2, -21.54, 18.7, -38.67)           yes  1835  1835
+  smallcap250 pit    W1  v1  off  (35.65, -41.3, 16.99, -46.31)          (35.65, -41.3, 16.99, -46.31)          yes  1835  1835
+  smallcap250 pit    W1  v2  off  (22.66, -25.05, 16.99, -46.31)         (22.66, -25.05, 16.99, -46.31)         yes  1835  1835
+  smallcap250 pit    W1  v3  off  (48.65, -46.05, 16.99, -46.31)         (48.65, -46.05, 16.99, -46.31)         yes  1835  1835
+  smallcap250 pit    W1  v4  off  (29.44, -25.53, 16.99, -46.31)         (29.44, -25.53, 16.99, -46.31)         yes  1835  1835
+  smallcap250 pit    W1  v1  on   (31.21, -41.3, 16.99, -46.31)          (31.21, -41.3, 16.99, -46.31)          yes  1835  1835
+  smallcap250 pit    W1  v2  on   (19.57, -25.05, 16.99, -46.31)         (19.57, -25.05, 16.99, -46.31)         yes  1835  1835
+  smallcap250 pit    W1  v3  on   (43.05, -46.05, 16.99, -46.31)         (43.05, -46.05, 16.99, -46.31)         yes  1835  1835
+  smallcap250 pit    W1  v4  on   (25.64, -25.53, 16.99, -46.31)         (25.64, -25.53, 16.99, -46.31)         yes  1835  1835
+  nifty500    pit    W1  v1  off  (57.17, -41.45, 12.94, -38.3)          (57.17, -41.45, 12.94, -38.3)          yes  1835  1835
+  nifty500    pit    W1  v2  off  (36.83, -26.49, 12.94, -38.3)          (36.83, -26.49, 12.94, -38.3)          yes  1835  1835
+  nifty500    pit    W1  v3  off  (60.03, -54.02, 12.94, -38.3)          (60.03, -54.02, 12.94, -38.3)          yes  1835  1835
+  nifty500    pit    W1  v4  off  (40.1, -28.58, 12.94, -38.3)           (40.1, -28.58, 12.94, -38.3)           yes  1835  1835
+  nifty500    pit    W1  v1  on   (48.02, -41.45, 12.94, -38.3)          (48.02, -41.45, 12.94, -38.3)          yes  1835  1835
+  nifty500    pit    W1  v2  on   (31.55, -26.49, 12.94, -38.3)          (31.55, -26.49, 12.94, -38.3)          yes  1835  1835
+  nifty500    pit    W1  v3  on   (52.77, -54.01, 12.94, -38.3)          (52.77, -54.01, 12.94, -38.3)          yes  1835  1835
+  nifty500    pit    W1  v4  on   (34.48, -28.58, 12.94, -38.3)          (34.48, -28.58, 12.94, -38.3)          yes  1835  1835
+  nifty50     static W2  v1  off  (16.4, -56.51, 8.73, -59.86)           (16.4, -56.51, 8.73, -59.86)           yes  4625  4625
+  nifty50     static W2  v2  off  (11.87, -43.2, 8.73, -59.86)           (11.87, -43.2, 8.73, -59.86)           yes  4625  4625
+  nifty50     static W2  v3  off  (17.71, -61.94, 8.73, -59.86)          (17.71, -61.94, 8.73, -59.86)          yes  4625  4625
+  nifty50     static W2  v4  off  (10.99, -52.7, 8.73, -59.86)           (10.99, -52.7, 8.73, -59.86)           yes  4625  4625
+  nifty50     static W2  v1  on   (13.71, -56.64, 8.73, -59.86)          (13.71, -56.64, 8.73, -59.86)          yes  4625  4625
+  nifty50     static W2  v2  on   (10.01, -43.22, 8.73, -59.86)          (10.01, -43.22, 8.73, -59.86)          yes  4625  4625
+  nifty50     static W2  v3  on   (15.29, -62.21, 8.73, -59.86)          (15.29, -62.21, 8.73, -59.86)          yes  4625  4625
+  nifty50     static W2  v4  on   (9.27, -52.7, 8.73, -59.86)            (9.27, -52.7, 8.73, -59.86)            yes  4625  4625
+  nifty100    static W2  v1  off  (20.04, -53.24, 9.11, -61.51)          (20.04, -53.24, 9.11, -61.51)          yes  4625  4625
+  nifty100    static W2  v2  off  (13.84, -36.08, 9.11, -61.51)          (13.84, -36.08, 9.11, -61.51)          yes  4625  4625
+  nifty100    static W2  v3  off  (21.19, -61.34, 9.11, -61.51)          (21.19, -61.34, 9.11, -61.51)          yes  4625  4625
+  nifty100    static W2  v4  off  (15.84, -39.78, 9.11, -61.51)          (15.84, -39.78, 9.11, -61.51)          yes  4625  4625
+  nifty100    static W2  v1  on   (16.78, -53.45, 9.11, -61.51)          (16.78, -53.45, 9.11, -61.51)          yes  4625  4625
+  nifty100    static W2  v2  on   (11.84, -36.53, 9.11, -61.51)          (11.84, -36.53, 9.11, -61.51)          yes  4625  4625
+  nifty100    static W2  v3  on   (18.38, -61.8, 9.11, -61.51)           (18.38, -61.8, 9.11, -61.51)           yes  4625  4625
+  nifty100    static W2  v4  on   (13.68, -40.59, 9.11, -61.51)          (13.68, -40.59, 9.11, -61.51)          yes  4625  4625
+  midcap150   static W2  v1  off  (41.3, -35.16, 16.64, -44.23)          (41.3, -35.16, 16.64, -44.23)          yes  2392  2392
+  midcap150   static W2  v2  off  (28.59, -16.12, 16.64, -44.23)         (28.59, -16.12, 16.64, -44.23)         yes  2392  2392
+  midcap150   static W2  v3  off  (52.04, -42.09, 16.64, -44.23)         (52.04, -42.09, 16.64, -44.23)         yes  2392  2392
+  midcap150   static W2  v4  off  (33.75, -26.26, 16.64, -44.23)         (33.75, -26.26, 16.64, -44.23)         yes  2392  2392
+  midcap150   static W2  v1  on   (35.02, -35.16, 16.64, -44.23)         (35.02, -35.16, 16.64, -44.23)         yes  2392  2392
+  midcap150   static W2  v2  on   (24.32, -17.01, 16.64, -44.23)         (24.32, -17.01, 16.64, -44.23)         yes  2392  2392
+  midcap150   static W2  v3  on   (43.65, -42.09, 16.64, -44.23)         (43.65, -42.09, 16.64, -44.23)         yes  2392  2392
+  midcap150   static W2  v4  on   (28.93, -26.24, 16.64, -44.23)         (28.93, -26.24, 16.64, -44.23)         yes  2392  2392
+  smallcap250 static W2  v1  off  (36.67, -50.3, 14.8, -60.79)           (36.67, -50.3, 14.8, -60.79)           yes  2498  2498
+  smallcap250 static W2  v2  off  (24.89, -22.62, 14.8, -60.79)          (24.89, -22.62, 14.8, -60.79)          yes  2498  2498
+  smallcap250 static W2  v3  off  (43.29, -45.75, 14.8, -60.79)          (43.29, -45.75, 14.8, -60.79)          yes  2498  2498
+  smallcap250 static W2  v4  off  (25.52, -22.43, 14.8, -60.79)          (25.52, -22.43, 14.8, -60.79)          yes  2498  2498
+  smallcap250 static W2  v1  on   (30.54, -52.81, 14.8, -60.79)          (30.54, -52.81, 14.8, -60.79)          yes  2498  2498
+  smallcap250 static W2  v2  on   (21.1, -25.49, 14.8, -60.79)           (21.1, -25.49, 14.8, -60.79)           yes  2498  2498
+  smallcap250 static W2  v3  on   (37.11, -49.08, 14.8, -60.79)          (37.11, -49.08, 14.8, -60.79)          yes  2498  2498
+  smallcap250 static W2  v4  on   (21.65, -26.92, 14.8, -60.79)          (21.65, -26.92, 14.8, -60.79)          yes  2498  2498
+  nifty500    static W2  v1  off  (37.41, -39.67, 10.74, -38.3)          (37.41, -39.67, 10.74, -38.3)          yes  4080  4080
+  nifty500    static W2  v2  off  (24.87, -18.51, 10.74, -38.3)          (24.87, -18.51, 10.74, -38.3)          yes  4080  4080
+  nifty500    static W2  v3  off  (39.79, -49.94, 10.74, -38.3)          (39.79, -49.94, 10.74, -38.3)          yes  4080  4080
+  nifty500    static W2  v4  off  (26.9, -27.99, 10.74, -38.3)           (26.9, -27.99, 10.74, -38.3)           yes  4080  4080
+  nifty500    static W2  v1  on   (31.86, -41.99, 10.74, -38.3)          (31.86, -41.99, 10.74, -38.3)          yes  4080  4080
+  nifty500    static W2  v2  on   (21.08, -20.92, 10.74, -38.3)          (21.08, -20.92, 10.74, -38.3)          yes  4080  4080
+  nifty500    static W2  v3  on   (33.71, -51.55, 10.74, -38.3)          (33.71, -51.55, 10.74, -38.3)          yes  4080  4080
+  nifty500    static W2  v4  on   (22.92, -30.67, 10.74, -38.3)          (22.92, -30.67, 10.74, -38.3)          yes  4080  4080
+  nifty500    pit    W2  v1  off  (30.49, -41.16, 10.74, -38.3)          (30.49, -41.16, 10.74, -38.3)          yes  4080  4080
+  nifty500    pit    W2  v2  off  (19.42, -21.45, 10.74, -38.3)          (19.42, -21.45, 10.74, -38.3)          yes  4080  4080
+  nifty500    pit    W2  v3  off  (30.51, -45.97, 10.74, -38.3)          (30.51, -45.97, 10.74, -38.3)          yes  4080  4080
+  nifty500    pit    W2  v4  off  (20.92, -26.66, 10.74, -38.3)          (20.92, -26.66, 10.74, -38.3)          yes  4080  4080
+  nifty500    pit    W2  v1  on   (25.73, -41.16, 10.74, -38.3)          (25.73, -41.16, 10.74, -38.3)          yes  4080  4080
+  nifty500    pit    W2  v2  on   (16.49, -22.9, 10.74, -38.3)           (16.49, -22.9, 10.74, -38.3)           yes  4080  4080
+  nifty500    pit    W2  v3  on   (25.89, -45.97, 10.74, -38.3)          (25.89, -45.97, 10.74, -38.3)          yes  4080  4080
+  nifty500    pit    W2  v4  on   (17.85, -28.35, 10.74, -38.3)          (17.85, -28.35, 10.74, -38.3)          yes  4080  4080
+  nifty50     pit    W2  v1  off  (15.96, -54.6, 8.73, -59.86)           (15.96, -54.6, 8.73, -59.86)           yes  4625  4625
+  nifty50     pit    W2  v2  off  (10.76, -39.61, 8.73, -59.86)          (10.76, -39.61, 8.73, -59.86)          yes  4625  4625
+  nifty50     pit    W2  v3  off  (18.89, -60.26, 8.73, -59.86)          (18.89, -60.26, 8.73, -59.86)          yes  4625  4625
+  nifty50     pit    W2  v4  off  (12.73, -47.51, 8.73, -59.86)          (12.73, -47.51, 8.73, -59.86)          yes  4625  4625
+  nifty50     pit    W2  v1  on   (13.5, -54.6, 8.73, -59.86)            (13.5, -54.6, 8.73, -59.86)            yes  4625  4625
+  nifty50     pit    W2  v2  on   (9.08, -39.93, 8.73, -59.86)           (9.08, -39.93, 8.73, -59.86)           yes  4625  4625
+  nifty50     pit    W2  v3  on   (16.17, -60.72, 8.73, -59.86)          (16.17, -60.72, 8.73, -59.86)          yes  4625  4625
+  nifty50     pit    W2  v4  on   (10.8, -48.33, 8.73, -59.86)           (10.8, -48.33, 8.73, -59.86)           yes  4625  4625
+  nifty100    pit    W2  v1  off  (17.55, -59.51, 9.11, -61.51)          (17.55, -59.51, 9.11, -61.51)          yes  4625  4625
+  nifty100    pit    W2  v2  off  (14.31, -37.33, 9.11, -61.51)          (14.31, -37.33, 9.11, -61.51)          yes  4625  4625
+  nifty100    pit    W2  v3  off  (18.21, -64.32, 9.11, -61.51)          (18.21, -64.32, 9.11, -61.51)          yes  4625  4625
+  nifty100    pit    W2  v4  off  (14.27, -42.47, 9.11, -61.51)          (14.27, -42.47, 9.11, -61.51)          yes  4625  4625
+  nifty100    pit    W2  v1  on   (14.5, -59.51, 9.11, -61.51)           (14.5, -59.51, 9.11, -61.51)           yes  4625  4625
+  nifty100    pit    W2  v2  on   (12.08, -37.51, 9.11, -61.51)          (12.08, -37.51, 9.11, -61.51)          yes  4625  4625
+  nifty100    pit    W2  v3  on   (15.46, -64.58, 9.11, -61.51)          (15.46, -64.58, 9.11, -61.51)          yes  4625  4625
+  nifty100    pit    W2  v4  on   (12.0, -42.92, 9.11, -61.51)           (12.0, -42.92, 9.11, -61.51)           yes  4625  4625
+  midcap150   pit    W2  v1  off  (30.19, -38.36, 16.64, -44.23)         (30.19, -38.36, 16.64, -44.23)         yes  2392  2392
+  midcap150   pit    W2  v2  off  (20.68, -23.75, 16.64, -44.23)         (20.68, -23.75, 16.64, -44.23)         yes  2392  2392
+  midcap150   pit    W2  v3  off  (34.2, -48.94, 16.64, -44.23)          (34.2, -48.94, 16.64, -44.23)          yes  2392  2392
+  midcap150   pit    W2  v4  off  (28.57, -24.67, 16.64, -44.23)         (28.57, -24.67, 16.64, -44.23)         yes  2392  2392
+  midcap150   pit    W2  v1  on   (25.79, -38.87, 16.64, -44.23)         (25.79, -38.87, 16.64, -44.23)         yes  2392  2392
+  midcap150   pit    W2  v2  on   (17.53, -24.25, 16.64, -44.23)         (17.53, -24.25, 16.64, -44.23)         yes  2392  2392
+  midcap150   pit    W2  v3  on   (29.15, -50.33, 16.64, -44.23)         (29.15, -50.33, 16.64, -44.23)         yes  2392  2392
+  midcap150   pit    W2  v4  on   (24.52, -26.55, 16.64, -44.23)         (24.52, -26.55, 16.64, -44.23)         yes  2392  2392
+  smallcap250 pit    W2  v1  off  (36.07, -37.25, 14.8, -60.79)          (36.07, -37.25, 14.8, -60.79)          yes  2498  2498
+  smallcap250 pit    W2  v2  off  (24.1, -22.43, 14.8, -60.79)           (24.1, -22.43, 14.8, -60.79)           yes  2498  2498
+  smallcap250 pit    W2  v3  off  (46.57, -42.56, 14.8, -60.79)          (46.57, -42.56, 14.8, -60.79)          yes  2498  2498
+  smallcap250 pit    W2  v4  off  (29.87, -24.74, 14.8, -60.79)          (29.87, -24.74, 14.8, -60.79)          yes  2498  2498
+  smallcap250 pit    W2  v1  on   (31.19, -37.4, 14.8, -60.79)           (31.19, -37.4, 14.8, -60.79)           yes  2498  2498
+  smallcap250 pit    W2  v2  on   (20.55, -24.63, 14.8, -60.79)          (20.55, -24.63, 14.8, -60.79)          yes  2498  2498
+  smallcap250 pit    W2  v3  on   (40.29, -42.55, 14.8, -60.79)          (40.29, -42.55, 14.8, -60.79)          yes  2498  2498
+  smallcap250 pit    W2  v4  on   (25.57, -28.89, 14.8, -60.79)          (25.57, -28.89, 14.8, -60.79)          yes  2498  2498
+  
+  mismatches: 0 of 160
+  index files: ['/Users/sidharthchoudhary/Downloads/algo_trading_project/data/raw/Final_Without_Survivorship_Data/Final_NIFTY100_EoD_Data/NIFTY 100.csv', '/Users/sidharthchoudhary/Downloads/algo_trading_project/data/raw/Final_Without_Survivorship_Data/Final_NIFTY500_EoD_Data/NIFTY500.csv', '/Users/sidharthchoudhary/Downloads/algo_trading_project/data/raw/Final_Without_Survivorship_Data/Final_NIFTY50_EoD_Data/Nifty 50.csv', '/Users/sidharthchoudhary/Downloads/algo_trading_project/data/raw/Final_Without_Survivorship_Data/Final_NIFTYMidCap150_EoD_Data/NIFTY MIDCAP 150.csv', '/Users/sidharthchoudhary/Downloads/algo_trading_project/data/raw/Final_Without_Survivorship_Data/Final_NIFTYSmallCap250_EoD_Data/NIFTY SMLCAP 250.csv']
+  rows where some equity sessions have no index close: none
+
+
+3. RULES
+
+From params, per arm, across all 40 runs. One line per distinct rule set; each arm has
+exactly one:
+
+  === DISTINCT RULE SETS PER ARM (from params; one line = identical in every run)
+  fields: arm def, mode, sizing, TOP_N, BUFFER, REBAL, VOL_WIN, START_CAPITAL, SLIPPAGE, CASH_YIELD, profile, value_at_open, purge_mode, deployed_pct
+    v1: 1 distinct
+       ('invvol + mode=none', 'none', 'invvol', 8, 16, 20, 60, 1000000, 0.0015, 0.0, 'research', True, 'trading', 100.0)   (40 runs)
+    v2: 1 distinct
+       ('invvol + mode=breadth', 'breadth', 'invvol', 8, 16, 20, 60, 1000000, 0.0015, 0.0, 'research', True, 'trading', '-')   (40 runs)
+    v3: 1 distinct
+       ('provol + mode=none', 'none', 'provol', 8, 16, 20, 60, 1000000, 0.0015, 0.0, 'research', True, 'trading', 100.0)   (40 runs)
+    v4: 1 distinct
+       ('provol + mode=breadth', 'breadth', 'provol', 8, 16, 20, 60, 1000000, 0.0015, 0.0, 'research', True, 'trading', '-')   (40 runs)
+  
+  === TAX per arm run
+     {('v1', 'off'): 20, ('v1', 'on'): 20, ('v2', 'off'): 20, ('v2', 'on'): 20, ('v3', 'off'): 20, ('v3', 'on'): 20, ('v4', 'off'): 20, ('v4', 'on'): 20}
+
+What params do not record, and where it is fixed instead:
+  Sell rule      results/test_exposure.py:1033-1034
+                     top = list(rk.index[:TOP_N])
+                     keep = set(rk.index[:BUFFER])
+                 results/test_exposure.py:611-612, a held name is sold only if not in keep
+                     for s in list(shares.keys()):
+                         if s not in keep:
+                 pit adds index exits to the sell set, results/test_exposure.py:1038-1039.
+  No resize      results/test_exposure.py:717-719, a held name is skipped when buying
+                     for s, w in targets.items():
+                         if s == "_exposure" or s in shares:
+                             continue
+  Charges        results/qbeast_in_charges.py, SPEC_LOCK version V1-CHG-001, rates
+                 effective 2026-04-01, GST 0.18. Every COSTS file carries the same columns:
+                 brokerage, stt, exchange_txn, sebi, stamp_duty, ipft, dp, gst.
+  Impact         none. Research profile, no --impact; no folder name carries _impact.
+  These files are identical in every run (step 1).
+
+Checked against every arm run's own logs (160 arm runs):
+  - positions rebuilt from daily_trades alone: 0 buys of a name already held (no top-up
+    or resize), 0 sells of less than the whole position.
+  - each sell against the rank on the last decision before it: 106,834 sells were ranked
+    above 16 or unranked. 455 sells were of names ranked 16 or better; all 455 are in pit
+    runs, recorded as kind "index exit" in COSTS, and the name was not a member on the
+    sell date. 0 sells of a top-16 name otherwise.
+  - slippage: slippage_rs equals 0.0015 x qty x reference price on all 215,902 fills.
+  - tax: the params tax field matches the folder name in all 160 arm runs (80 off, 80 on).
+
+
+4. DATA
+
+  removed symbols: ['ELCIDIN', 'PRIVISCL']
+    4 runs  mode=pit    raw_data_dir=data/raw/Final_With_Survivorship_Data/Final_Survivorship_NIFTY100_EoD_Data  membership=data/raw/Survivorship_Bias/Nifty100_membership.csv  digest equals current data: True
+    4 runs  mode=pit    raw_data_dir=data/raw/Final_With_Survivorship_Data/Final_Survivorship_NIFTY500_EoD_Data  membership=data/raw/Survivorship_Bias/Nifty500_membership.csv  digest equals current data: True
+    4 runs  mode=pit    raw_data_dir=data/raw/Final_With_Survivorship_Data/Final_Survivorship_NIFTY50_EoD_Data  membership=data/raw/Survivorship_Bias/Nifty50_membership.csv  digest equals current data: True
+    4 runs  mode=pit    raw_data_dir=data/raw/Final_With_Survivorship_Data/Final_Survivorship_NIFTYMidcap150_EoD_Data  membership=data/raw/Survivorship_Bias/Midcap150_membership.csv  digest equals current data: True
+    4 runs  mode=pit    raw_data_dir=data/raw/Final_With_Survivorship_Data/Final_Survivorship_NIFTYSmallCap250_EoD_Data  membership=data/raw/Survivorship_Bias/SmallCap250_membership.csv  digest equals current data: True
+    4 runs  mode=static raw_data_dir=data/raw/Final_Without_Survivorship_Data/Final_NIFTY100_EoD_Data  membership=None  digest equals current data: True
+    4 runs  mode=static raw_data_dir=data/raw/Final_Without_Survivorship_Data/Final_NIFTY500_EoD_Data  membership=None  digest equals current data: True
+    4 runs  mode=static raw_data_dir=data/raw/Final_Without_Survivorship_Data/Final_NIFTY50_EoD_Data  membership=None  digest equals current data: True
+    4 runs  mode=static raw_data_dir=data/raw/Final_Without_Survivorship_Data/Final_NIFTYMidCap150_EoD_Data  membership=None  digest equals current data: True
+    4 runs  mode=static raw_data_dir=data/raw/Final_Without_Survivorship_Data/Final_NIFTYSmallCap250_EoD_Data  membership=None  digest equals current data: True
+  runs whose folder or membership file is wrong for their mode: 0 []
+  holdings/trades/COSTS files scanned: 520; removed-symbol hits: 0 []
+    ELCIDIN.csv present in data/raw: no
+    PRIVISCL.csv present in data/raw: no
+
+~/removed_stocks holds PRIVISCL (microcap250 and mcap>10000 folders, static and pit) and
+ELCIDIN (mcap 1500-5000). Neither is in any of the five universes' folders used here.
+
+
+5. LOOK-AHEAD TEST
+
+nifty50, W1 static (2019-01-01 start), arms v1-v4, tax off, cut 2022-12-30, with
+tools/lookahead_proof.py at 7061f31. Runtime 17 min 36 s. The tool runs the decision
+path three ways in separate processes: full (every input), cut (every price row after
+2022-12-30 removed) and noise (every price and volume value after 2022-12-30 replaced by
+random numbers). It compares every model score to the cut date, and for every decision
+date the ranked list, the 8 selected, the 16 kept, the target weights and exposure, the
+ranking and decision rows, then fills, holdings and daily valuation.
+
+Tool result:
+      cut    all   every model score on every date to 2022-12-30 (78,262 scores)  PASS
+      cut    v1  fills, holdings and valuation to 2022-12-30  PASS
+      cut    v1  50 of 50 decision dates on or before 2022-12-30 identical
+      cut    v2  fills, holdings and valuation to 2022-12-30  PASS
+      cut    v2  50 of 50 decision dates on or before 2022-12-30 identical
+      cut    v3  fills, holdings and valuation to 2022-12-30  PASS
+      cut    v3  50 of 50 decision dates on or before 2022-12-30 identical
+      cut    v4  fills, holdings and valuation to 2022-12-30  PASS
+      cut    v4  50 of 50 decision dates on or before 2022-12-30 identical
+      noise  all   every model score on every date to 2022-12-30 (78,262 scores)  PASS
+      noise  v1  fills, holdings and valuation to 2022-12-30  PASS
+      noise  v1  50 of 50 decision dates on or before 2022-12-30 identical
+      noise  v2  fills, holdings and valuation to 2022-12-30  PASS
+      noise  v2  50 of 50 decision dates on or before 2022-12-30 identical
+      noise  v3  fills, holdings and valuation to 2022-12-30  PASS
+      noise  v3  50 of 50 decision dates on or before 2022-12-30 identical
+      noise  v4  fills, holdings and valuation to 2022-12-30  PASS
+      noise  v4  50 of 50 decision dates on or before 2022-12-30 identical
+  RESULT: PASS  -- universe nifty50, mode static, control none
+
+The cut variant was then compared with the published run folder
+runs/20261023T113615_nifty50_all_r20 (chunk 1), not only with the tool's own full
+variant, row for row to 2022-12-30 at the published rounding:
+
+    v1 trades    rows to 2022-12-30: cut    374  published    374  differing values 0
+    v1 holdings  rows to 2022-12-30: cut   7828  published   7828  differing values 0
+    v1 ranking   rows to 2022-12-30: cut   1369  published   1369  differing values 0
+    v1 decisions rows to 2022-12-30: cut     50  published     50  differing values 0
+    v1 equity    sessions to 2022-12-30: cut 992  published 992  sessions differing (rel > 1e-9) 0  max rel diff 2.20e-16
+    v2 trades    rows to 2022-12-30: cut    445  published    445  differing values 0
+    v2 holdings  rows to 2022-12-30: cut   9141  published   9141  differing values 0
+    v2 ranking   rows to 2022-12-30: cut   1388  published   1388  differing values 0
+    v2 decisions rows to 2022-12-30: cut     50  published     50  differing values 0
+    v2 equity    sessions to 2022-12-30: cut 992  published 992  sessions differing (rel > 1e-9) 0  max rel diff 2.21e-16
+    v3 trades    rows to 2022-12-30: cut    356  published    356  differing values 0
+    v3 holdings  rows to 2022-12-30: cut   7528  published   7528  differing values 0
+    v3 ranking   rows to 2022-12-30: cut   1365  published   1365  differing values 0
+    v3 decisions rows to 2022-12-30: cut     50  published     50  differing values 0
+    v3 equity    sessions to 2022-12-30: cut 992  published 992  sessions differing (rel > 1e-9) 0  max rel diff 2.21e-16
+    v4 trades    rows to 2022-12-30: cut    443  published    443  differing values 0
+    v4 holdings  rows to 2022-12-30: cut   9101  published   9101  differing values 0
+    v4 ranking   rows to 2022-12-30: cut   1388  published   1388  differing values 0
+    v4 decisions rows to 2022-12-30: cut     50  published     50  differing values 0
+    v4 equity    sessions to 2022-12-30: cut 992  published 992  sessions differing (rel > 1e-9) 0  max rel diff 2.22e-16
+  TOTAL differing values, cut variant against published run, to 2022-12-30: 0
+
+
+APPENDIX: full output of tools/lookahead_proof.py
+
+LOOK-AHEAD PROOF  universe nifty50  mode static  arms v1,v2,v3,v4  control none  cut dates 2022-12-30
+  backtest start 2019-01-01, scoring from 2016-01-01
+  python 3.12.13 at /Users/sidharthchoudhary/venvs/predictive-engine/bin/python; work folder <temporary work folder>/nifty50_static_none_20261024T014900
+  ran full   cut 2022-12-30  panel 3s  scores 480s  backtests 2s  total 488s
+
+  CUT DATE 2022-12-30
+  ran cut    cut 2022-12-30  panel 2s  scores 276s  backtests 2s  total 282s
+    cut    all   every model score on every date to 2022-12-30 (78,262 scores)  PASS
+    cut    v1  2019-01-01  PASS
+    cut    v1  2019-01-29  PASS
+    cut    v1  2019-02-26  PASS
+    cut    v1  2019-03-28  PASS
+    cut    v1  2019-04-30  PASS
+    cut    v1  2019-05-29  PASS
+    cut    v1  2019-06-27  PASS
+    cut    v1  2019-07-25  PASS
+    cut    v1  2019-08-26  PASS
+    cut    v1  2019-09-25  PASS
+    cut    v1  2019-10-27  PASS
+    cut    v1  2019-11-26  PASS
+    cut    v1  2019-12-24  PASS
+    cut    v1  2020-01-23  PASS
+    cut    v1  2020-02-19  PASS
+    cut    v1  2020-03-20  PASS
+    cut    v1  2020-04-23  PASS
+    cut    v1  2020-05-22  PASS
+    cut    v1  2020-06-22  PASS
+    cut    v1  2020-07-20  PASS
+    cut    v1  2020-08-17  PASS
+    cut    v1  2020-09-14  PASS
+    cut    v1  2020-10-13  PASS
+    cut    v1  2020-11-10  PASS
+    cut    v1  2020-12-09  PASS
+    cut    v1  2021-01-07  PASS
+    cut    v1  2021-02-05  PASS
+    cut    v1  2021-03-05  PASS
+    cut    v1  2021-04-07  PASS
+    cut    v1  2021-05-07  PASS
+    cut    v1  2021-06-07  PASS
+    cut    v1  2021-07-05  PASS
+    cut    v1  2021-08-03  PASS
+    cut    v1  2021-09-01  PASS
+    cut    v1  2021-09-30  PASS
+    cut    v1  2021-10-29  PASS
+    cut    v1  2021-11-30  PASS
+    cut    v1  2021-12-28  PASS
+    cut    v1  2022-01-25  PASS
+    cut    v1  2022-02-23  PASS
+    cut    v1  2022-03-25  PASS
+    cut    v1  2022-04-26  PASS
+    cut    v1  2022-05-25  PASS
+    cut    v1  2022-06-22  PASS
+    cut    v1  2022-07-20  PASS
+    cut    v1  2022-08-19  PASS
+    cut    v1  2022-09-19  PASS
+    cut    v1  2022-10-18  PASS
+    cut    v1  2022-11-17  PASS
+    cut    v1  2022-12-15  PASS
+    cut    v1  fills, holdings and valuation to 2022-12-30  PASS
+    cut    v1  50 of 50 decision dates on or before 2022-12-30 identical
+    cut    v2  2019-01-01  PASS
+    cut    v2  2019-01-29  PASS
+    cut    v2  2019-02-26  PASS
+    cut    v2  2019-03-28  PASS
+    cut    v2  2019-04-30  PASS
+    cut    v2  2019-05-29  PASS
+    cut    v2  2019-06-27  PASS
+    cut    v2  2019-07-25  PASS
+    cut    v2  2019-08-26  PASS
+    cut    v2  2019-09-25  PASS
+    cut    v2  2019-10-27  PASS
+    cut    v2  2019-11-26  PASS
+    cut    v2  2019-12-24  PASS
+    cut    v2  2020-01-23  PASS
+    cut    v2  2020-02-19  PASS
+    cut    v2  2020-03-20  PASS
+    cut    v2  2020-04-23  PASS
+    cut    v2  2020-05-22  PASS
+    cut    v2  2020-06-22  PASS
+    cut    v2  2020-07-20  PASS
+    cut    v2  2020-08-17  PASS
+    cut    v2  2020-09-14  PASS
+    cut    v2  2020-10-13  PASS
+    cut    v2  2020-11-10  PASS
+    cut    v2  2020-12-09  PASS
+    cut    v2  2021-01-07  PASS
+    cut    v2  2021-02-05  PASS
+    cut    v2  2021-03-05  PASS
+    cut    v2  2021-04-07  PASS
+    cut    v2  2021-05-07  PASS
+    cut    v2  2021-06-07  PASS
+    cut    v2  2021-07-05  PASS
+    cut    v2  2021-08-03  PASS
+    cut    v2  2021-09-01  PASS
+    cut    v2  2021-09-30  PASS
+    cut    v2  2021-10-29  PASS
+    cut    v2  2021-11-30  PASS
+    cut    v2  2021-12-28  PASS
+    cut    v2  2022-01-25  PASS
+    cut    v2  2022-02-23  PASS
+    cut    v2  2022-03-25  PASS
+    cut    v2  2022-04-26  PASS
+    cut    v2  2022-05-25  PASS
+    cut    v2  2022-06-22  PASS
+    cut    v2  2022-07-20  PASS
+    cut    v2  2022-08-19  PASS
+    cut    v2  2022-09-19  PASS
+    cut    v2  2022-10-18  PASS
+    cut    v2  2022-11-17  PASS
+    cut    v2  2022-12-15  PASS
+    cut    v2  fills, holdings and valuation to 2022-12-30  PASS
+    cut    v2  50 of 50 decision dates on or before 2022-12-30 identical
+    cut    v3  2019-01-01  PASS
+    cut    v3  2019-01-29  PASS
+    cut    v3  2019-02-26  PASS
+    cut    v3  2019-03-28  PASS
+    cut    v3  2019-04-30  PASS
+    cut    v3  2019-05-29  PASS
+    cut    v3  2019-06-27  PASS
+    cut    v3  2019-07-25  PASS
+    cut    v3  2019-08-26  PASS
+    cut    v3  2019-09-25  PASS
+    cut    v3  2019-10-27  PASS
+    cut    v3  2019-11-26  PASS
+    cut    v3  2019-12-24  PASS
+    cut    v3  2020-01-23  PASS
+    cut    v3  2020-02-19  PASS
+    cut    v3  2020-03-20  PASS
+    cut    v3  2020-04-23  PASS
+    cut    v3  2020-05-22  PASS
+    cut    v3  2020-06-22  PASS
+    cut    v3  2020-07-20  PASS
+    cut    v3  2020-08-17  PASS
+    cut    v3  2020-09-14  PASS
+    cut    v3  2020-10-13  PASS
+    cut    v3  2020-11-10  PASS
+    cut    v3  2020-12-09  PASS
+    cut    v3  2021-01-07  PASS
+    cut    v3  2021-02-05  PASS
+    cut    v3  2021-03-05  PASS
+    cut    v3  2021-04-07  PASS
+    cut    v3  2021-05-07  PASS
+    cut    v3  2021-06-07  PASS
+    cut    v3  2021-07-05  PASS
+    cut    v3  2021-08-03  PASS
+    cut    v3  2021-09-01  PASS
+    cut    v3  2021-09-30  PASS
+    cut    v3  2021-10-29  PASS
+    cut    v3  2021-11-30  PASS
+    cut    v3  2021-12-28  PASS
+    cut    v3  2022-01-25  PASS
+    cut    v3  2022-02-23  PASS
+    cut    v3  2022-03-25  PASS
+    cut    v3  2022-04-26  PASS
+    cut    v3  2022-05-25  PASS
+    cut    v3  2022-06-22  PASS
+    cut    v3  2022-07-20  PASS
+    cut    v3  2022-08-19  PASS
+    cut    v3  2022-09-19  PASS
+    cut    v3  2022-10-18  PASS
+    cut    v3  2022-11-17  PASS
+    cut    v3  2022-12-15  PASS
+    cut    v3  fills, holdings and valuation to 2022-12-30  PASS
+    cut    v3  50 of 50 decision dates on or before 2022-12-30 identical
+    cut    v4  2019-01-01  PASS
+    cut    v4  2019-01-29  PASS
+    cut    v4  2019-02-26  PASS
+    cut    v4  2019-03-28  PASS
+    cut    v4  2019-04-30  PASS
+    cut    v4  2019-05-29  PASS
+    cut    v4  2019-06-27  PASS
+    cut    v4  2019-07-25  PASS
+    cut    v4  2019-08-26  PASS
+    cut    v4  2019-09-25  PASS
+    cut    v4  2019-10-27  PASS
+    cut    v4  2019-11-26  PASS
+    cut    v4  2019-12-24  PASS
+    cut    v4  2020-01-23  PASS
+    cut    v4  2020-02-19  PASS
+    cut    v4  2020-03-20  PASS
+    cut    v4  2020-04-23  PASS
+    cut    v4  2020-05-22  PASS
+    cut    v4  2020-06-22  PASS
+    cut    v4  2020-07-20  PASS
+    cut    v4  2020-08-17  PASS
+    cut    v4  2020-09-14  PASS
+    cut    v4  2020-10-13  PASS
+    cut    v4  2020-11-10  PASS
+    cut    v4  2020-12-09  PASS
+    cut    v4  2021-01-07  PASS
+    cut    v4  2021-02-05  PASS
+    cut    v4  2021-03-05  PASS
+    cut    v4  2021-04-07  PASS
+    cut    v4  2021-05-07  PASS
+    cut    v4  2021-06-07  PASS
+    cut    v4  2021-07-05  PASS
+    cut    v4  2021-08-03  PASS
+    cut    v4  2021-09-01  PASS
+    cut    v4  2021-09-30  PASS
+    cut    v4  2021-10-29  PASS
+    cut    v4  2021-11-30  PASS
+    cut    v4  2021-12-28  PASS
+    cut    v4  2022-01-25  PASS
+    cut    v4  2022-02-23  PASS
+    cut    v4  2022-03-25  PASS
+    cut    v4  2022-04-26  PASS
+    cut    v4  2022-05-25  PASS
+    cut    v4  2022-06-22  PASS
+    cut    v4  2022-07-20  PASS
+    cut    v4  2022-08-19  PASS
+    cut    v4  2022-09-19  PASS
+    cut    v4  2022-10-18  PASS
+    cut    v4  2022-11-17  PASS
+    cut    v4  2022-12-15  PASS
+    cut    v4  fills, holdings and valuation to 2022-12-30  PASS
+    cut    v4  50 of 50 decision dates on or before 2022-12-30 identical
+  ran noise  cut 2022-12-30  panel 3s  scores 277s  backtests 2s  total 285s
+    noise  all   every model score on every date to 2022-12-30 (78,262 scores)  PASS
+    noise  v1  2019-01-01  PASS
+    noise  v1  2019-01-29  PASS
+    noise  v1  2019-02-26  PASS
+    noise  v1  2019-03-28  PASS
+    noise  v1  2019-04-30  PASS
+    noise  v1  2019-05-29  PASS
+    noise  v1  2019-06-27  PASS
+    noise  v1  2019-07-25  PASS
+    noise  v1  2019-08-26  PASS
+    noise  v1  2019-09-25  PASS
+    noise  v1  2019-10-27  PASS
+    noise  v1  2019-11-26  PASS
+    noise  v1  2019-12-24  PASS
+    noise  v1  2020-01-23  PASS
+    noise  v1  2020-02-19  PASS
+    noise  v1  2020-03-20  PASS
+    noise  v1  2020-04-23  PASS
+    noise  v1  2020-05-22  PASS
+    noise  v1  2020-06-22  PASS
+    noise  v1  2020-07-20  PASS
+    noise  v1  2020-08-17  PASS
+    noise  v1  2020-09-14  PASS
+    noise  v1  2020-10-13  PASS
+    noise  v1  2020-11-10  PASS
+    noise  v1  2020-12-09  PASS
+    noise  v1  2021-01-07  PASS
+    noise  v1  2021-02-05  PASS
+    noise  v1  2021-03-05  PASS
+    noise  v1  2021-04-07  PASS
+    noise  v1  2021-05-07  PASS
+    noise  v1  2021-06-07  PASS
+    noise  v1  2021-07-05  PASS
+    noise  v1  2021-08-03  PASS
+    noise  v1  2021-09-01  PASS
+    noise  v1  2021-09-30  PASS
+    noise  v1  2021-10-29  PASS
+    noise  v1  2021-11-30  PASS
+    noise  v1  2021-12-28  PASS
+    noise  v1  2022-01-25  PASS
+    noise  v1  2022-02-23  PASS
+    noise  v1  2022-03-25  PASS
+    noise  v1  2022-04-26  PASS
+    noise  v1  2022-05-25  PASS
+    noise  v1  2022-06-22  PASS
+    noise  v1  2022-07-20  PASS
+    noise  v1  2022-08-19  PASS
+    noise  v1  2022-09-19  PASS
+    noise  v1  2022-10-18  PASS
+    noise  v1  2022-11-17  PASS
+    noise  v1  2022-12-15  PASS
+    noise  v1  fills, holdings and valuation to 2022-12-30  PASS
+    noise  v1  50 of 50 decision dates on or before 2022-12-30 identical
+    noise  v2  2019-01-01  PASS
+    noise  v2  2019-01-29  PASS
+    noise  v2  2019-02-26  PASS
+    noise  v2  2019-03-28  PASS
+    noise  v2  2019-04-30  PASS
+    noise  v2  2019-05-29  PASS
+    noise  v2  2019-06-27  PASS
+    noise  v2  2019-07-25  PASS
+    noise  v2  2019-08-26  PASS
+    noise  v2  2019-09-25  PASS
+    noise  v2  2019-10-27  PASS
+    noise  v2  2019-11-26  PASS
+    noise  v2  2019-12-24  PASS
+    noise  v2  2020-01-23  PASS
+    noise  v2  2020-02-19  PASS
+    noise  v2  2020-03-20  PASS
+    noise  v2  2020-04-23  PASS
+    noise  v2  2020-05-22  PASS
+    noise  v2  2020-06-22  PASS
+    noise  v2  2020-07-20  PASS
+    noise  v2  2020-08-17  PASS
+    noise  v2  2020-09-14  PASS
+    noise  v2  2020-10-13  PASS
+    noise  v2  2020-11-10  PASS
+    noise  v2  2020-12-09  PASS
+    noise  v2  2021-01-07  PASS
+    noise  v2  2021-02-05  PASS
+    noise  v2  2021-03-05  PASS
+    noise  v2  2021-04-07  PASS
+    noise  v2  2021-05-07  PASS
+    noise  v2  2021-06-07  PASS
+    noise  v2  2021-07-05  PASS
+    noise  v2  2021-08-03  PASS
+    noise  v2  2021-09-01  PASS
+    noise  v2  2021-09-30  PASS
+    noise  v2  2021-10-29  PASS
+    noise  v2  2021-11-30  PASS
+    noise  v2  2021-12-28  PASS
+    noise  v2  2022-01-25  PASS
+    noise  v2  2022-02-23  PASS
+    noise  v2  2022-03-25  PASS
+    noise  v2  2022-04-26  PASS
+    noise  v2  2022-05-25  PASS
+    noise  v2  2022-06-22  PASS
+    noise  v2  2022-07-20  PASS
+    noise  v2  2022-08-19  PASS
+    noise  v2  2022-09-19  PASS
+    noise  v2  2022-10-18  PASS
+    noise  v2  2022-11-17  PASS
+    noise  v2  2022-12-15  PASS
+    noise  v2  fills, holdings and valuation to 2022-12-30  PASS
+    noise  v2  50 of 50 decision dates on or before 2022-12-30 identical
+    noise  v3  2019-01-01  PASS
+    noise  v3  2019-01-29  PASS
+    noise  v3  2019-02-26  PASS
+    noise  v3  2019-03-28  PASS
+    noise  v3  2019-04-30  PASS
+    noise  v3  2019-05-29  PASS
+    noise  v3  2019-06-27  PASS
+    noise  v3  2019-07-25  PASS
+    noise  v3  2019-08-26  PASS
+    noise  v3  2019-09-25  PASS
+    noise  v3  2019-10-27  PASS
+    noise  v3  2019-11-26  PASS
+    noise  v3  2019-12-24  PASS
+    noise  v3  2020-01-23  PASS
+    noise  v3  2020-02-19  PASS
+    noise  v3  2020-03-20  PASS
+    noise  v3  2020-04-23  PASS
+    noise  v3  2020-05-22  PASS
+    noise  v3  2020-06-22  PASS
+    noise  v3  2020-07-20  PASS
+    noise  v3  2020-08-17  PASS
+    noise  v3  2020-09-14  PASS
+    noise  v3  2020-10-13  PASS
+    noise  v3  2020-11-10  PASS
+    noise  v3  2020-12-09  PASS
+    noise  v3  2021-01-07  PASS
+    noise  v3  2021-02-05  PASS
+    noise  v3  2021-03-05  PASS
+    noise  v3  2021-04-07  PASS
+    noise  v3  2021-05-07  PASS
+    noise  v3  2021-06-07  PASS
+    noise  v3  2021-07-05  PASS
+    noise  v3  2021-08-03  PASS
+    noise  v3  2021-09-01  PASS
+    noise  v3  2021-09-30  PASS
+    noise  v3  2021-10-29  PASS
+    noise  v3  2021-11-30  PASS
+    noise  v3  2021-12-28  PASS
+    noise  v3  2022-01-25  PASS
+    noise  v3  2022-02-23  PASS
+    noise  v3  2022-03-25  PASS
+    noise  v3  2022-04-26  PASS
+    noise  v3  2022-05-25  PASS
+    noise  v3  2022-06-22  PASS
+    noise  v3  2022-07-20  PASS
+    noise  v3  2022-08-19  PASS
+    noise  v3  2022-09-19  PASS
+    noise  v3  2022-10-18  PASS
+    noise  v3  2022-11-17  PASS
+    noise  v3  2022-12-15  PASS
+    noise  v3  fills, holdings and valuation to 2022-12-30  PASS
+    noise  v3  50 of 50 decision dates on or before 2022-12-30 identical
+    noise  v4  2019-01-01  PASS
+    noise  v4  2019-01-29  PASS
+    noise  v4  2019-02-26  PASS
+    noise  v4  2019-03-28  PASS
+    noise  v4  2019-04-30  PASS
+    noise  v4  2019-05-29  PASS
+    noise  v4  2019-06-27  PASS
+    noise  v4  2019-07-25  PASS
+    noise  v4  2019-08-26  PASS
+    noise  v4  2019-09-25  PASS
+    noise  v4  2019-10-27  PASS
+    noise  v4  2019-11-26  PASS
+    noise  v4  2019-12-24  PASS
+    noise  v4  2020-01-23  PASS
+    noise  v4  2020-02-19  PASS
+    noise  v4  2020-03-20  PASS
+    noise  v4  2020-04-23  PASS
+    noise  v4  2020-05-22  PASS
+    noise  v4  2020-06-22  PASS
+    noise  v4  2020-07-20  PASS
+    noise  v4  2020-08-17  PASS
+    noise  v4  2020-09-14  PASS
+    noise  v4  2020-10-13  PASS
+    noise  v4  2020-11-10  PASS
+    noise  v4  2020-12-09  PASS
+    noise  v4  2021-01-07  PASS
+    noise  v4  2021-02-05  PASS
+    noise  v4  2021-03-05  PASS
+    noise  v4  2021-04-07  PASS
+    noise  v4  2021-05-07  PASS
+    noise  v4  2021-06-07  PASS
+    noise  v4  2021-07-05  PASS
+    noise  v4  2021-08-03  PASS
+    noise  v4  2021-09-01  PASS
+    noise  v4  2021-09-30  PASS
+    noise  v4  2021-10-29  PASS
+    noise  v4  2021-11-30  PASS
+    noise  v4  2021-12-28  PASS
+    noise  v4  2022-01-25  PASS
+    noise  v4  2022-02-23  PASS
+    noise  v4  2022-03-25  PASS
+    noise  v4  2022-04-26  PASS
+    noise  v4  2022-05-25  PASS
+    noise  v4  2022-06-22  PASS
+    noise  v4  2022-07-20  PASS
+    noise  v4  2022-08-19  PASS
+    noise  v4  2022-09-19  PASS
+    noise  v4  2022-10-18  PASS
+    noise  v4  2022-11-17  PASS
+    noise  v4  2022-12-15  PASS
+    noise  v4  fills, holdings and valuation to 2022-12-30  PASS
+    noise  v4  50 of 50 decision dates on or before 2022-12-30 identical
+
+RESULT: PASS  -- universe nifty50, mode static, control none
