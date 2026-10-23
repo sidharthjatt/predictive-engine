@@ -1572,11 +1572,12 @@ def gate_data_source(res, sel):
             # A PIT ARTEFACT was built from the universe's point-in-time variant, so
             # it is checked against that variant's data: the with-survivorship
             # folder and the pit farm. "_pit" is followed only by the axes after it:
-            # drawdown limit, capital, impact, participation cap, fixed capital
-            # ("v34_params_v3_tax_pit_dd20_cap5000000_impact0p003_pcap0p1_fixed");
+            # drawdown limit, capital, impact, participation cap, fixed capital, start
+            # ("v34_params_v3_tax_pit_dd20_cap5000000_impact0p003_pcap0p1_fixed_s20091214");
             # testing endswith("_pit") checked those against the static data.
             pit = re.search(r"_pit(_dd[0-9p]+(m[0-9p]+)?(f[0-9p]+)?)?(_cap[0-9]+)?"
-                            r"(_impact[0-9p]+)?(_pcap[0-9p]+)?(_fixed)?$", f.stem) is not None
+                            r"(_impact[0-9p]+)?(_pcap[0-9p]+)?(_fixed)?(_s[0-9]{8})?$",
+                            f.stem) is not None
             if (t, pit) not in live:
                 from universes.registry import pit_variant
                 uu = pit_variant(u) if pit else u
