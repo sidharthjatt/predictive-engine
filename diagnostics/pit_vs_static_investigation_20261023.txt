@@ -1,0 +1,857 @@
+Why pit beats static on nifty500 and smallcap250 v3/v4 (W1, tax off). Read-only, 2026-10-23.
+Inputs: the W1 tax-off run folders named in each section; data/raw membership and price files.
+Nothing was rerun and no code was changed. Sections 1-3 answer the three questions,
+section 2 for nifty500 static v1 is question 4, sections 5-6 measure where the gap comes from.
+
+HOW THE NUMBERS ARE MADE
+- Listed membership: survivorship.load, the `symbols` column of each row with RENAMES, the
+  row in force on a date being the latest effective_date on or before it; this is exactly
+  what member_mask uses.
+- Actual entry: rebuilt from the supplier's events. The earliest row's `symbols`, then each
+  later row adds its `inclusions` and removes its `exclusions` (RENAMES applied).
+- "Treated as a member before it entered": a (session, symbol) pair in the listed set but not
+  in the event set, where the symbol has an inclusion on a later date.
+- P&L by symbol: the run's daily_trades (sells net of charges minus buys with charges) plus
+  the value held on the last day. It sums to the run's equity change exactly.
+- Holding periods: from the fills, a period opens when the position goes from 0 to positive
+  and closes when it returns to 0.
+- One-day moves: the run's own daily_holdings close on consecutive sessions held.
+
+=== 1. MEMBERSHIP LOOK-AHEAD, nifty500 pit (Nifty500_membership.csv)
+  rows 80, 2009-01-12 to 2026-09-09. member_mask uses the `symbols` column of the row in force (latest effective_date on or before the date), RENAMES applied; before 2009-01-12 the first row's list.
+  'actually entered' is rebuilt from the supplier's events: the first row's `symbols`, then each later row adds its `inclusions` and removes its `exclusions` (RENAMES applied).
+  (row, symbol) pairs listed but not yet entered, with a later inclusion: 3; listed with no event and no later inclusion: 1,248; entered by the events but not listed: 4,784
+  (session, symbol) member pairs where a symbol is treated as a member before it actually entered: 125 from 2009-01-12 to 2026-05-29, 125 of them in the window 2019-01-01 to 2026-05-29
+  1 symbols are listed early. Per symbol: first listed, first in the event-built membership, first inclusion after first listing, early sessions:
+    GMRAIRPORT     listed 2009-01-12  entered 2009-01-12  first inclusion 2022-05-04  early sessions 125
+
+=== 1. MEMBERSHIP LOOK-AHEAD, smallcap250 pit (SmallCap250_membership.csv)
+  rows 50, 2016-04-29 to 2026-09-09. member_mask uses the `symbols` column of the row in force (latest effective_date on or before the date), RENAMES applied; before 2016-04-29 the first row's list.
+  'actually entered' is rebuilt from the supplier's events: the first row's `symbols`, then each later row adds its `inclusions` and removes its `exclusions` (RENAMES applied).
+  (row, symbol) pairs listed but not yet entered, with a later inclusion: 25; listed with no event and no later inclusion: 708; entered by the events but not listed: 3,524
+  (session, symbol) member pairs where a symbol is treated as a member before it actually entered: 1,486 from 2016-04-29 to 2026-05-29, 1,486 of them in the window 2019-01-01 to 2026-05-29
+  4 symbols are listed early. Per symbol: first listed, first in the event-built membership, first inclusion after first listing, early sessions:
+    ZYDUSWELL      listed 2016-04-29  entered 2016-04-29  first inclusion 2018-09-28  early sessions 994
+    IDBI           listed 2016-04-29  entered 2016-04-29  first inclusion 2021-09-30  early sessions 374
+    RELINFRA       listed 2016-04-29  entered 2016-04-29  first inclusion 2025-09-23  early sessions 59
+    SUNCLAYLTD     listed 2019-04-15  entered 2019-04-15  first inclusion 2021-03-31  early sessions 59
+
+=== 2. P&L BY SYMBOL, nifty500 pit v1 (runs/20261023T160321_nifty500_all_r20_pit)
+  sum of symbol P&L Rs 27,467,750; the run's equity (daily_summary total) from Rs 1,000,000 to Rs 28,467,750, change Rs 27,467,750 (the gap is the first day's charges and rounding: symbol P&L is net of every charge)
+  P&L from holding periods held while the symbol was listed before it actually entered: Rs 0 = 0.0% of total P&L
+  top 20 contributors (P&L Rs, share of total, in the static universe?, holding periods):
+    TATAINVEST     Rs     2,501,147    9.1%  static: yes  periods 7
+        2019-01-30 -> 2019-02-27  Rs          716  
+        2019-09-26 -> 2019-11-27  Rs       -1,084  
+        2022-08-22 -> 2022-10-19  Rs      676,206  
+        2022-11-18 -> 2023-01-13  Rs      -26,222  
+        2024-03-01 -> 2024-04-02  Rs     -174,987  
+        2025-05-21 -> 2025-06-18  Rs      245,357  
+        2025-09-12 -> 2025-10-13  Rs    1,781,160  
+    GVT&D          Rs     2,389,055    8.7%  static: yes  periods 5
+        2020-05-26 -> 2020-06-23  Rs       31,699  
+        2023-11-07 -> 2024-02-02  Rs    1,190,376  
+        2024-04-02 -> 2024-07-30  Rs    1,636,166  
+        2024-09-25 -> 2024-10-24  Rs      369,701  
+        2025-01-21 -> 2025-02-17  Rs     -838,887  
+    JSWHL          Rs     1,804,920    6.6%  static: NO   periods 5
+        2019-02-27 -> 2019-06-28  Rs       18,591  
+        2021-01-08 -> 2021-03-08  Rs        5,236  
+        2024-10-24 -> 2024-11-25  Rs    1,701,191  
+        2025-01-21 -> 2025-04-22  Rs      690,122  
+        2025-05-21 -> 2025-09-12  Rs     -610,220  
+    ABREL          Rs     1,725,644    6.3%  static: yes  periods 8
+        2021-06-08 -> 2021-07-06  Rs      118,638  
+        2021-10-01 -> 2022-02-24  Rs      -75,771  
+        2022-06-23 -> 2022-08-22  Rs      124,732  
+        2023-09-07 -> 2023-11-07  Rs      -11,507  
+        2023-12-06 -> 2024-02-02  Rs      282,359  
+        2024-03-01 -> 2024-05-03  Rs      887,681  
+        2024-05-31 -> 2024-07-01  Rs      209,123  
+        2024-07-30 -> 2024-08-28  Rs      190,388  
+    GODFRYPHLP     Rs     1,548,975    5.6%  static: yes  periods 8
+        2019-01-30 -> 2019-02-27  Rs       -7,246  
+        2019-03-29 -> 2019-06-28  Rs      -21,470  
+        2020-01-24 -> 2020-02-20  Rs       -6,585  
+        2021-09-02 -> 2021-10-01  Rs      133,081  
+        2022-06-23 -> 2022-09-20  Rs       86,039  
+        2022-11-18 -> 2023-05-16  Rs     -104,241  
+        2024-07-01 -> 2024-09-25  Rs    1,998,052  
+        2024-12-23 -> 2025-01-21  Rs     -528,656  
+    WOCKPHARMA     Rs     1,537,762    5.6%  static: yes  periods 1
+        2024-07-30 -> 2024-12-23  Rs    1,537,762  
+    NEWGEN         Rs     1,270,319    4.6%  static: yes  periods 6
+        2019-02-27 -> 2019-03-29  Rs       10,077  
+        2019-05-02 -> 2019-05-30  Rs         -387  
+        2020-12-10 -> 2021-01-08  Rs       15,306  
+        2021-08-04 -> 2021-09-02  Rs      -18,179  
+        2023-05-16 -> 2023-08-09  Rs      573,005  
+        2023-11-07 -> 2024-03-01  Rs      690,496  
+    GPIL           Rs     1,264,911    4.6%  static: yes  periods 8
+        2019-01-30 -> 2019-02-27  Rs       16,756  
+        2020-08-18 -> 2020-11-11  Rs       21,588  
+        2020-12-10 -> 2021-01-08  Rs       31,260  
+        2021-03-08 -> 2021-08-04  Rs      467,468  
+        2023-08-09 -> 2023-09-07  Rs      145,405  
+        2023-10-09 -> 2023-12-06  Rs      383,289  
+        2024-02-02 -> 2024-03-01  Rs       22,743  
+        2024-07-01 -> 2024-07-30  Rs      176,401  
+    TTML           Rs     1,016,642    3.7%  static: yes  periods 2
+        2021-10-01 -> 2021-12-01  Rs      807,312  
+        2022-02-24 -> 2022-03-28  Rs      209,330  
+    ECLERX         Rs       789,168    2.9%  static: yes  periods 8
+        2020-10-14 -> 2020-12-10  Rs       17,205  
+        2021-05-10 -> 2021-11-01  Rs      302,229  
+        2021-12-01 -> 2021-12-29  Rs      104,008  
+        2023-11-07 -> 2024-01-04  Rs      562,664  
+        2024-11-25 -> 2025-01-21  Rs     -100,076  
+        2025-03-19 -> 2025-04-22  Rs     -175,185  
+        2025-11-12 -> 2026-02-06  Rs       32,409  
+        2026-03-09 -> 2026-04-09  Rs       45,913  
+    KALYANKJIL     Rs       778,612    2.8%  static: yes  periods 1
+        2024-05-03 -> 2024-07-01  Rs      778,612  
+    GALLANTT       Rs       757,869    2.8%  static: yes  periods 1
+        2026-04-09 -> 2026-05-11  Rs      757,869  
+    JSWENERGY      Rs       742,815    2.7%  static: yes  periods 2
+        2021-08-04 -> 2021-09-02  Rs       20,705  
+        2025-02-17 -> 2025-03-19  Rs      722,110  
+    TRENT          Rs       736,285    2.7%  static: yes  periods 3
+        2024-03-01 -> 2024-05-03  Rs      395,956  
+        2024-08-28 -> 2024-09-25  Rs      337,384  
+        2024-11-25 -> 2024-12-23  Rs        2,946  
+    KAJARIACER     Rs       719,407    2.6%  static: yes  periods 1
+        2025-04-22 -> 2025-05-21  Rs      719,407  
+    SARDAEN        Rs       671,097    2.4%  static: yes  periods 11
+        2020-09-15 -> 2020-10-14  Rs      -20,985  
+        2020-12-10 -> 2021-02-08  Rs       22,454  
+        2021-09-02 -> 2021-10-01  Rs      -10,660  
+        2021-12-01 -> 2022-01-27  Rs       11,183  
+        2022-03-28 -> 2022-05-26  Rs     -143,912  
+        2023-01-13 -> 2023-02-13  Rs       36,982  
+        2023-06-13 -> 2023-09-07  Rs      775,747  
+        2023-10-09 -> 2023-11-07  Rs      -28,406  
+        2024-01-04 -> 2024-02-02  Rs      -32,727  
+        2024-10-24 -> 2024-12-23  Rs      -51,377  
+        2025-08-13 -> 2025-09-12  Rs      112,798  
+    ASTRAZEN       Rs       667,121    2.4%  static: NO   periods 1
+        2025-05-21 -> 2025-07-16  Rs      667,121  
+    CUB            Rs       662,542    2.4%  static: yes  periods 1
+        2025-03-19 -> 2025-04-22  Rs      662,542  
+    INGERRAND      Rs       646,542    2.4%  static: NO   periods 3
+        2021-12-29 -> 2022-01-27  Rs      162,802  
+        2022-06-23 -> 2022-07-21  Rs      198,890  
+        2022-08-22 -> 2022-10-19  Rs      284,850  
+    COCHINSHIP     Rs       635,588    2.3%  static: yes  periods 1
+        2023-08-09 -> 2023-10-09  Rs      635,588  
+  top 20 together: Rs 22,866,420 = 83.2% of total P&L; 3 of the 20 are not in the static universe
+
+=== 3. LARGEST ONE-DAY MOVES WHILE HELD, top 20 of nifty500 pit v1
+  move = the run's own close-to-close change in daily_holdings price on consecutive sessions held; raw = the supplier file's close and adj_close on that day and the day before
+    TATAINVEST     2022-09-14    +20.0%   raw close +8.3%, adj_close +20.0%, next day adj +2.5%, volume x4.0  <- close and adj_close disagree by more than 5 points: an adjustment day
+    TATAINVEST     2025-09-30    +16.9%   raw close +10.0%, adj_close +16.9%, next day adj +2.4%, volume x1.0  <- close and adj_close disagree by more than 5 points: an adjustment day
+    TATAINVEST     2025-09-23    +11.8%   raw close +10.0%, adj_close +11.8%, next day adj +8.8%, volume x7.0
+    GVT&D          2024-07-19     -5.0%   raw close -5.0%, adj_close -5.0%, next day adj -4.1%, volume x1.4
+    GVT&D          2024-05-17     +5.0%   raw close +5.0%, adj_close +5.0%, next day adj +5.0%, volume x1.0
+    GVT&D          2023-12-20     -5.0%   raw close -5.0%, adj_close -5.0%, next day adj +1.5%, volume x0.4
+    JSWHL          2024-11-08    +18.3%   raw close +13.0%, adj_close +18.3%, next day adj +10.0%, volume x2.2  <- close and adj_close disagree by more than 5 points: an adjustment day
+    JSWHL          2024-11-07    +16.6%   raw close +13.0%, adj_close +16.6%, next day adj +18.3%, volume x2.7
+    JSWHL          2024-11-06    +12.6%   raw close +12.6%, adj_close +12.6%, next day adj +16.6%, volume x4.8
+    ABREL          2024-06-06    +14.3%   raw close +12.5%, adj_close +14.3%, next day adj +0.7%, volume x2.6
+    ABREL          2024-01-04    +12.2%   raw close +12.2%, adj_close +12.2%, next day adj +1.1%, volume x1.0
+    ABREL          2024-06-04    -10.3%   raw close -10.3%, adj_close -10.3%, next day adj -2.9%, volume x2.2
+    GODFRYPHLP     2024-07-15    +16.7%   raw close +11.8%, adj_close +16.7%, next day adj -6.2%, volume x28.5
+    GODFRYPHLP     2024-08-19    +16.3%   raw close +11.6%, adj_close +16.3%, next day adj +10.9%, volume x4.0
+    GODFRYPHLP     2024-09-06    +12.7%   raw close +11.6%, adj_close +12.7%, next day adj -5.0%, volume x6.5
+    WOCKPHARMA     2024-12-16     +9.6%   raw close +9.6%, adj_close +9.6%, next day adj -3.2%, volume x6.1
+    WOCKPHARMA     2024-11-07     -5.0%   raw close -5.0%, adj_close -5.0%, next day adj +2.5%, volume x0.9
+    WOCKPHARMA     2024-09-06     -5.0%   raw close -5.0%, adj_close -5.0%, next day adj -2.3%, volume x1.4
+    NEWGEN         2023-07-20    +11.9%   raw close +11.6%, adj_close +11.9%, next day adj +3.6%, volume x1.4
+    NEWGEN         2019-03-20    +10.5%   raw close +10.5%, adj_close +10.5%, next day adj -4.9%, volume x54.7
+    NEWGEN         2024-02-29     +7.6%   raw close +7.6%, adj_close +7.6%, next day adj -1.8%, volume x3.7
+    GPIL           2021-06-14    +19.6%   raw close +13.4%, adj_close +19.6%, next day adj -4.8%, volume x2.0  <- close and adj_close disagree by more than 5 points: an adjustment day
+    GPIL           2021-06-11    +13.5%   raw close +13.4%, adj_close +13.5%, next day adj +19.6%, volume x1.0
+    GPIL           2021-03-15    +12.2%   raw close +12.2%, adj_close +12.2%, next day adj -1.0%, volume x9.1
+    TTML           2021-10-18     +5.0%   raw close +5.0%, adj_close +5.0%, next day adj +0.6%, volume x3.5
+    TTML           2022-03-24     +5.0%   raw close +5.0%, adj_close +5.0%, next day adj +5.0%, volume x1.5
+    TTML           2022-02-28     +5.0%   raw close +5.0%, adj_close +5.0%, next day adj -3.3%, volume x4.9
+    ECLERX         2021-06-11    +20.0%   raw close +17.1%, adj_close +20.0%, next day adj +9.4%, volume x12.4
+    ECLERX         2023-11-22    +12.4%   raw close +10.7%, adj_close +12.4%, next day adj +0.9%, volume x12.1
+    ECLERX         2020-12-03     +9.6%   raw close +9.6%, adj_close +9.6%, next day adj -0.6%, volume x55.9
+    KALYANKJIL     2024-06-05     +6.3%   raw close +6.3%, adj_close +6.3%, next day adj -0.7%, volume x2.0
+    KALYANKJIL     2024-06-18     +5.9%   raw close +5.9%, adj_close +5.9%, next day adj -0.1%, volume x3.9
+    KALYANKJIL     2024-06-28     +5.2%   raw close +5.2%, adj_close +5.2%, next day adj -0.7%, volume x2.2
+    GALLANTT       2026-04-16    +17.3%   raw close +13.9%, adj_close +17.3%, next day adj -7.9%, volume x1.0
+    GALLANTT       2026-04-15    +16.4%   raw close +13.9%, adj_close +16.4%, next day adj +17.3%, volume x2.3
+    GALLANTT       2026-04-17     -7.9%   raw close -3.0%, adj_close -7.9%, next day adj +1.8%, volume x1.0
+    JSWENERGY      2025-02-21     +6.0%   raw close +6.0%, adj_close +6.0%, next day adj -3.4%, volume x2.4
+    JSWENERGY      2025-03-05     +5.8%   raw close +5.8%, adj_close +5.8%, next day adj -1.9%, volume x1.6
+    JSWENERGY      2021-08-26     +5.0%   raw close +5.0%, adj_close +5.0%, next day adj +4.7%, volume x0.5
+    TRENT          2024-05-02     +5.8%   raw close +5.8%, adj_close +5.8%, next day adj -2.6%, volume x0.6
+    TRENT          2024-12-20     -3.7%   raw close -3.7%, adj_close -3.7%, next day adj +1.7%, volume x1.2
+    TRENT          2024-03-14     +3.5%   raw close +3.5%, adj_close +3.5%, next day adj -0.4%, volume x0.7
+    KAJARIACER     2025-05-15     +7.5%   raw close +7.5%, adj_close +7.5%, next day adj +1.8%, volume x1.3
+    KAJARIACER     2025-05-07     +3.7%   raw close +3.7%, adj_close +3.7%, next day adj +0.0%, volume x1.4
+    KAJARIACER     2025-05-19     +3.5%   raw close +3.5%, adj_close +3.5%, next day adj -1.5%, volume x1.6
+    SARDAEN        2022-05-23    -20.0%   raw close -12.5%, adj_close -20.0%, next day adj +1.8%, volume x10.7  <- close and adj_close disagree by more than 5 points: an adjustment day
+    SARDAEN        2021-01-04    +10.7%   raw close +10.7%, adj_close +10.7%, next day adj +1.8%, volume x2.1
+    SARDAEN        2020-09-24    -10.4%   raw close -10.4%, adj_close -10.4%, next day adj +9.7%, volume x8.9
+    ASTRAZEN       2025-06-02    +17.1%   raw close +10.3%, adj_close +17.1%, next day adj +0.0%, volume x26.4  <- close and adj_close disagree by more than 5 points: an adjustment day
+    ASTRAZEN       2025-06-20     -5.7%   raw close -5.7%, adj_close -5.7%, next day adj +0.1%, volume x3.2
+    ASTRAZEN       2025-06-05     +4.1%   raw close +4.1%, adj_close +4.1%, next day adj -1.0%, volume x0.7
+    CUB            2025-04-11     +4.5%   raw close +4.5%, adj_close +4.5%, next day adj +1.3%, volume x1.4
+    CUB            2025-03-27     -3.0%   raw close -3.0%, adj_close -3.0%, next day adj +2.0%, volume x3.5
+    CUB            2025-04-17     +3.0%   raw close +3.0%, adj_close +3.0%, next day adj +0.8%, volume x3.0
+    INGERRAND      2022-07-15     +7.9%   raw close +7.9%, adj_close +7.9%, next day adj +1.6%, volume x32.0
+    INGERRAND      2022-10-18     +6.7%   raw close +6.7%, adj_close +6.7%, next day adj +1.2%, volume x5.5
+    INGERRAND      2022-09-30     +6.1%   raw close +6.1%, adj_close +6.1%, next day adj -4.6%, volume x3.2
+    COCHINSHIP     2023-09-07    +20.0%   raw close +10.4%, adj_close +20.0%, next day adj +5.5%, volume x4.2  <- close and adj_close disagree by more than 5 points: an adjustment day
+    COCHINSHIP     2023-08-16    +17.4%   raw close +10.4%, adj_close +17.4%, next day adj +8.4%, volume x4.9  <- close and adj_close disagree by more than 5 points: an adjustment day
+    COCHINSHIP     2023-09-12    -11.5%   raw close -10.1%, adj_close -11.5%, next day adj +2.0%, volume x1.5
+  flagged: 8
+    ('TATAINVEST', datetime.date(2022, 9, 14), np.float64(20.0), 'close and adj_close disagree by more than 5 points: an adjustment day')
+    ('TATAINVEST', datetime.date(2025, 9, 30), np.float64(16.9), 'close and adj_close disagree by more than 5 points: an adjustment day')
+    ('JSWHL', datetime.date(2024, 11, 8), np.float64(18.3), 'close and adj_close disagree by more than 5 points: an adjustment day')
+    ('GPIL', datetime.date(2021, 6, 14), np.float64(19.6), 'close and adj_close disagree by more than 5 points: an adjustment day')
+    ('SARDAEN', datetime.date(2022, 5, 23), np.float64(-20.0), 'close and adj_close disagree by more than 5 points: an adjustment day')
+    ('ASTRAZEN', datetime.date(2025, 6, 2), np.float64(17.1), 'close and adj_close disagree by more than 5 points: an adjustment day')
+    ('COCHINSHIP', datetime.date(2023, 9, 7), np.float64(20.0), 'close and adj_close disagree by more than 5 points: an adjustment day')
+    ('COCHINSHIP', datetime.date(2023, 8, 16), np.float64(17.4), 'close and adj_close disagree by more than 5 points: an adjustment day')
+
+=== 2. P&L BY SYMBOL, nifty500 pit v3 (runs/20261023T160321_nifty500_all_r20_pit)
+  sum of symbol P&L Rs 31,533,876; the run's equity (daily_summary total) from Rs 1,000,000 to Rs 32,533,876, change Rs 31,533,876 (the gap is the first day's charges and rounding: symbol P&L is net of every charge)
+  P&L from holding periods held while the symbol was listed before it actually entered: Rs 0 = 0.0% of total P&L
+  top 20 contributors (P&L Rs, share of total, in the static universe?, holding periods):
+    WOCKPHARMA     Rs     2,750,716    8.7%  static: yes  periods 1
+        2024-07-30 -> 2024-12-23  Rs    2,750,716  
+    GVT&D          Rs     2,295,745    7.3%  static: yes  periods 6
+        2020-05-26 -> 2020-06-23  Rs       19,970  
+        2023-05-16 -> 2023-06-13  Rs      -11,373  
+        2023-12-06 -> 2024-02-02  Rs    1,426,313  
+        2024-04-02 -> 2024-07-30  Rs    1,997,568  
+        2024-09-25 -> 2024-10-24  Rs      539,803  
+        2024-12-23 -> 2025-02-17  Rs   -1,676,535  
+    NEWGEN         Rs     2,132,536    6.8%  static: yes  periods 6
+        2019-02-27 -> 2019-03-29  Rs        4,516  
+        2020-12-10 -> 2021-01-08  Rs       13,113  
+        2021-08-04 -> 2021-09-02  Rs      -34,218  
+        2022-07-21 -> 2022-08-22  Rs      163,944  
+        2023-05-16 -> 2023-08-09  Rs      724,468  
+        2023-11-07 -> 2024-03-01  Rs    1,260,713  
+    TTML           Rs     2,087,826    6.6%  static: yes  periods 2
+        2021-10-01 -> 2021-12-01  Rs    1,516,026  
+        2022-02-24 -> 2022-03-28  Rs      571,800  
+    JSWHL          Rs     2,046,135    6.5%  static: NO   periods 5
+        2019-02-27 -> 2019-06-28  Rs       38,942  
+        2021-01-08 -> 2021-03-08  Rs        5,017  
+        2023-08-09 -> 2023-09-07  Rs      -12,206  
+        2025-01-21 -> 2025-04-22  Rs    2,974,718  
+        2025-05-21 -> 2025-09-12  Rs     -960,336  
+    ABREL          Rs     2,016,994    6.4%  static: yes  periods 9
+        2021-06-08 -> 2021-07-06  Rs       72,019  
+        2021-10-01 -> 2022-02-24  Rs     -115,085  
+        2022-07-21 -> 2022-08-22  Rs      121,886  
+        2022-09-20 -> 2022-11-18  Rs     -136,452  
+        2023-09-07 -> 2023-11-07  Rs      -14,976  
+        2024-01-04 -> 2024-02-02  Rs      438,850  
+        2024-03-01 -> 2024-05-03  Rs    1,107,535  
+        2024-05-31 -> 2024-07-01  Rs      243,169  
+        2024-07-30 -> 2024-08-28  Rs      300,049  
+    GODFRYPHLP     Rs     1,635,479    5.2%  static: yes  periods 8
+        2019-01-30 -> 2019-02-27  Rs       -6,129  
+        2019-03-29 -> 2019-06-28  Rs      -42,825  
+        2020-01-24 -> 2020-02-20  Rs       -9,354  
+        2021-09-02 -> 2021-10-01  Rs       52,534  
+        2022-06-23 -> 2022-09-20  Rs      107,702  
+        2022-11-18 -> 2023-05-16  Rs     -107,517  
+        2024-07-01 -> 2024-09-25  Rs    2,489,329  
+        2024-12-23 -> 2025-01-21  Rs     -848,262  
+    JINDALSAW      Rs     1,605,142    5.1%  static: yes  periods 5
+        2023-02-13 -> 2023-05-16  Rs      291,286  
+        2023-07-12 -> 2023-08-09  Rs      109,296  
+        2023-10-09 -> 2023-12-06  Rs    1,032,416  
+        2024-05-31 -> 2024-07-30  Rs      357,374  
+        2024-08-28 -> 2024-10-24  Rs     -185,231  
+    COCHINSHIP     Rs     1,144,405    3.6%  static: yes  periods 1
+        2023-08-09 -> 2023-10-09  Rs    1,144,405  
+    GPIL           Rs     1,058,644    3.4%  static: yes  periods 6
+        2019-01-30 -> 2019-02-27  Rs       42,969  
+        2020-08-18 -> 2020-11-11  Rs       31,305  
+        2020-12-10 -> 2021-01-08  Rs       20,847  
+        2021-03-08 -> 2021-08-04  Rs      481,546  
+        2023-08-09 -> 2023-09-07  Rs      176,777  
+        2023-10-09 -> 2023-12-06  Rs      305,199  
+    JWL            Rs     1,026,015    3.3%  static: yes  periods 2
+        2024-05-31 -> 2024-07-30  Rs      337,877  
+        2025-12-10 -> 2026-01-08  Rs      688,138  
+    MAZDOCK        Rs       977,116    3.1%  static: yes  periods 2
+        2024-02-02 -> 2024-03-01  Rs     -138,873  
+        2024-05-31 -> 2024-07-01  Rs    1,115,989  
+    SARDAEN        Rs       951,653    3.0%  static: yes  periods 10
+        2020-09-15 -> 2020-10-14  Rs      -19,354  
+        2020-12-10 -> 2021-02-08  Rs       30,264  
+        2021-09-02 -> 2021-10-01  Rs      -21,147  
+        2021-12-01 -> 2022-01-27  Rs       17,258  
+        2022-03-28 -> 2022-05-26  Rs     -295,382  
+        2023-01-13 -> 2023-02-13  Rs       32,990  
+        2023-06-13 -> 2023-09-07  Rs    1,036,471  
+        2024-01-04 -> 2024-02-02  Rs      -52,983  
+        2024-10-24 -> 2024-12-23  Rs      -88,944  
+        2025-08-13 -> 2025-09-12  Rs      312,480  
+    ANANDRATHI     Rs       891,134    2.8%  static: yes  periods 6
+        2024-04-02 -> 2024-08-28  Rs       63,551  
+        2024-09-25 -> 2025-02-17  Rs     -209,828  
+        2025-07-16 -> 2025-08-13  Rs      594,539  
+        2025-10-13 -> 2025-11-12  Rs      199,948  
+        2025-12-10 -> 2026-01-08  Rs      309,460  
+        2026-05-11 -> held at end  Rs      -66,536  
+    GODREJIND      Rs       873,841    2.8%  static: yes  periods 1
+        2025-04-22 -> 2025-06-18  Rs      873,841  
+    CHOLAHLDNG     Rs       787,111    2.5%  static: yes  periods 2
+        2023-06-13 -> 2023-12-06  Rs      382,615  
+        2025-05-21 -> 2025-06-18  Rs      404,496  
+    NEULANDLAB     Rs       774,170    2.5%  static: yes  periods 2
+        2023-12-06 -> 2024-01-04  Rs      291,579  
+        2024-08-28 -> 2024-10-24  Rs      482,591  
+    INGERRAND      Rs       768,992    2.4%  static: NO   periods 4
+        2021-12-29 -> 2022-01-27  Rs      243,030  
+        2022-02-24 -> 2022-04-27  Rs      147,731  
+        2022-06-23 -> 2022-07-21  Rs      147,841  
+        2022-08-22 -> 2022-10-19  Rs      230,390  
+    INOXWIND       Rs       756,926    2.4%  static: yes  periods 1
+        2026-04-09 -> 2026-05-11  Rs      756,926  
+    JSWENERGY      Rs       749,852    2.4%  static: yes  periods 1
+        2025-02-17 -> 2025-03-19  Rs      749,852  
+  top 20 together: Rs 27,330,433 = 86.7% of total P&L; 2 of the 20 are not in the static universe
+
+=== 3. LARGEST ONE-DAY MOVES WHILE HELD, top 20 of nifty500 pit v3
+  move = the run's own close-to-close change in daily_holdings price on consecutive sessions held; raw = the supplier file's close and adj_close on that day and the day before
+    WOCKPHARMA     2024-12-16     +9.6%   raw close +9.6%, adj_close +9.6%, next day adj -3.2%, volume x6.1
+    WOCKPHARMA     2024-11-07     -5.0%   raw close -5.0%, adj_close -5.0%, next day adj +2.5%, volume x0.9
+    WOCKPHARMA     2024-09-06     -5.0%   raw close -5.0%, adj_close -5.0%, next day adj -2.3%, volume x1.4
+    GVT&D          2023-05-18    +13.0%   raw close +11.0%, adj_close +13.0%, next day adj -1.8%, volume x6.3
+    GVT&D          2023-05-22     -5.9%   raw close -5.9%, adj_close -5.9%, next day adj -5.0%, volume x0.8
+    GVT&D          2023-06-07     +5.0%   raw close +5.0%, adj_close +5.0%, next day adj +5.0%, volume x0.5
+    NEWGEN         2023-07-20    +11.9%   raw close +11.6%, adj_close +11.9%, next day adj +3.6%, volume x1.4
+    NEWGEN         2022-08-12    +10.9%   raw close +10.9%, adj_close +10.9%, next day adj +2.3%, volume x1.1
+    NEWGEN         2019-03-20    +10.5%   raw close +10.5%, adj_close +10.5%, next day adj -4.9%, volume x54.7
+    TTML           2021-10-18     +5.0%   raw close +5.0%, adj_close +5.0%, next day adj +0.6%, volume x3.5
+    TTML           2022-03-24     +5.0%   raw close +5.0%, adj_close +5.0%, next day adj +5.0%, volume x1.5
+    TTML           2022-02-28     +5.0%   raw close +5.0%, adj_close +5.0%, next day adj -3.3%, volume x4.9
+    JSWHL          2021-02-15    +11.4%   raw close +11.4%, adj_close +11.4%, next day adj -3.1%, volume x6.3
+    JSWHL          2019-03-07     +6.9%   raw close +6.9%, adj_close +6.9%, next day adj -1.0%, volume x2.4
+    JSWHL          2025-03-25     -5.0%   raw close -5.0%, adj_close -5.0%, next day adj -5.0%, volume x1.4
+    ABREL          2024-06-06    +14.3%   raw close +12.5%, adj_close +14.3%, next day adj +0.7%, volume x2.6
+    ABREL          2024-06-04    -10.3%   raw close -10.3%, adj_close -10.3%, next day adj -2.9%, volume x2.2
+    ABREL          2021-12-22    +10.0%   raw close +10.0%, adj_close +10.0%, next day adj +0.7%, volume x1.0
+    GODFRYPHLP     2024-07-15    +16.7%   raw close +11.8%, adj_close +16.7%, next day adj -6.2%, volume x28.5
+    GODFRYPHLP     2024-08-19    +16.3%   raw close +11.6%, adj_close +16.3%, next day adj +10.9%, volume x4.0
+    GODFRYPHLP     2024-09-06    +12.7%   raw close +11.6%, adj_close +12.7%, next day adj -5.0%, volume x6.5
+    JINDALSAW      2024-06-04    -12.8%   raw close -12.5%, adj_close -12.8%, next day adj +6.2%, volume x4.6
+    JINDALSAW      2023-07-28    -12.4%   raw close -12.3%, adj_close -12.4%, next day adj -0.4%, volume x4.3
+    JINDALSAW      2023-07-17     +9.4%   raw close +9.4%, adj_close +9.4%, next day adj -1.1%, volume x5.5
+    COCHINSHIP     2023-09-07    +20.0%   raw close +10.4%, adj_close +20.0%, next day adj +5.5%, volume x4.2  <- close and adj_close disagree by more than 5 points: an adjustment day
+    COCHINSHIP     2023-08-16    +17.4%   raw close +10.4%, adj_close +17.4%, next day adj +8.4%, volume x4.9  <- close and adj_close disagree by more than 5 points: an adjustment day
+    COCHINSHIP     2023-09-12    -11.5%   raw close -10.1%, adj_close -11.5%, next day adj +2.0%, volume x1.5
+    GPIL           2021-06-14    +19.6%   raw close +13.4%, adj_close +19.6%, next day adj -4.8%, volume x2.0  <- close and adj_close disagree by more than 5 points: an adjustment day
+    GPIL           2021-06-11    +13.5%   raw close +13.4%, adj_close +13.5%, next day adj +19.6%, volume x1.0
+    GPIL           2021-03-15    +12.2%   raw close +12.2%, adj_close +12.2%, next day adj -1.0%, volume x9.1
+    JWL            2025-12-22    +19.4%   raw close +14.8%, adj_close +19.4%, next day adj +8.1%, volume x41.8
+    JWL            2024-06-04    -18.8%   raw close -14.6%, adj_close -18.8%, next day adj +3.1%, volume x0.7
+    JWL            2025-12-23     +8.1%   raw close +12.5%, adj_close +8.1%, next day adj +1.4%, volume x1.0
+    MAZDOCK        2024-06-04    -17.7%   raw close -12.2%, adj_close -17.7%, next day adj +4.4%, volume x2.1  <- close and adj_close disagree by more than 5 points: an adjustment day
+    MAZDOCK        2024-06-14    +14.3%   raw close +12.7%, adj_close +14.3%, next day adj +7.7%, volume x1.6
+    MAZDOCK        2024-06-06    +12.9%   raw close +12.7%, adj_close +12.9%, next day adj -0.3%, volume x0.9
+    SARDAEN        2022-05-23    -20.0%   raw close -12.5%, adj_close -20.0%, next day adj +1.8%, volume x10.7  <- close and adj_close disagree by more than 5 points: an adjustment day
+    SARDAEN        2021-01-04    +10.7%   raw close +10.7%, adj_close +10.7%, next day adj +1.8%, volume x2.1
+    SARDAEN        2020-09-24    -10.4%   raw close -10.4%, adj_close -10.4%, next day adj +9.7%, volume x8.9
+    ANANDRATHI     2024-04-09     +9.5%   raw close +9.5%, adj_close +9.5%, next day adj -4.4%, volume x0.7
+    ANANDRATHI     2025-10-14     +7.6%   raw close +7.6%, adj_close +7.6%, next day adj -0.8%, volume x38.8
+    ANANDRATHI     2024-06-04     -6.3%   raw close -6.3%, adj_close -6.3%, next day adj +4.0%, volume x8.2
+    GODREJIND      2025-06-06    +14.2%   raw close +11.5%, adj_close +14.2%, next day adj -0.2%, volume x73.1
+    GODREJIND      2025-05-15     -3.9%   raw close -3.9%, adj_close -3.9%, next day adj +1.5%, volume x1.4
+    GODREJIND      2025-05-12     +3.8%   raw close +3.8%, adj_close +3.8%, next day adj +1.8%, volume x1.0
+    CHOLAHLDNG     2025-06-06     +8.3%   raw close +8.2%, adj_close +8.3%, next day adj +2.5%, volume x3.5
+    CHOLAHLDNG     2023-07-31     +4.8%   raw close +4.8%, adj_close +4.8%, next day adj -0.9%, volume x3.9
+    CHOLAHLDNG     2023-12-01     +4.6%   raw close +4.6%, adj_close +4.6%, next day adj +3.7%, volume x0.1
+    NEULANDLAB     2024-10-11    +14.0%   raw close +13.1%, adj_close +14.0%, next day adj +0.1%, volume x5.8
+    NEULANDLAB     2024-10-15     +9.7%   raw close +9.7%, adj_close +9.7%, next day adj +3.9%, volume x2.6
+    NEULANDLAB     2024-10-18     -8.8%   raw close -8.8%, adj_close -8.8%, next day adj -3.3%, volume x1.5
+    INGERRAND      2022-03-14    +13.4%   raw close +9.2%, adj_close +13.4%, next day adj -2.2%, volume x55.1
+    INGERRAND      2022-07-15     +7.9%   raw close +7.9%, adj_close +7.9%, next day adj +1.6%, volume x32.0
+    INGERRAND      2022-04-20     +7.7%   raw close +7.7%, adj_close +7.7%, next day adj -2.9%, volume x3.4
+    INOXWIND       2026-04-15     +6.7%   raw close +6.7%, adj_close +6.7%, next day adj +2.1%, volume x1.5
+    INOXWIND       2026-04-22     +4.5%   raw close +4.5%, adj_close +4.5%, next day adj -2.6%, volume x1.3
+    INOXWIND       2026-04-27     +4.0%   raw close +4.0%, adj_close +4.0%, next day adj -1.0%, volume x1.7
+    JSWENERGY      2025-02-21     +6.0%   raw close +6.0%, adj_close +6.0%, next day adj -3.4%, volume x2.4
+    JSWENERGY      2025-03-05     +5.8%   raw close +5.8%, adj_close +5.8%, next day adj -1.9%, volume x1.6
+    JSWENERGY      2025-03-18     +3.9%   raw close +3.9%, adj_close +3.9%, next day adj +4.1%, volume x1.5
+  flagged: 5
+    ('COCHINSHIP', datetime.date(2023, 9, 7), np.float64(20.0), 'close and adj_close disagree by more than 5 points: an adjustment day')
+    ('COCHINSHIP', datetime.date(2023, 8, 16), np.float64(17.4), 'close and adj_close disagree by more than 5 points: an adjustment day')
+    ('GPIL', datetime.date(2021, 6, 14), np.float64(19.6), 'close and adj_close disagree by more than 5 points: an adjustment day')
+    ('MAZDOCK', datetime.date(2024, 6, 4), np.float64(-17.7), 'close and adj_close disagree by more than 5 points: an adjustment day')
+    ('SARDAEN', datetime.date(2022, 5, 23), np.float64(-20.0), 'close and adj_close disagree by more than 5 points: an adjustment day')
+
+=== 2. P&L BY SYMBOL, smallcap250 pit v3 (runs/20261023T153335_smallcap250_all_r20_pit)
+  sum of symbol P&L Rs 17,842,012; the run's equity (daily_summary total) from Rs 1,000,000 to Rs 18,842,012, change Rs 17,842,012 (the gap is the first day's charges and rounding: symbol P&L is net of every charge)
+  P&L from holding periods held while the symbol was listed before it actually entered: Rs 0 = 0.0% of total P&L
+  top 20 contributors (P&L Rs, share of total, in the static universe?, holding periods):
+    DBREALTY       Rs     2,170,357   12.2%  static: NO   periods 4
+        2019-06-28 -> 2019-09-26  Rs      -80,005  
+        2020-06-23 -> 2020-07-21  Rs      -23,039  
+        2021-11-01 -> 2022-03-28  Rs    1,328,276  
+        2022-08-22 -> 2023-01-13  Rs      945,125  
+    ABREL          Rs     2,000,564   11.2%  static: yes  periods 5
+        2021-06-08 -> 2022-03-28  Rs      226,972  
+        2022-04-27 -> 2022-10-19  Rs      -43,100  
+        2023-08-09 -> 2024-02-02  Rs      649,069  
+        2024-03-01 -> 2024-05-03  Rs      962,147  
+        2024-05-31 -> 2024-07-01  Rs      205,476  
+    SARDAEN        Rs     1,572,661    8.8%  static: yes  periods 9
+        2019-08-27 -> 2019-09-26  Rs        8,447  
+        2021-03-08 -> 2021-05-10  Rs      145,870  
+        2021-12-29 -> 2022-01-27  Rs       32,793  
+        2022-03-28 -> 2022-04-27  Rs       47,286  
+        2023-01-13 -> 2023-02-13  Rs       36,310  
+        2023-05-16 -> 2023-09-07  Rs    1,028,839  
+        2024-01-04 -> 2024-02-02  Rs      -37,337  
+        2024-09-25 -> 2024-10-24  Rs      111,348  
+        2025-08-13 -> 2025-09-12  Rs      199,106  
+    ECLERX         Rs     1,321,151    7.4%  static: yes  periods 8
+        2019-08-27 -> 2019-10-29  Rs         -680  
+        2020-10-14 -> 2020-11-11  Rs        1,905  
+        2021-02-08 -> 2021-10-01  Rs      216,123  
+        2021-12-29 -> 2022-01-27  Rs      -19,658  
+        2022-03-28 -> 2022-07-21  Rs      -20,064  
+        2023-06-13 -> 2023-07-12  Rs       51,387  
+        2023-10-09 -> 2024-02-02  Rs      456,740  
+        2024-11-25 -> 2026-02-06  Rs      635,399  
+    NEWGEN         Rs     1,317,323    7.4%  static: yes  periods 5
+        2019-09-26 -> 2019-10-29  Rs      -34,241  
+        2021-10-01 -> 2021-12-01  Rs      -22,485  
+        2023-06-13 -> 2023-08-09  Rs      574,994  
+        2023-11-07 -> 2023-12-06  Rs      483,856  
+        2024-05-31 -> 2024-07-01  Rs      315,200  
+    TTML           Rs     1,067,909    6.0%  static: yes  periods 5
+        2021-10-01 -> 2021-11-01  Rs      415,900  
+        2021-12-01 -> 2021-12-29  Rs      347,006  
+        2022-02-24 -> 2022-03-28  Rs      461,709  
+        2022-10-19 -> 2022-11-18  Rs      -67,259  
+        2023-02-13 -> 2023-03-14  Rs      -89,446  
+    GPIL           Rs       992,987    5.6%  static: yes  periods 6
+        2020-08-18 -> 2020-10-14  Rs       11,241  
+        2020-12-10 -> 2021-01-08  Rs       32,407  
+        2021-03-08 -> 2021-07-06  Rs      329,026  
+        2023-11-07 -> 2023-12-06  Rs      153,036  
+        2024-02-02 -> 2024-03-01  Rs       14,688  
+        2024-05-31 -> 2024-07-30  Rs      452,589  
+    WHIRLPOOL      Rs       847,134    4.7%  static: yes  periods 2
+        2025-03-19 -> 2025-06-18  Rs    1,002,537  
+        2025-12-10 -> 2026-01-08  Rs     -155,402  
+    KIRLFER        Rs       793,103    4.4%  static: NO   periods 4
+        2020-09-15 -> 2020-11-11  Rs        9,236  
+        2021-01-08 -> 2021-07-06  Rs      287,115  
+        2021-08-04 -> 2021-10-01  Rs     -103,780  
+        2022-10-19 -> 2023-10-26  Rs      600,533  
+    USHAMART       Rs       763,850    4.3%  static: yes  periods 3
+        2022-03-28 -> 2022-06-23  Rs      -50,901  
+        2025-09-12 -> 2025-10-13  Rs      502,537  
+        2026-04-09 -> held at end  Rs      312,213  
+    RTNINDIA       Rs       759,800    4.3%  static: NO   periods 6
+        2019-08-27 -> 2019-09-26  Rs      102,568  
+        2019-10-29 -> 2019-11-27  Rs       45,792  
+        2020-10-14 -> 2020-11-11  Rs       27,233  
+        2021-05-10 -> 2021-06-08  Rs      430,708  
+        2021-09-02 -> 2021-10-01  Rs      -22,200  
+        2025-03-19 -> 2025-04-22  Rs      175,698  
+    NAVA           Rs       751,163    4.2%  static: yes  periods 4
+        2022-01-27 -> 2022-02-24  Rs        2,848  
+        2022-04-27 -> 2022-05-26  Rs      115,225  
+        2023-04-17 -> 2023-06-13  Rs      398,001  
+        2023-09-07 -> 2024-01-04  Rs      235,089  
+    PGEL           Rs       745,410    4.2%  static: yes  periods 10
+        2019-01-02 -> 2019-02-27  Rs      -69,336  
+        2019-05-30 -> 2019-06-28  Rs      -66,005  
+        2020-04-24 -> 2020-06-23  Rs       54,868  
+        2020-10-14 -> 2020-11-11  Rs      123,659  
+        2021-02-08 -> 2021-04-08  Rs      148,557  
+        2021-08-04 -> 2021-09-02  Rs      -80,433  
+        2022-04-27 -> 2022-05-26  Rs      -82,947  
+        2022-06-23 -> 2022-10-19  Rs      352,687  
+        2022-11-18 -> 2023-01-13  Rs      108,192  
+        2023-03-14 -> 2023-08-09  Rs      256,167  
+    NETWEB         Rs       707,450    4.0%  static: yes  periods 1
+        2026-04-09 -> 2026-05-11  Rs      707,450  
+    GODFRYPHLP     Rs       698,468    3.9%  static: NO   periods 14
+        2019-03-29 -> 2019-05-02  Rs       -1,531  
+        2019-05-30 -> 2019-08-27  Rs         -369  
+        2019-10-29 -> 2019-11-27  Rs       30,683  
+        2020-03-23 -> 2020-05-26  Rs       17,497  
+        2022-05-26 -> 2022-09-20  Rs      -16,451  
+        2022-11-18 -> 2022-12-16  Rs       53,371  
+        2023-01-13 -> 2023-03-14  Rs     -179,093  
+        2023-04-17 -> 2023-05-16  Rs      -63,101  
+        2023-09-07 -> 2023-11-07  Rs       26,047  
+        2024-02-02 -> 2024-04-02  Rs      402,337  
+        2024-07-01 -> 2024-07-30  Rs       42,568  
+        2024-08-28 -> 2024-10-24  Rs      527,157  
+        2024-12-23 -> 2025-01-21  Rs     -432,423  
+        2025-05-21 -> 2025-07-16  Rs      291,777  
+    CCL            Rs       631,609    3.5%  static: yes  periods 1
+        2025-10-13 -> 2025-11-12  Rs      631,609  
+    WOCKPHARMA     Rs       610,082    3.4%  static: yes  periods 2
+        2021-09-02 -> 2021-10-01  Rs       47,286  
+        2024-08-28 -> 2024-11-25  Rs      562,796  
+    ANGELONE       Rs       565,371    3.2%  static: yes  periods 2
+        2022-03-28 -> 2022-04-27  Rs       93,194  
+        2024-07-30 -> 2024-08-28  Rs      472,177  
+    INGERRAND      Rs       561,039    3.1%  static: NO   periods 4
+        2020-07-21 -> 2020-09-15  Rs         -711  
+        2021-12-01 -> 2022-04-27  Rs      241,082  
+        2022-06-23 -> 2022-07-21  Rs      129,855  
+        2022-08-22 -> 2023-02-13  Rs      190,813  
+    RAYMOND        Rs       547,595    3.1%  static: NO   periods 2
+        2022-11-18 -> 2022-12-16  Rs      166,561  
+        2024-07-01 -> 2024-08-28  Rs      381,034  
+  top 20 together: Rs 19,425,028 = 108.9% of total P&L; 6 of the 20 are not in the static universe
+
+=== 3. LARGEST ONE-DAY MOVES WHILE HELD, top 20 of smallcap250 pit v3
+  move = the run's own close-to-close change in daily_holdings price on consecutive sessions held; raw = the supplier file's close and adj_close on that day and the day before
+    DBREALTY       2019-07-02    -10.0%   raw close -10.0%, adj_close -10.0%, next day adj -3.4%, volume x4.1
+    DBREALTY       2019-07-08     -9.6%   raw close -9.6%, adj_close -9.6%, next day adj +1.8%, volume x1.2
+    DBREALTY       2019-07-22     -9.5%   raw close -9.5%, adj_close -9.5%, next day adj +3.3%, volume x2.7
+    ABREL          2021-07-28    +16.7%   raw close +12.6%, adj_close +16.7%, next day adj -3.2%, volume x1.0
+    ABREL          2024-06-06    +14.3%   raw close +12.5%, adj_close +14.3%, next day adj +0.7%, volume x2.6
+    ABREL          2024-01-04    +12.2%   raw close +12.2%, adj_close +12.2%, next day adj +1.1%, volume x1.0
+    SARDAEN        2019-09-23    +10.0%   raw close +10.0%, adj_close +10.0%, next day adj -2.6%, volume x0.6
+    SARDAEN        2023-09-01     +9.2%   raw close +9.2%, adj_close +9.2%, next day adj +1.3%, volume x2.2
+    SARDAEN        2021-05-03     +9.1%   raw close +9.1%, adj_close +9.1%, next day adj -0.6%, volume x2.7
+    ECLERX         2021-06-11    +20.0%   raw close +17.1%, adj_close +20.0%, next day adj +9.4%, volume x12.4
+    ECLERX         2025-05-15    +15.1%   raw close +10.9%, adj_close +15.1%, next day adj +4.3%, volume x30.2
+    ECLERX         2019-09-16    +13.6%   raw close +10.7%, adj_close +13.6%, next day adj -6.0%, volume x2.2
+    NEWGEN         2019-10-23    -19.8%   raw close -11.4%, adj_close -19.8%, next day adj -10.3%, volume x5.9  <- close and adj_close disagree by more than 5 points: an adjustment day
+    NEWGEN         2023-07-20    +11.9%   raw close +11.6%, adj_close +11.9%, next day adj +3.6%, volume x1.4
+    NEWGEN         2019-10-24    -10.3%   raw close -18.8%, adj_close -10.3%, next day adj +0.6%, volume x0.4  <- close and adj_close disagree by more than 5 points: an adjustment day
+    TTML           2023-02-27     -7.0%   raw close -7.0%, adj_close -7.0%, next day adj +4.8%, volume x0.6
+    TTML           2023-02-21     -6.4%   raw close -6.4%, adj_close -6.4%, next day adj -4.0%, volume x2.4
+    TTML           2021-10-18     +5.0%   raw close +5.0%, adj_close +5.0%, next day adj +0.6%, volume x3.5
+    GPIL           2021-06-14    +19.6%   raw close +13.4%, adj_close +19.6%, next day adj -4.8%, volume x2.0  <- close and adj_close disagree by more than 5 points: an adjustment day
+    GPIL           2021-06-11    +13.5%   raw close +13.4%, adj_close +13.5%, next day adj +19.6%, volume x1.0
+    GPIL           2021-03-15    +12.2%   raw close +12.2%, adj_close +12.2%, next day adj -1.0%, volume x9.1
+    WHIRLPOOL      2025-04-24     +9.0%   raw close +8.5%, adj_close +9.0%, next day adj -2.6%, volume x4.7
+    WHIRLPOOL      2025-04-29     +7.6%   raw close +7.6%, adj_close +7.6%, next day adj -2.5%, volume x2.1
+    WHIRLPOOL      2025-04-01     +5.8%   raw close +5.8%, adj_close +5.8%, next day adj +1.6%, volume x1.8
+    KIRLFER        2021-06-29    +12.2%   raw close +11.9%, adj_close +12.2%, next day adj -0.6%, volume x10.3
+    KIRLFER        2022-12-27     +9.8%   raw close +9.8%, adj_close +9.8%, next day adj -2.0%, volume x3.3
+    KIRLFER        2023-06-13     +9.1%   raw close +9.1%, adj_close +9.1%, next day adj +3.6%, volume x28.3
+    USHAMART       2022-05-11     -8.0%   raw close -8.0%, adj_close -8.0%, next day adj +0.4%, volume x5.1
+    USHAMART       2025-10-09     +8.0%   raw close +8.0%, adj_close +8.0%, next day adj -2.5%, volume x17.4
+    USHAMART       2022-04-19     +7.9%   raw close +7.9%, adj_close +7.9%, next day adj +5.7%, volume x6.8
+    RTNINDIA       2019-09-06    +19.4%   raw close +14.1%, adj_close +19.4%, next day adj +8.1%, volume x2.4  <- close and adj_close disagree by more than 5 points: an adjustment day
+    RTNINDIA       2019-09-05    +19.2%   raw close +14.6%, adj_close +19.2%, next day adj +19.4%, volume x2.1
+    RTNINDIA       2019-09-11    +10.0%   raw close +10.0%, adj_close +10.0%, next day adj +9.1%, volume x0.8
+    NAVA           2022-05-19    +17.2%   raw close +14.7%, adj_close +17.2%, next day adj +15.7%, volume x4.5
+    NAVA           2022-05-20    +15.7%   raw close +14.7%, adj_close +15.7%, next day adj -6.3%, volume x1.0
+    NAVA           2022-05-16    +14.2%   raw close +14.2%, adj_close +14.2%, next day adj +2.1%, volume x6.3
+    PGEL           2019-01-03    +20.1%   raw close +16.4%, adj_close +20.1%, next day adj +6.9%, volume x2.8
+    PGEL           2019-06-24    +17.6%   raw close +16.5%, adj_close +17.7%, next day adj -11.5%, volume x3.9
+    PGEL           2019-06-25    -11.4%   raw close -10.6%, adj_close -11.5%, next day adj +3.0%, volume x2.0
+    NETWEB         2026-04-15     +7.7%   raw close +7.7%, adj_close +7.7%, next day adj +4.1%, volume x6.8
+    NETWEB         2026-05-05     +6.4%   raw close +6.4%, adj_close +6.4%, next day adj +4.6%, volume x1.3
+    NETWEB         2026-05-06     +4.6%   raw close +4.6%, adj_close +4.6%, next day adj -1.5%, volume x1.0
+    GODFRYPHLP     2019-08-13    +20.0%   raw close +11.6%, adj_close +20.0%, next day adj +0.7%, volume x1.2  <- close and adj_close disagree by more than 5 points: an adjustment day
+    GODFRYPHLP     2019-08-16    +16.8%   raw close +11.6%, adj_close +16.8%, next day adj +5.2%, volume x1.9  <- close and adj_close disagree by more than 5 points: an adjustment day
+    GODFRYPHLP     2024-07-15    +16.7%   raw close +11.8%, adj_close +16.7%, next day adj -6.2%, volume x28.5
+    CCL            2025-11-06     +9.5%   raw close +9.5%, adj_close +9.5%, next day adj +5.3%, volume x28.3
+    CCL            2025-11-07     +5.3%   raw close +5.3%, adj_close +5.3%, next day adj +4.2%, volume x1.0
+    CCL            2025-11-10     +4.2%   raw close +4.2%, adj_close +4.2%, next day adj -3.1%, volume x0.8
+    WOCKPHARMA     2021-09-15     +6.8%   raw close +6.8%, adj_close +6.8%, next day adj -1.4%, volume x7.2
+    WOCKPHARMA     2024-11-07     -5.0%   raw close -5.0%, adj_close -5.0%, next day adj +2.5%, volume x0.9
+    WOCKPHARMA     2024-09-06     -5.0%   raw close -5.0%, adj_close -5.0%, next day adj -2.3%, volume x1.4
+    ANGELONE       2022-04-21    +17.5%   raw close +13.0%, adj_close +17.5%, next day adj -0.7%, volume x5.2
+    ANGELONE       2024-08-20    +15.2%   raw close +13.0%, adj_close +15.2%, next day adj +0.1%, volume x3.3
+    ANGELONE       2024-08-19     +8.4%   raw close +8.4%, adj_close +8.4%, next day adj +15.2%, volume x10.9
+    INGERRAND      2022-03-14    +13.4%   raw close +9.2%, adj_close +13.4%, next day adj -2.2%, volume x55.1
+    INGERRAND      2020-08-19     +8.5%   raw close +8.5%, adj_close +8.5%, next day adj -4.7%, volume x38.9
+    INGERRAND      2022-02-24     -8.3%   raw close -8.3%, adj_close -8.3%, next day adj +3.8%, volume x2.5
+    RAYMOND        2022-12-02    +17.5%   raw close +11.7%, adj_close +17.5%, next day adj -1.7%, volume x10.7  <- close and adj_close disagree by more than 5 points: an adjustment day
+    RAYMOND        2024-07-05     +9.8%   raw close +9.8%, adj_close +9.8%, next day adj -0.6%, volume x13.7
+    RAYMOND        2024-08-22     +7.3%   raw close +7.3%, adj_close +7.3%, next day adj +1.8%, volume x6.6
+  flagged: 7
+    ('NEWGEN', datetime.date(2019, 10, 23), np.float64(-19.8), 'close and adj_close disagree by more than 5 points: an adjustment day')
+    ('NEWGEN', datetime.date(2019, 10, 24), np.float64(-10.3), 'close and adj_close disagree by more than 5 points: an adjustment day')
+    ('GPIL', datetime.date(2021, 6, 14), np.float64(19.6), 'close and adj_close disagree by more than 5 points: an adjustment day')
+    ('RTNINDIA', datetime.date(2019, 9, 6), np.float64(19.4), 'close and adj_close disagree by more than 5 points: an adjustment day')
+    ('GODFRYPHLP', datetime.date(2019, 8, 13), np.float64(20.0), 'close and adj_close disagree by more than 5 points: an adjustment day')
+    ('GODFRYPHLP', datetime.date(2019, 8, 16), np.float64(16.8), 'close and adj_close disagree by more than 5 points: an adjustment day')
+    ('RAYMOND', datetime.date(2022, 12, 2), np.float64(17.5), 'close and adj_close disagree by more than 5 points: an adjustment day')
+
+=== 2. P&L BY SYMBOL, nifty500 static v1 (runs/20261023T125324_nifty500_all_r20)
+  sum of symbol P&L Rs 13,566,284; the run's equity (daily_summary total) from Rs 1,000,000 to Rs 14,566,284, change Rs 13,566,284 (the gap is the first day's charges and rounding: symbol P&L is net of every charge)
+  top 20 contributors (P&L Rs, share of total, in the static universe?, holding periods):
+    GVT&D          Rs     1,300,589    9.6%  static: yes  periods 5
+        2023-10-09 -> 2023-11-07  Rs      -19,934  
+        2023-12-06 -> 2024-02-02  Rs      546,157  
+        2024-04-02 -> 2024-05-31  Rs      512,246  
+        2024-07-01 -> 2024-07-30  Rs       63,517  
+        2024-09-25 -> 2024-10-24  Rs      198,603  
+    JWL            Rs     1,189,649    8.8%  static: yes  periods 4
+        2022-12-16 -> 2023-05-16  Rs      111,348  
+        2023-07-12 -> 2023-09-07  Rs      677,807  
+        2024-01-04 -> 2024-02-02  Rs      316,599  
+        2024-05-31 -> 2024-07-30  Rs       83,894  
+    ANANDRATHI     Rs       788,206    5.8%  static: yes  periods 7
+        2023-03-14 -> 2023-06-13  Rs       73,388  
+        2023-09-07 -> 2023-10-09  Rs      235,854  
+        2023-12-06 -> 2024-01-04  Rs      -12,836  
+        2024-02-02 -> 2024-03-01  Rs      172,369  
+        2024-04-02 -> 2025-02-17  Rs        1,056  
+        2025-10-13 -> 2025-11-12  Rs      116,157  
+        2026-02-06 -> 2026-03-09  Rs      202,218  
+    TATAINVEST     Rs       748,249    5.5%  static: yes  periods 10
+        2019-01-30 -> 2019-05-02  Rs        2,864  
+        2019-12-26 -> 2020-01-24  Rs       26,089  
+        2020-10-14 -> 2020-12-10  Rs       26,559  
+        2022-02-24 -> 2022-04-27  Rs       70,445  
+        2022-09-20 -> 2022-10-19  Rs      -45,303  
+        2022-12-16 -> 2023-01-13  Rs       11,800  
+        2023-10-09 -> 2023-11-07  Rs          492  
+        2024-03-01 -> 2024-04-02  Rs      -89,151  
+        2024-07-01 -> 2024-07-30  Rs     -116,077  
+        2025-09-12 -> 2025-10-13  Rs      860,531  
+    APLAPOLLO      Rs       679,020    5.0%  static: yes  periods 5
+        2021-02-08 -> 2021-03-08  Rs       90,176  
+        2021-10-01 -> 2021-12-01  Rs       37,014  
+        2025-06-18 -> 2025-07-16  Rs     -128,707  
+        2025-11-12 -> 2026-02-06  Rs      748,229  
+        2026-04-09 -> 2026-05-11  Rs      -67,691  
+    NEWGEN         Rs       653,554    4.8%  static: yes  periods 7
+        2019-02-27 -> 2019-05-30  Rs        9,858  
+        2019-12-26 -> 2020-01-24  Rs       11,333  
+        2020-12-10 -> 2021-01-08  Rs       10,710  
+        2021-02-08 -> 2021-04-08  Rs       17,915  
+        2022-07-21 -> 2022-08-22  Rs       48,246  
+        2023-07-12 -> 2023-08-09  Rs      228,953  
+        2023-11-07 -> 2024-03-01  Rs      326,540  
+    JUBLPHARMA     Rs       589,862    4.3%  static: yes  periods 6
+        2019-05-30 -> 2019-06-28  Rs       -1,668  
+        2020-08-18 -> 2020-09-15  Rs       -6,412  
+        2024-04-02 -> 2024-07-01  Rs      426,552  
+        2024-07-30 -> 2024-08-28  Rs      420,217  
+        2024-09-25 -> 2024-10-24  Rs      -80,255  
+        2024-11-25 -> 2025-01-21  Rs     -168,573  
+    SOLARINDS      Rs       539,424    4.0%  static: yes  periods 3
+        2019-01-30 -> 2019-02-27  Rs       -3,913  
+        2022-04-27 -> 2022-05-26  Rs      -55,413  
+        2025-05-21 -> 2025-06-18  Rs      598,750  
+    AIIL           Rs       474,378    3.5%  static: yes  periods 2
+        2025-06-18 -> 2025-07-16  Rs      132,589  
+        2025-12-10 -> 2026-01-08  Rs      341,789  
+    GPIL           Rs       432,065    3.2%  static: yes  periods 5
+        2020-10-14 -> 2020-11-11  Rs        9,074  
+        2020-12-10 -> 2021-01-08  Rs       21,893  
+        2021-03-08 -> 2021-05-10  Rs      166,085  
+        2023-08-09 -> 2023-12-06  Rs      161,641  
+        2024-07-01 -> 2024-07-30  Rs       73,372  
+    CHALET         Rs       429,243    3.2%  static: yes  periods 3
+        2023-06-13 -> 2023-08-09  Rs      104,188  
+        2023-11-07 -> 2024-01-04  Rs      185,451  
+        2024-03-01 -> 2024-05-03  Rs      139,604  
+    SAREGAMA       Rs       413,018    3.0%  static: yes  periods 3
+        2020-11-11 -> 2021-06-08  Rs      212,849  
+        2021-09-02 -> 2021-12-29  Rs      236,805  
+        2022-01-27 -> 2022-04-27  Rs      -36,636  
+    SCHNEIDER      Rs       406,219    3.0%  static: yes  periods 5
+        2019-01-02 -> 2019-01-30  Rs      -11,628  
+        2022-12-16 -> 2023-01-13  Rs      111,232  
+        2023-02-13 -> 2023-03-14  Rs      -42,264  
+        2023-10-09 -> 2023-11-07  Rs       34,821  
+        2026-04-09 -> held at end  Rs      314,059  
+    RKFORGE        Rs       378,075    2.8%  static: yes  periods 3
+        2021-09-02 -> 2021-12-01  Rs      -26,262  
+        2023-07-12 -> 2023-09-07  Rs      339,938  
+        2023-10-09 -> 2023-11-07  Rs       64,399  
+    RRKABEL        Rs       368,478    2.7%  static: yes  periods 1
+        2025-04-22 -> 2025-05-21  Rs      368,478  
+    GABRIEL        Rs       360,388    2.7%  static: yes  periods 3
+        2023-09-07 -> 2023-12-06  Rs      299,066  
+        2024-07-30 -> 2024-09-25  Rs       56,560  
+        2025-10-13 -> 2025-11-12  Rs        4,762  
+    TRENT          Rs       334,312    2.5%  static: yes  periods 2
+        2024-03-01 -> 2024-05-03  Rs      201,479  
+        2024-08-28 -> 2024-10-24  Rs      132,833  
+    GODFRYPHLP     Rs       325,444    2.4%  static: yes  periods 9
+        2019-05-02 -> 2019-08-27  Rs      -19,398  
+        2019-10-29 -> 2019-11-27  Rs       10,480  
+        2020-01-24 -> 2020-02-20  Rs       -6,907  
+        2021-12-29 -> 2022-01-27  Rs      -15,745  
+        2022-06-23 -> 2022-07-21  Rs       26,891  
+        2023-02-13 -> 2023-05-16  Rs      -13,755  
+        2024-07-30 -> 2024-10-24  Rs      491,804  
+        2024-12-23 -> 2025-01-21  Rs     -236,453  
+        2025-05-21 -> 2025-07-16  Rs       88,526  
+    JINDALSAW      Rs       317,041    2.3%  static: yes  periods 2
+        2023-10-09 -> 2023-11-07  Rs      194,984  
+        2025-12-10 -> 2026-01-08  Rs      122,057  
+    SARDAEN        Rs       307,526    2.3%  static: yes  periods 5
+        2021-12-29 -> 2022-01-27  Rs       18,064  
+        2022-05-26 -> 2022-06-23  Rs      -39,756  
+        2023-01-13 -> 2023-02-13  Rs       13,581  
+        2023-08-09 -> 2023-09-07  Rs      182,538  
+        2023-11-07 -> 2024-01-04  Rs      133,100  
+  top 20 together: Rs 11,034,739 = 81.3% of total P&L; 0 of the 20 are not in the static universe
+
+=== 3. LARGEST ONE-DAY MOVES WHILE HELD, top 20 of nifty500 static v1
+  move = the run's own close-to-close change in daily_holdings price on consecutive sessions held; raw = the supplier file's close and adj_close on that day and the day before
+    GVT&D          2024-07-19     -5.0%   raw close -5.0%, adj_close -5.0%, next day adj -4.1%, volume x1.4
+    GVT&D          2024-05-17     +5.0%   raw close +5.0%, adj_close +5.0%, next day adj +5.0%, volume x1.0
+    GVT&D          2023-12-20     -5.0%   raw close -5.0%, adj_close -5.0%, next day adj +1.5%, volume x0.4
+    JWL            2024-06-04    -18.8%   raw close -14.6%, adj_close -18.8%, next day adj +3.1%, volume x0.7
+    JWL            2023-07-20     +8.3%   raw close +8.3%, adj_close +8.3%, next day adj -0.8%, volume x3.3
+    JWL            2023-07-24     +7.7%   raw close +7.7%, adj_close +7.7%, next day adj +0.7%, volume x1.1
+    ANANDRATHI     2024-04-09     +9.5%   raw close +9.5%, adj_close +9.5%, next day adj -4.4%, volume x0.7
+    ANANDRATHI     2025-10-14     +7.6%   raw close +7.6%, adj_close +7.6%, next day adj -0.8%, volume x38.8
+    ANANDRATHI     2024-06-04     -6.3%   raw close -6.3%, adj_close -6.3%, next day adj +4.0%, volume x8.2
+    TATAINVEST     2025-09-30    +16.9%   raw close +10.0%, adj_close +16.9%, next day adj +2.4%, volume x1.0  <- close and adj_close disagree by more than 5 points: an adjustment day
+    TATAINVEST     2025-09-23    +11.8%   raw close +10.0%, adj_close +11.8%, next day adj +8.8%, volume x7.0
+    TATAINVEST     2025-09-24     +8.8%   raw close +10.6%, adj_close +8.8%, next day adj -5.5%, volume x1.0
+    APLAPOLLO      2021-03-03     +7.5%   raw close +7.5%, adj_close +7.5%, next day adj +5.7%, volume x1.5
+    APLAPOLLO      2021-10-25     -7.0%   raw close -7.0%, adj_close -7.0%, next day adj +6.2%, volume x5.3
+    APLAPOLLO      2021-10-26     +6.2%   raw close +6.2%, adj_close +6.2%, next day adj -2.6%, volume x0.4
+    NEWGEN         2020-01-21    +17.0%   raw close +11.6%, adj_close +17.0%, next day adj -3.2%, volume x29.5  <- close and adj_close disagree by more than 5 points: an adjustment day
+    NEWGEN         2023-07-20    +11.9%   raw close +11.6%, adj_close +11.9%, next day adj +3.6%, volume x1.4
+    NEWGEN         2022-08-12    +10.9%   raw close +10.9%, adj_close +10.9%, next day adj +2.3%, volume x1.1
+    JUBLPHARMA     2024-08-01    +12.0%   raw close +9.5%, adj_close +12.0%, next day adj -1.8%, volume x4.2
+    JUBLPHARMA     2024-04-04    +10.3%   raw close +9.5%, adj_close +10.3%, next day adj +1.0%, volume x10.8
+    JUBLPHARMA     2024-06-05     +7.8%   raw close +7.8%, adj_close +7.8%, next day adj +4.5%, volume x0.4
+    SOLARINDS      2025-05-22     +5.7%   raw close +5.7%, adj_close +5.7%, next day adj +2.2%, volume x0.8
+    SOLARINDS      2022-05-02     +5.7%   raw close +5.7%, adj_close +5.7%, next day adj +2.7%, volume x4.0
+    SOLARINDS      2022-05-25     -5.3%   raw close -5.3%, adj_close -5.3%, next day adj -0.7%, volume x0.6
+    AIIL           2025-12-19     +7.6%   raw close +7.6%, adj_close +7.6%, next day adj -0.2%, volume x15.3
+    AIIL           2025-07-03     +7.3%   raw close +7.3%, adj_close +7.3%, next day adj -4.3%, volume x3.7
+    AIIL           2025-07-15     +5.4%   raw close +5.4%, adj_close +5.4%, next day adj -2.3%, volume x4.9
+    GPIL           2021-03-15    +12.2%   raw close +12.2%, adj_close +12.2%, next day adj -1.0%, volume x9.1
+    GPIL           2021-04-12     -7.2%   raw close -7.2%, adj_close -7.2%, next day adj +1.5%, volume x1.4
+    GPIL           2021-04-27     +6.8%   raw close +6.8%, adj_close +6.8%, next day adj -0.3%, volume x3.6
+    CHALET         2024-03-20     +6.8%   raw close +6.8%, adj_close +6.8%, next day adj +3.7%, volume x18.8
+    CHALET         2024-03-26     +6.1%   raw close +6.1%, adj_close +6.1%, next day adj +0.3%, volume x1.9
+    CHALET         2023-12-15     +5.4%   raw close +5.4%, adj_close +5.4%, next day adj -1.2%, volume x1.6
+    SAREGAMA       2021-03-08    +20.0%   raw close +14.0%, adj_close +20.0%, next day adj -3.6%, volume x15.1  <- close and adj_close disagree by more than 5 points: an adjustment day
+    SAREGAMA       2021-03-12    +10.3%   raw close +10.3%, adj_close +10.3%, next day adj +3.0%, volume x4.5
+    SAREGAMA       2021-05-17    +10.0%   raw close +10.0%, adj_close +10.0%, next day adj +9.4%, volume x2.5
+    SCHNEIDER      2023-01-10    +14.1%   raw close +11.3%, adj_close +14.1%, next day adj +1.6%, volume x19.2
+    SCHNEIDER      2023-10-23     -8.8%   raw close -8.8%, adj_close -8.8%, next day adj +0.5%, volume x4.4
+    SCHNEIDER      2023-01-05     +8.5%   raw close +8.5%, adj_close +8.5%, next day adj -3.3%, volume x3.0
+    RKFORGE        2023-08-31     +8.5%   raw close +8.5%, adj_close +8.5%, next day adj -0.0%, volume x2.9
+    RKFORGE        2023-08-21     +7.6%   raw close +7.6%, adj_close +7.6%, next day adj +0.3%, volume x4.3
+    RKFORGE        2021-09-20     -5.3%   raw close -5.3%, adj_close -5.3%, next day adj +2.6%, volume x0.9
+    RRKABEL        2025-05-05    +14.8%   raw close +10.6%, adj_close +14.8%, next day adj +3.2%, volume x12.0
+    RRKABEL        2025-04-30     +6.4%   raw close +6.4%, adj_close +6.4%, next day adj -2.0%, volume x44.3
+    RRKABEL        2025-05-12     +3.7%   raw close +3.7%, adj_close +3.7%, next day adj +2.9%, volume x0.8
+    GABRIEL        2023-11-15    +11.8%   raw close +11.8%, adj_close +11.8%, next day adj +0.6%, volume x4.1
+    GABRIEL        2023-10-05     +6.9%   raw close +6.9%, adj_close +6.9%, next day adj -0.0%, volume x6.6
+    GABRIEL        2024-08-30     +6.8%   raw close +6.8%, adj_close +6.8%, next day adj -1.6%, volume x2.2
+    TRENT          2024-10-08     +8.0%   raw close +8.0%, adj_close +8.0%, next day adj +2.2%, volume x2.7
+    TRENT          2024-05-02     +5.8%   raw close +5.8%, adj_close +5.8%, next day adj -2.6%, volume x0.6
+    TRENT          2024-10-16     -3.9%   raw close -3.9%, adj_close -3.9%, next day adj -1.1%, volume x2.0
+    GODFRYPHLP     2019-08-13    +20.0%   raw close +11.6%, adj_close +20.0%, next day adj +0.7%, volume x1.2  <- close and adj_close disagree by more than 5 points: an adjustment day
+    GODFRYPHLP     2019-08-16    +16.8%   raw close +11.6%, adj_close +16.8%, next day adj +5.2%, volume x1.9  <- close and adj_close disagree by more than 5 points: an adjustment day
+    GODFRYPHLP     2024-08-19    +16.3%   raw close +11.6%, adj_close +16.3%, next day adj +10.9%, volume x4.0
+    JINDALSAW      2023-10-26     +8.6%   raw close +8.6%, adj_close +8.6%, next day adj -1.1%, volume x2.6
+    JINDALSAW      2023-10-23     -8.0%   raw close -8.0%, adj_close -8.0%, next day adj -2.3%, volume x0.4
+    JINDALSAW      2023-10-30     +7.8%   raw close +7.8%, adj_close +7.8%, next day adj +7.2%, volume x1.1
+    SARDAEN        2023-09-01     +9.2%   raw close +9.2%, adj_close +9.2%, next day adj +1.3%, volume x2.2
+    SARDAEN        2022-06-20     -7.8%   raw close -7.8%, adj_close -7.8%, next day adj +7.5%, volume x2.6
+    SARDAEN        2022-06-21     +7.5%   raw close +7.5%, adj_close +7.5%, next day adj +2.3%, volume x0.4
+  flagged: 5
+    ('TATAINVEST', datetime.date(2025, 9, 30), np.float64(16.9), 'close and adj_close disagree by more than 5 points: an adjustment day')
+    ('NEWGEN', datetime.date(2020, 1, 21), np.float64(17.0), 'close and adj_close disagree by more than 5 points: an adjustment day')
+    ('SAREGAMA', datetime.date(2021, 3, 8), np.float64(20.0), 'close and adj_close disagree by more than 5 points: an adjustment day')
+    ('GODFRYPHLP', datetime.date(2019, 8, 13), np.float64(20.0), 'close and adj_close disagree by more than 5 points: an adjustment day')
+    ('GODFRYPHLP', datetime.date(2019, 8, 16), np.float64(16.8), 'close and adj_close disagree by more than 5 points: an adjustment day')
+
+=== 5. WHERE THE PIT-STATIC GAP COMES FROM (W1, tax off)
+  nifty500    pit    v1: total P&L Rs 27,467,750; from names outside the static universe Rs 2,037,491 (7.4%); on reverting adj_close/close excursion days held Rs -317,823 (-1.2%, 198 held symbol-days); on all held days where adj_close and close returns differ by more than 5 points Rs -271,781 (-1.0%, 65 symbol-days)
+  nifty500    pit    v3: total P&L Rs 31,533,876; from names outside the static universe Rs 2,384,582 (7.6%); on reverting adj_close/close excursion days held Rs -233,383 (-0.7%, 197 held symbol-days); on all held days where adj_close and close returns differ by more than 5 points Rs 65,763 (0.2%, 58 symbol-days)
+  nifty500    static v1: total P&L Rs 13,566,284; from names outside the static universe Rs 0 (0.0%); on reverting adj_close/close excursion days held Rs -184,080 (-1.4%, 168 held symbol-days); on all held days where adj_close and close returns differ by more than 5 points Rs -36,658 (-0.3%, 45 symbol-days)
+  nifty500    static v3: total P&L Rs 14,661,621; from names outside the static universe Rs 0 (0.0%); on reverting adj_close/close excursion days held Rs -170,077 (-1.2%, 170 held symbol-days); on all held days where adj_close and close returns differ by more than 5 points Rs 40,609 (0.3%, 42 symbol-days)
+  smallcap250 pit    v1: total P&L Rs 8,567,287; from names outside the static universe Rs 153,435 (1.8%); on reverting adj_close/close excursion days held Rs -40,303 (-0.5%, 159 held symbol-days); on all held days where adj_close and close returns differ by more than 5 points Rs 17,779 (0.2%, 42 symbol-days)
+  smallcap250 pit    v3: total P&L Rs 17,842,012; from names outside the static universe Rs 3,032,299 (17.0%); on reverting adj_close/close excursion days held Rs -65,084 (-0.4%, 153 held symbol-days); on all held days where adj_close and close returns differ by more than 5 points Rs 95,898 (0.5%, 37 symbol-days)
+  smallcap250 static v1: total P&L Rs 14,273,010; from names outside the static universe Rs 0 (0.0%); on reverting adj_close/close excursion days held Rs -203,011 (-1.4%, 158 held symbol-days); on all held days where adj_close and close returns differ by more than 5 points Rs -13,401 (-0.1%, 43 symbol-days)
+  smallcap250 static v3: total P&L Rs 11,740,888; from names outside the static universe Rs 0 (0.0%); on reverting adj_close/close excursion days held Rs 26,573 (0.2%, 157 held symbol-days); on all held days where adj_close and close returns differ by more than 5 points Rs 204,742 (1.7%, 38 symbol-days)
+
+  (the ranking file holds only the top ~30 names per decision, so it is not used for breadth; section 6 counts candidates from the price files.)
+
+=== 6. HOLDINGS IN NAMES LISTED WITHOUT AN INCLUSION EVENT, and candidates per date
+  nifty500 pit v1: held symbol-days listed without an inclusion event 980 of 14,318; their price P&L Rs 4,454,801 = 16.2% of total P&L Rs 27,467,750 (all held-day price P&L Rs 30,598,502); names: ADANIPOWER, ANANTRAJ, APARINDS, DBREALTY, IFCI, KIRLOSENG, MARICO, MINDACORP, RAYMOND, TATAINVEST, TRIDENT, VSTIND, ZEEL
+  nifty500 pit v3: held symbol-days listed without an inclusion event 880 of 13,998; their price P&L Rs 1,419,980 = 4.5% of total P&L Rs 31,533,876 (all held-day price P&L Rs 35,879,340); names: ADANIPOWER, ANANTRAJ, APARINDS, DBREALTY, IFCI, KIRLOSENG, MARICO, MINDACORP, RAYMOND, TATAINVEST, TRIDENT, VSTIND, ZEEL
+  nifty500 candidates with a price row on 2019-01-01: pit (listed members) 397, static (today's members) 358
+  nifty500 candidates with a price row on 2021-01-01: pit (listed members) 418, static (today's members) 378
+  nifty500 candidates with a price row on 2023-01-02: pit (listed members) 459, static (today's members) 424
+  nifty500 candidates with a price row on 2025-01-01: pit (listed members) 493, static (today's members) 468
+  smallcap250 pit v1: held symbol-days listed without an inclusion event 1,415 of 14,153; their price P&L Rs 1,007,336 = 11.8% of total P&L Rs 8,567,287 (all held-day price P&L Rs 9,091,339); names: AFFLE, ALKYLAMINE, ANANTRAJ, CHALET, DBREALTY, JSWHL, KAJARIACER, KIRLOSENG, LALPATHLAB, PCJEWELLER, SCI, SHILPAMED, TECHNOE, TTKPRESTIG, VSTIND
+  smallcap250 pit v3: held symbol-days listed without an inclusion event 1,515 of 14,287; their price P&L Rs 2,354,134 = 13.2% of total P&L Rs 17,842,012 (all held-day price P&L Rs 19,679,379); names: AFFLE, ALKYLAMINE, ANANTRAJ, CHALET, DBREALTY, IFCI, JSWHL, KAJARIACER, KIRLOSENG, LALPATHLAB, PCJEWELLER, SCI, SHILPAMED, TECHNOE, TTKPRESTIG, VSTIND
+  smallcap250 candidates with a price row on 2019-01-01: pit (listed members) 179, static (today's members) 158
+  smallcap250 candidates with a price row on 2021-01-01: pit (listed members) 193, static (today's members) 166
+  smallcap250 candidates with a price row on 2023-01-02: pit (listed members) 222, static (today's members) 202
+  smallcap250 candidates with a price row on 2025-01-01: pit (listed members) 245, static (today's members) 231
+
+=== 7. nifty500 v1 TOP 20 PIT CONTRIBUTORS, P&L IN PIT AND IN STATIC (Rs)
+  TATAINVEST   pit 2,501,147  static 748,249
+  GVT&D        pit 2,389,055  static 1,300,589
+  JSWHL        pit 1,804,920  static (not in the static universe)
+  ABREL        pit 1,725,644  static 122,739
+  GODFRYPHLP   pit 1,548,975  static 325,444
+  WOCKPHARMA   pit 1,537,762  static 219,307
+  NEWGEN       pit 1,270,319  static 653,554
+  GPIL         pit 1,264,911  static 432,065
+  TTML         pit 1,016,642  static 92,042
+  ECLERX       pit   789,168  static 293,892
+  KALYANKJIL   pit   778,612  static 116,280
+  GALLANTT     pit   757,869  static 105,451
+  JSWENERGY    pit   742,815  static 12,744
+  TRENT        pit   736,285  static 334,312
+  KAJARIACER   pit   719,407  static (in the static universe, not traded)
+  SARDAEN      pit   671,097  static 307,526
+  ASTRAZEN     pit   667,121  static (not in the static universe)
+  CUB          pit   662,542  static (in the static universe, not traded)
+  INGERRAND    pit   646,542  static (not in the static universe)
+  COCHINSHIP   pit   635,588  static 236,749
+
+=== CONCLUSION
+Neither membership look-ahead nor bad data explains the pit outperformance.
+
+- Look-ahead by the supplier's own events: 1 nifty500 symbol (GMRAIRPORT, 125 member-sessions)
+  and 4 smallcap250 symbols (1,486 member-sessions) are listed before their inclusion date.
+  No holding in nifty500 pit v1, v3 or smallcap250 pit v3 falls in those sessions: Rs 0 of P&L.
+- The `symbols` column and the inclusion/exclusion columns disagree on thousands of
+  (row, symbol) pairs in both directions (nifty500: 1,248 listed with no event, 4,784 entered
+  by events but not listed; smallcap250: 708 and 3,524), so neither column is a reliable
+  record of entry dates. Holdings in names listed without an inclusion event earn 16.2% and
+  4.5% of nifty500 pit v1 and v3 P&L, and 11.8% and 13.2% of smallcap250 pit v1 and v3. Even
+  if every one of them were look-ahead and removed, nifty500 pit v1 would keep Rs 23.0m of its
+  Rs 27.5m P&L against static's Rs 13.6m.
+- Data: P&L earned on days where adj_close and close returns disagree is -1.4% to +0.2% of
+  P&L on reverting excursions and -1.0% to +1.7% on all disagreement days, in pit and static
+  alike. These are the vendor excursions ratio_clean used to repair; they are back in the
+  prices since its removal, and their effect is small and not pit-specific.
+- Names outside the static universe earn 7.4% to 7.6% of nifty500 pit P&L, 1.8% of
+  smallcap250 pit v1 and 17.0% of v3.
+- 17 of nifty500 pit v1's top 20 contributors are in the static universe; 15 of them were
+  also traded by static v1, and all 15 earned more in pit (TATAINVEST Rs 2.50m against
+  Rs 0.75m, ABREL Rs 1.73m against Rs 0.12m; table 7). The candidate set
+  is about 10% wider in pit (nifty500 on 2019-01-01: 397 listed members with a price row
+  against 358 of today's members), which changes the z-score peer group, the equal-weight
+  market behind beta_60 and idio_vol_60, breadth and the training rows. A concentrated top-8
+  book then takes a different path through largely the same names, and the difference
+  compounds. The sign of the gap varies by universe (nifty100 pit is 4.8 to 11.3 points
+  below static), which fits a path difference rather than a systematic bias.
+
+Not measured: how much a change of candidate set alone moves these figures. Options, none
+started:
+  (a) check the 13 nifty500 and 16 smallcap250 names listed without an inclusion event
+      against NSE's published reconstitution announcements;
+  (b) a pit sensitivity run whose membership is the event-built list instead of the
+      `symbols` column (needs a run option);
+  (c) measure the path spread directly: the existing noise harness on pit and static, or the
+      static run on a universe narrowed to the names pit could hold.
