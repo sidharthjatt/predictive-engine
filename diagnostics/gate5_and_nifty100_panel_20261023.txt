@@ -1,0 +1,76 @@
+GATE 5 FAILURES AT e8b71d9, AND THE "STALE" nifty100 PANEL
+2026-10-23. Read-only.
+
+1. DID THE THREE GATE 5 FAILURES ALREADY FAIL AT e8b71d9?
+
+  Yes, on the evidence below. Not checked in a separate worktree: the delegates read
+  cache/ and nautilus/reports/, which are gitignored (.gitignore:33 and :60), so a fresh
+  worktree at e8b71d9 would have none of their inputs and would fail for a different
+  reason. That would not answer the question.
+
+  Code: git diff --stat e8b71d9 HEAD touches check_all.py (the Gate 8 regex only) and
+  diagnostics/result_runs_20261023.csv. None of the three delegates is in that diff.
+  Inputs: chunk 4 started 2026-10-23 21:43:37 and ran nifty500 only. The newest file
+  each delegate reads predates it:
+      engine_tests.py fixed_capital   cache/nifty200/          newest 2026-09-22 16:28:39
+      results/validate_topn.py        cache/nifty100/          newest 2026-10-23 18:04:54
+      verify_v34_arms.py              nautilus/reports/midcap150/  newest 2026-10-23 18:30:30
+  Same code, same inputs, so the same result at e8b71d9.
+
+  What each one is:
+    engine_tests.py fixed_capital  needs a nifty200 score panel that has not been built
+                                   ("Build it with ... run.py --universe nifty200").
+    verify_v34_arms.py             midcap150 v3 and v4, W1 static: the Nautilus port and
+                                   the reference differ by 2 to 4 IDEA shares from the
+                                   2020-09-14 rebalance (78 of 92 and 90 of 92 identical).
+    results/validate_topn.py       see section 2.
+
+2. DID ANY CHUNK 1-4 nifty100 RUN READ A STALE PANEL?
+
+  No.
+
+  The panel validate_topn rejects is not stale in content. Its sidecar code key is the
+  key for start 2007-09-24, not for the default start:
+      cache/nifty100/v_nifty100_expanding.parquet
+        built          2026-10-23 18:04:54 (during chunk 3, W2 static nifty100)
+        file sha256    e6a794b6388587c7a12a0735577d282cb9e8e9db8edc7cb68bc6499b74b8c73b
+        source digest  equals the current digest (below)
+        code key       sha256:ec2c1dca90b16da86e1e21c65d4e553ed9f87945b2b7d9749c78543fd009afea
+      config.panel_code_key() at the default start (floor 2016-01-01):
+                       sha256:0bc240208059da7b89b21a1052c49f488c229500732f017c8de3b5de82c4868b
+      config.panel_code_key() at start 2007-09-24 (floor 2004-09-01):
+                       sha256:ec2c1dca90b16da86e1e21c65d4e553ed9f87945b2b7d9749c78543fd009afea
+  panel_code_key hashes start_axis.score_floor() (config.py:376), so a panel built with
+  --start writes a different key to the same path. validate_topn runs at the default
+  start, sees a key mismatch, and reports it as "the code that builds panels changed",
+  which here is wrong: the W2 panel is sitting on the path the default-start readers use.
+
+  Source digest of both nifty100 panels against the current raw data:
+      static  cache/nifty100/v_nifty100_expanding.parquet
+              recorded sha256:4114b9ff167d5dbda018aee967c56109063f9eeada7af835b12b7afd465eff17
+              current  sha256:4114b9ff167d5dbda018aee967c56109063f9eeada7af835b12b7afd465eff17
+      pit     cache/nifty100/pit/v_nifty100_expanding.parquet  (built 2026-10-23 15:09:34,
+              file sha256 21c314abf38e9fd66903c47ae8bba023510545bc98bf09678463cf13347dab9f)
+              recorded sha256:07ab6d5b1e6179618e91d76e72cc87f18a09afb6289da6e0fd52cb193413a062
+              current  sha256:07ab6d5b1e6179618e91d76e72cc87f18a09afb6289da6e0fd52cb193413a062
+
+  What each nifty100 run did with the panel (run.log), and the data digest its params
+  record:
+      chunk 1 W1 static off  20261023T114745  REBUILT (no panel on disk)          4114b9ff
+      chunk 1 W1 static on   20261023T120348  key and source current, reused      4114b9ff
+      chunk 2 W1 pit off     20261023T145413  REBUILT pit panel (none on disk)    07ab6d5b
+      chunk 2 W1 pit on      20261023T151039  key and source current, reused      07ab6d5b
+      chunk 3 W2 static off  20261023T174453  REBUILT (key differs: W1 panel)     4114b9ff
+      chunk 3 W2 static on   20261023T180657  key and source current, reused      4114b9ff
+      chunk 4                none (nifty500 only)
+  Every run either built its panel or passed config._verified, which compares the code
+  key for the run's own start and the source digest before returning the path. Every
+  recorded data digest equals the current one.
+
+  Consequence: any default-start nifty100 reader (validate_topn, a W1 nifty100 run) will
+  rebuild or refuse until the panel is rebuilt at the default start. A run does this on
+  its own; validate_topn refuses. The panel path does not carry the start, so W1 and W2
+  nifty100 runs overwrite each other's panel.
+
+  Unrelated, noted while reading: the chunk 1 and chunk 3 params record
+  working_tree_dirty True (commits a4d19ed and 343d0f2); chunk 2's record False.

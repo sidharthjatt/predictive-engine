@@ -1,0 +1,1496 @@
+BUY FILLS AGAINST 20-DAY AVERAGE TRADED VALUE -- nifty500 W2 pit, chunk 4
+2026-10-23. Read-only. Nothing was re-run; every figure is read from the run folders
+below and the raw price files they name.
+
+  W2 pit    runs/20261023T214337_nifty500_all_r20_pit_s20091214   (chunk 4, tax off)
+  W2 static runs/20261023T190212_nifty500_all_r20_s20091214       (chunk 3, tax off)
+  W1 pit    runs/20261023T160321_nifty500_all_r20_pit             (chunk 2, tax off)
+
+METHOD
+  ADV20 is recomputed exactly as capacity.py computes it for RUN.txt:
+      capacity.py:54  nse = (d["exchange"] == "NSE") if "exchange" in d.columns else False
+      capacity.py:55  tv = (d["close"] * d["volume"]).where(nse)
+      capacity.py:56  cache[key] = (d["close"], tv.rolling(20, min_periods=1).mean().shift(1))
+  i.e. the mean close x volume over the NSE rows among the 20 file rows before the fill
+  date. The recomputed maxima equal the RUN.txt "largest" figures for all four arms
+  (53,824.47 / 38,557.66 / 67,697.63 / 57,815.38).
+  Fill value = qty x fill_price from COSTS_<tag>.csv. Slippage is the slippage_rs column
+  (flat SLIPPAGE = 0.0015, results/engine_core.py:593 and :608); impact is 0 because no
+  --impact was given. Position P&L = the gain of every COST_LOTS lot with this symbol and
+  buy_date, plus any shares still held on the last day marked at that day's price, gross
+  of charges. Membership is results/survivorship.py Membership.is_member on the fill date,
+  loaded as run.py:1553 loads it.
+  Liquidity filter: none applies. The research profile has no participation cap
+  (profiles.py:88  "research":  {"participation_cap": None}), and neither
+  results/build_scores.py nor results/engine_v2_final.py reads volume to select or size.
+  Every fill below is unconstrained by liquidity in both pit and static.
+
+CONCLUSION
+  The 38,558% to 67,698% maxima are a measurement artefact in capacity.py, not a pit rule
+  and not a fill the engine priced oddly. All four come from one fill, ALKYLAMINE on
+  2012-01-13. Its file has 19 BSE rows and 1 NSE row in the 20 sessions before that date,
+  and the NSE row is a gap-filled row from a second source (source kite, _gap_filled 1)
+  with volume 10. capacity.py drops the BSE rows and, with min_periods=1, takes that one
+  row's Rs 169 as the 20-day average. Over all 20 rows the same fill is 46% to 81% of
+  average traded value.
+  The same mechanism produces the next tier: OLECTRA 2012 to 2014 (1 to 3 NSE rows, all
+  gap-filled; 2,353% to 4,095% on NSE rows, 428% to 745% on all rows). 26 of the 73 W2 pit
+  buys above 100% rest on fewer than 5 NSE rows, against 9 of 71 in W2 static and 0 of 12
+  in W1 pit.
+  Why pit shows it and static does not: pit admits names that were index members in
+  2009 to 2014 and are not in today's list. ALKYLAMINE, RTNINDIA and SOMANYCERA have no
+  file in the static folder at all. Their early years in the with-survivorship files are
+  mostly BSE rows. Static holds today's members, whose early files are mostly NSE. W1
+  starts in 2019, after the files turn NSE, so W1 pit has no such fill.
+  Separately from the artefact, some fills are genuinely too large for the name at Rs 1m
+  start capital compounding to tens of millions: RTNINDIA 2020-04-17 (948,004 shares at
+  Rs 1.70, 15 NSE rows, 5 zero-volume padded rows, 2,279% on NSE rows, 3,039% on all
+  rows) and ABREL 2021 to 2024 (20 NSE rows, 311% to 709%). ABREL also leads W2 static
+  (up to 1,346%) and W1 pit. The count above 100% is about the same in W2 pit (73) and
+  W2 static (71); the capacity problem is the absence of a liquidity rule in the research
+  profile, in both modes, not something pit computes differently.
+  Effect on results: in W2 pit, buys above 100% of ADV20 carry 8.6% (v1), 0.7% (v2),
+  14.5% (v3) and 9.1% (v4) of position P&L; in v1, v3 and v4 most of it is the one
+  2024 buy, ABREL on 2024-02-23 (the 2024 row of each arm in table (a)). The
+  ALKYLAMINE fill itself lost Rs 9,074 in v1.
+
+FIX OPTIONS (none applied)
+  1. capacity.py: require a minimum number of NSE rows (for example 10 of 20) and report
+     the fill as not measurable otherwise, and exclude _gap_filled rows from the average.
+     Changes only the RUN.txt capacity lines; no result moves.
+  2. capacity.py: when NSE rows are sparse, fall back to all rows (NSE + BSE) and say so
+     in the line. Understates true market volume on mixed days, but avoids Rs 169 averages.
+  3. Strategy side (changes results, needs a decision): run the comparison under the
+     tradeable profile, whose participation cap already limits a buy to a multiple of the
+     prior-20-session median volume, or add a minimum-liquidity screen on candidates.
+     Either changes every published figure and is out of scope here.
+
+SUMMARY TABLES AND FULL PER-FILL DETAIL FOLLOW.
+
+====================================================================================================
+(a) buys above 100% of ADV20, by year, and their share of P&L
+====================================================================================================
+
+v1: 22 of 1110 buys above 100% (179 not measurable); their P&L Rs 7,216,874 of Rs 84,207,535 = 8.6%
+          n         pnl
+    date               
+    2009  1    36407.29
+    2010  1    -4484.55
+    2012  3     8348.90
+    2013  2      154.80
+    2014  2     5138.52
+    2019  3   214140.50
+    2020  3  -114035.95
+    2021  2  -542506.82
+    2022  2  1213279.26
+    2023  2   507394.68
+    2024  1  5893037.66
+
+v2: 11 of 1276 buys above 100% (211 not measurable); their P&L Rs 125,772 of Rs 18,679,091 = 0.7%
+          n        pnl
+    date              
+    2009  1   24014.32
+    2012  4  -20109.92
+    2013  2     382.96
+    2014  2    3178.24
+    2020  1   -6361.25
+    2022  1  124667.52
+
+v3: 25 of 1090 buys above 100% (183 not measurable); their P&L Rs 12,134,508 of Rs 83,883,056 = 14.5%
+          n         pnl
+    date               
+    2009  1    62661.19
+    2010  1    -6589.70
+    2011  1     3130.97
+    2012  3   -19671.44
+    2013  4     -917.68
+    2014  2     2753.46
+    2019  2    11074.50
+    2020  2   773669.30
+    2021  3 -1096467.27
+    2022  3  2113049.90
+    2023  2   786657.14
+    2024  1  9505157.62
+
+v4: 15 of 1273 buys above 100% (211 not measurable); their P&L Rs 2,096,745 of Rs 23,070,736 = 9.1%
+          n         pnl
+    date               
+    2009  1    41319.31
+    2010  1    -3446.18
+    2012  4   -21014.88
+    2013  2      872.75
+    2014  2     2187.70
+    2019  1        0.00
+    2020  1    -3166.80
+    2022  1   128429.04
+    2023  1    53467.40
+    2024  1  1898097.01
+
+====================================================================================================
+(b) largest fill / ADV20 by run, tax off
+====================================================================================================
+  W2 pit     v1: max 53,824.5% (ALKYLAMINE 2012-01-13), 22 buys above 100%, of 1110
+  W2 pit     v2: max 38,557.7% (ALKYLAMINE 2012-01-13), 11 buys above 100%, of 1276
+  W2 pit     v3: max 67,697.6% (ALKYLAMINE 2012-01-13), 25 buys above 100%, of 1090
+  W2 pit     v4: max 57,815.4% (ALKYLAMINE 2012-01-13), 15 buys above 100%, of 1273
+  W2 static  v1: max 1,023.3% (ABREL 2023-12-28), 25 buys above 100%, of 1115
+  W2 static  v2: max 326.2% (ABREL 2021-07-28), 10 buys above 100%, of 1283
+  W2 static  v3: max 1,345.8% (ABREL 2021-08-26), 27 buys above 100%, of 1092
+  W2 static  v4: max 352.9% (CGCL 2016-06-23), 9 buys above 100%, of 1282
+  W1 pit     v1: max 192.4% (ABREL 2021-06-08), 5 buys above 100%, of 491
+  W1 pit     v2: max 106.6% (ABREL 2021-06-08), 1 buys above 100%, of 568
+  W1 pit     v3: max 238.2% (ABREL 2022-07-21), 6 buys above 100%, of 481
+  W1 pit     v4: max 70.9% (ABREL 2021-06-08), 0 buys above 100%, of 568
+
+====================================================================================================
+BUYS ABOVE 100% OF ADV20: NSE rows behind the average, gap-filled NSE rows, zero-volume rows,
+and the same fill against the mean over all 20 rows (NSE and BSE)
+====================================================================================================
+
+== W2 pit: buys above 100% of ADV20 (73)
+arm       date     symbol  pct_adv_nse  nse_rows  nse_gapfilled  zero_vol_rows  pct_adv_all_rows
+ v3 2012-01-13 ALKYLAMINE      67697.6         1              1              0              81.0
+ v4 2012-01-13 ALKYLAMINE      57815.4         1              1              0              69.2
+ v1 2012-01-13 ALKYLAMINE      53824.5         1              1              0              64.4
+ v2 2012-01-13 ALKYLAMINE      38557.7         1              1              0              46.2
+ v1 2014-03-12    OLECTRA       4094.6         1              1              0             745.4
+ v3 2014-03-12    OLECTRA       3304.4         1              1              0             601.6
+ v4 2014-03-12    OLECTRA       2560.0         1              1              0             466.1
+ v2 2014-03-12    OLECTRA       2352.6         1              1              0             428.3
+ v1 2020-04-17   RTNINDIA       2279.1        15              0              5            3038.8
+ v1 2013-09-18    OLECTRA        971.1         1              1              0            1175.7
+ v3 2020-04-17   RTNINDIA        865.3        15              0              5            1153.7
+ v1 2013-04-26    OLECTRA        826.0         3              3              0             593.2
+ v4 2012-01-13    OLECTRA        804.4         1              1              0             668.3
+ v2 2012-11-30    OLECTRA        778.5         1              1              0             463.3
+ v3 2013-09-18    OLECTRA        763.9         1              1              0             924.8
+ v3 2013-04-26    OLECTRA        710.5         3              3              0             510.3
+ v1 2022-05-19      ABREL        709.2        20              0              0             709.2
+ v1 2022-07-14      ABREL        662.3        20              0              0             662.3
+ v2 2013-09-18    OLECTRA        646.5         1              1              0             782.7
+ v4 2013-09-18    OLECTRA        644.9         1              1              0             780.7
+ v4 2013-04-26    OLECTRA        640.6         3              3              0             460.0
+ v3 2012-11-30    OLECTRA        629.8         1              1              0             374.9
+ v2 2013-04-26    OLECTRA        583.4         3              3              0             418.9
+ v3 2022-07-14      ABREL        576.9        20              0              0             576.9
+ v3 2023-08-31      ABREL        534.7        20              0              0             534.7
+ v3 2021-08-26      ABREL        525.2        20              0              0             525.2
+ v1 2023-08-31      ABREL        502.5        20              0              0             502.5
+ v3 2024-02-23      ABREL        501.7        20              0              0             501.7
+ v3 2022-05-19      ABREL        500.3        20              0              0             500.3
+ v3 2009-12-15 SOMANYCERA        448.0        11              1              0             498.4
+ v4 2012-11-30    OLECTRA        445.9         1              1              0             265.4
+ v1 2021-08-26      ABREL        438.7        20              0              0             438.7
+ v3 2010-08-06 ALKYLAMINE        428.0         4              0              0             200.7
+ v1 2024-02-23      ABREL        311.0        20              0              0             311.0
+ v2 2020-04-17   RTNINDIA        305.9        15              0              5             407.8
+ v4 2009-12-15 SOMANYCERA        295.4        11              1              0             328.6
+ v3 2019-10-22   RTNINDIA        292.3        20              0              0             292.3
+ v1 2009-12-15 SOMANYCERA        260.3        11              1              0             289.6
+ v1 2014-01-14 ALKYLAMINE        230.8        20              0              1             230.8
+ v4 2010-08-06 ALKYLAMINE        223.8         4              0              0             105.0
+ v3 2021-07-28       GPIL        223.3         2              0              0             434.3
+ v3 2014-01-14 ALKYLAMINE        205.1        20              0              1             205.1
+ v2 2012-01-13    OLECTRA        196.4         1              1              0             163.2
+ v1 2019-01-23     VSTIND        196.3        16              0              0             242.8
+ v3 2021-07-28       PGEL        192.4        18              0              0             210.6
+ v1 2012-09-03  DEEPAKNTR        180.6        20              0              0             180.6
+ v2 2009-12-15 SOMANYCERA        171.7        11              1              0             191.0
+ v4 2014-01-14 ALKYLAMINE        158.2        20              0              1             158.2
+ v1 2019-06-21   RTNINDIA        157.8        20              0              0             157.8
+ v1 2010-02-15     VSTIND        153.5        10              0              0             151.0
+ v3 2013-02-25 ALKYLAMINE        153.1        20              0              0             153.1
+ v4 2020-04-17   RTNINDIA        152.3        15              0              5             203.0
+ v1 2021-07-28       GPIL        141.9         2              0              0             276.0
+ v1 2020-03-16    JPPOWER        135.6        20              0              0             135.6
+ v4 2012-02-13  DEEPAKNTR        133.2        20              0              0             133.2
+ v4 2019-10-22   RTNINDIA        131.6        20              0              0             131.6
+ v3 2012-02-13  DEEPAKNTR        129.9        20              0              0             129.9
+ v2 2014-01-14 ALKYLAMINE        129.6        20              0              1             129.6
+ v3 2023-04-06       PGEL        129.5        20              0              0             129.5
+ v3 2011-09-19  SHILPAMED        126.6        20              0              0             126.6
+ v3 2022-08-12       PGEL        126.2        20              0              0             126.2
+ v4 2022-07-14      ABREL        125.1        20              0              0             125.1
+ v2 2022-07-14      ABREL        121.4        20              0              0             121.4
+ v1 2012-02-13  DEEPAKNTR        121.2        20              0              0             121.2
+ v1 2023-02-06    SARDAEN        109.4        17              0              0             110.9
+ v3 2019-01-23     VSTIND        107.5        16              0              0             133.1
+ v4 2023-08-31      ABREL        107.0        20              0              0             107.0
+ v3 2020-11-04       PGEL        105.2         2              0              0             119.5
+ v2 2012-02-13  DEEPAKNTR        104.4        20              0              0             104.4
+ v1 2019-10-22   RTNINDIA        102.9        20              0              0             102.9
+ v3 2013-07-19  DEEPAKNTR        101.8        15              1              0              75.1
+ v1 2020-06-16       ICRA        101.7        20              0              0             101.7
+ v4 2024-02-23      ABREL        100.2        20              0              0             100.2
+  buys whose ADV20 rests on fewer than 5 NSE rows: 26
+
+== W2 static: buys above 100% of ADV20 (71)
+arm       date     symbol  pct_adv_nse  nse_rows  nse_gapfilled  zero_vol_rows  pct_adv_all_rows
+ v3 2021-08-26      ABREL       1345.8        20              0              0            1345.8
+ v3 2022-04-20      ABREL       1081.5        20              0              0            1081.5
+ v3 2021-10-25      ABREL       1055.2        20              0              0            1055.2
+ v1 2023-12-28      ABREL       1023.3        20              0              0            1023.3
+ v1 2022-04-20      ABREL        944.5        20              0              0             944.5
+ v3 2023-12-28      ABREL        918.7        20              0              0             918.7
+ v3 2016-06-23       CGCL        893.3         4              0              0             392.7
+ v1 2021-08-26      ABREL        712.5        20              0              0             712.5
+ v3 2022-07-14     PFOCUS        680.8        20              0              0             680.8
+ v1 2021-10-25      ABREL        554.9        20              0              0             554.9
+ v3 2018-06-28        JWL        543.5        20              0              0             543.5
+ v3 2021-07-28       PGEL        541.2        18              0              0             592.3
+ v1 2016-06-23       CGCL        425.3         4              0              0             187.0
+ v1 2022-07-14     PFOCUS        354.3        20              0              0             354.3
+ v4 2016-06-23       CGCL        352.9         4              0              0             155.1
+ v3 2011-09-19   GALLANTT        329.9        20              0              0             329.9
+ v2 2021-07-28      ABREL        326.2        20              0              0             326.2
+ v3 2013-04-26       PGEL        314.8        17              0              0             189.1
+ v1 2024-11-14   GALLANTT        310.8        20              0              0             310.8
+ v1 2021-07-28       PGEL        308.5        18              0              0             337.6
+ v3 2020-12-03      TARIL        302.0        18              0              0             261.0
+ v1 2012-06-07   CHOLAFIN        295.7         4              0              0             505.7
+ v3 2023-04-06       PGEL        295.6        20              0              0             295.6
+ v3 2022-08-12       PGEL        295.0        20              0              0             295.0
+ v1 2018-06-28        JWL        291.5        20              0              0             291.5
+ v1 2015-02-06       NAVA        290.3        20              0              0             290.3
+ v1 2011-09-19   GALLANTT        267.1        20              0              0             267.1
+ v1 2023-03-06    SARDAEN        250.0         3              0              0             145.3
+ v3 2024-11-14   GALLANTT        248.9        20              0              0             248.9
+ v2 2023-12-28      ABREL        247.9        20              0              0             247.9
+ v3 2019-12-18     NEWGEN        241.0        12              0              0             355.0
+ v1 2017-07-12  ZYDUSWELL        229.7        20              0              0             229.7
+ v3 2020-06-16       PGEL        227.6        11              0              0             405.1
+ v1 2020-06-16       PGEL        214.3        11              0              0             381.3
+ v4 2021-07-28      ABREL        212.2        20              0              0             212.2
+ v4 2022-04-20      ABREL        207.5        20              0              0             207.5
+ v4 2023-12-28      ABREL        205.4        20              0              0             205.4
+ v2 2022-04-20      ABREL        203.6        20              0              0             203.6
+ v2 2016-06-23       CGCL        201.8         4              0              0              88.7
+ v3 2016-07-22   GALLANTT        200.7        20              0              0             200.7
+ v1 2016-03-28 MOTILALOFS        195.5        20              0              0             195.5
+ v3 2018-12-26   GALLANTT        190.5        20              0              0             190.5
+ v3 2016-03-28 MOTILALOFS        188.4        20              0              0             188.4
+ v1 2013-04-26  DEEPAKNTR        176.1         3              0              0              81.7
+ v3 2015-02-06       NAVA        171.9        20              0              0             171.9
+ v4 2013-04-26       PGEL        170.2        17              0              0             102.3
+ v4 2021-10-25      ABREL        161.7        20              0              0             161.7
+ v3 2022-11-11       PGEL        161.2        20              0              0             161.2
+ v1 2013-04-26       PGEL        146.8        17              0              0              88.2
+ v4 2022-07-14     PFOCUS        141.9        20              0              0             141.9
+ v1 2023-04-06       PGEL        135.6        20              0              0             135.6
+ v2 2015-02-06       NAVA        135.5        20              0              0             135.5
+ v4 2011-09-19   GALLANTT        135.2        20              0              0             135.2
+ v3 2022-01-19       PGEL        128.0        20              0              0             128.0
+ v3 2022-06-16    SARDAEN        127.4        20              0              0             127.4
+ v1 2019-04-23       TTML        121.4        20              0              0             121.4
+ v3 2022-12-09      GVT&D        116.2        20              0              0             116.2
+ v2 2011-09-19   GALLANTT        114.7        20              0              0             114.7
+ v1 2017-09-08  ZYDUSWELL        112.6        20              0              0             112.6
+ v1 2018-12-26   GALLANTT        111.2        20              0              0             111.2
+ v1 2020-12-03      TARIL        110.2        18              0              0              95.3
+ v1 2019-05-23       RHIM        108.9        20              0              0             108.9
+ v2 2016-03-28 MOTILALOFS        108.8        20              0              0             108.8
+ v4 2020-12-03      TARIL        107.2        18              0              0              92.7
+ v2 2013-04-26  DEEPAKNTR        107.1         3              0              0              49.7
+ v3 2021-10-25   SWANCORP        106.3        20              0              0             106.3
+ v2 2012-06-07   CHOLAFIN        105.3         4              0              0             180.1
+ v1 2022-12-09      GVT&D        104.7        20              0              0             104.7
+ v2 2021-10-25      ABREL        104.5        20              0              0             104.5
+ v3 2019-04-23       TTML        103.7        20              0              0             103.7
+ v3 2017-01-16        JWL        102.7        20              0              0             102.7
+  buys whose ADV20 rests on fewer than 5 NSE rows: 9
+
+== W1 pit: buys above 100% of ADV20 (12)
+arm       date symbol  pct_adv_nse  nse_rows  nse_gapfilled  zero_vol_rows  pct_adv_all_rows
+ v3 2022-07-21  ABREL        238.2        20              0              0             238.2
+ v1 2021-06-08  ABREL        192.4        20              0              0             192.4
+ v3 2023-09-07  ABREL        191.3        20              0              0             191.3
+ v1 2023-09-07  ABREL        146.9        20              0              0             146.9
+ v3 2022-09-20  ABREL        141.9        20              0              0             141.9
+ v1 2022-06-23  ABREL        140.6        20              0              0             140.6
+ v1 2023-12-06  ABREL        137.5        20              0              0             137.5
+ v3 2024-01-04  ABREL        133.6        20              0              0             133.6
+ v3 2024-03-01  ABREL        128.2        20              0              0             128.2
+ v3 2021-06-08  ABREL        116.8        20              0              0             116.8
+ v2 2021-06-08  ABREL        106.6        20              0              0             106.6
+ v1 2024-03-01  ABREL        102.7        20              0              0             102.7
+  buys whose ADV20 rests on fewer than 5 NSE rows: 0
+
+
+PER-FILL DETAIL, W2 PIT, TAX OFF, 10 LARGEST PER ARM
+
+====================================================================================================
+W2 PIT nifty500 v1, tax off: 10 largest buys by fill value / ADV20
+====================================================================================================
+
+2012-01-13  ALKYLAMINE  qty 5,098  fill Rs 17.8191  value Rs 90,842  ADV20 Rs 169  -> 53,824.5% of ADV20
+  listed member that day: True   liquidity filter: none (research profile, participation_cap None)
+  slippage Rs 136.06 = 15.0 bps   impact Rs 0 = 0 bps (no --impact)   charges Rs 108.40
+  position P&L Rs -9,074
+  no file for this symbol in the static (without-survivorship) folder
+  20 rows behind the ADV20 (with-survivorship file):
+                   open    close   volume exchange  source  _gap_filled   tv_nse
+    date                                                                        
+    2011-12-16  17.6908  17.4874   6100.0      BSE  upstox            0      NaN
+    2011-12-19  18.0975  16.4707   1440.0      BSE  upstox            0      NaN
+    2011-12-20  17.4874  16.9791  11706.0      BSE  upstox            0      NaN
+    2011-12-21  17.8941  16.8774   5706.0      BSE  upstox            0      NaN
+    2011-12-22  16.3182  16.9791  23996.0      BSE  upstox            0      NaN
+    2011-12-23  16.0132  17.2841    366.0      BSE  upstox            0      NaN
+    2011-12-26  17.2841  16.6741    430.0      BSE  upstox            0      NaN
+    2011-12-27  16.4707  16.7757    356.0      BSE  upstox            0      NaN
+    2011-12-28  17.4366  17.0808    490.0      BSE  upstox            0      NaN
+    2011-12-29  16.8774  16.7757    756.0      BSE  upstox            0      NaN
+    2011-12-30  15.8607  16.5724     20.0      BSE  upstox            0      NaN
+    2012-01-02  17.5891  16.1149   9760.0      BSE  upstox            0      NaN
+    2012-01-03  16.3691  16.4199  14920.0      BSE  upstox            0      NaN
+    2012-01-04  17.0808  16.4707  13480.0      BSE  upstox            0      NaN
+    2012-01-05  19.1142  16.1657   8756.0      BSE  upstox            0      NaN
+    2012-01-06  16.8774  16.1657   3510.0      BSE  upstox            0      NaN
+    2012-01-09  17.6908  16.2674  62320.0      BSE  upstox            0      NaN
+    2012-01-10  16.6741  16.8266   1900.0      BSE  upstox            0      NaN
+    2012-01-11  17.3858  17.4366   4450.0      BSE  upstox            0      NaN
+    2012-01-12  17.0808  16.8774     10.0      NSE    kite            1  168.774
+
+2014-03-12  OLECTRA  qty 29,988  fill Rs 7.2609  value Rs 217,739  ADV20 Rs 5,318  -> 4,094.6% of ADV20
+  listed member that day: True   liquidity filter: none (research profile, participation_cap None)
+  slippage Rs 326.12 = 15.0 bps   impact Rs 0 = 0 bps (no --impact)   charges Rs 259.14
+  position P&L Rs 22,191
+  same symbol, same date, static (without-survivorship) file: ADV20 Rs 5,318
+  20 rows behind the ADV20 (with-survivorship file):
+                  open   close   volume exchange  source  _gap_filled     tv_nse
+    date                                                                        
+    2014-02-11  8.7500  8.6500    900.0      BSE  upstox            0        NaN
+    2014-02-12  8.7500  8.7500   1000.0      BSE  upstox            0        NaN
+    2014-02-13  8.5500  8.7500    585.0      BSE  upstox            0        NaN
+    2014-02-14  8.5100  8.5100    400.0      BSE  upstox            0        NaN
+    2014-02-17  8.4000  8.4900   7607.0      BSE  upstox            0        NaN
+    2014-02-18  8.2500  8.2300    150.0      BSE  upstox            0        NaN
+    2014-02-19  8.2500  8.3000   5764.0      BSE  upstox            0        NaN
+    2014-02-20  8.1500  8.2500    801.0      BSE  upstox            0        NaN
+    2014-02-21  8.0200  7.8900   3495.0      BSE  upstox            0        NaN
+    2014-02-24  8.0000  7.3800   6194.0      BSE  upstox            0        NaN
+    2014-02-25  7.4000  7.1100  36112.0      BSE  upstox            0        NaN
+    2014-02-26  7.3900  7.0100    251.0      BSE  upstox            0        NaN
+    2014-02-28  7.4000  7.3900    700.0      BSE  upstox            0        NaN
+    2014-03-03  7.4000  7.4000    500.0      BSE  upstox            0        NaN
+    2014-03-04  7.1000  7.4000   2200.0      BSE  upstox            0        NaN
+    2014-03-05  7.4000  7.1100   1701.0      BSE  upstox            0        NaN
+    2014-03-06  7.3900  7.4000   6895.0      BSE  upstox            0        NaN
+    2014-03-07  7.0000  7.4000   1378.0      BSE  upstox            0        NaN
+    2014-03-10  7.2000  7.4700    440.0      BSE  upstox            0        NaN
+    2014-03-11  7.1748  7.3755    721.0      NSE    dhan            1  5317.7355
+
+2020-04-17  RTNINDIA  qty 948,004  fill Rs 1.7026  value Rs 1,614,024  ADV20 Rs 70,818  -> 2,279.1% of ADV20
+  listed member that day: True   liquidity filter: none (research profile, participation_cap None)
+  slippage Rs 2,417.41 = 15.0 bps   impact Rs 0 = 0 bps (no --impact)   charges Rs 1,914.29
+  position P&L Rs -47,400
+  no file for this symbol in the static (without-survivorship) folder
+  20 rows behind the ADV20 (with-survivorship file):
+                open  close    volume exchange  source  _gap_filled     tv_nse
+    date                                                                      
+    2020-03-16  2.65   2.65    2213.0      NSE  upstox            0    5864.45
+    2020-03-17  2.65   2.65       0.0      NaN     NaN            0        NaN
+    2020-03-18  2.65   2.65       0.0      NaN     NaN            0        NaN
+    2020-03-19  2.65   2.65       0.0      NaN     NaN            0        NaN
+    2020-03-20  2.65   2.65       0.0      NaN     NaN            0        NaN
+    2020-03-23  2.65   2.65       0.0      NaN     NaN            0        NaN
+    2020-03-24  2.55   2.55     253.0      NSE  upstox            0     645.15
+    2020-03-25  2.45   2.45     200.0      NSE  upstox            0     490.00
+    2020-03-26  2.35   2.35    4841.0      NSE  upstox            0   11376.35
+    2020-03-27  2.25   2.25     396.0      NSE  upstox            0     891.00
+    2020-03-30  2.15   2.15     704.0      NSE  upstox            0    1513.60
+    2020-03-31  2.05   2.05     917.0      NSE  upstox            0    1879.85
+    2020-04-01  1.95   1.95    8581.0      NSE  upstox            0   16732.95
+    2020-04-03  1.90   1.90    2567.0      NSE  upstox            0    4877.30
+    2020-04-07  1.85   1.85    3035.0      NSE  upstox            0    5614.75
+    2020-04-08  1.80   1.80  195174.0      NSE  upstox            0  351313.20
+    2020-04-09  1.75   1.75   78009.0      NSE  upstox            0  136515.75
+    2020-04-13  1.70   1.70   37536.0      NSE  upstox            0   63811.20
+    2020-04-15  1.70   1.65  176839.0      NSE  upstox            0  291784.35
+    2020-04-16  1.60   1.65  102397.0      NSE  upstox            0  168955.05
+
+2013-09-18  OLECTRA  qty 15,345  fill Rs 10.6660  value Rs 163,669  ADV20 Rs 16,854  -> 971.1% of ADV20
+  listed member that day: True   liquidity filter: none (research profile, participation_cap None)
+  slippage Rs 245.14 = 15.0 bps   impact Rs 0 = 0 bps (no --impact)   charges Rs 195.12
+  position P&L Rs -6,752
+  same symbol, same date, static (without-survivorship) file: ADV20 Rs 16,854
+  20 rows behind the ADV20 (with-survivorship file):
+                 open  close   volume exchange  source  _gap_filled    tv_nse
+    date                                                                     
+    2013-08-20  10.45  10.45      1.0      BSE  upstox            0       NaN
+    2013-08-21  10.40  10.10    550.0      BSE  upstox            0       NaN
+    2013-08-22  10.05  10.25   2780.0      BSE  upstox            0       NaN
+    2013-08-23  10.10  10.21   1620.0      BSE  upstox            0       NaN
+    2013-08-26  10.05  10.55   1509.0      BSE  upstox            0       NaN
+    2013-08-27  10.43  10.15   1810.0      BSE  upstox            0       NaN
+    2013-08-28   9.80  10.00    301.0      BSE  upstox            0       NaN
+    2013-08-29  10.00   9.72   2517.0      BSE  upstox            0       NaN
+    2013-08-30  10.00  10.18  10965.0      BSE  upstox            0       NaN
+    2013-09-02   9.80  10.05   1677.0      NSE    dhan            1  16853.85
+    2013-09-03  10.19  10.00    503.0      BSE  upstox            0       NaN
+    2013-09-04  10.00   9.86    513.0      BSE  upstox            0       NaN
+    2013-09-05  10.40  10.00   1021.0      BSE  upstox            0       NaN
+    2013-09-06  10.35  10.38     10.0      BSE  upstox            0       NaN
+    2013-09-10   9.94  10.40    169.0      BSE  upstox            0       NaN
+    2013-09-11  10.01  10.49     31.0      BSE  upstox            0       NaN
+    2013-09-12   9.61  10.05    210.0      BSE  upstox            0       NaN
+    2013-09-13  10.00  10.70   1005.0      BSE  upstox            0       NaN
+    2013-09-16  10.19  10.19    100.0      BSE  upstox            0       NaN
+    2013-09-17  10.65  10.05    121.0      BSE  upstox            0       NaN
+
+2013-04-26  OLECTRA  qty 15,348  fill Rs 9.3140  value Rs 142,951  ADV20 Rs 17,307  -> 826.0% of ADV20
+  listed member that day: True   liquidity filter: none (research profile, participation_cap None)
+  slippage Rs 214.10 = 15.0 bps   impact Rs 0 = 0 bps (no --impact)   charges Rs 169.35
+  position P&L Rs 6,907
+  same symbol, same date, static (without-survivorship) file: ADV20 Rs 17,307
+  20 rows behind the ADV20 (with-survivorship file):
+                   open    close   volume exchange  source  _gap_filled     tv_nse
+    date                                                                          
+    2013-03-25   9.8000   9.7800  18434.0      BSE  upstox            0        NaN
+    2013-03-26   9.7600   9.8600   2398.0      BSE  upstox            0        NaN
+    2013-03-28   9.6900  10.3700   2198.0      BSE  upstox            0        NaN
+    2013-04-01  10.6500  10.5000   1989.0      BSE  upstox            0        NaN
+    2013-04-02  10.4900  10.4900     50.0      BSE  upstox            0        NaN
+    2013-04-03   9.7500  10.3500   1774.0      BSE  upstox            0        NaN
+    2013-04-04  10.5000  10.5500   1491.0      BSE  upstox            0        NaN
+    2013-04-05  10.0000  10.1900    301.0      BSE  upstox            0        NaN
+    2013-04-08  10.1100  10.1100    500.0      BSE  upstox            0        NaN
+    2013-04-09  10.0000  10.0000    100.0      BSE  upstox            0        NaN
+    2013-04-10  10.0000  10.0000    534.0      BSE  upstox            0        NaN
+    2013-04-11  10.3000  10.4600     21.0      BSE  upstox            0        NaN
+    2013-04-12   9.9000  10.1900   1965.0      BSE  upstox            0        NaN
+    2013-04-15  10.0423  10.0423   1200.0      NSE    dhan            1  12050.760
+    2013-04-16  10.1930  10.1428   1020.0      NSE    dhan            1  10345.656
+    2013-04-17   9.7913   9.8415   3000.0      NSE    dhan            1  29524.500
+    2013-04-18   9.8000   9.8000   1100.0      BSE  upstox            0        NaN
+    2013-04-22   9.6000   9.7100   4159.0      BSE  upstox            0        NaN
+    2013-04-23   9.8000   9.9900    588.0      BSE  upstox            0        NaN
+    2013-04-25   9.3500   9.5100   5900.0      BSE  upstox            0        NaN
+
+2022-05-19  ABREL  qty 6,684  fill Rs 706.0575  value Rs 4,719,288  ADV20 Rs 665,473  -> 709.2% of ADV20
+  listed member that day: True   liquidity filter: none (research profile, participation_cap None)
+  slippage Rs 7,068.33 = 15.0 bps   impact Rs 0 = 0 bps (no --impact)   charges Rs 5,603.53
+  position P&L Rs 533,116
+  same symbol, same date, static (without-survivorship) file: ADV20 Rs 665,473
+  20 rows behind the ADV20 (with-survivorship file):
+                  open   close  volume exchange source  _gap_filled     tv_nse
+    date                                                                      
+    2022-04-20  869.40  868.80   897.0      NSE   dhan            0  779313.60
+    2022-04-21  874.75  880.20   899.0      NSE   dhan            0  791299.80
+    2022-04-22  874.90  878.95   894.0      NSE   dhan            0  785781.30
+    2022-04-25  870.00  886.40   891.0      NSE   dhan            0  789782.40
+    2022-04-26  900.00  881.30   884.0      NSE   dhan            0  779069.20
+    2022-04-27  867.30  875.70   879.0      NSE   dhan            0  769740.30
+    2022-04-28  883.00  858.00   875.0      NSE   dhan            0  750750.00
+    2022-04-29  868.95  835.80   869.0      NSE   dhan            0  726310.20
+    2022-05-02  830.00  832.65   866.0      NSE   dhan            0  721074.90
+    2022-05-04  839.95  805.15   859.0      NSE   dhan            0  691623.85
+    2022-05-05  812.40  798.25   850.0      NSE   dhan            0  678512.50
+    2022-05-06  770.00  769.35   838.0      NSE   dhan            0  644715.30
+    2022-05-09  765.00  743.85   822.0      NSE   dhan            0  611444.70
+    2022-05-10  742.30  725.95   804.0      NSE   dhan            0  583663.80
+    2022-05-11  725.00  722.95   787.0      NSE   dhan            0  568961.65
+    2022-05-12  711.00  695.35   769.0      NSE   dhan            0  534724.15
+    2022-05-13  704.90  695.75   754.0      NSE   dhan            0  524595.50
+    2022-05-16  703.90  703.20   739.0      NSE   dhan            0  519664.80
+    2022-05-17  713.70  731.30   731.0      NSE   dhan            0  534580.30
+    2022-05-18  731.00  724.55   723.0      NSE   dhan            0  523849.65
+
+2022-07-14  ABREL  qty 5,063  fill Rs 804.2045  value Rs 4,071,687  ADV20 Rs 614,734  -> 662.3% of ADV20
+  listed member that day: True   liquidity filter: none (research profile, participation_cap None)
+  slippage Rs 6,098.38 = 15.0 bps   impact Rs 0 = 0 bps (no --impact)   charges Rs 4,835.30
+  position P&L Rs 680,163
+  same symbol, same date, static (without-survivorship) file: ADV20 Rs 614,734
+  20 rows behind the ADV20 (with-survivorship file):
+                  open   close  volume exchange source  _gap_filled     tv_nse
+    date                                                                      
+    2022-06-16  787.00  752.20   795.0      NSE   dhan            0  597999.00
+    2022-06-17  751.80  744.85   783.0      NSE   dhan            0  583217.55
+    2022-06-20  747.05  730.05   772.0      NSE   dhan            0  563598.60
+    2022-06-21  746.00  751.85   764.0      NSE   dhan            0  574413.40
+    2022-06-22  740.00  737.25   755.0      NSE   dhan            0  556623.75
+    2022-06-23  739.00  749.80   750.0      NSE   dhan            0  562350.00
+    2022-06-24  758.50  778.85   753.0      NSE   dhan            0  586474.05
+    2022-06-27  787.70  807.65   758.0      NSE   dhan            0  612198.70
+    2022-06-28  814.00  802.55   761.0      NSE   dhan            0  610740.55
+    2022-06-29  793.00  807.50   767.0      NSE   dhan            0  619352.50
+    2022-06-30  808.00  805.70   774.0      NSE   dhan            0  623611.80
+    2022-07-01  808.00  806.70   783.0      NSE   dhan            0  631646.10
+    2022-07-04  812.00  808.65   789.0      NSE   dhan            0  638024.85
+    2022-07-05  808.65  794.50   795.0      NSE   dhan            0  631627.50
+    2022-07-06  793.30  808.10   802.0      NSE   dhan            0  648096.20
+    2022-07-07  815.00  808.80   805.0      NSE   dhan            0  651084.00
+    2022-07-08  814.90  807.80   805.0      NSE   dhan            0  650279.00
+    2022-07-11  800.00  809.90   806.0      NSE   dhan            0  652779.40
+    2022-07-12  800.20  811.65   806.0      NSE   dhan            0  654189.90
+    2022-07-13  819.00  801.95   806.0      NSE   dhan            0  646371.70
+
+2023-08-31  ABREL  qty 4,955  fill Rs 1,046.5675  value Rs 5,185,742  ADV20 Rs 1,032,011  -> 502.5% of ADV20
+  listed member that day: True   liquidity filter: none (research profile, participation_cap None)
+  slippage Rs 7,766.96 = 15.0 bps   impact Rs 0 = 0 bps (no --impact)   charges Rs 6,157.98
+  position P&L Rs 251,119
+  same symbol, same date, static (without-survivorship) file: ADV20 Rs 1,032,011
+  20 rows behind the ADV20 (with-survivorship file):
+                   open    close  volume exchange source  _gap_filled      tv_nse
+    date                                                                         
+    2023-08-02  1070.00  1029.35  1015.0      NSE   dhan            0  1044790.25
+    2023-08-03  1035.00  1026.70  1023.0      NSE   dhan            0  1050314.10
+    2023-08-04  1036.05  1026.70  1029.0      NSE   dhan            0  1056474.30
+    2023-08-07  1033.20  1020.20  1032.0      NSE   dhan            0  1052846.40
+    2023-08-08  1021.00  1041.00  1037.0      NSE   dhan            0  1079517.00
+    2023-08-09  1044.40  1027.55  1039.0      NSE   dhan            0  1067624.45
+    2023-08-10  1030.00  1006.70  1036.0      NSE   dhan            0  1042941.20
+    2023-08-11  1010.00  1015.60  1029.0      NSE   dhan            0  1045052.40
+    2023-08-14  1014.00  1008.30  1022.0      NSE   dhan            0  1030482.60
+    2023-08-16  1010.00  1005.10  1019.0      NSE   dhan            0  1024196.90
+    2023-08-17  1005.00  1018.60  1018.0      NSE   dhan            0  1036934.80
+    2023-08-18  1018.60  1000.10  1015.0      NSE   dhan            0  1015101.50
+    2023-08-21  1000.00   977.40  1011.0      NSE   dhan            0   988151.40
+    2023-08-22   979.85   994.70  1006.0      NSE   dhan            0  1000668.20
+    2023-08-23   999.80  1013.85  1004.0      NSE   dhan            0  1017905.40
+    2023-08-24  1019.20   984.20  1001.0      NSE   dhan            0   985184.20
+    2023-08-25   984.20  1005.25  1000.0      NSE   dhan            0  1005250.00
+    2023-08-28  1011.15  1014.85  1001.0      NSE   dhan            0  1015864.85
+    2023-08-29  1021.00  1029.90  1004.0      NSE   dhan            0  1034019.60
+    2023-08-30  1034.00  1040.65  1006.0      NSE   dhan            0  1046893.90
+
+2021-08-26  ABREL  qty 3,466  fill Rs 757.5346  value Rs 2,625,615  ADV20 Rs 598,443  -> 438.7% of ADV20
+  listed member that day: True   liquidity filter: none (research profile, participation_cap None)
+  slippage Rs 3,932.52 = 15.0 bps   impact Rs 0 = 0 bps (no --impact)   charges Rs 3,118.22
+  position P&L Rs 234,406
+  same symbol, same date, static (without-survivorship) file: ADV20 Rs 598,443
+  20 rows behind the ADV20 (with-survivorship file):
+                  open   close  volume exchange source  _gap_filled     tv_nse
+    date                                                                      
+    2021-07-28  686.90  768.20   714.0      NSE   dhan            0  548494.80
+    2021-07-29  807.70  770.20   721.0      NSE   dhan            0  555314.20
+    2021-07-30  773.00  795.75   729.0      NSE   dhan            0  580101.75
+    2021-08-02  802.95  822.60   741.0      NSE   dhan            0  609546.60
+    2021-08-03  813.00  810.10   753.0      NSE   dhan            0  610005.30
+    2021-08-04  814.55  780.80   762.0      NSE   dhan            0  594969.60
+    2021-08-05  785.70  763.80   769.0      NSE   dhan            0  587362.20
+    2021-08-06  762.50  792.45   779.0      NSE   dhan            0  617318.55
+    2021-08-09  793.80  776.05   789.0      NSE   dhan            0  612303.45
+    2021-08-10  779.00  759.65   785.0      NSE   dhan            0  596325.25
+    2021-08-11  763.70  765.15   785.0      NSE   dhan            0  600642.75
+    2021-08-12  769.90  765.40   781.0      NSE   dhan            0  597777.40
+    2021-08-13  770.00  788.75   778.0      NSE   dhan            0  613647.50
+    2021-08-16  786.50  815.55   778.0      NSE   dhan            0  634497.90
+    2021-08-17  816.00  810.60   781.0      NSE   dhan            0  633078.60
+    2021-08-18  814.00  789.45   784.0      NSE   dhan            0  618928.80
+    2021-08-20  778.00  766.95   781.0      NSE   dhan            0  598987.95
+    2021-08-23  770.00  743.60   778.0      NSE   dhan            0  578520.80
+    2021-08-24  740.00  765.15   778.0      NSE   dhan            0  595286.70
+    2021-08-25  759.00  753.85   777.0      NSE   dhan            0  585741.45
+
+2024-02-23  ABREL  qty 4,418  fill Rs 1,442.1600  value Rs 6,371,463  ADV20 Rs 2,048,487  -> 311.0% of ADV20
+  listed member that day: True   liquidity filter: none (research profile, participation_cap None)
+  slippage Rs 9,542.88 = 15.0 bps   impact Rs 0 = 0 bps (no --impact)   charges Rs 7,565.32
+  position P&L Rs 5,893,038
+  same symbol, same date, static (without-survivorship) file: ADV20 Rs 2,048,487
+  20 rows behind the ADV20 (with-survivorship file):
+                   open    close  volume exchange source  _gap_filled      tv_nse
+    date                                                                         
+    2024-01-25  1359.10  1345.30  1392.0      NSE   dhan            0  1872657.60
+    2024-01-29  1350.00  1418.25  1388.0      NSE   dhan            0  1968531.00
+    2024-01-30  1418.05  1388.30  1383.0      NSE   dhan            0  1920018.90
+    2024-01-31  1390.00  1425.95  1386.0      NSE   dhan            0  1976366.70
+    2024-02-01  1425.00  1515.80  1400.0      NSE   dhan            0  2122120.00
+    2024-02-02  1526.60  1547.25  1417.0      NSE   dhan            0  2192453.25
+    2024-02-05  1587.00  1481.35  1427.0      NSE   dhan            0  2113886.45
+    2024-02-06  1484.80  1495.00  1441.0      NSE   dhan            0  2154295.00
+    2024-02-07  1495.00  1450.55  1451.0      NSE   dhan            0  2104748.05
+    2024-02-08  1458.40  1450.65  1463.0      NSE   dhan            0  2122300.95
+    2024-02-09  1463.60  1430.85  1465.0      NSE   dhan            0  2096195.25
+    2024-02-12  1435.05  1375.15  1463.0      NSE   dhan            0  2011844.45
+    2024-02-13  1390.00  1355.95  1455.0      NSE   dhan            0  1972907.25
+    2024-02-14  1349.95  1429.65  1446.0      NSE   dhan            0  2067273.90
+    2024-02-15  1438.00  1428.85  1433.0      NSE   dhan            0  2047542.05
+    2024-02-16  1440.00  1415.15  1425.0      NSE   dhan            0  2016588.75
+    2024-02-19  1430.00  1458.10  1421.0      NSE   dhan            0  2071960.10
+    2024-02-20  1465.00  1459.30  1422.0      NSE   dhan            0  2075124.60
+    2024-02-21  1464.35  1437.10  1421.0      NSE   dhan            0  2042119.10
+    2024-02-22  1448.55  1423.10  1420.0      NSE   dhan            0  2020802.00
+
+====================================================================================================
+W2 PIT nifty500 v2, tax off: 10 largest buys by fill value / ADV20
+====================================================================================================
+
+2012-01-13  ALKYLAMINE  qty 3,652  fill Rs 17.8191  value Rs 65,075  ADV20 Rs 169  -> 38,557.7% of ADV20
+  listed member that day: True   liquidity filter: none (research profile, participation_cap None)
+  slippage Rs 97.47 = 15.0 bps   impact Rs 0 = 0 bps (no --impact)   charges Rs 77.44
+  position P&L Rs -6,501
+  no file for this symbol in the static (without-survivorship) folder
+  20 rows behind the ADV20 (with-survivorship file):
+                   open    close   volume exchange  source  _gap_filled   tv_nse
+    date                                                                        
+    2011-12-16  17.6908  17.4874   6100.0      BSE  upstox            0      NaN
+    2011-12-19  18.0975  16.4707   1440.0      BSE  upstox            0      NaN
+    2011-12-20  17.4874  16.9791  11706.0      BSE  upstox            0      NaN
+    2011-12-21  17.8941  16.8774   5706.0      BSE  upstox            0      NaN
+    2011-12-22  16.3182  16.9791  23996.0      BSE  upstox            0      NaN
+    2011-12-23  16.0132  17.2841    366.0      BSE  upstox            0      NaN
+    2011-12-26  17.2841  16.6741    430.0      BSE  upstox            0      NaN
+    2011-12-27  16.4707  16.7757    356.0      BSE  upstox            0      NaN
+    2011-12-28  17.4366  17.0808    490.0      BSE  upstox            0      NaN
+    2011-12-29  16.8774  16.7757    756.0      BSE  upstox            0      NaN
+    2011-12-30  15.8607  16.5724     20.0      BSE  upstox            0      NaN
+    2012-01-02  17.5891  16.1149   9760.0      BSE  upstox            0      NaN
+    2012-01-03  16.3691  16.4199  14920.0      BSE  upstox            0      NaN
+    2012-01-04  17.0808  16.4707  13480.0      BSE  upstox            0      NaN
+    2012-01-05  19.1142  16.1657   8756.0      BSE  upstox            0      NaN
+    2012-01-06  16.8774  16.1657   3510.0      BSE  upstox            0      NaN
+    2012-01-09  17.6908  16.2674  62320.0      BSE  upstox            0      NaN
+    2012-01-10  16.6741  16.8266   1900.0      BSE  upstox            0      NaN
+    2012-01-11  17.3858  17.4366   4450.0      BSE  upstox            0      NaN
+    2012-01-12  17.0808  16.8774     10.0      NSE    kite            1  168.774
+
+2014-03-12  OLECTRA  qty 17,230  fill Rs 7.2609  value Rs 125,105  ADV20 Rs 5,318  -> 2,352.6% of ADV20
+  listed member that day: True   liquidity filter: none (research profile, participation_cap None)
+  slippage Rs 187.38 = 15.0 bps   impact Rs 0 = 0 bps (no --impact)   charges Rs 148.68
+  position P&L Rs 12,750
+  same symbol, same date, static (without-survivorship) file: ADV20 Rs 5,318
+  20 rows behind the ADV20 (with-survivorship file):
+                  open   close   volume exchange  source  _gap_filled     tv_nse
+    date                                                                        
+    2014-02-11  8.7500  8.6500    900.0      BSE  upstox            0        NaN
+    2014-02-12  8.7500  8.7500   1000.0      BSE  upstox            0        NaN
+    2014-02-13  8.5500  8.7500    585.0      BSE  upstox            0        NaN
+    2014-02-14  8.5100  8.5100    400.0      BSE  upstox            0        NaN
+    2014-02-17  8.4000  8.4900   7607.0      BSE  upstox            0        NaN
+    2014-02-18  8.2500  8.2300    150.0      BSE  upstox            0        NaN
+    2014-02-19  8.2500  8.3000   5764.0      BSE  upstox            0        NaN
+    2014-02-20  8.1500  8.2500    801.0      BSE  upstox            0        NaN
+    2014-02-21  8.0200  7.8900   3495.0      BSE  upstox            0        NaN
+    2014-02-24  8.0000  7.3800   6194.0      BSE  upstox            0        NaN
+    2014-02-25  7.4000  7.1100  36112.0      BSE  upstox            0        NaN
+    2014-02-26  7.3900  7.0100    251.0      BSE  upstox            0        NaN
+    2014-02-28  7.4000  7.3900    700.0      BSE  upstox            0        NaN
+    2014-03-03  7.4000  7.4000    500.0      BSE  upstox            0        NaN
+    2014-03-04  7.1000  7.4000   2200.0      BSE  upstox            0        NaN
+    2014-03-05  7.4000  7.1100   1701.0      BSE  upstox            0        NaN
+    2014-03-06  7.3900  7.4000   6895.0      BSE  upstox            0        NaN
+    2014-03-07  7.0000  7.4000   1378.0      BSE  upstox            0        NaN
+    2014-03-10  7.2000  7.4700    440.0      BSE  upstox            0        NaN
+    2014-03-11  7.1748  7.3755    721.0      NSE    dhan            1  5317.7355
+
+2012-11-30  OLECTRA  qty 8,969  fill Rs 14.1312  value Rs 126,742  ADV20 Rs 16,280  -> 778.5% of ADV20
+  listed member that day: True   liquidity filter: none (research profile, participation_cap None)
+  slippage Rs 189.83 = 15.0 bps   impact Rs 0 = 0 bps (no --impact)   charges Rs 150.74
+  position P&L Rs -15,247
+  same symbol, same date, static (without-survivorship) file: ADV20 Rs 16,280
+  20 rows behind the ADV20 (with-survivorship file):
+                   open    close   volume exchange  source  _gap_filled      tv_nse
+    date                                                                           
+    2012-10-31  15.0000  15.0000    200.0      BSE  upstox            0         NaN
+    2012-11-01  15.0000  15.1000    603.0      BSE  upstox            0         NaN
+    2012-11-02  15.0000  15.0000   1302.0      BSE  upstox            0         NaN
+    2012-11-05  14.7000  14.7500    671.0      BSE  upstox            0         NaN
+    2012-11-06  14.8000  14.8500   5185.0      BSE  upstox            0         NaN
+    2012-11-07  14.2000  14.6000   2430.0      BSE  upstox            0         NaN
+    2012-11-08  14.7000  14.7000    200.0      BSE  upstox            0         NaN
+    2012-11-09  15.4500  14.5200    125.0      BSE  upstox            0         NaN
+    2012-11-12  14.3000  14.2200   2000.0      BSE  upstox            0         NaN
+    2012-11-13  14.2500  14.9000      5.0      BSE  upstox            0         NaN
+    2012-11-15  14.5000  14.7900      9.0      BSE  upstox            0         NaN
+    2012-11-16  14.5500  14.5000    760.0      BSE  upstox            0         NaN
+    2012-11-19  14.4500  14.4500    100.0      BSE  upstox            0         NaN
+    2012-11-20  14.2900  14.3200    455.0      BSE  upstox            0         NaN
+    2012-11-21  14.3100  14.3100     20.0      BSE  upstox            0         NaN
+    2012-11-22  14.3300  14.3300    199.0      BSE  upstox            0         NaN
+    2012-11-23  14.1700  14.0600   7717.0      BSE  upstox            0         NaN
+    2012-11-26  14.1097  14.0103   1162.0      NSE    dhan            1  16279.9686
+    2012-11-27  14.0300  14.4000  14604.0      BSE  upstox            0         NaN
+    2012-11-29  14.0500  14.1000    175.0      BSE  upstox            0         NaN
+
+2013-09-18  OLECTRA  qty 10,216  fill Rs 10.6660  value Rs 108,964  ADV20 Rs 16,854  -> 646.5% of ADV20
+  listed member that day: True   liquidity filter: none (research profile, participation_cap None)
+  slippage Rs 163.20 = 15.0 bps   impact Rs 0 = 0 bps (no --impact)   charges Rs 129.08
+  position P&L Rs -4,495
+  same symbol, same date, static (without-survivorship) file: ADV20 Rs 16,854
+  20 rows behind the ADV20 (with-survivorship file):
+                 open  close   volume exchange  source  _gap_filled    tv_nse
+    date                                                                     
+    2013-08-20  10.45  10.45      1.0      BSE  upstox            0       NaN
+    2013-08-21  10.40  10.10    550.0      BSE  upstox            0       NaN
+    2013-08-22  10.05  10.25   2780.0      BSE  upstox            0       NaN
+    2013-08-23  10.10  10.21   1620.0      BSE  upstox            0       NaN
+    2013-08-26  10.05  10.55   1509.0      BSE  upstox            0       NaN
+    2013-08-27  10.43  10.15   1810.0      BSE  upstox            0       NaN
+    2013-08-28   9.80  10.00    301.0      BSE  upstox            0       NaN
+    2013-08-29  10.00   9.72   2517.0      BSE  upstox            0       NaN
+    2013-08-30  10.00  10.18  10965.0      BSE  upstox            0       NaN
+    2013-09-02   9.80  10.05   1677.0      NSE    dhan            1  16853.85
+    2013-09-03  10.19  10.00    503.0      BSE  upstox            0       NaN
+    2013-09-04  10.00   9.86    513.0      BSE  upstox            0       NaN
+    2013-09-05  10.40  10.00   1021.0      BSE  upstox            0       NaN
+    2013-09-06  10.35  10.38     10.0      BSE  upstox            0       NaN
+    2013-09-10   9.94  10.40    169.0      BSE  upstox            0       NaN
+    2013-09-11  10.01  10.49     31.0      BSE  upstox            0       NaN
+    2013-09-12   9.61  10.05    210.0      BSE  upstox            0       NaN
+    2013-09-13  10.00  10.70   1005.0      BSE  upstox            0       NaN
+    2013-09-16  10.19  10.19    100.0      BSE  upstox            0       NaN
+    2013-09-17  10.65  10.05    121.0      BSE  upstox            0       NaN
+
+2013-04-26  OLECTRA  qty 10,840  fill Rs 9.3140  value Rs 100,963  ADV20 Rs 17,307  -> 583.4% of ADV20
+  listed member that day: True   liquidity filter: none (research profile, participation_cap None)
+  slippage Rs 151.22 = 15.0 bps   impact Rs 0 = 0 bps (no --impact)   charges Rs 119.78
+  position P&L Rs 4,878
+  same symbol, same date, static (without-survivorship) file: ADV20 Rs 17,307
+  20 rows behind the ADV20 (with-survivorship file):
+                   open    close   volume exchange  source  _gap_filled     tv_nse
+    date                                                                          
+    2013-03-25   9.8000   9.7800  18434.0      BSE  upstox            0        NaN
+    2013-03-26   9.7600   9.8600   2398.0      BSE  upstox            0        NaN
+    2013-03-28   9.6900  10.3700   2198.0      BSE  upstox            0        NaN
+    2013-04-01  10.6500  10.5000   1989.0      BSE  upstox            0        NaN
+    2013-04-02  10.4900  10.4900     50.0      BSE  upstox            0        NaN
+    2013-04-03   9.7500  10.3500   1774.0      BSE  upstox            0        NaN
+    2013-04-04  10.5000  10.5500   1491.0      BSE  upstox            0        NaN
+    2013-04-05  10.0000  10.1900    301.0      BSE  upstox            0        NaN
+    2013-04-08  10.1100  10.1100    500.0      BSE  upstox            0        NaN
+    2013-04-09  10.0000  10.0000    100.0      BSE  upstox            0        NaN
+    2013-04-10  10.0000  10.0000    534.0      BSE  upstox            0        NaN
+    2013-04-11  10.3000  10.4600     21.0      BSE  upstox            0        NaN
+    2013-04-12   9.9000  10.1900   1965.0      BSE  upstox            0        NaN
+    2013-04-15  10.0423  10.0423   1200.0      NSE    dhan            1  12050.760
+    2013-04-16  10.1930  10.1428   1020.0      NSE    dhan            1  10345.656
+    2013-04-17   9.7913   9.8415   3000.0      NSE    dhan            1  29524.500
+    2013-04-18   9.8000   9.8000   1100.0      BSE  upstox            0        NaN
+    2013-04-22   9.6000   9.7100   4159.0      BSE  upstox            0        NaN
+    2013-04-23   9.8000   9.9900    588.0      BSE  upstox            0        NaN
+    2013-04-25   9.3500   9.5100   5900.0      BSE  upstox            0        NaN
+
+2020-04-17  RTNINDIA  qty 127,225  fill Rs 1.7026  value Rs 216,607  ADV20 Rs 70,818  -> 305.9% of ADV20
+  listed member that day: True   liquidity filter: none (research profile, participation_cap None)
+  slippage Rs 324.42 = 15.0 bps   impact Rs 0 = 0 bps (no --impact)   charges Rs 256.09
+  position P&L Rs -6,361
+  no file for this symbol in the static (without-survivorship) folder
+  20 rows behind the ADV20 (with-survivorship file):
+                open  close    volume exchange  source  _gap_filled     tv_nse
+    date                                                                      
+    2020-03-16  2.65   2.65    2213.0      NSE  upstox            0    5864.45
+    2020-03-17  2.65   2.65       0.0      NaN     NaN            0        NaN
+    2020-03-18  2.65   2.65       0.0      NaN     NaN            0        NaN
+    2020-03-19  2.65   2.65       0.0      NaN     NaN            0        NaN
+    2020-03-20  2.65   2.65       0.0      NaN     NaN            0        NaN
+    2020-03-23  2.65   2.65       0.0      NaN     NaN            0        NaN
+    2020-03-24  2.55   2.55     253.0      NSE  upstox            0     645.15
+    2020-03-25  2.45   2.45     200.0      NSE  upstox            0     490.00
+    2020-03-26  2.35   2.35    4841.0      NSE  upstox            0   11376.35
+    2020-03-27  2.25   2.25     396.0      NSE  upstox            0     891.00
+    2020-03-30  2.15   2.15     704.0      NSE  upstox            0    1513.60
+    2020-03-31  2.05   2.05     917.0      NSE  upstox            0    1879.85
+    2020-04-01  1.95   1.95    8581.0      NSE  upstox            0   16732.95
+    2020-04-03  1.90   1.90    2567.0      NSE  upstox            0    4877.30
+    2020-04-07  1.85   1.85    3035.0      NSE  upstox            0    5614.75
+    2020-04-08  1.80   1.80  195174.0      NSE  upstox            0  351313.20
+    2020-04-09  1.75   1.75   78009.0      NSE  upstox            0  136515.75
+    2020-04-13  1.70   1.70   37536.0      NSE  upstox            0   63811.20
+    2020-04-15  1.70   1.65  176839.0      NSE  upstox            0  291784.35
+    2020-04-16  1.60   1.65  102397.0      NSE  upstox            0  168955.05
+
+2012-01-13  OLECTRA  qty 3,279  fill Rs 12.0080  value Rs 39,374  ADV20 Rs 20,050  -> 196.4% of ADV20
+  listed member that day: True   liquidity filter: none (research profile, participation_cap None)
+  slippage Rs 58.97 = 15.0 bps   impact Rs 0 = 0 bps (no --impact)   charges Rs 46.48
+  position P&L Rs -1,640
+  same symbol, same date, static (without-survivorship) file: ADV20 Rs 20,050
+  20 rows behind the ADV20 (with-survivorship file):
+                   open    close  volume exchange  source  _gap_filled      tv_nse
+    date                                                                          
+    2011-12-16  10.4500   9.5500   222.0      BSE  upstox            0         NaN
+    2011-12-19   9.1500   9.4900  5601.0      BSE  upstox            0         NaN
+    2011-12-20   9.0500   9.1000  1700.0      BSE  upstox            0         NaN
+    2011-12-21   8.9400   9.1000  1230.0      BSE  upstox            0         NaN
+    2011-12-22   9.1100   9.1000   721.0      BSE  upstox            0         NaN
+    2011-12-23   9.0600   9.2500  1862.0      BSE  upstox            0         NaN
+    2011-12-26   9.0000   9.8500  2016.0      BSE  upstox            0         NaN
+    2011-12-27   9.6000   9.1100   900.0      BSE  upstox            0         NaN
+    2011-12-28   9.1500   9.2100  3312.0      BSE  upstox            0         NaN
+    2011-12-29   9.6900   9.7700   604.0      BSE  upstox            0         NaN
+    2011-12-30   9.3454   9.2951  2157.0      NSE    dhan            1  20049.5307
+    2012-01-02   8.7500   9.1000  1200.0      BSE  upstox            0         NaN
+    2012-01-03   9.6000   9.3500  2800.0      BSE  upstox            0         NaN
+    2012-01-04   9.4000   9.7700  7371.0      BSE  upstox            0         NaN
+    2012-01-05  10.1000   9.3900  3304.0      BSE  upstox            0         NaN
+    2012-01-06   9.5500   9.5500  4635.0      BSE  upstox            0         NaN
+    2012-01-09   9.5000   9.7500  3389.0      BSE  upstox            0         NaN
+    2012-01-10   9.5200   9.9900  2373.0      BSE  upstox            0         NaN
+    2012-01-11  10.5000  10.8000  3237.0      BSE  upstox            0         NaN
+    2012-01-12  10.9500  11.4000  1428.0      BSE  upstox            0         NaN
+
+2009-12-15  SOMANYCERA  qty 2,552  fill Rs 22.8817  value Rs 58,394  ADV20 Rs 34,014  -> 171.7% of ADV20
+  listed member that day: True   liquidity filter: none (research profile, participation_cap None)
+  slippage Rs 87.46 = 15.0 bps   impact Rs 0 = 0 bps (no --impact)   charges Rs 69.18
+  position P&L Rs 24,014
+  no file for this symbol in the static (without-survivorship) folder
+  20 rows behind the ADV20 (with-survivorship file):
+                   open    close  volume exchange  source  _gap_filled       tv_nse
+    date                                                                           
+    2009-11-17  19.9584  19.7848   169.0      NSE  upstox            0    3343.6312
+    2009-11-18  20.7394  20.7394   249.0      NSE  upstox            0    5164.1106
+    2009-11-19  20.7394  20.7394   139.0      NSE  upstox            0    2882.7766
+    2009-11-20  19.8022  19.8022   139.0      NSE  upstox            0    2752.5058
+    2009-11-23  19.8022  19.8022   139.0      NSE  upstox            0    2752.5058
+    2009-11-24  20.4791  20.2708  1004.0      NSE  upstox            0   20351.8832
+    2009-11-25  19.2729  19.8369  3524.0      NSE  upstox            0   69905.2356
+    2009-11-26  20.4791  20.4617  2294.0      NSE  upstox            0   46939.1398
+    2009-11-27  19.6547  20.9824  2249.0      NSE  upstox            0   47189.4176
+    2009-11-30  21.3468  21.3468   499.0      NSE  upstox            0   10652.0532
+    2009-12-01  23.2540  21.3468   569.0      BSE    dhan            0          NaN
+    2009-12-02  23.1216  23.1604  7004.0      NSE    kite            1  162215.4416
+    2009-12-03  22.4117  22.4117  2099.0      BSE    dhan            0          NaN
+    2009-12-04  22.0438  21.9858   150.0      BSE    dhan            0          NaN
+    2009-12-07  21.3178  22.0729   201.0      BSE    dhan            0          NaN
+    2009-12-08  21.7050  23.1669  3602.0      BSE    dhan            0          NaN
+    2009-12-09  22.6538  22.6538    50.0      BSE    dhan            0          NaN
+    2009-12-10  23.3314  23.1088   936.0      BSE    dhan            0          NaN
+    2009-12-11  23.2346  23.2346   988.0      BSE    dhan            0          NaN
+    2009-12-14  22.3246  22.3924  1841.0      BSE    dhan            0          NaN
+
+2014-01-14  ALKYLAMINE  qty 2,467  fill Rs 48.0234  value Rs 118,474  ADV20 Rs 91,442  -> 129.6% of ADV20
+  listed member that day: True   liquidity filter: none (research profile, participation_cap None)
+  slippage Rs 177.44 = 15.0 bps   impact Rs 0 = 0 bps (no --impact)   charges Rs 140.44
+  position P&L Rs -9,572
+  no file for this symbol in the static (without-survivorship) folder
+  20 rows behind the ADV20 (with-survivorship file):
+                   open    close   volume exchange  source  _gap_filled       tv_nse
+    date                                                                            
+    2013-12-16  48.1472  48.1472    120.0      NSE  upstox            0    5777.6640
+    2013-12-17  45.9943  47.0218   1695.0      NSE  upstox            0   79701.9510
+    2013-12-18  45.9943  47.5600    205.0      NSE  upstox            0    9749.8000
+    2013-12-19  47.9515  47.9515     10.0      NSE  upstox            0     479.5150
+    2013-12-20  47.9515  47.9515     20.0      NSE  upstox            0     959.0300
+    2013-12-23  47.9515  47.9515     20.0      NSE  upstox            0     959.0300
+    2013-12-24  49.9087  46.0432    140.0      NSE  upstox            0    6446.0480
+    2013-12-26  46.0432  46.0432    125.0      NSE  upstox            0    5755.4000
+    2013-12-27  46.9729  46.9729   5000.0      NSE  upstox            0  234864.5000
+    2013-12-30  48.9301  49.3215  17225.0      NSE  upstox            0  849562.8375
+    2013-12-31  49.3215  49.3215     50.0      NSE  upstox            0    2466.0750
+    2014-01-01  49.3215  49.3215     50.0      NSE  upstox            0    2466.0750
+    2014-01-02  50.8873  47.9515   2625.0      NSE  upstox            0  125872.6875
+    2014-01-03  50.8873  47.9515      0.0      NSE  upstox            0       0.0000
+    2014-01-06  50.8873  47.9515     50.0      NSE  upstox            0    2397.5750
+    2014-01-07  47.9515  47.9515     50.0      NSE  upstox            0    2397.5750
+    2014-01-08  49.3215  46.9729    755.0      NSE  upstox            0   35464.5395
+    2014-01-09  45.2114  45.2603   3825.0      NSE  upstox            0  173120.6475
+    2014-01-10  45.2114  45.2114    500.0      NSE  upstox            0   22605.7000
+    2014-01-13  48.9301  45.5050   5885.0      NSE  upstox            0  267796.9250
+
+2022-07-14  ABREL  qty 928  fill Rs 804.2045  value Rs 746,302  ADV20 Rs 614,734  -> 121.4% of ADV20
+  listed member that day: True   liquidity filter: none (research profile, participation_cap None)
+  slippage Rs 1,117.78 = 15.0 bps   impact Rs 0 = 0 bps (no --impact)   charges Rs 885.92
+  position P&L Rs 124,668
+  same symbol, same date, static (without-survivorship) file: ADV20 Rs 614,734
+  20 rows behind the ADV20 (with-survivorship file):
+                  open   close  volume exchange source  _gap_filled     tv_nse
+    date                                                                      
+    2022-06-16  787.00  752.20   795.0      NSE   dhan            0  597999.00
+    2022-06-17  751.80  744.85   783.0      NSE   dhan            0  583217.55
+    2022-06-20  747.05  730.05   772.0      NSE   dhan            0  563598.60
+    2022-06-21  746.00  751.85   764.0      NSE   dhan            0  574413.40
+    2022-06-22  740.00  737.25   755.0      NSE   dhan            0  556623.75
+    2022-06-23  739.00  749.80   750.0      NSE   dhan            0  562350.00
+    2022-06-24  758.50  778.85   753.0      NSE   dhan            0  586474.05
+    2022-06-27  787.70  807.65   758.0      NSE   dhan            0  612198.70
+    2022-06-28  814.00  802.55   761.0      NSE   dhan            0  610740.55
+    2022-06-29  793.00  807.50   767.0      NSE   dhan            0  619352.50
+    2022-06-30  808.00  805.70   774.0      NSE   dhan            0  623611.80
+    2022-07-01  808.00  806.70   783.0      NSE   dhan            0  631646.10
+    2022-07-04  812.00  808.65   789.0      NSE   dhan            0  638024.85
+    2022-07-05  808.65  794.50   795.0      NSE   dhan            0  631627.50
+    2022-07-06  793.30  808.10   802.0      NSE   dhan            0  648096.20
+    2022-07-07  815.00  808.80   805.0      NSE   dhan            0  651084.00
+    2022-07-08  814.90  807.80   805.0      NSE   dhan            0  650279.00
+    2022-07-11  800.00  809.90   806.0      NSE   dhan            0  652779.40
+    2022-07-12  800.20  811.65   806.0      NSE   dhan            0  654189.90
+    2022-07-13  819.00  801.95   806.0      NSE   dhan            0  646371.70
+
+====================================================================================================
+W2 PIT nifty500 v3, tax off: 10 largest buys by fill value / ADV20
+====================================================================================================
+
+2012-01-13  ALKYLAMINE  qty 6,412  fill Rs 17.8191  value Rs 114,256  ADV20 Rs 169  -> 67,697.6% of ADV20
+  listed member that day: True   liquidity filter: none (research profile, participation_cap None)
+  slippage Rs 171.13 = 15.0 bps   impact Rs 0 = 0 bps (no --impact)   charges Rs 135.27
+  position P&L Rs -11,413
+  no file for this symbol in the static (without-survivorship) folder
+  20 rows behind the ADV20 (with-survivorship file):
+                   open    close   volume exchange  source  _gap_filled   tv_nse
+    date                                                                        
+    2011-12-16  17.6908  17.4874   6100.0      BSE  upstox            0      NaN
+    2011-12-19  18.0975  16.4707   1440.0      BSE  upstox            0      NaN
+    2011-12-20  17.4874  16.9791  11706.0      BSE  upstox            0      NaN
+    2011-12-21  17.8941  16.8774   5706.0      BSE  upstox            0      NaN
+    2011-12-22  16.3182  16.9791  23996.0      BSE  upstox            0      NaN
+    2011-12-23  16.0132  17.2841    366.0      BSE  upstox            0      NaN
+    2011-12-26  17.2841  16.6741    430.0      BSE  upstox            0      NaN
+    2011-12-27  16.4707  16.7757    356.0      BSE  upstox            0      NaN
+    2011-12-28  17.4366  17.0808    490.0      BSE  upstox            0      NaN
+    2011-12-29  16.8774  16.7757    756.0      BSE  upstox            0      NaN
+    2011-12-30  15.8607  16.5724     20.0      BSE  upstox            0      NaN
+    2012-01-02  17.5891  16.1149   9760.0      BSE  upstox            0      NaN
+    2012-01-03  16.3691  16.4199  14920.0      BSE  upstox            0      NaN
+    2012-01-04  17.0808  16.4707  13480.0      BSE  upstox            0      NaN
+    2012-01-05  19.1142  16.1657   8756.0      BSE  upstox            0      NaN
+    2012-01-06  16.8774  16.1657   3510.0      BSE  upstox            0      NaN
+    2012-01-09  17.6908  16.2674  62320.0      BSE  upstox            0      NaN
+    2012-01-10  16.6741  16.8266   1900.0      BSE  upstox            0      NaN
+    2012-01-11  17.3858  17.4366   4450.0      BSE  upstox            0      NaN
+    2012-01-12  17.0808  16.8774     10.0      NSE    kite            1  168.774
+
+2014-03-12  OLECTRA  qty 24,201  fill Rs 7.2609  value Rs 175,720  ADV20 Rs 5,318  -> 3,304.4% of ADV20
+  listed member that day: True   liquidity filter: none (research profile, participation_cap None)
+  slippage Rs 263.19 = 15.0 bps   impact Rs 0 = 0 bps (no --impact)   charges Rs 208.57
+  position P&L Rs 17,909
+  same symbol, same date, static (without-survivorship) file: ADV20 Rs 5,318
+  20 rows behind the ADV20 (with-survivorship file):
+                  open   close   volume exchange  source  _gap_filled     tv_nse
+    date                                                                        
+    2014-02-11  8.7500  8.6500    900.0      BSE  upstox            0        NaN
+    2014-02-12  8.7500  8.7500   1000.0      BSE  upstox            0        NaN
+    2014-02-13  8.5500  8.7500    585.0      BSE  upstox            0        NaN
+    2014-02-14  8.5100  8.5100    400.0      BSE  upstox            0        NaN
+    2014-02-17  8.4000  8.4900   7607.0      BSE  upstox            0        NaN
+    2014-02-18  8.2500  8.2300    150.0      BSE  upstox            0        NaN
+    2014-02-19  8.2500  8.3000   5764.0      BSE  upstox            0        NaN
+    2014-02-20  8.1500  8.2500    801.0      BSE  upstox            0        NaN
+    2014-02-21  8.0200  7.8900   3495.0      BSE  upstox            0        NaN
+    2014-02-24  8.0000  7.3800   6194.0      BSE  upstox            0        NaN
+    2014-02-25  7.4000  7.1100  36112.0      BSE  upstox            0        NaN
+    2014-02-26  7.3900  7.0100    251.0      BSE  upstox            0        NaN
+    2014-02-28  7.4000  7.3900    700.0      BSE  upstox            0        NaN
+    2014-03-03  7.4000  7.4000    500.0      BSE  upstox            0        NaN
+    2014-03-04  7.1000  7.4000   2200.0      BSE  upstox            0        NaN
+    2014-03-05  7.4000  7.1100   1701.0      BSE  upstox            0        NaN
+    2014-03-06  7.3900  7.4000   6895.0      BSE  upstox            0        NaN
+    2014-03-07  7.0000  7.4000   1378.0      BSE  upstox            0        NaN
+    2014-03-10  7.2000  7.4700    440.0      BSE  upstox            0        NaN
+    2014-03-11  7.1748  7.3755    721.0      NSE    dhan            1  5317.7355
+
+2020-04-17  RTNINDIA  qty 359,924  fill Rs 1.7026  value Rs 612,789  ADV20 Rs 70,818  -> 865.3% of ADV20
+  listed member that day: True   liquidity filter: none (research profile, participation_cap None)
+  slippage Rs 917.81 = 15.0 bps   impact Rs 0 = 0 bps (no --impact)   charges Rs 726.88
+  position P&L Rs -17,996
+  no file for this symbol in the static (without-survivorship) folder
+  20 rows behind the ADV20 (with-survivorship file):
+                open  close    volume exchange  source  _gap_filled     tv_nse
+    date                                                                      
+    2020-03-16  2.65   2.65    2213.0      NSE  upstox            0    5864.45
+    2020-03-17  2.65   2.65       0.0      NaN     NaN            0        NaN
+    2020-03-18  2.65   2.65       0.0      NaN     NaN            0        NaN
+    2020-03-19  2.65   2.65       0.0      NaN     NaN            0        NaN
+    2020-03-20  2.65   2.65       0.0      NaN     NaN            0        NaN
+    2020-03-23  2.65   2.65       0.0      NaN     NaN            0        NaN
+    2020-03-24  2.55   2.55     253.0      NSE  upstox            0     645.15
+    2020-03-25  2.45   2.45     200.0      NSE  upstox            0     490.00
+    2020-03-26  2.35   2.35    4841.0      NSE  upstox            0   11376.35
+    2020-03-27  2.25   2.25     396.0      NSE  upstox            0     891.00
+    2020-03-30  2.15   2.15     704.0      NSE  upstox            0    1513.60
+    2020-03-31  2.05   2.05     917.0      NSE  upstox            0    1879.85
+    2020-04-01  1.95   1.95    8581.0      NSE  upstox            0   16732.95
+    2020-04-03  1.90   1.90    2567.0      NSE  upstox            0    4877.30
+    2020-04-07  1.85   1.85    3035.0      NSE  upstox            0    5614.75
+    2020-04-08  1.80   1.80  195174.0      NSE  upstox            0  351313.20
+    2020-04-09  1.75   1.75   78009.0      NSE  upstox            0  136515.75
+    2020-04-13  1.70   1.70   37536.0      NSE  upstox            0   63811.20
+    2020-04-15  1.70   1.65  176839.0      NSE  upstox            0  291784.35
+    2020-04-16  1.60   1.65  102397.0      NSE  upstox            0  168955.05
+
+2013-09-18  OLECTRA  qty 12,071  fill Rs 10.6660  value Rs 128,749  ADV20 Rs 16,854  -> 763.9% of ADV20
+  listed member that day: True   liquidity filter: none (research profile, participation_cap None)
+  slippage Rs 192.83 = 15.0 bps   impact Rs 0 = 0 bps (no --impact)   charges Rs 152.81
+  position P&L Rs -5,311
+  same symbol, same date, static (without-survivorship) file: ADV20 Rs 16,854
+  20 rows behind the ADV20 (with-survivorship file):
+                 open  close   volume exchange  source  _gap_filled    tv_nse
+    date                                                                     
+    2013-08-20  10.45  10.45      1.0      BSE  upstox            0       NaN
+    2013-08-21  10.40  10.10    550.0      BSE  upstox            0       NaN
+    2013-08-22  10.05  10.25   2780.0      BSE  upstox            0       NaN
+    2013-08-23  10.10  10.21   1620.0      BSE  upstox            0       NaN
+    2013-08-26  10.05  10.55   1509.0      BSE  upstox            0       NaN
+    2013-08-27  10.43  10.15   1810.0      BSE  upstox            0       NaN
+    2013-08-28   9.80  10.00    301.0      BSE  upstox            0       NaN
+    2013-08-29  10.00   9.72   2517.0      BSE  upstox            0       NaN
+    2013-08-30  10.00  10.18  10965.0      BSE  upstox            0       NaN
+    2013-09-02   9.80  10.05   1677.0      NSE    dhan            1  16853.85
+    2013-09-03  10.19  10.00    503.0      BSE  upstox            0       NaN
+    2013-09-04  10.00   9.86    513.0      BSE  upstox            0       NaN
+    2013-09-05  10.40  10.00   1021.0      BSE  upstox            0       NaN
+    2013-09-06  10.35  10.38     10.0      BSE  upstox            0       NaN
+    2013-09-10   9.94  10.40    169.0      BSE  upstox            0       NaN
+    2013-09-11  10.01  10.49     31.0      BSE  upstox            0       NaN
+    2013-09-12   9.61  10.05    210.0      BSE  upstox            0       NaN
+    2013-09-13  10.00  10.70   1005.0      BSE  upstox            0       NaN
+    2013-09-16  10.19  10.19    100.0      BSE  upstox            0       NaN
+    2013-09-17  10.65  10.05    121.0      BSE  upstox            0       NaN
+
+2013-04-26  OLECTRA  qty 13,203  fill Rs 9.3140  value Rs 122,972  ADV20 Rs 17,307  -> 710.5% of ADV20
+  listed member that day: True   liquidity filter: none (research profile, participation_cap None)
+  slippage Rs 184.18 = 15.0 bps   impact Rs 0 = 0 bps (no --impact)   charges Rs 145.59
+  position P&L Rs 5,941
+  same symbol, same date, static (without-survivorship) file: ADV20 Rs 17,307
+  20 rows behind the ADV20 (with-survivorship file):
+                   open    close   volume exchange  source  _gap_filled     tv_nse
+    date                                                                          
+    2013-03-25   9.8000   9.7800  18434.0      BSE  upstox            0        NaN
+    2013-03-26   9.7600   9.8600   2398.0      BSE  upstox            0        NaN
+    2013-03-28   9.6900  10.3700   2198.0      BSE  upstox            0        NaN
+    2013-04-01  10.6500  10.5000   1989.0      BSE  upstox            0        NaN
+    2013-04-02  10.4900  10.4900     50.0      BSE  upstox            0        NaN
+    2013-04-03   9.7500  10.3500   1774.0      BSE  upstox            0        NaN
+    2013-04-04  10.5000  10.5500   1491.0      BSE  upstox            0        NaN
+    2013-04-05  10.0000  10.1900    301.0      BSE  upstox            0        NaN
+    2013-04-08  10.1100  10.1100    500.0      BSE  upstox            0        NaN
+    2013-04-09  10.0000  10.0000    100.0      BSE  upstox            0        NaN
+    2013-04-10  10.0000  10.0000    534.0      BSE  upstox            0        NaN
+    2013-04-11  10.3000  10.4600     21.0      BSE  upstox            0        NaN
+    2013-04-12   9.9000  10.1900   1965.0      BSE  upstox            0        NaN
+    2013-04-15  10.0423  10.0423   1200.0      NSE    dhan            1  12050.760
+    2013-04-16  10.1930  10.1428   1020.0      NSE    dhan            1  10345.656
+    2013-04-17   9.7913   9.8415   3000.0      NSE    dhan            1  29524.500
+    2013-04-18   9.8000   9.8000   1100.0      BSE  upstox            0        NaN
+    2013-04-22   9.6000   9.7100   4159.0      BSE  upstox            0        NaN
+    2013-04-23   9.8000   9.9900    588.0      BSE  upstox            0        NaN
+    2013-04-25   9.3500   9.5100   5900.0      BSE  upstox            0        NaN
+
+2012-11-30  OLECTRA  qty 7,256  fill Rs 14.1312  value Rs 102,536  ADV20 Rs 16,280  -> 629.8% of ADV20
+  listed member that day: True   liquidity filter: none (research profile, participation_cap None)
+  slippage Rs 153.57 = 15.0 bps   impact Rs 0 = 0 bps (no --impact)   charges Rs 121.84
+  position P&L Rs -12,335
+  same symbol, same date, static (without-survivorship) file: ADV20 Rs 16,280
+  20 rows behind the ADV20 (with-survivorship file):
+                   open    close   volume exchange  source  _gap_filled      tv_nse
+    date                                                                           
+    2012-10-31  15.0000  15.0000    200.0      BSE  upstox            0         NaN
+    2012-11-01  15.0000  15.1000    603.0      BSE  upstox            0         NaN
+    2012-11-02  15.0000  15.0000   1302.0      BSE  upstox            0         NaN
+    2012-11-05  14.7000  14.7500    671.0      BSE  upstox            0         NaN
+    2012-11-06  14.8000  14.8500   5185.0      BSE  upstox            0         NaN
+    2012-11-07  14.2000  14.6000   2430.0      BSE  upstox            0         NaN
+    2012-11-08  14.7000  14.7000    200.0      BSE  upstox            0         NaN
+    2012-11-09  15.4500  14.5200    125.0      BSE  upstox            0         NaN
+    2012-11-12  14.3000  14.2200   2000.0      BSE  upstox            0         NaN
+    2012-11-13  14.2500  14.9000      5.0      BSE  upstox            0         NaN
+    2012-11-15  14.5000  14.7900      9.0      BSE  upstox            0         NaN
+    2012-11-16  14.5500  14.5000    760.0      BSE  upstox            0         NaN
+    2012-11-19  14.4500  14.4500    100.0      BSE  upstox            0         NaN
+    2012-11-20  14.2900  14.3200    455.0      BSE  upstox            0         NaN
+    2012-11-21  14.3100  14.3100     20.0      BSE  upstox            0         NaN
+    2012-11-22  14.3300  14.3300    199.0      BSE  upstox            0         NaN
+    2012-11-23  14.1700  14.0600   7717.0      BSE  upstox            0         NaN
+    2012-11-26  14.1097  14.0103   1162.0      NSE    dhan            1  16279.9686
+    2012-11-27  14.0300  14.4000  14604.0      BSE  upstox            0         NaN
+    2012-11-29  14.0500  14.1000    175.0      BSE  upstox            0         NaN
+
+2022-07-14  ABREL  qty 4,410  fill Rs 804.2045  value Rs 3,546,542  ADV20 Rs 614,734  -> 576.9% of ADV20
+  listed member that day: True   liquidity filter: none (research profile, participation_cap None)
+  slippage Rs 5,311.85 = 15.0 bps   impact Rs 0 = 0 bps (no --impact)   charges Rs 4,211.67
+  position P&L Rs 592,439
+  same symbol, same date, static (without-survivorship) file: ADV20 Rs 614,734
+  20 rows behind the ADV20 (with-survivorship file):
+                  open   close  volume exchange source  _gap_filled     tv_nse
+    date                                                                      
+    2022-06-16  787.00  752.20   795.0      NSE   dhan            0  597999.00
+    2022-06-17  751.80  744.85   783.0      NSE   dhan            0  583217.55
+    2022-06-20  747.05  730.05   772.0      NSE   dhan            0  563598.60
+    2022-06-21  746.00  751.85   764.0      NSE   dhan            0  574413.40
+    2022-06-22  740.00  737.25   755.0      NSE   dhan            0  556623.75
+    2022-06-23  739.00  749.80   750.0      NSE   dhan            0  562350.00
+    2022-06-24  758.50  778.85   753.0      NSE   dhan            0  586474.05
+    2022-06-27  787.70  807.65   758.0      NSE   dhan            0  612198.70
+    2022-06-28  814.00  802.55   761.0      NSE   dhan            0  610740.55
+    2022-06-29  793.00  807.50   767.0      NSE   dhan            0  619352.50
+    2022-06-30  808.00  805.70   774.0      NSE   dhan            0  623611.80
+    2022-07-01  808.00  806.70   783.0      NSE   dhan            0  631646.10
+    2022-07-04  812.00  808.65   789.0      NSE   dhan            0  638024.85
+    2022-07-05  808.65  794.50   795.0      NSE   dhan            0  631627.50
+    2022-07-06  793.30  808.10   802.0      NSE   dhan            0  648096.20
+    2022-07-07  815.00  808.80   805.0      NSE   dhan            0  651084.00
+    2022-07-08  814.90  807.80   805.0      NSE   dhan            0  650279.00
+    2022-07-11  800.00  809.90   806.0      NSE   dhan            0  652779.40
+    2022-07-12  800.20  811.65   806.0      NSE   dhan            0  654189.90
+    2022-07-13  819.00  801.95   806.0      NSE   dhan            0  646371.70
+
+2023-08-31  ABREL  qty 5,273  fill Rs 1,046.5675  value Rs 5,518,550  ADV20 Rs 1,032,011  -> 534.7% of ADV20
+  listed member that day: True   liquidity filter: none (research profile, participation_cap None)
+  slippage Rs 8,265.43 = 15.0 bps   impact Rs 0 = 0 bps (no --impact)   charges Rs 6,553.43
+  position P&L Rs 267,236
+  same symbol, same date, static (without-survivorship) file: ADV20 Rs 1,032,011
+  20 rows behind the ADV20 (with-survivorship file):
+                   open    close  volume exchange source  _gap_filled      tv_nse
+    date                                                                         
+    2023-08-02  1070.00  1029.35  1015.0      NSE   dhan            0  1044790.25
+    2023-08-03  1035.00  1026.70  1023.0      NSE   dhan            0  1050314.10
+    2023-08-04  1036.05  1026.70  1029.0      NSE   dhan            0  1056474.30
+    2023-08-07  1033.20  1020.20  1032.0      NSE   dhan            0  1052846.40
+    2023-08-08  1021.00  1041.00  1037.0      NSE   dhan            0  1079517.00
+    2023-08-09  1044.40  1027.55  1039.0      NSE   dhan            0  1067624.45
+    2023-08-10  1030.00  1006.70  1036.0      NSE   dhan            0  1042941.20
+    2023-08-11  1010.00  1015.60  1029.0      NSE   dhan            0  1045052.40
+    2023-08-14  1014.00  1008.30  1022.0      NSE   dhan            0  1030482.60
+    2023-08-16  1010.00  1005.10  1019.0      NSE   dhan            0  1024196.90
+    2023-08-17  1005.00  1018.60  1018.0      NSE   dhan            0  1036934.80
+    2023-08-18  1018.60  1000.10  1015.0      NSE   dhan            0  1015101.50
+    2023-08-21  1000.00   977.40  1011.0      NSE   dhan            0   988151.40
+    2023-08-22   979.85   994.70  1006.0      NSE   dhan            0  1000668.20
+    2023-08-23   999.80  1013.85  1004.0      NSE   dhan            0  1017905.40
+    2023-08-24  1019.20   984.20  1001.0      NSE   dhan            0   985184.20
+    2023-08-25   984.20  1005.25  1000.0      NSE   dhan            0  1005250.00
+    2023-08-28  1011.15  1014.85  1001.0      NSE   dhan            0  1015864.85
+    2023-08-29  1021.00  1029.90  1004.0      NSE   dhan            0  1034019.60
+    2023-08-30  1034.00  1040.65  1006.0      NSE   dhan            0  1046893.90
+
+2021-08-26  ABREL  qty 4,149  fill Rs 757.5346  value Rs 3,143,011  ADV20 Rs 598,443  -> 525.2% of ADV20
+  listed member that day: True   liquidity filter: none (research profile, participation_cap None)
+  slippage Rs 4,707.46 = 15.0 bps   impact Rs 0 = 0 bps (no --impact)   charges Rs 3,731.56
+  position P&L Rs 280,597
+  same symbol, same date, static (without-survivorship) file: ADV20 Rs 598,443
+  20 rows behind the ADV20 (with-survivorship file):
+                  open   close  volume exchange source  _gap_filled     tv_nse
+    date                                                                      
+    2021-07-28  686.90  768.20   714.0      NSE   dhan            0  548494.80
+    2021-07-29  807.70  770.20   721.0      NSE   dhan            0  555314.20
+    2021-07-30  773.00  795.75   729.0      NSE   dhan            0  580101.75
+    2021-08-02  802.95  822.60   741.0      NSE   dhan            0  609546.60
+    2021-08-03  813.00  810.10   753.0      NSE   dhan            0  610005.30
+    2021-08-04  814.55  780.80   762.0      NSE   dhan            0  594969.60
+    2021-08-05  785.70  763.80   769.0      NSE   dhan            0  587362.20
+    2021-08-06  762.50  792.45   779.0      NSE   dhan            0  617318.55
+    2021-08-09  793.80  776.05   789.0      NSE   dhan            0  612303.45
+    2021-08-10  779.00  759.65   785.0      NSE   dhan            0  596325.25
+    2021-08-11  763.70  765.15   785.0      NSE   dhan            0  600642.75
+    2021-08-12  769.90  765.40   781.0      NSE   dhan            0  597777.40
+    2021-08-13  770.00  788.75   778.0      NSE   dhan            0  613647.50
+    2021-08-16  786.50  815.55   778.0      NSE   dhan            0  634497.90
+    2021-08-17  816.00  810.60   781.0      NSE   dhan            0  633078.60
+    2021-08-18  814.00  789.45   784.0      NSE   dhan            0  618928.80
+    2021-08-20  778.00  766.95   781.0      NSE   dhan            0  598987.95
+    2021-08-23  770.00  743.60   778.0      NSE   dhan            0  578520.80
+    2021-08-24  740.00  765.15   778.0      NSE   dhan            0  595286.70
+    2021-08-25  759.00  753.85   777.0      NSE   dhan            0  585741.45
+
+2024-02-23  ABREL  qty 7,126  fill Rs 1,442.1600  value Rs 10,276,832  ADV20 Rs 2,048,487  -> 501.7% of ADV20
+  listed member that day: True   liquidity filter: none (research profile, participation_cap None)
+  slippage Rs 15,392.16 = 15.0 bps   impact Rs 0 = 0 bps (no --impact)   charges Rs 12,203.42
+  position P&L Rs 9,505,158
+  same symbol, same date, static (without-survivorship) file: ADV20 Rs 2,048,487
+  20 rows behind the ADV20 (with-survivorship file):
+                   open    close  volume exchange source  _gap_filled      tv_nse
+    date                                                                         
+    2024-01-25  1359.10  1345.30  1392.0      NSE   dhan            0  1872657.60
+    2024-01-29  1350.00  1418.25  1388.0      NSE   dhan            0  1968531.00
+    2024-01-30  1418.05  1388.30  1383.0      NSE   dhan            0  1920018.90
+    2024-01-31  1390.00  1425.95  1386.0      NSE   dhan            0  1976366.70
+    2024-02-01  1425.00  1515.80  1400.0      NSE   dhan            0  2122120.00
+    2024-02-02  1526.60  1547.25  1417.0      NSE   dhan            0  2192453.25
+    2024-02-05  1587.00  1481.35  1427.0      NSE   dhan            0  2113886.45
+    2024-02-06  1484.80  1495.00  1441.0      NSE   dhan            0  2154295.00
+    2024-02-07  1495.00  1450.55  1451.0      NSE   dhan            0  2104748.05
+    2024-02-08  1458.40  1450.65  1463.0      NSE   dhan            0  2122300.95
+    2024-02-09  1463.60  1430.85  1465.0      NSE   dhan            0  2096195.25
+    2024-02-12  1435.05  1375.15  1463.0      NSE   dhan            0  2011844.45
+    2024-02-13  1390.00  1355.95  1455.0      NSE   dhan            0  1972907.25
+    2024-02-14  1349.95  1429.65  1446.0      NSE   dhan            0  2067273.90
+    2024-02-15  1438.00  1428.85  1433.0      NSE   dhan            0  2047542.05
+    2024-02-16  1440.00  1415.15  1425.0      NSE   dhan            0  2016588.75
+    2024-02-19  1430.00  1458.10  1421.0      NSE   dhan            0  2071960.10
+    2024-02-20  1465.00  1459.30  1422.0      NSE   dhan            0  2075124.60
+    2024-02-21  1464.35  1437.10  1421.0      NSE   dhan            0  2042119.10
+    2024-02-22  1448.55  1423.10  1420.0      NSE   dhan            0  2020802.00
+
+====================================================================================================
+W2 PIT nifty500 v4, tax off: 10 largest buys by fill value / ADV20
+====================================================================================================
+
+2012-01-13  ALKYLAMINE  qty 5,476  fill Rs 17.8191  value Rs 97,577  ADV20 Rs 169  -> 57,815.4% of ADV20
+  listed member that day: True   liquidity filter: none (research profile, participation_cap None)
+  slippage Rs 146.15 = 15.0 bps   impact Rs 0 = 0 bps (no --impact)   charges Rs 116.66
+  position P&L Rs -9,747
+  no file for this symbol in the static (without-survivorship) folder
+  20 rows behind the ADV20 (with-survivorship file):
+                   open    close   volume exchange  source  _gap_filled   tv_nse
+    date                                                                        
+    2011-12-16  17.6908  17.4874   6100.0      BSE  upstox            0      NaN
+    2011-12-19  18.0975  16.4707   1440.0      BSE  upstox            0      NaN
+    2011-12-20  17.4874  16.9791  11706.0      BSE  upstox            0      NaN
+    2011-12-21  17.8941  16.8774   5706.0      BSE  upstox            0      NaN
+    2011-12-22  16.3182  16.9791  23996.0      BSE  upstox            0      NaN
+    2011-12-23  16.0132  17.2841    366.0      BSE  upstox            0      NaN
+    2011-12-26  17.2841  16.6741    430.0      BSE  upstox            0      NaN
+    2011-12-27  16.4707  16.7757    356.0      BSE  upstox            0      NaN
+    2011-12-28  17.4366  17.0808    490.0      BSE  upstox            0      NaN
+    2011-12-29  16.8774  16.7757    756.0      BSE  upstox            0      NaN
+    2011-12-30  15.8607  16.5724     20.0      BSE  upstox            0      NaN
+    2012-01-02  17.5891  16.1149   9760.0      BSE  upstox            0      NaN
+    2012-01-03  16.3691  16.4199  14920.0      BSE  upstox            0      NaN
+    2012-01-04  17.0808  16.4707  13480.0      BSE  upstox            0      NaN
+    2012-01-05  19.1142  16.1657   8756.0      BSE  upstox            0      NaN
+    2012-01-06  16.8774  16.1657   3510.0      BSE  upstox            0      NaN
+    2012-01-09  17.6908  16.2674  62320.0      BSE  upstox            0      NaN
+    2012-01-10  16.6741  16.8266   1900.0      BSE  upstox            0      NaN
+    2012-01-11  17.3858  17.4366   4450.0      BSE  upstox            0      NaN
+    2012-01-12  17.0808  16.8774     10.0      NSE    kite            1  168.774
+
+2014-03-12  OLECTRA  qty 18,749  fill Rs 7.2609  value Rs 136,134  ADV20 Rs 5,318  -> 2,560.0% of ADV20
+  listed member that day: True   liquidity filter: none (research profile, participation_cap None)
+  slippage Rs 203.90 = 15.0 bps   impact Rs 0 = 0 bps (no --impact)   charges Rs 161.10
+  position P&L Rs 13,874
+  same symbol, same date, static (without-survivorship) file: ADV20 Rs 5,318
+  20 rows behind the ADV20 (with-survivorship file):
+                  open   close   volume exchange  source  _gap_filled     tv_nse
+    date                                                                        
+    2014-02-11  8.7500  8.6500    900.0      BSE  upstox            0        NaN
+    2014-02-12  8.7500  8.7500   1000.0      BSE  upstox            0        NaN
+    2014-02-13  8.5500  8.7500    585.0      BSE  upstox            0        NaN
+    2014-02-14  8.5100  8.5100    400.0      BSE  upstox            0        NaN
+    2014-02-17  8.4000  8.4900   7607.0      BSE  upstox            0        NaN
+    2014-02-18  8.2500  8.2300    150.0      BSE  upstox            0        NaN
+    2014-02-19  8.2500  8.3000   5764.0      BSE  upstox            0        NaN
+    2014-02-20  8.1500  8.2500    801.0      BSE  upstox            0        NaN
+    2014-02-21  8.0200  7.8900   3495.0      BSE  upstox            0        NaN
+    2014-02-24  8.0000  7.3800   6194.0      BSE  upstox            0        NaN
+    2014-02-25  7.4000  7.1100  36112.0      BSE  upstox            0        NaN
+    2014-02-26  7.3900  7.0100    251.0      BSE  upstox            0        NaN
+    2014-02-28  7.4000  7.3900    700.0      BSE  upstox            0        NaN
+    2014-03-03  7.4000  7.4000    500.0      BSE  upstox            0        NaN
+    2014-03-04  7.1000  7.4000   2200.0      BSE  upstox            0        NaN
+    2014-03-05  7.4000  7.1100   1701.0      BSE  upstox            0        NaN
+    2014-03-06  7.3900  7.4000   6895.0      BSE  upstox            0        NaN
+    2014-03-07  7.0000  7.4000   1378.0      BSE  upstox            0        NaN
+    2014-03-10  7.2000  7.4700    440.0      BSE  upstox            0        NaN
+    2014-03-11  7.1748  7.3755    721.0      NSE    dhan            1  5317.7355
+
+2012-01-13  OLECTRA  qty 13,431  fill Rs 12.0080  value Rs 161,279  ADV20 Rs 20,050  -> 804.4% of ADV20
+  listed member that day: True   liquidity filter: none (research profile, participation_cap None)
+  slippage Rs 241.56 = 15.0 bps   impact Rs 0 = 0 bps (no --impact)   charges Rs 191.03
+  position P&L Rs -6,716
+  same symbol, same date, static (without-survivorship) file: ADV20 Rs 20,050
+  20 rows behind the ADV20 (with-survivorship file):
+                   open    close  volume exchange  source  _gap_filled      tv_nse
+    date                                                                          
+    2011-12-16  10.4500   9.5500   222.0      BSE  upstox            0         NaN
+    2011-12-19   9.1500   9.4900  5601.0      BSE  upstox            0         NaN
+    2011-12-20   9.0500   9.1000  1700.0      BSE  upstox            0         NaN
+    2011-12-21   8.9400   9.1000  1230.0      BSE  upstox            0         NaN
+    2011-12-22   9.1100   9.1000   721.0      BSE  upstox            0         NaN
+    2011-12-23   9.0600   9.2500  1862.0      BSE  upstox            0         NaN
+    2011-12-26   9.0000   9.8500  2016.0      BSE  upstox            0         NaN
+    2011-12-27   9.6000   9.1100   900.0      BSE  upstox            0         NaN
+    2011-12-28   9.1500   9.2100  3312.0      BSE  upstox            0         NaN
+    2011-12-29   9.6900   9.7700   604.0      BSE  upstox            0         NaN
+    2011-12-30   9.3454   9.2951  2157.0      NSE    dhan            1  20049.5307
+    2012-01-02   8.7500   9.1000  1200.0      BSE  upstox            0         NaN
+    2012-01-03   9.6000   9.3500  2800.0      BSE  upstox            0         NaN
+    2012-01-04   9.4000   9.7700  7371.0      BSE  upstox            0         NaN
+    2012-01-05  10.1000   9.3900  3304.0      BSE  upstox            0         NaN
+    2012-01-06   9.5500   9.5500  4635.0      BSE  upstox            0         NaN
+    2012-01-09   9.5000   9.7500  3389.0      BSE  upstox            0         NaN
+    2012-01-10   9.5200   9.9900  2373.0      BSE  upstox            0         NaN
+    2012-01-11  10.5000  10.8000  3237.0      BSE  upstox            0         NaN
+    2012-01-12  10.9500  11.4000  1428.0      BSE  upstox            0         NaN
+
+2013-09-18  OLECTRA  qty 10,190  fill Rs 10.6660  value Rs 108,686  ADV20 Rs 16,854  -> 644.9% of ADV20
+  listed member that day: True   liquidity filter: none (research profile, participation_cap None)
+  slippage Rs 162.79 = 15.0 bps   impact Rs 0 = 0 bps (no --impact)   charges Rs 129.07
+  position P&L Rs -4,484
+  same symbol, same date, static (without-survivorship) file: ADV20 Rs 16,854
+  20 rows behind the ADV20 (with-survivorship file):
+                 open  close   volume exchange  source  _gap_filled    tv_nse
+    date                                                                     
+    2013-08-20  10.45  10.45      1.0      BSE  upstox            0       NaN
+    2013-08-21  10.40  10.10    550.0      BSE  upstox            0       NaN
+    2013-08-22  10.05  10.25   2780.0      BSE  upstox            0       NaN
+    2013-08-23  10.10  10.21   1620.0      BSE  upstox            0       NaN
+    2013-08-26  10.05  10.55   1509.0      BSE  upstox            0       NaN
+    2013-08-27  10.43  10.15   1810.0      BSE  upstox            0       NaN
+    2013-08-28   9.80  10.00    301.0      BSE  upstox            0       NaN
+    2013-08-29  10.00   9.72   2517.0      BSE  upstox            0       NaN
+    2013-08-30  10.00  10.18  10965.0      BSE  upstox            0       NaN
+    2013-09-02   9.80  10.05   1677.0      NSE    dhan            1  16853.85
+    2013-09-03  10.19  10.00    503.0      BSE  upstox            0       NaN
+    2013-09-04  10.00   9.86    513.0      BSE  upstox            0       NaN
+    2013-09-05  10.40  10.00   1021.0      BSE  upstox            0       NaN
+    2013-09-06  10.35  10.38     10.0      BSE  upstox            0       NaN
+    2013-09-10   9.94  10.40    169.0      BSE  upstox            0       NaN
+    2013-09-11  10.01  10.49     31.0      BSE  upstox            0       NaN
+    2013-09-12   9.61  10.05    210.0      BSE  upstox            0       NaN
+    2013-09-13  10.00  10.70   1005.0      BSE  upstox            0       NaN
+    2013-09-16  10.19  10.19    100.0      BSE  upstox            0       NaN
+    2013-09-17  10.65  10.05    121.0      BSE  upstox            0       NaN
+
+2013-04-26  OLECTRA  qty 11,903  fill Rs 9.3140  value Rs 110,864  ADV20 Rs 17,307  -> 640.6% of ADV20
+  listed member that day: True   liquidity filter: none (research profile, participation_cap None)
+  slippage Rs 166.05 = 15.0 bps   impact Rs 0 = 0 bps (no --impact)   charges Rs 132.14
+  position P&L Rs 5,356
+  same symbol, same date, static (without-survivorship) file: ADV20 Rs 17,307
+  20 rows behind the ADV20 (with-survivorship file):
+                   open    close   volume exchange  source  _gap_filled     tv_nse
+    date                                                                          
+    2013-03-25   9.8000   9.7800  18434.0      BSE  upstox            0        NaN
+    2013-03-26   9.7600   9.8600   2398.0      BSE  upstox            0        NaN
+    2013-03-28   9.6900  10.3700   2198.0      BSE  upstox            0        NaN
+    2013-04-01  10.6500  10.5000   1989.0      BSE  upstox            0        NaN
+    2013-04-02  10.4900  10.4900     50.0      BSE  upstox            0        NaN
+    2013-04-03   9.7500  10.3500   1774.0      BSE  upstox            0        NaN
+    2013-04-04  10.5000  10.5500   1491.0      BSE  upstox            0        NaN
+    2013-04-05  10.0000  10.1900    301.0      BSE  upstox            0        NaN
+    2013-04-08  10.1100  10.1100    500.0      BSE  upstox            0        NaN
+    2013-04-09  10.0000  10.0000    100.0      BSE  upstox            0        NaN
+    2013-04-10  10.0000  10.0000    534.0      BSE  upstox            0        NaN
+    2013-04-11  10.3000  10.4600     21.0      BSE  upstox            0        NaN
+    2013-04-12   9.9000  10.1900   1965.0      BSE  upstox            0        NaN
+    2013-04-15  10.0423  10.0423   1200.0      NSE    dhan            1  12050.760
+    2013-04-16  10.1930  10.1428   1020.0      NSE    dhan            1  10345.656
+    2013-04-17   9.7913   9.8415   3000.0      NSE    dhan            1  29524.500
+    2013-04-18   9.8000   9.8000   1100.0      BSE  upstox            0        NaN
+    2013-04-22   9.6000   9.7100   4159.0      BSE  upstox            0        NaN
+    2013-04-23   9.8000   9.9900    588.0      BSE  upstox            0        NaN
+    2013-04-25   9.3500   9.5100   5900.0      BSE  upstox            0        NaN
+
+2012-11-30  OLECTRA  qty 5,137  fill Rs 14.1312  value Rs 72,592  ADV20 Rs 16,280  -> 445.9% of ADV20
+  listed member that day: True   liquidity filter: none (research profile, participation_cap None)
+  slippage Rs 108.72 = 15.0 bps   impact Rs 0 = 0 bps (no --impact)   charges Rs 86.71
+  position P&L Rs -8,733
+  same symbol, same date, static (without-survivorship) file: ADV20 Rs 16,280
+  20 rows behind the ADV20 (with-survivorship file):
+                   open    close   volume exchange  source  _gap_filled      tv_nse
+    date                                                                           
+    2012-10-31  15.0000  15.0000    200.0      BSE  upstox            0         NaN
+    2012-11-01  15.0000  15.1000    603.0      BSE  upstox            0         NaN
+    2012-11-02  15.0000  15.0000   1302.0      BSE  upstox            0         NaN
+    2012-11-05  14.7000  14.7500    671.0      BSE  upstox            0         NaN
+    2012-11-06  14.8000  14.8500   5185.0      BSE  upstox            0         NaN
+    2012-11-07  14.2000  14.6000   2430.0      BSE  upstox            0         NaN
+    2012-11-08  14.7000  14.7000    200.0      BSE  upstox            0         NaN
+    2012-11-09  15.4500  14.5200    125.0      BSE  upstox            0         NaN
+    2012-11-12  14.3000  14.2200   2000.0      BSE  upstox            0         NaN
+    2012-11-13  14.2500  14.9000      5.0      BSE  upstox            0         NaN
+    2012-11-15  14.5000  14.7900      9.0      BSE  upstox            0         NaN
+    2012-11-16  14.5500  14.5000    760.0      BSE  upstox            0         NaN
+    2012-11-19  14.4500  14.4500    100.0      BSE  upstox            0         NaN
+    2012-11-20  14.2900  14.3200    455.0      BSE  upstox            0         NaN
+    2012-11-21  14.3100  14.3100     20.0      BSE  upstox            0         NaN
+    2012-11-22  14.3300  14.3300    199.0      BSE  upstox            0         NaN
+    2012-11-23  14.1700  14.0600   7717.0      BSE  upstox            0         NaN
+    2012-11-26  14.1097  14.0103   1162.0      NSE    dhan            1  16279.9686
+    2012-11-27  14.0300  14.4000  14604.0      BSE  upstox            0         NaN
+    2012-11-29  14.0500  14.1000    175.0      BSE  upstox            0         NaN
+
+2009-12-15  SOMANYCERA  qty 4,391  fill Rs 22.8817  value Rs 100,473  ADV20 Rs 34,014  -> 295.4% of ADV20
+  listed member that day: True   liquidity filter: none (research profile, participation_cap None)
+  slippage Rs 150.48 = 15.0 bps   impact Rs 0 = 0 bps (no --impact)   charges Rs 118.75
+  position P&L Rs 41,319
+  no file for this symbol in the static (without-survivorship) folder
+  20 rows behind the ADV20 (with-survivorship file):
+                   open    close  volume exchange  source  _gap_filled       tv_nse
+    date                                                                           
+    2009-11-17  19.9584  19.7848   169.0      NSE  upstox            0    3343.6312
+    2009-11-18  20.7394  20.7394   249.0      NSE  upstox            0    5164.1106
+    2009-11-19  20.7394  20.7394   139.0      NSE  upstox            0    2882.7766
+    2009-11-20  19.8022  19.8022   139.0      NSE  upstox            0    2752.5058
+    2009-11-23  19.8022  19.8022   139.0      NSE  upstox            0    2752.5058
+    2009-11-24  20.4791  20.2708  1004.0      NSE  upstox            0   20351.8832
+    2009-11-25  19.2729  19.8369  3524.0      NSE  upstox            0   69905.2356
+    2009-11-26  20.4791  20.4617  2294.0      NSE  upstox            0   46939.1398
+    2009-11-27  19.6547  20.9824  2249.0      NSE  upstox            0   47189.4176
+    2009-11-30  21.3468  21.3468   499.0      NSE  upstox            0   10652.0532
+    2009-12-01  23.2540  21.3468   569.0      BSE    dhan            0          NaN
+    2009-12-02  23.1216  23.1604  7004.0      NSE    kite            1  162215.4416
+    2009-12-03  22.4117  22.4117  2099.0      BSE    dhan            0          NaN
+    2009-12-04  22.0438  21.9858   150.0      BSE    dhan            0          NaN
+    2009-12-07  21.3178  22.0729   201.0      BSE    dhan            0          NaN
+    2009-12-08  21.7050  23.1669  3602.0      BSE    dhan            0          NaN
+    2009-12-09  22.6538  22.6538    50.0      BSE    dhan            0          NaN
+    2009-12-10  23.3314  23.1088   936.0      BSE    dhan            0          NaN
+    2009-12-11  23.2346  23.2346   988.0      BSE    dhan            0          NaN
+    2009-12-14  22.3246  22.3924  1841.0      BSE    dhan            0          NaN
+
+2010-08-06  ALKYLAMINE  qty 9,314  fill Rs 18.8455  value Rs 175,527  ADV20 Rs 78,419  -> 223.8% of ADV20
+  listed member that day: True   liquidity filter: none (research profile, participation_cap None)
+  slippage Rs 262.90 = 15.0 bps   impact Rs 0 = 0 bps (no --impact)   charges Rs 208.57
+  position P&L Rs -3,446
+  no file for this symbol in the static (without-survivorship) folder
+  20 rows behind the ADV20 (with-survivorship file):
+                   open    close   volume exchange  source  _gap_filled      tv_nse
+    date                                                                           
+    2010-07-09  20.3431  19.6819  14140.0      BSE  upstox            0         NaN
+    2010-07-12  19.8345  19.9362  12210.0      BSE  upstox            0         NaN
+    2010-07-13  19.8345  19.6311  15180.0      BSE  upstox            0         NaN
+    2010-07-14  19.6311  19.4785  18190.0      BSE  upstox            0         NaN
+    2010-07-15  19.0208  19.2242  10366.0      BSE  upstox            0         NaN
+    2010-07-16  18.9191  18.6139   5676.0      BSE  upstox            0         NaN
+    2010-07-19  19.9362  18.6139   1746.0      BSE  upstox            0         NaN
+    2010-07-20  18.4105  19.3259   3500.0      BSE  upstox            0         NaN
+    2010-07-21  19.7328  19.7328   7566.0      BSE  upstox            0         NaN
+    2010-07-22  19.3259  19.8345  23290.0      BSE  upstox            0         NaN
+    2010-07-23  20.1397  19.4276  15606.0      BSE  upstox            0         NaN
+    2010-07-26  19.4276  19.4785   7610.0      BSE  upstox            0         NaN
+    2010-07-27  19.5294  19.3259   1960.0      BSE  upstox            0         NaN
+    2010-07-28  20.1397  19.4785   1336.0      BSE  upstox            0         NaN
+    2010-07-29  19.2242  19.2242  12280.0      BSE  upstox            0         NaN
+    2010-07-30  18.9699  19.0208   4706.0      BSE  upstox            0         NaN
+    2010-08-02  18.4105  18.8682   5235.0      NSE  upstox            0   98775.027
+    2010-08-03  18.7665  19.1225   1770.0      NSE  upstox            0   33846.825
+    2010-08-04  18.5122  18.5122   7910.0      NSE  upstox            0  146431.502
+    2010-08-05  18.4105  18.8173   1840.0      NSE  upstox            0   34623.832
+
+2014-01-14  ALKYLAMINE  qty 3,012  fill Rs 48.0234  value Rs 144,647  ADV20 Rs 91,442  -> 158.2% of ADV20
+  listed member that day: True   liquidity filter: none (research profile, participation_cap None)
+  slippage Rs 216.64 = 15.0 bps   impact Rs 0 = 0 bps (no --impact)   charges Rs 172.40
+  position P&L Rs -11,687
+  no file for this symbol in the static (without-survivorship) folder
+  20 rows behind the ADV20 (with-survivorship file):
+                   open    close   volume exchange  source  _gap_filled       tv_nse
+    date                                                                            
+    2013-12-16  48.1472  48.1472    120.0      NSE  upstox            0    5777.6640
+    2013-12-17  45.9943  47.0218   1695.0      NSE  upstox            0   79701.9510
+    2013-12-18  45.9943  47.5600    205.0      NSE  upstox            0    9749.8000
+    2013-12-19  47.9515  47.9515     10.0      NSE  upstox            0     479.5150
+    2013-12-20  47.9515  47.9515     20.0      NSE  upstox            0     959.0300
+    2013-12-23  47.9515  47.9515     20.0      NSE  upstox            0     959.0300
+    2013-12-24  49.9087  46.0432    140.0      NSE  upstox            0    6446.0480
+    2013-12-26  46.0432  46.0432    125.0      NSE  upstox            0    5755.4000
+    2013-12-27  46.9729  46.9729   5000.0      NSE  upstox            0  234864.5000
+    2013-12-30  48.9301  49.3215  17225.0      NSE  upstox            0  849562.8375
+    2013-12-31  49.3215  49.3215     50.0      NSE  upstox            0    2466.0750
+    2014-01-01  49.3215  49.3215     50.0      NSE  upstox            0    2466.0750
+    2014-01-02  50.8873  47.9515   2625.0      NSE  upstox            0  125872.6875
+    2014-01-03  50.8873  47.9515      0.0      NSE  upstox            0       0.0000
+    2014-01-06  50.8873  47.9515     50.0      NSE  upstox            0    2397.5750
+    2014-01-07  47.9515  47.9515     50.0      NSE  upstox            0    2397.5750
+    2014-01-08  49.3215  46.9729    755.0      NSE  upstox            0   35464.5395
+    2014-01-09  45.2114  45.2603   3825.0      NSE  upstox            0  173120.6475
+    2014-01-10  45.2114  45.2114    500.0      NSE  upstox            0   22605.7000
+    2014-01-13  48.9301  45.5050   5885.0      NSE  upstox            0  267796.9250
+
+2020-04-17  RTNINDIA  qty 63,336  fill Rs 1.7026  value Rs 107,833  ADV20 Rs 70,818  -> 152.3% of ADV20
+  listed member that day: True   liquidity filter: none (research profile, participation_cap None)
+  slippage Rs 161.51 = 15.0 bps   impact Rs 0 = 0 bps (no --impact)   charges Rs 128.04
+  position P&L Rs -3,167
+  no file for this symbol in the static (without-survivorship) folder
+  20 rows behind the ADV20 (with-survivorship file):
+                open  close    volume exchange  source  _gap_filled     tv_nse
+    date                                                                      
+    2020-03-16  2.65   2.65    2213.0      NSE  upstox            0    5864.45
+    2020-03-17  2.65   2.65       0.0      NaN     NaN            0        NaN
+    2020-03-18  2.65   2.65       0.0      NaN     NaN            0        NaN
+    2020-03-19  2.65   2.65       0.0      NaN     NaN            0        NaN
+    2020-03-20  2.65   2.65       0.0      NaN     NaN            0        NaN
+    2020-03-23  2.65   2.65       0.0      NaN     NaN            0        NaN
+    2020-03-24  2.55   2.55     253.0      NSE  upstox            0     645.15
+    2020-03-25  2.45   2.45     200.0      NSE  upstox            0     490.00
+    2020-03-26  2.35   2.35    4841.0      NSE  upstox            0   11376.35
+    2020-03-27  2.25   2.25     396.0      NSE  upstox            0     891.00
+    2020-03-30  2.15   2.15     704.0      NSE  upstox            0    1513.60
+    2020-03-31  2.05   2.05     917.0      NSE  upstox            0    1879.85
+    2020-04-01  1.95   1.95    8581.0      NSE  upstox            0   16732.95
+    2020-04-03  1.90   1.90    2567.0      NSE  upstox            0    4877.30
+    2020-04-07  1.85   1.85    3035.0      NSE  upstox            0    5614.75
+    2020-04-08  1.80   1.80  195174.0      NSE  upstox            0  351313.20
+    2020-04-09  1.75   1.75   78009.0      NSE  upstox            0  136515.75
+    2020-04-13  1.70   1.70   37536.0      NSE  upstox            0   63811.20
+    2020-04-15  1.70   1.65  176839.0      NSE  upstox            0  291784.35
+    2020-04-16  1.60   1.65  102397.0      NSE  upstox            0  168955.05
+
