@@ -1,0 +1,216 @@
+tools/lookahead_proof.py on nifty50 static with --start 2007-09-24, cut 2009-07-13 (the rebalance date nearest 2009-06-30), 2026-10-23.
+The tool's own output, verbatim; scratch folder paths are shortened to <work>.
+
+LOOK-AHEAD PROOF  universe nifty50  mode static  arms v1,v2,v3,v4  control none  cut dates 2009-07-13
+  backtest start 2007-09-24, scoring from 2004-09-01
+  python 3.12.13 at /Users/sidharthchoudhary/venvs/predictive-engine/bin/python; work folder <work>/nifty50_static_none_20261023T005037
+  ran full   cut 2009-07-13  panel 3s  scores 692s  backtests 3s  total 701s
+
+  CUT DATE 2009-07-13
+  ran cut    cut 2009-07-13  panel 1s  scores 48s  backtests 1s  total 53s
+    cut    all   every model score on every date to 2009-07-13 (42,159 scores)  PASS
+    cut    v1  2007-09-24  PASS
+    cut    v1  2007-10-23  PASS
+    cut    v1  2007-11-20  PASS
+    cut    v1  2007-12-18  PASS
+    cut    v1  2008-01-17  PASS
+    cut    v1  2008-02-14  PASS
+    cut    v1  2008-03-14  PASS
+    cut    v1  2008-04-16  PASS
+    cut    v1  2008-05-16  PASS
+    cut    v1  2008-06-16  PASS
+    cut    v1  2008-07-14  PASS
+    cut    v1  2008-08-11  PASS
+    cut    v1  2008-09-10  PASS
+    cut    v1  2008-10-10  PASS
+    cut    v1  2008-11-10  PASS
+    cut    v1  2008-12-11  PASS
+    cut    v1  2009-01-12  PASS
+    cut    v1  2009-02-10  PASS
+    cut    v1  2009-03-13  PASS
+    cut    v1  2009-04-16  PASS
+    cut    v1  2009-05-18  PASS
+    cut    v1  2009-06-15  PASS
+    cut    v1  2009-07-13  PASS
+    cut    v1  fills, holdings and valuation to 2009-07-13  PASS
+    cut    v1  23 of 23 decision dates on or before 2009-07-13 identical
+    cut    v2  2007-09-24  PASS
+    cut    v2  2007-10-23  PASS
+    cut    v2  2007-11-20  PASS
+    cut    v2  2007-12-18  PASS
+    cut    v2  2008-01-17  PASS
+    cut    v2  2008-02-14  PASS
+    cut    v2  2008-03-14  PASS
+    cut    v2  2008-04-16  PASS
+    cut    v2  2008-05-16  PASS
+    cut    v2  2008-06-16  PASS
+    cut    v2  2008-07-14  PASS
+    cut    v2  2008-08-11  PASS
+    cut    v2  2008-09-10  PASS
+    cut    v2  2008-10-10  PASS
+    cut    v2  2008-11-10  PASS
+    cut    v2  2008-12-11  PASS
+    cut    v2  2009-01-12  PASS
+    cut    v2  2009-02-10  PASS
+    cut    v2  2009-03-13  PASS
+    cut    v2  2009-04-16  PASS
+    cut    v2  2009-05-18  PASS
+    cut    v2  2009-06-15  PASS
+    cut    v2  2009-07-13  PASS
+    cut    v2  fills, holdings and valuation to 2009-07-13  PASS
+    cut    v2  23 of 23 decision dates on or before 2009-07-13 identical
+    cut    v3  2007-09-24  PASS
+    cut    v3  2007-10-23  PASS
+    cut    v3  2007-11-20  PASS
+    cut    v3  2007-12-18  PASS
+    cut    v3  2008-01-17  PASS
+    cut    v3  2008-02-14  PASS
+    cut    v3  2008-03-14  PASS
+    cut    v3  2008-04-16  PASS
+    cut    v3  2008-05-16  PASS
+    cut    v3  2008-06-16  PASS
+    cut    v3  2008-07-14  PASS
+    cut    v3  2008-08-11  PASS
+    cut    v3  2008-09-10  PASS
+    cut    v3  2008-10-10  PASS
+    cut    v3  2008-11-10  PASS
+    cut    v3  2008-12-11  PASS
+    cut    v3  2009-01-12  PASS
+    cut    v3  2009-02-10  PASS
+    cut    v3  2009-03-13  PASS
+    cut    v3  2009-04-16  PASS
+    cut    v3  2009-05-18  PASS
+    cut    v3  2009-06-15  PASS
+    cut    v3  2009-07-13  PASS
+    cut    v3  fills, holdings and valuation to 2009-07-13  PASS
+    cut    v3  23 of 23 decision dates on or before 2009-07-13 identical
+    cut    v4  2007-09-24  PASS
+    cut    v4  2007-10-23  PASS
+    cut    v4  2007-11-20  PASS
+    cut    v4  2007-12-18  PASS
+    cut    v4  2008-01-17  PASS
+    cut    v4  2008-02-14  PASS
+    cut    v4  2008-03-14  PASS
+    cut    v4  2008-04-16  PASS
+    cut    v4  2008-05-16  PASS
+    cut    v4  2008-06-16  PASS
+    cut    v4  2008-07-14  PASS
+    cut    v4  2008-08-11  PASS
+    cut    v4  2008-09-10  PASS
+    cut    v4  2008-10-10  PASS
+    cut    v4  2008-11-10  PASS
+    cut    v4  2008-12-11  PASS
+    cut    v4  2009-01-12  PASS
+    cut    v4  2009-02-10  PASS
+    cut    v4  2009-03-13  PASS
+    cut    v4  2009-04-16  PASS
+    cut    v4  2009-05-18  PASS
+    cut    v4  2009-06-15  PASS
+    cut    v4  2009-07-13  PASS
+    cut    v4  fills, holdings and valuation to 2009-07-13  PASS
+    cut    v4  23 of 23 decision dates on or before 2009-07-13 identical
+  ran noise  cut 2009-07-13  panel 3s  scores 49s  backtests 3s  total 59s
+    noise  all   every model score on every date to 2009-07-13 (42,159 scores)  PASS
+    noise  v1  2007-09-24  PASS
+    noise  v1  2007-10-23  PASS
+    noise  v1  2007-11-20  PASS
+    noise  v1  2007-12-18  PASS
+    noise  v1  2008-01-17  PASS
+    noise  v1  2008-02-14  PASS
+    noise  v1  2008-03-14  PASS
+    noise  v1  2008-04-16  PASS
+    noise  v1  2008-05-16  PASS
+    noise  v1  2008-06-16  PASS
+    noise  v1  2008-07-14  PASS
+    noise  v1  2008-08-11  PASS
+    noise  v1  2008-09-10  PASS
+    noise  v1  2008-10-10  PASS
+    noise  v1  2008-11-10  PASS
+    noise  v1  2008-12-11  PASS
+    noise  v1  2009-01-12  PASS
+    noise  v1  2009-02-10  PASS
+    noise  v1  2009-03-13  PASS
+    noise  v1  2009-04-16  PASS
+    noise  v1  2009-05-18  PASS
+    noise  v1  2009-06-15  PASS
+    noise  v1  2009-07-13  PASS
+    noise  v1  fills, holdings and valuation to 2009-07-13  PASS
+    noise  v1  23 of 23 decision dates on or before 2009-07-13 identical
+    noise  v2  2007-09-24  PASS
+    noise  v2  2007-10-23  PASS
+    noise  v2  2007-11-20  PASS
+    noise  v2  2007-12-18  PASS
+    noise  v2  2008-01-17  PASS
+    noise  v2  2008-02-14  PASS
+    noise  v2  2008-03-14  PASS
+    noise  v2  2008-04-16  PASS
+    noise  v2  2008-05-16  PASS
+    noise  v2  2008-06-16  PASS
+    noise  v2  2008-07-14  PASS
+    noise  v2  2008-08-11  PASS
+    noise  v2  2008-09-10  PASS
+    noise  v2  2008-10-10  PASS
+    noise  v2  2008-11-10  PASS
+    noise  v2  2008-12-11  PASS
+    noise  v2  2009-01-12  PASS
+    noise  v2  2009-02-10  PASS
+    noise  v2  2009-03-13  PASS
+    noise  v2  2009-04-16  PASS
+    noise  v2  2009-05-18  PASS
+    noise  v2  2009-06-15  PASS
+    noise  v2  2009-07-13  PASS
+    noise  v2  fills, holdings and valuation to 2009-07-13  PASS
+    noise  v2  23 of 23 decision dates on or before 2009-07-13 identical
+    noise  v3  2007-09-24  PASS
+    noise  v3  2007-10-23  PASS
+    noise  v3  2007-11-20  PASS
+    noise  v3  2007-12-18  PASS
+    noise  v3  2008-01-17  PASS
+    noise  v3  2008-02-14  PASS
+    noise  v3  2008-03-14  PASS
+    noise  v3  2008-04-16  PASS
+    noise  v3  2008-05-16  PASS
+    noise  v3  2008-06-16  PASS
+    noise  v3  2008-07-14  PASS
+    noise  v3  2008-08-11  PASS
+    noise  v3  2008-09-10  PASS
+    noise  v3  2008-10-10  PASS
+    noise  v3  2008-11-10  PASS
+    noise  v3  2008-12-11  PASS
+    noise  v3  2009-01-12  PASS
+    noise  v3  2009-02-10  PASS
+    noise  v3  2009-03-13  PASS
+    noise  v3  2009-04-16  PASS
+    noise  v3  2009-05-18  PASS
+    noise  v3  2009-06-15  PASS
+    noise  v3  2009-07-13  PASS
+    noise  v3  fills, holdings and valuation to 2009-07-13  PASS
+    noise  v3  23 of 23 decision dates on or before 2009-07-13 identical
+    noise  v4  2007-09-24  PASS
+    noise  v4  2007-10-23  PASS
+    noise  v4  2007-11-20  PASS
+    noise  v4  2007-12-18  PASS
+    noise  v4  2008-01-17  PASS
+    noise  v4  2008-02-14  PASS
+    noise  v4  2008-03-14  PASS
+    noise  v4  2008-04-16  PASS
+    noise  v4  2008-05-16  PASS
+    noise  v4  2008-06-16  PASS
+    noise  v4  2008-07-14  PASS
+    noise  v4  2008-08-11  PASS
+    noise  v4  2008-09-10  PASS
+    noise  v4  2008-10-10  PASS
+    noise  v4  2008-11-10  PASS
+    noise  v4  2008-12-11  PASS
+    noise  v4  2009-01-12  PASS
+    noise  v4  2009-02-10  PASS
+    noise  v4  2009-03-13  PASS
+    noise  v4  2009-04-16  PASS
+    noise  v4  2009-05-18  PASS
+    noise  v4  2009-06-15  PASS
+    noise  v4  2009-07-13  PASS
+    noise  v4  fills, holdings and valuation to 2009-07-13  PASS
+    noise  v4  23 of 23 decision dates on or before 2009-07-13 identical
+
+RESULT: PASS  -- universe nifty50, mode static, control none
+exit 0

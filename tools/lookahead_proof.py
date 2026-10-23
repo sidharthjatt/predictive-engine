@@ -5,12 +5,14 @@
     python tools/lookahead_proof.py ... --control leak     # must FAIL
     python tools/lookahead_proof.py ... --control label    # must FAIL
     python tools/lookahead_proof.py ... --mode pit --control member   # must FAIL
+    python tools/lookahead_proof.py ... --start 2007-09-24   # a non-default backtest start
     python tools/lookahead_proof.py recompare --work <an earlier work folder>
 
 WHAT IT RUNS. The decision path of a pipeline run, in-process, for one universe:
 build_panel, score_monthly with the production seeds, and backtest_exposure for
-each arm at the default cadence, profile and capital, tax off. It runs in these
-variants, each in its own process:
+each arm at the default cadence, profile and capital, tax off, from the backtest
+start --start (default 2019-01-01; the scoring floor follows it, start_axis.py).
+It runs in these variants, each in its own process:
 
     full    every input as delivered. Scores every month, as the pipeline does.
     cut     every price row dated after T removed, and in pit mode every
@@ -228,16 +230,27 @@ def apply_control(control):
 
 
 def plant_gap(u, mode, T):
-    """(symbol, after, through): the label control's gap for cut date T."""
+    """(symbol, after, through): the label control's gap for cut date T.
+
+    The symbol is the first one, alphabetically, that is scorable and labelled on
+    the cut of T's month, in the panel the run itself builds: in pit mode with
+    the membership applied, so the symbol is a member there and its label would
+    be used for training."""
     import io
     import contextlib
     import numpy as np
     import pandas as pd
     import engine_core as ec
+    import survivorship as sv
     farm = Path(tempfile.mkdtemp(prefix="lookahead_gap_"))
     write_farm(u, mode, "full", T, farm)
+    if mode == "pit":
+        sv.set_mode("pit")
+        ec.MEMBERSHIP = sv.load(u.membership_file, index_name=u.index_name, allow_invalid=True)
     with contextlib.redirect_stdout(io.StringIO()):
         p = ec.build_panel(ec.HORIZON, data_dir=farm)
+    sv.set_mode("static")
+    ec.MEMBERSHIP = None
     cal = np.array(sorted(p["date"].unique()))
     first = p.loc[p["date"].dt.to_period("M") == pd.Timestamp(T).to_period("M"), "date"].min()
     i = int(np.searchsorted(cal, np.datetime64(first)))
@@ -263,6 +276,8 @@ def run_variant(a):
     from test_exposure import backtest_exposure
 
     T = pd.Timestamp(a.T)
+    import start_axis
+    start_axis.set_selection(a.start)
     u = universe(a.universe, a.mode)
     apply_control(a.control)
     work = Path(a.work)
@@ -443,6 +458,8 @@ def spawn(args, variant, T, work, through=None, gap=None):
            "--universe", args.universe, "--mode", args.mode, "--arms", args.arms,
            "--control", args.control, "--variant", variant, "--T", str(T.date()),
            "--work", str(work), "--noise-seed", str(args.noise_seed)]
+    if args.start is not None:
+        cmd += ["--start", args.start]
     if through is not None:
         cmd += ["--through", str(through.date())]
     if gap is not None:
@@ -492,6 +509,7 @@ def main(argv=None):
     ap.add_argument("--control", choices=CONTROLS, default="none")
     ap.add_argument("--work", default=str(Path(tempfile.gettempdir()) / "lookahead_proof"))
     ap.add_argument("--noise-seed", type=int, default=12345)
+    ap.add_argument("--start", help="backtest start, YYYY-MM-DD (default 2019-01-01)")
     # _variant only
     ap.add_argument("--variant")
     ap.add_argument("--T")
@@ -508,10 +526,14 @@ def main(argv=None):
     if a.control == "member" and a.mode != "pit":
         ap.error("--control member needs --mode pit")
     cuts = [pd.Timestamp(x) for x in a.cut.split(",")]
+    import start_axis
+    start_axis.set_selection(a.start)
     variants = ["cut", "noise"] + (["names"] if a.mode == "pit" else [])
     base = Path(a.work) / f"{a.universe}_{a.mode}_{a.control}_{time.strftime('%Y%m%dT%H%M%S')}"
     print(f"LOOK-AHEAD PROOF  universe {a.universe}  mode {a.mode}  arms {a.arms}  "
           f"control {a.control}  cut dates {', '.join(str(c.date()) for c in cuts)}")
+    print(f"  backtest start {start_axis.selected().date()}, scoring from "
+          f"{start_axis.score_floor().date()}")
     print(f"  python {sys.version.split()[0]} at {sys.executable}; work folder {base}")
     total = 0
     if a.control in ("label", "gap"):
