@@ -71,6 +71,7 @@ import slippage as _sl  # noqa: E402
 from config import read_table  # the one CSV/parquet reader: config.read_table
 from numerics import rolling_std  # platform-identical variance: results/numerics.py
 import capital_axis as _capital_axis  # noqa: E402
+import buy_shortfall as _bsf  # noqa: E402
 # THE DEFAULT, defined once in capital_axis.py. A run's capital is
 # capital_axis.selected(); this name stays for callers that want the default.
 START_CAPITAL = _capital_axis.DEFAULT
@@ -166,7 +167,8 @@ def backtest_exposure(px, op, sc, dates, pc, mom20,
                       funding="cash", participation_cap=_CAP_REQUIRED, vol20=_VOL20_REQUIRED,
                       tax_enabled=False, impact_k=None, impact_out=None,
                       end_sale=False, drawdown_stop=None, dd_overlay=_DD_FROM_SELECTION,
-                      start_capital=None, fixed_capital=_FIXED_FROM_SELECTION):
+                      start_capital=None, fixed_capital=_FIXED_FROM_SELECTION,
+                      buy_shortfall=None):
     """audit=None reproduces the original code path exactly: no overhead, and the
     official numbers are unchanged.
 
@@ -212,6 +214,18 @@ def backtest_exposure(px, op, sc, dates, pc, mom20,
         Every transition is written to audit["stop_events"] when an audit dict is
         passed.
 
+    buy_shortfall -- A BUY CASH CANNOT FULLY PAY FOR (buy_shortfall.py). None,
+        the default, reads buy_shortfall.selected(), which is config.BUY_SHORTFALL
+        ("trim") unless run.py was given --buy-shortfall. "trim" cuts the buy to the
+        largest whole quantity whose cost and charges fit the cash left at that
+        point of the morning, and refuses it when that is 0 or below
+        buy_shortfall.MIN_FILL_PCT of the wanted quantity, logged `cash short:
+        below minimum fill` in the second case. "refuse" refuses
+        it whole, the rule before 2026-10-27. A buy that fits is filled the same
+        way under both. With an audit dict, the counts are in
+        audit["buy_shortfall"], and each trimmed trade row carries wanted_qty and
+        cash_shortfall.
+
     end_sale -- SELL EVERYTHING ON THE LAST SESSION (2026-09-25). False, the
         default and the headline: positions still held at the end are marked to
         market and never sold, so no gain is realised on them and no sell charge
@@ -253,8 +267,12 @@ def backtest_exposure(px, op, sc, dates, pc, mom20,
 
         "cash" (default, and the rule this function has always used): each entrant
         is sized at its full whole-portfolio target and paid for out of cash, in
-        score-descending order, until cash runs out. The tail is then dropped and
-        logged `cash short (before TC)`.
+        score-descending order, until cash runs out. Each buy cash cannot fully
+        pay for is trimmed to the largest quantity that fits (buy_shortfall=
+        "trim", the default since 2026-10-27) and refused, logged `cash short
+        (before TC)` or `(incl TC)`, when not one share fits, or `cash short:
+        below minimum fill` when fewer than half the wanted shares fit; under
+        buy_shortfall="refuse" it is refused whole.
 
         THAT IS A REAL DEFECT AND IT AFFECTS THE SHIPPING ARM. `invest_val` is a
         share of the WHOLE portfolio and the TOP_N weights sum to 1.0, but a name
@@ -448,6 +466,13 @@ def backtest_exposure(px, op, sc, dates, pc, mom20,
     # The idle profit ring-fenced at this morning's open. 0.0 off the axis, and
     # cash - 0.0 is cash exactly, so the cash tests below are unchanged.
     _reserve = 0.0
+    # A BUY CASH CANNOT FULLY PAY FOR: trimmed or refused (buy_shortfall.py).
+    if buy_shortfall is None:
+        buy_shortfall = _bsf.selected()
+    if buy_shortfall not in _bsf.CHOICES:
+        raise ValueError(f"buy_shortfall must be one of {_bsf.CHOICES}, got {buy_shortfall!r}")
+    _shortfall = buy_shortfall
+    _n_trimmed = _n_refused = 0
     if _dd is not None:
         if _stop is not None:
             raise ValueError("the drawdown-limit axis cannot run on a stop arm (v5/v6)")
@@ -800,32 +825,72 @@ def backtest_exposure(px, op, sc, dates, pc, mom20,
                     _pend = None
                     if impact_k is not None:
                         pr, _pend = _fill_price("BUY", s, dt, _raw_buy, q)
-                    if cash - _reserve < q * pr:
+                    # A BUY CASH CANNOT FULLY PAY FOR (buy_shortfall.py). A buy that
+                    # fits is filled exactly as before. One that does not is cut to
+                    # the largest whole quantity that fits under "trim" and refused
+                    # under "refuse"; under trim it is refused when that quantity is
+                    # 0 or below buy_shortfall.MIN_FILL_PCT of the wanted quantity.
+                    # The cash is what is left at this point of the morning, after
+                    # the sells, any tax taken today and the higher-ranked buys.
+                    _short = cash - _reserve < q * pr
+                    tc = None if _short else calc_tc(pr, q, "BUY")
+                    _short = _short or cash - _reserve < q * pr + tc
+                    _trim = _below_min = None
+                    if _short and _shortfall == "trim":
+                        _q, _pr, _tc, _why = _bsf.trim(
+                            q, cash - _reserve,
+                            (lambda n: pr) if impact_k is None
+                            else (lambda n: _fill_price("BUY", s, dt, _raw_buy, n)[0]),
+                            lambda p_, n: calc_tc(p_, n, "BUY"))
+                        if _q >= 1:
+                            _trim = {"wanted_qty": q,
+                                     "cash_shortfall": round(q * pr + calc_tc(pr, q, "BUY")
+                                                             - (cash - _reserve), 2)}
+                            if impact_k is not None:
+                                pr, _pend = _fill_price("BUY", s, dt, _raw_buy, _q)
+                            q, tc, _short = _q, _tc, False
+                        elif _why == _bsf.BELOW_MINIMUM:
+                            _below_min = _bsf.largest_fit(
+                                q, cash - _reserve,
+                                (lambda n: pr) if impact_k is None
+                                else (lambda n: _fill_price("BUY", s, dt, _raw_buy, n)[0]),
+                                lambda p_, n: calc_tc(p_, n, "BUY"))[0]
+                    if _short and _below_min is not None:
+                        _n_refused += 1
                         if audit is not None:
                             audit["skipped"].append({"date": dt, "side": "BUY", "symbol": s,
-                                "reason": "cash short (before TC)",
-                                "detail": f"need Rs {q*pr:,.0f}, have Rs {cash:,.0f}"
+                                "reason": _bsf.BELOW_MINIMUM,
+                                "detail": f"wanted {q:,} sh, cash pays for {_below_min:,} sh "
+                                          f"({_below_min / q * 100:.1f}%), minimum "
+                                          f"{_bsf.MIN_FILL_PCT}%; have Rs {cash:,.0f}"
                                           + (f", of which Rs {_reserve:,.0f} is the fixed-"
                                              f"capital reserve" if _fixed else "")})
                         continue
-                    tc = calc_tc(pr, q, "BUY")
-                    if cash - _reserve < q * pr + tc:
+                    if _short:
+                        _n_refused += 1
                         if audit is not None:
+                            _before = cash - _reserve < q * pr
+                            _need = q * pr if _before else q * pr + tc
                             audit["skipped"].append({"date": dt, "side": "BUY", "symbol": s,
-                                "reason": "cash short (incl TC)",
-                                "detail": f"need Rs {q*pr+tc:,.0f}, have Rs {cash:,.0f}"
+                                "reason": ("cash short (before TC)" if _before
+                                           else "cash short (incl TC)"),
+                                "detail": f"need Rs {_need:,.0f}, have Rs {cash:,.0f}"
                                           + (f", of which Rs {_reserve:,.0f} is the fixed-"
                                              f"capital reserve" if _fixed else "")})
                         continue
+                    if _trim is not None:
+                        _n_trimmed += 1
                     cash -= q * pr + tc; cum_tc += tc; n_trades += 1
                     _cost_fill(dt, "BUY", s, q, _raw_buy, pr, tc, "rebalance", _pend)
                     _commit_impact(_pend)
                     if ledger is not None:
                         ledger.buy(s, q, round(pr, 2), dt)
                     if audit is not None:
+                        # A trimmed buy carries the quantity it wanted and the cash it
+                        # was short by; qty is what filled. No other row has them.
                         audit["trades"].append({"date": dt, "action": "BUY", "symbol": s,
                             "qty": q, "price": round(pr, 2), "value": round(q*pr, 2),
-                            "tc": round(tc, 2)})
+                            "tc": round(tc, 2), **(_trim or {})})
                     shares[s] = shares.get(s, 0) + q
                 if _fixed and _fixed_log is not None:
                     # THIS MORNING'S OPEN VALUATION, for MaxInvested_base% and for
@@ -1186,6 +1251,9 @@ def backtest_exposure(px, op, sc, dates, pc, mom20,
         audit["dd_events"] = _ds.events
         audit["dd"] = dict(_ds.summary(), marginal_tax=(
             marginal_tax(ledger.rows, _dd_rows) if ledger is not None else 0.0))
+    if audit is not None:
+        audit["buy_shortfall"] = {"rule": _shortfall, "trimmed": _n_trimmed,
+                                  "refused": _n_refused}
     if audit is not None and ledger is not None:
         audit["tax"] = {"ledger": ledger, "cum_tax": cum_tax,
                         "lots": pd.DataFrame(ledger.rows), "leaked": ledger.leaked()}

@@ -123,12 +123,13 @@ def _c(path):
     import pcap_axis as _pca
     import fixed_axis as _fxa
     import start_axis as _sta
+    import buy_shortfall as _bsf
     _all_default = (cadence.is_default() and _pf.is_default() and _tax.is_default()
                     and _sva.is_default() and _dda.is_default()
-            and _capa.is_default() and _impa.is_default() and _pca.is_default() and _fxa.is_default() and _sta.is_default())
+            and _capa.is_default() and _impa.is_default() and _pca.is_default() and _fxa.is_default() and _sta.is_default() and _bsf.is_default())
     _sfx = ("" if _all_default
             else (cadence.suffix() + _pf.suffix() + _tax.suffix() + _sva.suffix()
-                  + _dda.suffix() + _capa.suffix() + _impa.suffix() + _pca.suffix() + _fxa.suffix() + _sta.suffix()))
+                  + _dda.suffix() + _capa.suffix() + _impa.suffix() + _pca.suffix() + _fxa.suffix() + _sta.suffix() + _bsf.suffix()))
     out = path if not _sfx else path.with_name(path.stem + _sfx + path.suffix)
     # WHAT THIS RUN ACTUALLY WROTE, RECORDED HERE BECAUSE HERE IS WHERE THE NAME
     # IS DECIDED. The step used to end by printing a hardcoded list of the
@@ -286,6 +287,9 @@ def main(u):
     # produced the equity curve, rather than re-running the baseline to recover
     # them. The count is asserted against what the engine itself reported.
     bt = pd.DataFrame(base_audit["trades"])
+    # Only a trimmed buy has wanted_qty; written as a whole number, blank elsewhere.
+    if "wanted_qty" in bt.columns:
+        bt["wanted_qty"] = bt["wanted_qty"].astype("Int64")
     assert len(bt) == nb, f"v1 trade log {len(bt)} rows vs engine count {nb}"
     # WRITTEN UNCONDITIONALLY, AND THAT IS A KNOWN LEAK, RECORDED NOT HIDDEN.
     # `--arm v2` still produces daily_trades_v1_<tag>.csv -- a file named for an

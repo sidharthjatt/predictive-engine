@@ -80,6 +80,7 @@ from nautilus_trader.trading.strategy import Strategy
 
 # SELECTION -- imported from config.py, the single definition.
 import config
+import buy_shortfall as _bsf
 TOP_N, BUFFER = config.TOP_N, config.BUFFER
 REBAL = 20
 VOL_WIN = 60
@@ -169,7 +170,8 @@ class PredictiveEngineStrategy(Strategy):
         self.daily_holdings = []      # one row per (trading day, held symbol)
         self.fills = []               # every fill, for reconciliation
         self.holdings_log = []        # holdings at each rebalance, for reconciliation
-        self.dd_stop = None           # set by configure(); the drawdown stop of v5/v6.
+        self.rank_decisions = []      # target names and top-BUFFER keep set per rebalance
+        self.dd_stop = None          # set by configure(); the drawdown stop of v5/v6.
                                       # Not `stop`: Strategy.stop() is nautilus's own method.
         self.stop_events = []         # mirrors daily_stop_events_*.csv
         self.dd = None                # set by configure(); the drawdown-limit axis
@@ -459,12 +461,20 @@ class PredictiveEngineStrategy(Strategy):
             q = int((self._invest_val * weight) // px)
             if q < 1:
                 continue
-            # Unaffordable buys are SKIPPED, never shrunk -- the reference engine's
-            # rule. leg_charges is the same calculator the venue will deduct with, so
-            # this is not a guessed headroom; an earlier version of this port guessed
-            # 5% and it shrank every buy.
-            if self._free_cash() < q * px + leg_charges(px, q, "BUY"):
-                continue
+            # A buy cash cannot fully pay for is cut to the largest whole quantity
+            # that fits, or refused, by the reference engine's rule
+            # (buy_shortfall.py, the same trim function). leg_charges is the same
+            # calculator the venue will deduct with, so this is not a guessed
+            # headroom; an earlier version of this port guessed 5% and it shrank
+            # every buy.
+            free = self._free_cash()
+            if free < q * px + leg_charges(px, q, "BUY"):
+                if _bsf.selected() != "trim":
+                    continue
+                q, _, _, _ = _bsf.trim(q, free, lambda n: px,
+                                       lambda p_, n: leg_charges(p_, n, "BUY"))
+                if q < 1:
+                    continue
             self._send(inst, OrderSide.BUY, q)
             return
 
@@ -771,6 +781,8 @@ class PredictiveEngineStrategy(Strategy):
             "port_value": round(port_val, 2), "cash_before": round(cash, 2),
             "invest_value": round(invest_val, 2), "n_held_before": len(held),
             "n_buy": n_buy, "n_sell": n_sell})
+        self.rank_decisions.append({"decided_on": day, "top": tuple(top),
+                                    "keep": tuple(sorted(keep))})
         return True
 
     # ------------------------------------------------- drawdown-limit axis

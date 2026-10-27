@@ -69,7 +69,7 @@ DIRECTIVE = re.compile(r"#\s*naming:\s*(.+?)\s*$")
 # Non-default on every axis, so no axis can hide behind an empty suffix.
 HONOUR_SELECTION = {"arms": ["v1", "v3"], "cadence": 40, "profile": "tradeable",
                     "tax": True, "survivorship": "pit", "dd": 20, "capital": 5_000_000,
-                    "impact": 0.003, "pcap": 0.1, "fixed": True}
+                    "impact": 0.003, "pcap": 0.1, "fixed": True, "buy_shortfall": "refuse"}
 
 # THE MEMBERSHIP LIST IS GONE. Gate 2 used to ask "does this expression mention a
 # blessed helper name?", which is a question about spelling. It now asks "does the
@@ -231,6 +231,8 @@ def honour_probe():
     pcap_axis.set_selection(HONOUR_SELECTION["pcap"])
     import fixed_axis
     fixed_axis.set_selection(HONOUR_SELECTION["fixed"])
+    import buy_shortfall
+    buy_shortfall.set_selection(HONOUR_SELECTION["buy_shortfall"])
     return naming, naming.tail()
 
 

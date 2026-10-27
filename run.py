@@ -580,6 +580,13 @@ def print_plan(plan, args, show_paths=False):
         print(f"  rebalance cadence: {args.rebal} (default 20)")
     else:
         print(f"  rebalance cadence: 20 (default, unchanged)")
+    import buy_shortfall as _bsf
+    print(f"  buy_shortfall: {_bsf.selected()}"
+          + (" (default)" if _bsf.is_default() else f" (default {_bsf.DEFAULT})")
+          + " -- a buy cash cannot fully pay for is "
+          + (f"cut to the largest whole quantity that fits, if at least "
+             f"{_bsf.MIN_FILL_PCT}% of it" if _bsf.selected() == "trim"
+             else "refused whole"))
 
     import survivorship_axis as _sva
     if not _sva.is_default():
@@ -896,6 +903,12 @@ def main(argv=None):
                     help="backtest start (default 2019-01-01). Scoring starts three "
                          "years earlier. A pit run starts at the later of this and the "
                          "first membership row. See start_axis.py.")
+    # THE TWELFTH AXIS, 2026-10-27. Default trim (config.BUY_SHORTFALL).
+    ap.add_argument("--buy-shortfall", choices=("trim", "refuse"), default=None,
+                    help="a buy cash cannot fully pay for: trim it to the largest whole "
+                         "quantity that fits, if at least half the wanted quantity, "
+                         "or refuse it (default from "
+                         "config.BUY_SHORTFALL, trim). See buy_shortfall.py.")
     ap.add_argument("--list", action="store_true", help="resolve and print the plan, run nothing")
     ap.add_argument("--dry-run", action="store_true",
                     help="like --list, and show every output location")
@@ -910,6 +923,8 @@ def main(argv=None):
         if _why:
             ap.error(_why)
     _fxa.set_selection(bool(args.fixed_capital))
+    import buy_shortfall as _bsf
+    _bsf.set_selection(args.buy_shortfall)
 
     # EVERY AXIS IS RECORDED HERE, BEFORE THE PLAN IS BUILT, so --list and --dry-run
     # compose their paths from the same selection a real run writes under. Cadence,
@@ -1113,6 +1128,7 @@ def collect_run_folder(plan, args, t_start, dest, thin=None):
         f"tax       : {'on' if _tax.selected() else 'off'}\n"
         + _survivorship_section(plan) + _bias_section(plan) + _dd_section() + _capital_section()
         + _impact_pcap_section() + _fixed_section() + _start_section()
+        + _buy_shortfall_section()
         + "".join(l + "\n" for l in stuck)
         + "".join(l + "\n" for l in cap_lines) +
         f"steps     : {len(plan['pipeline'])} pipeline, {len(plan['arm_runs'])} arm runs\n"
@@ -1211,6 +1227,13 @@ def _start_section():
     return "" if _sta.is_default() else f"start     : {_sta.selected().date()}\n"
 
 
+def _buy_shortfall_section():
+    """RUN.txt's buy-shortfall line, written for every run. A RUN.txt without it
+    was written before 2026-10-27, when every short buy was refused."""
+    import buy_shortfall as _bsf
+    return f"buy_shortfall : {_bsf.selected()}\n"
+
+
 def _thin_section(thin):
     """RUN.txt's report of calendar sessions the data lacks; "" when not computed."""
     if thin is None:
@@ -1290,6 +1313,10 @@ def read_run_record(folder):
             "fixed": kv.get("fixed") == "on",
             # Absent from every RUN.txt of a run from the default start.
             "start": kv.get("start"),
+            # Absent from every RUN.txt written before 2026-10-27. Those runs refused
+            # short buys but wrote unsuffixed names, so None (the default, for
+            # naming) is what finds their files.
+            "buy_shortfall": kv.get("buy_shortfall"),
             "pipeline_steps": int(m.group(1)), "arm_runs": int(m.group(2)),
             "started": started, "finished": finished}
 

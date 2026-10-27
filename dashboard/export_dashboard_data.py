@@ -82,6 +82,7 @@ LABELS = {
     "pcap": "Participation cap, fraction of median volume",
     "fixed": "Fixed capital (profits not reinvested)",
     "start": "Backtest start date",
+    "buy_shortfall": "A buy cash cannot fully pay for (trim or refuse)",
 }
 
 # Named cells for check f: (universe, arm). Setting: pit, tradeable, tax on,
@@ -259,6 +260,9 @@ def run_axes(params, run_txt, seg):
         "pcap": "none" if pc is None else fmt(pc),
         "fixed": "on" if params.get("fixed_capital") or "@fixed" in seg else "off",
         "start": _start_of(params, seg),
+        # Absent from every params file written before 2026-10-27, when every short
+        # buy was refused; those runs carry no @refuse segment.
+        "buy_shortfall": params.get("buy_shortfall", "refuse"),
     }
 
 
@@ -271,8 +275,10 @@ def _start_of(params, seg):
     return f"{m.group(1)}-{m.group(2)}-{m.group(3)}" if m else "2019-01-01"
 
 
-def expected_segment(ax):
-    """The arm directory name naming.path_tail would give these axes."""
+def expected_segment(ax, refuse_named=True):
+    """The arm directory name naming.path_tail would give these axes.
+    refuse_named=False for a run from before 2026-10-27: it refused short buys
+    and its name has no @refuse."""
     s = ax["arm"]
     if ax["cadence"] != "20":
         s += f"@r{ax['cadence']}"
@@ -294,6 +300,8 @@ def expected_segment(ax):
         s += "@fixed"
     if ax["start"] != "2019-01-01":
         s += "@s" + ax["start"].replace("-", "")
+    if ax["buy_shortfall"] == "refuse" and refuse_named:
+        s += "@refuse"
     return s
 
 
@@ -321,6 +329,8 @@ def flags_for(ax, universe_sel, arm_sel):
         f.append("--fixed-capital")
     if ax["start"] not in NO_FLAG["start"]:
         f.append(f"--start {ax['start']}")
+    if ax["buy_shortfall"] == "refuse":
+        f.append("--buy-shortfall refuse")
     return " ".join(f)
 
 
@@ -369,9 +379,10 @@ def build_run(repo, folder, udir, seg, run_txt, index_files, checks):
     params = json.loads((rdir / "params.json").read_text())
     comp = read_table(rdir / "comparison.csv")
     ax = run_axes(params, run_txt, seg)
-    if expected_segment(ax) != seg:
+    _named = "buy_shortfall" in params
+    if expected_segment(ax, _named) != seg:
         checks.append(f"Run {folder.name}/{udir}/{seg}: the axes read from params.json "
-                      f"and RUN.txt give the directory name {expected_segment(ax)}, "
+                      f"and RUN.txt give the directory name {expected_segment(ax, _named)}, "
                       f"not {seg}.")
     u, arm = ax["universe"], ax["arm"]
 
@@ -592,7 +603,8 @@ def ladder(repo, runs_by_key, checks):
         ax = {"universe": r["universe"], "arm": r["arm"], "cadence": "20",
               "profile": "tradeable", "tax": "on", "survivorship": "pit", "dd": "off",
               "capital": str(int(r["capital"])), "impact": fmt(r["impact_k"]),
-              "pcap": fmt(r["pcap"]), "fixed": "off", "start": "2019-01-01"}
+              "pcap": fmt(r["pcap"]), "fixed": "off", "start": "2019-01-01",
+              "buy_shortfall": "refuse"}
         run = runs_by_key.get(key_of(ax))
         if run is None:
             missing += 1
@@ -874,6 +886,10 @@ def main():
             axes.append({"name": name, "label": LABELS[name], "default": "off",
                          "values": ["off", "on"], "open_number": False,
                          "cli": {"off": "", "on": "--fixed-capital"}})
+        elif name == "buy_shortfall":
+            axes.append({"name": name, "label": LABELS[name], "default": "trim",
+                         "values": ["trim", "refuse"], "open_number": False,
+                         "cli": {"trim": "", "refuse": "--buy-shortfall refuse"}})
         else:
             flag = {"cadence": "--rebal", "dd": "--dd", "capital": "--capital",
                     "impact": "--impact", "pcap": "--cap", "start": "--start"}[name]
@@ -992,7 +1008,8 @@ def main():
     for u, arm in CHECK_F_CELLS:
         ax = {"universe": u, "arm": arm, "cadence": "20", "profile": "tradeable", "tax": "on",
               "survivorship": "pit", "dd": "off", "capital": "1000000", "impact": "0",
-              "pcap": "1", "fixed": "off", "start": "2019-01-01"}
+              "pcap": "1", "fixed": "off", "start": "2019-01-01",
+              "buy_shortfall": "refuse"}
         r = by_key.get(key_of(ax))
         p = pub.get((u, arm), {})
         if r is None:

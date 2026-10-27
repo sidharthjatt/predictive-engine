@@ -120,6 +120,12 @@ BT_END_DATE = _pd.Timestamp("2026-05-29")
 TOP_N = 8
 BUFFER = 16
 
+# A buy that cash cannot fully pay for: "trim" cuts it to the largest whole
+# quantity that fits, if that is at least half the wanted quantity
+# (buy_shortfall.MIN_FILL_PCT), "refuse" drops it. run.py --buy-shortfall overrides it for
+# one run. See buy_shortfall.py.
+BUY_SHORTFALL = "trim"
+
 # ---------------------------------------------------------------------------
 # Train / Validation / Test split -- DELETED 2026-08-28
 # ---------------------------------------------------------------------------

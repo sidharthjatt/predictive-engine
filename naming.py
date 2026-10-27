@@ -46,6 +46,7 @@ import impact_axis as _impact
 import pcap_axis as _pcap
 import fixed_axis as _fixed
 import start_axis as _start
+import buy_shortfall as _shortfall
 
 # The axes, in the order they appear in a name. This order is LOAD-BEARING: it is
 # the order v34_common.py has always used, and changing it renames every
@@ -71,6 +72,10 @@ import start_axis as _start
 # 2019-01-01, "_s20070924" after every other suffix otherwise. No existing name
 # moves.
 #
+# THE BUY-SHORTFALL RULE IS APPENDED AFTER THE START (2026-10-27): "" at the
+# default trim, "_refuse" after every other suffix otherwise. No name moves, but
+# the unsuffixed names now hold trimmed runs; refuse is the rule they held before.
+#
 # TAX IS APPENDED, NEVER INSERTED (2026-09-17). Appending leaves every existing
 # non-default name -- every _r40, every _tradeable, every arm suffix -- exactly
 # where it was, because the tax suffix is empty at the default and lands after
@@ -78,7 +83,7 @@ import start_axis as _start
 # renames artefacts whose names are recorded by SHA-256 in the retired-universe
 # manifest (deleted 2026-09-24; git show 50562ed:RETIRED_UNIVERSES-manifest.txt).
 AXES = ("arm", "cadence", "profile", "tax", "survivorship", "dd", "capital", "impact",
-        "pcap", "fixed", "start")
+        "pcap", "fixed", "start", "buy_shortfall")
 
 _SUFFIX = {
     "arm": lambda: _arm.selection_suffix(),
@@ -92,6 +97,7 @@ _SUFFIX = {
     "pcap": lambda: _pcap.suffix(),
     "fixed": lambda: _fixed.suffix(),
     "start": lambda: _start.suffix(),
+    "buy_shortfall": lambda: _shortfall.suffix(),
 }
 
 
@@ -154,7 +160,8 @@ def run_label(universe, arms):
             + ("" if _impact.is_default() else f"  |  {_impact.label()}")
             + ("" if _pcap.is_default() else f"  |  {_pcap.label()}")
             + ("" if _fixed.is_default() else f"  |  {_fixed.label()}")
-            + ("" if _start.is_default() else f"  |  {_start.label()}"))
+            + ("" if _start.is_default() else f"  |  {_start.label()}")
+            + ("" if _shortfall.is_default() else f"  |  {_shortfall.label()}"))
 
 
 def path_tail(rebal=None):
@@ -178,7 +185,7 @@ def path_tail(rebal=None):
     if not _tax.is_default():
         seg += "@tax"
     return (seg + _surv.segment() + _dd.segment() + _capital.segment() + _impact.segment()
-            + _pcap.segment() + _fixed.segment() + _start.segment())
+            + _pcap.segment() + _fixed.segment() + _start.segment() + _shortfall.segment())
 
 
 # ---------------------------------------------------------------------------
@@ -271,29 +278,43 @@ def path_tail(rebal=None):
 # start_axis.set_selection("2007-09-24") off its default: every entry but
 # selection_suffix gained "_s20070924" or "@s20070924".
 #
+# RE-PROBED 2026-10-27 FOR THE BUY-SHORTFALL AXIS, with only
+# buy_shortfall.set_selection("refuse") off its default: every entry but
+# selection_suffix gained "_refuse" or "@refuse".
+#
 # A spelled-out set cannot do that. An axis added to AXES now appears in NO
 # entry's value until somebody measures it and types it in, so the default for a
 # new axis is "unproven", which is the only safe default an enforcement table has.
 CARRIES = {
     "naming.name":       frozenset({"arm", "cadence", "profile", "tax", "survivorship",
-                                    "dd", "capital", "impact", "pcap", "fixed", "start"}),
+                                    "dd", "capital", "impact", "pcap", "fixed", "start",
+                                    "buy_shortfall"}),
     "naming.tail":       frozenset({"arm", "cadence", "profile", "tax", "survivorship",
-                                    "dd", "capital", "impact", "pcap", "fixed", "start"}),
+                                    "dd", "capital", "impact", "pcap", "fixed", "start",
+                                    "buy_shortfall"}),
     "SFX":               frozenset({"arm", "cadence", "profile", "tax", "survivorship",
-                                    "dd", "capital", "impact", "pcap", "fixed", "start"}),
+                                    "dd", "capital", "impact", "pcap", "fixed", "start",
+                                    "buy_shortfall"}),
     "artefact_tag":      frozenset({"arm", "cadence", "profile", "tax", "survivorship",
-                                    "dd", "capital", "impact", "pcap", "fixed", "start"}),
-    "_c(":               frozenset({"cadence", "profile", "tax", "survivorship", "dd", "capital", "impact", "pcap", "fixed", "start"}),
-    "_ci(":              frozenset({"cadence", "profile", "tax", "survivorship", "dd", "capital", "impact", "pcap", "fixed", "start"}),
+                                    "dd", "capital", "impact", "pcap", "fixed", "start",
+                                    "buy_shortfall"}),
+    "_c(":               frozenset({"cadence", "profile", "tax", "survivorship", "dd", "capital", "impact", "pcap", "fixed", "start",
+                                    "buy_shortfall"}),
+    "_ci(":              frozenset({"cadence", "profile", "tax", "survivorship", "dd", "capital", "impact", "pcap", "fixed", "start",
+                                    "buy_shortfall"}),
     "selection_suffix":  frozenset({"arm"}),
     "nt_reports_segment": frozenset({"arm", "cadence", "profile", "tax", "survivorship",
-                                     "dd", "capital", "impact", "pcap", "fixed", "start"}),
+                                     "dd", "capital", "impact", "pcap", "fixed", "start",
+                                    "buy_shortfall"}),
     "reports_segment":   frozenset({"arm", "cadence", "profile", "tax", "survivorship",
-                                    "dd", "capital", "impact", "pcap", "fixed", "start"}),
+                                    "dd", "capital", "impact", "pcap", "fixed", "start",
+                                    "buy_shortfall"}),
     "chart_path":        frozenset({"arm", "cadence", "profile", "tax", "survivorship",
-                                    "dd", "capital", "impact", "pcap", "fixed", "start"}),
+                                    "dd", "capital", "impact", "pcap", "fixed", "start",
+                                    "buy_shortfall"}),
     "combined_chart_path": frozenset({"arm", "cadence", "profile", "tax", "survivorship",
-                                      "dd", "capital", "impact", "pcap", "fixed", "start"}),
+                                      "dd", "capital", "impact", "pcap", "fixed", "start",
+                                    "buy_shortfall"}),
 }
 
 # `_ci` is three different functions and a textual check cannot tell them apart,

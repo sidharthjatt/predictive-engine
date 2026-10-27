@@ -106,7 +106,7 @@ LEGEND_TEMPLATE = """\
               no open price (NaN/<=0)  the symbol had no usable open price that morning
               qty < 1 after sizing     the target was smaller than one share
               cash short (before TC)   the funding defect below
-              cash short (incl TC)     the same, once transaction costs are added
+              cash short (incl TC)     the same, once transaction costs are added{trim_skip}
               participation cap        cut or refused by the tradeable profile's volume cap
               untradeable              no raw price row, or a forced exit before a gap
               impact                   no prior-20-session median to price impact against
@@ -116,8 +116,7 @@ LEGEND_TEMPLATE = """\
  FUNDING    invest value is a share of the WHOLE portfolio, but new positions are paid for
             out of CASH ALONE, and a name already held is never resized. So whenever a
             buffer name is holding capital the book is over-committed by construction and
-            the tail of the score-descending buy loop is skipped. That is what the
-            cash-short skips are. A 100%-invested arm hits it constantly; a breadth-scaled
+            the tail of the score-descending buy loop {funding_tail} A 100%-invested arm hits it constantly; a breadth-scaled
             arm holds cash anyway and rarely does. The per-rebalance counts below make the
             difference visible.
  NOTE       Existing holdings are never resized. Only new positions are sized against the
@@ -190,8 +189,24 @@ def legend_for(arm):
     stop_skip = ("" if arm.stop is None else
                  ' A stop arm adds a third: "drawdown exit", on the\n'
                  '            close that triggered the exit.')
+    # ONLY A TRIMMED RUN'S LEGEND DESCRIBES THE TRIM, so a refuse run's log is
+    # byte-identical to the one written before buy_shortfall existed.
+    import buy_shortfall as _bsf
+    if _bsf.selected() == "trim":
+        trim_skip = ("\n            Under buy_shortfall trim a buy cash cannot fully pay for is cut to"
+                     "\n            the largest whole quantity that fits and marked TRIMMED; a"
+                     f"\n            buy of which fewer than {_bsf.MIN_FILL_PCT}% of the wanted shares fit is"
+                     "\n            skipped as cash short.")
+        funding_tail = ("is short of cash.\n            Each such buy is trimmed to what "
+                        f"fits, or skipped when fewer than\n            {_bsf.MIN_FILL_PCT}% of the "
+                        "wanted shares fit. That is what the TRIMMED buys\n            and the "
+                        "cash-short skips are.")
+    else:
+        trim_skip = ""
+        funding_tail = ("is skipped. That is what the\n            cash-short skips are.")
     return LEGEND_TEMPLATE.format(exposure_para=exposure_para, sizing_para=sizing_para,
-                                  stop_skip=stop_skip,
+                                  stop_skip=stop_skip, trim_skip=trim_skip,
+                                  funding_tail=funding_tail,
                                   top=TOP_N, top1=TOP_N + 1, buffer=BUFFER,
                                   rebal=_cd.selected())
 
@@ -585,6 +600,10 @@ def build(mdir, tag, arm, bh, raw_idx=None, cal_sorted=None):
                 else:
                     L.append(f'          -> rank {why[0] if why[0] else "?"} -- entered the '
                              f'top {TOP_N} and was not already held')
+                    if pd.notna(o.get("wanted_qty", float("nan"))):
+                        L.append(f'          -> TRIMMED: wanted {int(o["wanted_qty"]):,} sh, '
+                                 f'filled {int(o["qty"]):,} sh; cash was short by Rs '
+                                 f'{float(o["cash_shortfall"]):,.2f}')
             b, sl = g[g.action == "BUY"], g[g.action == "SELL"]
             L.append(f'      TOTAL   BUY {len(b)} Rs {b["value"].sum():>12,.0f}   |   '
                      f'SELL {len(sl)} Rs {sl["value"].sum():>12,.0f}')
@@ -853,6 +872,8 @@ def build(mdir, tag, arm, bh, raw_idx=None, cal_sorted=None):
            "   ENGINE-CURVE agreement      : NOT CHECKED -- no published curve for "
            "this arm and cadence on disk"),
           f"   orders filled               : {len(t):,}  (every one is shown above)",
+          *([f"   of which trimmed to fit cash: {int(t['wanted_qty'].notna().sum()):,}"
+             f"  (marked TRIMMED above)"] if "wanted_qty" in t.columns else []),
           f"   orders skipped              : {len(sk):,}  (each shown with its reason)"]
     # BY REASON, NOT JUST A TOTAL. The mix is the diagnosis: a 100%-invested arm is
     # dominated by cash-short (the funding defect), a breadth-scaled arm barely

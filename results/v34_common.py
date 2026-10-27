@@ -54,19 +54,24 @@ def deployed_none(expo):
 
 def _dd_params():
     """{"dd": ...} when the drawdown-limit axis is on, {} when off, so a params
-    file from a run without --dd is the file it always was."""
+    file from a run without --dd is the file it always was. The other axes
+    likewise, except buy_shortfall, which is written for every run."""
     import dd_axis as _dda
     import capital_axis as _capa
     import impact_axis as _impa
     import pcap_axis as _pca
     import fixed_axis as _fxa
     import start_axis as _sta
+    import buy_shortfall as _bsf
     return (({} if _dda.is_default() else {"dd": _dda.params()})
             | ({} if _capa.is_default() else {"capital": _capa.selected()})
             | ({} if _impa.is_default() else {"impact_k": _impa.selected()})
             | ({} if _pca.is_default() else {"participation_cap": _pca.selected()})
             | ({} if _fxa.is_default() else {"fixed_capital": True})
-            | ({} if _sta.is_default() else {"bt_start": str(_sta.selected().date())}))
+            | ({} if _sta.is_default() else {"bt_start": str(_sta.selected().date())})
+            # Written for every run: the default itself changed on 2026-10-27, so
+            # a params file without it is from a run that refused short buys.
+            | {"buy_shortfall": _bsf.selected()})
 
 
 def _window_label(eq=None):
@@ -360,9 +365,10 @@ def _write_stop(M, stop_rows, stop_curves, stop_audits, bd, bh, halves,
     import pcap_axis as _pca
     import fixed_axis as _fxa
     import start_axis as _sta
+    import buy_shortfall as _bsf
     SFX = (arm_reg.stop_selection_suffix() + cadence.suffix() + profiles.suffix()
             + _tax.suffix() + _sva.suffix() + _dda.suffix() + _capa.suffix() + _impa.suffix() + _pca.suffix()
-            + _fxa.suffix() + _sta.suffix())
+            + _fxa.suffix() + _sta.suffix() + _bsf.suffix())
     rows = stop_rows + [arm_row(bh, "buy & hold equal-weight", 0, 0, 100.0)]
     rows[-1]["MeanNamesHeld"], rows[-1]["CashShortSkips"] = "", ""
     pd.DataFrame(rows).to_csv(M / f"v34_stop_comparison{SFX}.csv", index=False)
@@ -508,6 +514,7 @@ def run_v34(M, universe_label, universe_tag, px, op, sc, bd, pc, mom20,
         ("v4", "v4 provol, breadth-scaled", "v4_provol_breadth", v4_eq, v4_tc, v4_n, v4_expo * 100,  a4),
     ]
     ARM_ON = [a for a in ARM_DEF if a[0] in sel]
+    import buy_shortfall as _bsf
     if audits_out is not None:
         audits_out.update({nm: au for nm, _, _, _, _, _, _, au in ARM_ON})
 
@@ -524,12 +531,18 @@ def run_v34(M, universe_label, universe_tag, px, op, sc, bd, pc, mom20,
             mh, nsk = held_and_skips(audits[r["Config"]])
             r["MeanNamesHeld"] = round(mh, 2)
             r["CashShortSkips"] = nsk
+            # Under trim, the buys cut to fit. A refuse run trims nothing and has
+            # no such column, so its file is the one the rule always wrote.
+            if _bsf.selected() == "trim":
+                r["TrimmedBuys"] = audits[r["Config"]].get("buy_shortfall", {}).get("trimmed", "")
         else:
             # buy & hold holds the whole universe every day: not-applicable,
             # not unmeasured. Written as an empty cell so pandas does not
             # coerce the column to float and render it as NaN.
             r["MeanNamesHeld"] = ""
             r["CashShortSkips"] = ""
+            if _bsf.selected() == "trim":
+                r["TrimmedBuys"] = ""
     # THE CANONICAL v34_* FILES ARE WRITTEN ONLY ON A FULL FOUR-ARM SELECTION.
     # SFX is "" then, so those paths and their contents are exactly what they have
     # always been. A subset writes v34_comparison_v1_v3.csv and friends beside
@@ -571,9 +584,10 @@ def run_v34(M, universe_label, universe_tag, px, op, sc, bd, pc, mom20,
     import pcap_axis as _pca
     import fixed_axis as _fxa
     import start_axis as _sta
+    import buy_shortfall as _bsf
     SFX = (arm_reg.selection_suffix([n for n, *_ in ARM_ON]) + cadence.suffix()
            + profiles.suffix() + _tax.suffix() + _sva.suffix() + _dda.suffix() + _capa.suffix() + _impa.suffix() + _pca.suffix()
-           + _fxa.suffix() + _sta.suffix())
+           + _fxa.suffix() + _sta.suffix() + _bsf.suffix())
     # THE PATHS THIS CALL WRITES, IN ORDER. Read only by the report line below, so
     # that what is printed is derived from what was written rather than restated.
     _wrote = []
@@ -621,6 +635,13 @@ def run_v34(M, universe_label, universe_tag, px, op, sc, bd, pc, mom20,
     # 200` named five gated files nobody had touched and named none of the five
     # that were written. The names come from the paths, not from a second copy of
     # the f-strings above.
+    # THE BUY-SHORTFALL TOTALS, one line per arm: buys cut to fit, and buys
+    # refused for want of cash (every "cash short" reason but the trim).
+    for _lab, _au in audits.items():
+        _bs = _au.get("buy_shortfall")
+        if _bs is not None:
+            print(f"  buy_shortfall {_bs['rule']}: {_lab}: {_bs['trimmed']} buys trimmed, "
+                  f"{_bs['refused']} buys refused")
     print("\n  saved -> " + ", ".join(q.name for q in _wrote))
     plt.close()
 
@@ -713,6 +734,13 @@ def run_arm(u, arm, rebal=None, out_dir=None):
     mh, nsk = held_and_skips(audit)
     rows[0]["MeanNamesHeld"], rows[0]["CashShortSkips"] = round(mh, 2), nsk
     rows[1]["MeanNamesHeld"], rows[1]["CashShortSkips"] = "", ""
+    # Under trim, the buys cut to fit, as in run_v34; a refuse run has no column.
+    import buy_shortfall as _bsf
+    if _bsf.selected() == "trim":
+        rows[0]["TrimmedBuys"], rows[1]["TrimmedBuys"] = audit["buy_shortfall"]["trimmed"], ""
+    _bs = audit["buy_shortfall"]
+    print(f"  buy_shortfall {_bs['rule']}: {arm.label}: {_bs['trimmed']} buys trimmed, "
+          f"{_bs['refused']} buys refused")
     # UNDER tax=on, THREE MORE ROWS, AFTER THE TWO THAT HAVE ALWAYS BEEN HERE
     # (2026-09-25). Row 0 is the headline: nothing sold at the end, the last
     # partial financial year settled on realised gains. Row 1 is the untaxed
@@ -736,6 +764,8 @@ def run_arm(u, arm, rebal=None, out_dir=None):
                          hd["buy_tc"] + hd["sell_tc"], 2 * hd["names"], 100.0)]
         for r in extra:
             r["MeanNamesHeld"], r["CashShortSkips"] = "", ""
+            if _bsf.selected() == "trim":
+                r["TrimmedBuys"] = ""
         rows += extra
     comp = pd.DataFrame(rows)
     # naming: delegated -- out is paths.run_dir(u, arm, rebal), named by naming.path_tail; run.py passes no out_dir

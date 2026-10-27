@@ -128,6 +128,26 @@ slippage are paid from the account, as in every run. The mode is refused with `-
 and with the stop arms. Off adds nothing to any name; on adds `_fixed` after every
 other suffix and `@fixed` to folders.
 
+`--buy-shortfall trim|refuse` (default `trim`, `config.BUY_SHORTFALL`) decides what a
+buy does when the cash left at that point of the rebalance morning cannot pay for all
+of it. Buys are filled in score order after the day's sells and any tax taken that
+morning. Under `trim` the quantity becomes the largest whole number q with q x fill
+price + charges(q) <= that cash, and the buy goes ahead only if q is at least 50% of
+the wanted quantity (`buy_shortfall.MIN_FILL_PCT`, a fixed constant, not a run
+setting). Below 50% the buy is refused whole and logged `cash short: below minimum
+fill`; at q = 0 it is refused and logged `cash short (before TC)` or `(incl TC)`.
+`refuse` is still selectable: the buy is refused whole, which was the only rule
+before 2026-10-27. A buy that fits is filled the same way under both, held names are never resized, and the engine, the Nautilus
+port and nt_attribution use the same function (`buy_shortfall.trim`). A trimmed buy's
+row in `daily_trades` carries `wanted_qty` and `cash_shortfall`, the daily log marks it
+TRIMMED, and the run log prints the trimmed and refused buys per arm; under `trim`,
+`v34_comparison` and `comparison.csv` add a `TrimmedBuys` column. `trim` adds nothing to
+any name; `refuse` adds `_refuse` after every other suffix and `@refuse` to folders.
+Every run writes the setting to RUN.txt and params.json. Runs made before 2026-10-27
+have neither and refused short buys under the unsuffixed names. `nt_verify.py` checks
+the port under trim with tax off only: the port has no tax ledger, so it cannot cover
+the tax-on cells.
+
 A fixed-capital run also writes `v34_fixed<sfx>.csv` and `v34_fixed_years<sfx>.csv`,
 and `fixed.csv` and `fixed_years.csv` in each arm folder. They hold:
 - `AvgAnnRet%`: (end equity - base) / base / years.

@@ -121,7 +121,8 @@ def artefact_tag(u, arm):
     import pcap_axis as _pca
     import fixed_axis as _fxa
     import start_axis as _sta
-    return tag + cadence.suffix() + profiles.suffix() + _tax.suffix() + _sva.suffix() + _dda.suffix() + _capa.suffix() + _impa.suffix() + _pca.suffix() + _fxa.suffix() + _sta.suffix()
+    import buy_shortfall as _bsf
+    return tag + cadence.suffix() + profiles.suffix() + _tax.suffix() + _sva.suffix() + _dda.suffix() + _capa.suffix() + _impa.suffix() + _pca.suffix() + _fxa.suffix() + _sta.suffix() + _bsf.suffix()
 
 
 def _reference_curve(M, arm_name):
@@ -191,7 +192,8 @@ def _reference_curve(M, arm_name):
     import pcap_axis as _pca
     import fixed_axis as _fxa
     import start_axis as _sta
-    _cad = cadence.suffix() + _prof.suffix() + _tax_axis.suffix() + _sva.suffix() + _dda.suffix() + _capa.suffix() + _impa.suffix() + _pca.suffix() + _fxa.suffix() + _sta.suffix()
+    import buy_shortfall as _bsf
+    _cad = cadence.suffix() + _prof.suffix() + _tax_axis.suffix() + _sva.suffix() + _dda.suffix() + _capa.suffix() + _impa.suffix() + _pca.suffix() + _fxa.suffix() + _sta.suffix() + _bsf.suffix()
     # A STOP ARM'S CURVE IS IN THE COMPANION FILE, and only there.
     if arm_name in _ar.STOP_ARMS:
         g = M / f"v34_stop_equity{_ar.stop_selection_suffix()}{_cad}.csv"
@@ -321,6 +323,9 @@ def run(u, arm=None):
     h = _frame(audit["holdings"], ["date", "symbol", "qty", "price", "value", "weight_pct"])
     s = pd.DataFrame(audit["summary"])
     t = _frame(audit["trades"], ["date", "action", "symbol", "qty", "price", "value", "tc"])
+    # Only a trimmed buy has wanted_qty; written as a whole number, blank elsewhere.
+    if "wanted_qty" in t.columns:
+        t["wanted_qty"] = t["wanted_qty"].astype("Int64")
     h.to_csv(M / f"daily_holdings_{tag}.csv", index=False)
     s.to_csv(M / f"daily_summary_{tag}.csv", index=False)
     t.to_csv(M / f"daily_trades_{tag}.csv", index=False)

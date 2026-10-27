@@ -165,7 +165,8 @@ DEFAULT_MODE = "breadth"
 def run(px, op, sc, dates, pc, mom20, size_at_close: bool, tick_round: bool = False,
         value_at_open: bool = False, holdings_out=None,
         sizing: str = DEFAULT_SIZING, mode: str = DEFAULT_MODE, applied_out=None,
-        rebal: int = None, drawdown_stop=None, stop_events_out=None, dd_overlay=None):
+        rebal: int = None, drawdown_stop=None, stop_events_out=None, dd_overlay=None,
+        buy_shortfall: str = None, fills_out=None, decisions_out=None):
     """`holdings_out`, when a dict is passed, is filled with
     {rebalance_date: {symbol: qty}} -- the holdings standing at each decision, which
     is the same quantity the port records in strat.holdings_log and the same one
@@ -180,7 +181,35 @@ def run(px, op, sc, dates, pc, mom20, size_at_close: bool, tick_round: bool = Fa
 
     `dd_overlay`, a dd_axis.DDLimit, runs the drawdown-limit axis through
     results/drawdown_overlay.py, the class the engine and the port also run. None,
-    the default, runs none of its code."""
+    the default, runs none of its code.
+
+    `buy_shortfall`, "trim" or "refuse", is what a buy cash cannot fully pay for
+    does, as in the engine (buy_shortfall.py). None reads buy_shortfall.selected().
+
+    `fills_out`, a list, receives one row per fill in the port's strat.fills
+    shape (date, action, symbol, qty, price). `decisions_out`, a dict, receives
+    {rebalance_date: {"top": names, "keep": sorted top-BUFFER names}}, the port's
+    strat.rank_decisions. nt_verify compares both under buy_shortfall trim."""
+    import buy_shortfall as _bsf
+    _shortfall = _bsf.selected() if buy_shortfall is None else buy_shortfall
+
+    def _fill(dt, action, s, q, pr):
+        if fills_out is not None:
+            fills_out.append({"date": dt, "action": action, "symbol": s,
+                              "qty": int(q), "price": float(pr)})
+
+    def _afford(q, pr):
+        """(q, charges) for a buy of q at fill price pr, cut to what cash pays for
+        under trim; q is 0 when the buy is refused."""
+        if cash >= q * pr:
+            tc = calc_tc(pr, q, "BUY")
+            if cash >= q * pr + tc:
+                return q, tc
+        if _shortfall != "trim":
+            return 0, 0.0
+        q, _, tc, _ = _bsf.trim(q, cash, lambda n: pr, lambda p_, n: calc_tc(p_, n, "BUY"))
+        return q, tc
+
     # THE CADENCE, AS AN ARGUMENT. REBAL stays the module DEFAULT and is never
     # reassigned: module_state.py records that rebal_cadence_sweep.py:172 writes
     # test_exposure.REBAL and never restores it, and that every later step then
@@ -229,6 +258,7 @@ def run(px, op, sc, dates, pc, mom20, size_at_close: bool, tick_round: bool = Fa
                         pr = _tick(pr, dt)
                     q = int(shares[s]); tc = calc_tc(pr, q, "SELL")
                     cash += q * pr - tc; cum_tc += tc; n_trades += 1
+                    _fill(dt, "SELL", s, q, pr)
                     del shares[s]
 
             if plan:
@@ -243,10 +273,11 @@ def run(px, op, sc, dates, pc, mom20, size_at_close: bool, tick_round: bool = Fa
                         pr *= (1 + SLIPPAGE)
                         if tick_round:
                             pr = _tick(pr, dt)
-                        tc = calc_tc(pr, q, "BUY")
-                        if cash < q * pr + tc:
+                        q, tc = _afford(q, pr)
+                        if q < 1:
                             continue
                         cash -= q * pr + tc; cum_tc += tc; n_trades += 1
+                        _fill(dt, "BUY", s, q, pr)
                         shares[s] = shares.get(s, 0) + q
                 else:
                     # ARM A: size now, at this morning's open.
@@ -266,12 +297,13 @@ def run(px, op, sc, dates, pc, mom20, size_at_close: bool, tick_round: bool = Fa
                         if tick_round:
                             pr = _tick(pr, dt)
                         q = int((invest_val * w) // pr)
-                        if q < 1 or cash < q * pr:
+                        if q < 1:
                             continue
-                        tc = calc_tc(pr, q, "BUY")
-                        if cash < q * pr + tc:
+                        q, tc = _afford(q, pr)
+                        if q < 1:
                             continue
                         cash -= q * pr + tc; cum_tc += tc; n_trades += 1
+                        _fill(dt, "BUY", s, q, pr)
                         shares[s] = shares.get(s, 0) + q
             pending = None
             if _stop is not None and (_st.exit_pending or _st.reentry_pending):
@@ -297,6 +329,7 @@ def run(px, op, sc, dates, pc, mom20, size_at_close: bool, tick_round: bool = Fa
                 q = min(-dq, int(shares[s]))
                 tc = calc_tc(pr, q, "SELL")
                 cash += q * pr - tc; cum_tc += tc; n_trades += 1
+                _fill(dt, "SELL", s, q, pr)
                 shares[s] -= q
                 if shares[s] == 0:
                     del shares[s]
@@ -321,6 +354,7 @@ def run(px, op, sc, dates, pc, mom20, size_at_close: bool, tick_round: bool = Fa
                 if cash < q * pr + tc:
                     continue
                 cash -= q * pr + tc; cum_tc += tc; n_trades += 1
+                _fill(dt, "BUY", s, q, pr)
                 shares[s] += q
             _ds.cancel()
 
@@ -349,6 +383,8 @@ def run(px, op, sc, dates, pc, mom20, size_at_close: bool, tick_round: bool = Fa
                 # positions standing when it is taken.
                 if holdings_out is not None:
                     holdings_out[dt] = {s: int(q) for s, q in shares.items() if q}
+                if decisions_out is not None:
+                    decisions_out[dt] = {"top": tuple(top), "keep": tuple(sorted(keep))}
                 v = pc["vol"].loc[dt]
                 w = {}
                 for s in top:

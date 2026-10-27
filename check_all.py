@@ -296,6 +296,11 @@ DELEGATES = (
     # results/noise_parallel.py's scheduler, baseline gate, resume, stale key,
     # void and verdicts on synthetic draws. Nothing is fitted. A few seconds.
     ("engine_tests.py", ["noise_harness"], False, None),
+    # A buy cash cannot fully pay for: trim gives the largest q that fits, the
+    # rounding of charges included; q = 0 and q below half the wanted quantity
+    # are refused; refuse trims nothing.
+    # Synthetic, no data. A few seconds.
+    ("engine_tests.py", ["buy_shortfall", "--quiet"], False, None),
     ("results/check_b_exec_timing.py",        [], False, None),
     ("nautilus/verify_next_open_execution.py", [], False, None),
     ("tax_acceptance_check.py",               [], False, None),
@@ -970,9 +975,10 @@ def _run_axes(rec=None, tax_on=True):
     import pcap_axis as _pca
     import fixed_axis as _fxa
     import start_axis as _sta
+    import buy_shortfall as _bsf
     saved = (_cd._SELECTED, _pf.selected(), _tx.selected(), _ar._SELECTED,
              _sva.selected(), _dda.selected(), _capa._SELECTED, _impa._SELECTED,
-             _pca._SELECTED, _fxa._SELECTED, _sta._SELECTED)
+             _pca._SELECTED, _fxa._SELECTED, _sta._SELECTED, _bsf.selected())
     try:
         _cd.set_selection(rec["cadence"] if rec else None)
         _pf.set_selection(rec["profile"] if rec else None)
@@ -985,6 +991,7 @@ def _run_axes(rec=None, tax_on=True):
         _pca.set_selection((rec or {}).get("pcap"))
         _fxa.set_selection(bool((rec or {}).get("fixed")))
         _sta.set_selection((rec or {}).get("start"))
+        _bsf.set_selection((rec or {}).get("buy_shortfall"))
         yield
     finally:
         _cd.set_selection(saved[0]); _pf.set_selection(saved[1])
@@ -996,6 +1003,7 @@ def _run_axes(rec=None, tax_on=True):
         _pca.set_selection(saved[8])
         _fxa.set_selection(saved[9])
         _sta.set_selection(saved[10])
+        _bsf.set_selection(saved[11])
 
 
 def _tax_ledger(u, M, arm="v2", stems=("FY_EQUITY", "FY_TAX_STATEMENT"), rec=None):
@@ -1033,8 +1041,9 @@ def _v34_equity_pair(M, rec, arm=None):
             import pcap_axis as _pca
             import fixed_axis as _fxa
             import start_axis as _sta
+            import buy_shortfall as _bsf
             out.append(M / f"{head}{_cd.suffix()}{_pf.suffix()}{_tx.suffix()}"
-                           f"{_sva.suffix()}{_dda.suffix()}{_capa.suffix() + _impa.suffix() + _pca.suffix() + _fxa.suffix() + _sta.suffix()}.csv")
+                           f"{_sva.suffix()}{_dda.suffix()}{_capa.suffix() + _impa.suffix() + _pca.suffix() + _fxa.suffix() + _sta.suffix() + _bsf.suffix()}.csv")
     return tuple(out)
 
 

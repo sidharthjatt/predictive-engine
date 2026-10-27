@@ -110,7 +110,8 @@ def _axes(*, for_arm_subset=False):
     import pcap_axis as _pca
     import fixed_axis as _fxa
     import start_axis as _sta
-    sfx = cadence.suffix() + _pf.suffix() + _tax.suffix() + _sva.suffix() + _dda.suffix() + _capa.suffix() + _impa.suffix() + _pca.suffix() + _fxa.suffix() + _sta.suffix()
+    import buy_shortfall as _bsf
+    sfx = cadence.suffix() + _pf.suffix() + _tax.suffix() + _sva.suffix() + _dda.suffix() + _capa.suffix() + _impa.suffix() + _pca.suffix() + _fxa.suffix() + _sta.suffix() + _bsf.suffix()
     # THE CORE PART OF THE SELECTION names the v34 files: a stop arm in the
     # selection goes to v34_stop_* and does not rename them.
     core = [n for n in arm_reg.selected_names() if n in arm_reg.ARMS]
@@ -356,11 +357,12 @@ def _ci(path):
     import pcap_axis as _pca
     import fixed_axis as _fxa
     import start_axis as _sta
+    import buy_shortfall as _bsf
     if (_cd.is_default() and _pf.is_default() and _tax.is_default() and _sva.is_default()
-            and _dda.is_default() and _capa.is_default() and _impa.is_default() and _pca.is_default() and _fxa.is_default() and _sta.is_default()):
+            and _dda.is_default() and _capa.is_default() and _impa.is_default() and _pca.is_default() and _fxa.is_default() and _sta.is_default() and _bsf.is_default()):
         return path
     c = path.with_name(path.stem + _cd.suffix() + _pf.suffix() + _tax.suffix()
-                       + _sva.suffix() + _dda.suffix() + _capa.suffix() + _impa.suffix() + _pca.suffix() + _fxa.suffix() + _sta.suffix() + path.suffix)
+                       + _sva.suffix() + _dda.suffix() + _capa.suffix() + _impa.suffix() + _pca.suffix() + _fxa.suffix() + _sta.suffix() + _bsf.suffix() + path.suffix)
     # NO FALLBACK TO THE CANONICAL FILE, 2026-09-23. This returned `path` when
     # the sibling was absent, so a missing non-default artefact was silently
     # replaced by the published cadence-20 research one and plotted under this
@@ -391,8 +393,9 @@ def chart_path(M, stem, arms_on):
     import pcap_axis as _pca
     import fixed_axis as _fxa
     import start_axis as _sta
+    import buy_shortfall as _bsf
     return M / (stem + asf + cadence.suffix() + _pf.suffix() + _tax.suffix()
-                + _sva.suffix() + _dda.suffix() + _capa.suffix() + _impa.suffix() + _pca.suffix() + _fxa.suffix() + _sta.suffix() + ".png")
+                + _sva.suffix() + _dda.suffix() + _capa.suffix() + _impa.suffix() + _pca.suffix() + _fxa.suffix() + _sta.suffix() + _bsf.suffix() + ".png")
 
 
 def main(u):
@@ -770,11 +773,12 @@ def main(u):
     import pcap_axis as _pca
     import fixed_axis as _fxa
     import start_axis as _sta
+    import buy_shortfall as _bsf
     # THE SURVIVORSHIP AXIS JOINS BOTH CONDITIONS, 2026-10-10, for the reason tax
     # did: without it a pit run drew pit curves into the canonical chart.
     _axes_default = (cadence.is_default() and profiles.is_default() and _tax.is_default()
                      and _sva.is_default() and _dda.is_default()
-            and _capa.is_default() and _impa.is_default() and _pca.is_default() and _fxa.is_default() and _sta.is_default())
+            and _capa.is_default() and _impa.is_default() and _pca.is_default() and _fxa.is_default() and _sta.is_default() and _bsf.is_default())
     _canon = {n: d for n, d in ARMS_ON.items() if n in ("v2", "v1")}
     if len(_canon) == 2 and _axes_default:
         _render(_canon, M / f"{_CT['stem']}.png")

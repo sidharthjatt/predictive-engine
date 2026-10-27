@@ -1,5 +1,5 @@
 """
-engine_tests.py -- the ten synthetic and cache tests, one subcommand each.
+engine_tests.py -- the eleven synthetic and cache tests, one subcommand each.
 
     ./venv/bin/python engine_tests.py <case> [the old file's arguments]
 
@@ -14,6 +14,7 @@ engine_tests.py -- the ten synthetic and cache tests, one subcommand each.
     tradability_causality  tradability_causality_test.py [--quiet] [--real]
     cache_key              cache_key_test.py
     noise_harness          noise_harness_test.py
+    buy_shortfall          (new, 2026-10-27)
 
 Merged on 2026-10-18. The old files last exist at commit 24614bb. Each old file's
 body is the function _<case> below, unchanged apart from one level of indentation
@@ -2099,11 +2100,245 @@ under the repository is written. Exit 1 names every case that failed.
 
 
 
+def _buy_shortfall():
+    """
+buy_shortfall -- a buy cash cannot fully pay for: trimmed or refused (buy_shortfall.py).
+
+    ./venv/bin/python engine_tests.py buy_shortfall [--quiet]
+
+    1. names: "" at the default trim, "_refuse" / "@refuse" otherwise; an unknown
+       value is refused
+    2. largest_fit() returns the largest q that fits, checked against every q
+       from 0 to the wanted quantity, at prices from Rs 0.95 to Rs 48,000 and cash
+       on both sides of each boundary; trim() returns that q when it is at least
+       MIN_FILL_PCT of the wanted quantity and 0 otherwise
+    3. a case the rounding of charges decides: 5 shares at Rs 100.00 cost Rs 500 and
+       Rs 0.50 of STT, which rounds up to Rs 1. Cash of that cost less Rs 0.01 buys 4,
+       though the unrounded charges would let 5 fit
+    4. not one share fits: q is 0, reason "cash short", and the engine refuses
+       the buy as cash short
+    5. the engine on a synthetic panel, v1 to v4, tax off and on, trim against
+       refuse:
+       a. refuse trims nothing: no trade row has wanted_qty, every cash-short skip
+          has one of the two reasons it always had, and buy_shortfall=None with the
+          selection at refuse gives the same run as buy_shortfall="refuse"
+       b. the two runs are identical, every fill, every day's cash and every
+          equity value, up to the first trimmed buy; an arm that is never short of
+          cash under refuse trims nothing and is identical over the whole window
+       c. each trimmed buy, replayed from the run's own cost trail, is the largest
+          q whose cost and charges fit the cash in hand at that point of the
+          morning: q fits and q + 1 does not
+       d. every trimmed buy fills at least MIN_FILL_PCT of its wanted quantity,
+          and every buy refused below the minimum is logged `cash short: below
+          minimum fill` with a fill share under it
+    6. the minimum fill at its boundary, Rs 100 a share: wanted 10 with cash
+       for exactly 5 (50%) fills 5 and with cash for 6 fills 6, while cash
+       one paisa short of 5 refuses (4 is 40%); wanted 9, where 50% is 4.5,
+       fills 5 (55.6%) and refuses 4 (44.4%); wanted 1,000 fills 500 and
+       refuses 499
+
+No data, nothing written. Exit 0 when every case passes, 1 otherwise.
+"""
+    import sys
+    import warnings
+    from pathlib import Path
+
+    warnings.filterwarnings("ignore")
+    ROOT = Path(__file__).resolve().parent
+    for _p in (ROOT, ROOT / "results"):
+        sys.path.insert(0, str(_p))
+
+    import numpy as np
+    import pandas as pd
+
+    import buy_shortfall as bsf
+    from engine_core import precompute
+    from test_exposure import backtest_exposure, calc_tc
+
+    QUIET = "--quiet" in sys.argv
+    RESULTS = []
+
+    def case(name, ok, detail=""):
+        RESULTS.append(bool(ok))
+        print(f"  {'PASS' if ok else 'FAIL'}  {name}" + (f"   {detail}" if detail and not QUIET else ""),
+              flush=True)
+
+    def cost(pr, q):
+        return q * pr + calc_tc(pr, q, "BUY")
+
+    def charges(p_, n):
+        return calc_tc(p_, n, "BUY")
+
+    # 1. names
+    d = (bsf.selected(), bsf.suffix(), bsf.segment(), bsf.label())
+    bsf.set_selection("refuse")
+    on = (bsf.suffix(), bsf.segment())
+    bsf.set_selection(None)
+    try:
+        bsf.set_selection("shrink")
+        bad = False
+    except ValueError:
+        bad = True
+    bsf.set_selection(None)
+    case("1 names and validation", d == ("trim", "", "", "") and on == ("_refuse", "@refuse") and bad,
+         f"default {d}, refuse {on}, unknown value refused {bad}")
+
+    # 2. the largest q, against every q
+    worst, n_checked = [], 0
+    for pr in (0.95, 13.37, 100.0, 251.35, 1999.99, 48000.0):
+        for q_w in (1, 7, 40, 333):
+            for full in range(0, q_w + 1, max(1, q_w // 20)):
+                for eps in (-0.01, 0.0, 0.01):
+                    cash = (cost(pr, full) if full else pr) + eps
+                    want = max([0] + [k for k in range(1, q_w + 1) if cost(pr, k) <= cash])
+                    got = bsf.largest_fit(q_w, cash, lambda n: pr, charges)[0]
+                    t = bsf.trim(q_w, cash, lambda n: pr, charges)[0]
+                    n_checked += 1
+                    if got != want or t != (want if want * 2 >= q_w else 0):
+                        worst.append((pr, q_w, round(cash, 2), want, got, t))
+    case("2 largest_fit returns the largest q that fits, trim applies the minimum", not worst,
+         f"{n_checked} (price, wanted, cash) cases" + (f"; wrong: {worst[:3]}" if worst else ""))
+
+    # 3. rounding of the charges decides q
+    pr = 100.0
+    c5 = cost(pr, 5)
+    unrounded_5 = 500 + 500 * 0.001 + (c5 - 500 - 1.0)   # STT exact, the rest as charged
+    cash = c5 - 0.01
+    got = bsf.trim(5, cash, lambda n: pr, charges)
+    case("3 the rounding of charges decides q", got[0] == 4 and unrounded_5 <= cash and c5 > cash,
+         f"cost of 5 Rs {c5:,.2f} (STT Rs {calc_tc(pr, 5, 'BUY') - (c5 - 500 - 1.0):.2f} as "
+         f"charged), cash Rs {cash:,.2f}, unrounded cost of 5 Rs {unrounded_5:,.3f}; trim gave {got[0]}")
+
+    # 4. not one share
+    got = bsf.trim(10, 99.0, lambda n: 100.0, charges)
+    neg = bsf.trim(10, -5_000.0, lambda n: 100.0, charges)
+    case("4 not one share fits: q is 0", got[0] == 0 and neg[0] == 0
+         and got[3] == "cash short" and neg[3] == "cash short",
+         f"cash Rs 99 at Rs 100 -> {got[0]} ({got[3]}); cash -Rs 5,000 -> {neg[0]} ({neg[3]})")
+
+    # 5. the engine
+    syms = [f"S{k:02d}" for k in range(40)]
+    idx = pd.bdate_range("2020-08-03", "2021-12-31")
+    dates = pd.bdate_range("2021-01-01", "2021-12-31")
+    rng = np.random.default_rng(11)
+    px = pd.DataFrame({s: 100.0 * (1 + 0.05 * k) * np.cumprod(1 + 0.0004 + 0.012 * rng.standard_normal(len(idx)))
+                       for k, s in enumerate(syms)}, index=idx)
+    op = px.shift(1).fillna(px) * (1 + 0.001 * np.sin(np.arange(len(idx)))[:, None])
+    sc = pd.DataFrame(rng.standard_normal(px.shape), index=idx, columns=syms)
+
+    def blank():
+        a = {k: [] for k in ("holdings", "summary", "trades", "ranking", "decisions", "skipped")}
+        a["costs"] = {"fills": [], "days": []}
+        return a
+
+    def run(mode, sizing, tax, rule):
+        a = blank()
+        eq, _, _, _ = backtest_exposure(px, op, sc, dates, precompute(px), px / px.shift(20) - 1,
+                                        mode=mode, sizing=sizing, audit=a, rebal=20,
+                                        participation_cap=None, drawdown_stop=None,
+                                        dd_overlay=None, fixed_capital=False, tax_enabled=tax,
+                                        start_capital=1_000_000, buy_shortfall=rule)
+        return eq, a
+
+    def first_trim(a):
+        t = [r for r in a["trades"] if "wanted_qty" in r]
+        return (pd.Timestamp(t[0]["date"]), t[0]) if t else (None, None)
+
+    def replay_ok(a):
+        """(trimmed buys checked, failures): each trimmed buy against the cash in hand."""
+        trims = {(pd.Timestamp(r["date"]), r["symbol"]) for r in a["trades"] if "wanted_qty" in r}
+        days = {pd.Timestamp(x["date"]): x for x in a["costs"]["days"]}
+        cash, cur, n, bad = None, None, 0, []
+        for f in a["costs"]["fills"]:
+            dt = pd.Timestamp(f["date"])
+            if dt != cur:
+                cur = dt
+                x = days[dt]
+                cash = x["cash_open"] + x["interest"] - x["tax_before_fills"]
+            q, pr, tc = f["qty"], f["fill_price"], f["charges"]
+            if f["side"] == "BUY":
+                if (dt, f["symbol"]) in trims:
+                    n += 1
+                    if not (cost(pr, q) <= cash < cost(pr, q + 1)):
+                        bad.append((str(dt.date()), f["symbol"], q))
+                cash -= q * pr + tc
+            else:
+                cash += q * pr - tc
+        return n, bad
+
+    reasons_old = {"cash short (before TC)", "cash short (incl TC)"}
+    for mode, sizing, arm in (("none", "invvol", "v1"), ("breadth", "invvol", "v2"),
+                              ("none", "provol", "v3"), ("breadth", "provol", "v4")):
+        for tax in (False, True):
+            lab = f"{arm} tax {'on' if tax else 'off'}"
+            e0, a0 = run(mode, sizing, tax, "refuse")
+            bsf.set_selection("refuse")
+            e0s, a0s = run(mode, sizing, tax, None)
+            bsf.set_selection(None)
+            rs = {r["reason"] for r in a0["skipped"] if r["reason"].startswith("cash short")}
+            case(f"5a {lab}: refuse trims nothing and keeps its reasons",
+                 not any("wanted_qty" in r for r in a0["trades"]) and rs <= reasons_old
+                 and a0["buy_shortfall"]["trimmed"] == 0
+                 and bool((e0 == e0s).all()) and a0["trades"] == a0s["trades"],
+                 f"{a0['buy_shortfall']['refused']} refused, reasons {sorted(rs)}")
+            e1, a1 = run(mode, sizing, tax, "trim")
+            cut, row = first_trim(a1)
+            if cut is None:
+                n_ref = a0["buy_shortfall"]["refused"]
+                case(f"5b {lab}: never short of cash, so trim and refuse are the same run",
+                     n_ref == 0 and bool((e0 == e1).all()) and a0["costs"] == a1["costs"],
+                     f"{n_ref} refused under refuse, 0 trimmed, {len(a1['costs']['fills'])} fills")
+                continue
+            pre = e0.index < cut
+            f0 = [f for f in a0["costs"]["fills"] if pd.Timestamp(f["date"]) < cut]
+            f1 = [f for f in a1["costs"]["fills"] if pd.Timestamp(f["date"]) < cut]
+            same = bool((e0[pre].to_numpy() == e1[pre].to_numpy()).all()) and f0 == f1
+            case(f"5b {lab}: identical up to the first trimmed buy, {cut.date()}",
+                 same and pre.sum() > 0,
+                 f"{int(pre.sum())} sessions, {len(f0)} fills; first trim {row['symbol']} "
+                 f"wanted {row['wanted_qty']:,}, filled {row['qty']:,}, short Rs "
+                 f"{row['cash_shortfall']:,.2f}; {a1['buy_shortfall']['trimmed']} trimmed, "
+                 f"{a1['buy_shortfall']['refused']} refused")
+            n, bad = replay_ok(a1)
+            case(f"5c {lab}: each trimmed buy is the largest q the cash in hand pays for",
+                 n > 0 and not bad, f"{n} trimmed buys replayed" + (f"; wrong {bad[:3]}" if bad else ""))
+            tr = [r for r in a1["trades"] if "wanted_qty" in r]
+            low = [r for r in tr if r["qty"] * 100 < bsf.MIN_FILL_PCT * r["wanted_qty"]]
+            bm = [r for r in a1["skipped"] if r["reason"] == bsf.BELOW_MINIMUM]
+            bm_bad = [r for r in bm
+                      if not float(r["detail"].split("(")[1].split("%")[0]) < bsf.MIN_FILL_PCT]
+            case(f"5d {lab}: trimmed buys fill at least {bsf.MIN_FILL_PCT}%, the rest are refused",
+                 not low and not bm_bad,
+                 f"{len(tr)} trimmed, smallest fill "
+                 f"{min((r['qty'] / r['wanted_qty'] * 100 for r in tr), default=float('nan')):.1f}%; "
+                 f"{len(bm)} refused below the minimum")
+
+    # 6. the minimum fill at its boundary
+    pr = 100.0
+    got = {}
+    for q_w, fit, eps in ((10, 5, 0.0), (10, 6, 0.0), (10, 5, -0.01),
+                          (9, 5, 0.0), (9, 4, 0.0), (1000, 500, 0.0), (1000, 499, 0.0)):
+        r = bsf.trim(q_w, cost(pr, fit) + eps, lambda n: pr, charges)
+        got[(q_w, fit, eps)] = (r[0], r[3])
+    want = {(10, 5, 0.0): (5, None), (10, 6, 0.0): (6, None),
+            (10, 5, -0.01): (0, bsf.BELOW_MINIMUM), (9, 5, 0.0): (5, None),
+            (9, 4, 0.0): (0, bsf.BELOW_MINIMUM), (1000, 500, 0.0): (500, None),
+            (1000, 499, 0.0): (0, bsf.BELOW_MINIMUM)}
+    case(f"6 minimum fill {bsf.MIN_FILL_PCT}%: at, just above and just below", got == want,
+         "; ".join(f"wanted {k[0]}, cash for {k[1]}{' less Rs 0.01' if k[2] else ''} -> "
+                   f"{v[0]}{' (' + v[1] + ')' if v[1] else ''}" for k, v in got.items()))
+
+    n_fail = RESULTS.count(False)
+    print(f"RESULT: {'PASS' if not n_fail else 'FAIL'} -- {len(RESULTS) - n_fail} of {len(RESULTS)} cases")
+    sys.exit(1 if n_fail else 0)
+
+
+
 CASES = {name[1:]: fn for name, fn in list(globals().items())
          if name.startswith("_") and callable(fn) and name[1:] in (
              "capital_axis", "dd_overlay", "drawdown_stop", "fixed_capital",
              "impact_pcap_axis", "tax_rules", "tax_total", "tradability_causality",
-             "cache_key", "noise_harness")}
+             "cache_key", "noise_harness", "buy_shortfall")}
 
 
 if __name__ == "__main__":

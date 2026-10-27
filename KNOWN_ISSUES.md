@@ -291,7 +291,48 @@ drawdown as evidence that the model picks safer stocks.
 (`invest_val = port_val * exposure * 0.98`) but pays for it from cash only: held
 names are never resized and buffer names (ranks 9-16 still held) carry capital
 with no target weight. When the entrants do not fit, the lowest-ranked are
-skipped and logged `cash short (before TC)`.
+short of cash. Since 2026-10-27 (`--buy-shortfall trim`, the default) each such buy is
+cut to the largest whole quantity q whose cost and charges fit the cash left, and
+goes ahead only if q is at least 50% of the wanted quantity
+(`buy_shortfall.MIN_FILL_PCT`, a fixed constant, not a run setting). Below 50% the
+buy is refused whole and logged `cash short: below minimum fill`, with the wanted
+quantity, the quantity cash pays for and that share in the detail. A buy of which
+not one share fits is refused and logged `cash short (before TC)` or `(incl TC)`, as
+before. `--buy-shortfall refuse` is still selectable and refuses every such buy
+whole, the only rule before 2026-10-27; its runs carry `_refuse` and `@refuse`.
+
+Without the minimum, trim left stubs: a holding of a few shares that the rule against
+resizing held names kept at that size while the name stayed a target. On nifty100
+(research, 2026-10-27, tax off), 21 of v1's and 21 of v3's 88 trimmed holdings were
+still held as a target at a later rebalance, 3 of v1's and 11 of v3's trims were a
+single share, and the smallest fill was under 1% of the wanted quantity. With the
+minimum, v1 trims 44 buys and v3 47, none below 50% and none a single share, and the
+stubs fall to 13 each.
+
+Measured on nifty100, research, tax off, CAGR: refuse / trim without the minimum /
+trim with it:
+
+| arm | refuse | trim, no minimum | trim, 50% minimum |
+|---|---|---|---|
+| v1 | 31.63 | 32.03 | 30.69 |
+| v2 | 20.56 | 20.52 | 20.56 |
+| v3 | 32.51 | 30.64 | 32.12 |
+| v4 | 24.37 | 24.77 | 24.77 |
+
+The Nautilus port uses the same function (`buy_shortfall.trim`), and
+`nt_verify.py` checks it under trim. On the 0.01 grid the orders of every rebalance
+period must be identical, or, where they differ, the reference valued at the port's
+quote mid must hold exactly the port's book on that rebalance; any period that does
+not explain fails. On the 0.05 grid, decisions (targets and the keep set) must be
+identical, the daily NAV gap at most 0.50% and the CAGR gap at most 0.10 point. On
+2026-10-27, 20 of 20 arms on nifty100, nifty50, midcap150, smallcap250 and nifty500
+passed; the quote mid explained 2 to 27 periods per arm on midcap150, smallcap250 and
+nifty500, none was unexplained. The port has no tax ledger, so it
+cannot check the tax-on cells: under trim, tax changes the cash left on the morning
+and with it which buys are trimmed or refused, and those cells are engine figures
+only.
+
+The counts below are from before the trim, under the rule `refuse` keeps.
 
 On the 2026-10-10 figures (research, tax off), the 100%-invested arms skip 101 to 171
 buys per run and hold a mean of 7.49 to 8.07 names across the eight universes; the
