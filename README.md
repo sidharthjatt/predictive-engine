@@ -358,7 +358,12 @@ exchange and SEBI fees, GST, and the per-scrip DP charge on sells — computed i
 `results/qbeast_in_charges.py`, plus 15 bps of slippage on top. Idle cash earns
 nothing, which is deliberate and conservative.
 
-Decisions are made on the close and orders fill at the next open. A name is traded
+Decisions are made on the close and orders fill at the next open. A buy's quantity
+is set at the decision close, as it would be live: the book's value at that close
+(less any tax deducted before the next morning's fills) x exposure x 0.98 x the
+name's weight, divided by the name's close x (1 + slippage). The next open sets only
+the fill price, the cash test and the trim. Until 2026-10-28 the quantity came from
+the fill session's open and the book valued at it. A name is traded
 only on a session with a row; a sale due on a session without one fills at the open of
 its next row. Nothing in the pipeline trades on a price it could not have seen or
 decides on a row dated after the decision.

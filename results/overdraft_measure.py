@@ -164,7 +164,7 @@ def main():
             for profile in profiles.PROFILES:
                 profiles.set_selection(profile)
                 try:
-                    kw = dict(value_at_open=True, tax_enabled=True, **arm.kwargs,
+                    kw = dict(tax_enabled=True, **arm.kwargs,
                               **profiles.cap_kwargs(u))
                     audit = {k: [] for k in KEYS}
                     eq0, *_ = test_exposure.backtest_exposure(px, op, sc, bd, pc, mom20,

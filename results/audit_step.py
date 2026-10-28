@@ -20,11 +20,11 @@ WHAT THIS REPLACES
         output dir      u.metrics_dir
         filename tag    u.tag
 
-SIZING IS VALUED AT THE OPEN, WITH NO OPT-OUT
-    The two deleted retired universes passed value_at_open=False here -- the pre-2026-09-04
-    close-valued sizing -- because they were frozen and their published numbers
-    could not move. Nothing opts out any more: every universe is valued at the
-    open, and this file no longer reads a per-universe flag to decide.
+SIZING IS AT THE DECISION CLOSE, WITH NO OPT-OUT
+    Since 2026-10-28 the engine sizes every buy from the book and the closes of the
+    decision session; it takes no switch for it. Before that it valued the book at
+    the fill session's open (value_at_open, removed), and the two deleted retired
+    universes once passed value_at_open=False.
 
     That pin must stay in lockstep with engine_v2_final_*.py, because the SAFETY
     check below compares this curve against v2FINAL_equity.csv and would fail if
@@ -285,7 +285,7 @@ def run(u, arm=None):
     import tax as _tax_axis
     eq, tc, ntr, expo = backtest_exposure(
         px, op, sc, bd, pc, mom20, audit=audit, **_arm.kwargs,
-        value_at_open=True, tax_enabled=_tax_axis.selected(),
+        tax_enabled=_tax_axis.selected(),
         # THE RUN'S CADENCE. A trail built at 20 while the engine ran at 40 would
         # fail the reconciliation below -- which is the check working, but the fix
         # is to audit the cadence that was actually run.

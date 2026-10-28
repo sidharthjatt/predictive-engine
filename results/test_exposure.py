@@ -163,7 +163,7 @@ def _median_volume(sym, dt, vol20):
 
 def backtest_exposure(px, op, sc, dates, pc, mom20,
                       mode="none", audit=None, sizing="invvol",
-                      const_expo=None, value_at_open=True, rebal=None,
+                      const_expo=None, rebal=None,
                       funding="cash", participation_cap=_CAP_REQUIRED, vol20=_VOL20_REQUIRED,
                       tax_enabled=False, impact_k=None, impact_out=None,
                       end_sale=False, drawdown_stop=None, dd_overlay=_DD_FROM_SELECTION,
@@ -238,30 +238,17 @@ def backtest_exposure(px, op, sc, dates, pc, mom20,
     Passing a dict with holdings/summary/trades/ranking/decisions/skipped keys logs
     a daily snapshot into it.
 
-    value_at_open -- WHICH PRICE VALUES THE BOOK WHEN SIZING THE DAY'S BUYS.
+    A BUY'S QUANTITY IS SET AT THE DECISION SESSION'S CLOSE (since 2026-10-28), as
+    it would be live, where the order is placed before the next open is known:
 
-        True (default, and the causally correct rule): the portfolio is valued at
-        the EXECUTION day's OPEN, which is the price the orders themselves fill at.
+        q = int((V x exposure x 0.98 x w x f) // (close x (1 + slippage)))
 
-        False: the portfolio is valued at the execution day's CLOSE. This is what
-        this function did unconditionally until 2026-09-04, and it is LOOK-AHEAD --
-        the order is placed at 09:15 against a valuation that does not exist until
-        15:30. Selection is unaffected (ranks were fixed on the prior decision day),
-        but the QUANTITY bought depends on information from later the same day.
-        Measured on a retired universe, v1 arm: it flatters CAGR by 0.79 points (24.62 -> 23.83).
-
-        WHY THE DEFAULT IS True RATHER THAN False. nautilus/nt_attribution.py has
-        carried this same switch for longer, and every verification path already
-        passes value_at_open=True -- nt_verify.py:119, nt_verify.py:163 and
-        verify_v34_arms.py:82. The 92-of-92 correctness gate therefore already
-        certifies the OPEN-valued rule. Defaulting to True brings this engine onto
-        the basis its own gate verifies, instead of leaving the two disagreeing.
-
-        NOBODY PASSES False ANY MORE. The four callers that did -- the retired
-        two retired universes' engines, their audit and their breadth validation -- were
-        deleted with those universes on 2026-09-11. The parameter is kept because
-        the choice it names is real, but every live caller is now on the
-        open-valued rule that the 92-of-92 gate verifies.
+    V is the book at that close, cash plus every holding at its close (the names
+    about to be sold included), less the tax deducted before the fill session's
+    fills, which comes from gains realised by the decision session. The fill
+    session's open decides only what fills: the fill price, the cash test and the
+    trim. Until 2026-10-28 the quantity came from the fill session's open and the
+    book valued at it, after the morning's sells.
 
     funding -- HOW THE DAY'S NEW POSITIONS ARE PAID FOR.
 
@@ -402,6 +389,9 @@ def backtest_exposure(px, op, sc, dates, pc, mom20,
     _owed = {}
     cum_tc, n_trades = 0.0, 0
     eq, pending, expo_log = [], None, []
+    # THE DECISION SESSION'S CLOSE, which sizes the next session's buys: the
+    # book's value and the closes at the end of the previous session.
+    _dec_val, _dec_px = None, None
     # THE TAX LEDGER. None at the default, and `ledger is None` is the only test
     # on the hot path -- the untaxed run does not construct it, does not record a
     # lot and does not evaluate a date. tax_enabled is a PARAMETER rather than a
@@ -690,19 +680,16 @@ def backtest_exposure(px, op, sc, dates, pc, mom20,
                     else:
                         del shares[s]
             if targets:
-                # THE BOOK IS VALUED AT THE PRICE THE ORDERS FILL AT.
-                # `opens` is this morning's open -- the same price used two lines
-                # below to size and fill every buy. `prices` is today's close, which
-                # is not knowable when the order is sent. See value_at_open above.
-                vp = opens if value_at_open else prices
+                # THE BOOK THE BUYS ARE SIZED FROM IS THE ONE AT THE DECISION CLOSE,
+                # less the tax taken before this morning's fills (from gains realised
+                # by then, so known at that close). See the docstring.
+                port_val = _dec_val - _tax_pre
                 # A HELD NAME WITH NO ROW TODAY has no open; it is valued at its
-                # last close, which `prices` carries forward. With a row, or with
-                # no rule loaded, this is vp[s] exactly as before.
+                # last close, which `prices` carries forward. Used only for the
+                # fixed-capital log below.
                 def _vp(s_):
-                    return vp.get(s_, np.nan) if engine_core.tradeable_on(s_, dt) \
+                    return opens.get(s_, np.nan) if engine_core.tradeable_on(s_, dt) \
                         else prices.get(s_, np.nan)
-                port_val = sum(q * _vp(s) for s, q in shares.items()
-                               if not np.isnan(_vp(s))) + cash
                 if _fixed:
                     # THE FIXED-CAPITAL RING-FENCE (fixed_axis.py). Profit above the
                     # base is held back from every purchase; below the base the book
@@ -735,23 +722,26 @@ def backtest_exposure(px, op, sc, dates, pc, mom20,
                 # The shipped numbers cannot move.
                 f = 1.0
                 if funding == "prorata":
-                    # Entrants only, and only those the loop below could actually
-                    # buy: a name with no usable open price is skipped there, so
-                    # counting it here would shrink f for money that is never spent.
+                    # Entrants only, from the decision close: every entrant with a
+                    # close there. The cash is what that close leaves for buys:
+                    # the book less the names kept, valued at their closes.
                     tgt_sum = 0.0
                     for s, w in targets.items():
                         if s == "_exposure" or s in shares:
                             continue
-                        pr_ = opens.get(s, np.nan)
-                        if np.isnan(pr_) or pr_ <= 0 or not engine_core.tradeable_on(s, dt):
+                        pr_ = _dec_px.get(s, np.nan)
+                        if np.isnan(pr_) or pr_ <= 0:
                             continue
                         tgt_sum += w
                     need = invest_val * tgt_sum
+                    _cash_dec = port_val - sum(
+                        q_ * _dec_px[s_] for s_, q_ in shares.items()
+                        if not np.isnan(_dec_px.get(s_, np.nan)))
                     # cash * 0.98 reuses the haircut applied to invest_val above;
                     # it is the allowance for transaction costs and for the
                     # integer-flooring of every quantity. No new constant.
                     if need > 0:
-                        f = min(1.0, cash * 0.98 / need)
+                        f = min(1.0, _cash_dec * 0.98 / need)
                 for s, w in targets.items():
                     if s == "_exposure" or s in shares:
                         continue
@@ -775,17 +765,19 @@ def backtest_exposure(px, op, sc, dates, pc, mom20,
                                 "reason": "untradeable: no row this session",
                                 "detail": "no trade in a name on a session without a row"})
                         continue
-                    # SIZE AT THE BASE RATE, THEN CHARGE IMPACT ON THE SIZE.
-                    # The size-sensitive rate depends on q and q depends on the
-                    # rate, so the two cannot both be exact in one pass. The
-                    # order is stated rather than left to be inferred: quantity
-                    # is decided at the flat rate exactly as it always was, the
-                    # cap then shrinks it, and the fill price charges impact on
-                    # the quantity actually transacted. Under impact_k=None the
-                    # second step is identity and the arithmetic is unchanged.
+                    # THE QUANTITY, FROM THE DECISION CLOSE AT THE FLAT RATE; the
+                    # cap then shrinks it, and the fill price, at this open,
+                    # charges impact on the quantity actually transacted. Under
+                    # impact_k=None the fill price is the open at the flat rate.
+                    _size_px = _sl.buy_price(_dec_px.get(s, np.nan), 0, None, None)
+                    if np.isnan(_size_px) or _size_px <= 0:
+                        if audit is not None:
+                            audit["skipped"].append({"date": dt, "side": "BUY", "symbol": s,
+                                "reason": "no close on the decision session", "detail": ""})
+                        continue
                     _raw_buy = pr
                     pr = _sl.buy_price(_raw_buy, 0, None, None)
-                    q = int((invest_val * w * f) // pr)
+                    q = int((invest_val * w * f) // _size_px)
                     # PARTICIPATION CAP -- profiles.py. None at the default profile,
                     # so `q` is untouched and the published history is exact.
                     #
@@ -815,7 +807,7 @@ def backtest_exposure(px, op, sc, dates, pc, mom20,
                         if audit is not None:
                             audit["skipped"].append({"date": dt, "side": "BUY", "symbol": s,
                                 "reason": "qty < 1 after sizing",
-                                "detail": f"target Rs {invest_val*w*f:,.0f} / price {pr:,.2f}"})
+                                "detail": f"target Rs {invest_val*w*f:,.0f} / price {_size_px:,.2f}"})
                         continue
                     # IMPACT ON THE QUANTITY ACTUALLY TRANSACTED, before the cash
                     # tests, so a buy that impact makes unaffordable is skipped as
@@ -893,9 +885,9 @@ def backtest_exposure(px, op, sc, dates, pc, mom20,
                             "tc": round(tc, 2), **(_trim or {})})
                     shares[s] = shares.get(s, 0) + q
                 if _fixed and _fixed_log is not None:
-                    # THIS MORNING'S OPEN VALUATION, for MaxInvested_base% and for
-                    # fixed_capital_test.py: held value before and after the buys,
-                    # both at the open the orders filled at.
+                    # For MaxInvested_base% and engine_tests fixed_capital: the
+                    # decision-close book the buys were sized from, and held value
+                    # before and after the buys at the open the orders filled at.
                     _fixed_log.append({
                         "date": dt, "port_val": port_val, "book": _book,
                         "reserve": _reserve, "held_before_buys": _held_open,
@@ -1226,6 +1218,7 @@ def backtest_exposure(px, op, sc, dates, pc, mom20,
                                    "tax_before_fills": _tax_pre, "tax_after_fills": _tax_post,
                                    "cash_close": cash})
         eq.append(pv)
+        _dec_val, _dec_px = pv, prices
 
         if audit is not None:
             for s_h, q_h in sorted(shares.items()):

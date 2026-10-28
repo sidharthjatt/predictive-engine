@@ -158,7 +158,7 @@ def run_universe(tag, cfg, W, fast=False):
     W(f" VALIDATION SUITE vs THE SHIPPING ENGINE -- {cfg['label']}")
     W("=" * 104)
     W(f"  engine      test_exposure.backtest_exposure "
-      f"(value_at_open default = causally clean sizing)")
+      f"(buys sized at the decision close)")
     W(f"  contrast    inverse-vol vs equal-rupee, mode=\"none\" (100% invested)")
     W(f"  TOP_N={TOP_N}  BUFFER={BUFFER}  purge_mode=\"{cfg['purge_mode']}\"")
 

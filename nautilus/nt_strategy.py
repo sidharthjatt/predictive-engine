@@ -50,15 +50,13 @@ FEATURE WINDOWS MUST USE THE UNION DATE INDEX  (a bug that was found and fixed)
     date -> close map with forward fill, and to index the momentum and volatility
     windows by position in that shared list. This reproduces the panel exactly.
 
-ONE KNOWN DIFFERENCE FROM THE REFERENCE ENGINE  (documented, not hidden)
-    The reference engine sizes buys at the NEXT day's open: it sells first,
-    recomputes portfolio value at t+1 open prices, then does
-        q = (invest_value * weight) // open_price_at_t+1
-    A Nautilus strategy must submit at the close of t, so quantity is computed from
-    t's close prices and the portfolio value at t's close. The two differ by the
-    overnight gap. This changes individual trade sizes slightly and is the main
-    reason the two equity curves will not match to the rupee. It is measured rather
-    than assumed -- see the reconciliation step.
+SIZING, AS IN THE REFERENCE ENGINE
+    A buy's quantity is set at the close of t, from the book's value at that close
+    and the name's close with slippage:
+        q = (book_value(t) * exposure * 0.98 * weight) // (close(t) * (1 + slippage))
+    The opening quote of t+1 sets only the fill price and, through free cash, the
+    cash test and the trim. Since 2026-10-28; until then both sides sized at the
+    open of t+1.
 """
 import sys
 from decimal import Decimal
@@ -81,6 +79,7 @@ from nautilus_trader.trading.strategy import Strategy
 # SELECTION -- imported from config.py, the single definition.
 import config
 import buy_shortfall as _bsf
+from slippage import SLIPPAGE
 TOP_N, BUFFER = config.TOP_N, config.BUFFER
 REBAL = 20
 VOL_WIN = 60
@@ -154,7 +153,8 @@ class PredictiveEngineStrategy(Strategy):
         self.skipped = []             # mirrors daily_skipped_*.csv
         self._plan = {}               # symbol -> (side, qty, weight, invest_val)
         self._queue = []              # this morning's orders, released one at a time
-        self._invest_val = None       # fixed once the sells are done, then shared by the buys
+        self._dec_val = None          # the book's value at the decision close
+        self._dec_px = {}             # symbol -> its close on the decision session
         self._exposure = 0.0          # exposure decided at the close, applied at the open
         self.sizing = DEFAULT_SIZING  # set by configure(); "invvol" | "provol"
         self.mode = DEFAULT_MODE      # set by configure(); "breadth" | "none"
@@ -163,7 +163,6 @@ class PredictiveEngineStrategy(Strategy):
         self.applied = {"sizing": None, "mode": None}
         self._open_px = {}            # symbol -> this morning's ask (the BUY fill price)
         self._open_bid = {}           # symbol -> this morning's bid (the SELL fill price)
-        self._open_mid = {}           # symbol -> this morning's raw open, for valuation
         self._open_day = {}           # symbol -> the date its latest quote belongs to
         self._quote_day = None        # date of the most recent opening quote seen
         self.daily_equity = []        # one row per trading day, for reconciliation
@@ -299,9 +298,6 @@ class PredictiveEngineStrategy(Strategy):
         bid, ask = float(tick.bid_price), float(tick.ask_price)
         self._open_px[sym] = ask
         self._open_bid[sym] = bid
-        # bid = open*(1-slippage) and ask = open*(1+slippage), so the mid is the raw
-        # open -- the price the reference engine values the portfolio at.
-        self._open_mid[sym] = 0.5 * (bid + ask)
         day = pd.Timestamp(tick.ts_init, tz="UTC").tz_localize(None).normalize()
         self._open_day[sym] = day
         self._quote_day = day
@@ -365,7 +361,6 @@ class PredictiveEngineStrategy(Strategy):
         if self._dd_order:
             self._dd_pending, self._dd_order = self._dd_order, None
             self._queue += [("__DD_SELL__", None, 0, 0.0), ("__DD_BUY__", None, 0, 0.0)]
-        self._invest_val = None
         self._pump()
 
     def _pump(self):
@@ -427,27 +422,20 @@ class PredictiveEngineStrategy(Strategy):
                 self._send(inst, OrderSide.BUY, qty)
                 return
 
-            # Every sell has settled by the time the first buy is reached, so the
-            # portfolio value is computed once here -- the same point in the sequence
-            # at which the reference engine computes it.
-            if self._invest_val is None:
-                self._invest_val = self._portfolio_at_open() * self._exposure * SAFETY
-                if self.dd is not None:
-                    self._invest_val *= self.dd.entry_factor(self._exposure)
             px = self._open_px.get(sy)
-            if not px or px <= 0:
+            cp = self._dec_px.get(sy)
+            if not px or px <= 0 or not cp or cp <= 0:
                 continue
-            # Sized against the price the order will actually fill at, which is what
-            # the reference engine does when it sizes at the next open. Sizing at the
-            # previous close instead left every quantity slightly off (LT 52 vs 51,
-            # LTFOODS 790 vs 770 on the first rebalance) and those errors compounded
-            # across 93 rebalances.
+            # THE QUANTITY COMES FROM THE DECISION CLOSE, as in the reference engine:
+            # the book's value and this name's close there, with slippage. This
+            # morning's quote sets only the fill price and, through free cash, the
+            # trim below.
             #
             # NO PARTICIPATION CAP IS APPLIED HERE, AND THAT IS THE CURRENT STATE
             # OF THIS PORT, not a plan. The reference engine caps a buy at
             # profiles.participation_cap() x the symbol's prior-20-session median
-            # volume (results/test_exposure.py:379-390). This line has no
-            # equivalent: `participation_cap`, `vol20` and `median_volume` appear
+            # volume (results/test_exposure.py, _participation_limit). This line has
+            # no equivalent: `participation_cap`, `vol20` and `median_volume` appear
             # nowhere in nautilus/, and the strategy is handed scores, not
             # quantities, so no capped size reaches it by another route either.
             #
@@ -458,7 +446,10 @@ class PredictiveEngineStrategy(Strategy):
             # tradeable-labelled report from this file is a research-strategy
             # report. The two such directories on disk, midcap150 v1@tradeable and
             # v2@tradeable written 2026-09-17, each carry a note saying so.
-            q = int((self._invest_val * weight) // px)
+            invest_val = self._dec_val * self._exposure * SAFETY
+            if self.dd is not None:
+                invest_val *= self.dd.entry_factor(self._exposure)
+            q = int((invest_val * weight) // (cp * (1 + SLIPPAGE)))
             if q < 1:
                 continue
             # A buy cash cannot fully pay for is cut to the largest whole quantity
@@ -481,28 +472,6 @@ class PredictiveEngineStrategy(Strategy):
     def _free_cash(self):
         return float(self.portfolio.account(self.instruments[0].id.venue)
                      .balance_free(self.instruments[0].quote_currency).as_double())
-
-    def _portfolio_at_open(self):
-        """Cash plus holdings valued at this morning's raw open.
-
-        Valuing at the OPEN is a deliberate, permanent difference. The reference
-        values at the execution day's CLOSE; verified by hand on 2019-01-30,
-        portfolio 973,921.51 -> invest value 144,025.46 -> BEL 613 shares, which is
-        what it filled, where the open gives 612. But a strategy standing at 09:15
-        cannot know that day's close, and reproducing it would mean feeding the
-        strategy future data. Measured cost of the reference's look-ahead:
-        +0.01% of final equity (attribution ARM A vs ARM D).
-        """
-        mtm = 0.0
-        for inst in self.instruments:
-            q = self.portfolio.net_position(inst.id)
-            if not q or float(q) <= 0:
-                continue
-            sy = inst.id.symbol.value
-            px = self._open_mid.get(sy) or self.last_close.get(sy)
-            if px:
-                mtm += float(q) * px
-        return self._free_cash() + mtm
 
     def _send(self, inst, side, qty):
         # SELLS ARE REDUCE-ONLY, and that flag is load-bearing rather than cosmetic.
@@ -716,6 +685,9 @@ class PredictiveEngineStrategy(Strategy):
                              if sy in self.last_close)
         port_val = cash + holdings_value
         invest_val = port_val * exposure * SAFETY
+        # The book and the closes the next open's buys are sized from.
+        self._dec_val = port_val
+        self._dec_px = {sy: self.last_close[sy] for sy in top if sy in self.last_close}
 
         # --- volatility weights over the top-N, direction set by self.sizing ---
         w = {}
@@ -763,11 +735,11 @@ class PredictiveEngineStrategy(Strategy):
             inst = self._inst(sy)
             if inst is None or sy not in self.last_close:
                 continue
-            # Neither quantity NOR invest value is fixed here. Both are computed
-            # next morning from open prices, which is what the reference engine
-            # does: it revalues the portfolio on the execution day before sizing.
-            # The rank is carried through so the morning release can fund the
-            # highest-scoring names first -- see on_market_open.
+            # The quantity is computed at the morning release from this close's
+            # book and price (_dec_val, _dec_px), after the drawdown limit's
+            # decision at this close, which sets the entry factor. The rank is
+            # carried through so the morning release can fund the highest-scoring
+            # names first -- see on_market_open.
             self._plan[sy] = (OrderSide.BUY, 0, w[sy], rank)
             n_buy += 1
 

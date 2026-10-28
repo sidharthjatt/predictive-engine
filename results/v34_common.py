@@ -718,7 +718,7 @@ def run_arm(u, arm, rebal=None, out_dir=None):
         tax_enabled=_tax_axis.selected(),
         # EVERY universe is valued at the open. The two that opted out of this
         # correction were two retired universes, and they are gone.
-        value_at_open=True, rebal=rebal, **_capkw)
+        rebal=rebal, **_capkw)
 
     # THE BUY & HOLD BASKET: every name in static mode; in pit mode the members on
     # the first pit rebalance, bd[0] (owner's decision, 2026-10-10).
@@ -754,7 +754,7 @@ def run_arm(u, arm, rebal=None, out_dir=None):
         eq_l, tc_l, ntr_l, _ = backtest_exposure(
             px, op, sc, bd, pc, mom20, audit=None, **arm.kwargs,
             tax_enabled=True, end_sale=True,
-            value_at_open=True, rebal=rebal, **_capkw)
+            rebal=rebal, **_capkw)
         hb = bh_held.held_lots(px, op, bd)
         hd = hb["detail"]
         extra = [arm_row(eq_l, f"{arm.label}, sold on the last day", tc_l, ntr_l, dep),
@@ -809,7 +809,7 @@ def run_arm(u, arm, rebal=None, out_dir=None):
         "rebal": rebal if rebal is not None else 20,
         "profile": _prof.selected(),
         "tax": "on" if _tax_axis.selected() else "off",
-        "value_at_open": True,
+        "buy_sizing": "decision close",
         "purge_mode": u.purge_mode,
         "window_start": str(bd[0].date()), "window_end": str(bd[-1].date()),
         "trading_days": int(len(bd)),

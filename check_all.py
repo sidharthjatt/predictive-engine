@@ -301,6 +301,10 @@ DELEGATES = (
     # are refused; refuse trims nothing.
     # Synthetic, no data. A few seconds.
     ("engine_tests.py", ["buy_shortfall", "--quiet"], False, None),
+    # A buy's quantity comes from the decision close: moving one fill session's
+    # open leaves every wanted quantity that session unchanged.
+    # Synthetic, no data. A few seconds.
+    ("engine_tests.py", ["fill_open_sizing", "--quiet"], False, None),
     ("results/check_b_exec_timing.py",        [], False, None),
     ("nautilus/verify_next_open_execution.py", [], False, None),
     ("tax_acceptance_check.py",               [], False, None),

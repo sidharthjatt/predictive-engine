@@ -1,5 +1,5 @@
 """
-engine_tests.py -- the eleven synthetic and cache tests, one subcommand each.
+engine_tests.py -- the twelve synthetic and cache tests, one subcommand each.
 
     ./venv/bin/python engine_tests.py <case> [the old file's arguments]
 
@@ -15,6 +15,7 @@ engine_tests.py -- the eleven synthetic and cache tests, one subcommand each.
     cache_key              cache_key_test.py
     noise_harness          noise_harness_test.py
     buy_shortfall          (new, 2026-10-27)
+    fill_open_sizing       (new, 2026-10-28)
 
 Merged on 2026-10-18. The old files last exist at commit 24614bb. Each old file's
 body is the function _<case> below, unchanged apart from one level of indentation
@@ -510,7 +511,7 @@ passes, 1 otherwise.
     def reference_events(px, op, sc, dates=DATES):
         out = []
         nt_attribution.run(px, op, sc, dates, precompute(px), px / px.shift(20) - 1,
-                           size_at_close=False, value_at_open=True, mode="none",
+                           mode="none",
                            sizing="invvol", rebal=REBAL, drawdown_stop=STOP,
                            stop_events_out=out)
         return out
@@ -1764,7 +1765,7 @@ Nothing in the repository is written. Exit 0 when every case passes, 1 otherwise
                 audit = {k: [] for k in ("holdings", "summary", "trades", "ranking", "decisions",
                                          "skipped")}
                 backtest_exposure(px_, op_, sc_, bd, precompute(px_), px_ / px_.shift(20) - 1,
-                                  audit=audit, **ARMS["v1"].kwargs, value_at_open=True,
+                                  audit=audit, **ARMS["v1"].kwargs,
                                   tax_enabled=False, rebal=20, participation_cap=None,
                                   drawdown_stop=None, dd_overlay=None, fixed_capital=False)
                 return audit
@@ -2136,6 +2137,9 @@ buy_shortfall -- a buy cash cannot fully pay for: trimmed or refused (buy_shortf
        one paisa short of 5 refuses (4 is 40%); wanted 9, where 50% is 4.5,
        fills 5 (55.6%) and refuses 4 (44.4%); wanted 1,000 fills 500 and
        refuses 499
+    7. a floating-point floor that lands one share short: at Rs 0.05 with Rs 0.25
+       of cash and no charges, 0.25 // 0.05 is 4.0 but five shares fit, and
+       largest_fit() returns 5
 
 No data, nothing written. Exit 0 when every case passes, 1 otherwise.
 """
@@ -2328,17 +2332,139 @@ No data, nothing written. Exit 0 when every case passes, 1 otherwise.
          "; ".join(f"wanted {k[0]}, cash for {k[1]}{' less Rs 0.01' if k[2] else ''} -> "
                    f"{v[0]}{' (' + v[1] + ')' if v[1] else ''}" for k, v in got.items()))
 
+    # 7. a floor that lands one share short
+    floor_q = 0.25 // 0.05
+    got7 = bsf.largest_fit(10, 0.25, lambda n: 0.05, lambda p_, n: 0.0)[0]
+    case("7 0.25 // 0.05 floors to 4.0, five shares fit, largest_fit returns 5",
+         floor_q == 4.0 and 5 * 0.05 <= 0.25 and got7 == 5,
+         f"0.25 // 0.05 = {floor_q}, 5 x 0.05 = {5 * 0.05}, largest_fit -> {got7}")
+
     n_fail = RESULTS.count(False)
     print(f"RESULT: {'PASS' if not n_fail else 'FAIL'} -- {len(RESULTS) - n_fail} of {len(RESULTS)} cases")
     sys.exit(1 if n_fail else 0)
 
 
 
+def _fill_open_sizing():
+    """
+fill_open_sizing -- a buy's quantity does not read the fill session's open.
+
+    ./venv/bin/python engine_tests.py fill_open_sizing [--quiet]
+
+Since 2026-10-28 the engine sizes every buy at the decision session's close. On a
+synthetic panel, for v1 to v4, tax off and on, the open of one fill session is
+moved by +7% and by -7% for every name, and nothing else changes:
+    1. every run is identical, every equity value, before that session
+    2. every buy decided for that session has the same wanted quantity in all
+       three runs (the filled quantity, or wanted_qty for a trimmed buy, or the
+       wanted quantity of a buy refused below the minimum fill)
+    3. the buys' fill prices on that session moved with the open, so the open
+       did reach the run
+
+No data, nothing written. Exit 0 when every case passes, 1 otherwise.
+"""
+    import re
+    import sys
+    import warnings
+    from pathlib import Path
+
+    warnings.filterwarnings("ignore")
+    ROOT = Path(__file__).resolve().parent
+    for _p in (ROOT, ROOT / "results"):
+        sys.path.insert(0, str(_p))
+
+    import numpy as np
+    import pandas as pd
+
+    import buy_shortfall as bsf
+    from engine_core import precompute
+    from test_exposure import backtest_exposure
+
+    QUIET = "--quiet" in sys.argv
+    RESULTS = []
+
+    def case(name, ok, detail=""):
+        RESULTS.append(bool(ok))
+        print(f"  {'PASS' if ok else 'FAIL'}  {name}" + (f"   {detail}" if detail and not QUIET else ""),
+              flush=True)
+
+    syms = [f"S{k:02d}" for k in range(40)]
+    idx = pd.bdate_range("2020-08-03", "2021-12-31")
+    dates = pd.bdate_range("2021-01-01", "2021-12-31")
+    rng = np.random.default_rng(11)
+    px = pd.DataFrame({s: 100.0 * (1 + 0.05 * k) * np.cumprod(1 + 0.0004 + 0.012 * rng.standard_normal(len(idx)))
+                       for k, s in enumerate(syms)}, index=idx)
+    op = px.shift(1).fillna(px) * (1 + 0.001 * np.sin(np.arange(len(idx)))[:, None])
+    sc = pd.DataFrame(rng.standard_normal(px.shape), index=idx, columns=syms)
+    pc, mom = precompute(px), px / px.shift(20) - 1
+
+    def run(op_, mode, sizing, tax):
+        a = {k: [] for k in ("holdings", "summary", "trades", "ranking", "decisions", "skipped")}
+        a["costs"] = {"fills": [], "days": []}
+        eq, _, _, _ = backtest_exposure(px, op_, sc, dates, pc, mom, mode=mode, sizing=sizing,
+                                        audit=a, rebal=20, participation_cap=None,
+                                        drawdown_stop=None, dd_overlay=None, fixed_capital=False,
+                                        tax_enabled=tax, start_capital=1_000_000)
+        return eq, a
+
+    def wanted(a, day):
+        """{symbol: wanted quantity} of every buy decided for `day`."""
+        out = {}
+        for r in a["trades"]:
+            if r["action"] == "BUY" and pd.Timestamp(r["date"]) == day:
+                out[r["symbol"]] = int(r.get("wanted_qty", r["qty"]))
+        for r in a["skipped"]:
+            if (r["side"] == "BUY" and pd.Timestamp(r["date"]) == day
+                    and r["reason"] == bsf.BELOW_MINIMUM):
+                out[r["symbol"]] = int(re.match(r"wanted ([\d,]+) sh", r["detail"])
+                                       .group(1).replace(",", ""))
+        return out
+
+    def prices(a, day):
+        return {r["symbol"]: r["price"] for r in a["trades"]
+                if r["action"] == "BUY" and pd.Timestamp(r["date"]) == day}
+
+    for arm, mode, sizing in (("v1", "none", "invvol"), ("v2", "breadth", "invvol"),
+                              ("v3", "none", "provol"), ("v4", "breadth", "provol")):
+        for tax in (False, True):
+            eq0, a0 = run(op, mode, sizing, tax)
+            # The second session with buys: by then the book holds names, so the
+            # sells and the decision-close valuation of a held book are exercised.
+            buy_days = sorted({pd.Timestamp(r["date"]) for r in a0["trades"] if r["action"] == "BUY"})
+            day = buy_days[1]
+            runs = {}
+            for move in (1.07, 0.93):
+                op_m = op.copy()
+                op_m.loc[day] = op_m.loc[day] * move
+                runs[move] = run(op_m, mode, sizing, tax)
+            tag = f"{arm} tax {'on' if tax else 'off'}"
+            pre = eq0.index < day
+            same_pre = all(bool((e[pre].to_numpy() == eq0[pre].to_numpy()).all())
+                           for e, _ in runs.values())
+            case(f"1 {tag}: identical before {day.date()}", same_pre and pre.sum() > 0,
+                 f"{int(pre.sum())} sessions")
+            w0 = wanted(a0, day)
+            ws = {m: wanted(a, day) for m, (_, a) in runs.items()}
+            case(f"2 {tag}: wanted quantities on {day.date()} unchanged with the open +7% and -7%",
+                 len(w0) > 0 and all(w == w0 for w in ws.values()),
+                 f"{len(w0)} buys; " + ", ".join(f"{k} {v}" for k, v in sorted(w0.items())[:4]))
+            p0 = prices(a0, day)
+            moved = all(all(abs(prices(a, day)[k] / p0[k] - m) < 0.001
+                            for k in p0 if k in prices(a, day))
+                        for m, (_, a) in runs.items())
+            case(f"3 {tag}: fill prices on {day.date()} moved with the open", len(p0) > 0 and moved,
+                 f"{len(p0)} fills")
+
+    n_fail = RESULTS.count(False)
+    print(f"RESULT: {'PASS' if not n_fail else 'FAIL'} -- {len(RESULTS) - n_fail} of {len(RESULTS)} cases")
+    sys.exit(1 if n_fail else 0)
+
+
 CASES = {name[1:]: fn for name, fn in list(globals().items())
          if name.startswith("_") and callable(fn) and name[1:] in (
              "capital_axis", "dd_overlay", "drawdown_stop", "fixed_capital",
              "impact_pcap_axis", "tax_rules", "tax_total", "tradability_causality",
-             "cache_key", "noise_harness", "buy_shortfall")}
+             "cache_key", "noise_harness", "buy_shortfall", "fill_open_sizing")}
 
 
 if __name__ == "__main__":

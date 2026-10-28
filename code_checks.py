@@ -495,7 +495,7 @@ the first day and the gap; 0 if all reconcile.
             audit = {k: [] for k in KEYS}
             audit["costs"] = {"fills": [], "days": []}
             _eq, tc, _n, _ = backtest_exposure(px, op, sc, bd, pc, mom20, audit=audit,
-                                               value_at_open=True, tax_enabled=tax_on,
+                                               tax_enabled=tax_on,
                                                **arm.kwargs, **profiles.cap_kwargs(u))
         finally:
             profiles.set_selection(None)

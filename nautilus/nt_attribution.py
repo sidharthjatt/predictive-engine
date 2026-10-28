@@ -6,21 +6,20 @@ THE QUESTION
     -- a gap of about 2.9%, or 0.43 points of CAGR. Is that gap the KNOWN structural
     difference, or is it a bug?
 
-THE KNOWN DIFFERENCE
-    Reference engine: decides at the close of day t, then sizes at the OPEN of t+1.
-        It sells first, revalues the portfolio at t+1 open prices, and only then
-        computes  q = (invest_value * weight) // open_price(t+1).
-    Nautilus: a strategy must submit at the close of t, so quantity has to come from
-        day t's close prices and the portfolio value at day t's close.
-    The two differ by the overnight gap.
+SIZING
+    Since 2026-10-28 the engine, this copy and the port all size a buy at the close
+    of the decision session t, from the book at that close and the close price
+    with slippage:
+        q = (book_value(t close) * exposure * 0.98 * weight) // (close(t) * (1 + s))
+    The open of t+1 sets only the fill price, the cash test and the trim. Until
+    then the engine and this copy sized at the open of t+1 and the port matched
+    them; the ARM B that sized at the close is gone with that difference.
 
 THE TEST
-    Run the reference engine twice on identical data and identical scores:
-        ARM A -- sizing at the next open   (this is the official system)
-        ARM B -- sizing at the decision close (what Nautilus is forced to do)
-    Nothing else changes. If ARM B lands close to the Nautilus result, the gap is
-    attributed to sizing timing. If ARM B stays near ARM A, the gap is something
-    else and must be found.
+    Run this copy twice on identical data and identical scores:
+        ARM A -- fills at the open as the engine fills them
+        ARM D -- the same, with fill prices on the 0.05 tick grid the port declares
+    If ARM D lands close to the Nautilus result, the gap is tick rounding.
 
 This file does not modify the production engine. It re-implements the loop locally
 so that results/ is untouched.
@@ -154,7 +153,7 @@ def load_panel(cache_path):
 # fail verification for a reason that has nothing to do with the port. Same guard
 # (vol > 0.01), same zero on failure, same normalisation, same fallback.
 # PASSED PER CALL, NOT SET AS A MODULE GLOBAL. run() already takes its other
-# switches as keyword arguments (size_at_close, tick_round, value_at_open); sizing
+# switches as keyword arguments (tick_round); sizing
 # and mode now join them. The globals they replace were process-wide, so a value
 # left behind by one arm silently applied to the next, and asserting the global had
 # been set never proved the run used it. See nt_strategy.py for the same change.
@@ -162,8 +161,7 @@ DEFAULT_SIZING = "invvol"
 DEFAULT_MODE = "breadth"
 
 
-def run(px, op, sc, dates, pc, mom20, size_at_close: bool, tick_round: bool = False,
-        value_at_open: bool = False, holdings_out=None,
+def run(px, op, sc, dates, pc, mom20, tick_round: bool = False, holdings_out=None,
         sizing: str = DEFAULT_SIZING, mode: str = DEFAULT_MODE, applied_out=None,
         rebal: int = None, drawdown_stop=None, stop_events_out=None, dd_overlay=None,
         buy_shortfall: str = None, fills_out=None, decisions_out=None):
@@ -262,49 +260,30 @@ def run(px, op, sc, dates, pc, mom20, size_at_close: bool, tick_round: bool = Fa
                     del shares[s]
 
             if plan:
-                if size_at_close:
-                    # ARM B: quantities were already fixed on the decision day.
-                    for s, q in plan.items():
-                        if s == "_exposure" or s in shares or q < 1:
-                            continue
-                        pr = opens.get(s, np.nan)
-                        if np.isnan(pr) or pr <= 0:
-                            continue
-                        pr *= (1 + SLIPPAGE)
-                        if tick_round:
-                            pr = _tick(pr, dt)
-                        q, tc = _afford(q, pr)
-                        if q < 1:
-                            continue
-                        cash -= q * pr + tc; cum_tc += tc; n_trades += 1
-                        _fill(dt, "BUY", s, q, pr)
-                        shares[s] = shares.get(s, 0) + q
-                else:
-                    # ARM A: size now, at this morning's open.
-                    vp = opens if value_at_open else prices
-                    port_val = sum(q * vp[s] for s, q in shares.items()
-                                   if not np.isnan(vp.get(s, np.nan))) + cash
-                    invest_val = port_val * plan["_exposure"] * SAFETY
-                    if _dd is not None:
-                        invest_val *= _ds.entry_factor(plan["_exposure"])
-                    for s, w in plan.items():
-                        if s == "_exposure" or s in shares:
-                            continue
-                        pr = opens.get(s, np.nan)
-                        if np.isnan(pr) or pr <= 0:
-                            continue
-                        pr *= (1 + SLIPPAGE)
-                        if tick_round:
-                            pr = _tick(pr, dt)
-                        q = int((invest_val * w) // pr)
-                        if q < 1:
-                            continue
-                        q, tc = _afford(q, pr)
-                        if q < 1:
-                            continue
-                        cash -= q * pr + tc; cum_tc += tc; n_trades += 1
-                        _fill(dt, "BUY", s, q, pr)
-                        shares[s] = shares.get(s, 0) + q
+                # Sized from the decision close: the book's value and each name's
+                # close there, with slippage. This open sets only the fill price.
+                invest_val = dec_val * plan["_exposure"] * SAFETY
+                if _dd is not None:
+                    invest_val *= _ds.entry_factor(plan["_exposure"])
+                for s, w in plan.items():
+                    if s == "_exposure" or s in shares:
+                        continue
+                    cp = dec_px.get(s, np.nan)
+                    pr = opens.get(s, np.nan)
+                    if np.isnan(cp) or cp <= 0 or np.isnan(pr) or pr <= 0:
+                        continue
+                    q = int((invest_val * w) // (cp * (1 + SLIPPAGE)))
+                    pr *= (1 + SLIPPAGE)
+                    if tick_round:
+                        pr = _tick(pr, dt)
+                    if q < 1:
+                        continue
+                    q, tc = _afford(q, pr)
+                    if q < 1:
+                        continue
+                    cash -= q * pr + tc; cum_tc += tc; n_trades += 1
+                    _fill(dt, "BUY", s, q, pr)
+                    shares[s] = shares.get(s, 0) + q
             pending = None
             if _stop is not None and (_st.exit_pending or _st.reentry_pending):
                 _st.after_fills(i, shares, _held_before,
@@ -402,19 +381,8 @@ def run(px, op, sc, dates, pc, mom20, size_at_close: bool, tick_round: bool = Fa
                 if applied_out is not None:
                     applied_out["sizing"] = sizing
 
-                if size_at_close:
-                    pv = sum(q * prices[s] for s, q in shares.items()
-                             if not np.isnan(prices.get(s, np.nan))) + cash
-                    iv = pv * expo * SAFETY
-                    plan = {}
-                    for s in top:
-                        cp = prices.get(s, np.nan)
-                        plan[s] = int((iv * w[s]) // cp) if (not np.isnan(cp) and cp > 0) else 0
-                    plan["_exposure"] = expo
-                    pending = (plan, keep)
-                else:
-                    w["_exposure"] = expo
-                    pending = (w, keep)
+                w["_exposure"] = expo
+                pending = (w, keep)
             if _reentry:
                 _st.after_reentry_order(pending is not None)
 
@@ -429,6 +397,7 @@ def run(px, op, sc, dates, pc, mom20, size_at_close: bool, tick_round: bool = Fa
         if _dd is not None:
             _ds.at_close(dt, cash + mtm, mtm, shares, i == len(dates) - 1, _expo_last)
         eq.append(cash + mtm)
+        dec_val, dec_px = cash + mtm, prices
 
     return pd.Series(eq, index=dates), n_trades, cum_tc
 
@@ -451,46 +420,30 @@ if __name__ == "__main__":
     print("ATTRIBUTION TEST -- is the Nautilus gap the known sizing difference?")
     print("=" * 74)
 
-    a_eq, a_n, a_tc = run(px, op, sc, bd, pc, mom20, size_at_close=False)
-    b_eq, b_n, b_tc = run(px, op, sc, bd, pc, mom20, size_at_close=True)
-    c_eq, c_n, c_tc = run(px, op, sc, bd, pc, mom20, size_at_close=True, tick_round=True)
-    # ARM D: the reference engine with the port's two documented differences applied
-    # -- portfolio valued at the execution day's OPEN rather than its close, and
-    # prices on the 0.05 tick grid the Nautilus instrument declares. This is the
-    # baseline the port should reconcile against; see nt_verify.py.
-    d_eq, d_n, d_tc = run(px, op, sc, bd, pc, mom20, size_at_close=False,
-                          value_at_open=True, tick_round=True)
+    a_eq, a_n, a_tc = run(px, op, sc, bd, pc, mom20)
+    d_eq, d_n, d_tc = run(px, op, sc, bd, pc, mom20, tick_round=True)
 
     yrs = (bd[-1] - bd[0]).days / 365.25
     def cagr(e): return ((e.iloc[-1] / _capital_axis.selected()) ** (1 / yrs) - 1) * 100
 
-    print(f"\n  ARM A  size at next open  (official)  : Rs {a_eq.iloc[-1]:>12,.0f}  "
+    print(f"\n  ARM A  fills at the open               : Rs {a_eq.iloc[-1]:>12,.0f}  "
           f"CAGR {cagr(a_eq):5.2f}%  trades {a_n}")
-    print(f"  ARM B  size at decision close         : Rs {b_eq.iloc[-1]:>12,.0f}  "
-          f"CAGR {cagr(b_eq):5.2f}%  trades {b_n}")
-    print(f"  ARM C  + prices snapped to 0.05 ticks : Rs {c_eq.iloc[-1]:>12,.0f}  "
-          f"CAGR {cagr(c_eq):5.2f}%  trades {c_n}")
-    print(f"  ARM D  value at open + 0.05 ticks     : Rs {d_eq.iloc[-1]:>12,.0f}  "
+    print(f"  ARM D  + fill prices on 0.05 ticks    : Rs {d_eq.iloc[-1]:>12,.0f}  "
           f"CAGR {cagr(d_eq):5.2f}%  trades {d_n}")
     print(f"  NAUTILUS                              : Rs {NAUTILUS_EQUITY:>12,.0f}")
 
-    gap_ab = (b_eq.iloc[-1] - a_eq.iloc[-1]) / a_eq.iloc[-1] * 100
-    gap_bn = (NAUTILUS_EQUITY - b_eq.iloc[-1]) / b_eq.iloc[-1] * 100
-    gap_bc = (c_eq.iloc[-1] - b_eq.iloc[-1]) / b_eq.iloc[-1] * 100
-    gap_cn = (NAUTILUS_EQUITY - c_eq.iloc[-1]) / c_eq.iloc[-1] * 100
+    gap_ad = (d_eq.iloc[-1] - a_eq.iloc[-1]) / a_eq.iloc[-1] * 100
+    gap_dn = (NAUTILUS_EQUITY - d_eq.iloc[-1]) / d_eq.iloc[-1] * 100
     gap_an = (NAUTILUS_EQUITY - a_eq.iloc[-1]) / a_eq.iloc[-1] * 100
 
-    print(f"\n  A -> B  (the sizing change alone)     : {gap_ab:+6.2f}%")
+    print(f"\n  A -> D  (tick rounding alone)         : {gap_ad:+6.2f}%")
     print(f"  A -> Nautilus (total gap)             : {gap_an:+6.2f}%")
-    print(f"  B -> C  (tick rounding alone)         : {gap_bc:+6.2f}%")
-    print(f"  C -> Nautilus (unexplained remainder) : {gap_cn:+6.2f}%")
+    print(f"  D -> Nautilus (unexplained remainder) : {gap_dn:+6.2f}%")
 
     print("\n" + "=" * 74)
-    if abs(gap_cn) < 1.0:
-        print("  VERDICT: sizing timing and tick rounding together account for the")
-        print("  gap. The port is explained.")
-    elif abs(gap_cn) < abs(gap_an) / 2:
-        print("  VERDICT: they explain most of it. A remainder is still open.")
+    if abs(gap_dn) < 1.0:
+        print("  VERDICT: tick rounding accounts for the gap. The port is explained.")
+    elif abs(gap_dn) < abs(gap_an) / 2:
+        print("  VERDICT: tick rounding explains most of it. A remainder is still open.")
     else:
         print("  VERDICT: NOT explained. Something else differs and must be found.")
-    print("=" * 74)

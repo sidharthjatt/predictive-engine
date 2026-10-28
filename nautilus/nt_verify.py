@@ -19,9 +19,9 @@ cadence and exits 0. It does not gate: the share-level verdict below is the
 default-cadence certification and is unchanged. See KNOWN_ISSUES.md for the gap
 measured at cadences 20, 3 and 1 on 2026-09-23.
 
-A 0.01-grid difference beyond the one-share signature passes only if the reference
-valued at the port's quote mid reproduces the port's holdings on every rebalance
-(mid_valued). One rule for every cell; added 2026-09-29, pass I.
+Both sides size every buy at the decision session's close (since 2026-10-28), so
+neither values its book at the open. The quote-mid exemption that covered the
+port's open valuation (added 2026-09-29, pass I) went with it.
 
 --buy-shortfall=trim|refuse picks the buy rule (buy_shortfall.py) for the port,
 both reference re-runs and the reference trail's name; the default is
@@ -29,10 +29,8 @@ config.BUY_SHORTFALL. The verdict depends on it:
 
     refuse  the tests above, unchanged.
     trim    0.01 grid: the orders filled in every rebalance period, name, side
-            and quantity, identical on both sides, or, for a period where they
-            differ, the reference valued at the port's quote mid holds exactly
-            the port's book on that rebalance; any period that condition does
-            not explain fails. No quantization exemption. 0.05 grid: the rank decisions (target names and the
+            and quantity, identical on both sides; any period that differs is
+            unexplained and fails. No quantization exemption. 0.05 grid: the rank decisions (target names and the
             top-BUFFER keep set the sells follow) identical on every rebalance,
             the largest daily NAV gap at most 0.50% and the CAGR gap at most
             0.10 point. Fills that differ on the 0.05 grid are reported with
@@ -324,43 +322,12 @@ def tick_proof():
         dates, port = port_holdings(strat)
         panel = nt_attribution.load_panel(U["cache"])
         armd_fills = []
-        armd = arm(panel, dates, size_at_close=False,
-                   value_at_open=True, tick_round=True, fills_out=armd_fills, **_ARM_KW)
-        armm = mid_valued(panel, dates)
-        # The rebalances on which the quote-mid reference holds exactly what the
-        # port holds. The trim verdict reads this per rebalance.
-        mid_same = {d for d in dates if armm[d] == port[d]}
+        armd = arm(panel, dates, tick_round=True, fills_out=armd_fills, **_ARM_KW)
         return compare(port, armd, dates), len(dates), \
-            classify_divergence(port, armd, dates), \
-            mid_same, (strat.fills, armd_fills)
+            classify_divergence(port, armd, dates), (strat.fills, armd_fills)
     finally:
         nt_data.set_tick_size("0.05"); nt_data.set_tick_mode("nse")
         nt_attribution.set_tick("0.05"); nt_attribution.set_tick_mode("nse")
-
-
-def mid_valued(panel, dates):
-    """Holdings of the reference with its book valued at the port's quote mid.
-
-    The port values its book at 0.5 * (tick(open*(1+s)) + tick(open*(1-s))), the
-    mid of the two tick-rounded quotes (nt_gate_diagnose.py), where the reference
-    values it at the open. Rounding the two quotes moves the book's value by a
-    fraction of a tick per position, which moves share counts. This is the
-    reference with that one change, on the 0.01 grid tick_proof sets; it is
-    nt_mid_trace.py's M arm. Added 2026-09-29 (pass I).
-    """
-    import numpy as np
-    px, op, sc, bd, pc, mom20 = panel
-    s = nt_attribution.SLIPPAGE
-
-    def tick01(x):
-        return np.round(np.round(x / 0.01) * 0.01, 4)
-
-    mid = 0.5 * (tick01(op * (1 + s)) + tick01(op * (1 - s)))
-    mid = mid.where(mid.notna(), px)
-    out = {}
-    nt_attribution.run(mid, op, sc, bd, pc, mom20, size_at_close=False,
-                       tick_round=True, value_at_open=False, holdings_out=out, **_ARM_KW)
-    return {d: out.get(d, {}) for d in dates}
 
 
 def cadence_gap(rebal):
@@ -435,29 +402,19 @@ def main():
         ref[r["date"]][r["symbol"]] = int(r["qty"])
 
     panel = nt_attribution.load_panel(U["cache"])
-    # ARM D: the reference engine re-run with the port's two documented differences
-    # applied -- portfolio valued at the execution day's OPEN, prices on the 0.05
-    # tick grid. Comparing against the close-valued reference alone charges the port
-    # for a difference it is designed to have, so both baselines are reported.
+    # ARM D: the reference engine re-run with the port's documented difference
+    # applied -- fill prices on the 0.05 tick grid. Comparing against the reference
+    # alone charges the port for a difference it is designed to have, so both
+    # baselines are reported.
     _d_hold, d_fills, d_dec = {}, [], {}
-    d_eq, _, _ = nt_attribution.run(*panel, size_at_close=False, value_at_open=True,
-                                    tick_round=True, holdings_out=_d_hold,
+    d_eq, _, _ = nt_attribution.run(*panel, tick_round=True, holdings_out=_d_hold,
                                     fills_out=d_fills, decisions_out=d_dec, **_ARM_KW)
     arm_d = {d: _d_hold.get(d, {}) for d in dates}
     # ARM A is the reference's own configuration. Its holdings must reproduce
     # daily_holdings_{TAG}.csv, and that is checked below rather than assumed -- it is
     # what licenses ARM D as a baseline at all.
-    #
-    # VALUED AT THE OPEN SINCE 2026-09-26, because the reference is. audit_step
-    # writes daily_holdings with value_at_open=True (the engine's setting since
-    # 2026-09-04), and ARM A kept the default, value_at_open=False, so it sized
-    # every buy from a close-valued book the reference never used. On the two
-    # 100%-invested arms that changed which buys the cash could cover, and so
-    # which names were held: v1 and v3 were INCONCLUSIVE on all eight universes.
-    # With the flag set, ARM A's holdings equal the audit trail's -- names and
-    # share counts -- on 92 of 92 rebalances in all 32 (universe, arm) cells,
-    # measured 2026-09-26. ARM A now differs from ARM D only by tick rounding.
-    arm_a = arm(panel, dates, size_at_close=False, value_at_open=True, **_ARM_KW)
+    # ARM A now differs from ARM D only by tick rounding.
+    arm_a = arm(panel, dates, **_ARM_KW)
 
     ref_stats = compare(port, ref, dates)
     d_stats = compare(port, arm_d, dates)
@@ -514,8 +471,8 @@ def main():
     print(f"  fills [FYI]    reference {len(fr):>4}   port {len(fp):>4}"
           f"   (not a pass/fail gate)")
 
-    report("vs REFERENCE (valued at the execution day's close)", ref_stats, n)
-    report("vs ARM D     (same engine, valued at the open, 0.05 ticks)", d_stats, n)
+    report("vs REFERENCE (the engine's own audit trail)", ref_stats, n)
+    report("vs ARM D     (same engine, fill prices on 0.05 ticks)", d_stats, n)
     # THE CONTROL GATES SELECTION AND MEASURES SIZING. Until 2026-09-22 it gated
     # a_check[0] -- ANY difference, including a single share -- and demanded that
     # nt_attribution.run reproduce holdings written by
@@ -523,8 +480,7 @@ def main():
     # of this repository's five backtest reimplementations. Measured 2026-09-22 on
     # nifty100: 0 symbol mismatches on all 92 rebalances, quantities differing on
     # 90 of 92 within a ratio of 0.9643 to 1.0263. Selection is bit-identical;
-    # integer sizing is not, and no available parameter makes it so --
-    # size_at_close=True scores 1 of 92, worse than the 2 it replaced.
+    # integer sizing is not, and no available parameter made it so.
     #
     # WHAT THE CONTROL IS FOR is licensing ARM D as a baseline for the PORT'S
     # SIZING. That needs the two engines to be choosing the same book, which is
@@ -540,8 +496,7 @@ def main():
           f"only" + (f", worst {max(_a_worst):.2f}% on a single position"
                      if _a_worst else ""))
 
-    t_stats, t_n, (t_quant, t_other, t_detail), mid_same, (p01, d01) = tick_proof()
-    t_mid = len(mid_same)
+    t_stats, t_n, (t_quant, t_other, t_detail), (p01, d01) = tick_proof()
     print(f"\n  reconciliation on a 0.01 tick grid (both sides) -- "
           f"{t_n - t_stats[0]} of {t_n} identical")
     # NAMED, MEASURED, AND NOT GATED. The verdict below reads t_other, never this.
@@ -562,35 +517,15 @@ def main():
         print("      midcap150  2.60e-06  SUZLON    Rs  2.54, 21,332 shares -- flipped")
         print("    midcap150 holds shares at Rs 2.45. nifty100 has nothing that cheap.")
 
-    # QUOTE-MID VALUATION ROUNDING, ONE RULE FOR EVERY CELL. Added 2026-09-29
-    # (pass I). The port values its book at the mid of its two tick-rounded quotes;
-    # the reference at the open. That moves share counts by more than the one-share
-    # signature allows, on more than one symbol, and always in the port's favour
-    # of what the book can afford (diagnostics/nt_mid_trace.txt). A difference the
-    # one-share signature does not explain is explained by this only if the
-    # reference valued at the quote mid reproduces the port's holdings, names and
-    # share counts, on EVERY rebalance. One rebalance it does not reproduce and
-    # the cell fails as before. Not a tolerance: no count of shares is allowed.
-    mid_explains = t_other > 0 and t_mid == t_n
-    print(f"  reference valued at the port's quote mid: holdings equal the port's on "
-          f"{t_mid} of {t_n} rebalances"
-          + ("  -> explains the rest" if mid_explains else ""))
-
     if RULE == "trim":
         # THE TRIM VERDICT'S MEASUREMENTS. 0.01 grid: the orders filled in each
         # rebalance period. 0.05 grid: rank decisions, fills, NAV and CAGR.
-        # A period whose orders differ passes only if, on that rebalance, the
-        # reference valued at the port's quote mid holds exactly what the port
-        # holds. Checked per rebalance; any period it does not explain fails.
+        # Any period whose orders differ is unexplained and fails.
         o01 = compare_fills(fills_by_period(p01, dates), fills_by_period(d01, dates))
-        o01_mid = [(d, rs) for d, rs in o01 if d in mid_same]
-        o01_bad = [(d, rs) for d, rs in o01 if d not in mid_same]
         print(f"  orders filled per rebalance period, 0.01 grid (name, side, quantity) -- "
-              f"{t_n - len(o01)} identical, {len(o01_mid)} explained by the quote mid, "
-              f"{len(o01_bad)} unexplained, of {t_n}")
+              f"{t_n - len(o01)} identical, {len(o01)} unexplained, of {t_n}")
         for d, rs in o01[:20]:
-            print(f"    differs: {d.date()}  Rs {rs:,.2f} of differing shares  "
-                  + ("(quote mid holds the port's book)" if d in mid_same else "UNEXPLAINED"))
+            print(f"    differs: {d.date()}  Rs {rs:,.2f} of differing shares  UNEXPLAINED")
         if len(o01) > 20:
             print(f"    ... {len(o01) - 20} more")
         p_dec = {pd.Timestamp(r["decided_on"]): (r["top"], r["keep"])
@@ -629,7 +564,7 @@ def main():
               f"(limit {NAV_GAP_MAX_PCT:.2f}%)")
         print(f"    CAGR  port {cagr_p:.4f}%  ARM D {cagr_r:.4f}%  gap {cagr_gap:.4f} pt   "
               f"(limit {CAGR_GAP_MAX_PT:.2f} pt)")
-        trim_ok = (not o01_bad and not dec_diff and nav_gap <= NAV_GAP_MAX_PCT
+        trim_ok = (not o01 and not dec_diff and nav_gap <= NAV_GAP_MAX_PCT
                    and cagr_gap <= CAGR_GAP_MAX_PT)
 
     d_sym = d_stats[1]
@@ -661,17 +596,14 @@ def main():
         # BUY RULE TRIM: the tests below this branch assume refuse and are not run.
         if trim_ok:
             print("  VERIFIED UNDER TRIM. On the 0.01 grid the port fills the same orders")
-            print("  as the reference in every rebalance period, or, where it does not,")
-            print("  the reference valued at the port's quote mid holds exactly the port's")
-            print("  book on that rebalance. On the 0.05 grid both take the same rank")
-            print("  decisions on every rebalance, and the fills that tick rounding moves")
-            print("  stay within the NAV and CAGR limits above.")
+            print("  as the reference in every rebalance period. On the 0.05 grid both take")
+            print("  the same rank decisions on every rebalance, and the fills that tick")
+            print("  rounding moves stay within the NAV and CAGR limits above.")
             rc = 0
         else:
             print("  NOT VERIFIED UNDER TRIM:")
-            if o01_bad:
-                print(f"    - {len(o01_bad)} rebalance period(s) fill different orders on the "
-                      f"0.01 grid that the quote mid does not explain")
+            if o01:
+                print(f"    - {len(o01)} rebalance period(s) fill different orders on the 0.01 grid")
             if dec_diff:
                 print(f"    - {len(dec_diff)} rebalance(s) take different rank decisions")
             if nav_gap > NAV_GAP_MAX_PCT:
@@ -680,32 +612,21 @@ def main():
                 print(f"    - CAGR gap {cagr_gap:.4f} pt is over {CAGR_GAP_MAX_PT:.2f} pt")
     elif d_sym != 0:
         print("  NOT VERIFIED. Rebalances hold DIFFERENT SYMBOLS even against the")
-        print("  open-valued baseline, which cannot be explained by sizing.")
+        print("  ARM D baseline, which cannot be explained by sizing.")
     elif t_other == 0:
-        print("  VERIFIED. On a 0.01 tick grid the port and the open-valued reference")
+        print("  VERIFIED. On a 0.01 tick grid the port and the ARM D reference")
         print("  hold the SAME SYMBOLS at every rebalance, and every quantity")
         print("  difference is share-count quantization by its exact signature: one")
         print("  share, one symbol, port lower. The two systems are identical in")
-        print("  logic, and what the real 0.05 grid shows above is three measured,")
+        print("  logic, and what the real 0.05 grid shows above is two measured,")
         print("  documented things:")
-        print("    - the reference values the portfolio at the execution day's CLOSE,")
-        print("      which a strategy standing at 09:15 cannot know;")
-        print("    - quantity is a floor division by a tick-snapped price, and one")
-        print("      0.05 tick is 0.19% of a Rs 27 share;")
+        print("    - fill prices on a 0.05 tick move cash, and one 0.05 tick is")
+        print("      0.19% of a Rs 27 share;")
         print("    - the floor itself quantizes, which no tick grid removes.")
         if t_quant:
             print(f"  {t_quant} rebalance(s) differ by one share and are classified")
             print("  above, NOT tolerated by a threshold. A two-share difference, two")
             print("  symbols on one rebalance, or a symbol-set mismatch still fails.")
-        print("  Nothing else remains unexplained.")
-        rc = 0
-    elif mid_explains:
-        print("  VERIFIED BY QUOTE-MID VALUATION. On a 0.01 tick grid the port and the")
-        print(f"  open-valued reference differ on {t_other} rebalance(s) beyond the")
-        print(f"  one-share signature, {t_stats[1]} of them by the set of names held.")
-        print("  The reference with its book valued at the port's quote mid")
-        print(f"  -- its one documented difference -- reproduces the port's holdings on")
-        print(f"  all {t_n} rebalances, so those differences are that valuation rounding.")
         print("  Nothing else remains unexplained.")
         rc = 0
     else:
@@ -721,8 +642,7 @@ def main():
                   if _sf.exists() else [])
         p_set, e_set = stop_dates(strat.stop_events), stop_dates(eng_ev)
         a_ev = []
-        nt_attribution.run(*panel, size_at_close=False, value_at_open=True,
-                           stop_events_out=a_ev, **_ARM_KW)
+        nt_attribution.run(*panel, stop_events_out=a_ev, **_ARM_KW)
         a_set = stop_dates(a_ev)
         _common = eq.index.intersection(ref_eq.index)
         _gap = float(((eq.loc[_common] / ref_eq.loc[_common]) - 1).abs().max() * 100)
@@ -743,8 +663,7 @@ def main():
     if RULE == "trim" and idx_ok and a_check[1] == 0:
         print(f"\n  RESULT: {'PASS' if rc == 0 else 'FAIL'} -- universe {UNIVERSE}, arm {ARM.name}, "
               f"buy rule trim, 0.01-grid orders {t_n - len(o01)} identical, "
-              f"{len(o01_mid)} explained by the quote mid, {len(o01_bad)} unexplained, "
-              f"of {t_n}, "
+              f"{len(o01)} unexplained, of {t_n}, "
               f"0.05-grid decisions {len(dec_all) - len(dec_diff)} of {len(dec_all)} identical, "
               f"NAV gap {nav_gap:.2f}%, CAGR gap {cagr_gap:.2f} pt.")
         print("=" * 72)
@@ -752,8 +671,7 @@ def main():
     print(f"\n  RESULT: {'PASS' if rc == 0 else 'FAIL'} -- universe {UNIVERSE}, arm {ARM.name}, "
           f"0.01-grid reconciliation {t_n - t_stats[0]} of {t_n} identical, "
           f"{t_quant} quantization, "
-          f"{0 if mid_explains else t_other} unexplained"
-          + (f", {t_other} quote-mid rounding" if mid_explains else "") + ".")
+          f"{t_other} unexplained.")
     print("=" * 72)
     return rc
 

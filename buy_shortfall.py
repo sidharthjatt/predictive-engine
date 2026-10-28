@@ -107,7 +107,8 @@ def largest_fit(q_wanted, cash_allowed, price_at, charges):
     bound is q_wanted, or one more than floor(cash_allowed / price_at(1)) if that
     is smaller: no q above cash_allowed / price_at(1) can fit, since price_at(q)
     >= price_at(1), and the one share more covers a floating-point floor that
-    lands one short (2.85 // 0.95 is 2.0).
+    lands one short (0.25 // 0.05 is 4.0, though five shares at Rs 0.05 cost
+    exactly Rs 0.25).
 
     Returns q = 0 (price and charges of the wanted quantity) when not even one
     share fits, or when cash_allowed is not positive.

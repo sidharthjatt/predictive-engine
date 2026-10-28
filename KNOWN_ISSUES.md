@@ -288,7 +288,8 @@ drawdown as evidence that the model picks safer stocks.
 ### New positions are funded from cash alone, so v1 and v3 often hold fewer than eight names
 
 `backtest_exposure` sizes each entrant as a share of the whole portfolio
-(`invest_val = port_val * exposure * 0.98`) but pays for it from cash only: held
+(`invest_val = port_val * exposure * 0.98`, with `port_val` the book at the decision
+close since 2026-10-28) but pays for it from cash at the fill only: held
 names are never resized and buffer names (ranks 9-16 still held) carry capital
 with no target weight. When the entrants do not fit, the lowest-ranked are
 short of cash. Since 2026-10-27 (`--buy-shortfall trim`, the default) each such buy is
@@ -321,13 +322,13 @@ trim with it:
 
 The Nautilus port uses the same function (`buy_shortfall.trim`), and
 `nt_verify.py` checks it under trim. On the 0.01 grid the orders of every rebalance
-period must be identical, or, where they differ, the reference valued at the port's
-quote mid must hold exactly the port's book on that rebalance; any period that does
-not explain fails. On the 0.05 grid, decisions (targets and the keep set) must be
-identical, the daily NAV gap at most 0.50% and the CAGR gap at most 0.10 point. On
-2026-10-27, 20 of 20 arms on nifty100, nifty50, midcap150, smallcap250 and nifty500
-passed; the quote mid explained 2 to 27 periods per arm on midcap150, smallcap250 and
-nifty500, none was unexplained. The port has no tax ledger, so it
+period must be identical; any period that differs fails. On the 0.05 grid, decisions
+(targets and the keep set) must be identical, the daily NAV gap at most 0.50% and the
+CAGR gap at most 0.10 point. On 2026-10-28, with every buy sized at the decision
+close, 20 of 20 arms on nifty100, nifty50, midcap150, smallcap250 and nifty500 passed
+with 92 of 92 periods identical on the 0.01 grid. On 2026-10-27, when both sides
+sized at the open, the quote mid had to explain 2 to 27 periods per arm on midcap150,
+smallcap250 and nifty500. The port has no tax ledger, so it
 cannot check the tax-on cells: under trim, tax changes the cash left on the morning
 and with it which buys are trimmed or refused, and those cells are engine figures
 only.
@@ -690,9 +691,42 @@ is what the code follows. It is not an off-by-one-year bug.
 
 ---
 
+### Buy quantities come from the decision close; two rules still read the fill session
+
+Since 2026-10-28 the engine, `nautilus/nt_attribution.py` and the Nautilus port size
+every buy at the decision close: the book's value there, less the tax deducted
+before the next morning's fills, x exposure x 0.98 x the weight, divided by the
+name's close x (1 + slippage). The fill session's open sets the fill price, the cash
+test and the trim. `funding="prorata"` takes its scaling factor from the same close.
+The fixed-capital book and reserve come from the decision-close value too; the
+engine_tests check that held value after the buys stays within the book still values
+the held names at the open. The `value_at_open` and `size_at_close` switches are gone.
+
+On nifty100 (research, 2026-10-28) against the 7cedc92 runs, decisions, scores,
+ranks and targets are identical on 92 of 92; CAGR moves -0.02 to -0.22 point per arm.
+Parity with predictive-backtest's flat-rate trim run (v1, tax off) went from 147 to
+560 of 788 exact trades; the rest follow from fill prices that predictive-backtest
+rounds to the paisa and this engine does not (Rs 3.52 of cash after the first day,
+Rs 41.97 by 2019-11-26, enough to change a trim on 2019-11-27).
+
+Two rules still read data dated on the fill session, deliberately:
+- Pit index exit (`test_exposure.py`, touch point 7): a held name that is not in the
+  membership in force on the fill session is sold at its open. Index changes are
+  announced weeks ahead, so the order could be placed in time. Pit only.
+- Drawdown-limit top-ups (`test_exposure.py`, `nt_attribution.py`,
+  `nt_strategy._dd_buy_legs`): the order is decided at the close, then scaled by
+  `min(1, cash x 0.98 / need)` with `need` priced at the fill session's open. That
+  factor is part of the drawdown control's rule and only fits the order to cash.
+
+The fill session's row and open still decide whether a buy or sell can fill at all.
+
 ## Verification and gates
 
 ### nt_verify passes a cell on quote-mid valuation only if it reproduces every rebalance
+
+Removed 2026-10-28. The port no longer values its book at the open, so there is no
+quote-mid difference left to explain; `mid_valued` and `nautilus/nt_mid_trace.py` are
+deleted. The record below describes the rule while it applied.
 
 `nautilus/nt_verify.py` passes a 0.01-grid difference beyond the one-share signature
 only if the reference valued at the port's quote mid (`mid_valued`) reproduces the
@@ -746,10 +780,10 @@ noise-test records are superseded".
 
 ### Gates loosened or failing after the cleaning, accepted by the owner 2026-09-27
 
-- `verify_v34_arms.ONE_SHARE_TOLERATED` (verify_v34_arms.py:107) lets midcap150 v1, v2
-  and v3 pass when every divergence is exactly one share. These cells stand at 89, 90
-  and 88 of 92 rebalances, from quote-mid rounding. The list is closed. The record
-  `diagnostics/verify_v34_arms.txt` predates the cleaning and still shows 92 of 92.
+- `verify_v34_arms.ONE_SHARE_TOLERATED` let midcap150 v1, v2 and v3 pass when every
+  divergence was exactly one share (89, 90 and 88 of 92 rebalances, from quote-mid
+  rounding). Removed 2026-10-28: with buys sized from the decision close on both sides,
+  all eight cells are 92 of 92 and the gate is strict again.
 - validate_engine fails 4 of 8 (T1 and T3 on both certified universes).
   validate_breadth_live fails T2 on nifty100. validate_sizing fails 2 of 4 on each, but
   its records date from 2026-09-20. All three are `--slow`, so they do not gate commits.
@@ -769,8 +803,8 @@ All four arms, all eight universes:
   below). No v5 or v6 cell is gated, and no pit cell is covered (see "Pit cells are not covered by nt_verify").
 - The cleaned after-tax noise test (`results/noise_parallel.py`).
 
-All four arms, nifty100 and midcap150 only: `verify_v34_arms.py`, with the one-share
-tolerance for midcap150 v1 to v3.
+All four arms, nifty100 and midcap150 only: `verify_v34_arms.py`, 92 of 92 required on
+every cell.
 
 Not extended beyond v2 (or v1 against v2), because each would be a new test needing its
 own spec:
@@ -1578,7 +1612,8 @@ Producing orders for the open of D+1 from data ending on D is being built elsewh
 What this code does and does not do, recorded for whoever builds it:
 - It scores every name on the last day of its data, but never makes a decision on the
   window's last day (`test_exposure.backtest_exposure`, the rebalance guard
-  `i < len(dates) - 1`), and sizes buys from the execution day's open.
+  `i < len(dates) - 1`). It sizes buys at the decision close (since 2026-10-28), so
+  a trade-next file could carry quantities, not only names.
 - Rebalance days are counted from 2019-01-01, so an arbitrary D is usually not one.
 - The book always starts as a simulated Rs 10,00,000 in 2019; there is no input for real
   holdings, cash or tax lots, and nothing writes a "trade next" file.
