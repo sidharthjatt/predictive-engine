@@ -321,12 +321,15 @@ trim with it:
 | v4 | 24.37 | 24.77 | 24.77 |
 
 The Nautilus port uses the same function (`buy_shortfall.trim`), and
-`nt_verify.py` checks it under trim. On the 0.01 grid the orders of every rebalance
-period must be identical; any period that differs fails. On the 0.05 grid, decisions
-(targets and the keep set) must be identical, the daily NAV gap at most 0.50% and the
-CAGR gap at most 0.10 point. On 2026-10-28, with every buy sized at the decision
-close, 20 of 20 arms on nifty100, nifty50, midcap150, smallcap250 and nifty500 passed
-with 92 of 92 periods identical on the 0.01 grid. On 2026-10-27, when both sides
+`nt_verify.py` checks it under trim. Since 2026-10-28 both sides fill to the paisa
+(`slippage.fill_price`), and the holdings at every rebalance and the orders of every
+rebalance period must be identical; any period that differs fails. The 0.05-grid
+stage (decisions, a 0.50% NAV limit and a 0.10-point CAGR limit) went with the NSE
+tick. Measured 2026-10-28 on nifty100, nifty50, midcap150, smallcap250 and nifty500,
+20 of 20 arms passed with holdings and orders identical on 92 of 92 rebalances, and
+on every cell the port also held the engine's own audit-trail holdings on 92 of 92,
+final equity equal to within 0.005%. Earlier on 2026-10-28, with every buy sized at the decision
+close, 20 of 20 arms passed with 92 of 92 periods identical on the 0.01 grid. On 2026-10-27, when both sides
 sized at the open, the quote mid had to explain 2 to 27 periods per arm on midcap150,
 smallcap250 and nifty500. The port has no tax ledger, so it
 cannot check the tax-on cells: under trim, tax changes the cash left on the morning
@@ -526,6 +529,11 @@ Three definitions are choices, not measurements:
 
 ### Nautilus figures differ from the engine's by up to 6.1%, and on the 100%-invested arms can hold different names
 
+Since 2026-10-28 the port and the engine both fill to the paisa with
+`slippage.fill_price`, and nt_verify gates the port against the reference copy
+(`nt_attribution`) at that rule alone; the 0.05-grid quotes and the 0.01-grid re-run
+described below are gone. The figures below are from before that change.
+
 nt_verify gates the port against ARM D on the 0.01 grid. On the 2026-10-10 data 31 of
 the 32 core cells of the eight universes pass; midcap100 v3 fails, because some
 rebalances hold a different symbol set even against the open-valued baseline. On
@@ -705,9 +713,11 @@ the held names at the open. The `value_at_open` and `size_at_close` switches are
 On nifty100 (research, 2026-10-28) against the 7cedc92 runs, decisions, scores,
 ranks and targets are identical on 92 of 92; CAGR moves -0.02 to -0.22 point per arm.
 Parity with predictive-backtest's flat-rate trim run (v1, tax off) went from 147 to
-560 of 788 exact trades; the rest follow from fill prices that predictive-backtest
-rounds to the paisa and this engine does not (Rs 3.52 of cash after the first day,
-Rs 41.97 by 2019-11-26, enough to change a trim on 2019-11-27).
+560 of 788 exact trades; the rest followed from fill prices that predictive-backtest
+rounded to the paisa and this engine did not (Rs 3.52 of cash after the first day,
+Rs 41.97 by 2019-11-26, enough to change a trim on 2019-11-27). With fills rounded to
+the paisa since 2026-10-28 (see "Fill prices are rounded to the paisa, not placed on
+NSE's tick"), it is 788 of 788.
 
 Two rules still read data dated on the fill session, deliberately:
 - Pit index exit (`test_exposure.py`, touch point 7): a held name that is not in the
@@ -719,6 +729,59 @@ Two rules still read data dated on the fill session, deliberately:
   factor is part of the drawdown control's rule and only fits the order to cash.
 
 The fill session's row and open still decide whether a buy or sell can fill at all.
+
+### Fill prices are rounded to the paisa, not placed on NSE's tick
+
+Since 2026-10-28 every fill, in the engine, `engine_core.backtest`, `bh_held`,
+`nautilus/nt_attribution.py` and the Nautilus port's quotes, is
+`slippage.fill_price`: round(open x (1 + rate), 2) for a buy and round(open x
+(1 - rate), 2) for a sale, in float64 and rounded by NumPy (half to even on the
+binary value), the rule of predictive-backtest's `engine.fill_price`. Charges, the
+trim and the cash test use that price. A buy's quantity is still sized from the
+decision close x (1 + slippage), unrounded. `cost_report` and `make_daily_log`
+reconstruct fills with the same function.
+
+THE PRICES CARRY NO UNADJUSTED VALUES. The supplier's open, high, low and close are
+adjusted for later splits and bonuses in every folder under `data/raw/`: BAJFINANCE
+opens at 732.5 on 2024-01-02, when it traded near Rs 7,300 before its June 2025
+bonus and split, and NESTLEIND reads about 1,375 before its 1:10 split of
+2024-01-05. `adj_close` differs from `close` only for dividends, on 0.4% of
+nifty100's rows in the window, so `raw_close` (used by `amihud_20`) is not
+unadjusted for splits either. So no fill can be placed on NSE's dated tick
+(NSE/CMTR/62174, effective 2024-06-10; NSE/CMTR/67133, effective 2025-04-15): the
+tick and its price band apply to the price traded that day, the band comes from the
+previous month's last close, and both need the unadjusted price. Taken from the
+adjusted price they use a later corporate action. The port's "nse" tick mode did
+that, with its band from the adjusted month-end close; it was removed on
+2026-10-28 with both tick tables, `nt_data._round_to`, `nautilus/nt_gate_diagnose.py`
+and nt_verify's 0.05-grid stage.
+
+WHOLE-SHARE QUANTITIES ARE COUNTED ON THE ADJUSTED BASIS (accepted by the owner,
+2026-10-28). A quantity is floor(value / adjusted price). Before a later split or
+bonus of factor k the adjusted price is 1/k of the price traded then, so up to k
+times as many shares fit: a floor, a `q < 1` skip or a trim's count can differ from
+what could have been bought on that date. Paisa rounding has the same exposure: one
+adjusted paisa is k paise of the price traded. Volume is adjusted by the same factor
+(no step at NESTLEIND 2024-01-05 or BAJFINANCE 2025-06-16), so the participation
+cap, the impact model, port depth and `amihud_20`'s close x volume do not depend on
+a later split. No rule uses a price level: there is no minimum price and the port's
+lot size is 1.
+
+Measured on nifty100 against the afadfc0 runs (research, 2026-10-28): decisions,
+scores, ranks and targets identical on 92 of 92 for every arm, tax off and on; every
+fill before the first quantity change is afadfc0's fill to the paisa. The first
+change comes from cash: on v3 tax on, afadfc0's 18 fills before 2019-02-27 cost Rs
+22.52 more once rounded, the decision-close book is Rs 22.52 lower (919,172.76
+against 919,195.28), and ADANIPOWER's floor drops from 24,423 to 24,422 shares. CAGR
+is unchanged at two decimals on seven of the eight cells. v3 tax on moves +0.16
+point (27.65 to 27.81): the 50% minimum fill sits at its edge three times. On
+2021-07-06 VBL is now bought (779 of 1,558, 50.0%; afadfc0 refused 775 of 1,557,
+49.8%), on 2022-12-16 COALINDIA is now refused (694 of 1,400, 49.6%; afadfc0 bought
+696 of 1,392) and on 2023-01-13 BRITANNIA is now bought (48 shares; afadfc0 refused
+it). The books hold different names from December 2022 to March 2023, and the
+equity gap settles at +0.96% at the end. Parity with predictive-backtest's
+flat-rate trim run (v1, tax off) is 788 of 788 exact trades, from 560.
+
 
 ## Verification and gates
 
@@ -972,7 +1035,7 @@ Fixed the same day, each a read of a value dated after the decision:
 - `amihud_20` uses the unadjusted close times volume. adj_close is back-adjusted for later dividends and volume is not.
 - Pit cross-sections: the z-score peer group, the equal-weight market behind `beta_60` and `idio_vol_60`, and v2/v4 breadth use only the members on the date.
 - `tv`, the median portfolio vol over the whole backtest window, is gone with the `voltgt` and `both` modes that read it. No arm used them.
-- `nautilus/nt_data.quote_frame` no longer back-fills the first month's tick reference from that month's own close. Those rows take the fixed `TICK_SIZE`; no fill falls on them.
+- `nautilus/nt_data.quote_frame` no longer back-fills the first month's tick reference from that month's own close. Those rows take the fixed `TICK_SIZE`; no fill falls on them. The dated tick itself was removed on 2026-10-28; see "Fill prices are rounded to the paisa, not placed on NSE's tick".
 
 THE Z-SCORE'S LAST BITS DEPENDED ON LATER DATES, FIXED 2026-10-22. `numerics.group_mean_std` laid every date's values into one matrix as wide as the largest cross-section of any date and reduced it with numpy's nanmean and nanvar. numpy splits each row for pairwise summation by the row's length, so every date's mean and sd, and therefore every z-scored feature, depended in its last bits on the widest later cross-section. `tools/lookahead_proof.py` found it on its first run: nifty50 static with data after 2019-03-29 removed changed the 2009 features in the 15th to 16th significant digit and moved model scores in the third decimal. Each date's sum is now `math.fsum`, which depends only on that date's values and is the same on every platform.
 

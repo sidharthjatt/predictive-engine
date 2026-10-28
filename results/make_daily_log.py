@@ -373,10 +373,13 @@ def _replay_fills(led, g, d):
         led.buy(o["symbol"], int(o["qty"]), float(o["price"]), d)
 
 
-def build(mdir, tag, arm, bh, raw_idx=None, cal_sorted=None):
+def build(mdir, tag, arm, bh, raw_idx=None, cal_sorted=None, op=None):
     """One forensic log for one already-written audit trail, named by `tag`.
 
     `bh` is cost_report.bh_costs' result for the universe, for the totals block.
+    `op` is the panel's opens, the price each fill was moved from; without it the
+    open is derived from the fill price, which is rounded to the paisa and so
+    gives the open only to within half a paisa.
 
     THIS USED TO REFUSE UNLESS THE RUN WAS v2 AT THE DEFAULT CADENCE, because it
     reconstructed the unsuffixed daily_*_{universe}.csv names itself rather than
@@ -568,11 +571,15 @@ def build(mdir, tag, arm, bh, raw_idx=None, cal_sorted=None):
             L.append(f"  >>> [A] ORDER EXECUTION      created at the CLOSE of "
                      f"{src.date() if src is not None else '?'}, filled at TODAY's OPEN")
             L.append(f'      {"OrderID":<10}{"Side":<6}{"Symbol":<13}{"Qty":>7}'
-                     f'{"Open(der)":>12}{"FillPx":>11}{"Slip Rs":>10}{"Value":>14}{"TxnFee":>9}')
+                     f'{("Open" if op is not None else "Open(der)"):>12}{"FillPx":>11}{"Slip Rs":>10}'
+                     f'{"Value":>14}{"TxnFee":>9}')
             slip_total = 0.0
             for _, o in pd.concat([g[g.action == "SELL"], g[g.action == "BUY"]]).iterrows():
-                sgn = (1 - SLIPPAGE) if o["action"] == "SELL" else (1 + SLIPPAGE)
-                ref = o["price"] / sgn
+                if op is not None:
+                    ref = float(op.at[pd.Timestamp(d), o["symbol"]])
+                else:
+                    sgn = (1 - SLIPPAGE) if o["action"] == "SELL" else (1 + SLIPPAGE)
+                    ref = o["price"] / sgn
                 slip = abs(ref - o["price"]) * int(o["qty"])
                 slip_total += slip
                 L.append(f'      {oid.get((d, o["symbol"]), "-"):<10}{o["action"]:<6}'
@@ -999,7 +1006,7 @@ def main():
             if bh is None:
                 px, op, _, bd = audit_step.prices(u)
                 bh = cost_report.bh_costs(px, op, bd, float(_cap), bool(_tax_axis.selected()))
-            build(mdir, tag, _arm, bh, raw_idx, cal_sorted)
+            build(mdir, tag, _arm, bh, raw_idx, cal_sorted, op)
 
     SEL = set(selected_tags())
     for _t in REGISTRY:

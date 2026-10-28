@@ -6,10 +6,9 @@ stops being infinitely deep. Changes no default: DEPTH_MODE is set on the module
 duration of a run and restored afterwards.
 
 WHAT IS COUNTED
-    walked   a fill that occurred at a price worse than the top level, i.e. the
-             order consumed level 1 and met level 2 or 3. Detected by comparing
-             the fill price against open*(1 +/- 1*SLIPPAGE), which is the top
-             level, with a tolerance of half a tick.
+    walked   an order that filled at more than one level, i.e. it consumed
+             level 1 and met level 2 or 3. Detected as an order id with more
+             than one fill event.
     unfilled orders the strategy submitted that never produced a fill. Under
              unlimited depth this is always zero; under volume depth it is the
              number that could not be executed at all, which is the figure that

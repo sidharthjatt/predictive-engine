@@ -25,6 +25,7 @@ import numpy as np
 
 import tax_util as T
 from test_exposure import calc_tc, SLIPPAGE
+from slippage import fill_price
 import capital_axis as _capital_axis  # noqa: E402
 
 
@@ -41,7 +42,7 @@ def held_lots(px, op, bd):
     per = _cap0 / len(syms)
     shares, cash, buy_tc = {}, _cap0, 0.0
     for s in syms:
-        pr = float(o0[s]) * (1 + SLIPPAGE)
+        pr = fill_price(o0[s], SLIPPAGE, True)
         q = int(per // pr)
         if q < 1:
             continue
@@ -62,7 +63,7 @@ def held_lots(px, op, bd):
         pr = float(oN.get(s, np.nan))
         if np.isnan(pr) or pr <= 0:
             pr = float(px.loc[dN, s])
-        pr *= (1 - SLIPPAGE)
+        pr = fill_price(pr, SLIPPAGE, False)
         proceeds += q * pr
         sell_tc += calc_tc(pr, q, "SELL")
         gain += q * (round(pr, 2) - round(bp, 2))   # section 3(C): price difference only

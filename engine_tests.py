@@ -16,6 +16,7 @@ engine_tests.py -- the twelve synthetic and cache tests, one subcommand each.
     noise_harness          noise_harness_test.py
     buy_shortfall          (new, 2026-10-27)
     fill_open_sizing       (new, 2026-10-28)
+    fill_price             (new, 2026-10-28)
 
 Merged on 2026-10-18. The old files last exist at commit 24614bb. Each old file's
 body is the function _<case> below, unchanged apart from one level of indentation
@@ -1188,8 +1189,10 @@ No data, nothing written. Exit 0 when every case passes, 1 otherwise.
                                                          1_000_000.0, tcK, 0.0, False)
         want = [slippage.impact(int(r.qty), vol20[r.symbol][r.date], K) for r in fills.itertuples()]
         rate_ok = np.allclose(fills["impact_rate"], want, rtol=0, atol=1e-15)
+        # The fill is rounded to the paisa, so the flat part carries up to half a
+        # paisa a share of rounding.
         flat = fills["reference_price"] * slippage.SLIPPAGE * fills["qty"]
-        flat_ok = bool((np.abs(fills["slippage_rs"] - flat) < 0.005).all())
+        flat_ok = bool((np.abs(fills["slippage_rs"] - flat) <= 0.005 * fills["qty"] + 1e-6).all())
         S = cost_report.strategy_totals(1_000_000.0, float(eK.iloc[-1]), fills, years)
         gross_ok = abs(S["gross"] - (S["final"] - 1_000_000.0 + S["charges"] + S["slippage"]
                                      + S["impact"] + S["tax"])) < 0.005
@@ -2460,11 +2463,97 @@ No data, nothing written. Exit 0 when every case passes, 1 otherwise.
     sys.exit(1 if n_fail else 0)
 
 
+def _fill_price():
+    """
+fill_price -- every fill price is the open moved by the slippage, to the paisa.
+
+    ./venv/bin/python engine_tests.py fill_price [--quiet]
+
+Since 2026-10-28 slippage.fill_price prices every fill, as
+~/Downloads/predictive-backtest's engine.fill_price does: round(open x (1 +/-
+rate), 2) in float64, rounded by NumPy.
+    1. a buy and a sale of a price already in paise round to the paisa
+    2. half a paisa rounds as NumPy rounds: 3450 x 0.9985 = 3444.825 gives 3444.82
+    3. buy_price and sell_price are fill_price at SLIPPAGE, with and without impact
+    4. on a synthetic panel every fill of v1 to v4, tax off and on, is in whole
+       paise and equals fill_price of its reference price
+
+No data, nothing written. Exit 0 when every case passes, 1 otherwise.
+"""
+    import sys
+    import warnings
+    from pathlib import Path
+
+    warnings.filterwarnings("ignore")
+    ROOT = Path(__file__).resolve().parent
+    for _p in (ROOT, ROOT / "results"):
+        sys.path.insert(0, str(_p))
+
+    import numpy as np
+    import pandas as pd
+
+    import slippage as sl
+    from engine_core import precompute
+    from test_exposure import backtest_exposure
+
+    QUIET = "--quiet" in sys.argv
+    RESULTS = []
+
+    def case(name, ok, detail=""):
+        RESULTS.append(bool(ok))
+        print(f"  {'PASS' if ok else 'FAIL'}  {name}" + (f"   {detail}" if detail and not QUIET else ""))
+
+    b, s_ = sl.fill_price(123.45, 0.0015, True), sl.fill_price(123.45, 0.0015, False)
+    case("1 Rs 123.45 buys at 123.64 and sells at 123.26", b == 123.64 and s_ == 123.26,
+         f"buy {b}, sell {s_}")
+    h = sl.fill_price(3450, 0.0015, False)
+    case("2 3450 x 0.9985 = 3444.825 sells at 3444.82", h == 3444.82, f"got {h}")
+    imp = sl.impact(1000, 50_000, 0.002)
+    ok3 = (sl.buy_price(987.65, 0, None, None) == sl.fill_price(987.65, sl.SLIPPAGE, True)
+           and sl.sell_price(987.65, 0, None, None) == sl.fill_price(987.65, sl.SLIPPAGE, False)
+           and sl.buy_price(987.65, 1000, 50_000, 0.002)
+           == sl.fill_price(987.65, sl.SLIPPAGE + imp, True))
+    case("3 buy_price and sell_price are fill_price at SLIPPAGE", ok3)
+
+    rng = np.random.default_rng(11)
+    idx = pd.bdate_range("2020-01-01", periods=420)
+    syms = [f"S{k:02d}" for k in range(24)]
+    px = pd.DataFrame({s: 37.0 * (1 + 0.31 * k) * np.cumprod(1 + 0.0004 + 0.013 * rng.standard_normal(len(idx)))
+                       for k, s in enumerate(syms)}, index=idx)
+    op = px.shift(1).bfill() * (1 + 0.002 * rng.standard_normal(px.shape))
+    sc = pd.DataFrame(rng.standard_normal(px.shape), index=idx, columns=syms)
+    pc = precompute(px)
+    mom20 = px / px.shift(20) - 1
+    dates = list(idx[80:])
+    import arms.registry as AR
+    for name in ("v1", "v2", "v3", "v4"):
+        arm = AR.ARMS[name]
+        for tax in (False, True):
+            audit = {k: [] for k in ("holdings", "summary", "trades", "ranking", "decisions",
+                                     "skipped")}
+            audit["costs"] = {"fills": [], "days": []}
+            backtest_exposure(px, op, sc, dates, pc, mom20, sizing=arm.sizing, mode=arm.mode,
+                              audit=audit, rebal=20, participation_cap=None,
+                              drawdown_stop=None, tax_enabled=tax)
+            f = audit["costs"]["fills"]
+            off = [r for r in f if abs(r["fill_price"] * 100 - round(r["fill_price"] * 100)) > 1e-6]
+            bad = [r for r in f if r["fill_price"] != sl.fill_price(
+                r["reference_price"], sl.SLIPPAGE, r["side"] == "BUY")]
+            case(f"4 {name} tax {'on' if tax else 'off'}: fills in whole paise, each fill_price "
+                 f"of its reference", len(f) > 0 and not off and not bad,
+                 f"{len(f)} fills, {len(off)} off the paisa, {len(bad)} not fill_price")
+
+    n_fail = RESULTS.count(False)
+    print(f"RESULT: {'PASS' if not n_fail else 'FAIL'} -- {len(RESULTS) - n_fail} of {len(RESULTS)} cases")
+    sys.exit(1 if n_fail else 0)
+
+
 CASES = {name[1:]: fn for name, fn in list(globals().items())
          if name.startswith("_") and callable(fn) and name[1:] in (
              "capital_axis", "dd_overlay", "drawdown_stop", "fixed_capital",
              "impact_pcap_axis", "tax_rules", "tax_total", "tradability_causality",
-             "cache_key", "noise_harness", "buy_shortfall", "fill_open_sizing")}
+             "cache_key", "noise_harness", "buy_shortfall", "fill_open_sizing",
+             "fill_price")}
 
 
 if __name__ == "__main__":

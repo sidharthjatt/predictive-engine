@@ -363,7 +363,12 @@ is set at the decision close, as it would be live: the book's value at that clos
 (less any tax deducted before the next morning's fills) x exposure x 0.98 x the
 name's weight, divided by the name's close x (1 + slippage). The next open sets only
 the fill price, the cash test and the trim. Until 2026-10-28 the quantity came from
-the fill session's open and the book valued at it. A name is traded
+the fill session's open and the book valued at it. The fill price is the open x
+(1 + slippage) for a buy and x (1 - slippage) for a sale, rounded to the paisa
+(`slippage.fill_price`), as predictive-backtest prices it; charges, the trim and the
+cash test use it. It is not placed on NSE's tick: the prices are adjusted for later
+splits and bonuses, so the tick that applied on the day cannot be known, and share
+counts are on the adjusted basis too (`KNOWN_ISSUES.md`). A name is traded
 only on a session with a row; a sale due on a session without one fills at the open of
 its next row. Nothing in the pipeline trades on a price it could not have seen or
 decides on a row dated after the decision.
@@ -1568,6 +1573,10 @@ it is here too.
 > *Superseded 2026-09-25: this paragraph read "2 of 93 rebalances, with a maximum
 > quantity error of 14.29% ... against the fair baseline the figure is 89 of 93 with
 > a maximum error of 0.13%", measured before the 2026-09-24 numerics rebuild.*
+
+> *Superseded 2026-10-28: the port no longer quotes on the 0.05 tick grid. It and the
+> engine both fill to the paisa with `slippage.fill_price`, and nt_verify gates the port
+> against the engine's reference copy at that one rule, 92 of 92 rebalances.*
 
 ## What is wrong with these results
 

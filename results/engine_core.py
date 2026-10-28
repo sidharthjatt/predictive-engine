@@ -169,7 +169,7 @@ NOT_CHECKED = "NOT CHECKED BY THIS RUN"
 # cross-checked against each other, so a value changed in one and not the
 # rest surfaces as a reconciliation failure elsewhere, not as a wrong
 # number here. Value unchanged at 0.0015.
-from slippage import SLIPPAGE  # noqa: E402
+from slippage import SLIPPAGE, fill_price  # noqa: E402
 import capital_axis as _capital_axis  # noqa: E402
 # THE DEFAULT, defined once in capital_axis.py. A run's capital is
 # capital_axis.selected(); this name stays for callers that want the default.
@@ -590,7 +590,7 @@ def backtest(px, op, sc, dates, pc, top_n=TOP_N, buffer_rank=BUFFER,
                     p = opens.get(s, np.nan)
                     if np.isnan(p) or p <= 0:
                         continue
-                    p *= (1 - SLIPPAGE)
+                    p = fill_price(p, SLIPPAGE, False)
                     q = int(shares[s]); tc = calc_tc(p, q, "SELL")
                     cash += q * p - tc; cum_tc += tc; n_trades += 1
                     tl.append({"Date": dt.date(), "Symbol": s, "Action": "SELL",
@@ -605,7 +605,7 @@ def backtest(px, op, sc, dates, pc, top_n=TOP_N, buffer_rank=BUFFER,
                     p = opens.get(s, np.nan)
                     if np.isnan(p) or p <= 0:
                         continue
-                    p *= (1 + SLIPPAGE)
+                    p = fill_price(p, SLIPPAGE, True)
                     q = int((avail * (w[s] / wsum)) // p)
                     if q < 1:
                         continue

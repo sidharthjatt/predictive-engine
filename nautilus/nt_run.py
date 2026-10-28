@@ -140,7 +140,7 @@ def reports_segment(mode, sizing, rebal=None, drawdown_stop=None):
 # WHERE A RUN'S REPORTS GO. ONLY THE PIPELINE WRITES nautilus/reports/.
 # Until 2026-09-24 every caller of run() wrote there, so nt_verify, verify_v34_arms,
 # depth_compare and the attribution tools overwrote the pipeline's own fills --
-# at a 0.01 tick grid where the pipeline uses the NSE grid -- and
+# at a 0.01 tick grid where the pipeline then used the NSE grid -- and
 # check_b_exec_timing certified whichever program had run last. nt_execute (STEP
 # 17) passes PIPELINE_REPORTS; every other caller gets TOOL_REPORTS by default.
 PIPELINE_REPORTS = Path(__file__).resolve().parent / "reports"

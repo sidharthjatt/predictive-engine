@@ -6,10 +6,10 @@ EXECUTION MODEL (established by verify_next_open_execution.py):
     explicit rather than an artefact of how the exchange decomposes a bar
     internally:
 
-        09:15  QuoteTick   bid = open * (1 - SLIPPAGE)
-                           ask = open * (1 + SLIPPAGE)
+        09:15  QuoteTick   bid = open * (1 - SLIPPAGE), to the paisa
+                           ask = open * (1 + SLIPPAGE), to the paisa
                            both sides sized QUOTE_DEPTH  <- orders execute here
-        15:30  Bar         the day's RAW OHLC, untouched by the tick grid
+        15:30  Bar         the day's OHLC as the panel holds it, unrounded
                                                          <- signals come from here
 
     Under DEPTH_MODE="volume" one further event precedes the quote:
@@ -70,24 +70,18 @@ from nautilus_trader.model.identifiers import InstrumentId, Symbol, Venue
 from nautilus_trader.model.instruments import Equity
 from nautilus_trader.model.objects import Price, Quantity
 from config import read_table  # the one CSV/parquet reader: config.read_table
+from slippage import fill_price
 
 VENUE = Venue("NSE")
 OPEN_TIME = pd.Timedelta(hours=9, minutes=15)    # NSE open
 CLOSE_TIME = pd.Timedelta(hours=15, minutes=30)  # NSE close
-# NSE's real tick size for these price bands is 0.05. The reference engine does not
-# round prices at all, so a run at 0.05 will not reconcile exactly with it -- on a
-# Rs 27 stock one tick is 0.18%, which changes the share count.
-# TICK_SIZE is therefore configurable: run at 0.01 to prove the two systems are
-# otherwise identical, then at 0.05 for the number that could actually be traded.
-TICK_SIZE = "0.05"
 # The bars carry RAW historical prices (see the Bar construction below), and those
 # are not all two-decimal: 10.7% of the MidCap150 panel's opens and closes have more
 # precision than that, and its cheapest observation is 0.0128. A precision of 2 would
-# therefore re-introduce, as a formatting artefact, exactly the rounding noise that
-# removing the bar tick is meant to eliminate -- and on the same sub-Rs-10 names.
-# 1e-6 is 0.008% of the cheapest price in any panel, i.e. negligible against a daily
-# return. Quote prices are unaffected in value: a tick-rounded 2.54 expressed at this
-# precision is 2.540000, the identical number.
+# therefore round the bars, which carry no fill rounding -- and on the same
+# sub-Rs-10 names. 1e-6 is 0.008% of the cheapest price in any panel, i.e.
+# negligible against a daily return. Quote prices are unaffected in value: a
+# paisa-rounded 2.54 expressed at this precision is 2.540000, the identical number.
 PRICE_PRECISION = 6
 QUOTE_DEPTH = 10_000_000   # shares available at the opening quote
 
@@ -162,84 +156,9 @@ def set_volume_source(raw_dir, symbols=None):
     return len(_VOLUME)
 
 
-# ---------------------------------------------------------------------------
-# NSE CASH-SEGMENT TICK SIZE, FROM NSE'S OWN CIRCULARS
-# ---------------------------------------------------------------------------
-# Established from primary sources, not memory. Both PDFs and their extracted
-# text are kept in diagnostics/.
-#
-#   NSE/CMTR/62174, dated 24 May 2024, effective TRADE DATE 10 June 2024
-#     "Exchange is pleased to introduce price linked tick size in the Capital
-#      Market Segment ... against the current tick size Rs 0.05"
-#     "If the reference price is less than Rs 250 the tick size will be Rs 0.01
-#      else regular tick size of Rs 0.05 will be applicable"
-#
-#   NSE/CMTR/67133, dated 13 March 2025, effective TRADE DATE 15 April 2025
-#     Below 250 -> 0.01 (unchanged) | >=250 to 1,000 -> 0.05 (unchanged)
-#     >1,000 to 5,000 -> 0.10 | >5,000 to 10,000 -> 0.50
-#     >10,000 to 20,000 -> 1.00 | >20,000 -> 5.00
-#
-# TWO CONSEQUENCES THAT MATTER, BOTH AGAINST THE ASSUMPTION THIS REPLACES:
-#   1. Rs 0.01 is the FINEST tick NSE defines. There is nothing below one paisa,
-#      so a sub-Rs-10 stock does NOT trade on a finer grid than 0.01.
-#   2. The sub-Rs-250 rule POST-DATES the backtest start by five and a half
-#      years. From 2019-01-01 to 2024-06-09 every cash-segment security,
-#      including a Rs 2 stock, traded on Rs 0.05. Applying today's rule to those
-#      years would be an anachronism that flatters the backtest.
-#
-# The tick for a month is set by the PREVIOUS month's closing price, per the
-# circular: "revised tick size (if any) will be applicable from first trading
-# day of the month which will be determined by the latest available closing
-# price on the last trading day of the previous trading month."
-TICK_RULE_2024 = pd.Timestamp("2024-06-10")     # CMTR/62174 effective date
-TICK_RULE_2025 = pd.Timestamp("2025-04-15")     # CMTR/67133 effective date
-
-# "fixed" reproduces the previous behaviour exactly (uniform TICK_SIZE) and is
-# what the reconciliation proof uses, because that proof needs the FINEST grid to
-# separate quantization from genuine logic differences. "nse" applies the real
-# dated rule and is what a realistic run should use.
-TICK_MODE = "nse"
-
-
-def set_tick_mode(mode):
-    global TICK_MODE
-    TICK_MODE = mode
-
-
-def nse_tick(ref_price, date):
-    """The exchange tick in force for `ref_price` on `date`."""
-    if date < TICK_RULE_2024:
-        return 0.05                      # uniform, pre-June-2024
-    if ref_price < 250:
-        return 0.01
-    if date < TICK_RULE_2025:
-        return 0.05                      # everything else, June 2024 - April 2025
-    if ref_price <= 1000:
-        return 0.05
-    if ref_price <= 5000:
-        return 0.10
-    if ref_price <= 10000:
-        return 0.50
-    if ref_price <= 20000:
-        return 1.00
-    return 5.00
-
-
 def _px(x) -> str:
-    """Format a price at the instrument's precision, WITHOUT snapping it to a tick."""
+    """Format a price at the instrument's precision, without rounding it."""
     return f"{float(x):.{PRICE_PRECISION}f}"
-
-
-def _round_to(x, tick):
-    # round(..., 2) only clears binary float error in the multiplication; the value
-    # is already on the tick grid by then, so it is not a second rounding step.
-    return _px(round(round(float(x) / tick) * tick, 2))
-
-
-def set_tick_size(value: str):
-    """Override the tick size before loading data (used by the reconciliation run)."""
-    global TICK_SIZE
-    TICK_SIZE = value
 
 
 def make_instrument(symbol: str) -> Equity:
@@ -248,10 +167,8 @@ def make_instrument(symbol: str) -> Equity:
         raw_symbol=Symbol(symbol),
         currency=INR,
         price_precision=PRICE_PRECISION,
-        # In "nse" mode the grid varies by date and price band, so the instrument
-        # must be able to EXPRESS the finest of them (0.01). The actual grid is
-        # imposed when the quotes are generated, which is where the rule lives.
-        price_increment=Price.from_str(_px("0.01" if TICK_MODE == "nse" else TICK_SIZE)),
+        # Fill prices are in whole paise (slippage.fill_price).
+        price_increment=Price.from_str(_px("0.01")),
         lot_size=Quantity.from_int(1),
         ts_event=0,
         ts_init=0,
@@ -260,12 +177,6 @@ def make_instrument(symbol: str) -> Equity:
 
 def bar_type_for(instrument_id: InstrumentId) -> BarType:
     return BarType.from_str(f"{instrument_id}-1-DAY-LAST-EXTERNAL")
-
-
-def _round_tick(x: float) -> str:
-    """Snap a price to the tick grid the instrument declares."""
-    t = float(TICK_SIZE)
-    return _px(round(round(float(x) / t) * t, 2))
 
 
 def load_panel(cache_path):
@@ -296,17 +207,12 @@ def _depth_for(symbol, date) -> int:
 
 
 def quote_frame(symbol, px, op, start, end):
-    """The rows the port quotes for one symbol, and the tick each row is rounded to.
+    """The rows the port quotes for one symbol.
 
     ONE DEFINITION FOR THE PORT AND FOR ITS CHECK. load_symbol_from_panel builds
     its opening quotes from these rows; results/check_b_exec_timing.py
-    reconstructs the expected fill price from the same rows and the same tick.
-    Until 2026-09-24 the check assumed 2-decimal prices at a 0.01 grid, which is
-    what nt_verify's run produces and not what the pipeline's is.
-
-    `tick` is the NSE tick in force on the date for the symbol's reference price
-    (the close on the last trading day of the previous month, as the circular
-    specifies) under TICK_MODE "nse", and TICK_SIZE under "fixed".
+    reconstructs the expected fill price from the same rows with
+    slippage.fill_price.
     """
     idx = px.index[(px.index >= start) & (px.index <= end)]
     df = pd.DataFrame({"date": idx,
@@ -317,21 +223,6 @@ def quote_frame(symbol, px, op, start, end):
     df["low"] = df[["open", "close"]].min(axis=1)
     df["volume"] = 1
     df = df.reset_index(drop=True)
-    _m = pd.to_datetime(df["date"]).dt.to_period("M")
-    _last = df.groupby(_m)["close"].last()
-    # NO REFERENCE FROM A LATER DATE. The symbol's first month in the frame has no
-    # previous-month close. Until 2026-10-22 .bfill() gave it that month's own last
-    # close, a price from later in the month. Those rows now take the fixed
-    # TICK_SIZE, the tick used when the dated rule is not applied. They are the
-    # first month of the frame (the warm-up, or a listing month), before a name
-    # has the history to be scored, so no fill falls on them.
-    _ref = _m.map(_last.shift(1)).ffill().to_numpy()
-    if TICK_MODE == "nse":
-        df["tick"] = [float(TICK_SIZE) if _ref[k] != _ref[k]
-                      else nse_tick(float(_ref[k]), pd.Timestamp(d))
-                      for k, d in enumerate(df["date"])]
-    else:
-        df["tick"] = float(TICK_SIZE)
     return df
 
 
@@ -343,14 +234,13 @@ def load_symbol_from_panel(symbol, px, op, start, end, slippage=0.0):
 
     events = []
     for i, r in enumerate(df.itertuples(index=False)):
-        # quote_frame's tick: the NSE tick for the date, or TICK_SIZE under
-        # "fixed". _round_to(x, TICK_SIZE) is exactly what _round_tick did.
-        rt = lambda x, _t=float(r.tick): _round_to(x, _t)
+        # A quote price: the open moved by `rate` against the trade, to the paisa.
+        rt = lambda rate, buy: _px(fill_price(r.open, rate, buy))
         day = pd.Timestamp(r.date).tz_localize("UTC")
         t_open = int((day + OPEN_TIME).value)
         t_close = int((day + CLOSE_TIME).value)
-        # THE BAR IS SIGNAL INPUT AND CARRIES THE RAW PRICE -- NO TICK.
-        # These OHLC values used to be snapped with rt() like the quote below, and
+        # THE BAR IS SIGNAL INPUT AND IS NOT ROUNDED.
+        # These OHLC values used to be snapped to the tick like the quote below, and
         # that was a bug. A historical close is already an actual traded price; a
         # tick governs what price an order may be PLACED at, so applying it a second
         # time to a recorded price models nothing and only injects noise. The
@@ -360,7 +250,7 @@ def load_symbol_from_panel(symbol, px, op, start, end, slippage=0.0):
         # weights, which is why the port and the reference engine sized differently
         # on cheap names even on a 0.01 grid, where execution rounding is identical
         # on both sides. The reference engine reads raw closes for this reason.
-        # The quote below KEEPS its tick: that is a price an order fills against.
+        # The quote below is rounded to the paisa: that is a price an order fills against.
         o, h, l, c = _px(r.open), _px(r.high), _px(r.low), _px(r.close)
         vol = max(int(r.volume), 1)
 
@@ -370,8 +260,8 @@ def load_symbol_from_panel(symbol, px, op, start, end, slippage=0.0):
         # the bid, so both sides pay, exactly as the reference engine does with
         # open*(1+s) on buys and open*(1-s) on sells.
         if DEPTH_MODE == "unlimited":
-            ask = rt(float(r.open) * (1.0 + slippage))
-            bid = rt(float(r.open) * (1.0 - slippage))
+            ask = rt(slippage, True)
+            bid = rt(slippage, False)
             # Size deep enough that an order never walks. With a size of 1 share, a
             # 100-share order consumed the level and then filled at progressively
             # worse prices, scattering fills up to 5% from the open. Depth here
@@ -403,8 +293,8 @@ def load_symbol_from_panel(symbol, px, op, start, end, slippage=0.0):
                                      0, 0, t_open, t_open)]
             for lv in range(1, DEPTH_LEVELS + 1):
                 s_lv = slippage * lv
-                a = rt(float(r.open) * (1.0 + s_lv))
-                b = rt(float(r.open) * (1.0 - s_lv))
+                a = rt(s_lv, True)
+                b = rt(s_lv, False)
                 for side, prc in ((OrderSide.BUY, b), (OrderSide.SELL, a)):
                     deltas.append(OrderBookDelta(
                         inst.id, BookAction.ADD,
@@ -418,8 +308,8 @@ def load_symbol_from_panel(symbol, px, op, start, end, slippage=0.0):
             # the rest of the book when you trade.
             events.append(QuoteTick(
                 inst.id,
-                Price.from_str(rt(float(r.open) * (1.0 - slippage))),
-                Price.from_str(rt(float(r.open) * (1.0 + slippage))),
+                Price.from_str(rt(slippage, False)),
+                Price.from_str(rt(slippage, True)),
                 Quantity.from_int(depth), Quantity.from_int(depth),
                 t_open, t_open))
         # the daily bar, stamped at the close
@@ -448,7 +338,7 @@ def load_universe(cache_path, start, end, symbols=None, slippage: float = 0.0):
 
 
 if __name__ == "__main__":
-    # Smoke test: 3 stocks, one month. Verifies parsing, tick snapping and ordering.
+    # Smoke test: 3 stocks, one month. Verifies parsing, paisa rounding and ordering.
     # Reads the first certified universe's score panel through config.require_cache,
     # which refuses a panel built from other code or other data.
     import config

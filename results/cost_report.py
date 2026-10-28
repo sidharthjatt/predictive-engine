@@ -18,7 +18,8 @@ WHAT IT WRITES, beside the daily_* files and named by the same artefact tag:
     COST_SUMMARY_<tag>.txt    the summary block run.py prints at the end of run.log
 
 THE SLIPPAGE MODEL. Both profiles use slippage.py's flat rate: a BUY fills at the
-reference price times (1 + SLIPPAGE), a SELL at (1 - SLIPPAGE), SLIPPAGE = 0.0015.
+reference price times (1 + SLIPPAGE), a SELL at (1 - SLIPPAGE), SLIPPAGE = 0.0015,
+rounded to the paisa (slippage.fill_price).
 The reference price is the execution day's open from the score panel (the adjusted
 price basis), or for the optional last-day sale the close where the open is
 missing. The size-sensitive term (slippage.impact) runs only with run.py --impact
@@ -235,12 +236,11 @@ def reconcile(costs, trades, dates, start_capital, engine_tc, engine_tax, tax_on
                   f"fill {i} ({a['side']} {a['symbol']}): charges differ from its trades row")
     # --- slippage and charges, every fill ------------------------------------
     if len(fills):
-        if "impact_rate" in fills.columns:
-            r = fills["impact_rate"]
-            model = np.where(fills["side"] == "BUY", 1 + SLIPPAGE + r, 1 - SLIPPAGE - r) \
-                * fills["reference_price"]
-        else:
-            model = np.where(fills["side"] == "BUY", 1 + SLIPPAGE, 1 - SLIPPAGE) * fills["reference_price"]
+        # The model is slippage.fill_price, the engine's own rule: the rate
+        # applied to the reference price, rounded to the paisa.
+        r = fills["impact_rate"] if "impact_rate" in fills.columns else 0.0 * fills["qty"]
+        model = np.array([_sl.fill_price(ref, SLIPPAGE + rt, side == "BUY") for ref, rt, side
+                          in zip(fills["reference_price"], r, fills["side"])])
         gap = (fills["fill_price"] - model) * fills["qty"]
         bad = np.flatnonzero(np.abs(gap) >= PAISA)
         if len(bad):
@@ -336,7 +336,7 @@ def bh_costs(px, op, bd, start_capital, tax_on):
         ref_n = float(oN.get(sym, np.nan))
         if np.isnan(ref_n) or ref_n <= 0:
             ref_n = float(px.loc[dN, sym])
-        sp = ref_n * (1 - SLIPPAGE)
+        sp = _sl.fill_price(ref_n, SLIPPAGE, False)
         s_ = charge_breakdown(sp, q, "SELL", numpy_round=False)
         for k, _ in CHARGES:
             sell[k] += s_[k]

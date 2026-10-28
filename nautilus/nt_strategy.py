@@ -169,7 +169,6 @@ class PredictiveEngineStrategy(Strategy):
         self.daily_holdings = []      # one row per (trading day, held symbol)
         self.fills = []               # every fill, for reconciliation
         self.holdings_log = []        # holdings at each rebalance, for reconciliation
-        self.rank_decisions = []      # target names and top-BUFFER keep set per rebalance
         self.dd_stop = None          # set by configure(); the drawdown stop of v5/v6.
                                       # Not `stop`: Strategy.stop() is nautilus's own method.
         self.stop_events = []         # mirrors daily_stop_events_*.csv
@@ -753,8 +752,6 @@ class PredictiveEngineStrategy(Strategy):
             "port_value": round(port_val, 2), "cash_before": round(cash, 2),
             "invest_value": round(invest_val, 2), "n_held_before": len(held),
             "n_buy": n_buy, "n_sell": n_sell})
-        self.rank_decisions.append({"decided_on": day, "top": tuple(top),
-                                    "keep": tuple(sorted(keep))})
         return True
 
     # ------------------------------------------------- drawdown-limit axis

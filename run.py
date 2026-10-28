@@ -86,7 +86,7 @@ from arms.registry import ARMS, ALL_ARMS, SHIPPING as SHIPPING_ARMS            #
 #                                                   in WATCHED below: hasattr skips them
 #                                                   when absent, and a future global of
 #                                                   the same name would be covered.
-#         nt_data.set_tick_size("0.01") / set_tick_mode("fixed") / set_depth_mode(...)
+#         nt_data.set_depth_mode(...)
 #         survivorship.set_mode(...) / set_exit_policy(...)
 #
 #     THE SHARPEST ONE IS rebal_cadence_sweep.py:172. It sets test_exposure.REBAL to
@@ -125,8 +125,8 @@ WATCHED = {
     "engine_core":    ("MEMBERSHIP", "TOP_N", "BUFFER", "REBAL"),
     "survivorship":   ("SURVIVORSHIP_MODE", "EXIT_POLICY"),
     "nt_strategy":    ("SIZING", "TOP_N", "BUFFER", "REBAL"),
-    "nt_attribution": ("SIZING", "TICK", "TICK_MODE", "TOP_N", "BUFFER", "REBAL"),
-    "nt_data":        ("DEPTH_MODE", "TICK_SIZE", "TICK_MODE", "_VOLUME"),
+    "nt_attribution": ("SIZING", "TOP_N", "BUFFER", "REBAL"),
+    "nt_data":        ("DEPTH_MODE", "_VOLUME"),
 }
 
 

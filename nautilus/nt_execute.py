@@ -10,7 +10,7 @@ WHY THIS IS A PIPELINE STEP AND nt_run.py IS NOT
     OUTPUT at all.
 
     That mattered because Nautilus is the execution engine with exact accounting --
-    order lifecycle, fees, tick grid, latency -- so its output is the ground truth
+    order lifecycle, fees, paisa prices, latency -- so its output is the ground truth
     for what actually happened, day by day. Having it for one arm at one cadence
     meant having it for one twelfth of what the pipeline produces.
 
@@ -61,7 +61,7 @@ def main():
           "portfolio state,")
     print(" for every selected combination. This is the execution engine's own "
           "accounting, not")
-    print(" the research engine's: exact fees, tick grid, latency and order "
+    print(" the research engine's: exact fees, paisa prices, latency and order "
           "lifecycle.")
     print("=" * 96)
 

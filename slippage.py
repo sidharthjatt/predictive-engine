@@ -31,7 +31,13 @@ independent of order size: a BUY pays price * (1 + SLIPPAGE), a SELL receives
 price * (1 - SLIPPAGE). It does not vary with quantity, with the symbol's
 liquidity, or with the participation cap. That flatness is a known limitation of
 the execution model, not a property of the market.
+
+THE FILL PRICE IS ROUNDED TO THE PAISA by fill_price, the same rule as
+~/Downloads/predictive-backtest's engine.fill_price. It is not placed on NSE's
+dated tick: the prices are split and bonus adjusted, so the tick and its price
+band cannot be known without the later corporate action (KNOWN_ISSUES.md).
 """
+import numpy as np
 
 # 0.0015 = 15 basis points each way. Unchanged from every site it replaces.
 SLIPPAGE = 0.0015
@@ -84,14 +90,25 @@ def impact(qty, median_vol, k):
     return float(k) * (float(qty) / float(median_vol)) ** 0.5
 
 
+def fill_price(raw, rate, buy):
+    """The price a fill trades at: `raw` moved by `rate` against the trade, to the
+    paisa. round(raw x (1 + rate), 2) for a buy, round(raw x (1 - rate), 2) for a
+    sale, in float64 and rounded by NumPy (half to even on the binary value), as
+    predictive-backtest's engine.fill_price does, so the two codebases price the
+    same order the same way. 3450 x 0.9985 = 3444.825 gives 3444.82 here and
+    3444.83 under Python's round."""
+    x = np.float64(raw) * (1.0 + rate) if buy else np.float64(raw) * (1.0 - rate)
+    return float(np.round(x, 2))
+
+
 def buy_price(raw, qty, median_vol, k):
-    """Fill price paid for a BUY. k=None is the flat model, unchanged."""
-    return raw * (1 + SLIPPAGE + (0.0 if k is None else impact(qty, median_vol, k)))
+    """Fill price paid for a BUY. k=None is the flat model."""
+    return fill_price(raw, SLIPPAGE + (0.0 if k is None else impact(qty, median_vol, k)), True)
 
 
 def sell_price(raw, qty, median_vol, k):
-    """Fill price received for a SELL. k=None is the flat model, unchanged."""
-    return raw * (1 - SLIPPAGE - (0.0 if k is None else impact(qty, median_vol, k)))
+    """Fill price received for a SELL. k=None is the flat model."""
+    return fill_price(raw, SLIPPAGE + (0.0 if k is None else impact(qty, median_vol, k)), False)
 
 
 def first_priced_date(vol20):

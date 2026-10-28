@@ -16,12 +16,12 @@ because the tolerance is loose":
     (c) the PREVIOUS session's CLOSE -- signal-day close execution
     (d) the PREVIOUS session's OPEN
 
-Slippage is applied against the trade and the port rounds to the NSE tick in
-force on the date, so each candidate is reconstructed as price * (1 +/- SLIPPAGE)
-rounded to that tick, with the port's own functions (nt_data.quote_frame and
-_round_to). Tolerance is half that tick, as the spec fixed before running. It
-certifies the PIPELINE's fills, nautilus/reports/, which since 2026-09-24 no other
-program writes.
+Slippage is applied against the trade and the port rounds the fill price to the
+paisa, so each candidate is reconstructed with slippage.fill_price, the port's own
+rule, from the port's own rows (nt_data.quote_frame), and must equal the fill
+exactly. Every fill price must also be in whole paise. It certifies the
+PIPELINE's fills, nautilus/reports/, which since 2026-09-24 no other program
+writes.
 
 Nothing is corrected.
 """
@@ -49,14 +49,12 @@ import paths
 # cross-checked against each other, so a value changed in one and not the
 # rest surfaces as a reconciliation failure elsewhere, not as a wrong
 # number here. Value unchanged at 0.0015.
-from slippage import SLIPPAGE  # noqa: E402
-# THE TOLERANCE IS HALF OF THAT DATE'S NSE TICK, 2026-09-24. It was 0.005, set
-# after measuring 2-decimal prices -- on fills nt_verify had written at a 0.01
-# grid over the pipeline's files. This check certifies the PIPELINE's fills,
-# which are on the NSE grid (0.05 for most of the window), and reconstructs each
-# expected price with the port's own rule (nt_data.quote_frame, _round_to). Both
-# prices are then on one grid, so half a tick admits exact equality only. This
-# corrects a calibration made on the wrong grid; it is not a loosening.
+from slippage import SLIPPAGE, fill_price  # noqa: E402
+# EXACT EQUALITY, SINCE 2026-10-28. The port and the reconstruction both round to
+# the paisa with slippage.fill_price, so a fill at the open matches to the bit.
+# From 2026-09-24 the port quoted on NSE's dated tick and the tolerance was half
+# that tick; the tick was removed because its price band came from the adjusted
+# close, which carries later splits and bonuses.
 
 # ---------------------------------------------------------------------------
 # WHICH FILL RECORD THIS READS, AND WHY IT HAS TO SAY SO
@@ -147,11 +145,10 @@ def run(uni, arm, fills_p, sc_p, dec_p, label, W):
     F["px"] = F["last_px"].astype(float)
 
     # THE PORT'S OWN INPUTS: its panel (forward filled, as nt_data.load_panel
-    # builds it), its quoted rows and each row's tick (nt_data.quote_frame), over
-    # the dates the pipeline's run quoted, warm-up included.
+    # builds it) and its quoted rows (nt_data.quote_frame), over the dates the
+    # pipeline's run quoted, warm-up included.
     import nt_data
     import nt_run
-    assert nt_data.TICK_MODE == "nse", "the pipeline quotes on the NSE tick grid"
     pxf, opf = nt_data.load_panel(config.require_cache(sc_p, what=f"{uni} panel"))
     q_start = pd.Timestamp(config.BT_START_DATE) - pd.Timedelta(days=nt_run.WARMUP_DAYS)
     q_end = pd.Timestamp(nt_run.UNIVERSES[uni]["end"])
@@ -173,22 +170,13 @@ def run(uni, arm, fills_p, sc_p, dec_p, label, W):
       f"(segment '{_reports_segment(arm.mode, arm.sizing)}',")
     W(f"                  from nt_run.reports_segment, the writer's own rule)")
     W(f"  fills recorded  {len(F):,}")
-    # HOW MANY FILL PRICES LIE ON THE 0.05 TICK GRID -- MEASURED, ALWAYS PRINTED.
-    # Until 2026-09-24 the reconstruction was round(price*(1+/-slip), 2), on the
-    # strength of a 2026-09-09 measurement that only 210 of 977 fill prices sat on
-    # a 0.05 grid -- taken on fills a 0.01-grid tool run had left in place.
-    # THAT MEASUREMENT WAS TAKEN ON THE SUPERSEDED FILE, whose arm is unknown. If
-    # this line reads near 100% while the match counts below read low, the
-    # reconstruction assumption is stale and the match counts are a verdict on the
-    # ASSUMPTION, not on execution timing. Stated as a number rather than as a
-    # caveat, so it cannot be true and unnoticed.
-    _ongrid = int((np.abs(F["px"] / 0.05 - np.round(F["px"] / 0.05)) < 1e-9).sum())
-    W(f"  on 0.05 grid    {_ongrid:,} of {len(F):,} fill prices "
-      f"({100*_ongrid/max(len(F),1):.1f}%)")
+    # FILL PRICES IN WHOLE PAISE -- GATED. The port rounds every fill to the paisa.
+    _off = int((np.abs(F["px"] * 100 - np.round(F["px"] * 100)) > 1e-6).sum())
+    W(f"  off the paisa   {_off:,} of {len(F):,} fill prices")
     W(f"  price panel     {Path(sc_p).name}")
-    W(f"  reconstruction  price * (1 +/- {SLIPPAGE}) rounded to that date's NSE tick")
-    W("                  (nt_data.quote_frame and _round_to, the port's own rule)")
-    W("  tolerance       half of that date's tick: exact equality on the grid")
+    W(f"  reconstruction  price * (1 +/- {SLIPPAGE}) rounded to the paisa")
+    W("                  (slippage.fill_price, the port's own rule)")
+    W("  tolerance       none: exact equality")
     W("")
 
     recs = []
@@ -197,16 +185,15 @@ def run(uni, arm, fills_p, sc_p, dec_p, label, W):
         sgn = 1.0 if side == "BUY" else -1.0
         pd_ = prev.get(d)
         qs = Q.get(s)
-        tk = float(qs.at[d, "tick"]) if qs is not None and d in qs.index else np.nan
         def cand(col, dd):
-            if qs is None or dd is None or dd not in qs.index or tk != tk:
+            if qs is None or dd is None or dd not in qs.index:
                 return np.nan
             v = qs.at[dd, col]
-            return np.nan if pd.isna(v) else float(nt_data._round_to(v * (1 + sgn * SLIPPAGE), tk))
+            return np.nan if pd.isna(v) else fill_price(v, SLIPPAGE, sgn > 0)
         c = {"a_open_today": cand("open", d), "b_close_today": cand("close", d),
              "c_close_prev": cand("close", pd_), "d_open_prev": cand("open", pd_)}
-        m = {k: (abs(px - v) <= tk / 2 - 1e-9) if v == v else False for k, v in c.items()}
-        recs.append({"date": d, "symbol": s, "side": side, "px": px, "tick": tk,
+        m = {k: (abs(px - v) < 1e-9) if v == v else False for k, v in c.items()}
+        recs.append({"date": d, "symbol": s, "side": side, "px": px,
                      "on_calendar": d in op.index, **c,
                      **{f"m_{k}": v for k, v in m.items()},
                      "n_match": sum(m.values())})
@@ -223,8 +210,8 @@ def run(uni, arm, fills_p, sc_p, dec_p, label, W):
     W(f"  fills matching NOTHING: {int((R['n_match'] == 0).sum()):,}")
     W(f"  fills matching (a) UNIQUELY: {int((R['m_a_open_today'] & (R['n_match'] == 1)).sum()):,}")
     amb = R[R["m_a_open_today"] & (R["n_match"] > 1)]
-    W(f"  fills matching (a) AND another candidate (ambiguous, prices within half a")
-    W(f"    tick of each other -- a limit of the instrument, not an exception): {len(amb):,}")
+    W(f"  fills matching (a) AND another candidate (ambiguous, the same price to")
+    W(f"    the paisa -- a limit of the instrument, not an exception): {len(amb):,}")
     W("")
 
     bad = R[~R["m_a_open_today"]]
@@ -260,7 +247,7 @@ def run(uni, arm, fills_p, sc_p, dec_p, label, W):
         W(f"  decision file {Path(dec_p).name} absent -- the 'right open' check")
         W("  could not be run, only the 'an open' check above.")
     W("")
-    return {"n": len(R), "at_a_close": len(only_bc),
+    return {"n": len(R), "at_a_close": len(only_bc), "off_paisa": _off,
             "off_calendar": len(R) - int(R["on_calendar"].sum()),
             "not_matching_open": len(bad)}
 
@@ -289,9 +276,9 @@ def main():
     # The file keeps the repository-relative path and the fill count; the write
     # time goes to stdout, which is the run's log.
     #
-    # WHAT IS GATED: no fill may execute at a CLOSE rather than an open, and every
-    # fill must fall on the panel's trading calendar. Those are the two claims
-    # this file exists to test and both are categorical in its own text.
+    # WHAT IS GATED: no fill may execute at a CLOSE rather than an open, every
+    # fill must fall on the panel's trading calendar, and every fill price must be
+    # in whole paise.
     #
     # WHAT IS NOT GATED: `not_matching_open`. Three of 1,006 fills differ from the
     # day's open by 0.01 and this file states no tolerance for that, adjudicates
@@ -299,7 +286,7 @@ def main():
     # exception". Picking a tolerance here would be inventing a pass condition
     # rather than reading one, so the count is reported and left ungated.
     bad_u = {u: r for u, (r, _) in res.items()
-             if r["at_a_close"] or r["off_calendar"]}
+             if r["at_a_close"] or r["off_calendar"] or r["off_paisa"]}
     out.append("  INPUT READ (gitignored; holds whatever last wrote it):")
     for u, (r, f) in sorted(res.items()):
         fp = Path(f)
@@ -313,17 +300,20 @@ def main():
         print(f"  input {rel} written {mt}")
     tot_close = sum(r["at_a_close"] for r, _ in res.values())
     tot_offcal = sum(r["off_calendar"] for r, _ in res.values())
+    tot_offp = sum(r["off_paisa"] for r, _ in res.values())
     tot_nmo = sum(r["not_matching_open"] for r, _ in res.values())
     out.append(f"  ungated, reported only: {tot_nmo} fill(s) not matching the "
                f"day's open exactly.")
     if bad_u:
-        out.append(f"  RESULT: FAIL -- {tot_close} fill(s) executed at a close and "
-                   f"{tot_offcal} fell off the trading calendar, on: "
+        out.append(f"  RESULT: FAIL -- {tot_close} fill(s) executed at a close, "
+                   f"{tot_offcal} fell off the trading calendar and {tot_offp} are "
+                   f"off the paisa, on: "
                    + ", ".join(sorted(bad_u)) + ".")
         rc = 1
     else:
         out.append(f"  RESULT: PASS -- gated: 0 fills match a close without matching "
-                   f"the open, and 0 fills fall off the trading calendar, on "
+                   f"the open, 0 fills fall off the trading calendar, and 0 fill "
+                   f"prices are off the paisa, on "
                    f"{len(res)} universe/arm cell(s) ({len(LABELS)} universes x "
                    f"{len(_arm_reg.ARMS)} arms). Not gated: "
                    f"that every fill matches the day's open (reported above).")

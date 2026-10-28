@@ -413,14 +413,18 @@ def condition_4():
     px.iloc[-1] = [140.0, 170.0]
     op.iloc[-1] = [150.0, 180.0]
     r = bh_held.held_lots(px, op, bd)
-    s = TE.SLIPPAGE
     cash = TE.START_CAPITAL
     qty, bpx = {}, {}
+    # Fill prices to the paisa (slippage.fill_price): 100 x 1.0015 = 100.15 and
+    # 200 x 1.0015 = 200.30 to buy; 150 x 0.9985 = 149.775, a double just above the
+    # half, sells at 149.78, and 180 x 0.9985 at 179.73.
+    buy_px = {"X": 100.15, "Y": 200.30}
+    sell_px = {"X": 149.78, "Y": 179.73}
     # The construction's own rule: equal rupees per name, a name skipped when
     # the cash left cannot pay for it and its charge. Here X's buy charge leaves
     # too little for Y, so only X is held -- the hand calculation follows suit.
-    for sym, p0 in (("X", 100.0), ("Y", 200.0)):
-        pr = p0 * (1 + s)
+    for sym in ("X", "Y"):
+        pr = buy_px[sym]
         q = int((TE.START_CAPITAL / 2) // pr)
         cost = q * pr + TE.calc_tc(pr, q, "BUY")
         if cash < cost:
@@ -430,8 +434,8 @@ def condition_4():
     close_n = {"X": 140.0, "Y": 170.0}
     head = cash + sum(qty[k] * close_n[k] for k in qty)
     proceeds = sell_tc = gain = 0.0
-    for sym, pN in ((k, {"X": 150.0, "Y": 180.0}[k]) for k in qty):
-        pr = pN * (1 - s)
+    for sym in qty:
+        pr = sell_px[sym]
         proceeds += qty[sym] * pr
         sell_tc += TE.calc_tc(pr, qty[sym], "SELL")
         gain += qty[sym] * (round(pr, 2) - round(bpx[sym], 2))

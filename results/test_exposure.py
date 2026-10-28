@@ -765,11 +765,12 @@ def backtest_exposure(px, op, sc, dates, pc, mom20,
                                 "reason": "untradeable: no row this session",
                                 "detail": "no trade in a name on a session without a row"})
                         continue
-                    # THE QUANTITY, FROM THE DECISION CLOSE AT THE FLAT RATE; the
-                    # cap then shrinks it, and the fill price, at this open,
-                    # charges impact on the quantity actually transacted. Under
-                    # impact_k=None the fill price is the open at the flat rate.
-                    _size_px = _sl.buy_price(_dec_px.get(s, np.nan), 0, None, None)
+                    # THE QUANTITY, FROM THE DECISION CLOSE AT THE FLAT RATE,
+                    # unrounded; the cap then shrinks it, and the fill price, at
+                    # this open, charges impact on the quantity actually
+                    # transacted. Under impact_k=None the fill price is the open
+                    # at the flat rate, to the paisa (slippage.fill_price).
+                    _size_px = _dec_px.get(s, np.nan) * (1 + SLIPPAGE)
                     if np.isnan(_size_px) or _size_px <= 0:
                         if audit is not None:
                             audit["skipped"].append({"date": dt, "side": "BUY", "symbol": s,

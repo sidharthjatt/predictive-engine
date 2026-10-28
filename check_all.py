@@ -81,7 +81,7 @@ WHAT THIS DOES ABOUT IT
                          the branch does not fire. This is the gate whose absence
                          let 443- and 588-day lots appear unannounced.
     GATE 9  LIVE-LIKE    the four delegates that prove the backtest trades like
-                         a live book: fills at the next open on the NSE tick grid
+                         a live book: fills at the next open, priced to the paisa
                          (check_b_exec_timing, verify_next_open_execution), no
                          feature look-ahead (leakage_check1_causality) and a
                          positive purge gap (leakage_check2_trading_purge). Split
@@ -305,6 +305,7 @@ DELEGATES = (
     # open leaves every wanted quantity that session unchanged.
     # Synthetic, no data. A few seconds.
     ("engine_tests.py", ["fill_open_sizing", "--quiet"], False, None),
+    ("engine_tests.py", ["fill_price", "--quiet"], False, None),
     ("results/check_b_exec_timing.py",        [], False, None),
     ("nautilus/verify_next_open_execution.py", [], False, None),
     ("tax_acceptance_check.py",               [], False, None),
@@ -947,8 +948,8 @@ def gate_delegates(res, slow):
     elif not missing9 and all(v == "PASS" for v in live.values()):
         from universes.registry import gated as _gated
         res.note(f"GATE 9  {len(LIVE_LIKE)} of {len(LIVE_LIKE)} live-like delegates "
-                 f"passed on all {len(_gated())} universes: next-open fills on the NSE "
-                 f"tick grid, no feature look-ahead on sampled dates, purge gap > 0")
+                 f"passed on all {len(_gated())} universes: next-open fills to the "
+                 f"paisa, no feature look-ahead on sampled dates, purge gap > 0")
 
 
 # ---------------------------------------------------------------------------

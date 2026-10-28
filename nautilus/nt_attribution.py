@@ -16,10 +16,9 @@ SIZING
     them; the ARM B that sized at the close is gone with that difference.
 
 THE TEST
-    Run this copy twice on identical data and identical scores:
-        ARM A -- fills at the open as the engine fills them
-        ARM D -- the same, with fill prices on the 0.05 tick grid the port declares
-    If ARM D lands close to the Nautilus result, the gap is tick rounding.
+    Run this copy on the port's data and scores. Both fill at the open with
+    slippage, rounded to the paisa by slippage.fill_price, so the two final
+    equities should agree; the gap printed is what remains.
 
 This file does not modify the production engine. It re-implements the loop locally
 so that results/ is untouched.
@@ -70,61 +69,12 @@ TOP_N, BUFFER = config.TOP_N, config.BUFFER
 # cross-checked against each other, so a value changed in one and not the
 # rest surfaces as a reconciliation failure elsewhere, not as a wrong
 # number here. Value unchanged at 0.0015.
-from slippage import SLIPPAGE  # noqa: E402
+from slippage import SLIPPAGE, fill_price  # noqa: E402
 import capital_axis as _capital_axis  # noqa: E402
 # THE DEFAULT, defined once in capital_axis.py. A run's capital is
 # capital_axis.selected(); this name stays for callers that want the default.
 START_CAPITAL = _capital_axis.DEFAULT
 SAFETY = 0.98
-
-
-TICK = 0.05
-TICK_MODE = "nse"          # "nse" = the dated exchange rule; "fixed" = uniform TICK
-
-# Effective dates from NSE/CMTR/62174 and NSE/CMTR/67133. See the block in
-# nautilus/nt_data.py and the circular text in diagnostics/.
-_T2024 = pd.Timestamp("2024-06-10")
-_T2025 = pd.Timestamp("2025-04-15")
-
-
-def set_tick(value):
-    """Match the grid nt_data is loading with. The reconciliation run drops both to
-    a uniform 0.01 to separate tick quantization from any real difference."""
-    global TICK
-    TICK = float(value)
-
-
-def set_tick_mode(mode):
-    global TICK_MODE
-    TICK_MODE = mode
-
-
-def nse_tick(ref_price, date):
-    """The exchange tick in force for `ref_price` on `date`. Mirrors nt_data."""
-    if date < _T2024:
-        return 0.05
-    if ref_price < 250:
-        return 0.01
-    if date < _T2025:
-        return 0.05
-    if ref_price <= 1000:
-        return 0.05
-    if ref_price <= 5000:
-        return 0.10
-    if ref_price <= 10000:
-        return 0.50
-    if ref_price <= 20000:
-        return 1.00
-    return 5.00
-
-
-def _tick(x, date=None, ref=None):
-    """Snap to the grid in force. In "nse" mode the grid depends on the date and
-    the price band; in "fixed" mode it is the uniform TICK."""
-    if TICK_MODE == "nse" and date is not None:
-        t = nse_tick(float(x) if ref is None else float(ref), date)
-        return round(round(float(x) / t) * t, 4)
-    return round(round(float(x) / TICK) * TICK, 4)
 
 
 def load_panel(cache_path):
@@ -153,18 +103,18 @@ def load_panel(cache_path):
 # fail verification for a reason that has nothing to do with the port. Same guard
 # (vol > 0.01), same zero on failure, same normalisation, same fallback.
 # PASSED PER CALL, NOT SET AS A MODULE GLOBAL. run() already takes its other
-# switches as keyword arguments (tick_round); sizing
-# and mode now join them. The globals they replace were process-wide, so a value
+# switches as keyword arguments; sizing and mode
+# now join them. The globals they replace were process-wide, so a value
 # left behind by one arm silently applied to the next, and asserting the global had
 # been set never proved the run used it. See nt_strategy.py for the same change.
 DEFAULT_SIZING = "invvol"
 DEFAULT_MODE = "breadth"
 
 
-def run(px, op, sc, dates, pc, mom20, tick_round: bool = False, holdings_out=None,
+def run(px, op, sc, dates, pc, mom20, holdings_out=None,
         sizing: str = DEFAULT_SIZING, mode: str = DEFAULT_MODE, applied_out=None,
         rebal: int = None, drawdown_stop=None, stop_events_out=None, dd_overlay=None,
-        buy_shortfall: str = None, fills_out=None, decisions_out=None):
+        buy_shortfall: str = None, fills_out=None):
     """`holdings_out`, when a dict is passed, is filled with
     {rebalance_date: {symbol: qty}} -- the holdings standing at each decision, which
     is the same quantity the port records in strat.holdings_log and the same one
@@ -185,9 +135,8 @@ def run(px, op, sc, dates, pc, mom20, tick_round: bool = False, holdings_out=Non
     does, as in the engine (buy_shortfall.py). None reads buy_shortfall.selected().
 
     `fills_out`, a list, receives one row per fill in the port's strat.fills
-    shape (date, action, symbol, qty, price). `decisions_out`, a dict, receives
-    {rebalance_date: {"top": names, "keep": sorted top-BUFFER names}}, the port's
-    strat.rank_decisions. nt_verify compares both under buy_shortfall trim."""
+    shape (date, action, symbol, qty, price). nt_verify compares it with the
+    port's strat.fills."""
     import buy_shortfall as _bsf
     _shortfall = _bsf.selected() if buy_shortfall is None else buy_shortfall
 
@@ -251,9 +200,7 @@ def run(px, op, sc, dates, pc, mom20, tick_round: bool = False, holdings_out=Non
                     pr = opens.get(s, np.nan)
                     if np.isnan(pr) or pr <= 0:
                         continue
-                    pr *= (1 - SLIPPAGE)
-                    if tick_round:
-                        pr = _tick(pr, dt)
+                    pr = fill_price(pr, SLIPPAGE, False)
                     q = int(shares[s]); tc = calc_tc(pr, q, "SELL")
                     cash += q * pr - tc; cum_tc += tc; n_trades += 1
                     _fill(dt, "SELL", s, q, pr)
@@ -273,9 +220,7 @@ def run(px, op, sc, dates, pc, mom20, tick_round: bool = False, holdings_out=Non
                     if np.isnan(cp) or cp <= 0 or np.isnan(pr) or pr <= 0:
                         continue
                     q = int((invest_val * w) // (cp * (1 + SLIPPAGE)))
-                    pr *= (1 + SLIPPAGE)
-                    if tick_round:
-                        pr = _tick(pr, dt)
+                    pr = fill_price(pr, SLIPPAGE, True)
                     if q < 1:
                         continue
                     q, tc = _afford(q, pr)
@@ -302,9 +247,7 @@ def run(px, op, sc, dates, pc, mom20, tick_round: bool = False, holdings_out=Non
                 pr = opens.get(s, np.nan)
                 if np.isnan(pr) or pr <= 0:
                     continue
-                pr *= (1 - SLIPPAGE)
-                if tick_round:
-                    pr = _tick(pr, dt)
+                pr = fill_price(pr, SLIPPAGE, False)
                 q = min(-dq, int(shares[s]))
                 tc = calc_tc(pr, q, "SELL")
                 cash += q * pr - tc; cum_tc += tc; n_trades += 1
@@ -317,15 +260,13 @@ def run(px, op, sc, dates, pc, mom20, tick_round: bool = False, holdings_out=Non
             for s, dq in _buys:
                 pr = opens.get(s, np.nan)
                 if not (np.isnan(pr) or pr <= 0):
-                    _need += dq * pr * (1 + SLIPPAGE)
+                    _need += dq * fill_price(pr, SLIPPAGE, True)
             _f = min(1.0, cash * SAFETY / _need) if _need > 0 else 1.0
             for s, dq in _buys:
                 pr = opens.get(s, np.nan)
                 if np.isnan(pr) or pr <= 0:
                     continue
-                pr *= (1 + SLIPPAGE)
-                if tick_round:
-                    pr = _tick(pr, dt)
+                pr = fill_price(pr, SLIPPAGE, True)
                 q = int(dq * _f)
                 if q < 1:
                     continue
@@ -362,8 +303,6 @@ def run(px, op, sc, dates, pc, mom20, tick_round: bool = False, holdings_out=Non
                 # positions standing when it is taken.
                 if holdings_out is not None:
                     holdings_out[dt] = {s: int(q) for s, q in shares.items() if q}
-                if decisions_out is not None:
-                    decisions_out[dt] = {"top": tuple(top), "keep": tuple(sorted(keep))}
                 v = pc["vol"].loc[dt]
                 w = {}
                 for s in top:
@@ -421,29 +360,12 @@ if __name__ == "__main__":
     print("=" * 74)
 
     a_eq, a_n, a_tc = run(px, op, sc, bd, pc, mom20)
-    d_eq, d_n, d_tc = run(px, op, sc, bd, pc, mom20, tick_round=True)
 
     yrs = (bd[-1] - bd[0]).days / 365.25
     def cagr(e): return ((e.iloc[-1] / _capital_axis.selected()) ** (1 / yrs) - 1) * 100
 
-    print(f"\n  ARM A  fills at the open               : Rs {a_eq.iloc[-1]:>12,.0f}  "
+    print(f"\n  reference copy, fills at the open : Rs {a_eq.iloc[-1]:>12,.0f}  "
           f"CAGR {cagr(a_eq):5.2f}%  trades {a_n}")
-    print(f"  ARM D  + fill prices on 0.05 ticks    : Rs {d_eq.iloc[-1]:>12,.0f}  "
-          f"CAGR {cagr(d_eq):5.2f}%  trades {d_n}")
-    print(f"  NAUTILUS                              : Rs {NAUTILUS_EQUITY:>12,.0f}")
-
-    gap_ad = (d_eq.iloc[-1] - a_eq.iloc[-1]) / a_eq.iloc[-1] * 100
-    gap_dn = (NAUTILUS_EQUITY - d_eq.iloc[-1]) / d_eq.iloc[-1] * 100
-    gap_an = (NAUTILUS_EQUITY - a_eq.iloc[-1]) / a_eq.iloc[-1] * 100
-
-    print(f"\n  A -> D  (tick rounding alone)         : {gap_ad:+6.2f}%")
-    print(f"  A -> Nautilus (total gap)             : {gap_an:+6.2f}%")
-    print(f"  D -> Nautilus (unexplained remainder) : {gap_dn:+6.2f}%")
-
-    print("\n" + "=" * 74)
-    if abs(gap_dn) < 1.0:
-        print("  VERDICT: tick rounding accounts for the gap. The port is explained.")
-    elif abs(gap_dn) < abs(gap_an) / 2:
-        print("  VERDICT: tick rounding explains most of it. A remainder is still open.")
-    else:
-        print("  VERDICT: NOT explained. Something else differs and must be found.")
+    print(f"  NAUTILUS                          : Rs {NAUTILUS_EQUITY:>12,.0f}")
+    gap = (NAUTILUS_EQUITY - a_eq.iloc[-1]) / a_eq.iloc[-1] * 100
+    print(f"\n  reference -> Nautilus             : {gap:+6.2f}%")

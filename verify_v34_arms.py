@@ -61,7 +61,6 @@ sys.path.insert(0, str(ROOT / "results"))
 sys.path.insert(0, str(ROOT / "nautilus"))
 
 import config
-import nt_data
 import nt_run
 import nt_strategy
 import nt_attribution
@@ -109,23 +108,16 @@ def verify_arm(universe, arm, mode, sizing):
     """
 
     U = nt_run.UNIVERSES[universe]
-    nt_data.set_tick_size("0.01"); nt_data.set_tick_mode("fixed")
-    nt_attribution.set_tick("0.01"); nt_attribution.set_tick_mode("fixed")
-    try:
-        with contextlib.redirect_stdout(io.StringIO()):
-            strat = nt_run.run(str(config.BT_START_DATE.date()), U["end"],
-                               quiet=True, universe=universe,
-                               sizing=sizing, mode=mode, drawdown_stop=None)
-            dates, port = nt_verify.port_holdings(strat)
-            panel = nt_attribution.load_panel(U["cache"])
-            ref_applied = {"sizing": None, "mode": None}
-            ref = nt_verify.arm(panel, dates, tick_round=True,
-                                sizing=sizing, mode=mode,
-                                applied_out=ref_applied)
-        stats = nt_verify.compare(port, ref, dates)
-    finally:
-        nt_data.set_tick_size("0.05"); nt_data.set_tick_mode("nse")
-        nt_attribution.set_tick("0.05"); nt_attribution.set_tick_mode("nse")
+    with contextlib.redirect_stdout(io.StringIO()):
+        strat = nt_run.run(str(config.BT_START_DATE.date()), U["end"],
+                           quiet=True, universe=universe,
+                           sizing=sizing, mode=mode, drawdown_stop=None)
+        dates, port = nt_verify.port_holdings(strat)
+        panel = nt_attribution.load_panel(U["cache"])
+        ref_applied = {"sizing": None, "mode": None}
+        ref = nt_verify.arm(panel, dates, sizing=sizing, mode=mode,
+                            applied_out=ref_applied)
+    stats = nt_verify.compare(port, ref, dates)
 
     mism, sym_mism, qty_only, worst = stats
     n = len(dates)
