@@ -1635,7 +1635,16 @@ midcap150 on every run; the other six were measured once:
 
 *Measured before buys were sized from the decision close (2026-10-28) and before fill
 prices were rounded to the paisa with the NSE tick grid removed (2026-10-29); this table
-has not been re-measured since.*
+has not been re-measured since, except for the gated cells below.*
+
+**The gated cells, re-measured 2026-11-23 on d9cdcd9:** nifty100 and midcap150, arms v1
+to v4, `nautilus/nt_verify.py --universe=<tag> --arm=<arm>`, cadence 20, 92 rebalances.
+All 8 cells VERIFIED. In each, the port and the reference copy hold the same names and
+quantities on 92 of 92 rebalances and fill the same orders in 92 of 92 periods, and the
+port's holdings equal the engine's own audit trail at exact share counts on 92 of 92.
+The audit trail read was nifty100's from d9cdcd9 and midcap150's from afadfc0
+(2026-10-28, before the paisa rounding). The other six universes were not re-measured.
+Record: `diagnostics/result_runs_verification_20261124.txt`.
 
 **midcap50, midcap100, nifty200 and nifty500 are not reconciled.** On midcap50 the
 port holds a different set of names from the research engine on 1 of 92

@@ -1,0 +1,1359 @@
+VERIFICATION OF diagnostics/result_runs_20261124.csv (32 rows, 8 run folders)
+2026-11-23. Read-only except steps 5 and 6, which wrote only under a temporary work folder,
+and step 7, whose reports go to the gitignored nautilus/tool_reports/.
+No strategy code or data changed. Repository at e91fae2 when checked; its code is d9cdcd9's
+(git diff d9cdcd9 e91fae2 touches only README.md and diagnostics/result_runs_20261124.csv).
+
+VERDICTS
+  1. Code used         PASS  8 of 8 runs on d9cdcd9, which contains all look-ahead
+                             fixes and the fill and sizing changes; 8 clean, 0 dirty
+  2. Numbers           PASS  0 of 32 rows differ (strategy CAGR, MaxDD, index CAGR, MaxDD, sessions,
+                             decision dates)
+  3. Rules             PASS  1 rule set per arm across 8 runs; 0 rule violations in
+                             18,359 buys and 18,083 sells; 4 buys filled below their
+                             reference by paisa rounding (finding, section 3)
+  4. Settings, data    PASS  32 of 32 rows match the run settings; 8 of 8 runs on the
+                             right folder and membership, digest current: True; 0 of 96
+                             holdings/trades/cost files contain a removed symbol
+  5. Look-ahead test   PASS  nifty50 W1 static, cut 2022-12-30: 50 of 50 decision dates per
+                             arm identical in cut and noise; 410 PASS lines, 0 FAIL
+  6. Look-ahead, pit   PASS  nifty50 W1 pit, prices and membership cut 2022-12-30: 50 of 50
+                             decision dates per arm identical in cut, noise and names;
+                             615 PASS lines, 0 FAIL
+  7. nt_verify         PASS  nifty100 and midcap150, v1-v4: 8 of 8 cells VERIFIED; 92 of 92
+                             rebalances identical at exact share counts in every cell
+
+  Orders across the 32 arm runs: 18,359 buys and 18,083 sells (36,442 fills).
+
+  Not done, unlike the 2026-10-24 verification: steps 5 and 6 compare the cut variant with
+  the tool's own full variant only. There is no nifty50 run on d9cdcd9 in the CSV to compare
+  against, and making one would write outside the temporary work folder.
+
+
+1. CODE USED
+
+Commit and dirty flag recorded in each run folder's params (results_<u>/metrics/
+v34_params*.json and the four runs/<u>/<arm>/params.json; all five agree in every folder):
+
+  20261123T183328_nifty100_all_r20                           d9cdcd9f0ae0 dirty=False files=0  (5 params agree: True)
+  20261123T183514_nifty100_all_r20_tax                       d9cdcd9f0ae0 dirty=False files=0  (5 params agree: True)
+  20261123T183713_nifty100_all_r20_pit                       d9cdcd9f0ae0 dirty=False files=0  (5 params agree: True)
+  20261123T183842_nifty100_all_r20_tax_pit                   d9cdcd9f0ae0 dirty=False files=0  (5 params agree: True)
+  20261123T184033_nifty100_all_r20_tax_pit_s20070924         d9cdcd9f0ae0 dirty=False files=0  (5 params agree: True)
+  20261123T190352_midcap150_all_r20_tax                      d9cdcd9f0ae0 dirty=False files=0  (5 params agree: True)
+  20261123T190610_nifty500_all_r20_tax                       d9cdcd9f0ae0 dirty=False files=0  (5 params agree: True)
+  20261123T191142_nifty500_all_r20_tax_pit                   d9cdcd9f0ae0 dirty=False files=0  (5 params agree: True)
+
+Look-ahead fix commits, each checked with git merge-base --is-ancestor against every
+recorded commit:
+  05bbcd7 2026-09-04 Make test_exposure.backtest_exposure authoritative: fix the sizing lookahead, add its validation suite   ancestor of d9cdcd9: True
+  5d926b4 2026-10-22 Remove look-ahead from prices, labels, pit cross-sections and vol targeting; make the start a setting   ancestor of d9cdcd9: True
+  536927b 2026-10-22 Close the last pit leak, make z-scores independent of later dates, add the look-ahead proof tool   ancestor of d9cdcd9: True
+Also ancestors (proof tool, then the 2026-10-27 to 10-29 fill and sizing changes):
+  a4d19ed 2026-10-23 Prove no look-ahead on smallcap250 pit and on a 2007 start; add --start to the proof tool   ancestor of d9cdcd9: True
+  7cedc92 2026-10-27 Trim a buy cash cannot fully pay for, if at least 50% of it fits   ancestor of d9cdcd9: True
+  afadfc0 2026-10-28 Size buys from the decision close, not the fill session's open   ancestor of d9cdcd9: True
+  d9cdcd9 2026-10-29 Round fill prices to the paisa; remove the NSE tick grid   ancestor of d9cdcd9: True
+
+Distinct commits across the 8 runs: 1. Code cannot differ between runs.
+
+
+2. NUMBERS
+
+Recomputed with new code (no run.log, no comparison.csv, no earlier reader):
+  strategy  results_<u>/metrics/v34_equity*.csv, the arm's column, every session.
+  index     the raw index CSV named by the universe's index_file, close on every
+            session of the run's equity file.
+  CAGR      (last / first) ** (365.25 / calendar days between first and last session) - 1
+  MaxDD     min over sessions of value / running peak - 1
+  sessions  first, last and count of the equity file; decision dates = rows of the arm's
+            daily_decisions file.
+Compared with the CSV at 2 decimals; dates and counts exactly.
+
+  universe   mode   win arm tax  csv cagr/dd  idx cagr/dd                 recomputed                               ok  sessions idx_sessions decisions
+  nifty100   static W1  v1  off  (30.64, -32.19, 11.28, -38.1)            (np.float64(30.64), -32.19, np.float64(11.28), -38.1) yes   1835   1835    92/92
+  nifty100   static W1  v2  off  (20.54, -14.77, 11.28, -38.1)            (np.float64(20.54), -14.77, np.float64(11.28), -38.1) yes   1835   1835    92/92
+  nifty100   static W1  v3  off  (31.9, -36.94, 11.28, -38.1)             (np.float64(31.9), -36.94, np.float64(11.28), -38.1) yes   1835   1835    92/92
+  nifty100   static W1  v4  off  (24.71, -16.06, 11.28, -38.1)            (np.float64(24.71), -16.06, np.float64(11.28), -38.1) yes   1835   1835    92/92
+  nifty100   static W1  v1  on   (25.73, -32.19, 11.28, -38.1)            (np.float64(25.73), -32.19, np.float64(11.28), -38.1) yes   1835   1835    92/92
+  nifty100   static W1  v2  on   (17.23, -14.77, 11.28, -38.1)            (np.float64(17.23), -14.77, np.float64(11.28), -38.1) yes   1835   1835    92/92
+  nifty100   static W1  v3  on   (27.81, -36.94, 11.28, -38.1)            (np.float64(27.81), -36.94, np.float64(11.28), -38.1) yes   1835   1835    92/92
+  nifty100   static W1  v4  on   (21.0, -16.37, 11.28, -38.1)             (np.float64(21.0), -16.37, np.float64(11.28), -38.1) yes   1835   1835    92/92
+  nifty100   pit    W1  v1  off  (22.62, -31.52, 11.28, -38.1)            (np.float64(22.62), -31.52, np.float64(11.28), -38.1) yes   1835   1835    92/92
+  nifty100   pit    W1  v2  off  (15.92, -16.22, 11.28, -38.1)            (np.float64(15.92), -16.22, np.float64(11.28), -38.1) yes   1835   1835    92/92
+  nifty100   pit    W1  v3  off  (22.41, -35.3, 11.28, -38.1)             (np.float64(22.41), -35.3, np.float64(11.28), -38.1) yes   1835   1835    92/92
+  nifty100   pit    W1  v4  off  (15.65, -24.77, 11.28, -38.1)            (np.float64(15.65), -24.77, np.float64(11.28), -38.1) yes   1835   1835    92/92
+  nifty100   pit    W1  v1  on   (18.52, -31.55, 11.28, -38.1)            (np.float64(18.52), -31.55, np.float64(11.28), -38.1) yes   1835   1835    92/92
+  nifty100   pit    W1  v2  on   (13.36, -16.22, 11.28, -38.1)            (np.float64(13.36), -16.22, np.float64(11.28), -38.1) yes   1835   1835    92/92
+  nifty100   pit    W1  v3  on   (18.83, -35.29, 11.28, -38.1)            (np.float64(18.83), -35.29, np.float64(11.28), -38.1) yes   1835   1835    92/92
+  nifty100   pit    W1  v4  on   (13.23, -24.77, 11.28, -38.1)            (np.float64(13.23), -24.77, np.float64(11.28), -38.1) yes   1835   1835    92/92
+  nifty100   pit    W2  v1  on   (14.58, -61.54, 9.11, -61.51)            (np.float64(14.58), -61.54, np.float64(9.11), -61.51) yes   4625   4625   232/232
+  nifty100   pit    W2  v2  on   (12.15, -37.63, 9.11, -61.51)            (np.float64(12.15), -37.63, np.float64(9.11), -61.51) yes   4625   4625   232/232
+  nifty100   pit    W2  v3  on   (15.84, -65.51, 9.11, -61.51)            (np.float64(15.84), -65.51, np.float64(9.11), -61.51) yes   4625   4625   232/232
+  nifty100   pit    W2  v4  on   (12.12, -42.99, 9.11, -61.51)            (np.float64(12.12), -42.99, np.float64(9.11), -61.51) yes   4625   4625   232/232
+  midcap150  static W1  v1  on   (31.63, -46.03, 18.7, -38.67)            (np.float64(31.63), -46.03, np.float64(18.7), -38.67) yes   1835   1835    92/92
+  midcap150  static W1  v2  on   (27.17, -21.64, 18.7, -38.67)            (np.float64(27.17), -21.64, np.float64(18.7), -38.67) yes   1835   1835    92/92
+  midcap150  static W1  v3  on   (39.71, -47.77, 18.7, -38.67)            (np.float64(39.71), -47.77, np.float64(18.7), -38.67) yes   1835   1835    92/92
+  midcap150  static W1  v4  on   (31.89, -24.73, 18.7, -38.67)            (np.float64(31.89), -24.73, np.float64(18.7), -38.67) yes   1835   1835    92/92
+  nifty500   static W1  v1  on   (39.37, -44.99, 12.94, -38.3)            (np.float64(39.37), -44.99, np.float64(12.94), -38.3) yes   1835   1835    92/92
+  nifty500   static W1  v2  on   (26.25, -27.11, 12.94, -38.3)            (np.float64(26.25), -27.11, np.float64(12.94), -38.3) yes   1835   1835    92/92
+  nifty500   static W1  v3  on   (38.46, -56.69, 12.94, -38.3)            (np.float64(38.46), -56.69, np.float64(12.94), -38.3) yes   1835   1835    92/92
+  nifty500   static W1  v4  on   (27.65, -37.23, 12.94, -38.3)            (np.float64(27.65), -37.23, np.float64(12.94), -38.3) yes   1835   1835    92/92
+  nifty500   pit    W1  v1  on   (50.89, -42.09, 12.94, -38.3)            (np.float64(50.89), -42.09, np.float64(12.94), -38.3) yes   1835   1835    92/92
+  nifty500   pit    W1  v2  on   (31.61, -26.62, 12.94, -38.3)            (np.float64(31.61), -26.62, np.float64(12.94), -38.3) yes   1835   1835    92/92
+  nifty500   pit    W1  v3  on   (53.97, -56.21, 12.94, -38.3)            (np.float64(53.97), -56.21, np.float64(12.94), -38.3) yes   1835   1835    92/92
+  nifty500   pit    W1  v4  on   (34.53, -28.66, 12.94, -38.3)            (np.float64(34.53), -28.66, np.float64(12.94), -38.3) yes   1835   1835    92/92
+
+  mismatches: 0 of 32
+  index files: data/raw/Final_Without_Survivorship_Data/Final_NIFTY100_EoD_Data/NIFTY 100.csv, data/raw/Final_Without_Survivorship_Data/Final_NIFTY500_EoD_Data/NIFTY500.csv, data/raw/Final_Without_Survivorship_Data/Final_NIFTYMidCap150_EoD_Data/NIFTY MIDCAP 150.csv
+
+
+3. RULES
+
+From params, per arm, across all 8 runs. One line per distinct rule set:
+
+  fields: arm def, mode, sizing, TOP_N, BUFFER, REBAL, VOL_WIN, START_CAPITAL, SLIPPAGE, CASH_YIELD,
+          profile, buy_sizing, buy_shortfall, purge_mode
+    v1: 1 distinct
+       ('invvol + mode=none', 'none', 'invvol', 8, 16, 20, 60, 1000000, 0.0015, 0.0, 'research', 'decision close', 'trim', 'trading')   (8 runs)
+    v2: 1 distinct
+       ('invvol + mode=breadth', 'breadth', 'invvol', 8, 16, 20, 60, 1000000, 0.0015, 0.0, 'research', 'decision close', 'trim', 'trading')   (8 runs)
+    v3: 1 distinct
+       ('provol + mode=none', 'none', 'provol', 8, 16, 20, 60, 1000000, 0.0015, 0.0, 'research', 'decision close', 'trim', 'trading')   (8 runs)
+    v4: 1 distinct
+       ('provol + mode=breadth', 'breadth', 'provol', 8, 16, 20, 60, 1000000, 0.0015, 0.0, 'research', 'decision close', 'trim', 'trading')   (8 runs)
+
+  === TAX per arm run
+     {('v1', 'off'): 2, ('v1', 'on'): 6, ('v2', 'off'): 2, ('v2', 'on'): 6, ('v3', 'off'): 2, ('v3', 'on'): 6, ('v4', 'off'): 2, ('v4', 'on'): 6}
+
+Checked against every arm run's own logs (32 arm runs):
+  - buys 18,359, sells 18,083, fills 36,442; COSTS rows 36,442; runs where daily_trades and COSTS disagree: 0
+  - positions rebuilt from daily_trades alone: 0 buys of a name already held (no top-up
+    or resize), 0 sells of less than the whole position.
+  - each sell against the rank on the last decision before it: 18,033 sells were ranked
+    above 16 or unranked. 50 sells were of names ranked 16 or better; all 50 are in pit runs,
+    recorded as kind "index exit" in COSTS; 0 of them were of a name not a member on the sell
+    date. 0 sells of a top-16 name otherwise.
+  - trim: 853 buys carry wanted_qty; 0 of them below 50% of it or not below it.
+    4 daily_trades files have no wanted_qty column (no buy was trimmed in that arm run).
+  - slippage: fill_price equals slippage.fill_price(reference, 0.0015), rounded to the paisa
+    since 2026-10-29, and slippage_rs equals (fill - reference) x qty for a buy and
+    (reference - fill) x qty for a sale, on 36,442 of 36,442 fills. slippage_rs is no longer
+    exactly 0.0015 x qty x reference, because of the rounding.
+  - FINDING: 4 fills have negative slippage, a buy filled below its reference price.
+    The rounding is applied as coded; on a split-adjusted price near Rs 1.45 the paisa step
+    is larger than the 0.15% slippage, so round(1.4507 x 1.0015, 2) = 1.45:
+      20261123T184033_nifty100_all_r20_tax_pit_s20070924 v1 2008-06-17 BUY BAJFINANCE qty 61193 reference 1.4507 fill 1.45 slippage_rs -42.8351
+      20261123T184033_nifty100_all_r20_tax_pit_s20070924 v2 2008-06-17 BUY BAJFINANCE qty 9813 reference 1.4507 fill 1.45 slippage_rs -6.8691
+      20261123T184033_nifty100_all_r20_tax_pit_s20070924 v3 2008-06-17 BUY BAJFINANCE qty 74059 reference 1.4507 fill 1.45 slippage_rs -51.8413
+      20261123T184033_nifty100_all_r20_tax_pit_s20070924 v4 2008-06-17 BUY BAJFINANCE qty 11062 reference 1.4507 fill 1.45 slippage_rs -7.7434
+  - tax: the params tax field matches the folder name in 32 of 32 arm runs.
+
+
+4. SETTINGS AND DATA
+
+Run settings against the CSV columns, per row: universe (params universe_tag), mode
+(params survivorship state), window and first session (params window_start), tax
+(params and RUN.txt), cadence (params rebal and RUN.txt), profile (params and RUN.txt),
+trading days (params), capital (constants START_CAPITAL = 1,000,000), run_folder (exists).
+
+  rows where a setting differs from the CSV: 0 of 32 
+
+  removed symbols: ['ELCIDIN', 'PRIVISCL']
+    3 runs mode=pit    raw_data_dir=data/raw/Final_With_Survivorship_Data/Final_Survivorship_NIFTY100_EoD_Data  membership=data/raw/Survivorship_Bias/Nifty100_membership.csv  digest equals current data: True
+    1 run  mode=pit    raw_data_dir=data/raw/Final_With_Survivorship_Data/Final_Survivorship_NIFTY500_EoD_Data  membership=data/raw/Survivorship_Bias/Nifty500_membership.csv  digest equals current data: True
+    2 runs mode=static raw_data_dir=data/raw/Final_Without_Survivorship_Data/Final_NIFTY100_EoD_Data  membership=None  digest equals current data: True
+    1 run  mode=static raw_data_dir=data/raw/Final_Without_Survivorship_Data/Final_NIFTY500_EoD_Data  membership=None  digest equals current data: True
+    1 run  mode=static raw_data_dir=data/raw/Final_Without_Survivorship_Data/Final_NIFTYMidCap150_EoD_Data  membership=None  digest equals current data: True
+  runs whose folder or membership file is wrong for their mode: 0
+  holdings/trades/COSTS files scanned: 96; removed-symbol hits: 0 
+    ELCIDIN.csv present in data/raw: no
+    PRIVISCL.csv present in data/raw: no
+
+
+5. LOOK-AHEAD TEST
+
+nifty50, W1 static (2019-01-01 start), arms v1-v4, tax off, cut 2022-12-30, with
+tools/lookahead_proof.py at e91fae2. Runtime 19 min 2 s. The tool runs the decision
+path three ways in separate processes: full (every input), cut (every price row after
+2022-12-30 removed) and noise (every price and volume value after 2022-12-30 replaced by
+random numbers). It compares every model score to the cut date, and for every decision
+date the ranked list, the 8 selected, the 16 kept, the target weights and exposure, the
+ranking and decision rows, then fills, holdings and daily valuation.
+
+Tool result (410 PASS lines, 0 FAIL):
+      cut    all   every model score on every date to 2022-12-30 (78,262 scores)  PASS
+      cut    v1  fills, holdings and valuation to 2022-12-30  PASS
+      cut    v1  50 of 50 decision dates on or before 2022-12-30 identical
+      cut    v2  fills, holdings and valuation to 2022-12-30  PASS
+      cut    v2  50 of 50 decision dates on or before 2022-12-30 identical
+      cut    v3  fills, holdings and valuation to 2022-12-30  PASS
+      cut    v3  50 of 50 decision dates on or before 2022-12-30 identical
+      cut    v4  fills, holdings and valuation to 2022-12-30  PASS
+      cut    v4  50 of 50 decision dates on or before 2022-12-30 identical
+      noise  all   every model score on every date to 2022-12-30 (78,262 scores)  PASS
+      noise  v1  fills, holdings and valuation to 2022-12-30  PASS
+      noise  v1  50 of 50 decision dates on or before 2022-12-30 identical
+      noise  v2  fills, holdings and valuation to 2022-12-30  PASS
+      noise  v2  50 of 50 decision dates on or before 2022-12-30 identical
+      noise  v3  fills, holdings and valuation to 2022-12-30  PASS
+      noise  v3  50 of 50 decision dates on or before 2022-12-30 identical
+      noise  v4  fills, holdings and valuation to 2022-12-30  PASS
+      noise  v4  50 of 50 decision dates on or before 2022-12-30 identical
+  RESULT: PASS  -- universe nifty50, mode static, control none
+
+
+6. LOOK-AHEAD TEST, PIT
+
+nifty50, W1 pit (2019-01-01 start), arms v1-v4, tax off, cut 2022-12-30, with
+tools/lookahead_proof.py at e91fae2. Runtime 24 min 41 s. Four variants, each in its own
+process:
+  full    every input as delivered.
+  cut     every price row after 2022-12-30 removed, and every membership row with an
+          effective date after 2022-12-30 removed.
+  noise   every price and volume value after 2022-12-30 replaced by random numbers;
+          membership unchanged.
+  names   cut, and also every symbol removed that is not a member on any effective date
+          on or before 2022-12-30 and is not in the first list.
+
+The membership file was cut, not only prices. Checked on the cut variant's own inputs:
+  data/raw/Survivorship_Bias/Nifty50_membership.csv  27 rows, effective_date 2007-09-24
+                                                     to 2026-09-14, 2 rows after the cut
+  cut variant membership.csv                         25 rows, effective_date 2007-09-24
+                                                     to 2022-09-30, 0 rows after the cut
+  cut variant price farm                             69 files, latest row 2022-12-30
+
+Tool result (615 PASS lines, 0 FAIL):
+      cut    all   every model score on every date to 2022-12-30 (79,269 scores)  PASS
+      cut    v1  fills, holdings and valuation to 2022-12-30  PASS
+      cut    v1  50 of 50 decision dates on or before 2022-12-30 identical
+      cut    v2  fills, holdings and valuation to 2022-12-30  PASS
+      cut    v2  50 of 50 decision dates on or before 2022-12-30 identical
+      cut    v3  fills, holdings and valuation to 2022-12-30  PASS
+      cut    v3  50 of 50 decision dates on or before 2022-12-30 identical
+      cut    v4  fills, holdings and valuation to 2022-12-30  PASS
+      cut    v4  50 of 50 decision dates on or before 2022-12-30 identical
+      noise  all   every model score on every date to 2022-12-30 (79,269 scores)  PASS
+      noise  v1  fills, holdings and valuation to 2022-12-30  PASS
+      noise  v1  50 of 50 decision dates on or before 2022-12-30 identical
+      noise  v2  fills, holdings and valuation to 2022-12-30  PASS
+      noise  v2  50 of 50 decision dates on or before 2022-12-30 identical
+      noise  v3  fills, holdings and valuation to 2022-12-30  PASS
+      noise  v3  50 of 50 decision dates on or before 2022-12-30 identical
+      noise  v4  fills, holdings and valuation to 2022-12-30  PASS
+      noise  v4  50 of 50 decision dates on or before 2022-12-30 identical
+      names  all   every model score on every date to 2022-12-30 (79,269 scores)  PASS
+      names  v1  fills, holdings and valuation to 2022-12-30  PASS
+      names  v1  50 of 50 decision dates on or before 2022-12-30 identical
+      names  v2  fills, holdings and valuation to 2022-12-30  PASS
+      names  v2  50 of 50 decision dates on or before 2022-12-30 identical
+      names  v3  fills, holdings and valuation to 2022-12-30  PASS
+      names  v3  50 of 50 decision dates on or before 2022-12-30 identical
+      names  v4  fills, holdings and valuation to 2022-12-30  PASS
+      names  v4  50 of 50 decision dates on or before 2022-12-30 identical
+  RESULT: PASS  -- universe nifty50, mode pit, control none
+
+
+7. NT_VERIFY
+
+nautilus/nt_verify.py --universe=<tag> --arm=<arm> at e91fae2, the cells check_all gated
+before: nifty100 and midcap150, arms v1-v4, static, research, tax off, cadence 20, buy
+rule trim. Both sides price every fill with slippage.fill_price, to the paisa.
+  trail      the port's holdings against the engine's own audit trail
+             (daily_holdings_<tag>.csv), exact share counts. Reported, not gated.
+  holdings   port against the reference copy (nt_attribution), name and quantity at
+             each rebalance. Gated.
+  orders     port against the reference copy, orders filled per rebalance period
+             (name, side, quantity). Gated.
+  selection  the reference copy against the engine's audit trail, same symbol set.
+             Gated: it licenses the copy as the baseline.
+
+  universe   arm  trail          holdings       orders         selection     result
+  nifty100   v1   92 of 92          92 of 92          92 of 92          92 of 92       PASS
+  nifty100   v2   92 of 92          92 of 92          92 of 92          92 of 92       PASS
+  nifty100   v3   92 of 92          92 of 92          92 of 92          92 of 92       PASS
+  nifty100   v4   92 of 92          92 of 92          92 of 92          92 of 92       PASS
+  midcap150  v1   92 of 92          92 of 92          92 of 92          92 of 92       PASS
+  midcap150  v2   92 of 92          92 of 92          92 of 92          92 of 92       PASS
+  midcap150  v3   92 of 92          92 of 92          92 of 92          92 of 92       PASS
+  midcap150  v4   92 of 92          92 of 92          92 of 92          92 of 92       PASS
+
+The audit trail read was the canonical results_<tag>/metrics/ copy: nifty100's written by
+run 20261123T183328_nifty100_all_r20 on d9cdcd9; midcap150's by a tax-off static run on
+afadfc0 (2026-10-28, dirty), before the paisa rounding of d9cdcd9. The port and the
+reference copy ran at e91fae2, on d9cdcd9's code. Final equity matched the audit trail to the rupee in all 8
+cells. The other six universes were not re-measured.
+
+
+APPENDIX A: full output of tools/lookahead_proof.py, static
+
+LOOK-AHEAD PROOF  universe nifty50  mode static  arms v1,v2,v3,v4  control none  cut dates 2022-12-30
+  backtest start 2019-01-01, scoring from 2016-01-01
+  python 3.12.13 at /Users/sidharthchoudhary/venvs/predictive-engine/bin/python; work folder <temporary work folder>/nifty50_static_none_20261123T214150
+  ran full   cut 2022-12-30  panel 3s  scores 526s  backtests 2s  total 532s
+
+  CUT DATE 2022-12-30
+  ran cut    cut 2022-12-30  panel 2s  scores 300s  backtests 2s  total 307s
+    cut    all   every model score on every date to 2022-12-30 (78,262 scores)  PASS
+    cut    v1  2019-01-01  PASS
+    cut    v1  2019-01-29  PASS
+    cut    v1  2019-02-26  PASS
+    cut    v1  2019-03-28  PASS
+    cut    v1  2019-04-30  PASS
+    cut    v1  2019-05-29  PASS
+    cut    v1  2019-06-27  PASS
+    cut    v1  2019-07-25  PASS
+    cut    v1  2019-08-26  PASS
+    cut    v1  2019-09-25  PASS
+    cut    v1  2019-10-27  PASS
+    cut    v1  2019-11-26  PASS
+    cut    v1  2019-12-24  PASS
+    cut    v1  2020-01-23  PASS
+    cut    v1  2020-02-19  PASS
+    cut    v1  2020-03-20  PASS
+    cut    v1  2020-04-23  PASS
+    cut    v1  2020-05-22  PASS
+    cut    v1  2020-06-22  PASS
+    cut    v1  2020-07-20  PASS
+    cut    v1  2020-08-17  PASS
+    cut    v1  2020-09-14  PASS
+    cut    v1  2020-10-13  PASS
+    cut    v1  2020-11-10  PASS
+    cut    v1  2020-12-09  PASS
+    cut    v1  2021-01-07  PASS
+    cut    v1  2021-02-05  PASS
+    cut    v1  2021-03-05  PASS
+    cut    v1  2021-04-07  PASS
+    cut    v1  2021-05-07  PASS
+    cut    v1  2021-06-07  PASS
+    cut    v1  2021-07-05  PASS
+    cut    v1  2021-08-03  PASS
+    cut    v1  2021-09-01  PASS
+    cut    v1  2021-09-30  PASS
+    cut    v1  2021-10-29  PASS
+    cut    v1  2021-11-30  PASS
+    cut    v1  2021-12-28  PASS
+    cut    v1  2022-01-25  PASS
+    cut    v1  2022-02-23  PASS
+    cut    v1  2022-03-25  PASS
+    cut    v1  2022-04-26  PASS
+    cut    v1  2022-05-25  PASS
+    cut    v1  2022-06-22  PASS
+    cut    v1  2022-07-20  PASS
+    cut    v1  2022-08-19  PASS
+    cut    v1  2022-09-19  PASS
+    cut    v1  2022-10-18  PASS
+    cut    v1  2022-11-17  PASS
+    cut    v1  2022-12-15  PASS
+    cut    v1  fills, holdings and valuation to 2022-12-30  PASS
+    cut    v1  50 of 50 decision dates on or before 2022-12-30 identical
+    cut    v2  2019-01-01  PASS
+    cut    v2  2019-01-29  PASS
+    cut    v2  2019-02-26  PASS
+    cut    v2  2019-03-28  PASS
+    cut    v2  2019-04-30  PASS
+    cut    v2  2019-05-29  PASS
+    cut    v2  2019-06-27  PASS
+    cut    v2  2019-07-25  PASS
+    cut    v2  2019-08-26  PASS
+    cut    v2  2019-09-25  PASS
+    cut    v2  2019-10-27  PASS
+    cut    v2  2019-11-26  PASS
+    cut    v2  2019-12-24  PASS
+    cut    v2  2020-01-23  PASS
+    cut    v2  2020-02-19  PASS
+    cut    v2  2020-03-20  PASS
+    cut    v2  2020-04-23  PASS
+    cut    v2  2020-05-22  PASS
+    cut    v2  2020-06-22  PASS
+    cut    v2  2020-07-20  PASS
+    cut    v2  2020-08-17  PASS
+    cut    v2  2020-09-14  PASS
+    cut    v2  2020-10-13  PASS
+    cut    v2  2020-11-10  PASS
+    cut    v2  2020-12-09  PASS
+    cut    v2  2021-01-07  PASS
+    cut    v2  2021-02-05  PASS
+    cut    v2  2021-03-05  PASS
+    cut    v2  2021-04-07  PASS
+    cut    v2  2021-05-07  PASS
+    cut    v2  2021-06-07  PASS
+    cut    v2  2021-07-05  PASS
+    cut    v2  2021-08-03  PASS
+    cut    v2  2021-09-01  PASS
+    cut    v2  2021-09-30  PASS
+    cut    v2  2021-10-29  PASS
+    cut    v2  2021-11-30  PASS
+    cut    v2  2021-12-28  PASS
+    cut    v2  2022-01-25  PASS
+    cut    v2  2022-02-23  PASS
+    cut    v2  2022-03-25  PASS
+    cut    v2  2022-04-26  PASS
+    cut    v2  2022-05-25  PASS
+    cut    v2  2022-06-22  PASS
+    cut    v2  2022-07-20  PASS
+    cut    v2  2022-08-19  PASS
+    cut    v2  2022-09-19  PASS
+    cut    v2  2022-10-18  PASS
+    cut    v2  2022-11-17  PASS
+    cut    v2  2022-12-15  PASS
+    cut    v2  fills, holdings and valuation to 2022-12-30  PASS
+    cut    v2  50 of 50 decision dates on or before 2022-12-30 identical
+    cut    v3  2019-01-01  PASS
+    cut    v3  2019-01-29  PASS
+    cut    v3  2019-02-26  PASS
+    cut    v3  2019-03-28  PASS
+    cut    v3  2019-04-30  PASS
+    cut    v3  2019-05-29  PASS
+    cut    v3  2019-06-27  PASS
+    cut    v3  2019-07-25  PASS
+    cut    v3  2019-08-26  PASS
+    cut    v3  2019-09-25  PASS
+    cut    v3  2019-10-27  PASS
+    cut    v3  2019-11-26  PASS
+    cut    v3  2019-12-24  PASS
+    cut    v3  2020-01-23  PASS
+    cut    v3  2020-02-19  PASS
+    cut    v3  2020-03-20  PASS
+    cut    v3  2020-04-23  PASS
+    cut    v3  2020-05-22  PASS
+    cut    v3  2020-06-22  PASS
+    cut    v3  2020-07-20  PASS
+    cut    v3  2020-08-17  PASS
+    cut    v3  2020-09-14  PASS
+    cut    v3  2020-10-13  PASS
+    cut    v3  2020-11-10  PASS
+    cut    v3  2020-12-09  PASS
+    cut    v3  2021-01-07  PASS
+    cut    v3  2021-02-05  PASS
+    cut    v3  2021-03-05  PASS
+    cut    v3  2021-04-07  PASS
+    cut    v3  2021-05-07  PASS
+    cut    v3  2021-06-07  PASS
+    cut    v3  2021-07-05  PASS
+    cut    v3  2021-08-03  PASS
+    cut    v3  2021-09-01  PASS
+    cut    v3  2021-09-30  PASS
+    cut    v3  2021-10-29  PASS
+    cut    v3  2021-11-30  PASS
+    cut    v3  2021-12-28  PASS
+    cut    v3  2022-01-25  PASS
+    cut    v3  2022-02-23  PASS
+    cut    v3  2022-03-25  PASS
+    cut    v3  2022-04-26  PASS
+    cut    v3  2022-05-25  PASS
+    cut    v3  2022-06-22  PASS
+    cut    v3  2022-07-20  PASS
+    cut    v3  2022-08-19  PASS
+    cut    v3  2022-09-19  PASS
+    cut    v3  2022-10-18  PASS
+    cut    v3  2022-11-17  PASS
+    cut    v3  2022-12-15  PASS
+    cut    v3  fills, holdings and valuation to 2022-12-30  PASS
+    cut    v3  50 of 50 decision dates on or before 2022-12-30 identical
+    cut    v4  2019-01-01  PASS
+    cut    v4  2019-01-29  PASS
+    cut    v4  2019-02-26  PASS
+    cut    v4  2019-03-28  PASS
+    cut    v4  2019-04-30  PASS
+    cut    v4  2019-05-29  PASS
+    cut    v4  2019-06-27  PASS
+    cut    v4  2019-07-25  PASS
+    cut    v4  2019-08-26  PASS
+    cut    v4  2019-09-25  PASS
+    cut    v4  2019-10-27  PASS
+    cut    v4  2019-11-26  PASS
+    cut    v4  2019-12-24  PASS
+    cut    v4  2020-01-23  PASS
+    cut    v4  2020-02-19  PASS
+    cut    v4  2020-03-20  PASS
+    cut    v4  2020-04-23  PASS
+    cut    v4  2020-05-22  PASS
+    cut    v4  2020-06-22  PASS
+    cut    v4  2020-07-20  PASS
+    cut    v4  2020-08-17  PASS
+    cut    v4  2020-09-14  PASS
+    cut    v4  2020-10-13  PASS
+    cut    v4  2020-11-10  PASS
+    cut    v4  2020-12-09  PASS
+    cut    v4  2021-01-07  PASS
+    cut    v4  2021-02-05  PASS
+    cut    v4  2021-03-05  PASS
+    cut    v4  2021-04-07  PASS
+    cut    v4  2021-05-07  PASS
+    cut    v4  2021-06-07  PASS
+    cut    v4  2021-07-05  PASS
+    cut    v4  2021-08-03  PASS
+    cut    v4  2021-09-01  PASS
+    cut    v4  2021-09-30  PASS
+    cut    v4  2021-10-29  PASS
+    cut    v4  2021-11-30  PASS
+    cut    v4  2021-12-28  PASS
+    cut    v4  2022-01-25  PASS
+    cut    v4  2022-02-23  PASS
+    cut    v4  2022-03-25  PASS
+    cut    v4  2022-04-26  PASS
+    cut    v4  2022-05-25  PASS
+    cut    v4  2022-06-22  PASS
+    cut    v4  2022-07-20  PASS
+    cut    v4  2022-08-19  PASS
+    cut    v4  2022-09-19  PASS
+    cut    v4  2022-10-18  PASS
+    cut    v4  2022-11-17  PASS
+    cut    v4  2022-12-15  PASS
+    cut    v4  fills, holdings and valuation to 2022-12-30  PASS
+    cut    v4  50 of 50 decision dates on or before 2022-12-30 identical
+  ran noise  cut 2022-12-30  panel 3s  scores 294s  backtests 2s  total 302s
+    noise  all   every model score on every date to 2022-12-30 (78,262 scores)  PASS
+    noise  v1  2019-01-01  PASS
+    noise  v1  2019-01-29  PASS
+    noise  v1  2019-02-26  PASS
+    noise  v1  2019-03-28  PASS
+    noise  v1  2019-04-30  PASS
+    noise  v1  2019-05-29  PASS
+    noise  v1  2019-06-27  PASS
+    noise  v1  2019-07-25  PASS
+    noise  v1  2019-08-26  PASS
+    noise  v1  2019-09-25  PASS
+    noise  v1  2019-10-27  PASS
+    noise  v1  2019-11-26  PASS
+    noise  v1  2019-12-24  PASS
+    noise  v1  2020-01-23  PASS
+    noise  v1  2020-02-19  PASS
+    noise  v1  2020-03-20  PASS
+    noise  v1  2020-04-23  PASS
+    noise  v1  2020-05-22  PASS
+    noise  v1  2020-06-22  PASS
+    noise  v1  2020-07-20  PASS
+    noise  v1  2020-08-17  PASS
+    noise  v1  2020-09-14  PASS
+    noise  v1  2020-10-13  PASS
+    noise  v1  2020-11-10  PASS
+    noise  v1  2020-12-09  PASS
+    noise  v1  2021-01-07  PASS
+    noise  v1  2021-02-05  PASS
+    noise  v1  2021-03-05  PASS
+    noise  v1  2021-04-07  PASS
+    noise  v1  2021-05-07  PASS
+    noise  v1  2021-06-07  PASS
+    noise  v1  2021-07-05  PASS
+    noise  v1  2021-08-03  PASS
+    noise  v1  2021-09-01  PASS
+    noise  v1  2021-09-30  PASS
+    noise  v1  2021-10-29  PASS
+    noise  v1  2021-11-30  PASS
+    noise  v1  2021-12-28  PASS
+    noise  v1  2022-01-25  PASS
+    noise  v1  2022-02-23  PASS
+    noise  v1  2022-03-25  PASS
+    noise  v1  2022-04-26  PASS
+    noise  v1  2022-05-25  PASS
+    noise  v1  2022-06-22  PASS
+    noise  v1  2022-07-20  PASS
+    noise  v1  2022-08-19  PASS
+    noise  v1  2022-09-19  PASS
+    noise  v1  2022-10-18  PASS
+    noise  v1  2022-11-17  PASS
+    noise  v1  2022-12-15  PASS
+    noise  v1  fills, holdings and valuation to 2022-12-30  PASS
+    noise  v1  50 of 50 decision dates on or before 2022-12-30 identical
+    noise  v2  2019-01-01  PASS
+    noise  v2  2019-01-29  PASS
+    noise  v2  2019-02-26  PASS
+    noise  v2  2019-03-28  PASS
+    noise  v2  2019-04-30  PASS
+    noise  v2  2019-05-29  PASS
+    noise  v2  2019-06-27  PASS
+    noise  v2  2019-07-25  PASS
+    noise  v2  2019-08-26  PASS
+    noise  v2  2019-09-25  PASS
+    noise  v2  2019-10-27  PASS
+    noise  v2  2019-11-26  PASS
+    noise  v2  2019-12-24  PASS
+    noise  v2  2020-01-23  PASS
+    noise  v2  2020-02-19  PASS
+    noise  v2  2020-03-20  PASS
+    noise  v2  2020-04-23  PASS
+    noise  v2  2020-05-22  PASS
+    noise  v2  2020-06-22  PASS
+    noise  v2  2020-07-20  PASS
+    noise  v2  2020-08-17  PASS
+    noise  v2  2020-09-14  PASS
+    noise  v2  2020-10-13  PASS
+    noise  v2  2020-11-10  PASS
+    noise  v2  2020-12-09  PASS
+    noise  v2  2021-01-07  PASS
+    noise  v2  2021-02-05  PASS
+    noise  v2  2021-03-05  PASS
+    noise  v2  2021-04-07  PASS
+    noise  v2  2021-05-07  PASS
+    noise  v2  2021-06-07  PASS
+    noise  v2  2021-07-05  PASS
+    noise  v2  2021-08-03  PASS
+    noise  v2  2021-09-01  PASS
+    noise  v2  2021-09-30  PASS
+    noise  v2  2021-10-29  PASS
+    noise  v2  2021-11-30  PASS
+    noise  v2  2021-12-28  PASS
+    noise  v2  2022-01-25  PASS
+    noise  v2  2022-02-23  PASS
+    noise  v2  2022-03-25  PASS
+    noise  v2  2022-04-26  PASS
+    noise  v2  2022-05-25  PASS
+    noise  v2  2022-06-22  PASS
+    noise  v2  2022-07-20  PASS
+    noise  v2  2022-08-19  PASS
+    noise  v2  2022-09-19  PASS
+    noise  v2  2022-10-18  PASS
+    noise  v2  2022-11-17  PASS
+    noise  v2  2022-12-15  PASS
+    noise  v2  fills, holdings and valuation to 2022-12-30  PASS
+    noise  v2  50 of 50 decision dates on or before 2022-12-30 identical
+    noise  v3  2019-01-01  PASS
+    noise  v3  2019-01-29  PASS
+    noise  v3  2019-02-26  PASS
+    noise  v3  2019-03-28  PASS
+    noise  v3  2019-04-30  PASS
+    noise  v3  2019-05-29  PASS
+    noise  v3  2019-06-27  PASS
+    noise  v3  2019-07-25  PASS
+    noise  v3  2019-08-26  PASS
+    noise  v3  2019-09-25  PASS
+    noise  v3  2019-10-27  PASS
+    noise  v3  2019-11-26  PASS
+    noise  v3  2019-12-24  PASS
+    noise  v3  2020-01-23  PASS
+    noise  v3  2020-02-19  PASS
+    noise  v3  2020-03-20  PASS
+    noise  v3  2020-04-23  PASS
+    noise  v3  2020-05-22  PASS
+    noise  v3  2020-06-22  PASS
+    noise  v3  2020-07-20  PASS
+    noise  v3  2020-08-17  PASS
+    noise  v3  2020-09-14  PASS
+    noise  v3  2020-10-13  PASS
+    noise  v3  2020-11-10  PASS
+    noise  v3  2020-12-09  PASS
+    noise  v3  2021-01-07  PASS
+    noise  v3  2021-02-05  PASS
+    noise  v3  2021-03-05  PASS
+    noise  v3  2021-04-07  PASS
+    noise  v3  2021-05-07  PASS
+    noise  v3  2021-06-07  PASS
+    noise  v3  2021-07-05  PASS
+    noise  v3  2021-08-03  PASS
+    noise  v3  2021-09-01  PASS
+    noise  v3  2021-09-30  PASS
+    noise  v3  2021-10-29  PASS
+    noise  v3  2021-11-30  PASS
+    noise  v3  2021-12-28  PASS
+    noise  v3  2022-01-25  PASS
+    noise  v3  2022-02-23  PASS
+    noise  v3  2022-03-25  PASS
+    noise  v3  2022-04-26  PASS
+    noise  v3  2022-05-25  PASS
+    noise  v3  2022-06-22  PASS
+    noise  v3  2022-07-20  PASS
+    noise  v3  2022-08-19  PASS
+    noise  v3  2022-09-19  PASS
+    noise  v3  2022-10-18  PASS
+    noise  v3  2022-11-17  PASS
+    noise  v3  2022-12-15  PASS
+    noise  v3  fills, holdings and valuation to 2022-12-30  PASS
+    noise  v3  50 of 50 decision dates on or before 2022-12-30 identical
+    noise  v4  2019-01-01  PASS
+    noise  v4  2019-01-29  PASS
+    noise  v4  2019-02-26  PASS
+    noise  v4  2019-03-28  PASS
+    noise  v4  2019-04-30  PASS
+    noise  v4  2019-05-29  PASS
+    noise  v4  2019-06-27  PASS
+    noise  v4  2019-07-25  PASS
+    noise  v4  2019-08-26  PASS
+    noise  v4  2019-09-25  PASS
+    noise  v4  2019-10-27  PASS
+    noise  v4  2019-11-26  PASS
+    noise  v4  2019-12-24  PASS
+    noise  v4  2020-01-23  PASS
+    noise  v4  2020-02-19  PASS
+    noise  v4  2020-03-20  PASS
+    noise  v4  2020-04-23  PASS
+    noise  v4  2020-05-22  PASS
+    noise  v4  2020-06-22  PASS
+    noise  v4  2020-07-20  PASS
+    noise  v4  2020-08-17  PASS
+    noise  v4  2020-09-14  PASS
+    noise  v4  2020-10-13  PASS
+    noise  v4  2020-11-10  PASS
+    noise  v4  2020-12-09  PASS
+    noise  v4  2021-01-07  PASS
+    noise  v4  2021-02-05  PASS
+    noise  v4  2021-03-05  PASS
+    noise  v4  2021-04-07  PASS
+    noise  v4  2021-05-07  PASS
+    noise  v4  2021-06-07  PASS
+    noise  v4  2021-07-05  PASS
+    noise  v4  2021-08-03  PASS
+    noise  v4  2021-09-01  PASS
+    noise  v4  2021-09-30  PASS
+    noise  v4  2021-10-29  PASS
+    noise  v4  2021-11-30  PASS
+    noise  v4  2021-12-28  PASS
+    noise  v4  2022-01-25  PASS
+    noise  v4  2022-02-23  PASS
+    noise  v4  2022-03-25  PASS
+    noise  v4  2022-04-26  PASS
+    noise  v4  2022-05-25  PASS
+    noise  v4  2022-06-22  PASS
+    noise  v4  2022-07-20  PASS
+    noise  v4  2022-08-19  PASS
+    noise  v4  2022-09-19  PASS
+    noise  v4  2022-10-18  PASS
+    noise  v4  2022-11-17  PASS
+    noise  v4  2022-12-15  PASS
+    noise  v4  fills, holdings and valuation to 2022-12-30  PASS
+    noise  v4  50 of 50 decision dates on or before 2022-12-30 identical
+
+RESULT: PASS  -- universe nifty50, mode static, control none
+
+
+APPENDIX B: full output of tools/lookahead_proof.py, pit
+
+LOOK-AHEAD PROOF  universe nifty50  mode pit  arms v1,v2,v3,v4  control none  cut dates 2022-12-30
+  backtest start 2019-01-01, scoring from 2016-01-01
+  python 3.12.13 at /Users/sidharthchoudhary/venvs/predictive-engine/bin/python; work folder <temporary work folder>/nifty50_pit_none_20261123T220052
+  ran full   cut 2022-12-30  panel 4s  scores 517s  backtests 3s  total 526s
+
+  CUT DATE 2022-12-30
+  ran cut    cut 2022-12-30  panel 3s  scores 309s  backtests 2s  total 317s
+    cut    all   every model score on every date to 2022-12-30 (79,269 scores)  PASS
+    cut    v1  2019-01-01  PASS
+    cut    v1  2019-01-29  PASS
+    cut    v1  2019-02-26  PASS
+    cut    v1  2019-03-28  PASS
+    cut    v1  2019-04-30  PASS
+    cut    v1  2019-05-29  PASS
+    cut    v1  2019-06-27  PASS
+    cut    v1  2019-07-25  PASS
+    cut    v1  2019-08-26  PASS
+    cut    v1  2019-09-25  PASS
+    cut    v1  2019-10-27  PASS
+    cut    v1  2019-11-26  PASS
+    cut    v1  2019-12-24  PASS
+    cut    v1  2020-01-23  PASS
+    cut    v1  2020-02-19  PASS
+    cut    v1  2020-03-20  PASS
+    cut    v1  2020-04-23  PASS
+    cut    v1  2020-05-22  PASS
+    cut    v1  2020-06-22  PASS
+    cut    v1  2020-07-20  PASS
+    cut    v1  2020-08-17  PASS
+    cut    v1  2020-09-14  PASS
+    cut    v1  2020-10-13  PASS
+    cut    v1  2020-11-10  PASS
+    cut    v1  2020-12-09  PASS
+    cut    v1  2021-01-07  PASS
+    cut    v1  2021-02-05  PASS
+    cut    v1  2021-03-05  PASS
+    cut    v1  2021-04-07  PASS
+    cut    v1  2021-05-07  PASS
+    cut    v1  2021-06-07  PASS
+    cut    v1  2021-07-05  PASS
+    cut    v1  2021-08-03  PASS
+    cut    v1  2021-09-01  PASS
+    cut    v1  2021-09-30  PASS
+    cut    v1  2021-10-29  PASS
+    cut    v1  2021-11-30  PASS
+    cut    v1  2021-12-28  PASS
+    cut    v1  2022-01-25  PASS
+    cut    v1  2022-02-23  PASS
+    cut    v1  2022-03-25  PASS
+    cut    v1  2022-04-26  PASS
+    cut    v1  2022-05-25  PASS
+    cut    v1  2022-06-22  PASS
+    cut    v1  2022-07-20  PASS
+    cut    v1  2022-08-19  PASS
+    cut    v1  2022-09-19  PASS
+    cut    v1  2022-10-18  PASS
+    cut    v1  2022-11-17  PASS
+    cut    v1  2022-12-15  PASS
+    cut    v1  fills, holdings and valuation to 2022-12-30  PASS
+    cut    v1  50 of 50 decision dates on or before 2022-12-30 identical
+    cut    v2  2019-01-01  PASS
+    cut    v2  2019-01-29  PASS
+    cut    v2  2019-02-26  PASS
+    cut    v2  2019-03-28  PASS
+    cut    v2  2019-04-30  PASS
+    cut    v2  2019-05-29  PASS
+    cut    v2  2019-06-27  PASS
+    cut    v2  2019-07-25  PASS
+    cut    v2  2019-08-26  PASS
+    cut    v2  2019-09-25  PASS
+    cut    v2  2019-10-27  PASS
+    cut    v2  2019-11-26  PASS
+    cut    v2  2019-12-24  PASS
+    cut    v2  2020-01-23  PASS
+    cut    v2  2020-02-19  PASS
+    cut    v2  2020-03-20  PASS
+    cut    v2  2020-04-23  PASS
+    cut    v2  2020-05-22  PASS
+    cut    v2  2020-06-22  PASS
+    cut    v2  2020-07-20  PASS
+    cut    v2  2020-08-17  PASS
+    cut    v2  2020-09-14  PASS
+    cut    v2  2020-10-13  PASS
+    cut    v2  2020-11-10  PASS
+    cut    v2  2020-12-09  PASS
+    cut    v2  2021-01-07  PASS
+    cut    v2  2021-02-05  PASS
+    cut    v2  2021-03-05  PASS
+    cut    v2  2021-04-07  PASS
+    cut    v2  2021-05-07  PASS
+    cut    v2  2021-06-07  PASS
+    cut    v2  2021-07-05  PASS
+    cut    v2  2021-08-03  PASS
+    cut    v2  2021-09-01  PASS
+    cut    v2  2021-09-30  PASS
+    cut    v2  2021-10-29  PASS
+    cut    v2  2021-11-30  PASS
+    cut    v2  2021-12-28  PASS
+    cut    v2  2022-01-25  PASS
+    cut    v2  2022-02-23  PASS
+    cut    v2  2022-03-25  PASS
+    cut    v2  2022-04-26  PASS
+    cut    v2  2022-05-25  PASS
+    cut    v2  2022-06-22  PASS
+    cut    v2  2022-07-20  PASS
+    cut    v2  2022-08-19  PASS
+    cut    v2  2022-09-19  PASS
+    cut    v2  2022-10-18  PASS
+    cut    v2  2022-11-17  PASS
+    cut    v2  2022-12-15  PASS
+    cut    v2  fills, holdings and valuation to 2022-12-30  PASS
+    cut    v2  50 of 50 decision dates on or before 2022-12-30 identical
+    cut    v3  2019-01-01  PASS
+    cut    v3  2019-01-29  PASS
+    cut    v3  2019-02-26  PASS
+    cut    v3  2019-03-28  PASS
+    cut    v3  2019-04-30  PASS
+    cut    v3  2019-05-29  PASS
+    cut    v3  2019-06-27  PASS
+    cut    v3  2019-07-25  PASS
+    cut    v3  2019-08-26  PASS
+    cut    v3  2019-09-25  PASS
+    cut    v3  2019-10-27  PASS
+    cut    v3  2019-11-26  PASS
+    cut    v3  2019-12-24  PASS
+    cut    v3  2020-01-23  PASS
+    cut    v3  2020-02-19  PASS
+    cut    v3  2020-03-20  PASS
+    cut    v3  2020-04-23  PASS
+    cut    v3  2020-05-22  PASS
+    cut    v3  2020-06-22  PASS
+    cut    v3  2020-07-20  PASS
+    cut    v3  2020-08-17  PASS
+    cut    v3  2020-09-14  PASS
+    cut    v3  2020-10-13  PASS
+    cut    v3  2020-11-10  PASS
+    cut    v3  2020-12-09  PASS
+    cut    v3  2021-01-07  PASS
+    cut    v3  2021-02-05  PASS
+    cut    v3  2021-03-05  PASS
+    cut    v3  2021-04-07  PASS
+    cut    v3  2021-05-07  PASS
+    cut    v3  2021-06-07  PASS
+    cut    v3  2021-07-05  PASS
+    cut    v3  2021-08-03  PASS
+    cut    v3  2021-09-01  PASS
+    cut    v3  2021-09-30  PASS
+    cut    v3  2021-10-29  PASS
+    cut    v3  2021-11-30  PASS
+    cut    v3  2021-12-28  PASS
+    cut    v3  2022-01-25  PASS
+    cut    v3  2022-02-23  PASS
+    cut    v3  2022-03-25  PASS
+    cut    v3  2022-04-26  PASS
+    cut    v3  2022-05-25  PASS
+    cut    v3  2022-06-22  PASS
+    cut    v3  2022-07-20  PASS
+    cut    v3  2022-08-19  PASS
+    cut    v3  2022-09-19  PASS
+    cut    v3  2022-10-18  PASS
+    cut    v3  2022-11-17  PASS
+    cut    v3  2022-12-15  PASS
+    cut    v3  fills, holdings and valuation to 2022-12-30  PASS
+    cut    v3  50 of 50 decision dates on or before 2022-12-30 identical
+    cut    v4  2019-01-01  PASS
+    cut    v4  2019-01-29  PASS
+    cut    v4  2019-02-26  PASS
+    cut    v4  2019-03-28  PASS
+    cut    v4  2019-04-30  PASS
+    cut    v4  2019-05-29  PASS
+    cut    v4  2019-06-27  PASS
+    cut    v4  2019-07-25  PASS
+    cut    v4  2019-08-26  PASS
+    cut    v4  2019-09-25  PASS
+    cut    v4  2019-10-27  PASS
+    cut    v4  2019-11-26  PASS
+    cut    v4  2019-12-24  PASS
+    cut    v4  2020-01-23  PASS
+    cut    v4  2020-02-19  PASS
+    cut    v4  2020-03-20  PASS
+    cut    v4  2020-04-23  PASS
+    cut    v4  2020-05-22  PASS
+    cut    v4  2020-06-22  PASS
+    cut    v4  2020-07-20  PASS
+    cut    v4  2020-08-17  PASS
+    cut    v4  2020-09-14  PASS
+    cut    v4  2020-10-13  PASS
+    cut    v4  2020-11-10  PASS
+    cut    v4  2020-12-09  PASS
+    cut    v4  2021-01-07  PASS
+    cut    v4  2021-02-05  PASS
+    cut    v4  2021-03-05  PASS
+    cut    v4  2021-04-07  PASS
+    cut    v4  2021-05-07  PASS
+    cut    v4  2021-06-07  PASS
+    cut    v4  2021-07-05  PASS
+    cut    v4  2021-08-03  PASS
+    cut    v4  2021-09-01  PASS
+    cut    v4  2021-09-30  PASS
+    cut    v4  2021-10-29  PASS
+    cut    v4  2021-11-30  PASS
+    cut    v4  2021-12-28  PASS
+    cut    v4  2022-01-25  PASS
+    cut    v4  2022-02-23  PASS
+    cut    v4  2022-03-25  PASS
+    cut    v4  2022-04-26  PASS
+    cut    v4  2022-05-25  PASS
+    cut    v4  2022-06-22  PASS
+    cut    v4  2022-07-20  PASS
+    cut    v4  2022-08-19  PASS
+    cut    v4  2022-09-19  PASS
+    cut    v4  2022-10-18  PASS
+    cut    v4  2022-11-17  PASS
+    cut    v4  2022-12-15  PASS
+    cut    v4  fills, holdings and valuation to 2022-12-30  PASS
+    cut    v4  50 of 50 decision dates on or before 2022-12-30 identical
+  ran noise  cut 2022-12-30  panel 4s  scores 307s  backtests 3s  total 318s
+    noise  all   every model score on every date to 2022-12-30 (79,269 scores)  PASS
+    noise  v1  2019-01-01  PASS
+    noise  v1  2019-01-29  PASS
+    noise  v1  2019-02-26  PASS
+    noise  v1  2019-03-28  PASS
+    noise  v1  2019-04-30  PASS
+    noise  v1  2019-05-29  PASS
+    noise  v1  2019-06-27  PASS
+    noise  v1  2019-07-25  PASS
+    noise  v1  2019-08-26  PASS
+    noise  v1  2019-09-25  PASS
+    noise  v1  2019-10-27  PASS
+    noise  v1  2019-11-26  PASS
+    noise  v1  2019-12-24  PASS
+    noise  v1  2020-01-23  PASS
+    noise  v1  2020-02-19  PASS
+    noise  v1  2020-03-20  PASS
+    noise  v1  2020-04-23  PASS
+    noise  v1  2020-05-22  PASS
+    noise  v1  2020-06-22  PASS
+    noise  v1  2020-07-20  PASS
+    noise  v1  2020-08-17  PASS
+    noise  v1  2020-09-14  PASS
+    noise  v1  2020-10-13  PASS
+    noise  v1  2020-11-10  PASS
+    noise  v1  2020-12-09  PASS
+    noise  v1  2021-01-07  PASS
+    noise  v1  2021-02-05  PASS
+    noise  v1  2021-03-05  PASS
+    noise  v1  2021-04-07  PASS
+    noise  v1  2021-05-07  PASS
+    noise  v1  2021-06-07  PASS
+    noise  v1  2021-07-05  PASS
+    noise  v1  2021-08-03  PASS
+    noise  v1  2021-09-01  PASS
+    noise  v1  2021-09-30  PASS
+    noise  v1  2021-10-29  PASS
+    noise  v1  2021-11-30  PASS
+    noise  v1  2021-12-28  PASS
+    noise  v1  2022-01-25  PASS
+    noise  v1  2022-02-23  PASS
+    noise  v1  2022-03-25  PASS
+    noise  v1  2022-04-26  PASS
+    noise  v1  2022-05-25  PASS
+    noise  v1  2022-06-22  PASS
+    noise  v1  2022-07-20  PASS
+    noise  v1  2022-08-19  PASS
+    noise  v1  2022-09-19  PASS
+    noise  v1  2022-10-18  PASS
+    noise  v1  2022-11-17  PASS
+    noise  v1  2022-12-15  PASS
+    noise  v1  fills, holdings and valuation to 2022-12-30  PASS
+    noise  v1  50 of 50 decision dates on or before 2022-12-30 identical
+    noise  v2  2019-01-01  PASS
+    noise  v2  2019-01-29  PASS
+    noise  v2  2019-02-26  PASS
+    noise  v2  2019-03-28  PASS
+    noise  v2  2019-04-30  PASS
+    noise  v2  2019-05-29  PASS
+    noise  v2  2019-06-27  PASS
+    noise  v2  2019-07-25  PASS
+    noise  v2  2019-08-26  PASS
+    noise  v2  2019-09-25  PASS
+    noise  v2  2019-10-27  PASS
+    noise  v2  2019-11-26  PASS
+    noise  v2  2019-12-24  PASS
+    noise  v2  2020-01-23  PASS
+    noise  v2  2020-02-19  PASS
+    noise  v2  2020-03-20  PASS
+    noise  v2  2020-04-23  PASS
+    noise  v2  2020-05-22  PASS
+    noise  v2  2020-06-22  PASS
+    noise  v2  2020-07-20  PASS
+    noise  v2  2020-08-17  PASS
+    noise  v2  2020-09-14  PASS
+    noise  v2  2020-10-13  PASS
+    noise  v2  2020-11-10  PASS
+    noise  v2  2020-12-09  PASS
+    noise  v2  2021-01-07  PASS
+    noise  v2  2021-02-05  PASS
+    noise  v2  2021-03-05  PASS
+    noise  v2  2021-04-07  PASS
+    noise  v2  2021-05-07  PASS
+    noise  v2  2021-06-07  PASS
+    noise  v2  2021-07-05  PASS
+    noise  v2  2021-08-03  PASS
+    noise  v2  2021-09-01  PASS
+    noise  v2  2021-09-30  PASS
+    noise  v2  2021-10-29  PASS
+    noise  v2  2021-11-30  PASS
+    noise  v2  2021-12-28  PASS
+    noise  v2  2022-01-25  PASS
+    noise  v2  2022-02-23  PASS
+    noise  v2  2022-03-25  PASS
+    noise  v2  2022-04-26  PASS
+    noise  v2  2022-05-25  PASS
+    noise  v2  2022-06-22  PASS
+    noise  v2  2022-07-20  PASS
+    noise  v2  2022-08-19  PASS
+    noise  v2  2022-09-19  PASS
+    noise  v2  2022-10-18  PASS
+    noise  v2  2022-11-17  PASS
+    noise  v2  2022-12-15  PASS
+    noise  v2  fills, holdings and valuation to 2022-12-30  PASS
+    noise  v2  50 of 50 decision dates on or before 2022-12-30 identical
+    noise  v3  2019-01-01  PASS
+    noise  v3  2019-01-29  PASS
+    noise  v3  2019-02-26  PASS
+    noise  v3  2019-03-28  PASS
+    noise  v3  2019-04-30  PASS
+    noise  v3  2019-05-29  PASS
+    noise  v3  2019-06-27  PASS
+    noise  v3  2019-07-25  PASS
+    noise  v3  2019-08-26  PASS
+    noise  v3  2019-09-25  PASS
+    noise  v3  2019-10-27  PASS
+    noise  v3  2019-11-26  PASS
+    noise  v3  2019-12-24  PASS
+    noise  v3  2020-01-23  PASS
+    noise  v3  2020-02-19  PASS
+    noise  v3  2020-03-20  PASS
+    noise  v3  2020-04-23  PASS
+    noise  v3  2020-05-22  PASS
+    noise  v3  2020-06-22  PASS
+    noise  v3  2020-07-20  PASS
+    noise  v3  2020-08-17  PASS
+    noise  v3  2020-09-14  PASS
+    noise  v3  2020-10-13  PASS
+    noise  v3  2020-11-10  PASS
+    noise  v3  2020-12-09  PASS
+    noise  v3  2021-01-07  PASS
+    noise  v3  2021-02-05  PASS
+    noise  v3  2021-03-05  PASS
+    noise  v3  2021-04-07  PASS
+    noise  v3  2021-05-07  PASS
+    noise  v3  2021-06-07  PASS
+    noise  v3  2021-07-05  PASS
+    noise  v3  2021-08-03  PASS
+    noise  v3  2021-09-01  PASS
+    noise  v3  2021-09-30  PASS
+    noise  v3  2021-10-29  PASS
+    noise  v3  2021-11-30  PASS
+    noise  v3  2021-12-28  PASS
+    noise  v3  2022-01-25  PASS
+    noise  v3  2022-02-23  PASS
+    noise  v3  2022-03-25  PASS
+    noise  v3  2022-04-26  PASS
+    noise  v3  2022-05-25  PASS
+    noise  v3  2022-06-22  PASS
+    noise  v3  2022-07-20  PASS
+    noise  v3  2022-08-19  PASS
+    noise  v3  2022-09-19  PASS
+    noise  v3  2022-10-18  PASS
+    noise  v3  2022-11-17  PASS
+    noise  v3  2022-12-15  PASS
+    noise  v3  fills, holdings and valuation to 2022-12-30  PASS
+    noise  v3  50 of 50 decision dates on or before 2022-12-30 identical
+    noise  v4  2019-01-01  PASS
+    noise  v4  2019-01-29  PASS
+    noise  v4  2019-02-26  PASS
+    noise  v4  2019-03-28  PASS
+    noise  v4  2019-04-30  PASS
+    noise  v4  2019-05-29  PASS
+    noise  v4  2019-06-27  PASS
+    noise  v4  2019-07-25  PASS
+    noise  v4  2019-08-26  PASS
+    noise  v4  2019-09-25  PASS
+    noise  v4  2019-10-27  PASS
+    noise  v4  2019-11-26  PASS
+    noise  v4  2019-12-24  PASS
+    noise  v4  2020-01-23  PASS
+    noise  v4  2020-02-19  PASS
+    noise  v4  2020-03-20  PASS
+    noise  v4  2020-04-23  PASS
+    noise  v4  2020-05-22  PASS
+    noise  v4  2020-06-22  PASS
+    noise  v4  2020-07-20  PASS
+    noise  v4  2020-08-17  PASS
+    noise  v4  2020-09-14  PASS
+    noise  v4  2020-10-13  PASS
+    noise  v4  2020-11-10  PASS
+    noise  v4  2020-12-09  PASS
+    noise  v4  2021-01-07  PASS
+    noise  v4  2021-02-05  PASS
+    noise  v4  2021-03-05  PASS
+    noise  v4  2021-04-07  PASS
+    noise  v4  2021-05-07  PASS
+    noise  v4  2021-06-07  PASS
+    noise  v4  2021-07-05  PASS
+    noise  v4  2021-08-03  PASS
+    noise  v4  2021-09-01  PASS
+    noise  v4  2021-09-30  PASS
+    noise  v4  2021-10-29  PASS
+    noise  v4  2021-11-30  PASS
+    noise  v4  2021-12-28  PASS
+    noise  v4  2022-01-25  PASS
+    noise  v4  2022-02-23  PASS
+    noise  v4  2022-03-25  PASS
+    noise  v4  2022-04-26  PASS
+    noise  v4  2022-05-25  PASS
+    noise  v4  2022-06-22  PASS
+    noise  v4  2022-07-20  PASS
+    noise  v4  2022-08-19  PASS
+    noise  v4  2022-09-19  PASS
+    noise  v4  2022-10-18  PASS
+    noise  v4  2022-11-17  PASS
+    noise  v4  2022-12-15  PASS
+    noise  v4  fills, holdings and valuation to 2022-12-30  PASS
+    noise  v4  50 of 50 decision dates on or before 2022-12-30 identical
+  ran names  cut 2022-12-30  panel 3s  scores 310s  backtests 2s  total 319s
+    names  all   every model score on every date to 2022-12-30 (79,269 scores)  PASS
+    names  v1  2019-01-01  PASS
+    names  v1  2019-01-29  PASS
+    names  v1  2019-02-26  PASS
+    names  v1  2019-03-28  PASS
+    names  v1  2019-04-30  PASS
+    names  v1  2019-05-29  PASS
+    names  v1  2019-06-27  PASS
+    names  v1  2019-07-25  PASS
+    names  v1  2019-08-26  PASS
+    names  v1  2019-09-25  PASS
+    names  v1  2019-10-27  PASS
+    names  v1  2019-11-26  PASS
+    names  v1  2019-12-24  PASS
+    names  v1  2020-01-23  PASS
+    names  v1  2020-02-19  PASS
+    names  v1  2020-03-20  PASS
+    names  v1  2020-04-23  PASS
+    names  v1  2020-05-22  PASS
+    names  v1  2020-06-22  PASS
+    names  v1  2020-07-20  PASS
+    names  v1  2020-08-17  PASS
+    names  v1  2020-09-14  PASS
+    names  v1  2020-10-13  PASS
+    names  v1  2020-11-10  PASS
+    names  v1  2020-12-09  PASS
+    names  v1  2021-01-07  PASS
+    names  v1  2021-02-05  PASS
+    names  v1  2021-03-05  PASS
+    names  v1  2021-04-07  PASS
+    names  v1  2021-05-07  PASS
+    names  v1  2021-06-07  PASS
+    names  v1  2021-07-05  PASS
+    names  v1  2021-08-03  PASS
+    names  v1  2021-09-01  PASS
+    names  v1  2021-09-30  PASS
+    names  v1  2021-10-29  PASS
+    names  v1  2021-11-30  PASS
+    names  v1  2021-12-28  PASS
+    names  v1  2022-01-25  PASS
+    names  v1  2022-02-23  PASS
+    names  v1  2022-03-25  PASS
+    names  v1  2022-04-26  PASS
+    names  v1  2022-05-25  PASS
+    names  v1  2022-06-22  PASS
+    names  v1  2022-07-20  PASS
+    names  v1  2022-08-19  PASS
+    names  v1  2022-09-19  PASS
+    names  v1  2022-10-18  PASS
+    names  v1  2022-11-17  PASS
+    names  v1  2022-12-15  PASS
+    names  v1  fills, holdings and valuation to 2022-12-30  PASS
+    names  v1  50 of 50 decision dates on or before 2022-12-30 identical
+    names  v2  2019-01-01  PASS
+    names  v2  2019-01-29  PASS
+    names  v2  2019-02-26  PASS
+    names  v2  2019-03-28  PASS
+    names  v2  2019-04-30  PASS
+    names  v2  2019-05-29  PASS
+    names  v2  2019-06-27  PASS
+    names  v2  2019-07-25  PASS
+    names  v2  2019-08-26  PASS
+    names  v2  2019-09-25  PASS
+    names  v2  2019-10-27  PASS
+    names  v2  2019-11-26  PASS
+    names  v2  2019-12-24  PASS
+    names  v2  2020-01-23  PASS
+    names  v2  2020-02-19  PASS
+    names  v2  2020-03-20  PASS
+    names  v2  2020-04-23  PASS
+    names  v2  2020-05-22  PASS
+    names  v2  2020-06-22  PASS
+    names  v2  2020-07-20  PASS
+    names  v2  2020-08-17  PASS
+    names  v2  2020-09-14  PASS
+    names  v2  2020-10-13  PASS
+    names  v2  2020-11-10  PASS
+    names  v2  2020-12-09  PASS
+    names  v2  2021-01-07  PASS
+    names  v2  2021-02-05  PASS
+    names  v2  2021-03-05  PASS
+    names  v2  2021-04-07  PASS
+    names  v2  2021-05-07  PASS
+    names  v2  2021-06-07  PASS
+    names  v2  2021-07-05  PASS
+    names  v2  2021-08-03  PASS
+    names  v2  2021-09-01  PASS
+    names  v2  2021-09-30  PASS
+    names  v2  2021-10-29  PASS
+    names  v2  2021-11-30  PASS
+    names  v2  2021-12-28  PASS
+    names  v2  2022-01-25  PASS
+    names  v2  2022-02-23  PASS
+    names  v2  2022-03-25  PASS
+    names  v2  2022-04-26  PASS
+    names  v2  2022-05-25  PASS
+    names  v2  2022-06-22  PASS
+    names  v2  2022-07-20  PASS
+    names  v2  2022-08-19  PASS
+    names  v2  2022-09-19  PASS
+    names  v2  2022-10-18  PASS
+    names  v2  2022-11-17  PASS
+    names  v2  2022-12-15  PASS
+    names  v2  fills, holdings and valuation to 2022-12-30  PASS
+    names  v2  50 of 50 decision dates on or before 2022-12-30 identical
+    names  v3  2019-01-01  PASS
+    names  v3  2019-01-29  PASS
+    names  v3  2019-02-26  PASS
+    names  v3  2019-03-28  PASS
+    names  v3  2019-04-30  PASS
+    names  v3  2019-05-29  PASS
+    names  v3  2019-06-27  PASS
+    names  v3  2019-07-25  PASS
+    names  v3  2019-08-26  PASS
+    names  v3  2019-09-25  PASS
+    names  v3  2019-10-27  PASS
+    names  v3  2019-11-26  PASS
+    names  v3  2019-12-24  PASS
+    names  v3  2020-01-23  PASS
+    names  v3  2020-02-19  PASS
+    names  v3  2020-03-20  PASS
+    names  v3  2020-04-23  PASS
+    names  v3  2020-05-22  PASS
+    names  v3  2020-06-22  PASS
+    names  v3  2020-07-20  PASS
+    names  v3  2020-08-17  PASS
+    names  v3  2020-09-14  PASS
+    names  v3  2020-10-13  PASS
+    names  v3  2020-11-10  PASS
+    names  v3  2020-12-09  PASS
+    names  v3  2021-01-07  PASS
+    names  v3  2021-02-05  PASS
+    names  v3  2021-03-05  PASS
+    names  v3  2021-04-07  PASS
+    names  v3  2021-05-07  PASS
+    names  v3  2021-06-07  PASS
+    names  v3  2021-07-05  PASS
+    names  v3  2021-08-03  PASS
+    names  v3  2021-09-01  PASS
+    names  v3  2021-09-30  PASS
+    names  v3  2021-10-29  PASS
+    names  v3  2021-11-30  PASS
+    names  v3  2021-12-28  PASS
+    names  v3  2022-01-25  PASS
+    names  v3  2022-02-23  PASS
+    names  v3  2022-03-25  PASS
+    names  v3  2022-04-26  PASS
+    names  v3  2022-05-25  PASS
+    names  v3  2022-06-22  PASS
+    names  v3  2022-07-20  PASS
+    names  v3  2022-08-19  PASS
+    names  v3  2022-09-19  PASS
+    names  v3  2022-10-18  PASS
+    names  v3  2022-11-17  PASS
+    names  v3  2022-12-15  PASS
+    names  v3  fills, holdings and valuation to 2022-12-30  PASS
+    names  v3  50 of 50 decision dates on or before 2022-12-30 identical
+    names  v4  2019-01-01  PASS
+    names  v4  2019-01-29  PASS
+    names  v4  2019-02-26  PASS
+    names  v4  2019-03-28  PASS
+    names  v4  2019-04-30  PASS
+    names  v4  2019-05-29  PASS
+    names  v4  2019-06-27  PASS
+    names  v4  2019-07-25  PASS
+    names  v4  2019-08-26  PASS
+    names  v4  2019-09-25  PASS
+    names  v4  2019-10-27  PASS
+    names  v4  2019-11-26  PASS
+    names  v4  2019-12-24  PASS
+    names  v4  2020-01-23  PASS
+    names  v4  2020-02-19  PASS
+    names  v4  2020-03-20  PASS
+    names  v4  2020-04-23  PASS
+    names  v4  2020-05-22  PASS
+    names  v4  2020-06-22  PASS
+    names  v4  2020-07-20  PASS
+    names  v4  2020-08-17  PASS
+    names  v4  2020-09-14  PASS
+    names  v4  2020-10-13  PASS
+    names  v4  2020-11-10  PASS
+    names  v4  2020-12-09  PASS
+    names  v4  2021-01-07  PASS
+    names  v4  2021-02-05  PASS
+    names  v4  2021-03-05  PASS
+    names  v4  2021-04-07  PASS
+    names  v4  2021-05-07  PASS
+    names  v4  2021-06-07  PASS
+    names  v4  2021-07-05  PASS
+    names  v4  2021-08-03  PASS
+    names  v4  2021-09-01  PASS
+    names  v4  2021-09-30  PASS
+    names  v4  2021-10-29  PASS
+    names  v4  2021-11-30  PASS
+    names  v4  2021-12-28  PASS
+    names  v4  2022-01-25  PASS
+    names  v4  2022-02-23  PASS
+    names  v4  2022-03-25  PASS
+    names  v4  2022-04-26  PASS
+    names  v4  2022-05-25  PASS
+    names  v4  2022-06-22  PASS
+    names  v4  2022-07-20  PASS
+    names  v4  2022-08-19  PASS
+    names  v4  2022-09-19  PASS
+    names  v4  2022-10-18  PASS
+    names  v4  2022-11-17  PASS
+    names  v4  2022-12-15  PASS
+    names  v4  fills, holdings and valuation to 2022-12-30  PASS
+    names  v4  50 of 50 decision dates on or before 2022-12-30 identical
+
+RESULT: PASS  -- universe nifty50, mode pit, control none
