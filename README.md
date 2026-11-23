@@ -71,7 +71,7 @@ mcap5001to10000, mcapover10000), `--arm` (v1 to v4),
 ```
 
 `--survivorship static|pit` (default static) chooses the universe construction.
-static is every published figure: today's members backfilled. pit uses the
+static is today's members backfilled, and carries survivorship bias. pit uses the
 supplier's point-in-time membership files and the with-survivorship prices, and
 writes every artefact with a `_pit` suffix. The membership files fail validation
 and are used by decision; each pit run records the verdict, the members it could
@@ -121,7 +121,8 @@ totals show impact as its own figure, apart from the flat slippage. The Nautilus
 applies neither (KNOWN_ISSUES.md).
 
 `--fixed-capital` (default off) runs the strategy without reinvesting profit. At each
-rebalance open the book is min(`--capital`, equity): buys are sized from it, and profit
+rebalance the book is min(`--capital`, equity), with equity valued at the decision
+close less any tax taken before the next morning's fills: buys are sized from it, and profit
 above the base stays in cash at 0% and is never spent. Below the base the book is the
 equity, so a loss is not topped up. Held names are not trimmed. Tax, charges and
 slippage are paid from the account, as in every run. The mode is refused with `--dd`
@@ -263,14 +264,16 @@ until the runs they check have been made.
 **Every number in this section was measured on the supplier's previous data
 delivery**, on the runs of 2026-09-27, the "published run" column included. The
 delivery of 2026-10-10 moved every published figure (see "Republished 2026-10-10"
-under Results), and this test has not been re-run on it. The current gaps are in
-that section.
+under Results), and this test has not been re-run on it. The current figures are in
+"Current results (re-run 2026-11-24 on d9cdcd9)" under Results.
 
 After tax, over 2019-01-01 to 2026-05-29, on the cleaned prices. The pre-registered
 noise test (`experiments/CLEANED_NOISE_PREREG.txt`, n=10 draws per cell at sigma
 0.01%) found an after-tax edge over the investable buy & hold in 15 of 32 cells under
 both profiles. All 15 verified in nt_verify on that data. Gap = arm CAGR minus
 investable buy & hold CAGR, points, research profile.
+
+*Superseded by "Current results (re-run 2026-11-24 on d9cdcd9)" under Results below. Computed before the 2026-10-22 look-ahead fixes and the 2026-10-27 to 10-29 fill and sizing changes; a cell not in that section has not been re-run.*
 
 | cell | published run (sigma 0) | draws: mean | min | max | draws above 0 |
 |---|---:|---:|---:|---:|---:|
@@ -336,8 +339,19 @@ below give both sides.
 LightGBM regressor on cross-sectional rank targets. `n_estimators=400`,
 `learning_rate=0.03`, `max_depth=6`, `num_leaves=48`, `subsample=0.8`,
 `colsample_bytree=0.8`, `min_child_samples=100`. Ten seeds — `[7, 42, 99, 1, 2, 3,
-11, 22, 33, 101]` — averaged. Retrained monthly on an expanding window with a
-32-day purge between the training data and the scored month.
+11, 22, 33, 101]` — averaged. Retrained monthly on an expanding window. A row trains
+the model only if its label ends at least 2 trading sessions before the scored month:
+a label-end purge plus a 2-session embargo. `training_set()` in
+`results/engine_core.py` keeps a row only when all of these hold, in trading sessions
+on the panel's own calendar, where `cal[i_first]` is the scored month's first session:
+
+    date      <= cal[i_first - horizon - embargo]    the cut
+    label_end <= cal[i_first - embargo]              the purge limit
+    scorable, and fwd_ret present
+
+with `horizon = HORIZON = 20` and `embargo = PURGE_EMBARGO = 2`. The target is ranked
+per period, among the qualifying rows of each date. This replaced the 32-day calendar
+purge on 2026-10-22; until then only the row's date was checked.
 
 Seventeen features, defined as `FEATS_V2` in `results/features_v2.py`: three
 momentum (`mom_20`, `mom_120`, `mom_12_1`), two reversal (`rev_5`, `rev_1`), five
@@ -346,12 +360,13 @@ volatility and risk (`vol_20`, `vol_ratio`, `idio_vol_60`, `beta_60`,
 three trend quality (`trend_consistency_20`, `path_smooth_60`, `dist_high_252`),
 and `rsi_14`.
 
-Parameters live in `results/engine_core.py`:
+Parameters:
 
-    HORIZON, REBAL, TOP_N, BUFFER, VOL_WIN, PURGE = 20, 20, 8, 16, 60, 32
-    SLIPPAGE      = 0.0015
-    START_CAPITAL = 1_000_000
-    CASH_YIELD    = 0.0
+    HORIZON, REBAL, TOP_N, BUFFER, VOL_WIN = 20, 20, 8, 16, 60    results/engine_core.py
+    PURGE_EMBARGO = 2                                             results/engine_core.py
+    SLIPPAGE      = 0.0015                                        slippage.py
+    START_CAPITAL = 1_000_000                                     capital_axis.DEFAULT
+    CASH_YIELD    = 0.0                                           results/test_exposure.py
 
 Costs are the real Zerodha delivery-equity schedule — brokerage, STT, stamp duty,
 exchange and SEBI fees, GST, and the per-scrip DP charge on sells — computed in
@@ -375,6 +390,66 @@ decides on a row dated after the decision.
 
 ## Results
 
+### Current results (re-run 2026-11-24 on d9cdcd9)
+
+These are backtests, not live or paper trading. Every figure below is read from
+`diagnostics/result_runs_20261124.csv`, which is read from the run folders
+(`runs/20261123T*`, made on commit d9cdcd9 with a clean tree). Cadence 20, research
+profile, Rs 10 lakh, one run per cell (n=1). CAGR and MaxDD are each arm's
+`comparison.csv` row; the index is the universe's NSE price index over the same
+dates. W1 is 2019-01-01 to 2026-05-29; W2 starts 2007-09-24.
+
+static uses today's index members backfilled over the whole window, so it carries
+survivorship bias. pit uses the supplier's point-in-time membership files and the
+with-survivorship prices. The tables further down were computed before the
+2026-10-22 look-ahead fixes and the 2026-10-27 to 10-29 fill and sizing changes, and
+are superseded by this section; a cell not shown here has not been re-run. The
+same cells before the changes are in `diagnostics/result_runs_20261023.csv`.
+
+**midcap150, static, W1, tax on**
+
+| window | arm | CAGR% | MaxDD% | index | index CAGR% | index MaxDD% |
+|---|---|---:|---:|---|---:|---:|
+| W1 2019-01-01 to 2026-05-29 | v1 | 31.63 | -46.03 | NIFTY MIDCAP 150 | 18.70 | -38.67 |
+| W1 2019-01-01 to 2026-05-29 | v2 | 27.17 | -21.64 | NIFTY MIDCAP 150 | 18.70 | -38.67 |
+| W1 2019-01-01 to 2026-05-29 | v3 | 39.71 | -47.77 | NIFTY MIDCAP 150 | 18.70 | -38.67 |
+| W1 2019-01-01 to 2026-05-29 | v4 | 31.89 | -24.73 | NIFTY MIDCAP 150 | 18.70 | -38.67 |
+
+**nifty100, pit, tax on, W1 and W2**
+
+| window | arm | CAGR% | MaxDD% | index | index CAGR% | index MaxDD% |
+|---|---|---:|---:|---|---:|---:|
+| W1 2019-01-01 to 2026-05-29 | v1 | 18.52 | -31.55 | NIFTY 100 | 11.28 | -38.10 |
+| W1 2019-01-01 to 2026-05-29 | v2 | 13.36 | -16.22 | NIFTY 100 | 11.28 | -38.10 |
+| W1 2019-01-01 to 2026-05-29 | v3 | 18.83 | -35.29 | NIFTY 100 | 11.28 | -38.10 |
+| W1 2019-01-01 to 2026-05-29 | v4 | 13.23 | -24.77 | NIFTY 100 | 11.28 | -38.10 |
+| W2 2007-09-24 to 2026-05-29 | v1 | 14.58 | -61.54 | NIFTY 100 | 9.11 | -61.51 |
+| W2 2007-09-24 to 2026-05-29 | v2 | 12.15 | -37.63 | NIFTY 100 | 9.11 | -61.51 |
+| W2 2007-09-24 to 2026-05-29 | v3 | 15.84 | -65.51 | NIFTY 100 | 9.11 | -61.51 |
+| W2 2007-09-24 to 2026-05-29 | v4 | 12.12 | -42.99 | NIFTY 100 | 9.11 | -61.51 |
+
+**nifty100, static against pit, W1, tax off and on**
+
+| tax | arm | static CAGR% | pit CAGR% | pit - static | static MaxDD% | pit MaxDD% | pit - static |
+|---|---|---:|---:|---:|---:|---:|---:|
+| off | v1 | 30.64 | 22.62 | -8.02 | -32.19 | -31.52 | +0.67 |
+| off | v2 | 20.54 | 15.92 | -4.62 | -14.77 | -16.22 | -1.45 |
+| off | v3 | 31.90 | 22.41 | -9.49 | -36.94 | -35.30 | +1.64 |
+| off | v4 | 24.71 | 15.65 | -9.06 | -16.06 | -24.77 | -8.71 |
+| on | v1 | 25.73 | 18.52 | -7.21 | -32.19 | -31.55 | +0.64 |
+| on | v2 | 17.23 | 13.36 | -3.87 | -14.77 | -16.22 | -1.45 |
+| on | v3 | 27.81 | 18.83 | -8.98 | -36.94 | -35.29 | +1.65 |
+| on | v4 | 21.00 | 13.23 | -7.77 | -16.37 | -24.77 | -8.40 |
+
+**nifty500, static against pit, W1, tax on**
+
+| tax | arm | static CAGR% | pit CAGR% | pit - static | static MaxDD% | pit MaxDD% | pit - static |
+|---|---|---:|---:|---:|---:|---:|---:|
+| on | v1 | 39.37 | 50.89 | +11.52 | -44.99 | -42.09 | +2.90 |
+| on | v2 | 26.25 | 31.61 | +5.36 | -27.11 | -26.62 | +0.49 |
+| on | v3 | 38.46 | 53.97 | +15.51 | -56.69 | -56.21 | +0.48 |
+| on | v4 | 27.65 | 34.53 | +6.88 | -37.23 | -28.66 | +8.57 |
+
 ### The market-cap buckets, static only, 2026-10-16
 
 **mcap1500to5000:** STATIC AND NOT AN INDEX. The supplier delivered these 477 names as a market-cap bucket, with no membership history. Only 2 of the 477 stop trading before the window ends, so the list appears to hold the bucket's members near the time of delivery, not the members at each date. A stock that left the bucket or was delisted is likely missing; a stock that grew into it is present for the whole window. Both the strategy and its buy & hold therefore likely carry survivorship and look-ahead bias, which cannot be measured without membership files. The benchmark index is the broad NIFTY 500, not a bucket index.
@@ -393,6 +468,8 @@ a name is traded only on a session with a row. SANGHIIND's file ends on 2026-04-
 every mcap1500to5000 cell holds it to the end at its last close, 50.15, an assumption;
 each run's RUN.txt gives the figures with it valued at zero (KNOWN_ISSUES.md). nt_verify
 verifies the four mcapover10000 cells; the other eight are not gated (KNOWN_ISSUES.md). There are no pit figures: no membership files exist.
+
+*Superseded by "Current results (re-run 2026-11-24 on d9cdcd9)" above. Computed before the 2026-10-22 look-ahead fixes and the 2026-10-27 to 10-29 fill and sizing changes; a cell not in that section has not been re-run.*
 
 | universe | arm | profile | tax | CAGR% | basket CAGR% | NIFTY 500 CAGR% | MaxDD% | tax paid Rs |
 |---|---|---|---|---:|---:|---:|---:|---:|
@@ -448,9 +525,9 @@ verifies the four mcapover10000 cells; the other eight are not gated (KNOWN_ISSU
 ### Read these first
 
 - **The supplier's data delivery of 2026-10-10 replaced the prices, and every cell was
-  republished.** The current figures are in "Republished 2026-10-10" below. Every
-  figure in the sections after it was computed on earlier data and is left as
-  written. The delivery only removed rows: holiday rows the calendar already
+  republished.** The current figures are in "Current results (re-run 2026-11-24 on
+  d9cdcd9)" above. "Republished 2026-10-10" and every section after it were computed
+  on earlier data and code and are left as written. The delivery only removed rows: holiday rows the calendar already
   dropped, and four calendar sessions that no file has a row for. Three of them
   (2016-07-06, 2017-04-04, 2017-12-02) are in the model's training history and
   feature windows, so the scores differ from the first rebalance of 2019. The fourth,
@@ -492,8 +569,12 @@ verifies the four mcapover10000 cells; the other eight are not gated (KNOWN_ISSU
   session's ratio (`experiments/DATA_CLEANING_SPEC.txt`). The rule read up to five
   later sessions, so it was removed on 2026-10-22 with the other look-ahead fixes in
   KNOWN_ISSUES.md. The figures below were computed with it and are to be replaced.
-- **The survivorship bias is permanent.** Every universe is today's index members
-  backfilled to 2019 (see "What is wrong with these results").
+- **static runs carry survivorship bias.** A static universe is today's index members
+  backfilled over the window. `--survivorship pit` uses the supplier's point-in-time
+  membership files for the nine index universes; the three market-cap buckets have none
+  (see "What is wrong with these results").
+
+*Superseded by "Current results (re-run 2026-11-24 on d9cdcd9)" above: the four tax-on tables in the generated block below. Computed before the 2026-10-22 look-ahead fixes and the 2026-10-27 to 10-29 fill and sizing changes; a cell not in that section has not been re-run. The note sits outside the block because tools/readme_tax_tables.py rewrites it whole.*
 
 <!-- tax-on tables: written by tools/readme_tax_tables.py; do not edit by hand -->
 
@@ -714,6 +795,8 @@ section: it was rerun after PRIVISCL was removed.
 
 `research` profile:
 
+*Superseded by "Current results (re-run 2026-11-24 on d9cdcd9)" above. Computed before the 2026-10-22 look-ahead fixes and the 2026-10-27 to 10-29 fill and sizing changes; a cell not in that section has not been re-run.*
+
 | universe | arm | tax off: CAGR% | MaxDD% | Sharpe | tax on, headline: CAGR% | MaxDD% | Sharpe | tax on, sold on the last day: CAGR% | n |
 |---|---|---:|---:|---:|---:|---:|---:|---:|---|
 | nifty50 | v1 | 20.90 | -36.02 | 1.14 | 17.79 | -36.02 | 0.98 | 17.89 | n=1 |
@@ -755,6 +838,8 @@ and neither changed. The reference index moved by -0.007 to +0.001 points. The
 previous table also gave the investable basket's MaxDD; no tracked script writes it,
 so it is not given here.
 
+*Superseded by "Current results (re-run 2026-11-24 on d9cdcd9)" above. Computed before the 2026-10-22 look-ahead fixes and the 2026-10-27 to 10-29 fill and sizing changes; a cell not in that section has not been re-run.*
+
 | universe | buy & hold, reference (untaxed, daily-rebalanced index): CAGR% | MaxDD% | buy & hold, investable (held lots), taxed, headline: CAGR% | held lots, sold on the last day: CAGR% | v2 tax on headline minus investable headline | v2 sold on the last day minus held lots sold on the last day |
 |---|---:|---:|---:|---:|---:|---:|
 | nifty50 | 20.45 | -37.31 | 19.62 | 18.35 | -7.33 | -5.88 |
@@ -768,6 +853,8 @@ so it is not given here.
 
 All four arms against the investable taxed buy & hold, tax-on headline minus investable
 headline, CAGR points (`diagnostics/tax_on_all_arms.csv`, full precision):
+
+*Superseded by "Current results (re-run 2026-11-24 on d9cdcd9)" above. Computed before the 2026-10-22 look-ahead fixes and the 2026-10-27 to 10-29 fill and sizing changes; a cell not in that section has not been re-run.*
 
 | universe | investable buy & hold | v1 gap | v2 gap | v3 gap | v4 gap |
 |---|---:|---:|---:|---:|---:|
@@ -785,6 +872,8 @@ headline, CAGR points (`diagnostics/tax_on_all_arms.csv`, full precision):
 other 23 the tradeable figures equal the research ones exactly. All 64 (cell,
 profile) rows are in `diagnostics/cells_20261010.csv`. The profile is UNGATED
 (`profiles.UNGATED_NOTICE`).
+
+*Superseded by "Current results (re-run 2026-11-24 on d9cdcd9)" above. Computed before the 2026-10-22 look-ahead fixes and the 2026-10-27 to 10-29 fill and sizing changes; a cell not in that section has not been re-run.*
 
 | universe | arm | research, tax off | tradeable, tax off | research, tax on | tradeable, tax on | tradeable, sold on the last day | gap, research | gap, tradeable |
 |---|---|---:|---:|---:|---:|---:|---:|---:|
@@ -807,6 +896,8 @@ from positive to negative: nifty50 v1 and nifty100 v1. The data lost four sessio
 three in the training history and one inside the window; moves this size are the
 single-draw instability recorded elsewhere in this file, not a change in the
 strategy.
+
+*Superseded by "Current results (re-run 2026-11-24 on d9cdcd9)" above. Computed before the 2026-10-22 look-ahead fixes and the 2026-10-27 to 10-29 fill and sizing changes; a cell not in that section has not been re-run.*
 
 | universe | arm | tax-on CAGR old | new | change | gap old | gap new | sign changed |
 |---|---|---:|---:|---:|---:|---:|---|
@@ -850,6 +941,8 @@ price files for bad data, and microcap250 was rerun on its other 241 names: the 
 window, cadence and four settings as above, arms v1 to v4. Every figure is one run
 (n=1) and is in the same three files.
 
+*Superseded by "Current results (re-run 2026-11-24 on d9cdcd9)" above. Computed before the 2026-10-22 look-ahead fixes and the 2026-10-27 to 10-29 fill and sizing changes; a cell not in that section has not been re-run.*
+
 | arm | tax off: CAGR% | MaxDD% | Sharpe | tax on, headline: CAGR% | MaxDD% | Sharpe | tax on, sold on the last day: CAGR% | n |
 |---|---:|---:|---:|---:|---:|---:|---:|---|
 | v1 | 53.07 | -42.45 | 2.07 | 43.09 | -42.47 | 1.70 | 43.18 | n=1 |
@@ -863,6 +956,8 @@ v1 +9.71, v2 -6.53, v3 +22.17, v4 -0.17 points.
 
 `tradeable` profile: the participation cap binds in all four cells (19, 4, 25 and 3
 skipped rows for v1 to v4), against 9 of the other 32.
+
+*Superseded by "Current results (re-run 2026-11-24 on d9cdcd9)" above. Computed before the 2026-10-22 look-ahead fixes and the 2026-10-27 to 10-29 fill and sizing changes; a cell not in that section has not been re-run.*
 
 | arm | research, tax off | tradeable, tax off | research, tax on | tradeable, tax on | tradeable, sold on the last day | gap, research | gap, tradeable |
 |---|---:|---:|---:|---:|---:|---:|---:|
@@ -901,6 +996,8 @@ figures above are unchanged.
   and MAXHEALTH, which joined in 2024 and 2025). Used as membership, it makes some later
   members eligible early.
 
+*Superseded by "Current results (re-run 2026-11-24 on d9cdcd9)" above. Computed before the 2026-10-22 look-ahead fixes and the 2026-10-27 to 10-29 fill and sizing changes; a cell not in that section has not been re-run.*
+
 | universe | window | verdict | members with no price file (dropped, current) |
 |---|---|---|---|
 | nifty50 | 2019-01-01 to 2026-05-29 | FAIL | 1 of 56 (1, 0) |
@@ -922,6 +1019,8 @@ run started there). Its with-survivorship prices also come from a different sour
 held-lots basket, taxed, headline; in pit it holds the members on the first pit
 rebalance. Gap is the tax-on headline CAGR minus that buy & hold. **bold** marks an
 arm that beats buy & hold in static but not in pit.
+
+*Superseded by "Current results (re-run 2026-11-24 on d9cdcd9)" above. Computed before the 2026-10-22 look-ahead fixes and the 2026-10-27 to 10-29 fill and sizing changes; a cell not in that section has not been re-run.*
 
 | universe | arm | tax off: CAGR% | tax off: MaxDD% | tax on: CAGR% | pit buy & hold | gap, static | gap, pit |
 |---|---|---|---|---|---:|---:|---:|
@@ -1000,6 +1099,8 @@ below; no tax rule changed.
 
 `research` profile:
 
+*Superseded by "Current results (re-run 2026-11-24 on d9cdcd9)" above. Computed before the 2026-10-22 look-ahead fixes and the 2026-10-27 to 10-29 fill and sizing changes; a cell not in that section has not been re-run.*
+
 | universe | arm | tax off: CAGR% | MaxDD% | Sharpe | tax on, headline: CAGR% | MaxDD% | Sharpe | tax on, sold on the last day: CAGR% | n |
 |---|---|---:|---:|---:|---:|---:|---:|---:|---|
 | nifty50 | v1 | 23.20 | -29.50 | 1.27 | 20.16 | -29.47 | 1.11 | 20.47 | n=1 |
@@ -1042,6 +1143,8 @@ session was cleaned. The reference index fell by 0.22 to 0.62 points in every
 universe. It rebalances daily, and a price that jumps and reverts adds a small
 rebalancing gain to a daily-rebalanced basket each time; the cleaning removed those.
 
+*Superseded by "Current results (re-run 2026-11-24 on d9cdcd9)" above. Computed before the 2026-10-22 look-ahead fixes and the 2026-10-27 to 10-29 fill and sizing changes; a cell not in that section has not been re-run.*
+
 | universe | buy & hold, reference (untaxed, daily-rebalanced index): CAGR% | MaxDD% | buy & hold, investable (held lots), taxed, headline: CAGR% | MaxDD% | held lots, sold on the last day: CAGR% | v2 tax on headline minus investable headline | v2 sold on the last day minus held lots sold on the last day |
 |---|---:|---:|---:|---:|---:|---:|---:|
 | nifty50 | 20.45 | -37.31 | 19.62 | -35.65 | 18.35 | -6.47 | -4.97 |
@@ -1055,6 +1158,8 @@ rebalancing gain to a daily-rebalanced basket each time; the cleaning removed th
 
 All four arms against the investable taxed buy & hold, tax-on headline minus investable
 headline, CAGR points (`diagnostics/tax_on_all_arms.csv`, full precision):
+
+*Superseded by "Current results (re-run 2026-11-24 on d9cdcd9)" above. Computed before the 2026-10-22 look-ahead fixes and the 2026-10-27 to 10-29 fill and sizing changes; a cell not in that section has not been re-run.*
 
 | universe | investable buy & hold | v1 gap | v2 gap | v3 gap | v4 gap |
 |---|---:|---:|---:|---:|---:|
@@ -1072,6 +1177,8 @@ headline, CAGR points (`diagnostics/tax_on_all_arms.csv`, full precision):
 the other 25 the tradeable figures equal the research ones exactly. All 64 (cell, profile) rows are in
 `diagnostics/cells_cleaned_20260927.csv`. The profile is UNGATED
 (`profiles.UNGATED_NOTICE`).
+
+*Superseded by "Current results (re-run 2026-11-24 on d9cdcd9)" above. Computed before the 2026-10-22 look-ahead fixes and the 2026-10-27 to 10-29 fill and sizing changes; a cell not in that section has not been re-run.*
 
 | universe | arm | research, tax off | tradeable, tax off | research, tax on | tradeable, tax on | tradeable, sold on the last day | gap, research | gap, tradeable |
 |---|---|---:|---:|---:|---:|---:|---:|---:|
@@ -1092,6 +1199,8 @@ positive (nifty50 v1 and v3, nifty100 v1, midcap50 v1 and v3) and two from posit
 to negative (nifty500 v2 and midcap100 v2, the two v2 edges that were positive).
 Moves this size are the scale of the single-draw instability recorded elsewhere in
 this file; they do not say the cleaning made any arm better or worse as a strategy.
+
+*Superseded by "Current results (re-run 2026-11-24 on d9cdcd9)" above. Computed before the 2026-10-22 look-ahead fixes and the 2026-10-27 to 10-29 fill and sizing changes; a cell not in that section has not been re-run.*
 
 | universe | arm | tax-on CAGR old | new | change | gap old | gap new | sign changed |
 |---|---|---:|---:|---:|---:|---:|---|
@@ -1154,6 +1263,8 @@ figures after costs, cadence 20, `research` profile. Run folders
   exemption is set per financial year, and this year is cut short only because
   the data ends on 2026-05-29.
 
+*Superseded by "Current results (re-run 2026-11-24 on d9cdcd9)" above. Computed before the 2026-10-22 look-ahead fixes and the 2026-10-27 to 10-29 fill and sizing changes; a cell not in that section has not been re-run.*
+
 | universe | arm | tax off: CAGR% | MaxDD% | Sharpe | tax on, headline: CAGR% | MaxDD% | Sharpe | tax on, sold on the last day: CAGR% | n (tax off) |
 |---|---|---:|---:|---:|---:|---:|---:|---:|---|
 | nifty50 | v1 | 18.54 | -37.73 | 0.99 | 15.11 | -37.73 | 0.83 | 15.30 | n=1 |
@@ -1198,6 +1309,8 @@ charges and long-term tax on the whole gain. The two right-hand columns are v2
 (tax on) against the investable buy & hold, headline against headline and
 last-day against last-day.
 
+*Superseded by "Current results (re-run 2026-11-24 on d9cdcd9)" above. Computed before the 2026-10-22 look-ahead fixes and the 2026-10-27 to 10-29 fill and sizing changes; a cell not in that section has not been re-run.*
+
 | universe | buy & hold, reference (untaxed, daily-rebalanced index): CAGR% | MaxDD% | buy & hold, investable (held lots), taxed, headline: CAGR% | MaxDD% | held lots, sold on the last day: CAGR% | v2 tax on headline minus investable headline | v2 sold on the last day minus held lots sold on the last day |
 |---|---:|---:|---:|---:|---:|---:|---:|
 | nifty50 | 20.67 | -39.11 | 19.62 | -37.78 | 18.35 | -8.21 | -6.70 |
@@ -1225,6 +1338,8 @@ in the tables above. Every cell is one draw (n=1); only v2 on nifty500 and midca
 has been tested under price noise, and neither edge was supported. A few v2 gaps
 here differ by 0.01 from the table above (midcap150 +0.60 against +0.61), because
 this table rounds after subtracting and that one subtracts rounded figures.
+
+*Superseded by "Current results (re-run 2026-11-24 on d9cdcd9)" above. Computed before the 2026-10-22 look-ahead fixes and the 2026-10-27 to 10-29 fill and sizing changes; a cell not in that section has not been re-run.*
 
 | universe | investable buy & hold | v1 gap | v2 gap | v3 gap | v4 gap |
 |---|---:|---:|---:|---:|---:|
@@ -1262,6 +1377,8 @@ marked `n=1` and has no error bar.
 
 #### Nifty 100 (99 constituents) -- tax off
 
+*Superseded by "Current results (re-run 2026-11-24 on d9cdcd9)" above. Computed before the 2026-10-22 look-ahead fixes and the 2026-10-27 to 10-29 fill and sizing changes; a cell not in that section has not been re-run.*
+
 | arm | CAGR% | Sharpe | Sortino | MaxDD% | Calmar | Trades | AnnVol% | Deployed% | FinalEquity | n |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|
 | v1 invvol, 100% invested | 25.71 | 1.25 | 1.63 | -37.52 | 0.69 | 751 | 20.36 | 100.0 | 5442885.74 | n=1 |
@@ -1271,6 +1388,8 @@ marked `n=1` and has no error bar.
 | buy & hold equal-weight | 24.16 | 1.27 | 1.45 | -38.65 | 0.63 | 0 | 18.67 | 100.0 | 4969254.64 | n=1 |
 
 #### MidCap150 (148 constituents) -- tax off
+
+*Superseded by "Current results (re-run 2026-11-24 on d9cdcd9)" above. Computed before the 2026-10-22 look-ahead fixes and the 2026-10-27 to 10-29 fill and sizing changes; a cell not in that section has not been re-run.*
 
 | arm | CAGR% | Sharpe | Sortino | MaxDD% | Calmar | Trades | AnnVol% | Deployed% | FinalEquity | n |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|
@@ -1285,6 +1404,8 @@ marked `n=1` and has no error bar.
 The distributions are v2 CAGR% under a 0.01% price perturbation, measured
 2026-09-24 on these numerics (`diagnostics/price_noise.txt`). Every tax-on
 figure and every buy & hold figure is n=1.
+
+*Superseded by "Current results (re-run 2026-11-24 on d9cdcd9)" above. Computed before the 2026-10-22 look-ahead fixes and the 2026-10-27 to 10-29 fill and sizing changes; a cell not in that section has not been re-run.*
 
 | universe | v2 CAGR% tax off | buy & hold | gap | v2 CAGR% tax on | v2 Sharpe | v2 MaxDD% | v2 trades | n, v2 tax off |
 |---|---:|---:|---:|---:|---:|---:|---:|---|
@@ -1325,6 +1446,8 @@ moved most, −18.98% to −15.68%.
 The same measurement as the superseded box below, sigma 0.01% only, seeds 101 to
 1010, n=10 per universe. Report: `diagnostics/price_noise.txt`; per-run record:
 `diagnostics/price_noise_runs.csv`. The sigma 0.50% blocks were not re-run.
+
+*Superseded by "Current results (re-run 2026-11-24 on d9cdcd9)" above. Computed before the 2026-10-22 look-ahead fixes and the 2026-10-27 to 10-29 fill and sizing changes; a cell not in that section has not been re-run.*
 
 | v2, sigma 0.01% | published | mean | sd | min | max | draws above published |
 |---|---:|---:|---:|---:|---:|---:|
@@ -1385,6 +1508,8 @@ the old minimum. 16 of the 20 draws are above the published figure, against 19 o
 
 ### Nifty 100 — 99 symbols
 
+*Superseded by "Current results (re-run 2026-11-24 on d9cdcd9)" above. Computed before the 2026-10-22 look-ahead fixes and the 2026-10-27 to 10-29 fill and sizing changes; a cell not in that section has not been re-run.*
+
 | arm | CAGR% | Sharpe | Sortino | MaxDD% | Calmar | Trades | AnnVol% | Deployed% | FinalEquity |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
 | v1 invvol, 100% invested | 25.77 | 1.26 | 1.68 | -36.03 | 0.72 | 773 | 20.21 | 100.0 | 5461733.57 |
@@ -1394,6 +1519,8 @@ the old minimum. 16 of the 20 draws are above the published figure, against 19 o
 | buy & hold equal-weight | 24.16 | 1.27 | 1.45 | -38.65 | 0.63 | 0 | 18.67 | 100.0 | 4969254.64 |
 
 ### MidCap150 — 148 symbols
+
+*Superseded by "Current results (re-run 2026-11-24 on d9cdcd9)" above. Computed before the 2026-10-22 look-ahead fixes and the 2026-10-27 to 10-29 fill and sizing changes; a cell not in that section has not been re-run.*
 
 | arm | CAGR% | Sharpe | Sortino | MaxDD% | Calmar | Trades | AnnVol% | Deployed% | FinalEquity |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
@@ -1471,6 +1598,8 @@ it was removed from the tree on 2026-09-24 and is in git history (`git show
 50562ed:RETIRED_UNIVERSES.md`). The two universes were known by their sizes, 58 and
 74, and the table keeps those names because the experiment record uses them.
 
+*Superseded by "Current results (re-run 2026-11-24 on d9cdcd9)" above. Computed before the 2026-10-22 look-ahead fixes and the 2026-10-27 to 10-29 fill and sizing changes; a cell not in that section has not been re-run.*
+
 | universe | window | CAGR | Sharpe | MaxDD | own equal-weight buy & hold |
 |---|---|---|---|---|---|
 | 58 (deleted 2026-09-11) | 2019-01-01 → 2026-06-08 | 17.01% | 1.39 | −14.34% | 18.02% |
@@ -1489,7 +1618,7 @@ and the port consumes that; the parquet is the only channel between the two.
 
 The port is checked against the research engine on every rebalance date at zero
 tolerance — plain equality on integer share counts, no epsilon. Measured
-2026-09-25 on the current numerics with `nautilus/nt_verify.py --universe=<tag>`,
+2026-09-25 on the numerics of that date with `nautilus/nt_verify.py --universe=<tag>`,
 v2, cadence 20, n = 92 rebalances per universe. check_all gates nifty100 and
 midcap150 on every run; the other six were measured once:
 
@@ -1503,6 +1632,10 @@ midcap150 on every run; the other six were measured once:
 | midcap100 | 92 of 92 | 80 of 92 | 12 | **not reconciled** |
 | nifty200 | 92 of 92 | 91 of 92 | 1 | **not reconciled** |
 | nifty500 | 92 of 92 | 91 of 92 | 1 | **not reconciled** |
+
+*Measured before buys were sized from the decision close (2026-10-28) and before fill
+prices were rounded to the paisa with the NSE tick grid removed (2026-10-29); this table
+has not been re-measured since.*
 
 **midcap50, midcap100, nifty200 and nifty500 are not reconciled.** On midcap50 the
 port holds a different set of names from the research engine on 1 of 92
@@ -1580,11 +1713,14 @@ it is here too.
 
 ## What is wrong with these results
 
-**Survivorship bias, unresolved.** Every universe is today's index membership
-backfilled to 2019. Names dropped or delisted during the window are absent
+**Survivorship bias, in static runs.** A static universe is today's index membership
+backfilled over the window. Names dropped or delisted during the window are absent
 entirely, so both the strategy and its buy & hold benchmark are inflated by an
-unknown amount. `results/survivorship.py` implements a point-in-time switch and it
-works, but the mode is `static` and the results above are biased. Rebuilding real
+unknown amount. `--survivorship pit`
+(`survivorship_axis.py`) runs on the supplier's point-in-time membership files and
+with-survivorship prices for the nine index universes; those files fail validation
+and are used by decision (KNOWN_ISSUES.md). The three market-cap buckets have no
+membership files and are static only. The earlier attempt at rebuilding
 membership from the NSE press-release archive reached 2024-03-28 onward — the last
 2.5 years of a 7.6-year backtest. `diagnostics/membership/STATUS.md` records the
 whole attempt, including that downloading the complete non-bond archive back to
