@@ -1,0 +1,33 @@
+universe,mode,window,arm,tax,cadence,profile,first_session,last_session,trading_days,decision_dates,strategy_cagr_pct,strategy_maxdd_pct,index_name,index_cagr_pct,index_maxdd_pct,run_folder
+nifty100,static,W1,v1,off,20,research,2019-01-01,2026-05-29,1835,92,30.64,-32.19,NIFTY 100,11.28,-38.1,runs/20261123T183328_nifty100_all_r20
+nifty100,static,W1,v2,off,20,research,2019-01-01,2026-05-29,1835,92,20.54,-14.77,NIFTY 100,11.28,-38.1,runs/20261123T183328_nifty100_all_r20
+nifty100,static,W1,v3,off,20,research,2019-01-01,2026-05-29,1835,92,31.9,-36.94,NIFTY 100,11.28,-38.1,runs/20261123T183328_nifty100_all_r20
+nifty100,static,W1,v4,off,20,research,2019-01-01,2026-05-29,1835,92,24.71,-16.06,NIFTY 100,11.28,-38.1,runs/20261123T183328_nifty100_all_r20
+nifty100,static,W1,v1,on,20,research,2019-01-01,2026-05-29,1835,92,25.73,-32.19,NIFTY 100,11.28,-38.1,runs/20261123T183514_nifty100_all_r20_tax
+nifty100,static,W1,v2,on,20,research,2019-01-01,2026-05-29,1835,92,17.23,-14.77,NIFTY 100,11.28,-38.1,runs/20261123T183514_nifty100_all_r20_tax
+nifty100,static,W1,v3,on,20,research,2019-01-01,2026-05-29,1835,92,27.81,-36.94,NIFTY 100,11.28,-38.1,runs/20261123T183514_nifty100_all_r20_tax
+nifty100,static,W1,v4,on,20,research,2019-01-01,2026-05-29,1835,92,21.0,-16.37,NIFTY 100,11.28,-38.1,runs/20261123T183514_nifty100_all_r20_tax
+nifty100,pit,W1,v1,off,20,research,2019-01-01,2026-05-29,1835,92,22.62,-31.52,NIFTY 100,11.28,-38.1,runs/20261123T183713_nifty100_all_r20_pit
+nifty100,pit,W1,v2,off,20,research,2019-01-01,2026-05-29,1835,92,15.92,-16.22,NIFTY 100,11.28,-38.1,runs/20261123T183713_nifty100_all_r20_pit
+nifty100,pit,W1,v3,off,20,research,2019-01-01,2026-05-29,1835,92,22.41,-35.3,NIFTY 100,11.28,-38.1,runs/20261123T183713_nifty100_all_r20_pit
+nifty100,pit,W1,v4,off,20,research,2019-01-01,2026-05-29,1835,92,15.65,-24.77,NIFTY 100,11.28,-38.1,runs/20261123T183713_nifty100_all_r20_pit
+nifty100,pit,W1,v1,on,20,research,2019-01-01,2026-05-29,1835,92,18.52,-31.55,NIFTY 100,11.28,-38.1,runs/20261123T183842_nifty100_all_r20_tax_pit
+nifty100,pit,W1,v2,on,20,research,2019-01-01,2026-05-29,1835,92,13.36,-16.22,NIFTY 100,11.28,-38.1,runs/20261123T183842_nifty100_all_r20_tax_pit
+nifty100,pit,W1,v3,on,20,research,2019-01-01,2026-05-29,1835,92,18.83,-35.29,NIFTY 100,11.28,-38.1,runs/20261123T183842_nifty100_all_r20_tax_pit
+nifty100,pit,W1,v4,on,20,research,2019-01-01,2026-05-29,1835,92,13.23,-24.77,NIFTY 100,11.28,-38.1,runs/20261123T183842_nifty100_all_r20_tax_pit
+nifty100,pit,W2,v1,on,20,research,2007-09-24,2026-05-29,4625,232,14.58,-61.54,NIFTY 100,9.11,-61.51,runs/20261123T184033_nifty100_all_r20_tax_pit_s20070924
+nifty100,pit,W2,v2,on,20,research,2007-09-24,2026-05-29,4625,232,12.15,-37.63,NIFTY 100,9.11,-61.51,runs/20261123T184033_nifty100_all_r20_tax_pit_s20070924
+nifty100,pit,W2,v3,on,20,research,2007-09-24,2026-05-29,4625,232,15.84,-65.51,NIFTY 100,9.11,-61.51,runs/20261123T184033_nifty100_all_r20_tax_pit_s20070924
+nifty100,pit,W2,v4,on,20,research,2007-09-24,2026-05-29,4625,232,12.12,-42.99,NIFTY 100,9.11,-61.51,runs/20261123T184033_nifty100_all_r20_tax_pit_s20070924
+midcap150,static,W1,v1,on,20,research,2019-01-01,2026-05-29,1835,92,31.63,-46.03,NIFTY MIDCAP 150,18.7,-38.67,runs/20261123T190352_midcap150_all_r20_tax
+midcap150,static,W1,v2,on,20,research,2019-01-01,2026-05-29,1835,92,27.17,-21.64,NIFTY MIDCAP 150,18.7,-38.67,runs/20261123T190352_midcap150_all_r20_tax
+midcap150,static,W1,v3,on,20,research,2019-01-01,2026-05-29,1835,92,39.71,-47.77,NIFTY MIDCAP 150,18.7,-38.67,runs/20261123T190352_midcap150_all_r20_tax
+midcap150,static,W1,v4,on,20,research,2019-01-01,2026-05-29,1835,92,31.89,-24.73,NIFTY MIDCAP 150,18.7,-38.67,runs/20261123T190352_midcap150_all_r20_tax
+nifty500,static,W1,v1,on,20,research,2019-01-01,2026-05-29,1835,92,39.37,-44.99,NIFTY500,12.94,-38.3,runs/20261123T190610_nifty500_all_r20_tax
+nifty500,static,W1,v2,on,20,research,2019-01-01,2026-05-29,1835,92,26.25,-27.11,NIFTY500,12.94,-38.3,runs/20261123T190610_nifty500_all_r20_tax
+nifty500,static,W1,v3,on,20,research,2019-01-01,2026-05-29,1835,92,38.46,-56.69,NIFTY500,12.94,-38.3,runs/20261123T190610_nifty500_all_r20_tax
+nifty500,static,W1,v4,on,20,research,2019-01-01,2026-05-29,1835,92,27.65,-37.23,NIFTY500,12.94,-38.3,runs/20261123T190610_nifty500_all_r20_tax
+nifty500,pit,W1,v1,on,20,research,2019-01-01,2026-05-29,1835,92,50.89,-42.09,NIFTY500,12.94,-38.3,runs/20261123T191142_nifty500_all_r20_tax_pit
+nifty500,pit,W1,v2,on,20,research,2019-01-01,2026-05-29,1835,92,31.61,-26.62,NIFTY500,12.94,-38.3,runs/20261123T191142_nifty500_all_r20_tax_pit
+nifty500,pit,W1,v3,on,20,research,2019-01-01,2026-05-29,1835,92,53.97,-56.21,NIFTY500,12.94,-38.3,runs/20261123T191142_nifty500_all_r20_tax_pit
+nifty500,pit,W1,v4,on,20,research,2019-01-01,2026-05-29,1835,92,34.53,-28.66,NIFTY500,12.94,-38.3,runs/20261123T191142_nifty500_all_r20_tax_pit
