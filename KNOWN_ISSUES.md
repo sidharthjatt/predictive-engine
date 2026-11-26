@@ -1010,7 +1010,7 @@ quote the numbers from that run. There is no hook enforcing this.
 
 In September 2026 several changes were declared safe on evidence about something else. Examples: a gate that counted untouched baseline files as matches, a merged module gated on cached panels so none of it ran, and an audit that replayed the uncapped strategy against the capped curve. The guards added in response are load-bearing:
 - `gate_compare.py` compares only files the cell under test wrote, and fails on any file it cannot account for;
-- `registry_coverage_check.py`, called from `run.py` preflight, fails if a registered universe is missing from any of the seven per-universe tables;
+- `registry_coverage_check.py` failed a run if a registered universe was missing from any of the seven per-universe tables. It was retired on 2026-11-26 (see "Files retired on 2026-11-26" below), and nothing replaces it yet;
 - `backtest_exposure` refuses a participation cap passed without `vol20`;
 - scripts outside the profile axis call `profiles.research_only`, which refuses a non-research profile.
 
@@ -1666,6 +1666,15 @@ is kept outside the repository, in a git bundle the owner holds.
 
 
 ---
+
+### Files retired on 2026-11-26
+
+Deleted in the first consolidation batch. Each still exists at commit dbe387e: `git show dbe387e:<path>`. Results they produced stay in `diagnostics/` and `experiments/`, and the mentions of them elsewhere in this file, README.md, docs/HANDOFF.md and `experiments/` describe that history.
+
+- One-off measurements and studies, not called by any run or check: `heldout_prereg_run.py`, `jackknife.py`, `liquidity_participation.py`, `measured_universes.py`, `palette_distance.py`, `param_surface.py`, `topn_test.py`, `survivorship_attribution.py`, and in `results/`: `atom_measure.py`, `attribution_v2.py`, `drawdown_exit_measure.py`, `drawdown_stop_judge.py`, `nifty500_baseline_trace.py`, `overdraft_measure.py`, `pinned_mask_test.py`, `rebal_cadence_sweep.py`, `seed_noise_measure.py`, `seed_noise_report.py`, `selection_margin.py`, `shuffle_test.py`, `survivorship_sheet.py`.
+- `results/leakage_check4_corpactions.py`: descriptive only, with no pass condition; check_all always skipped it.
+- `check_pipeline_order.py` and `registry_coverage_check.py`: they checked the order and coverage of run_all.PIPELINE_ORDER's script list, which the consolidation replaces. run.py no longer runs them before a run, and check_all no longer runs them. The issue "check_pipeline_order resolves edges per script, not per universe" above no longer applies.
+- The noise harness: `results/noise_parallel.py`, `results/price_noise_measure.py`, `results/after_tax_noise.py`, `tools/pit_noise_band.py`, `results/seed_band_fit.py`, `results/drawdown_stop_band.py`, `scripts/run_noise_stage.sh`, `scripts/run_seed_band_fit.sh`, with the `engine_tests.py noise_harness` case and the noise cases of `engine_tests.py cache_key`. `engine_tests.py fixed_capital` now has its own copy of `select_pit`. The sealed drawdown-stop band, `experiments/DRAWDOWN_STOP_BAND.csv`, is kept and still read by `arms/registry.py`; its writer is gone, so the band can only be recomputed from history.
 
 ## Out of scope
 

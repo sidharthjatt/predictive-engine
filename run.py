@@ -493,30 +493,13 @@ def preflight(args, plan):
                    + ", ".join(sorted(stray)[:8])
                    + (f" (+{len(stray) - 8} more)" if len(stray) > 8 else ""))
 
-    # ------------------------------------------------------------------
-    # EVERY REGISTERED UNIVERSE, IN EVERY TABLE THAT NEEDS A ROW FOR IT
-    # ------------------------------------------------------------------
-    # THE CHECKS ABOVE ASK WHETHER THE SELECTION NAMES SOMETHING THAT EXISTS. This
-    # asks the opposite question, and it is the one nothing was asking: whether
-    # something that exists is NAMED EVERYWHERE IT HAS TO BE. Three of the seven
-    # tables tolerated a missing row in silence, and run_all.PIPELINE_ORDER is the
-    # one that matters -- a registered universe absent from it runs no scores, no
-    # engine, no audit and no chart, and this file reports success.
-    #
-    # IT RUNS ON THE WHOLE REGISTRY, NOT THE SELECTION, for the reason the ordering
-    # check does: coverage is a property of the repository. A run that selected one
-    # universe would otherwise pass while the other is half-wired.
-    import registry_coverage_check as _cov
-    _, misses = _cov.coverage()
-    for tag, table, why in misses:
-        bad.append(f"universe {tag!r} has no entry in {table} -- {why}")
+    # The registry coverage check (registry_coverage_check.py) was retired on
+    # 2026-11-26; it last exists at commit dbe387e.
 
     if bad:
         raise SystemExit("REFUSING TO START -- the run names something that does "
-                         "not exist, or something that exists is not named where "
-                         "it must be:\n" + "\n".join(f"  {b}" for b in bad)
-                         + "\n  Nothing has run. See universes/registry.py and "
-                           "registry_coverage_check.py.")
+                         "not exist:\n" + "\n".join(f"  {b}" for b in bad)
+                         + "\n  Nothing has run. See universes/registry.py.")
 
 
 # The naming schemes a universe's artefacts use. FINAL_*/v2FINAL_* and v34_*
@@ -979,30 +962,8 @@ def main(argv=None):
 
     plan = build_plan(args)
 
-    # ----------------------------------------------------------------------
-    # CAN THIS PLAN SATISFY ITS OWN DECLARED INPUTS? Before --list, before
-    # --dry-run, and before STEP 10a on a real run.
-    # ----------------------------------------------------------------------
-    # IT ASKS A QUESTION check_pipeline_order CANNOT. That checker reasons per
-    # SCRIPT and keeps each script's earliest position, so a merged step that runs
-    # at several positions collapses to one and its per-invocation edges vanish --
-    # make_chart.py to 10d, audit_step.py to 10c, 10c before 10d, no inversion.
-    # This walks the RESOLVED PLAN, one entry per invocation, and asks whether the
-    # writer of each DECLARED input comes earlier in that same plan.
-    #
-    # AND IT NEVER TOUCHES THE FILESYSTEM. check_inputs is satisfied by a file
-    # whoever left there; this is not, which is why it fails on a warm tree as well
-    # as a cold one. Every tree this project has ever run on was warm.
-    #
-    # IT RUNS FOR --list AND --dry-run TOO, deliberately: the question is about the
-    # plan, and a plan you can print is a plan you can check.
-    if plan["pipeline"] and plan.get("_run_all"):
-        import check_pipeline_order
-        _ra = plan["_run_all"]
-        check_pipeline_order.plan_enforce(
-            plan["pipeline"], _ra["REQUIRED_INPUTS"],
-            {u.tag for u in plan["universes"]}, {a.name for a in plan["arms"]},
-            _ra["entry_applies"])
+    # The plan input-order check (check_pipeline_order.plan_enforce) was retired
+    # on 2026-11-26 with check_pipeline_order.py; it last exists at commit dbe387e.
 
     if args.list or args.dry_run:
         print_plan(plan, args, show_paths=args.dry_run)
@@ -1623,7 +1584,6 @@ def _execute(plan, args, state):
     """Run the plan in ONE process, carrying run_all.py's four safety mechanisms."""
     import importlib
     import time
-    import check_pipeline_order as cpo
 
     mod = plan.get("_run_all")
     if mod is None:
@@ -1688,25 +1648,8 @@ def _execute(plan, args, state):
     # with a FileNotFoundError that names a path the reader can see exists.
     _os.chdir(ROOT)
 
-    # SAFETY 2 -- the static ordering check. Runs over the FULL pipeline, not the
-    # selected subset: an inversion is a property of the pipeline, and checking only
-    # what was selected would let a subset hide one.
-    # The unresolved-placeholder LIST is suppressed when no pipeline step was
-    # selected: on an arms-only run those ten lines name steps this invocation does
-    # not touch, and a warning that fires every time about something irrelevant is
-    # how a checker gets ignored. The count still prints, and an inversion is still
-    # fatal.
-    cpo.enforce(mod["PIPELINE_ORDER"],
-                # INDEXED, NOT UNPACKED: an entry may carry a third field naming
-                # the arm it belongs to, and `for f, _ in lst` raises on those.
-                covered={e[0].name for lst in mod["REQUIRED_INPUTS"].values()
-                         for e in lst},
-                resolver=mod["script_path"], helpers=mod["STEP_HELPERS"],
-                list_unresolved=bool(plan["pipeline"]),
-                # FIELD 4, SPAN -- see run_all.SPANS_REGISTRY. Passed the same way
-                # resolver is: the runner and the checker must not disagree about
-                # which universes a step touches any more than about where it lives.
-                span_of=mod["row_span"])
+    # SAFETY 2, the static ordering check (check_pipeline_order.enforce), was
+    # retired on 2026-11-26; it last exists at commit dbe387e.
 
     # SAFETY 3 -- --fresh deletes the SELECTED universes' panels and nothing else.
     # It used to walk two fixed lists: every registered universe's permanent panel

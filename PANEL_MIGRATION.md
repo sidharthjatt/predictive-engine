@@ -191,9 +191,12 @@ vision and under Viénot 1999 deuteranopia and protanopia simulations. It report
 and exits 0, always. Run it by hand when a universe's `chart_colours` is chosen —
 that is the only moment its answer can change:
 
+palette_distance.py was retired on 2026-11-26. To run it when a universe's colours
+change, restore it from history at the repository root, run it, and remove it again:
+
 ```
+git show dbe387e:palette_distance.py > palette_distance.py
 ./venv/bin/python palette_distance.py            # report
-./venv/bin/python palette_distance.py --write    # also writes the diagnostic
 ```
 
 Two reasons it is not a gate, both recorded so the next person does not "fix"

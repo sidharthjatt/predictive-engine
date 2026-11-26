@@ -93,9 +93,8 @@ WHAT THIS DOES ABOUT IT
                          (registry.gated()) since 2026-09-25.
 
 WHICH GATE NEVER ASSERTS, AND WHY
-    GATE 5, even with --since and --slow. Two of its delegates can never
-    assert inside this runner: gate_compare.py needs an artefact pair, and
-    leakage_check4_corpactions.py has no pass condition. Any skipped delegate
+    GATE 5, even with --since and --slow. One of its delegates can never
+    assert inside this runner: gate_compare.py needs an artefact pair. Any skipped delegate
     makes GATE 5 a skip, so it is always one. Its delegates still run and a
     failing one still fails the run.
 
@@ -222,10 +221,8 @@ NT_VERIFY_UNGATED = (
 )
 
 DELEGATES = (
-    # The four that were already here.
-    ("registry_coverage_check.py",            [], False, None),
-    ("check_pipeline_order.py",               [], False, None),
-    ("check_pipeline_order.py",               ["--plan"], False, None),
+    # registry_coverage_check.py and check_pipeline_order.py (both rows) were
+    # retired on 2026-11-26; they last exist at commit dbe387e.
     ("naming_declare_check.py",               [], False, None),
     # The gate run_all.py applies before a run: declared defects and declarations
     # that do not hold fail it. Judged by its exit code, so check_all fails
@@ -239,7 +236,7 @@ DELEGATES = (
     ("code_checks.py", ["stop_callsite"], False, None),
     # THE TEN TESTS BELOW ARE CASES OF engine_tests.py SINCE 2026-10-18, one row per
     # old file, each run as its own subprocess. Never run two cases in one process:
-    # cache_key and noise_harness change the state of modules they import.
+    # cache_key changes the state of modules it imports.
     # The drawdown stop's edge cases on a synthetic panel, engine and reference
     # copy: exit on a rebalance day, capped and unopened exit sales, the tax
     # assessment day, the last two days, a re-entry with no fill, low breadth.
@@ -290,12 +287,10 @@ DELEGATES = (
     ("results/leakage_check2_trading_purge.py", [], False, None),
     ("results/validate_topn.py",              [], False, None),
     ("results/check_a_close_values.py",       [], False, None),
-    # A cache or noise record from other code or other data must be refused.
+    # A fit cache from other code or other data must be refused.
     # Writes only into a temporary directory. A few seconds.
     ("engine_tests.py", ["cache_key"], False, None),
-    # results/noise_parallel.py's scheduler, baseline gate, resume, stale key,
-    # void and verdicts on synthetic draws. Nothing is fitted. A few seconds.
-    ("engine_tests.py", ["noise_harness"], False, None),
+    # engine_tests noise_harness was retired on 2026-11-26 with the noise scripts.
     # A buy cash cannot fully pay for: trim gives the largest q that fits, the
     # rounding of charges included; q = 0 and q below half the wanted quantity
     # are refused; refuse trims nothing.
@@ -366,10 +361,6 @@ DELEGATES = (
      "cannot run standalone: needs two positional artefact paths plus "
      "--universe, --arm and --since, and this runner has no artefact pair to "
      "hand it"),
-    ("results/leakage_check4_corpactions.py", [], False,
-     "descriptive, no pass condition definable without a corporate-action "
-     "dataset or a ruling on how many unexplained candidates are acceptable; "
-     "it exits 0 whatever it finds"),
 )
 
 
@@ -398,7 +389,6 @@ RETIRED_DELEGATES = {}
 # here is a FAILURE below, not a blank, so the next one cannot slip in unnamed.
 SKIP_SHORT = {
     "gate_compare.py": "needs an artefact pair this runner does not have",
-    "results/leakage_check4_corpactions.py": "no pass condition definable",
 }
 SLOW_SHORT = "refits the model; needs --slow"
 
