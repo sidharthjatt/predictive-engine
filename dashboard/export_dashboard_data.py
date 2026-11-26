@@ -194,18 +194,28 @@ def nt_verify_cells(repo):
 def published_check_f(repo):
     """README "pit, tradeable profile" table, tax-on headline CAGR and MaxDD, and the
     equal-weight basket CAGR from results_<u>/metrics/v34_comparison_tradeable_tax_pit.csv
-    (the canonical output; the README does not print that basket)."""
+    (the canonical output; the README does not print that basket).
+
+    A missing table or comparison file leaves that figure out, and check f then
+    reports the cell as FAIL with "published None". Until 2026-11-26 a missing
+    file stopped the whole export: results_nifty200/metrics and
+    results_midcap100/metrics were emptied on 2026-10-22, and from then on every
+    dashboard refresh failed here."""
     lines = (repo / "README.md").read_text().splitlines()
-    i = lines.index("**pit, tradeable profile**")
     out = {}
-    for line in lines[i + 1:]:
-        if line.startswith("**") or line.startswith("#"):
-            break
-        cells = [c.strip() for c in line.strip().strip("|").split("|")]
-        if len(cells) >= 6 and (cells[0], cells[1]) in CHECK_F_CELLS:
-            out[(cells[0], cells[1])] = {"cagr": float(cells[4]), "max_dd": float(cells[5])}
+    if "**pit, tradeable profile**" in lines:
+        i = lines.index("**pit, tradeable profile**")
+        for line in lines[i + 1:]:
+            if line.startswith("**") or line.startswith("#"):
+                break
+            cells = [c.strip() for c in line.strip().strip("|").split("|")]
+            if len(cells) >= 6 and (cells[0], cells[1]) in CHECK_F_CELLS:
+                out[(cells[0], cells[1])] = {"cagr": float(cells[4]), "max_dd": float(cells[5])}
     for u, a in CHECK_F_CELLS:
-        comp = read_table(repo / f"results_{u}" / "metrics" / "v34_comparison_tradeable_tax_pit.csv")
+        path = repo / f"results_{u}" / "metrics" / "v34_comparison_tradeable_tax_pit.csv"
+        if not path.is_file():
+            continue
+        comp = read_table(path)
         row = comp[comp["Config"] == "buy & hold equal-weight"].iloc[0]
         out.setdefault((u, a), {})["basket_cagr"] = float(row["CAGR%"])
     return out

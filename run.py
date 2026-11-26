@@ -1443,13 +1443,15 @@ def execute(plan, args):
             fh.close()
     log_tmp.rename(dest / "run.log")
     # AFTER THE RUN IS COMPLETE AND ONLY ON SUCCESS. Neither call raises or changes
-    # the exit code, and neither writes outside dashboard/.
-    refresh_dashboard()
+    # the exit code. refresh_dashboard writes to dashboard/ and appends its result
+    # to this run's run.log.
+    refresh_dashboard(dest / "run.log")
     readme_table_check()
     return 0
 
 
 DASHBOARD_TIMEOUT_S = 120
+DASHBOARD_ERROR_LINES = 40
 
 
 def _last_line(text):
@@ -1457,25 +1459,44 @@ def _last_line(text):
     return lines[-1].strip() if lines else "no output"
 
 
-def refresh_dashboard():
+def _append_to_log(log_path, lines):
+    """Append lines to a finished run's run.log. Prints a warning if it cannot."""
+    if log_path is None:
+        return
+    try:
+        with open(log_path, "a") as fh:
+            fh.write("".join(x + "\n" for x in lines))
+    except OSError as e:
+        print(f"  WARNING: could not append the dashboard result to {log_path}: {e}",
+              flush=True)
+
+
+def refresh_dashboard(log_path=None):
     """Re-export dashboard/dashboard_data.json and rebuild dashboard/dashboard.html, so
     the page includes the run that just finished.
 
     Runs dashboard/export_dashboard_data.py and then dashboard/build_dashboard.py as
     subprocesses, within DASHBOARD_TIMEOUT_S together. Both write to temporary files in
     dashboard/, which replace the live files only when both steps succeed: on any
-    error or timeout one warning line is printed and the previous dashboard is left
-    as it was. Any warning the export prints about dashboard/PUBLISHED_RUNS.txt (a
-    newer run of a published combination with different headline figures) is passed
-    on, one line each. The page is replaced before the data file, so the page that opens is
-    never older than the data. Called only after the run folder and run.log exist;
-    the run's own outputs and exit code do not depend on it.
+    error or timeout the previous dashboard is left as it was. Any warning the export
+    prints about dashboard/PUBLISHED_RUNS.txt (a newer run of a published combination
+    with different headline figures) is passed on, one line each. The page is replaced
+    before the data file, so the page that opens is never older than the data. Called
+    only after the run folder and run.log exist; the run's own outputs and exit code
+    do not depend on it.
+
+    The result is appended to log_path (the run's run.log): one line on success; on
+    failure the reason and the last DASHBOARD_ERROR_LINES lines of the failing step's
+    output. Before 2026-11-26 a failure was one line on stdout after run.log had been
+    closed, so it was recorded nowhere, and the dashboard went 36 days without a
+    refresh before anyone saw it.
     """
     import subprocess
     import time as _time
     d = ROOT / "dashboard"
     tmp_json, tmp_html = d / ".dashboard_data.json.tmp", d / ".dashboard.html.tmp"
     t0 = _time.time()
+    detail = []
     try:
         for cmd in ([sys.executable, str(d / "export_dashboard_data.py"), "--out", str(tmp_json)],
                     [sys.executable, str(d / "build_dashboard.py"),
@@ -1485,6 +1506,7 @@ def refresh_dashboard():
                 raise subprocess.TimeoutExpired(cmd, DASHBOARD_TIMEOUT_S)
             p = subprocess.run(cmd, cwd=ROOT, capture_output=True, text=True, timeout=left)
             if p.returncode != 0:
+                detail = (p.stderr or p.stdout or "").rstrip().splitlines()[-DASHBOARD_ERROR_LINES:]
                 raise RuntimeError(f"{Path(cmd[1]).name} exited {p.returncode}: "
                                    f"{_last_line(p.stderr or p.stdout)}")
             if Path(cmd[1]).name == "export_dashboard_data.py":
@@ -1495,21 +1517,25 @@ def refresh_dashboard():
         stale = [x for x in export_out.splitlines()
                  if x.startswith("WARNING: PUBLISHED_RUNS.txt needs updating")]
     except subprocess.TimeoutExpired:
-        print(f"  WARNING: dashboard not refreshed: timed out after {DASHBOARD_TIMEOUT_S} s; "
-              f"the previous dashboard is unchanged.", flush=True)
-        return
+        why = f"timed out after {DASHBOARD_TIMEOUT_S} s"
     except Exception as e:
-        print(f"  WARNING: dashboard not refreshed: {type(e).__name__}: {_last_line(str(e))}; "
-              f"the previous dashboard is unchanged.", flush=True)
-        return
+        why = f"{type(e).__name__}: {_last_line(str(e))}"
+    else:
+        why = None
     finally:
         for f in (tmp_json, tmp_html):
             try:
                 f.unlink(missing_ok=True)
             except OSError:
                 pass
-    print(f"  dashboard refreshed in {_time.time() - t0:.1f} s -> dashboard/dashboard.html",
-          flush=True)
+    if why is not None:
+        line = f"WARNING: dashboard not refreshed: {why}; the previous dashboard is unchanged."
+        print(f"  {line}" + (f" Details in {log_path}." if log_path else ""), flush=True)
+        _append_to_log(log_path, ["", line] + [f"    {x}" for x in detail])
+        return
+    line = f"dashboard refreshed in {_time.time() - t0:.1f} s -> dashboard/dashboard.html"
+    print(f"  {line}", flush=True)
+    _append_to_log(log_path, ["", line] + stale)
     for x in stale:
         print(f"  {x}", flush=True)
 
