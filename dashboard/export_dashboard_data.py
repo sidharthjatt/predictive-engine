@@ -728,6 +728,7 @@ def main():
     runs, ad_hoc, folders = [], [], sorted(p for p in (repo / "runs").iterdir()
                                            if p.is_dir() and re.match(r"^\d{8}T\d{6}_", p.name))
     skipped_unfinished, skipped_superseded, superseded_dirs = [], [], []
+    skipped_no_arms = []
     for name in sorted((published | superseded) - {p.name for p in folders}):
         checks.append(f"Published list FAIL: {name} is in {PUBLISHED_LIST.name} but there is "
                       f"no such run folder.")
@@ -741,6 +742,11 @@ def main():
         if folder.name in superseded:
             skipped_superseded.append(folder.name)
             superseded_dirs.append((folder, read_run_txt(rt)))
+            continue
+        if not (folder / "runs").is_dir():
+            # A --steps pipeline run has no per-arm results (runs/<universe>/<arm>/),
+            # so there is nothing to show for it.
+            skipped_no_arms.append(folder.name)
             continue
         run_txt = read_run_txt(rt)
         sel = folder.name.split("_", 1)[1]
@@ -767,6 +773,9 @@ def main():
     if skipped_unfinished:
         checks.append(f"Skipped {len(skipped_unfinished)} run folders with no finished line: "
                       + ", ".join(skipped_unfinished))
+    if skipped_no_arms:
+        checks.append(f"Skipped {len(skipped_no_arms)} run folders with no arm results "
+                      "(--steps pipeline runs): " + ", ".join(skipped_no_arms))
     checks.append(f"Published list: {len(published)} run folders in {PUBLISHED_LIST.name} hold "
                   f"the published figures; {len(skipped_superseded)} folders it names as "
                   f"superseded (earlier runs of published combinations) are not shown; "
