@@ -176,9 +176,11 @@ def backtest_exposure(px, op, sc, dates, pc, mom20,
         from fixed_axis.selected(), which is False unless run.py was given
         --fixed-capital, and False runs none of the code that reads it. When on, at
         each rebalance open, after the morning's sells and any tax taken that
-        morning: book = min(start capital, port_val), reserve = max(0, port_val -
-        start capital), invest_val = book * exposure * 0.98, and the cash tests read
-        cash - reserve. Held names are not trimmed. With an audit dict, each
+        morning: book = min(start capital, port_val), with port_val the
+        decision-close value, invest_val = book * exposure * 0.98, reserve =
+        max(0, value at this open - start capital), the value at this open being
+        cash plus the names held, and the cash tests read cash - reserve. Held
+        names are not trimmed. With an audit dict, each
         execution day's open valuation is written to audit["fixed"]. Refused
         together with drawdown_stop, dd_overlay and funding="prorata".
 
@@ -695,9 +697,16 @@ def backtest_exposure(px, op, sc, dates, pc, mom20,
                     # base is held back from every purchase; below the base the book
                     # is the equity, so a loss is not topped up.
                     _book = min(_cap0, port_val)
-                    _reserve = max(0.0, port_val - _cap0)
                     _held_open = sum(q_ * _vp(s_) for s_, q_ in shares.items()
                                      if not np.isnan(_vp(s_)))
+                    # THE RESERVE IS MEASURED AT THIS OPEN, before the buys: cash
+                    # after the morning's sells and tax, plus the names held,
+                    # valued as _vp values them. The quantities above still come
+                    # from the decision-close book. From afadfc0 (2026-10-28) until
+                    # 2026-11-27 the reserve came from the decision close as well,
+                    # so an overnight rise was spent on purchases and invested
+                    # value went above the base (engine_tests fixed_capital case a).
+                    _reserve = max(0.0, cash + _held_open - _cap0)
                     invest_val = _book * targets["_exposure"] * 0.98
                 else:
                     invest_val = port_val * targets["_exposure"] * 0.98
