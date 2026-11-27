@@ -160,7 +160,7 @@ and `fixed.csv` and `fixed_years.csv` in each arm folder. They hold:
 - CAGR, labelled as understating such a run.
 
 The rows cover the strategy, and the basket and the index reset to min(base, equity)
-on the strategy's grid days (`results/fixed_capital.py`). The port does not cover
+on the strategy's grid days (`backtest_runs.py`). The port does not cover
 the mode (KNOWN_ISSUES.md).
 
 ### The drawdown limit (`--dd`): exploratory, not validated
@@ -250,7 +250,7 @@ gross profit, per financial year, and against the buy & hold. The same block is 
   is off.
 
 Every figure is reconciled to the paisa against the run's cash and the tax rules
-(`results/cost_report.py`); a run whose costs do not reconcile fails. Charges come from
+(`reports.py`); a run whose costs do not reconcile fails. Charges come from
 the itemised Zerodha delivery rates in `costs.py`; the charges
 section of `data/reference/TAX_AND_CHARGES.docx` is out of date, and its tax rules are
 the ones the code uses.
@@ -574,9 +574,9 @@ verifies the four mcapover10000 cells; the other eight are not gated (KNOWN_ISSU
   membership files for the nine index universes; the three market-cap buckets have none
   (see "What is wrong with these results").
 
-*Superseded by "Current results (re-run 2026-11-24 on d9cdcd9)" above: the four tax-on tables in the generated block below. Computed before the 2026-10-22 look-ahead fixes and the 2026-10-27 to 10-29 fill and sizing changes; a cell not in that section has not been re-run. The note sits outside the block because tools/readme_tax_tables.py rewrites it whole.*
+*Superseded by "Current results (re-run 2026-11-24 on d9cdcd9)" above: the four tax-on tables in the generated block below. Computed before the 2026-10-22 look-ahead fixes and the 2026-10-27 to 10-29 fill and sizing changes; a cell not in that section has not been re-run. The note sits outside the block because reports.py rewrites it whole.*
 
-<!-- tax-on tables: written by tools/readme_tax_tables.py; do not edit by hand -->
+<!-- tax-on tables: written by run.py --report readme_tax_tables; do not edit by hand -->
 
 ### Republished 2026-10-14 on the corrected tax ledger: every tax-on figure
 
@@ -1541,7 +1541,7 @@ and are left here **unverified against the current one**, marked rather than
 silently reprinted.
 
 > **The chart that stood here has been removed, 2026-09-12.** It was produced by
-> `make_combined_universes.py`, which reads `v2FINAL_equity.csv` and the trade
+> `reports.py`, which reads `v2FINAL_equity.csv` and the trade
 > logs by their canonical names with **no cadence, arm or profile suffix** — so it
 > plotted whichever run wrote those files last, and it records nothing about which
 > run that was. The table above is transcribed from `v34_comparison.csv`, whose
@@ -1869,8 +1869,8 @@ all runs; and the known issues. It reads finished runs under `runs/<timestamp>_*
 and the newest `diagnostics/capital_ladder_*.csv` only. It runs no backtest and
 writes nothing outside `dashboard/`. From the repository root:
 
-    ./venv/bin/python dashboard/export_dashboard_data.py
-    python3 dashboard/build_dashboard.py
+    ./venv/bin/python dashboard.py export
+    python3 dashboard.py build
 
 The page is `dashboard/dashboard.html`, built from `dashboard/dashboard_data.json`.
 Open it by double-clicking: it needs no network. Both files are about 24 MB, change
@@ -1880,7 +1880,7 @@ in headless Chrome and needs Chrome installed.
 **After every successful `run.py` run the dashboard is rebuilt** with the two
 commands above, within 120 seconds; on any error or timeout it prints one warning
 line, leaves the previous dashboard as it was, and the run's exit code is unchanged.
-It then compares README.md's tax-on tables with `tools/readme_tax_tables.py --print`
+It then compares README.md's tax-on tables with `run.py --report readme_tax_tables --print`
 and prints one warning line naming any table that differs. Neither writes outside
 `dashboard/`.
 
@@ -1897,8 +1897,27 @@ into `[published]` and the folder it names as published into `[superseded]`.
 
 ## Repository layout
 
-    results/          the research engine: features, model, walk-forward, backtest,
-                      charts, and the survivorship switch
+    run.py            the entry point: one universe and arm, a subset, or all of
+                      them; --list and --dry-run print the plan; --report NAME runs
+                      one hand-run report
+    settings.py       constants, paths, artefact naming, every run setting, the
+                      universe registry
+    market_data.py    price files, the trading calendar, the feature panel,
+                      point-in-time membership, the tradability rule
+    model.py          the purged training set, the model fit, monthly scoring, the
+                      score-cache keys
+    portfolio.py      ranking, sizing, buy and sell decisions, the daily loop, the
+                      drawdown overlay and stop, the arms
+    costs.py          slippage, Indian charges, capital-gains tax rules, the
+                      participation cap, capacity
+    backtest_runs.py  the pipeline table and its input guard, and every step that
+                      runs a universe or an arm
+    reports.py        charts, the daily log, the cost and tax reports, the README
+                      tax tables and the hand-run reports
+    dashboard.py      exports the run data and builds dashboard/dashboard.html
+    results/          the validation engine (engine_core.py), the slow validation
+                      gates and the look-ahead checks; results*/metrics/ holds
+                      each universe's artefacts
     nautilus/         the NautilusTrader port, its verification harness, and
                       NAUTILUS_STATUS.md
     experiments/      EXPERIMENTS.md, five pre-registrations, and the two restored
@@ -1907,14 +1926,13 @@ into `[published]` and the folder it names as published into `[superseded]`.
                       reconciliations, and the membership rebuild
     docs/             published copies of two pipeline figures, for this README
     data/reference/   NSE press-release manifest, symbol rename map, circular index
-    dashboard/        the results dashboard: export, page builder, page template,
+    dashboard/        the dashboard's template, data file and page, and its
                       browser test
-    run_all.py        the whole pipeline, ordered, with a static check that no step
-                      reads a file a later step writes
+    tools/            lookahead_proof.py
 
 Not tracked, and why: `venv/`, everything under `results*/metrics/`,
 `nautilus/reports/`, the score parquets and `cache/` are all rebuilt by
-`run_all.py`. `cache/<universe>/` holds the score and raw panels (parquet) and the
+`run.py --universe all --arm all`. `cache/<universe>/` holds the score and raw panels (parquet) and the
 constituent farm (hard links to the source CSVs, or copies where a hard link cannot
 be made); a panel is reused only while its sidecar's content key matches the source
 CSVs and the code that builds it, so adding, removing or editing a CSV forces a
@@ -2034,7 +2052,7 @@ output files and a run folder collects every file modified after its run started
 two runs at once would copy each other's files. To run in parallel, use separate
 clones.
 
-**Everything:** `./venv/bin/python run_all.py` runs all twelve universes and all
+**Everything:** `./venv/bin/python run.py --universe all --arm all` runs all twelve universes and all
 four arms.
 
 `./venv/bin/python nautilus/nt_verify.py --universe=nifty100` runs the

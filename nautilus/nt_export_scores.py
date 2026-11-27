@@ -25,7 +25,7 @@ ONE EXPORT PER REGISTERED UNIVERSE, DERIVED, NOT LISTED
 
     The paths are also ABSOLUTE now, because the registry's are. The four
     hardcoded ones were relative ("results/metrics/..."), which worked only
-    because run_all.py spawned this step with cwd=ROOT.
+    because backtest_runs.py spawned this step with cwd=ROOT.
 
 Source : u.score_cache        for every u in settings.REGISTRY
 Output : nautilus/data/{u.nautilus_scores}
@@ -101,7 +101,7 @@ def export(cache_path: Path, out_path: Path, tag: str) -> pd.DataFrame:
 def main():
     """STEP 16. Body moved out of the __main__ guard, unchanged.
 
-    See make_daily_log.main() for why this was missed: a spawned step never needed
+    See reports.make_daily_log() for why this was missed: a spawned step never needed
     a main(), so the S4 boundary was invisible-by-absence until run.py ran the
     pipeline in one process.
 

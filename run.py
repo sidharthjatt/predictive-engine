@@ -8,18 +8,18 @@ run.py -- one entry point: choose the universe and the arm, everything runs for 
     ./venv/bin/python run.py --list                 # resolve and print, run nothing
     ./venv/bin/python run.py --dry-run              # same, with output paths
 
-THE INTERPRETER IS LOAD-BEARING, exactly as it was for run_all.py. `python3` on the
+THE INTERPRETER IS LOAD-BEARING, exactly as it was for backtest_runs.py. `python3` on the
 machine these numbers were produced on is 3.11 with no lightgbm, and below
 nautilus_trader's 3.12 floor. Use ./venv/bin/python.
 
 TWO KINDS OF STEP, AND THEY SELECT DIFFERENTLY
     ARM STEPS are universe-generic AND arm-generic: one implementation
-    (v34_common.run_arm) takes a Universe and an Arm and runs that single
+    (backtest_runs.run_arm) takes a Universe and an Arm and runs that single
     combination. Adding a universe or an arm to the registries makes new
     combinations available with no code change, which is the property this file
     exists to provide.
 
-    PIPELINE STEPS are the scripts run_all.PIPELINE_ORDER lists. The per-universe
+    PIPELINE STEPS are the scripts backtest_runs.PIPELINE_ORDER lists. The per-universe
     ones (build_scores, engine_v2_final, audit_step, make_chart, bh_lots_after_tax,
     tax_report) each take a Universe, so a NEW universe is one row in
     settings.py and gets every step and every arm with no code change.
@@ -32,7 +32,7 @@ WHAT IS NOT MOVED
 """
 # ---------------------------------------------------------------------------
 # DETERMINISM PIN -- SET BEFORE ANY NUMERIC LIBRARY IS IMPORTED.
-# Carried over from run_all.py unchanged, and for the same reason: an OpenMP/BLAS
+# Carried over from backtest_runs.py unchanged, and for the same reason: an OpenMP/BLAS
 # runtime reads its thread count when it initialises at import, so this must run
 # before pandas or lightgbm arrive. Only `os` is imported above it.
 # ---------------------------------------------------------------------------
@@ -213,7 +213,7 @@ def pinned(report=None, on_uncovered=None):
 # elsewhere, and goes stale against it silently. STEP_UNIVERSES answered two
 # questions -- which universes a step serves, and whether it is per-universe at all
 # -- and both now fall out of something that cannot disagree with itself. Which
-# universe: run_all.PIPELINE_ORDER's third field, the row that declares the
+# universe: backtest_runs.PIPELINE_ORDER's third field, the row that declares the
 # invocation. Whether: the signature, read from the file.
 #
 # ARITY IS READ STATICALLY, WITHOUT IMPORTING THE STEP. ast, not inspect. Every
@@ -224,17 +224,19 @@ ALL_UNIVERSES = tuple(REGISTRY)          # NOT a literal list. See the check bel
 
 
 def _declared_arity(scr, resolver):
-    """How many arguments `scr`'s main() declares, read from the source.
+    """How many arguments step `scr`'s function declares, read from the source.
 
-    Returns None when the file has no module-level main(), which is a separate
+    `resolver` is backtest_runs.step_source: (file, function name). Returns None
+    when the file has no module-level function of that name, which is a separate
     failure from a wrong arity and is reported as one.
     """
     import ast
-    src = Path(resolver(scr))
+    src, fn = resolver(scr)
+    src = Path(src)
     tree = ast.parse(src.read_text(), filename=str(src))
     for node in tree.body:                      # MODULE LEVEL ONLY -- a nested
-        if isinstance(node, (ast.FunctionDef,   # def main() inside another function
-                             ast.AsyncFunctionDef)) and node.name == "main":
+        if isinstance(node, (ast.FunctionDef,   # def of that name inside another function
+                             ast.AsyncFunctionDef)) and node.name == fn:
             a = node.args
             return len(a.posonlyargs) + len(a.args) + len(a.kwonlyargs)
     return None
@@ -254,7 +256,8 @@ def _resolve_arity(pipeline, resolver):
         label, scr, tag = row[0], row[1], (row[2] if len(row) > 2 else None)
         n = _declared_arity(scr, resolver)
         if n is None:
-            bad.append(f"    {label:<9} {scr:<28} declares no module-level main()")
+            bad.append(f"    {label:<9} {scr:<28} names no module-level function in its file "
+                       f"(backtest_runs.STEP_HOME)")
         elif n not in (0, 1):
             # A PROGRAMMING ERROR, NOT A CONFIGURATION. There is no selection that
             # makes a two-argument step runnable, so it cannot be worked around by
@@ -373,9 +376,9 @@ def resolve_arms(name):
 
 
 def pipeline_steps(unis):
-    """The run_all.py steps this selection invokes, IN ORDER, with their universe.
+    """The backtest_runs.py steps this selection invokes, IN ORDER, with their universe.
 
-    Order comes from run_all.PIPELINE_ORDER and is never re-sorted: it is the thing
+    Order comes from backtest_runs.PIPELINE_ORDER and is never re-sorted: it is the thing
     check_pipeline_order.enforce verifies, and a consumer must never precede its
     producer.
 
@@ -388,11 +391,14 @@ def pipeline_steps(unis):
     make_combined_universes can draw one comparison across whichever universes the
     run chose.
     """
-    import runpy
-    mod = runpy.run_path(str(ROOT / "run_all.py"), run_name="__not_main__")
+    import backtest_runs
+    # THE INPUT TABLE IS REBUILT ON EVERY CALL, after main() has set every axis and
+    # swapped the registry rows, as running backtest_runs.py with runpy used to do.
+    backtest_runs.REQUIRED_INPUTS = backtest_runs._required_inputs()
+    mod = vars(backtest_runs)
 
     # REFUSE BEFORE ANYTHING IS PLANNED, let alone run.
-    _resolve_arity(mod["PIPELINE_ORDER"], mod["script_path"])
+    _resolve_arity(mod["PIPELINE_ORDER"], mod["step_source"])
 
     want = {u.tag for u in unis}
     out, dropped = [], []
@@ -526,7 +532,7 @@ def _universe_artefacts_in_shared_metrics():
 PIT_LEFT_OUT = []
 
 # The Nautilus steps a pit run leaves out; see build_plan.
-PIT_NOT_RUN = ("nt_export_scores.py", "nt_execute.py")
+PIT_NOT_RUN = ("nt_export_scores", "nt_execute")
 
 
 def build_plan(args):
@@ -605,11 +611,11 @@ def print_plan(plan, args, show_paths=False):
         print(f"  {_dda.label()} -- EXPLORATORY, not validated; off is the default")
         print(f"  {_dd_port_note(args)}")
     if plan["pipeline"]:
-        print(f"\n  PIPELINE STEPS ({len(plan['pipeline'])}), in run_all order:")
+        print(f"\n  PIPELINE STEPS ({len(plan['pipeline'])}), in backtest_runs.PIPELINE_ORDER order:")
         for label, scr, tag in plan["pipeline"]:
-            # WHAT main() WILL BE GIVEN, not what the step is believed to serve.
+            # WHAT THE STEP FUNCTION WILL BE GIVEN, not what it is believed to serve.
             print(f"    {label:<9} {scr:<28} "
-                  f"[{'main(' + tag + ')' if tag else 'main()'}]")
+                  f"[{scr + '(' + tag + ')' if tag else scr + '()'}]")
     elif args.steps in ("pipeline", "all"):
         print("\n  PIPELINE STEPS: none selected")
 
@@ -816,7 +822,29 @@ def _dd_port_note(args):
             + ". No nt_verify result covers these cells.")
 
 
+# THE HAND-RUN REPORTS, reached through `run.py --report NAME [ARGS]`. Each reads
+# its own arguments from sys.argv, as it did as a script; ARGS are passed through.
+REPORTS = ("readme_tax_tables", "year_by_year", "capital_ladder", "cell_reports")
+
+
+def run_report(argv):
+    """`run.py --report NAME [ARGS]`: run one report from reports.py and return its
+    exit code. No pipeline step and no run folder."""
+    if not argv or argv[0] not in REPORTS:
+        print(f"usage: run.py --report {{{','.join(REPORTS)}}} [ARGS]")
+        return 2
+    import reports
+    name, rest = argv[0], list(argv[1:])
+    sys.argv = [f"run.py --report {name}"] + rest
+    if name == "cell_reports":
+        return reports.cell_reports(rest)
+    return getattr(reports, name)()
+
+
 def main(argv=None):
+    _argv = sys.argv[1:] if argv is None else list(argv)
+    if _argv[:1] == ["--report"]:
+        return run_report(_argv[1:])
     ap = argparse.ArgumentParser(description="Run the pipeline for one universe/arm combination.")
     ap.add_argument("--universe", default="all",
                     help="universe tag, a comma-separated subset (e.g. "
@@ -899,7 +927,12 @@ def main(argv=None):
     ap.add_argument("--dry-run", action="store_true",
                     help="like --list, and show every output location")
     ap.add_argument("--fresh", action="store_true", help="clear caches first (full rebuild)")
+    ap.add_argument("--report", metavar="NAME",
+                    help=f"run one hand-run report and nothing else: {', '.join(REPORTS)}; "
+                         f"must be the first argument, followed by that report's own arguments")
     args = ap.parse_args(argv)
+    if args.report is not None:
+        ap.error("--report must be the first argument: run.py --report NAME [ARGS]")
     _dd_setup(ap, args)
     from settings import fixed_axis as _fxa
     if args.fixed_capital:
@@ -1065,10 +1098,10 @@ def collect_run_folder(plan, args, t_start, dest, thin=None):
                 failed.append(f"{f.relative_to(ROOT)}: {e}")
     from settings import tax as _tax
     import time as _time
-    # HOLDINGS WHOSE PRICE FILE ENDS BEFORE THE WINDOW (results/tradability.py, run_lines):
+    # HOLDINGS WHOSE PRICE FILE ENDS BEFORE THE WINDOW (reports.py, run_lines):
     # printed into run.log here and written to RUN.txt below. None in most runs,
     # and then neither file gains a line.
-    import tradability
+    import reports as tradability
     stuck = tradability.run_lines(plan["universes"], plan["arms"])
     for line in stuck:
         print(line)
@@ -1113,7 +1146,7 @@ def _capacity_lines(plan, t_start):
     "not measured" line; a failure to measure is reported, never raised, because the
     run's results are already complete."""
     import costs
-    import audit_step as _as
+    import backtest_runs as _as
     from market_data import read_table
     out, cache = [], {}
     for u, a in plan["arm_runs"]:
@@ -1440,7 +1473,7 @@ def refresh_dashboard(log_path=None):
     """Re-export dashboard/dashboard_data.json and rebuild dashboard/dashboard.html, so
     the page includes the run that just finished.
 
-    Runs dashboard/export_dashboard_data.py and then dashboard/build_dashboard.py as
+    Runs `dashboard.py export` and then `dashboard.py build` as
     subprocesses, within DASHBOARD_TIMEOUT_S together. Both write to temporary files in
     dashboard/, which replace the live files only when both steps succeed: on any
     error or timeout the previous dashboard is left as it was. Any warning the export
@@ -1463,8 +1496,8 @@ def refresh_dashboard(log_path=None):
     t0 = _time.time()
     detail = []
     try:
-        for cmd in ([sys.executable, str(d / "export_dashboard_data.py"), "--out", str(tmp_json)],
-                    [sys.executable, str(d / "build_dashboard.py"),
+        for cmd in ([sys.executable, str(ROOT / "dashboard.py"), "export", "--out", str(tmp_json)],
+                    [sys.executable, str(ROOT / "dashboard.py"), "build",
                      "--data", str(tmp_json), "--out", str(tmp_html)]):
             left = DASHBOARD_TIMEOUT_S - (_time.time() - t0)
             if left <= 0:
@@ -1472,9 +1505,9 @@ def refresh_dashboard(log_path=None):
             p = subprocess.run(cmd, cwd=ROOT, capture_output=True, text=True, timeout=left)
             if p.returncode != 0:
                 detail = (p.stderr or p.stdout or "").rstrip().splitlines()[-DASHBOARD_ERROR_LINES:]
-                raise RuntimeError(f"{Path(cmd[1]).name} exited {p.returncode}: "
+                raise RuntimeError(f"dashboard.py {cmd[2]} exited {p.returncode}: "
                                    f"{_last_line(p.stderr or p.stdout)}")
-            if Path(cmd[1]).name == "export_dashboard_data.py":
+            if cmd[2] == "export":
                 export_out = p.stdout
         _os.replace(tmp_html, d / "dashboard.html")
         _os.replace(tmp_json, d / "dashboard_data.json")
@@ -1506,11 +1539,11 @@ def refresh_dashboard(log_path=None):
 
 
 def readme_table_check():
-    """Read-only: compare README.md's tax-on tables with tools/readme_tax_tables.py
-    --print, which writes nothing. Prints one warning line naming each table that
+    """Read-only: compare README.md's tax-on tables with `run.py --report
+    readme_tax_tables --print`, which writes nothing. Prints one warning line naming each table that
     differs, and nothing when they agree. Writes no file."""
     import subprocess
-    begin = "<!-- tax-on tables: written by tools/readme_tax_tables.py; do not edit by hand -->"
+    begin = "<!-- tax-on tables: written by run.py --report readme_tax_tables; do not edit by hand -->"
     end = "<!-- end of tax-on tables -->"
 
     def tables(block):
@@ -1525,7 +1558,8 @@ def readme_table_check():
         return out
 
     try:
-        p = subprocess.run([sys.executable, str(ROOT / "tools" / "readme_tax_tables.py"), "--print"],
+        p = subprocess.run([sys.executable, str(ROOT / "run.py"), "--report", "readme_tax_tables",
+                            "--print"],
                            cwd=ROOT, capture_output=True, text=True, timeout=DASHBOARD_TIMEOUT_S,
                            env={**_os.environ, "PYTHONDONTWRITEBYTECODE": "1"})
         if p.returncode != 0:
@@ -1541,7 +1575,7 @@ def readme_table_check():
         return
     bad = [n for n in dict.fromkeys(list(want) + list(have)) if want.get(n) != have.get(n)]
     if bad:
-        print(f"  WARNING: README tax-on tables differ from tools/readme_tax_tables.py --print: "
+        print(f"  WARNING: README tax-on tables differ from run.py --report readme_tax_tables --print: "
               f"{'; '.join(bad)}", flush=True)
 
 
@@ -1585,7 +1619,7 @@ def _pit_setup(plan):
 
 
 def _execute(plan, args, state):
-    """Run the plan in ONE process, carrying run_all.py's four safety mechanisms."""
+    """Run the plan in ONE process, carrying backtest_runs.py's four safety mechanisms."""
     import importlib
     import time
 
@@ -1645,7 +1679,7 @@ def _execute(plan, args, state):
     # accounted for in one place.
 
     # THE WORKING DIRECTORY IS ROOT, AND THAT IS NOT COSMETIC.
-    # run_all.run() spawned every step with an explicit cwd=ROOT. In process there
+    # backtest_runs.run() spawned every step with an explicit cwd=ROOT. In process there
     # is no cwd argument, so a step is handed whatever directory the shell happened
     # to be in -- and nautilus/nt_export_scores.py builds its four input paths as
     # bare relatives ("results/metrics/v5_expanding_cache.csv"). Without this,
@@ -1751,12 +1785,12 @@ def _execute(plan, args, state):
             # THE CONTRACT, AT THE ONE DISPATCH SITE. One branch on arity, and
             # both forms go through the same pinned() guard, the same
             # check_inputs, the same timing and logging above and below.
-            _step = importlib.import_module(Path(scr).stem)
+            _step = mod["step_function"](scr)
             # PIT RUNS: this universe's membership for the step; None otherwise, and
             # for a whole-run step (make_daily_log sets it per universe itself).
             import market_data
             market_data.MEMBERSHIP = market_data.membership_for(REGISTRY[tag]) if tag else None
-            _step.main(REGISTRY[tag]) if tag else _step.main()
+            _step(REGISTRY[tag]) if tag else _step()
         print(f"    [{label} done in {(time.time()-t0)/60:.1f} min]")
 
     # A DROPPED COMBINATION IS ANNOUNCED, NOT SILENTLY OMITTED.
@@ -1780,7 +1814,7 @@ def _execute(plan, args, state):
               + (f" rebal={args.rebal}" if args.rebal else ""))
         print("=" * 90, flush=True)
         t0 = time.time()
-        import v34_common
+        import backtest_runs as v34_common
         state["step"] = f"ARM {u.tag}/{a.name}"
         with pinned():
             import market_data
@@ -1813,10 +1847,10 @@ def _execute(plan, args, state):
             print(_line)
         print("!" * 90, flush=True)
     # THE COST SUMMARY OF EVERY ARM THIS RUN AUDITED, LAST, so the run log ends
-    # with charges, slippage and tax. Written by results/cost_report.py inside the
+    # with charges, slippage and tax. Written by reports.py inside the
     # audit step, which has already reconciled every figure in it; printed only
     # when this run wrote it, so a summary from an earlier run is never shown.
-    import audit_step as _as
+    import backtest_runs as _as
     for u, a in plan["arm_runs"]:
         f = Path(u.metrics_dir) / f"COST_SUMMARY_{_as.artefact_tag(u, a)}.txt"
         if f.exists() and f.stat().st_mtime >= t_start:

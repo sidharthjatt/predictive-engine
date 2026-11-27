@@ -80,7 +80,7 @@ CAPS = (1.00, 0.10)
 
 def panel(tag):
     u = REGISTRY[tag]
-    # The row rule the engines load for this universe (results/tradability.py).
+    # The row rule the engines load for this universe (reports.py).
     market_data.set_tradeability(u)
     src = model.require_cache(u.score_cache, what=f"{tag} score panel")
     p = read_table(src, parse_dates=["date"])

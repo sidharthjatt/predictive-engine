@@ -60,7 +60,7 @@ CACHES
 SUB-PERIODS ARE RE-RUN, NOT SLICED
     Each half is a fresh backtest over the half's dates, intersected with the
     backtest window -- the validate_sizing.py form, matching how the breadth
-    suite's T2 measures its halves "independently". v34_common.sub_rows() slices
+    suite's T2 measures its halves "independently". backtest_runs.sub_rows() slices
     the full curve instead, which carries the boundary portfolio into the second
     half. The two answer different questions and this file states which it asks.
 
@@ -88,7 +88,7 @@ from market_data import precompute
 import portfolio
 from portfolio import backtest_exposure
 from settings import REGISTRY, certified
-from v34_common import arm_row, held_and_skips, _git_state
+from backtest_runs import arm_row, held_and_skips, _git_state
 import costs
 import settings            # the run's execution-realism profile
 from market_data import read_table  # the one CSV/parquet reader: market_data.read_table

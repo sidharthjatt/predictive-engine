@@ -308,11 +308,11 @@ STANDING_GATE = (
 #                            one. See KNOWN_ISSUES.md, 'The tradeable profile
 #                            cannot complete'."
 #
-#                         run_all._present() (run_all.py:819) now composes a
+#                         run_all._present() (backtest_runs.py) now composes a
 #                         suffix only for the axes an input's own name carries,
 #                         taken from the compulsory fourth field of its
 #                         REQUIRED_INPUTS entry. The score panel is declared
-#                         AXIS_FREE (run_all.py:555, entries at :608, :617, :634),
+#                         AXIS_FREE (backtest_runs.py, entries at :608, :617, :634),
 #                         so the guard asks for v_midcap150_expanding_cache.csv by
 #                         its one true name and STEP 16 does not block. The block
 #                         at lines 161-165 above records the same discharge.

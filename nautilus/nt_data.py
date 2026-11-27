@@ -183,7 +183,7 @@ def bar_type_for(instrument_id: InstrumentId) -> BarType:
 
 def load_panel(cache_path):
     """The engine's price panel: union date index, forward filled, exactly as
-    engine_v2_final.py builds it."""
+    backtest_runs.py builds it."""
     p = read_table(cache_path, parse_dates=["date"])
     px = p.pivot_table(index="date", columns="symbol", values="close").ffill()
     op = p.pivot_table(index="date", columns="symbol", values="open").ffill()

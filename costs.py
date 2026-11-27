@@ -37,7 +37,7 @@ from settings import profile_axis
 # WHY THIS EXISTS. SLIPPAGE = 0.0015 was written out SEVEN times:
 #
 #     portfolio.py        results/engine_core.py:140
-#     results/make_daily_log.py:37       results/check_b_exec_timing.py:44
+#     reports.py       results/check_b_exec_timing.py:44
 #     nautilus/nt_run.py:73              nautilus/nt_attribution.py:64
 #     depth_compare.py:40                (derived from nt_run, not a definition)
 #
@@ -737,7 +737,7 @@ def calc_tc(price, qty, side):
 #          FY2026-27 stub and consumes one full annual allowance for 7.4 years of
 #          accrued gain. See THE STUB YEARS below.
 #       2. The published `bh` line is a daily-rebalanced equal-weight INDEX, not a
-#          held portfolio -- results/engine_v2_final.py:207 builds it from
+#          held portfolio -- backtest_runs.py builds it from
 #          px.pct_change().mean(axis=1). It has no lots to tax. Giving it lots is
 #          a DIFFERENT CONSTRUCTION with a different CAGR, reported beside the
 #          original and never substituted for it.
@@ -1427,7 +1427,7 @@ class Ledger:
 #     one flag rather than a number somebody has to remember to pass.
 #
 # WHY THIS IS SEPARATE FROM THE DATA GUARDS
-#     The row rule (results/tradability.py) corrects something that is
+#     The row rule (reports.py) corrects something that is
 #     WRONG: a fill at a price that did not trade. There is no version of the
 #     strategy that wanted it, so it applies unconditionally.
 #
@@ -1703,7 +1703,7 @@ def cap_report(cells):
     if profile_axis.is_default():
         return []
     out, total, unread = [], 0, 0
-    # THE FILE IS NAMED BY THE WRITER'S RULE, audit_step.artefact_tag, since
+    # THE FILE IS NAMED BY THE WRITER'S RULE, backtest_runs.artefact_tag, since
     # 2026-09-26. It was composed here from the profile alone, so a --tax on
     # (or non-default cadence) run counted the tax-off, default-cadence file of
     # an earlier run: on 2026-09-26 the tax-on tradeable banner reported
@@ -1713,7 +1713,7 @@ def cap_report(cells):
     _res = str(Path(__file__).resolve().parent / "results")
     if _res not in _sys.path:
         _sys.path.insert(0, _res)
-    import audit_step
+    import backtest_runs as audit_step
     for tag, arm in cells:
         f = (Path(REGISTRY[tag].metrics_dir)
              / f"daily_skipped_{audit_step.artefact_tag(REGISTRY[tag], arm)}.csv")
@@ -1755,7 +1755,7 @@ def gate_status():
 #
 # Measured after a run from its own artefacts and the universe's raw price files; it
 # changes no results file. run.py prints it into run.log and RUN.txt, and
-# dashboard/export_dashboard_data.py puts it in each run's "capacity" block.
+# dashboard.py puts it in each run's "capacity" block.
 #
 #     order % ADV   each buy fill's value (qty x fill price) as a percent of the
 #                   stock's average traded value (close x volume) over the 20

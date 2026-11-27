@@ -45,7 +45,7 @@ capital_axis_test.py -- the starting-capital axis on a synthetic panel.
     2. names: "" at the default, "_cap<rupees>" and "@cap<rupees>" otherwise
     3. the default path: unset, and start_capital=1,000,000 passed, give the same curve
     4. the engine starts at the selected capital and reconciles to the paisa
-       (cost_report.reconcile replays cash, charges and slippage fill by fill)
+       (reports.reconcile_costs replays cash, charges and slippage fill by fill)
     5. the investable buy & hold (bh_held) is bought with the selected capital
     6. the one definition: every START_CAPITAL name is capital_axis.DEFAULT
 
@@ -64,7 +64,7 @@ No data, nothing written. Exit 0 when every case passes, 1 otherwise.
     import pandas as pd
 
     from settings import capital_axis
-    import cost_report
+    import reports as cost_report
     from market_data import precompute
     from portfolio import backtest_exposure
 
@@ -131,7 +131,7 @@ No data, nothing written. Exit 0 when every case passes, 1 otherwise.
         capital_axis.set_selection(5_000_000)
         try:
             e5, tc5, a5 = run(px, op, sc)
-            cost_report.reconcile(a5["costs"], a5["trades"], list(DATES), 5_000_000.0, tc5, 0.0, False)
+            cost_report.reconcile_costs(a5["costs"], a5["trades"], list(DATES), 5_000_000.0, tc5, 0.0, False)
             ok = abs(a5["costs"]["days"][0]["cash_open"] - 5_000_000) < 0.005
             case("4 engine starts at the selected capital and reconciles", ok,
                  f"first cash {a5['costs']['days'][0]['cash_open']:,.2f}, final {e5.iloc[-1]:,.2f} "
@@ -140,7 +140,7 @@ No data, nothing written. Exit 0 when every case passes, 1 otherwise.
             capital_axis.set_selection(None)
 
         # 5 ----------------------------------------------------------------------
-        import bh_held
+        import backtest_runs as bh_held
         bd = DATES
         r1 = bh_held.held_lots(px, op, bd)
         capital_axis.set_selection(3_000_000)
@@ -157,8 +157,8 @@ No data, nothing written. Exit 0 when every case passes, 1 otherwise.
         import portfolio
         import engine_core
         import market_data
-        import engine_v2_final
-        import make_daily_log
+        import backtest_runs as engine_v2_final
+        import reports as make_daily_log
         import nt_attribution
         import nt_run
         vals = {m.__name__: m.START_CAPITAL for m in (portfolio, engine_core, engine_v2_final,
@@ -184,7 +184,7 @@ The axis adds the engine's only partial sells and its only top-ups of held names
 (portfolio.py). Each case builds a price path that reaches one
 behaviour, runs portfolio.backtest_exposure with an explicit
 dd_overlay and an audit dict, and asserts on the fills. Every case also passes the
-cost trail through results/cost_report.reconcile, which replays cash, charges,
+cost trail through reports.reconcile_costs, which replays cash, charges,
 slippage and the tax ledger fill by fill and raises on a paisa of difference.
 
     1. no drawdown                 no dd fill, equity identical to the axis off
@@ -220,7 +220,7 @@ passes, 1 otherwise.
     from portfolio import DrawdownStop
     from market_data import precompute
     from portfolio import backtest_exposure, START_CAPITAL
-    import cost_report
+    import reports as cost_report
 
     QUIET = "--quiet" in sys.argv
     SYMS = [f"S{k:02d}" for k in range(12)]
@@ -252,7 +252,7 @@ passes, 1 otherwise.
                                          dd_overlay=dd, drawdown_stop=stop)
         engine_tax = float(audit["tax"]["cum_tax"]) if tax else 0.0
         lots = audit["tax"]["lots"] if tax else None
-        cost_report.reconcile(audit["costs"], audit["trades"], list(DATES), float(START_CAPITAL),
+        cost_report.reconcile_costs(audit["costs"], audit["trades"], list(DATES), float(START_CAPITAL),
                               tc, engine_tax, tax, lots)
         fills = pd.DataFrame(audit["costs"]["fills"])
         return eq, audit, fills
@@ -766,7 +766,7 @@ Exit 0 when every case passes, 1 otherwise.
     import pandas as pd
 
     from settings import fixed_axis
-    import fixed_capital as fc
+    import backtest_runs as fc
     from market_data import precompute
     from portfolio import backtest_exposure
 
@@ -1121,7 +1121,7 @@ No data, nothing written. Exit 0 when every case passes, 1 otherwise.
     import numpy as np
     import pandas as pd
 
-    import cost_report
+    import reports as cost_report
     from settings import impact_axis
     from settings import pcap_axis
     import costs
@@ -1242,7 +1242,7 @@ No data, nothing written. Exit 0 when every case passes, 1 otherwise.
 
         # 6 ----------------------------------------------------------------------
         eK, tcK, aK = run(px, op, sc, participation_cap=1.0, vol20=vol20, impact_k=K)
-        fills, lots, years, days = cost_report.reconcile(aK["costs"], aK["trades"], list(DATES),
+        fills, lots, years, days = cost_report.reconcile_costs(aK["costs"], aK["trades"], list(DATES),
                                                          1_000_000.0, tcK, 0.0, False)
         want = [costs.impact(int(r.qty), vol20[r.symbol][r.date], K) for r in fills.itertuples()]
         rate_ok = np.allclose(fills["impact_rate"], want, rtol=0, atol=1e-15)
@@ -1414,7 +1414,7 @@ tax_total_test.py -- the COSTS block's tax figures against what cash paid.
     ./venv/bin/python tax_total_test.py --quiet            # PASS/FAIL lines only
     ./venv/bin/python tax_total_test.py --module FILE.py   # test another copy of cost_report
 
-A synthetic tax-on run with gains, reconciled by results/cost_report.py, then its
+A synthetic tax-on run with gains, reconciled by reports.py, then its
 summary block read back as printed:
 
     1. the printed tax total equals COST_TAX_YEARS total_tax summed and the ledger's
@@ -1424,11 +1424,11 @@ summary block read back as printed:
        slippage + the tax total
     4. the per-year table's short tax, long tax and cess add up to the tax total
     5. the buy & hold sold on the last day: short + long + cess = its tax total
-    6. cost_report.check_tax_total refuses a block whose tax total leaves the cess out
+    6. reports.check_tax_total refuses a block whose tax total leaves the cess out
 
 The block is parsed here with its own regular expressions, not with cost_report's
 summary_figures, so the test reads what a person reads. --module points it at any
-copy of cost_report.py: the copy at commit 6ab7c55, from before the fix, fails 1 to 5.
+copy of reports.py: the copy at commit 6ab7c55, from before the fix, fails 1 to 5.
 No data, nothing written. Exit 0 when every case passes, 1 otherwise.
 """
     import importlib.util
@@ -1463,8 +1463,8 @@ No data, nothing written. Exit 0 when every case passes, 1 otherwise.
             mod = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(mod)
             return mod, str(path)
-        import cost_report
-        return cost_report, "results/cost_report.py"
+        import reports as cost_report
+        return cost_report, "reports.py"
 
 
     def case(name, ok, detail=""):
@@ -1501,7 +1501,8 @@ No data, nothing written. Exit 0 when every case passes, 1 otherwise.
                                          fixed_capital=False, tax_enabled=True,
                                          start_capital=int(BASE))
         cum_tax = float(audit["tax"]["cum_tax"])
-        fills, lots, years, days = cr.reconcile(audit["costs"], audit["trades"], list(DATES), BASE,
+        _reconcile = getattr(cr, "reconcile_costs", None) or cr.reconcile   # --module may hand in an older file
+        fills, lots, years, days = _reconcile(audit["costs"], audit["trades"], list(DATES), BASE,
                                                 tc, cum_tax, True, audit["tax"]["lots"])
         bh = cr.bh_costs(px, op, DATES, BASE, True)
         lines = cr.summary_block("synthetic v1", "research", True, 20, BASE, eq, fills, years, days, bh)
@@ -1551,7 +1552,7 @@ No data, nothing written. Exit 0 when every case passes, 1 otherwise.
              None not in (b_tax, b_ce) and abs((b_st or 0) + (b_lt or 0) + b_ce - b_tax) <= 0.02,
              f"{b_st} + {b_lt} + {b_ce} against {b_tax}")
 
-        import cost_report as current
+        import reports as current
         short = [x.replace(f"{tax:>16,.2f}", f"{tax - cess_due:>16,.2f}") if x.startswith("  tax, total")
                  else x for x in lines] if tax is not None else lines
         try:
@@ -1813,7 +1814,7 @@ Nothing in the repository is written. Exit 0 when every case passes, 1 otherwise
 
     def real():
         """mcap5001to10000 v1 on the delivered data, KAMAHOLD cut after 2019-03-15."""
-        import audit_step
+        import backtest_runs as audit_step
         from portfolio import ARMS
         from settings import REGISTRY
         u = REGISTRY["mcap5001to10000"]

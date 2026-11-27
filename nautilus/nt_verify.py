@@ -11,7 +11,7 @@ Run: ./venv/bin/python nautilus/nt_verify.py --universe=nifty100 [--arm=v3] [--r
 
 --arm=NAME verifies that arm (default v2): the port runs with the arm's mode and
 sizing, the reference copy (nt_attribution) takes the same, and the reference
-files are the arm's own audit trail, named by audit_step.artefact_tag. Added
+files are the arm's own audit trail, named by backtest_runs.artefact_tag. Added
 2026-09-26; before that every run verified v2.
 
 --rebal=N at a non-default cadence REPORTS the port-vs-vectorised gap at that
@@ -115,7 +115,7 @@ if _flag("capital") is not None:
 
 # --buy-shortfall=trim|refuse: THE BUY RULE. Selected here, so the port
 # (nt_strategy), the reference copy (nt_attribution) and the reference trail's
-# name (_ref_tag, through audit_step.artefact_tag) all follow it.
+# name (_ref_tag, through backtest_runs.artefact_tag) all follow it.
 if _flag("buy-shortfall") is not None:
     settings.shortfall_axis.set_selection(_flag("buy-shortfall"))
 RULE = settings.shortfall_axis.selected()
@@ -136,7 +136,7 @@ def _ref_tag():
     v2 is the unsuffixed TAG the reference files have always used; the other arms
     are suffixed by the writer's own rule."""
     sys.path.insert(0, str(ROOT / "results"))
-    import audit_step
+    import backtest_runs as audit_step
     from settings import REGISTRY
     return audit_step.artefact_tag(REGISTRY[UNIVERSE], ARM)
 
@@ -251,7 +251,7 @@ def cadence_gap(rebal):
     """
     from settings import cadence as _cd
     sys.path.insert(0, str(ROOT / "results"))
-    import audit_step
+    import backtest_runs as audit_step
     from portfolio import ARMS
     from settings import REGISTRY
     _cd.set_selection(rebal)

@@ -259,7 +259,7 @@ cleaning (Spearman -0.19, p 0.29, 32 cells; no tracked script computes it).
 
 The difference between the two does not have one sign. On the 2026-10-10 data the investable basket beats the reference in midcap50 (25.97 against 23.72) and, narrowly, in smallcap250 (26.60 against 26.56). It trails in the other six, by 0.53 (nifty100) to 1.77 points (midcap100). Take the benchmark from the same table as the arm's figure. Moving a figure between the tables changes the gap by up to 2.3 points, and none of that change comes from the strategy.
 
-**The reference basket favours itself.** Its label is "buy & hold equal-weight", but it is not held. Each day it earns the mean of its members' daily returns (`results/v34_common.py:676`), which is the same as rebalancing to equal weight every day. It is charged no costs at all, on any day. The strategy pays every charge, all slippage and, under `--impact`, impact. Every gap against the reference basket is therefore tilted toward the basket. The label is left unchanged so that the default outputs and their hash proofs stay the same.
+**The reference basket favours itself.** Its label is "buy & hold equal-weight", but it is not held. Each day it earns the mean of its members' daily returns (`backtest_runs.py`), which is the same as rebalancing to equal weight every day. It is charged no costs at all, on any day. The strategy pays every charge, all slippage and, under `--impact`, impact. Every gap against the reference basket is therefore tilted toward the basket. The label is left unchanged so that the default outputs and their hash proofs stay the same.
 
 **Where the reference basket starts.** Its first value is the starting capital times one plus the first window day's move from the session before: the mean close-to-close return across its members. On microcap250 pit, which starts on 2021-10-29, that move is -0.2567%, so the curve starts at 997,432.88 instead of 1,000,000. Its CAGR is measured from that first value, so it effectively starts at the first window day's close, as the strategy does; the strategy holds cash that day and first buys at the next open. Measured from the starting capital instead, the basket CAGR would change by at most 0.12 points (median 0.02) across 537 finished runs, measured 2026-10-16. The basket also earns the first night's gap, from that close to the next open, which the strategy misses because it buys at the open.
 
@@ -353,7 +353,7 @@ switching it moves every published figure and must be mirrored in
 
 ### The held-lots buy & hold is concentration-limited, and midcap50 exceeds the limit
 
-bh_lots_after_tax.py withholds its tax-cost-of-turnover figure when one name
+backtest_runs.py withholds its tax-cost-of-turnover figure when one name
 exceeds 11.62% of the held-lots buy & hold's final value. On the 2026-10-10 outputs
 it withholds on midcap50, where DIXON is 12.4% of that basket
 (results_midcap50/metrics/BH_LOTS_midcap50_tax.csv). microcap250, rerun without
@@ -396,7 +396,7 @@ since 2026-10-14:
 
 ### The opening purchase is capped since 2026-10-14; a late lister's first 20 sessions are not
 
-Until 2026-10-14 `results/tradability.py` (`median_volume`) dropped every row before
+Until 2026-10-14 `reports.py` (`median_volume`) dropped every row before
 `BT_START_DATE` before taking the rolling median, so no symbol had a median in the
 window's first 20 sessions and every fill of the 2019-01-02 rebalance went through
 uncapped. The median now reads the 20 sessions before the window start, which are all
@@ -562,7 +562,7 @@ largest forks on 2026-09-26. A Nautilus figure is not the engine's figure to the
 
 ### Costs are reported and reconciled in every run
 
-`results/cost_report.py`, called from `results/audit_step.py` for every universe, arm,
+`reports.py`, called from `backtest_runs.py` for every universe, arm,
 cadence, profile and tax setting, writes `COSTS_<tag>.csv` (every fill: reference
 price, fill price, slippage in rupees, each charge), `COST_LOTS_<tag>.csv` (every lot
 sold), `COST_TAX_YEARS_<tag>.csv` (every financial year) and `COST_SUMMARY_<tag>.txt`,
@@ -571,9 +571,9 @@ investable buy & hold held to the end and sold on the last day.
 - The run fails unless, to the paisa: cash reconciles every day; slippage and the
   itemised charges every fill; tax every financial year (by replaying
   `costs.Ledger`); the per-fill charges and per-day tax against the run's totals;
-  and the buy & hold, held and sold, against `bh_held.held_lots`. The printed tax
+  and the buy & hold, held and sold, against `backtest_runs.held_lots`. The printed tax
   total must also equal COST_TAX_YEARS `total_tax` summed and the ledger's final
-  `cum_tax`, within Rs 0.01 (`cost_report.check_tax_total`), and the per-year table
+  `cum_tax`, within Rs 0.01 (`reports.check_tax_total`), and the per-year table
   must add up to it. `code_checks.py cost_reconcile` (check_all) runs this on all 32 cells
   under both profiles with tax off and on, and each universe's buy & hold: 144
   combinations. `engine_tests.py tax_total` (check_all) checks the printed tax figures on a
@@ -581,7 +581,7 @@ investable buy & hold held to the end and sold on the last day.
 
 ### The COSTS block left the 4% cess out of its tax total from 2026-10-14 to 2026-10-16
 
-From `b61621b` the ledger charged the cess, but `cost_report.strategy_totals` printed
+From `b61621b` the ledger charged the cess, but `reports.strategy_totals` printed
 short + long tax. As a result, the COSTS block's tax total, gross profit, all costs and
 "of gross" percentages, and the DAILY_LOG totals, were short by the cess. Cash, every
 CAGR and drawdown, COST_TAX_YEARS, FY_TAX_STATEMENT and the dashboard were right.
@@ -860,7 +860,7 @@ noise-test records are superseded".
 
 All four arms, all eight universes:
 - GATE 9 (`check_b_exec_timing`, leakage checks 1 and 2), GATE 6 and GATE 7 tax.
-- `tax_report.py`, `bh_lots_after_tax.py`, `code_checks.py cost_reconcile`.
+- `reports.py`, `backtest_runs.py`, `code_checks.py cost_reconcile`.
 - `nautilus/nt_verify.py`: 39 of the 48 cells of the twelve universes are gated;
   midcap100 v3 and the eight mcap1500to5000 and mcap5001to10000 cells are not (see
   below). No v5 or v6 cell is gated, and no pit cell is covered (see "Pit cells are not covered by nt_verify").
@@ -1169,13 +1169,13 @@ The rule since then: a name is traded only on a session with a row, a valid open
 
 The change moved 64 published cells, all 16 of each of mcap1500to5000, mcap5001to10000, smallcap250 pit and nifty500 pit (the last two through MAHSCOOTER, force-sold on 2025-10-28 before a two-session gap and now held until a rebalance sells it on 2026-02-06). Every universe was rerun on 2026-10-17, static and pit, four settings each. Every other cell's trades, holdings, equity, comparison and tax files are byte-identical. Their run parameters, cost summaries and daily logs were rewritten with the new commit hash and run date and with the cess column of commit 328c74a, which no run had written for them before, and their Nautilus reports with new random event ids. The README tables carry the new figures.
 
-SANGHIIND (mcap1500to5000): its file ends on 2026-04-02, close 50.15. A sale owed on it never fills, so all 16 cells hold it from 2026-04-02 to 2026-05-29 at 50.15. Why the file ends is not known to the repository, so that value is an assumption. Each run's RUN.txt and run.log give the shares and value, and the end equity, CAGR and maximum drawdown with the position valued at zero from 2026-04-03 (`results/tradability.py`, `run_lines()`). Research tax off, v1: 49,466 shares, Rs 2,480,719.90; CAGR 46.19% as run, 43.04% at zero. Until 2026-10-16 the engine sold it on 2026-04-09 at 51.0, the 2026-04-02 open less slippage, on a session with no row. The other files that end before 2026-05-29 (GSPL, CIGNITITEC, AIRTELPP) are not held on their last row in any cell.
+SANGHIIND (mcap1500to5000): its file ends on 2026-04-02, close 50.15. A sale owed on it never fills, so all 16 cells hold it from 2026-04-02 to 2026-05-29 at 50.15. Why the file ends is not known to the repository, so that value is an assumption. Each run's RUN.txt and run.log give the shares and value, and the end equity, CAGR and maximum drawdown with the position valued at zero from 2026-04-03 (`reports.py`, `run_lines()`). Research tax off, v1: 49,466 shares, Rs 2,480,719.90; CAGR 46.19% as run, 43.04% at zero. Until 2026-10-16 the engine sold it on 2026-04-09 at 51.0, the 2026-04-02 open less slippage, on a session with no row. The other files that end before 2026-05-29 (GSPL, CIGNITITEC, AIRTELPP) are not held on their last row in any cell.
 
-Not changed with it. The legend in `results/make_daily_log.py` still reads "untradeable  no raw price row, or a forced exit before a gap". It is printed in every DAILY_LOG, so rewording it would rewrite that file in every cell; the new skip reasons start with "untradeable:" and fall under it. Gate G4 of `results/drawdown_exit_measure.py` counts forced exits. No gate runs that script (check_all only imports it), its patch anchor already fails (see "The drawdown-exit measurement" above), and the v5/v6 verdict stands as recorded. nt_attribution (ARM A) and the Nautilus port still trade on sessions without a row; see the nt_verify paragraph under the market-cap buckets.
+Not changed with it. The legend in `reports.py` still reads "untradeable  no raw price row, or a forced exit before a gap". It is printed in every DAILY_LOG, so rewording it would rewrite that file in every cell; the new skip reasons start with "untradeable:" and fall under it. Gate G4 of `results/drawdown_exit_measure.py` counts forced exits. No gate runs that script (check_all only imports it), its patch anchor already fails (see "The drawdown-exit measurement" above), and the v5/v6 verdict stands as recorded. nt_attribution (ARM A) and the Nautilus port still trade on sessions without a row; see the nt_verify paragraph under the market-cap buckets.
 
 ### The buy & hold baskets do not apply the row rule
 
-The strategy trades a name only on sessions with a row (results/tradability.py). The reference buy & hold (`px.pct_change().mean(axis=1)`, results/v34_common.py) and the investable held-lots buy & hold (results/bh_held.py) are built from the forward-filled price panel and do not consult it, so a gap enters them as zero returns followed by one return at the next row.
+The strategy trades a name only on sessions with a row (reports.py). The reference buy & hold (`px.pct_change().mean(axis=1)`, backtest_runs.py) and the investable held-lots buy & hold (backtest_runs.py) are built from the forward-filled price panel and do not consult it, so a gap enters them as zero returns followed by one return at the next row.
 
 On the 2026-10-16 data, interior gaps exist in microcap250 (static and pit), the pit files of midcap50, smallcap250 and nifty500, and all three market-cap buckets (mcap1500to5000: 28 names with a gap of two or more sessions). A gap that starts before 2019-01-01 enters the baskets the same way.
 
@@ -1273,7 +1273,7 @@ most are flat bars (open, high, low and close equal), 1,163 of them with volume 
   `vol_price_div` (the direction of 5-day against 20-day mean volume). Every feature is
   then z-scored across stocks each day, so one stock's volume moves every stock's value
   on that day.
-- The tradeable participation cap and market impact: `results/tradability.py`
+- The tradeable participation cap and market impact: `reports.py`
   `median_volume`, the prior-20-session median volume (`vol20`), read by
   `portfolio.py` and `costs.py`.
 - `costs.py`, the capacity warning. Since 2026-10-20 it counts NSE rows only
@@ -1337,9 +1337,9 @@ The old files last exist at commit `aebf1da`. Each function moved unchanged; a n
 | `environment_check.py`, `environment_check.require(script, repo)` | `python_floor.py`, `python_floor.require_drive(script, repo)` |
 | `module_state.py`, `module_state.pinned()` and its helpers | `run.py`, `pinned()`, `snapshot()`, `restore()`, `WATCHED` |
 | `check_plan_order.py` (standalone), `check_plan_order.analyse()`, `.enforce()` | `check_pipeline_order.py --plan`, `check_pipeline_order.plan_analyse()`, `.plan_enforce()` |
-| `results/stuck_positions.py`, `run_lines()`, `cell_lines()`, `last_rows()` | `results/tradability.py`, the same names |
-| `results/arm_sources.py`, `equity_path_and_series()`, `trades_path()`, `describe()`, `deployed_pct()`, `available()` | `results/make_chart.py`, the same names; `make_combined_universes.py` calls them as `make_chart.<name>` |
-| `results/make_audit.py <universe>`, the pipeline step `make_audit.py` | `results/audit_step.py <universe>`; the twelve PIPELINE_ORDER rows name `audit_step.py` with the same labels |
+| `results/stuck_positions.py`, `run_lines()`, `cell_lines()`, `last_rows()` | `reports.py`, the same names |
+| `results/arm_sources.py`, `equity_path_and_series()`, `trades_path()`, `describe()`, `deployed_pct()`, `available()` | `reports.py`, the same names; `reports.py` calls them as `make_chart.<name>` |
+| `results/make_audit.py <universe>`, the pipeline step `make_audit.py` | `backtest_runs.py <universe>`; the twelve PIPELINE_ORDER rows name `backtest_runs.py` with the same labels |
 
 `results/build_scores.py` was not merged into `results/build_scores_step.py`: `experiments/DRAWDOWN_STOP_PREREG.txt` names build_scores_step.py as the source of the production seeds, and a pre-registered file is not edited.
 
@@ -1360,7 +1360,7 @@ The old files last exist at commit `24614bb`. Each old file's body is one functi
 | `cache_key_test.py` | `engine_tests.py cache_key` |
 | `noise_harness_test.py` | `engine_tests.py noise_harness` |
 
-Two comments in engine files still name the old files: `results/engine_core.py` (tradability_causality_test.py) and `portfolio.py` (fixed_capital_test.py). The one in `results/fixed_capital.py` was fixed on 2026-10-18. They are left until those files change for another reason: engine_core.py's bytes are in the fit-cache key, and the source of portfolio.backtest_exposure is hashed into `diagnostics/drawdown_exit.txt`.
+Two comments in engine files still name the old files: `results/engine_core.py` (tradability_causality_test.py) and `portfolio.py` (fixed_capital_test.py). The one in `backtest_runs.py` was fixed on 2026-10-18. They are left until those files change for another reason: engine_core.py's bytes are in the fit-cache key, and the source of portfolio.backtest_exposure is hashed into `diagnostics/drawdown_exit.txt`.
 
 `naming_declare_check.py` names a write site by its outermost function, so the writes in these tests are now counted under `engine_tests.py::_cache_key` and the like: the call count is unchanged and the site count falls.
 
@@ -1370,11 +1370,11 @@ The old files last exist at commit `4a4b427`. Each subcommand takes the old argu
 
 | old command | new command |
 |---|---|
-| `results/tax_on_all_arms.py` | `tools/cell_reports.py tax-on-all-arms` |
-| `results/tradeable_tax_grid.py` | `tools/cell_reports.py tradeable-tax-grid` |
-| `tools/tax_fix_old_new.py --old DIR` | `tools/cell_reports.py tax-fix-old-new --old DIR` |
-| `results/cell_table.py OUT.csv [--root DIR]` | `tools/cell_reports.py cell-table OUT.csv [--root DIR]` |
-| `results/cell_compare.py OLD.csv NEW.csv OUT.csv` | `tools/cell_reports.py cell-compare OLD.csv NEW.csv OUT.csv` |
+| `results/tax_on_all_arms.py` | `reports.py tax-on-all-arms` |
+| `results/tradeable_tax_grid.py` | `reports.py tradeable-tax-grid` |
+| `tools/tax_fix_old_new.py --old DIR` | `reports.py tax-fix-old-new --old DIR` |
+| `results/cell_table.py OUT.csv [--root DIR]` | `reports.py cell-table OUT.csv [--root DIR]` |
+| `results/cell_compare.py OLD.csv NEW.csv OUT.csv` | `reports.py cell-compare OLD.csv NEW.csv OUT.csv` |
 | `results/pit_compare.py OUT.csv [universe ...]` | `results/survivorship_sheet.py pit-compare OUT.csv [universe ...]` |
 
 Three limits, measured that day and the same in old and new:
@@ -1401,7 +1401,7 @@ They held 19 of the 100 undeclared write calls, so `NAMING_UNDECLARED_BASELINE` 
 
 ### Three backtest implementations and one port, and which one each check tests
 
-- `portfolio.backtest_exposure` is the shipping engine. It produces every published figure, and `validate_engine.py`, `audit_step.py`, `tax_report.py` and the sweeps all run it.
+- `portfolio.backtest_exposure` is the shipping engine. It produces every published figure, and `validate_engine.py`, `backtest_runs.py`, `reports.py` and the sweeps all run it.
 - `results/engine_core.backtest` has no breadth mode and sizes against cash rather than portfolio value. Only `validate_sizing.py` uses it. validate_sizing's verdicts describe this engine, not what ships.
 - `nautilus/nt_attribution.run` is a deliberate independent copy, used as nt_verify's reference.
 - `nautilus/nt_strategy.py` is the Nautilus port that nt_verify tests.
@@ -1413,7 +1413,7 @@ They held 19 of the 100 undeclared write calls, so `NAMING_UNDECLARED_BASELINE` 
 The 60-day volatility lookback sets inverse-vol position sizes and the portfolio
 volatility used by the shipping engine. `config.py` does not define it. Twenty
 tracked files each assign their own `VOL_WIN = 60`, including the shipping engine
-(`portfolio.py`, `results/engine_v2_final.py`), the Nautilus port
+(`portfolio.py`, `backtest_runs.py`), the Nautilus port
 (`nautilus/nt_strategy.py`, `nautilus/nt_attribution.py`) and the noise harnesses
 (`results/noise_parallel.py`, `results/after_tax_noise.py`). Only
 `results/validate_breadth_live.py` imports it from `engine_core`.
@@ -1429,20 +1429,20 @@ list.
 
 An artefact name is a stem plus up to four axis suffixes: arm, cadence, profile, tax. Each is empty at its default. The axes an artefact actually carries are stated twice:
 - at the writer, by a `# naming:` directive, which `naming_declare_check.py` checks against a non-default selection;
-- at the reader, by the compulsory fourth field of each `run_all.REQUIRED_INPUTS` entry, which `check_inputs._present()` composes.
+- at the reader, by the compulsory fourth field of each `backtest_runs.REQUIRED_INPUTS` entry, which `check_inputs._present()` composes.
 
-No check compares the two, so they can drift apart, and `_present`'s docstring still describes itself as a stopgap. `settings.py` builds directory tails (`path_tail`) and chart titles (`run_label`). File names are still assembled by hand in `results/audit_step.py:106,169` (`artefact_tag`), `results/v34_common.py:319` and `results/engine_v2_final.py:115`. The next step is to have `naming_declare_check` cross-check each `REQUIRED_INPUTS` axis field against the producing writer's directive.
+No check compares the two, so they can drift apart, and `_present`'s docstring still describes itself as a stopgap. `settings.py` builds directory tails (`path_tail`) and chart titles (`run_label`). File names are still assembled by hand in `backtest_runs.py,169` (`artefact_tag`), `backtest_runs.py` and `backtest_runs.py`. The next step is to have `naming_declare_check` cross-check each `REQUIRED_INPUTS` axis field against the producing writer's directive.
 
 ### Artefact names are composed by hand, and only the writers are checked
 
 Four axes name an artefact (settings.AXES: arm, cadence, profile, tax). settings.tail()
 composes them, but about eight sites still build the suffix by hand, among them
-make_chart.py:83 (`_axes`, moved there from arm_sources.py on 2026-10-18),
-audit_step.py:169, make_chart.py:376 and make_combined_universes.py:422. naming_declare_check.py and settings.CARRIES verify
+reports.py (`_axes`, moved there from arm_sources.py on 2026-10-18),
+backtest_runs.py, reports.py and reports.py. naming_declare_check.py and settings.CARRIES verify
 that writers carry the axes they declare. Readers are not checked. A reader that
 misses an axis resolves to the default file, and when the check it feeds re-ran
 under the same default it reports a match that could not have failed; this
-happened with the tax axis in audit_step.py. Adding an axis (a survivorship axis
+happened with the tax axis in backtest_runs.py. Adding an axis (a survivorship axis
 is planned, after tax) means editing every one of these sites.
 
 ### check_pipeline_order resolves edges per script, not per universe
@@ -1454,14 +1454,14 @@ this universe". registry_coverage_check.py is what checks that every universe is
 wired.
 
 Since 2026-09-24 a path built inside a loop over `REGISTRY[tag].metrics_dir`
-(make_combined_universes.py) is expanded over every universe in the row's declared
+(reports.py) is expanded over every universe in the row's declared
 span. A file the loop writes for only some universes, behind an `if`, would be
 credited to all of them, and no check would notice.
 
-### run_all.PIPELINE_ORDER is written out by hand -- DEFERRED
+### backtest_runs.PIPELINE_ORDER is written out by hand -- DEFERRED
 
-`run_all.PIPELINE_ORDER` lists 76 rows, one per (step, universe) (`PIPELINE_ROW_COUNT`,
-run_all.py:291). Adding a universe means adding six rows with new labels, so a universe
+`backtest_runs.PIPELINE_ORDER` lists 76 rows, one per (step, universe) (`PIPELINE_ROW_COUNT`,
+backtest_runs.py). Adding a universe means adding six rows with new labels, so a universe
 is not yet just a registry row. The labels are keys: GATE 2, check_pipeline_order (its
 order check and its --plan check) and the run logs name steps by them. Generating the rows would renumber
 every step, including the irregular `10za` and `10.01`, and every reader would have to
@@ -1473,7 +1473,7 @@ move in one change. The owner deferred this on 2026-09-25.
 
 ### --arm narrows the v34 files and per-arm outputs, not v2FINAL_*
 
-`results/engine_v2_final.py` always backtests v1 and v2 and writes
+`backtest_runs.py` always backtests v1 and v2 and writes
 `v2FINAL_comparison.csv`, `v2FINAL_yearly.csv`, `v2FINAL_equity.csv`
 (columns `v1_invvol_none`, `v2_invvol_breadth`, `buyhold`), `v2FINAL_params.json`
 and `chart_v2FINAL.png` on every run, whatever `--arm` selects. So `--arm v3`
@@ -1483,9 +1483,9 @@ selection. The `buyhold` column there is the daily-rebalanced reference basket,
 not the investable buy & hold.
 
 v1 and v2 are computed regardless because later steps need them: `run_v34` takes
-their curves to build every other arm's table, `make_chart.py` and
-`make_combined_universes.py` read `v2FINAL_equity` and `v2FINAL_params`, and
-`audit_step.py` reads `v2FINAL_equity`. The rewrite does not change the numbers.
+their curves to build every other arm's table, `reports.py` and
+`reports.py` read `v2FINAL_equity` and `v2FINAL_params`, and
+`backtest_runs.py` reads `v2FINAL_equity`. The rewrite does not change the numbers.
 On 2026-10-03 the v5/v6 runs over all eight universes and four settings left every
 `v2FINAL_equity` file byte-identical, and the two `v2FINAL_params` files that
 changed carried the same Sharpe, MaxDD and CAGR as the published v2 rows. The 21
@@ -1504,14 +1504,14 @@ read. Audit trails, daily logs and trade logs are written per selected arm.
 
 A function whose docstring says what it guards against, but which has no call site, reads as a solved problem to anyone who finds the docstring. This happened with `tax.set_selection` and `costs.max_holding_days`, and both are now wired.
 
-Still open: `results/make_chart.py`, the per-universe chart, ignores the registry palette. Lines 290, 292, 308, 445 and 446 hardcode six colours, nifty100's slots 0-3 and midcap150's slots 4-5, and every universe is drawn in them. `palette_distance.py` measures only `REGISTRY[t].chart_colours`, so this set has never been gated. Its closest pair under deuteranopia is v2 against buy & hold at dE 7.55. Fixing it re-renders every universe's chart.
+Still open: `reports.py`, the per-universe chart, ignores the registry palette. Lines 290, 292, 308, 445 and 446 hardcode six colours, nifty100's slots 0-3 and midcap150's slots 4-5, and every universe is drawn in them. `palette_distance.py` measures only `REGISTRY[t].chart_colours`, so this set has never been gated. Its closest pair under deuteranopia is v2 against buy & hold at dE 7.55. Fixing it re-renders every universe's chart.
 
 No check finds a new case. The detector would grep every `def` whose docstring contains a guard verb for call sites outside its own definition, and flag growth against a declared baseline in the way `naming_declare_check` does. It has not been written.
 
 ### The drawdown-panel label is copied into seven registry rows
 
 settings.py carries `chart_text["dd_label"]` on every row. Seven rows hold
-the same lambda text; midcap150's (line 727) is different. results/make_chart.py:459
+the same lambda text; midcap150's (line 727) is different. reports.py
 draws it on the drawdown panel of every per-universe chart. The copies are
 deliberate, because the registry keeps each universe to one self-contained row,
 but an edit to one row will not reach the others and nothing compares them. Lambda
@@ -1528,11 +1528,11 @@ because changing them re-renders published charts. No gate checks palettes;
 palette_distance.py reports only, and a gate was declined because it would fail
 on these pairs the day it landed. New palettes cannot all clear dE 10: the measured
 ceiling is 8.712634 (diagnostics/palette_ceiling.txt). Per-universe charts do not
-read chart_colours at all (results/make_chart.py hardcodes six colours).
+read chart_colours at all (reports.py hardcodes six colours).
 
 ### Combined charts may not be byte-reproducible across sessions
 
-`results/make_combined_universes.py` saves with `bbox_inches="tight"`. On
+`reports.py` saves with `bbox_inches="tight"`. On
 2026-09-04 the tight bounding box of the nifty100/midcap150 pair chart came out
 two pixels taller in one session than another, on identical code and inputs. The
 cause was not found and nothing has re-tested it. The plotted numbers do not
@@ -1540,10 +1540,10 @@ change. Do not use a `chart_COMBINED_*.png` as a byte-comparison fixture.
 
 ### make_chart prints no independent check of the index return
 
-results/make_chart.py used to print a hardcoded `expected` index return beneath
+reports.py used to print a hardcoded `expected` index return beneath
 the measured one. It held midcap150's figures, was printed for every universe, and
 was wrong for all of them after a window change. It was deleted (comment at
-make_chart.py:248). Do not bring it back computed from the same price slice: that
+reports.py). Do not bring it back computed from the same price slice: that
 line would agree by construction and could never fail. The only check worth
 printing is the index provider's own published return for the window, per
 universe, and the repository does not have it.
@@ -1575,13 +1575,13 @@ These four cannot, and are kept as records, not rebuilt:
 - `diagnostics/tax_on_all_arms_uncleaned_20260927.csv` and
   `diagnostics/tradeable_tax_all_arms_uncleaned_20260927.csv`: the outputs of
   `results/tax_on_all_arms.py` and `results/tradeable_tax_grid.py` (now
-  `tools/cell_reports.py tax-on-all-arms` and `tradeable-tax-grid`) on the prices
+  `reports.py tax-on-all-arms` and `tradeable-tax-grid`) on the prices
   before the 2026-09-27 cleaning, renamed by hand in b39b513. The subcommands write
   only the undated names, and the uncleaned panels they read no longer exist.
 
 ### A file that nothing imports or runs is not necessarily dead
 
-Many scripts here are not in `run_all.PIPELINE_ORDER` and are imported by nothing,
+Many scripts here are not in `backtest_runs.PIPELINE_ORDER` and are imported by nothing,
 but produce a diagnostic that `EXPERIMENTS.md`, a spec or this file cites as
 evidence. Deleting one leaves the cited `.txt` with no way to regenerate it. Some
 write only to stdout (`verify_v34_arms.py` has no file write at all; its record
@@ -1658,8 +1658,8 @@ is kept outside the repository, in a git bundle the owner holds.
 - `tax_acceptance_check.py` creates two temporary directories per run
   (`tempfile.mkdtemp`, lines 81 and 130) and never removes them.
 - `settings.score_cache` still calls the score panel a `.csv`; `market_data.read_table`'s docstring
-  names `csv_reader_check.py`, which no longer exists; `results/engine_v2_final.py:180`
-  and `:261` and `results/make_chart.py:62` (moved from arm_sources.py:5) name the deleted `make_final_chart_fair.py`;
+  names `csv_reader_check.py`, which no longer exists; `backtest_runs.py`
+  and `:261` and `reports.py` (moved from arm_sources.py:5) name the deleted `make_final_chart_fair.py`;
   `results/validate_engine.py:57` and `:380` mention `FINAL_val_*.csv`.
 - `diagnostics/gate_verdicts.txt:80` says the live purge rule is tested by no script;
   `results/leakage_check2_trading_purge.py` tests it.
@@ -1673,7 +1673,7 @@ Deleted in the first consolidation batch. Each still exists at commit dbe387e: `
 
 - One-off measurements and studies, not called by any run or check: `heldout_prereg_run.py`, `jackknife.py`, `liquidity_participation.py`, `measured_universes.py`, `palette_distance.py`, `param_surface.py`, `topn_test.py`, `survivorship_attribution.py`, and in `results/`: `atom_measure.py`, `attribution_v2.py`, `drawdown_exit_measure.py`, `drawdown_stop_judge.py`, `nifty500_baseline_trace.py`, `overdraft_measure.py`, `pinned_mask_test.py`, `rebal_cadence_sweep.py`, `seed_noise_measure.py`, `seed_noise_report.py`, `selection_margin.py`, `shuffle_test.py`, `survivorship_sheet.py`.
 - `results/leakage_check4_corpactions.py`: descriptive only, with no pass condition; check_all always skipped it.
-- `check_pipeline_order.py` and `registry_coverage_check.py`: they checked the order and coverage of run_all.PIPELINE_ORDER's script list, which the consolidation replaces. run.py no longer runs them before a run, and check_all no longer runs them. The issue "check_pipeline_order resolves edges per script, not per universe" above no longer applies.
+- `check_pipeline_order.py` and `registry_coverage_check.py`: they checked the order and coverage of backtest_runs.PIPELINE_ORDER's script list, which the consolidation replaces. run.py no longer runs them before a run, and check_all no longer runs them. The issue "check_pipeline_order resolves edges per script, not per universe" above no longer applies.
 - The noise harness: `results/noise_parallel.py`, `results/price_noise_measure.py`, `results/after_tax_noise.py`, `tools/pit_noise_band.py`, `results/seed_band_fit.py`, `results/drawdown_stop_band.py`, `scripts/run_noise_stage.sh`, `scripts/run_seed_band_fit.sh`, with the `engine_tests.py noise_harness` case and the noise cases of `engine_tests.py cache_key`. `engine_tests.py fixed_capital` now has its own copy of `select_pit`. The sealed drawdown-stop band, `experiments/DRAWDOWN_STOP_BAND.csv`, is kept and still read by `portfolio.py`; its writer is gone, so the band can only be recomputed from history.
 
 ## Out of scope

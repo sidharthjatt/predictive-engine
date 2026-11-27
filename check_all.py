@@ -21,7 +21,7 @@ THE CLASS, STATED ONCE
       3. A REGEX OVER PIPELINE_ORDER MATCHING 12 OF 15 ROWS, twice, because the
          script column contains digits. Both times the half-renamed pipeline
          imported cleanly. Caught by an assertion the author happened to write.
-      4. make_daily_log.py RUN DIRECTLY, WRITING NOTHING, EXITING 0 -- its
+      4. reports.py RUN DIRECTLY, WRITING NOTHING, EXITING 0 -- its
          __main__ guard exists only inside a docstring. Caught by diffing the
          output against copies saved beforehand.
 
@@ -224,9 +224,9 @@ DELEGATES = (
     # registry_coverage_check.py and check_pipeline_order.py (both rows) were
     # retired on 2026-11-26; they last exist at commit dbe387e.
     ("naming_declare_check.py",               [], False, None),
-    # The gate run_all.py applies before a run: declared defects and declarations
+    # The gate backtest_runs.py applies before a run: declared defects and declarations
     # that do not hold fail it. Judged by its exit code, so check_all fails
-    # whenever run_all.py would refuse to start.
+    # whenever backtest_runs.py would refuse to start.
     ("naming_declare_check.py",               ["--gate-declared-only"], False, None),
     # THE FOUR CHECKS BELOW AND FURTHER DOWN ARE CASES OF code_checks.py SINCE
     # 2026-10-19, one row per old file, each run as its own subprocess.
@@ -270,7 +270,7 @@ DELEGATES = (
     # cess add up to it, in the summary, the per-year table and the buy & hold.
     # A synthetic tax-on run. A second.
     ("engine_tests.py", ["tax_total", "--quiet"], False, None),
-    # The row rule (results/tradability.py): rows dated after day i change no trade
+    # The row rule (reports.py): rows dated after day i change no trade
     # up to day i; an owed sale fills at the next row's open; a capped owed sale is
     # cancelled when kept again; an ended file is held at its last close; no buy on
     # a session with no row. A synthetic universe on calendar sessions; about 10
@@ -304,7 +304,7 @@ DELEGATES = (
     ("results/check_b_exec_timing.py",        [], False, None),
     ("nautilus/verify_next_open_execution.py", [], False, None),
     ("tax_acceptance_check.py",               [], False, None),
-    # Charges, slippage and tax reconciled to the paisa (results/cost_report.py) on
+    # Charges, slippage and tax reconciled to the paisa (reports.py) on
     # every universe and arm, both profiles, tax off and on, and the buy & hold:
     # 144 combinations, nothing written. About 4 minutes.
     ("code_checks.py", ["cost_reconcile"], False, None),
@@ -431,7 +431,7 @@ def _needs(label):
         u = _R[opts["--universe"]]
         if str(ROOT / "results") not in sys.path:
             sys.path.insert(0, str(ROOT / "results"))
-        import audit_step as _as
+        import backtest_runs as _as
         tag = _as.artefact_tag(u, opts.get("--arm", "v2"))
         return [u.score_cache] + [u.metrics_dir / f"{s}_{tag}.csv" for s in
                                   ("daily_summary", "daily_holdings",
@@ -570,7 +570,14 @@ def gate_imports(res):
         warnings.simplefilter("ignore")
         for rel, name in mods:
             try:
-                importlib.import_module(name)
+                if len(rel.parts) > 1 and (ROOT / f"{rel.parts[0]}.py").exists():
+                    # dashboard/ beside dashboard.py: the top-level module owns the
+                    # name, so the folder is not a package; load the file itself.
+                    from importlib import util as _ilu
+                    spec = _ilu.spec_from_file_location(name.replace(".", "_"), ROOT / rel)
+                    spec.loader.exec_module(_ilu.module_from_spec(spec))
+                else:
+                    importlib.import_module(name)
             except BaseException as e:               # SystemExit included, on purpose
                 first = str(e).splitlines()[0] if str(e) else ""
                 if str(rel) in KNOWN_UNIMPORTABLE:
@@ -595,7 +602,7 @@ def gate_imports(res):
 # GATE 2 -- the table is the size it says it is, and every script exists
 # ---------------------------------------------------------------------------
 def gate_table(res):
-    """Row count against run_all.PIPELINE_ROW_COUNT, and every script resolved.
+    """Row count against backtest_runs.PIPELINE_ROW_COUNT, and every script resolved.
 
     THE ROW IS READ BY INDEX, NEVER MATCHED. row[1] is the script; nothing here
     constructs a pattern over the row's text, because a pattern over this table
@@ -610,17 +617,17 @@ def gate_table(res):
     # report. Caught here and reported as a gate-2 failure, with the rest of the
     # gates still running.
     try:
-        import run_all
+        import backtest_runs as run_all
     except BaseException as e:
-        res.fail("GATE 2 table", "run_all is unimportable",
+        res.fail("GATE 2 table", "backtest_runs is unimportable",
                  f"{type(e).__name__}: {str(e).splitlines()[0][:160]}")
-        res.skip(2, "GATE 2  NOT CHECKED -- run_all does not import",
-                 "run_all does not import")
+        res.skip(2, "GATE 2  NOT CHECKED -- backtest_runs does not import",
+                 "backtest_runs does not import")
         return []
     rows = run_all.PIPELINE_ORDER
     declared = getattr(run_all, "PIPELINE_ROW_COUNT", None)
     if declared is None:
-        res.fail("GATE 2 table", "run_all.PIPELINE_ROW_COUNT",
+        res.fail("GATE 2 table", "backtest_runs.PIPELINE_ROW_COUNT",
                  "not declared; a bulk edit over PIPELINE_ORDER cannot be checked")
     elif len(rows) != declared:
         res.fail("GATE 2 table", "row count",
@@ -639,7 +646,7 @@ def gate_table(res):
     for row in rows:
         label, script = row[0], row[1]
         tag = row[2] if len(row) > 2 else None
-        p = run_all.script_path(script)
+        p, _fn = run_all.step_source(script)
         if not Path(p).exists():
             res.fail("GATE 2 table", f"{label} {script}",
                      f"resolves to {p}, which does not exist")
@@ -651,7 +658,7 @@ def gate_table(res):
                      f"over this table covered part of it.")
             stale += 1
     res.note(f"GATE 2  {len(rows)} rows (declared {declared}), "
-             f"{len(rows) - missing} scripts resolve, "
+             f"{len(rows) - missing} steps resolve to a file, "
              f"{len(rows) - stale} rows name a registered universe")
     return rows
 
@@ -663,7 +670,7 @@ def _has_live_main(path):
     """True when a module-level `if __name__ == "__main__":` block CALLS something.
 
     BY AST, NOT BY GREP, and the difference is the whole gate.
-    make_daily_log.py contains the string "__main__" -- inside a docstring
+    reports.py contains the string "__main__" -- inside a docstring
     explaining that its body was moved out of the guard. A text search passes it.
     Running it does nothing and exits 0.
 
@@ -685,25 +692,39 @@ def _has_live_main(path):
                    "nothing and exits 0")
 
 
+def _has_step_function(path, fn):
+    """True when `path` defines a module-level function `fn`. A step is a function
+    since 2026-11-27 (backtest_runs.STEP_HOME); the two Nautilus steps are still
+    their file's main(). By ast, as _has_live_main was."""
+    try:
+        tree = ast.parse(Path(path).read_text())
+    except SyntaxError as e:
+        return None, f"does not parse: {e}"
+    if any(isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef)) and n.name == fn
+           for n in tree.body):
+        return True, ""
+    return False, f"{Path(path).name} has no module-level function {fn}()"
+
+
 def gate_entry_points(res, rows):
     if not rows:
         res.skip(3, "GATE 3  NOT CHECKED -- no pipeline table",
                  "no pipeline table")
         return
-    import run_all
+    import backtest_runs as run_all
     seen, bad = [], 0
     for row in rows:
         script = row[1]
         if script in seen: continue
         seen.append(script)
-        p = run_all.script_path(script)
+        p, fn = run_all.step_source(script)
         if not Path(p).exists(): continue          # already reported by gate 2
-        ok, why = _has_live_main(p)
+        ok, why = _has_step_function(p, fn)
         if not ok:
             res.fail("GATE 3 entry points", script, why)
             bad += 1
-    res.note(f"GATE 3  {len(seen) - bad} of {len(seen)} pipeline scripts have a "
-             f"live __main__ block")
+    res.note(f"GATE 3  {len(seen) - bad} of {len(seen)} pipeline steps name a "
+             f"module-level function in their file")
 
 
 # ---------------------------------------------------------------------------
@@ -731,7 +752,7 @@ def gate_outputs(res, rows, since, sel):
         res.skip(4, "GATE 4  NOT CHECKED -- no pipeline table",
                  "no pipeline table")
         return
-    import run_all
+    import backtest_runs as run_all
     from settings import REGISTRY
     if since is None:
         res.skip(4, "GATE 4  SKIPPED -- needs --since <epoch>, i.e. a run to "
@@ -1005,8 +1026,8 @@ def _tax_ledger(u, M, arm="v2", stems=("FY_EQUITY", "FY_TAX_STATEMENT"), rec=Non
     composers: at the axes run record `rec` selected, or at the default cadence
     and profile when rec is None. Every arm since 2026-09-26."""
     sys.path.insert(0, str(ROOT / "results"))
-    import audit_step
-    import tax_report
+    import backtest_runs as audit_step
+    import reports as tax_report
     from portfolio import ALL_ARMS
     with _run_axes(rec):
         tag = audit_step.artefact_tag(u, ALL_ARMS[getattr(arm, "name", arm)])
@@ -1150,7 +1171,7 @@ def gate_tax(res, since, sel):
     IMPLEMENTATION. The equity gap EXCEEDS the cash taken, by the compounding the
     removed capital no longer earns: measured on midcap50, gap Rs 761,619.36
     against cum_tax Rs 492,955.59, a difference of Rs 268,663.77 -- 35.3% of the
-    gap. bh_lots_after_tax.py states the mechanism: "the capital it removes stops
+    gap. backtest_runs.py states the mechanism: "the capital it removes stops
     compounding for the rest of the run". THAT IS THE AXIS WORKING. The identity
     that IS an equality is the one reconcile() already checks -- the per-year
     statement summing to the engine's cum_tax -- and it is checked there, at that
@@ -1214,8 +1235,8 @@ def gate_tax(res, since, sel):
         taxed, plain = _v34_equity_pair(M, rec, arm)
         # THE LEDGER IS NAMED EXACTLY, FOR THE CADENCE THIS GATE CHECKS. taxed is
         # the default-cadence, research, four-arm curve, so its ledger is v2's at
-        # the same axes, named by the writer's own rule (audit_step.artefact_tag +
-        # tax_report.artefact_name). This was `sorted(glob("FY_EQUITY_*_tax.csv"))[0]`
+        # the same axes, named by the writer's own rule (backtest_runs.artefact_tag +
+        # reports.artefact_name). This was `sorted(glob("FY_EQUITY_*_tax.csv"))[0]`
         # until 2026-09-23, and FY_EQUITY_<tag>_r10_tax.csv sorts before
         # FY_EQUITY_<tag>_tax.csv: one cadence-10 tax run made the gate compare
         # the cadence-10 ledger with the cadence-20 curve and fail by Rs 329,753.
@@ -1305,7 +1326,7 @@ def gate_ltcg(res, sel, since=None):
 
         any lot held more than twelve calendar months  =>  the artefact must SAY SO
 
-    and it is asserted against `tax_report.holding_period`, the producer, not
+    and it is asserted against `reports.holding_period`, the producer, not
     against a file. A file can be stale; the producer is what the next run will
     write. Checking the producer means the gate goes green the moment the code
     is right, and red the moment a hardcoded claim is reintroduced -- which is
@@ -1327,7 +1348,7 @@ def gate_ltcg(res, sel, since=None):
         from settings import REGISTRY
         import pandas as pd
         import costs
-        import tax_report as TR
+        import reports as TR
     except Exception as e:
         res.fail("GATE 7 ltcg", "import", f"{type(e).__name__}: {e}")
         return

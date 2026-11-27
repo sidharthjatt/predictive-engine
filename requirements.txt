@@ -19,7 +19,7 @@
 # absent. See KNOWN_ISSUES.md.
 #
 # HOW THIS LIST WAS DERIVED, so it can be re-derived rather than trusted:
-# every script in run_all.py's PIPELINE_ORDER was parsed with ast, its local
+# every script in backtest_runs.py's PIPELINE_ORDER was parsed with ast, its local
 # imports followed transitively (41 modules reached from 32 steps), and the
 # third-party names collected. Two requirements do NOT appear as an import
 # statement and are explained in place below: scikit-learn and pyarrow.
@@ -38,9 +38,9 @@
 #     ./venv/bin/python -m pip install -r requirements.txt -c installed_versions.txt
 #
 # RUN IT WITH THE VENV INTERPRETER, NOT `python3`:
-#     ./venv/bin/python run_all.py
-# run_all.py spawns every step with sys.executable, so whatever interpreter
-# launches it is propagated to every child. See run_all.py's docstring.
+#     ./venv/bin/python run.py --universe all --arm all
+# backtest_runs.py spawns every step with sys.executable, so whatever interpreter
+# launches it is propagated to every child. See backtest_runs.py's docstring.
 # ===========================================================================
 
 # --- The model. Every score in this project comes from lgb.LGBMRegressor. ---
@@ -85,9 +85,9 @@ matplotlib==3.11.2
 joblib==1.6.0
 
 # ===========================================================================
-# NOT ON THE run_all.py PATH, BUT NEEDED BY TOOLING IN THIS REPOSITORY
+# NOT ON THE backtest_runs.py PATH, BUT NEEDED BY TOOLING IN THIS REPOSITORY
 # ===========================================================================
 # openpyxl is the engine pandas.ExcelWriter uses for the survivorship sheet
 # written by results/survivorship_sheet.py. That script is NOT in PIPELINE_ORDER,
-# so run_all.py completes without this.
+# so backtest_runs.py completes without this.
 openpyxl==3.1.5

@@ -85,14 +85,14 @@ from costs import SLIPPAGE, fill_price  # noqa: E402
 # has published figures, so each is checked the same way. Each section names its
 # arm, because "whichever ran last" is exactly what made the old numbers unusable.
 # The decision file is the arm's own audit artefact, named by
-# audit_step.artefact_tag, the writer's rule (v2 unsuffixed, others _v1/_v3/_v4).
+# backtest_runs.artefact_tag, the writer's rule (v2 unsuffixed, others _v1/_v3/_v4).
 import portfolio as _arm_reg
 from nt_run import reports_segment as _reports_segment
 from market_data import read_table  # the one CSV/parquet reader: market_data.read_table
 
 
 def _decisions(u, arm):
-    import audit_step
+    import backtest_runs as audit_step
     return u.metrics_dir / f"daily_decisions_{audit_step.artefact_tag(u, arm)}.csv"
 
 

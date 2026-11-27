@@ -275,14 +275,14 @@ Run it directly, or read its exit code.
         return sorted(out)
 
 
-    def _takes_universe(src, path):
-        """True when this file's module-level main() declares one argument.
+    def _takes_universe(src, path, fname="main"):
+        """True when this file's module-level function `fname` declares one argument.
 
     The same ast read run.py._declared_arity does, and for the same reason: a step
     is not imported to find out how it is invoked.
     """
         for node in ast.parse(src, filename=str(path)).body:
-            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.name == "main":
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.name == fname:
                 a = node.args
                 return len(a.posonlyargs) + len(a.args) + len(a.kwonlyargs) == 1
         return False
@@ -294,26 +294,28 @@ Run it directly, or read its exit code.
         from settings import REGISTRY
         tags = set(REGISTRY)
         rows = []
-        for d in (ROOT / "results", ROOT / "nautilus"):
-            if not d.is_dir():
+        # THE PIPELINE STEPS ARE FUNCTIONS since 2026-11-27, in backtest_runs.py and
+        # reports.py (backtest_runs.STEP_HOME); the two Nautilus steps are still their
+        # file's main(). Every step function that takes a universe is scanned.
+        import backtest_runs
+        steps = dict.fromkeys(row[1] for row in backtest_runs.PIPELINE_ORDER)
+        for p, fname in (backtest_runs.step_source(s) for s in steps):
+            src = p.read_text()
+            if not _takes_universe(src, p, fname):
                 continue
-            for p in list_dir(d, "*.py"):
-                src = p.read_text()
-                if not _takes_universe(src, p):
-                    continue
-                # THE __main__ GUARD'S OWN SUBSCRIPT IS NOT A DEFECT. It supplies the
-                # argument for a direct `python results/audit_step.py midcap150`, which
-                # is how these are run by hand, and it survives the collapse as
-                # REGISTRY[sys.argv[1]] or equivalent. Only main() itself is scanned.
-                tree = ast.parse(src, filename=str(p))
-                fn = next(n for n in tree.body
-                          if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))
-                          and n.name == "main")
-                # The marker is a COMMENT, so ast cannot see it; it is read from the
-                # source lines main() spans.
-                lines = src.splitlines()[fn.lineno - 1:fn.end_lineno]
-                rows.append((p, any(MARKER in l for l in lines),
-                             _hardcoded(fn, tree, tags)))
+            # THE __main__ GUARD'S OWN SUBSCRIPT IS NOT A DEFECT. It supplies the
+            # argument for a direct `python results/audit_step.py midcap150`, which
+            # is how these are run by hand, and it survives the collapse as
+            # REGISTRY[sys.argv[1]] or equivalent. Only main() itself is scanned.
+            tree = ast.parse(src, filename=str(p))
+            fn = next(n for n in tree.body
+                      if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))
+                      and n.name == fname)
+            # The marker is a COMMENT, so ast cannot see it; it is read from the
+            # source lines main() spans.
+            lines = src.splitlines()[fn.lineno - 1:fn.end_lineno]
+            rows.append((Path(f"{p}::{fname}"), any(MARKER in l for l in lines),
+                         _hardcoded(fn, tree, tags)))
         return rows
 
 
@@ -457,7 +459,7 @@ def _cost_reconcile():
 
 A check_all delegate. For each registered universe, each arm, the research and
 tradeable profiles, and tax off and on, at the default cadence: run the backtest
-with the cost trail and apply results/cost_report.reconcile -- cash every day,
+with the cost trail and apply reports.reconcile_costs -- cash every day,
 slippage and charges every fill, tax every financial year, and the totals; and
 the investable buy & hold, held and sold on the last day, per universe. Writes
 nothing. Exits 1 at the end if any combination failed, naming each with the check,
@@ -477,7 +479,7 @@ the first day and the gap; 0 if all reconcile.
 
     import model
     import settings                                                    # noqa: E402
-    import cost_report                                               # noqa: E402
+    import reports as cost_report                                               # noqa: E402
     import market_data                                               # noqa: E402
     import costs
     import settings                                                  # noqa: E402
@@ -502,7 +504,7 @@ the first day and the gap; 0 if all reconcile.
         finally:
             settings.profile_axis.set_selection(None)
         tx = audit.get("tax")
-        cost_report.reconcile(audit["costs"], audit["trades"], list(bd), float(START_CAPITAL), tc,
+        cost_report.reconcile_costs(audit["costs"], audit["trades"], list(bd), float(START_CAPITAL), tc,
                               float(tx["cum_tax"]) if tx else 0.0, tax_on,
                               tx["lots"] if tx else None)
         return len(audit["trades"])

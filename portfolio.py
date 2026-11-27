@@ -43,7 +43,7 @@ from settings import capital_axis as _capital_axis
 #
 # WHY THIS IS SHORT, AND WHY IT STILL EARNS A FILE
 #     Unlike universes, the arms were never duplicated: they are two keyword
-#     arguments to `portfolio.backtest_exposure`, and v34_common.py already
+#     arguments to `portfolio.backtest_exposure`, and backtest_runs.py already
 #     assembles the four named combinations in one place. There is no nineteen-way
 #     duplication to collapse here.
 #
@@ -218,7 +218,7 @@ STOP_ARMS = {a.name: a for a in (
 ALL_ARMS = {**ARMS, **STOP_ARMS}
 
 # The two that ship on every universe. v3 and v4 are computed only for the live
-# universes, inside v34_common.run_v34.
+# universes, inside backtest_runs.run_v34.
 SHIPPING = [ARMS["v1"], ARMS["v2"]]
 
 
@@ -921,7 +921,7 @@ _CAP_REQUIRED = object()
 # every filename and every header.
 #
 # THAT IS THE EXACT FAILURE _CAP_REQUIRED WAS BUILT TO ABOLISH, and it abolished
-# half of it. Measured 2026-09-15: results/audit_step.py passed the cap and no
+# half of it. Measured 2026-09-15: backtest_runs.py passed the cap and no
 # vol20, so every `--profile tradeable` audit of midcap150 replayed the RESEARCH
 # strategy and reconciled it against the TRADEABLE curve -- reported as
 # "v1 MISMATCH Rs 3,851,027.09", which is the cap's whole effect to the paisa.
@@ -1227,7 +1227,7 @@ def backtest_exposure(px, op, sc, dates, pc, mom20,
     # never touches the axis.
     ledger = costs.Ledger(dates) if tax_enabled else None
     cum_tax = 0.0
-    # THE COST TRAIL (results/cost_report.py). Filled only when the caller's audit
+    # THE COST TRAIL (reports.py). Filled only when the caller's audit
     # dict carries a "costs" key, with every fill and every day's cash at full
     # precision. It records what the loop already computed and feeds nothing back,
     # so a run without the key, and every figure of a run with it, is unchanged.
@@ -1333,7 +1333,7 @@ def backtest_exposure(px, op, sc, dates, pc, mom20,
         # TOUCH POINT 4 -- A SALE THAT WAITED FOR A ROW (since 2026-10-16).
         #
         # A name is traded only on a session that has a row for it
-        # (market_data.tradeable_on, results/tradability.py). A sale that fell due
+        # (market_data.tradeable_on, reports.py). A sale that fell due
         # on a session with no row was recorded in _owed instead of filling at the
         # forward-filled open, a price nobody quoted. Here, at each session's open,
         # every owed name that has a row today is sold at today's open, the rule

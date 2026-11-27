@@ -164,7 +164,7 @@ the provenance of the literal when it was first written -- if nifty100's
 reading 1 survives alone; if it did not, reading 2 needs an account of nifty100.
 
 **Fixing midcap150's changes a published chart subtitle**, which is an artefact
-change. The reader is display-only -- `make_chart.py` slices the INDEX series
+change. The reader is display-only -- `reports.py` slices the INDEX series
 for one console line and touches neither the score panel nor the engine -- so no
 committed number moved with it.
 
@@ -214,7 +214,7 @@ fix.
 **`naming_declare_check.py` reports 111 undeclared write calls**, and reported
 111 before any of this work began. Verified by stashing the changes and
 re-running. Nothing in this migration introduced or repaired it; one write added
-along the way carries a directive so the count did not move. Inside `run_all.py`
+along the way carries a directive so the count did not move. Inside `backtest_runs.py`
 the same gate is configured as reporting-only and does not block.
 
 **`naming_declare_check.py` walks `ROOT.rglob("*.py")` and does not consult
@@ -276,7 +276,7 @@ sorted.**
   `check_pipeline_order.plan_analyse()` builds `pos` from `enumerate(pipeline)`, and
   `check_pipeline_order` keeps the earliest list index per script.
 - Nothing extracts the number, the series or the letter. No regex reads a
-  label. `run_all._step_label()` matches whole rows by **(script, tag)** and
+  label. `backtest_runs._step_label()` matches whole rows by **(script, tag)** and
   treats the label as opaque.
 - The one sort, `sorted(unresolved)` at `check_pipeline_order.py:701`, orders an
   ERROR PRINTOUT.
@@ -295,7 +295,7 @@ up as properties.
 
 | set | why |
 |---|---|
-| `STEP 11`-`STEP 14` | the deliberate gap from the 2026-09-11 retirement, left so a step's name still means what it meant in every older log. 5 prose mentions in KNOWN_ISSUES, plus `check_pipeline_order.py:80` on "a real STEP 13 -> 14 edge" and `run_all.py:358` on STEP 12 |
+| `STEP 11`-`STEP 14` | the deliberate gap from the 2026-09-11 retirement, left so a step's name still means what it meant in every older log. 5 prose mentions in KNOWN_ISSUES, plus `check_pipeline_order.py:80` on "a real STEP 13 -> 14 edge" and `backtest_runs.py` on STEP 12 |
 | `STEP 10i`-`10l` | burnt: `make_combined_universes`' labels before it moved to STEP 12b |
 | `STEP 0`-`STEP 9` | the two retired universes, deleted 2026-09-11 |
 | `RETIRED_UNIVERSES.md` + `-manifest.txt` | terminal records, SHA-256 pinned |
@@ -378,7 +378,7 @@ The six, in full: `results_midcap150/metrics/v34_params.json`,
 **THE DEFERRAL'S STATED REASON -- "the tax work will re-run it anyway" -- IS
 FALSE.** A tax run cannot rewrite these files. `tax.suffix()` returns `""` at the
 default and `"_tax"` when on, and `run.py` sets the tax selection ONCE per run
-with no script serving both a taxed and an untaxed invocation (`run_all.py`,
+with no script serving both a taxed and an untaxed invocation (`backtest_runs.py`,
 the `tax:` branch). So `--tax on` writes `*_tax`-suffixed artefacts ALONGSIDE
 these six; every one of the six is an UNSUFFIXED default name, which a tax=on
 run never opens. The deferral was pointed at a collection point that does not
@@ -450,15 +450,15 @@ word and `mid` as a tag cannot be separated by any pattern -- see §4 above.
 
 ### Two defects the rename itself surfaced
 
-**`run_all.PIPELINE_ORDER`'s script column contains digits.**
-`engine_v2_final.py` does, so a `"[a-z_]+\.py"` pattern matches 12 of the 15
+**`backtest_runs.PIPELINE_ORDER`'s script column contains digits.**
+`backtest_runs.py` does, so a `"[a-z_]+\.py"` pattern matches 12 of the 15
 per-universe rows and silently skips three. It happened twice -- once in the
 survey probe and once in the rename itself -- and both times the only thing that
 caught it was an `assert n == 15` before the write. A regex over this table that
 does not assert its own match count will produce a half-renamed pipeline that
 imports fine until `_step_label` cannot name a producer.
 
-**`results/make_daily_log.py` has no `__main__` guard.** Its body moved into
+**`reports.py` has no `__main__` guard.** Its body moved into
 `main()` when the pipeline stopped spawning subprocesses, and nothing calls
 `main()` when the file is run directly. `./venv/bin/python results/make_daily_log.py`
 does nothing, writes nothing, prints nothing and **exits 0** -- a silent success,

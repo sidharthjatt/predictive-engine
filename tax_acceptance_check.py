@@ -104,8 +104,13 @@ out["selection_suffix"] = arm_reg.selection_suffix()
 # read out of the source and evaluated. Indentation is stripped line by line --
 # a naive slice carries the function body's indent into eval() and fails with a
 # syntax error that LOOKS like a moved name.
-src = (R/"results"/"v34_common.py").read_text().splitlines()
-i = next(n for n, l in enumerate(src) if l.strip().startswith("SFX = "))
+if (R/"backtest_runs.py").exists():
+    src = (R/"backtest_runs.py").read_text().splitlines()
+    i0 = next(n for n, l in enumerate(src) if "From results/v34_common.py" in l)
+else:                        # a checkout from before backtest_runs.py (2026-11-27)
+    src = (R/"results"/"v34_common.py").read_text().splitlines()
+    i0 = 0
+i = next(n for n, l in enumerate(src) if n >= i0 and l.strip().startswith("SFX = "))
 buf, depth = [], 0
 for l in src[i:]:
     buf.append(l.strip())
@@ -118,13 +123,19 @@ ns = {"arm_reg": arm_reg, "cadence": cadence, "profiles": profiles, "_tax": tax,
 try: out["SFX"] = eval(expr, ns)
 except Exception as e: out["SFX"] = f"EVALFAIL {type(e).__name__}: {e}"
 
-import audit_step, engine_v2_final, make_chart
-import make_combined_universes as mcu
+try:
+    import backtest_runs as audit_step, backtest_runs as engine_v2_final
+    import reports as make_chart, reports as mcu
+    _ci_comb = mcu._ci_combined
+except ImportError:          # a checkout from before backtest_runs.py (2026-11-27)
+    import audit_step, engine_v2_final, make_chart
+    import make_combined_universes as mcu
+    _ci_comb = mcu._ci
 class _U: tag = "midcap150"
 out["artefact_tag"] = audit_step.artefact_tag(_U(), "v1")
 out["_c"]   = str(engine_v2_final._c(D / "v2FINAL_equity.csv"))
 out["_ci_chart"] = str(make_chart._ci(D / "v2FINAL_equity.csv"))
-out["_ci_comb"]  = str(mcu._ci(D / "v2FINAL_equity.csv"))
+out["_ci_comb"]  = str(_ci_comb(D / "v2FINAL_equity.csv"))
 out["chart_path"] = pathlib.Path(str(make_chart.chart_path(D, "chart_midcap150_FINAL", ["v2","v1"]))).name
 out["combined_chart_path"] = pathlib.Path(
     str(mcu.combined_chart_path(D, ["midcap150","nifty100"]))).name
@@ -368,7 +379,7 @@ def condition_4():
         if str(p) not in sys.path:
             sys.path.insert(0, str(p))
     import costs
-    import bh_held
+    import backtest_runs as bh_held
     import portfolio as TE
     from market_data import precompute
 
