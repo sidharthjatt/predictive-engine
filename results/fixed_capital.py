@@ -160,12 +160,12 @@ def grid_mask(dates, rebal):
 
 def index_values(u, dates):
     """The universe's NSE price index close, forward-filled onto `dates`, or None."""
-    import config
+    import market_data
     import settings
     from pathlib import Path
     if getattr(u, "index_file", None) is None or not Path(u.index_file).exists():
         return None
-    s = (config.read_price_csv(u.index_file)[["date", "close"]].dropna()
+    s = (market_data.read_price_csv(u.index_file)[["date", "close"]].dropna()
          .set_index("date")["close"].sort_index())
     ix = s.reindex(s.index.union(dates)).ffill().reindex(dates)
     return None if ix.isna().any() else ix.astype(float)

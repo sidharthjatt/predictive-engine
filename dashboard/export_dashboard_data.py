@@ -59,11 +59,11 @@ def published_list(repo):
 
 
 def read_table(path, **kw):
-    """config.read_table, the repository's one CSV reader: floats are parsed
+    """market_data.read_table, the repository's one CSV reader: floats are parsed
     round-trip, and platform_identity_check fails any other CSV read."""
-    import config
+    import market_data
     import settings
-    return config.read_table(path, **kw)
+    return market_data.read_table(path, **kw)
 
 
 # Axis values that take no flag on the command line.
@@ -671,7 +671,7 @@ def main():
     sys.path.insert(0, str(repo))
 
     import settings
-    import config
+    import market_data
     from settings import REGISTRY
     from arms.registry import ARMS
 
@@ -689,7 +689,7 @@ def main():
     index_files, data_end = {}, None
     for tag, u in REGISTRY.items():
         if u.index_file is not None and Path(u.index_file).exists():
-            s = (config.read_price_csv(u.index_file)[["date", "close"]].dropna()
+            s = (market_data.read_price_csv(u.index_file)[["date", "close"]].dropna()
                  .set_index("date")["close"].sort_index())
             index_files[tag] = (u.index_name, u.index_file, s)
 

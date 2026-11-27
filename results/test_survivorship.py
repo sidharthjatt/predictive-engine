@@ -1,5 +1,5 @@
 """
-test_survivorship.py -- test suite for survivorship.py
+test_survivorship.py -- test suite for market_data.py
 
 Run it:
     python3 test_survivorship.py
@@ -34,7 +34,9 @@ import numpy as np
 import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-import survivorship as sv
+# The repository root, for settings, costs, market_data and model when this file runs as a script.
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+import market_data
 
 
 # ---------------------------------------------------------------------------
@@ -114,7 +116,7 @@ def price_dir(symbols, name="prices") -> str:
 # ---------------------------------------------------------------------------
 
 def test_valid_file_passes():
-    r = sv.validate(valid_file(), index_name="nifty100")
+    r = market_data.validate(valid_file(), index_name="nifty100")
     assert r.ok, f"a structurally correct file failed: {r.errors}"
     assert not r.errors, f"unexpected errors: {r.errors}"
 
@@ -125,7 +127,7 @@ def test_missing_anchor_is_error():
     p = write_csv("no_reliance.csv", [
         {"effective_date": "2019-03-29", "symbols": ",".join(base),
          "inclusions": "", "exclusions": ""}])
-    r = sv.validate(p, index_name="nifty100")
+    r = market_data.validate(p, index_name="nifty100")
     assert not r.ok, "a file with no RELIANCE was accepted"
     assert any("RELIANCE" in e for e in r.errors), \
         f"the error does not name RELIANCE: {r.errors}"
@@ -137,7 +139,7 @@ def test_bond_ticker_is_error():
         {"effective_date": "2019-03-29",
          "symbols": ",".join(ANCHORS + ["722HPCL29"]),
          "inclusions": "", "exclusions": ""}])
-    r = sv.validate(p, index_name="nifty100")
+    r = market_data.validate(p, index_name="nifty100")
     assert not r.ok, "a file containing a bond was accepted"
     assert any("722HPCL29" in e for e in r.errors), \
         f"the error does not name the bond: {r.errors}"
@@ -153,7 +155,7 @@ def test_inconsistent_transitions_is_error():
         # claims nothing changed, but WIPRO left and MARUTI arrived
         {"effective_date": "2019-09-27", "symbols": ",".join(r2),
          "inclusions": "", "exclusions": ""}])
-    r = sv.validate(p, index_name="nifty100")
+    r = market_data.validate(p, index_name="nifty100")
     assert not r.ok, "an internally inconsistent file was accepted"
     assert any("disagree" in e for e in r.errors), \
         f"the error does not mention the disagreement: {r.errors}"
@@ -163,7 +165,7 @@ def test_duplicate_dates_is_error():
     row = {"effective_date": "2019-03-29", "symbols": ",".join(ANCHORS),
            "inclusions": "", "exclusions": ""}
     p = write_csv("dupes.csv", [row, dict(row)])
-    r = sv.validate(p, index_name="nifty100")
+    r = market_data.validate(p, index_name="nifty100")
     assert not r.ok, "duplicate effective_date rows were accepted"
 
 
@@ -172,8 +174,8 @@ def test_unparseable_date_raises():
         {"effective_date": "not-a-date", "symbols": ",".join(ANCHORS),
          "inclusions": "", "exclusions": ""}])
     try:
-        sv.validate(p, index_name="nifty100")
-    except sv.MembershipError:
+        market_data.validate(p, index_name="nifty100")
+    except market_data.MembershipError:
         return
     raise AssertionError("an unparseable date did not raise")
 
@@ -181,8 +183,8 @@ def test_unparseable_date_raises():
 def test_missing_required_column_raises():
     p = write_csv("nocol.csv", [{"date": "2019-03-29", "names": "RELIANCE"}])
     try:
-        sv.validate(p, index_name="nifty100")
-    except sv.MembershipError as e:
+        market_data.validate(p, index_name="nifty100")
+    except market_data.MembershipError as e:
         assert "effective_date" in str(e), f"error should name the missing column: {e}"
         return
     raise AssertionError("a file missing required columns did not raise")
@@ -194,8 +196,8 @@ def test_load_raises_on_invalid():
         {"effective_date": "2019-03-29", "symbols": ",".join(base),
          "inclusions": "", "exclusions": ""}])
     try:
-        sv.load(p, index_name="nifty100")
-    except sv.MembershipError:
+        market_data.load(p, index_name="nifty100")
+    except market_data.MembershipError:
         return
     raise AssertionError("load() accepted a file that failed validation")
 
@@ -206,7 +208,7 @@ def test_allow_invalid_bypasses():
     p = write_csv("bypass.csv", [
         {"effective_date": "2019-03-29", "symbols": ",".join(base),
          "inclusions": "", "exclusions": ""}])
-    m = sv.load(p, index_name="nifty100", allow_invalid=True)
+    m = market_data.load(p, index_name="nifty100", allow_invalid=True)
     assert not m.validation.ok, "validation result should still record the failure"
 
 
@@ -215,14 +217,14 @@ def test_index_with_no_anchors_skips_that_check():
     p = write_csv("midcap.csv", [
         {"effective_date": "2019-03-29", "symbols": "SUZLON,LLOYDSME,AIIL",
          "inclusions": "", "exclusions": ""}])
-    r = sv.validate(p, index_name="midcap150")
+    r = market_data.validate(p, index_name="midcap150")
     assert r.ok, f"midcap file rejected despite no anchors defined: {r.errors}"
 
 
 def test_price_coverage_is_warning_not_error():
     p = valid_file()
     pd_dir = price_dir(["RELIANCE", "INFY"])       # deliberately incomplete
-    r = sv.validate(p, index_name="nifty100", price_dir=pd_dir)
+    r = market_data.validate(p, index_name="nifty100", price_dir=pd_dir)
     assert r.ok, "incomplete price coverage must not fail the file"
     assert any("no price file" in w for w in r.warnings), \
         f"coverage gap not reported as a warning: {r.warnings}"
@@ -235,34 +237,34 @@ def test_price_coverage_is_warning_not_error():
 # ---------------------------------------------------------------------------
 
 def test_members_on_before_first_date_is_empty():
-    m = sv.load(valid_file())
+    m = market_data.load(valid_file())
     assert m.members_on("2018-01-01") == set(), \
         "membership before the history starts must be empty, not the first list"
 
 
 def test_members_on_exact_boundary_is_inclusive():
     """On the effective date itself, the NEW list applies."""
-    m = sv.load(valid_file())
+    m = market_data.load(valid_file())
     on = m.members_on("2019-09-27")
     assert "MARUTI" in on, "the inclusion is not active on its own effective date"
     assert "WIPRO" not in on, "the exclusion is still present on its effective date"
 
 
 def test_members_on_day_before_boundary():
-    m = sv.load(valid_file())
+    m = market_data.load(valid_file())
     on = m.members_on("2019-09-26")
     assert "WIPRO" in on, "a name was removed a day early"
     assert "MARUTI" not in on, "a name was added a day early"
 
 
 def test_members_on_after_last_date_carries_forward():
-    m = sv.load(valid_file())
+    m = market_data.load(valid_file())
     assert m.members_on("2030-01-01") == m.members_on("2020-03-27"), \
         "the last known membership must carry forward"
 
 
 def test_is_member_is_case_insensitive():
-    m = sv.load(valid_file())
+    m = market_data.load(valid_file())
     assert m.is_member("reliance", "2019-06-01"), "lowercase symbol not matched"
     assert m.is_member("RELIANCE", "2019-06-01")
 
@@ -272,7 +274,7 @@ def test_whitespace_in_symbols_is_stripped():
         {"effective_date": "2019-03-29",
          "symbols": " RELIANCE , INFY ,TCS,HDFCBANK,ICICIBANK,ITC,SBIN ",
          "inclusions": "", "exclusions": ""}])
-    m = sv.load(p)
+    m = market_data.load(p)
     assert "RELIANCE" in m.members_on("2019-06-01"), "whitespace broke the parse"
     assert " RELIANCE " not in m.members_on("2019-06-01")
 
@@ -282,31 +284,31 @@ def test_whitespace_in_symbols_is_stripped():
 # ---------------------------------------------------------------------------
 
 def test_forced_exit_sells_excluded_name():
-    m = sv.load(valid_file())
-    sv.set_exit_policy("forced")
+    m = market_data.load(valid_file())
+    market_data.set_exit_policy("forced")
     out = m.forced_exits({"RELIANCE", "WIPRO", "INFY"}, "2019-10-01")
     assert out == {"WIPRO"}, f"expected WIPRO forced out, got {out}"
 
 
 def test_forced_exit_keeps_current_members():
-    m = sv.load(valid_file())
-    sv.set_exit_policy("forced")
+    m = market_data.load(valid_file())
+    market_data.set_exit_policy("forced")
     out = m.forced_exits({"RELIANCE", "INFY", "TCS"}, "2019-10-01")
     assert out == set(), f"current members were forced out: {out}"
 
 
 def test_buffer_policy_returns_empty():
-    m = sv.load(valid_file())
-    sv.set_exit_policy("buffer")
+    m = market_data.load(valid_file())
+    market_data.set_exit_policy("buffer")
     out = m.forced_exits({"RELIANCE", "WIPRO"}, "2019-10-01")
     assert out == set(), f"buffer policy must not force exits, got {out}"
-    sv.set_exit_policy("forced")
+    market_data.set_exit_policy("forced")
 
 
 def test_forced_exit_before_history_is_empty():
     """With no membership defined, nothing can be forced out."""
-    m = sv.load(valid_file())
-    sv.set_exit_policy("forced")
+    m = market_data.load(valid_file())
+    market_data.set_exit_policy("forced")
     out = m.forced_exits({"RELIANCE", "WIPRO"}, "2018-01-01")
     assert out == set(), "names were force-sold on a date with no membership"
 
@@ -325,58 +327,58 @@ def _panel():
 
 def test_static_mode_is_noop():
     """The property that protects every existing result in the project."""
-    m = sv.load(valid_file())
-    sv.set_mode("static")
+    m = market_data.load(valid_file())
+    market_data.set_mode("static")
     p = _panel()
-    out = sv.apply_to_panel(p, m)
+    out = market_data.apply_to_panel(p, m)
     assert out.equals(p), "static mode altered the panel"
     assert len(out) == len(p), f"static mode dropped rows: {len(p)} -> {len(out)}"
 
 
 def test_static_mode_noop_even_with_no_membership():
-    sv.set_mode("static")
+    market_data.set_mode("static")
     p = _panel()
-    assert sv.apply_to_panel(p, None).equals(p), \
+    assert market_data.apply_to_panel(p, None).equals(p), \
         "static mode with no membership altered the panel"
 
 
 def test_pit_mode_filters_correctly():
-    m = sv.load(valid_file())
-    sv.set_mode("pit")
-    out = sv.apply_to_panel(_panel(), m)
+    m = market_data.load(valid_file())
+    market_data.set_mode("pit")
+    out = market_data.apply_to_panel(_panel(), m)
     got = set(zip(out["date"].dt.strftime("%Y-%m-%d"), out["symbol"]))
     expect = {("2019-10-01", "RELIANCE"), ("2019-10-01", "MARUTI"),
               ("2019-06-01", "RELIANCE"), ("2019-06-01", "WIPRO")}
     assert got == expect, f"pit filter wrong.\n  got    {sorted(got)}\n  expect {sorted(expect)}"
-    sv.set_mode("static")
+    market_data.set_mode("static")
 
 
 def test_pit_mode_with_none_membership_is_noop():
     """Guards against a crash if the switch is on but no file was loaded."""
-    sv.set_mode("pit")
+    market_data.set_mode("pit")
     p = _panel()
-    assert sv.apply_to_panel(p, None).equals(p), \
+    assert market_data.apply_to_panel(p, None).equals(p), \
         "pit mode with membership=None should pass through, not crash"
-    sv.set_mode("static")
+    market_data.set_mode("static")
 
 
 def test_empty_panel_survives():
-    m = sv.load(valid_file())
-    sv.set_mode("pit")
+    m = market_data.load(valid_file())
+    market_data.set_mode("pit")
     empty = pd.DataFrame({"date": pd.Series([], dtype="datetime64[ns]"),
                           "symbol": pd.Series([], dtype=str)})
-    assert len(sv.apply_to_panel(empty, m)) == 0, "empty panel broke the filter"
-    sv.set_mode("static")
+    assert len(market_data.apply_to_panel(empty, m)) == 0, "empty panel broke the filter"
+    market_data.set_mode("static")
 
 
 def test_apply_to_panel_does_not_mutate_input():
-    m = sv.load(valid_file())
-    sv.set_mode("pit")
+    m = market_data.load(valid_file())
+    market_data.set_mode("pit")
     p = _panel()
     before = p.copy()
-    sv.apply_to_panel(p, m)
+    market_data.apply_to_panel(p, m)
     assert p.equals(before), "apply_to_panel mutated its input"
-    sv.set_mode("static")
+    market_data.set_mode("static")
 
 
 # ---------------------------------------------------------------------------
@@ -384,7 +386,7 @@ def test_apply_to_panel_does_not_mutate_input():
 # ---------------------------------------------------------------------------
 
 def test_eligible_mask_shape_and_values():
-    m = sv.load(valid_file())
+    m = market_data.load(valid_file())
     dates = pd.to_datetime(["2019-06-01", "2019-10-01"])
     syms = ["RELIANCE", "WIPRO", "MARUTI"]
     mask = m.eligible_mask(dates, syms)
@@ -396,13 +398,13 @@ def test_eligible_mask_shape_and_values():
 
 
 def test_eligible_mask_before_history_all_false():
-    m = sv.load(valid_file())
+    m = market_data.load(valid_file())
     mask = m.eligible_mask(pd.to_datetime(["2018-01-01"]), ["RELIANCE"])
     assert not mask.values.any(), "names eligible before the history starts"
 
 
 def test_eligible_mask_unknown_symbol_is_false():
-    m = sv.load(valid_file())
+    m = market_data.load(valid_file())
     mask = m.eligible_mask(pd.to_datetime(["2019-10-01"]), ["NOTALISTEDNAME"])
     assert not mask.values.any(), "an unknown symbol was marked eligible"
 
@@ -413,38 +415,38 @@ def test_eligible_mask_unknown_symbol_is_false():
 
 def test_set_mode_rejects_bad_value():
     try:
-        sv.set_mode("sometimes")
+        market_data.set_mode("sometimes")
     except ValueError:
-        assert sv.SURVIVORSHIP_MODE in ("static", "pit"), "mode was corrupted"
+        assert market_data.SURVIVORSHIP_MODE in ("static", "pit"), "mode was corrupted"
         return
     raise AssertionError("set_mode accepted an invalid value")
 
 
 def test_set_exit_policy_rejects_bad_value():
     try:
-        sv.set_exit_policy("maybe")
+        market_data.set_exit_policy("maybe")
     except ValueError:
         return
     raise AssertionError("set_exit_policy accepted an invalid value")
 
 
 def test_describe_state_names_the_bias_in_static():
-    sv.set_mode("static")
-    s = sv.describe_state()
+    market_data.set_mode("static")
+    s = market_data.describe_state()
     assert "static" in s and "survivorship bias" in s, \
         f"static mode must disclose the bias on its face: {s!r}"
 
 
 def test_describe_state_names_policy_in_pit():
-    sv.set_mode("pit")
-    sv.set_exit_policy("forced")
-    s = sv.describe_state()
+    market_data.set_mode("pit")
+    market_data.set_exit_policy("forced")
+    s = market_data.describe_state()
     assert "pit" in s and "forced" in s, f"pit state under-described: {s!r}"
-    sv.set_mode("static")
+    market_data.set_mode("static")
 
 
 def test_coverage_table():
-    m = sv.load(valid_file())
+    m = market_data.load(valid_file())
     d = price_dir(["RELIANCE", "INFY", "TCS"], name="cov")
     t = m.coverage_table(d)
     assert len(t) == 3, f"expected one row per effective date, got {len(t)}"
@@ -463,7 +465,7 @@ def test_iso_and_dayfirst_both_parse():
          "inclusions": "", "exclusions": ""},
         {"effective_date": "27-09-2019", "symbols": ",".join(ANCHORS + ["LT"]),
          "inclusions": "LT", "exclusions": ""}])
-    m = sv.load(p)
+    m = market_data.load(p)
     assert m.dates[0] == pd.Timestamp("2019-03-29"), \
         f"day-first date misparsed: {m.dates[0]}"
     assert m.dates[1] == pd.Timestamp("2019-09-27")
@@ -477,7 +479,7 @@ def test_searchsorted_works_across_pandas_versions():
     against a datetime64 array, so the behaviour is environment-independent.
 
     Exercises every array-valued lookup path with a variety of date containers."""
-    m = sv.load(valid_file())
+    m = market_data.load(valid_file())
     containers = [
         pd.DatetimeIndex(["2019-06-01", "2019-10-01"]),
         pd.Series(pd.to_datetime(["2019-06-01", "2019-10-01"])),
@@ -489,10 +491,10 @@ def test_searchsorted_works_across_pandas_versions():
         assert list(pos) == [0, 1], f"wrong positions for {type(c).__name__}: {pos}"
         mask = m.eligible_mask(pd.DatetimeIndex(pd.to_datetime(c)), ["RELIANCE"])
         assert mask.values.all(), f"mask failed for {type(c).__name__}"
-    sv.set_mode("pit")
-    out = sv.apply_to_panel(_panel(), m)
+    market_data.set_mode("pit")
+    out = market_data.apply_to_panel(_panel(), m)
     assert len(out) == 4, f"apply_to_panel wrong after fix: {len(out)}"
-    sv.set_mode("static")
+    market_data.set_mode("static")
 
 
 def test_dates_are_sorted_regardless_of_file_order():
@@ -501,7 +503,7 @@ def test_dates_are_sorted_regardless_of_file_order():
          "inclusions": "TITAN", "exclusions": ""},
         {"effective_date": "2019-03-29", "symbols": ",".join(ANCHORS),
          "inclusions": "", "exclusions": ""}])
-    m = sv.load(p, allow_invalid=True)
+    m = market_data.load(p, allow_invalid=True)
     assert m.dates == sorted(m.dates), "dates not sorted after load"
     assert "TITAN" not in m.members_on("2019-06-01"), \
         "out-of-order rows produced a wrong lookup"
@@ -536,7 +538,7 @@ def test_gate_missing_anchor():
     p = write_csv("gate_anchor.csv", [
         {"effective_date": "2019-03-29", "symbols": ",".join(syms),
          "inclusions": "", "exclusions": ""}])
-    r = sv.validate(p, index_name="nifty100")
+    r = market_data.validate(p, index_name="nifty100")
     assert not r.ok, "a Nifty 100 history without RELIANCE was accepted"
     assert any("RELIANCE" in e and "anchor" in e for e in r.errors), \
         f"missing-anchor error did not fire: {r.errors}"
@@ -548,7 +550,7 @@ def test_gate_non_equity_ticker():
         {"effective_date": "2019-03-29",
          "symbols": ",".join(ANCHORS + ["722HPCL29"]),
          "inclusions": "", "exclusions": ""}])
-    r = sv.validate(p, index_name="nifty100")
+    r = market_data.validate(p, index_name="nifty100")
     assert not r.ok, "a file containing a debenture was accepted"
     assert any("722HPCL29" in e for e in r.errors), \
         f"non-equity error did not fire: {r.errors}"
@@ -563,7 +565,7 @@ def test_gate_inconsistent_transitions():
          "inclusions": "", "exclusions": ""},
         {"effective_date": "2019-09-27", "symbols": ",".join(r2),
          "inclusions": "MARUTI", "exclusions": ""}])
-    r = sv.validate(p, index_name="nifty100")
+    r = market_data.validate(p, index_name="nifty100")
     assert not r.ok, "a self-contradicting file was accepted"
     assert any("disagree" in e for e in r.errors), \
         f"transition-consistency error did not fire: {r.errors}"
@@ -584,7 +586,7 @@ def test_gate_cumulative_list():
                      "inclusions": ",".join(add), "exclusions": ""})
     assert start == 100 and len(cur) > 750, \
         f"fixture does not span ~100 -> ~800 names: {start} -> {len(cur)}"
-    r = sv.validate(write_csv("gate_cumulative.csv", rows), index_name="nifty100")
+    r = market_data.validate(write_csv("gate_cumulative.csv", rows), index_name="nifty100")
     assert not r.ok, "a cumulative file was accepted"
     assert any("CUMULATIVE" in e for e in r.errors), \
         f"cumulative error did not fire: {r.errors}"
@@ -598,7 +600,7 @@ def test_gate_exclusion_not_removed():
          "inclusions": "", "exclusions": ""},
         {"effective_date": "2019-09-27", "symbols": ",".join(r1),
          "inclusions": "", "exclusions": "WIPRO"}])
-    r = sv.validate(p, index_name="nifty100")
+    r = market_data.validate(p, index_name="nifty100")
     assert not r.ok, "an unremoved exclusion was accepted"
     assert any("STILL in the" in e for e in r.errors), \
         f"exclusion-not-removed error did not fire: {r.errors}"
@@ -620,7 +622,7 @@ def test_cumulative_does_not_fire_on_stable_history():
             exc = cur[-1]; cur = cur[:-1] + [f"NEW{i}"]; inc = f"NEW{i}"
         rows.append({"effective_date": f"{2010+i}-03-31", "symbols": ",".join(cur),
                      "inclusions": inc, "exclusions": exc})
-    r = sv.validate(write_csv("stable.csv", rows), index_name="nifty100")
+    r = market_data.validate(write_csv("stable.csv", rows), index_name="nifty100")
     assert not any("CUMULATIVE" in e for e in r.errors), \
         f"cumulative error fired on a stable legitimate history: {r.errors}"
 
@@ -637,7 +639,7 @@ def test_cumulative_does_not_fire_on_genuine_index_expansion():
              "symbols": ",".join(nifty50 if i < 6 else nifty100),
              "inclusions": ",".join(f"EX{j:03d}" for j in range(50)) if i == 6 else "",
              "exclusions": ""} for i in range(12)]
-    r = sv.validate(write_csv("expansion.csv", rows), index_name="nifty100")
+    r = market_data.validate(write_csv("expansion.csv", rows), index_name="nifty100")
     assert not any("CUMULATIVE" in e for e in r.errors), \
         f"cumulative error fired on a genuine index expansion: {r.errors}"
 
@@ -650,7 +652,7 @@ def test_exclusion_check_allows_same_date_removal_and_readd():
          "inclusions": "", "exclusions": ""},
         {"effective_date": "2019-09-27", "symbols": ",".join(r1),
          "inclusions": "WIPRO", "exclusions": "WIPRO"}])
-    r = sv.validate(p, index_name="nifty100")
+    r = market_data.validate(p, index_name="nifty100")
     assert not any("STILL in the" in e for e in r.errors), \
         f"same-date removal and re-add was reported as a defect: {r.errors}"
     assert any("re-added" in w for w in r.warnings), \
@@ -669,7 +671,7 @@ def test_routine_inclusion_exclusion_collision_is_an_error():
     for i, s in enumerate(("WIPRO", "MARUTI", "TITAN", "LT")):
         rows.append({"effective_date": f"{2020+i}-03-29", "symbols": ",".join(r1),
                      "inclusions": s, "exclusions": s})
-    r = sv.validate(write_csv("collision.csv", rows), index_name="nifty100")
+    r = market_data.validate(write_csv("collision.csv", rows), index_name="nifty100")
     assert not r.ok, "routine inclusion/exclusion collisions were accepted"
     assert any("also lists as an inclusion" in e for e in r.errors), \
         f"collision error did not fire: {r.errors}"
@@ -684,21 +686,21 @@ def test_digit_leading_equities_are_not_rejected():
     digit, which is wrong: these are all ordinary listed equities."""
     for sym in ("3MINDIA", "8KMILES", "5PAISA", "63MOONS", "20MICRONS",
                 "21STCENMGM", "3IINFOLTD", "360ONE", "3PLAND"):
-        assert not sv._looks_non_equity(sym), f"{sym} is a real NSE equity"
+        assert not market_data._looks_non_equity(sym), f"{sym} is a real NSE equity"
 
 
 def test_debt_identifiers_are_rejected():
     """Coupon-prefixed debt, and issuer-plus-four-digit-year debt."""
     for sym in ("722HPCL29", "828GS2027", "1025GOI30", "685NHAI29",
                 "795HDFC28", "760IRFC30", "GS2027"):
-        assert sv._looks_non_equity(sym), f"{sym} is a debt identifier"
+        assert market_data._looks_non_equity(sym), f"{sym} is a debt identifier"
 
 
 def test_ordinary_equities_are_not_rejected():
     """Including the punctuation and digit forms that appear in real files."""
     for sym in ("RELIANCE", "TCS", "INFY", "HDFCBANK", "TV18BRDCST", "M&M",
                 "L&TFH", "IDFCFIRSTB", "BAJAJ-AUTO", "MOTHERSON"):
-        assert not sv._looks_non_equity(sym), f"{sym} is a real NSE equity"
+        assert not market_data._looks_non_equity(sym), f"{sym} is a real NSE equity"
 
 
 # ---------------------------------------------------------------------------
@@ -708,12 +710,12 @@ def test_ordinary_equities_are_not_rejected():
 def test_pit_keeps_first_list_before_first_row():
     """Before the first effective date only the first list's symbols stay, for
     training: a symbol that joins on a later list is not chosen by that list."""
-    m = sv.load(valid_file())
-    sv.set_mode("pit")
+    m = market_data.load(valid_file())
+    market_data.set_mode("pit")
     p = pd.DataFrame({"date": pd.to_datetime(["2019-01-02", "2019-01-02"]),
                       "symbol": ["RELIANCE", "MARUTI"], "close": [1.0, 2.0]})
-    out = sv.apply_to_panel(p, m)
-    sv.set_mode("static")
+    out = market_data.apply_to_panel(p, m)
+    market_data.set_mode("static")
     assert list(out["symbol"]) == ["RELIANCE"], \
         f"before the first row, kept {list(out['symbol'])}, expected the first list's RELIANCE only"
 
@@ -724,30 +726,30 @@ def test_load_applies_renames():
     path = write_csv("renamed.csv", [
         {"effective_date": "2019-03-29", "symbols": ",".join(base),
          "inclusions": "", "exclusions": ""}])
-    m = sv.load(path, allow_invalid=True)
+    m = market_data.load(path, allow_invalid=True)
     assert "LTF" in m.members_on("2019-06-01") and "L&TFH" not in m.members_on("2019-06-01"), \
         f"rename not applied: {sorted(m.members_on('2019-06-01'))}"
 
 
 def test_buyhold_columns_static_is_identity():
-    m = sv.load(valid_file())
-    sv.set_mode("static")
+    m = market_data.load(valid_file())
+    market_data.set_mode("static")
     cols = ["RELIANCE", "WIPRO", "MARUTI"]
-    assert sv.buyhold_columns(cols, "2019-06-01", m) is cols, "static basket changed"
+    assert market_data.buyhold_columns(cols, "2019-06-01", m) is cols, "static basket changed"
 
 
 def test_buyhold_columns_pit_filters():
-    m = sv.load(valid_file())
-    sv.set_mode("pit")
-    got = sv.buyhold_columns(["RELIANCE", "WIPRO", "MARUTI"], "2019-10-01", m)
-    sv.set_mode("static")
+    m = market_data.load(valid_file())
+    market_data.set_mode("pit")
+    got = market_data.buyhold_columns(["RELIANCE", "WIPRO", "MARUTI"], "2019-10-01", m)
+    market_data.set_mode("static")
     assert got == ["RELIANCE", "MARUTI"], f"pit basket wrong: {got}"
 
 
 def test_residual_counts_unpriced_members():
-    m = sv.load(valid_file())
+    m = market_data.load(valid_file())
     d = price_dir([a for a in ANCHORS] + ["LT", "AXISBANK", "MARUTI"], name="resid")
-    r = sv.residual_survivorship(m, d, current=ANCHORS + ["LT", "MARUTI", "TITAN"])
+    r = market_data.residual_survivorship(m, d, current=ANCHORS + ["LT", "MARUTI", "TITAN"])
     assert r["no_price_file_dropped"] == ["WIPRO"], r
     assert r["no_price_file_current"] == ["TITAN"], r
 

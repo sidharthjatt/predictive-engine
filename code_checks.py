@@ -366,24 +366,24 @@ def _platform_identity():
 platform_identity_check.py -- two operations that give different bits on
 different platforms are allowed only through their shared replacements.
 
-RULE 1: every CSV read goes through config.read_table.
+RULE 1: every CSV read goes through market_data.read_table.
 
 pandas' default read_csv float parser returns different last bits for the same
 bytes on macOS and on Linux, and on either platform does not return the values
-the file was written from (measured 2026-09-24; see config.read_table). One
+the file was written from (measured 2026-09-24; see market_data.read_table). One
 such read anywhere on the pipeline path is enough to make two machines
 disagree. This check parses every tracked .py file and fails on:
 
     <anything>.read_csv(...)         a direct pandas call
     from pandas import read_csv      the same call under another name
 
-The one allowed site is config.read_table itself.
+The one allowed site is market_data.read_table itself.
 
 RULE 2: no pandas rolling or grouped variance. `.rolling(...).std()`,
 `.rolling(...).var()`, `.groupby(...).std()/.var()` and `.transform("std")` or
 `.transform("var")` gave different bits on macOS, Linux arm64 or Linux amd64
-(measured 2026-09-24; see results/numerics.py). Use numerics.rolling_std,
-numerics.rolling_var or numerics.group_mean_std.
+(measured 2026-09-24; see market_data.py). Use market_data.rolling_std,
+market_data.rolling_var or market_data.group_mean_std.
 
 Exit 0 when clean, 1 with every offending file:line otherwise, 3 (a named skip in
 check_all) when the tracked files cannot be listed: outside a git checkout with no
@@ -392,7 +392,7 @@ TRACKED_FILES_SHA256.txt, or with one that no longer matches the tree.
     import ast
     import sys
 
-    ALLOWED = {("config.py", "read_table")}
+    ALLOWED = {("market_data.py", "read_table")}
 
 
     def offences(path, rel):
@@ -475,15 +475,15 @@ the first day and the gap; 0 if all reconcile.
         if str(_p) not in sys.path:
             sys.path.insert(0, str(_p))
 
-    import config
+    import model
     import settings                                                    # noqa: E402
     import cost_report                                               # noqa: E402
-    import engine_core                                               # noqa: E402
+    import market_data                                               # noqa: E402
     import costs
     import settings                                                  # noqa: E402
     import arms.registry as arm_reg                                  # noqa: E402
-    from config import read_table                                    # noqa: E402
-    from engine_core import precompute                               # noqa: E402
+    from market_data import read_table                                    # noqa: E402
+    from market_data import precompute                               # noqa: E402
     from test_exposure import backtest_exposure, START_CAPITAL       # noqa: E402
     from settings import REGISTRY, argv_universes, check_tags  # noqa: E402
 
@@ -513,8 +513,8 @@ the first day and the gap; 0 if all reconcile.
         failed, n, t0 = [], 0, time.time()
         for tag in picked:
             u = REGISTRY[tag]
-            engine_core.set_tradeability(u)
-            p = read_table(config.require_cache(u.score_cache, what=tag), parse_dates=["date"])
+            market_data.set_tradeability(u)
+            p = read_table(model.require_cache(u.score_cache, what=tag), parse_dates=["date"])
             px = p.pivot_table(index="date", columns="symbol", values="close").ffill()
             op = p.pivot_table(index="date", columns="symbol", values="open").ffill()
             sc = p.pivot_table(index="date", columns="symbol", values="score")

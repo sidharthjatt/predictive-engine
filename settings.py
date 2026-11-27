@@ -157,7 +157,7 @@ BUY_SHORTFALL = "trim"
 #
 # The backtest window is BT_START_DATE / BT_END_DATE above, and the walk-forward
 # split is not date constants at all -- it is the expanding monthly retrain with
-# the trading-session purge of engine_core.training_set.
+# the trading-session purge of model.training_set.
 
 # ---------------------------------------------------------------------------
 # Feature engineering window settings (CAUSAL ONLY -- only past data is used)
@@ -542,7 +542,7 @@ tax = _Tax()
 #     pit      point-in-time membership from data/raw/Survivorship_Bias, priced
 #              from data/raw/Final_With_Survivorship_Data, which also holds
 #              dropped names.
-# The selection itself is results/survivorship.py's SURVIVORSHIP_MODE, which the
+# The selection itself is market_data.py's SURVIVORSHIP_MODE, which the
 # engine reads; this object sets and reads it and holds no copy. "_pit" goes
 # after the tax suffix ("v34_equity_tax_pit.csv"), "@pit" after "@tax".
 class _Survivorship(_Axis):
@@ -551,11 +551,8 @@ class _Survivorship(_Axis):
 
     @staticmethod
     def _sv():
-        _res = str(PROJECT_ROOT / "results")
-        if _res not in sys.path:
-            sys.path.insert(0, _res)
-        import survivorship
-        return survivorship
+        import market_data
+        return market_data
 
     def set_selection(self, mode):
         """Record this run's selection. None restores the default."""
@@ -892,7 +889,7 @@ fixed_axis = _Fixed()
 # membership row, taken when the pit variant is made. Code that means "the
 # backtest start" reads settings.BT_START_DATE at call time.
 #
-# The scoring floor follows the start: engine_core.score_floor() is the first
+# The scoring floor follows the start: model.score_floor() is the first
 # day of the month SCORE_LEAD_YEARS before it, 2016-01-01 for the default start,
 # which is the `year >= 2016` the scoring loop used until 2026-10-22. "_s20070924"
 # after the fixed suffix.
@@ -909,12 +906,14 @@ class _Start(_Axis):
                              f"{BT_END_DATE.date()}")
         import dataclasses
         old = BT_START_DATE
+        # Set before the registry rows are rebuilt: Universe.__post_init__ reads it
+        # to name the caches.
+        self._SELECTED = None if new == self.DEFAULT else new
         for tag, u in list(REGISTRY.items()):
             d0, d1 = u.date_range
             if _pd.Timestamp(d0) == old:
                 REGISTRY[tag] = dataclasses.replace(u, date_range=(new, d1))
         BT_START_DATE = new
-        self._SELECTED = None if new == self.DEFAULT else new
 
     def selected(self):
         """The backtest start, a Timestamp."""
@@ -1009,7 +1008,7 @@ shortfall_axis = _BuyShortfall()
 # RAW_DATA_DIR IS THE PARENT OF EVERY UNIVERSE'S FOLDER
 #     `RAW_DATA_DIR` is data/raw, which holds every universe's source
 #     folder. Pointing a panel build at it would sweep in every universe at once,
-#     which is one reason engine_core.build_panel takes data_dir with no default.
+#     which is one reason market_data.build_panel takes data_dir with no default.
 #
 #     `SYMBOLS` is not any universe's symbol list -- it holds five names,
 #     is used nowhere, and is vestigial. A universe's names are the symbol_list on
@@ -1025,7 +1024,7 @@ shortfall_axis = _BuyShortfall()
 #     universe actually setting it. See git history
 #     (git show 50562ed:RETIRED_UNIVERSES.md).
 
-HORIZON = 20          # engine_core.HORIZON; repeated here only to name the caches
+HORIZON = 20          # model.HORIZON; repeated here only to name the caches
 
 
 class IndexFileError(RuntimeError):
@@ -1064,7 +1063,7 @@ def _constituents(raw_dir, index_name):
     THE INDEX FILE IS NOT A CONSTITUENT, and after step 7 this is the one place
     that says so. Both predecessors carried this expression and a paragraph
     explaining why it cannot be a bare glob, and the paragraph is the part worth
-    keeping: engine_core.build_panel reads every CSV in whatever
+    keeping: market_data.build_panel reads every CSV in whatever
     directory it is handed, and an earlier make_final_chart_fair.py swept
     NIFTY100.csv in as a 100th "stock" -- so the published index was averaged
     together with its own members and the resulting line was labelled the
@@ -1159,7 +1158,7 @@ class Universe:
     # that matters to every reader must not be omittable by a new row.
     #
     # ONE SENTENCE CARRYING BOTH THE MEANING AND THE PROVENANCE, and deliberately
-    # NOT a "static" | "pit" enum. results/survivorship.py:117 already holds
+    # NOT a "static" | "pit" enum. market_data.py already holds
     # SURVIVORSHIP_MODE as a process-wide global; a per-row enum would be a second
     # authority for the same word, and a row disagreeing with the global would have
     # no resolution rule. This field says what the FOLDER's membership means, which
@@ -1372,7 +1371,7 @@ class Universe:
     #     cache/<tag>/constituents/                 hard links (or copies), index excluded
     #     cache/<tag>/v_<tag>_expanding.parquet         score panel  (+ .source)
     #     cache/<tag>/raw_panel_<tag>_<HORIZON>.parquet raw panel    (+ .source)
-    # PARQUET SINCE 2026-09-24, CSV BEFORE: see config.read_table.
+    # PARQUET SINCE 2026-09-24, CSV BEFORE: see market_data.read_table.
     # ONE COPY OF EACH PANEL. The /tmp working copy and the metrics/ permanent
     # copy existed because /tmp does not survive a reboot; a panel in the
     # project does, so the pair collapsed to one file and the copy steps
@@ -1400,8 +1399,13 @@ class Universe:
         # never be read as, or overwrite, the static ones.
         d = CACHE_DIR / self.tag / "pit" if self.is_pit else CACHE_DIR / self.tag
         object.__setattr__(self, "data_dir", d / "constituents")
-        object.__setattr__(self, "score_cache", d / f"v_{self.tag}_expanding.parquet")
-        object.__setattr__(self, "raw_cache", d / f"raw_panel_{self.tag}_{HORIZON}.parquet")
+        # A NON-DEFAULT BACKTEST START HAS ITS OWN CACHE FILES (_s<yyyymmdd>).
+        # panel_code_key covers score_floor, which follows the start, so the default
+        # panel and a start-2016 panel are different panels. Until 2026-11-27 they
+        # shared one file name and each run evicted the other's.
+        s = "" if start_axis.is_default() else "_" + start_axis._code()
+        object.__setattr__(self, "score_cache", d / f"v_{self.tag}_expanding{s}.parquet")
+        object.__setattr__(self, "raw_cache", d / f"raw_panel_{self.tag}_{HORIZON}{s}.parquet")
         # THE CONSTITUENT COUNT IS COMPUTED, NEVER TYPED. Rows write "{n}" where
         # a count of names belongs; it is filled here from symbol_list, which is
         # the set of CSVs the farm links and build_panel scores. A typed count
@@ -1487,7 +1491,7 @@ class Universe:
         # DERIVED FROM raw_data_dir ON EVERY CALL. Each entry is checked against
         # the source and replaced if it is not the same file, so a repointed
         # universe gets the new source's files here, and the panel's content key
-        # (config.cache_staleness) then names the change and forces a rebuild.
+        # (model.cache_staleness) then names the change and forces a rebuild.
         # The check this replaced refused a farm of links into another
         # directory; with the farm rebuilt from the current source every time,
         # that state cannot persist.
@@ -1716,7 +1720,7 @@ _NIFTY100 = Universe(
         # start of the backtest; companies that were in the Nifty 100 during the
         # window and were later dropped or delisted are absent entirely. It is
         # stated in the chart subtitle and in the forensic log header rather than
-        # left to be inferred, and results/survivorship.py stays at "static".
+        # left to be inferred, and market_data.py stays at "static".
         # NOT MEASURED, and a STRING rather than a dict so it cannot be mistaken
         # for midcap150's eight results. The seed-robustness and sub-period validations
         # on record were run elsewhere and are not claimed here.
@@ -2626,8 +2630,8 @@ def first_membership_date(u):
     _res = ROOT / "results"
     if str(_res) not in _sys.path:
         _sys.path.insert(0, str(_res))
-    import survivorship as _sv
-    return _sv._read_raw(u.membership_file)["effective_date"].min()
+    import market_data
+    return market_data._read_raw(u.membership_file)["effective_date"].min()
 
 
 class PitNotAvailable(ValueError):

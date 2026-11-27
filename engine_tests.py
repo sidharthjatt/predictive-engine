@@ -65,7 +65,7 @@ No data, nothing written. Exit 0 when every case passes, 1 otherwise.
 
     from settings import capital_axis
     import cost_report
-    from engine_core import precompute
+    from market_data import precompute
     from test_exposure import backtest_exposure
 
     QUIET = "--quiet" in sys.argv
@@ -154,7 +154,13 @@ No data, nothing written. Exit 0 when every case passes, 1 otherwise.
              f"shares at Rs 10 lakh {q1:,}, at Rs 30 lakh {q3:,}")
 
         # 6 ----------------------------------------------------------------------
-        import test_exposure, engine_core, engine_v2_final, make_daily_log, nt_attribution, nt_run
+        import test_exposure
+        import engine_core
+        import market_data
+        import engine_v2_final
+        import make_daily_log
+        import nt_attribution
+        import nt_run
         vals = {m.__name__: m.START_CAPITAL for m in (test_exposure, engine_core, engine_v2_final,
                                                       make_daily_log, nt_attribution, nt_run)}
         case("6 every START_CAPITAL is capital_axis.DEFAULT",
@@ -212,7 +218,7 @@ passes, 1 otherwise.
 
     from settings import dd_axis
     from arms.registry import DrawdownStop
-    from engine_core import precompute
+    from market_data import precompute
     from test_exposure import backtest_exposure, START_CAPITAL
     import cost_report
 
@@ -469,7 +475,7 @@ passes, 1 otherwise.
     import pandas as pd
 
     from arms.registry import DrawdownStop
-    from engine_core import precompute
+    from market_data import precompute
     from test_exposure import backtest_exposure
     import nt_attribution
 
@@ -761,7 +767,7 @@ Exit 0 when every case passes, 1 otherwise.
 
     from settings import fixed_axis
     import fixed_capital as fc
-    from engine_core import precompute
+    from market_data import precompute
     from test_exposure import backtest_exposure
 
     QUIET = "--quiet" in sys.argv
@@ -829,19 +835,19 @@ Exit 0 when every case passes, 1 otherwise.
         import costs
         from settings import survivorship_axis, tax
         import settings
-        import survivorship as sv
-        import engine_core as ec
+        import market_data
+        import market_data
         from settings import REGISTRY, use_pit
         survivorship_axis.set_selection("pit")
         settings.profile_axis.set_selection("tradeable")
         tax.set_selection(True)
         use_pit([tag])
         u = REGISTRY[tag]
-        m = sv.load(u.membership_file, index_name=u.tag, price_dir=u.raw_data_dir,
+        m = market_data.load(u.membership_file, index_name=u.tag, price_dir=u.raw_data_dir,
                     allow_invalid=True)
-        ec.PIT_MEMBERSHIPS[tag] = m
-        ec.MEMBERSHIP = ec.membership_for(u)
-        ec.set_tradeability(u)
+        market_data.PIT_MEMBERSHIPS[tag] = m
+        market_data.MEMBERSHIP = market_data.membership_for(u)
+        market_data.set_tradeability(u)
         return u
 
     class Cell:
@@ -850,13 +856,13 @@ Exit 0 when every case passes, 1 otherwise.
     tools/pit_noise_band.select_pit until 2026-11-26)."""
 
         def __init__(self, tag):
-            import config
+            import model
             import settings
             import costs
-            from config import read_table
+            from market_data import read_table
             with contextlib.redirect_stdout(io.StringIO()):
                 self.u = u = select_pit(tag)
-                p = read_table(config.require_cache(u.score_cache, what=f"{tag} pit"),
+                p = read_table(model.require_cache(u.score_cache, what=f"{tag} pit"),
                                parse_dates=["date"])
             self.px = p.pivot_table(index="date", columns="symbol", values="close").ffill()
             self.op = p.pivot_table(index="date", columns="symbol", values="open").ffill()
@@ -1120,7 +1126,7 @@ No data, nothing written. Exit 0 when every case passes, 1 otherwise.
     from settings import pcap_axis
     import costs
     import settings
-    from engine_core import precompute
+    from market_data import precompute
     from test_exposure import backtest_exposure
 
     QUIET = "--quiet" in sys.argv
@@ -1439,7 +1445,7 @@ No data, nothing written. Exit 0 when every case passes, 1 otherwise.
     import numpy as np
     import pandas as pd
 
-    from engine_core import precompute
+    from market_data import precompute
     from test_exposure import backtest_exposure
 
     QUIET = "--quiet" in sys.argv
@@ -1571,7 +1577,7 @@ tradability_causality_test.py -- no trade on day i may depend on a row dated aft
     ./venv/bin/python tradability_causality_test.py --real   # also the KAMAHOLD replay
 
 A synthetic universe of 20 names on real NSE calendar sessions, written as price
-files to a temporary folder and loaded through engine_core.set_tradeability, the
+files to a temporary folder and loaded through market_data.set_tradeability, the
 way every engine run loads it. Each case runs test_exposure.backtest_exposure.
 
     1. causality: a held name has no row on two sessions. Removing every row of that
@@ -1608,15 +1614,16 @@ Nothing in the repository is written. Exit 0 when every case passes, 1 otherwise
     import pandas as pd
 
     import engine_core
-    from config import read_table  # the one CSV/parquet reader: config.read_table
+    import market_data
+    from market_data import read_table  # the one CSV/parquet reader: market_data.read_table
     import costs
-    from engine_core import precompute
+    from market_data import precompute
     from test_exposure import backtest_exposure
 
     QUIET = "--quiet" in sys.argv
     RESULTS = []
     SYMS = [f"S{k:02d}" for k in range(20)]
-    CAL = sorted(d for d in engine_core._load_calendar()
+    CAL = sorted(d for d in market_data._load_calendar()
                  if pd.Timestamp("2020-06-01") <= d <= pd.Timestamp("2021-12-31"))
     DATES = [d for d in CAL if d >= pd.Timestamp("2021-01-01")]
 
@@ -1631,7 +1638,7 @@ Nothing in the repository is written. Exit 0 when every case passes, 1 otherwise
 
 
     class _Fixture:
-        """A universe for engine_core.set_tradeability: a tag and a folder of price files."""
+        """A universe for market_data.set_tradeability: a tag and a folder of price files."""
         def __init__(self, tag, folder):
             self.tag, self._folder = tag, Path(folder)
 
@@ -1701,9 +1708,9 @@ Nothing in the repository is written. Exit 0 when every case passes, 1 otherwise
         try:
             write(fr, tmp)
             if rule:
-                engine_core.set_tradeability(_Fixture("causality", tmp))
+                market_data.set_tradeability(_Fixture("causality", tmp))
             else:
-                engine_core.set_tradeability(None, enabled=False)
+                market_data.set_tradeability(None, enabled=False)
             audit = {k: [] for k in ("holdings", "summary", "trades", "ranking", "decisions",
                                      "skipped")}
             eq, *_ = backtest_exposure(px, op, sc, DATES, precompute(px), px / px.shift(20) - 1,
@@ -1713,7 +1720,7 @@ Nothing in the repository is written. Exit 0 when every case passes, 1 otherwise
                                        fixed_capital=False)
             return audit, eq, op
         finally:
-            engine_core.set_tradeability(None, enabled=False)
+            market_data.set_tradeability(None, enabled=False)
             shutil.rmtree(tmp, ignore_errors=True)
 
 
@@ -1814,7 +1821,7 @@ Nothing in the repository is written. Exit 0 when every case passes, 1 otherwise
         cut_day = pd.Timestamp("2019-03-15")
 
         def one(farm, px_, op_, sc_):
-            engine_core.set_tradeability(_Fixture(u.tag, farm))
+            market_data.set_tradeability(_Fixture(u.tag, farm))
             try:
                 audit = {k: [] for k in ("holdings", "summary", "trades", "ranking", "decisions",
                                          "skipped")}
@@ -1824,7 +1831,7 @@ Nothing in the repository is written. Exit 0 when every case passes, 1 otherwise
                                   drawdown_stop=None, dd_overlay=None, fixed_capital=False)
                 return audit
             finally:
-                engine_core.set_tradeability(None, enabled=False)
+                market_data.set_tradeability(None, enabled=False)
 
         full = one(u.prepare_data_dir(), px, op, sc)
         tmp = Path(tempfile.mkdtemp(prefix="kamahold_"))
@@ -1883,7 +1890,7 @@ is written. Exit 1 names every case that failed.
 
     import pandas as pd                                            # noqa: E402
 
-    import config
+    import model
     import settings                                                  # noqa: E402
     from settings import REGISTRY                        # noqa: E402
 
@@ -1904,13 +1911,14 @@ is written. Exit 1 names every case that failed.
 
     def fit_cache_cases(tmp):
         import validate_breadth_live as vbl
-        from seed_cache_key import seed_cache_key
+        from model import seed_cache_key
         a, b = tmp / "panel_a.csv", tmp / "panel_b.csv"
         a.write_text("date,symbol,close\n2020-01-01,X,1.00\n")
         b.write_text("date,symbol,close\n2020-01-01,X,1.01\n")
         check("validate_breadth_live: the T1 cache name changes with the panel content",
               vbl._t1_cache(TAG, 0, [5, 55, 555], a) != vbl._t1_cache(TAG, 0, [5, 55, 555], b))
-        code = [ROOT / "results" / "engine_core.py", ROOT / "config.py", ROOT / "settings.py"]
+        code = [ROOT / "results" / "engine_core.py", ROOT / "market_data.py", ROOT / "model.py",
+                ROOT / "settings.py"]
         check("seed_cache_key: one byte of panel content changes the key",
               seed_cache_key(code, a, (TAG,)) != seed_cache_key(code, b, (TAG,)))
 
@@ -1986,7 +1994,7 @@ No data, nothing written. Exit 0 when every case passes, 1 otherwise.
 
     import buy_shortfall as bsf
     import settings
-    from engine_core import precompute
+    from market_data import precompute
     from test_exposure import backtest_exposure
     from costs import calc_tc
 
@@ -2209,7 +2217,7 @@ No data, nothing written. Exit 0 when every case passes, 1 otherwise.
 
     import buy_shortfall as bsf
     import settings
-    from engine_core import precompute
+    from market_data import precompute
     from test_exposure import backtest_exposure
 
     QUIET = "--quiet" in sys.argv
@@ -2322,7 +2330,7 @@ No data, nothing written. Exit 0 when every case passes, 1 otherwise.
     import pandas as pd
 
     import costs
-    from engine_core import precompute
+    from market_data import precompute
     from test_exposure import backtest_exposure
 
     QUIET = "--quiet" in sys.argv

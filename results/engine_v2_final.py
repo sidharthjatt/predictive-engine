@@ -41,12 +41,13 @@ warnings.filterwarnings("ignore")
 
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-import config
+import model
 import settings
 from settings import cadence
 from settings import dd_axis  # noqa: E402
 import arms.registry as arm_reg
-from engine_core import metrics, precompute
+from engine_core import metrics
+from market_data import precompute
 from test_exposure import backtest_exposure, CASH_YIELD
 import costs
 import settings            # the run's execution-realism profile
@@ -55,8 +56,8 @@ import settings            # the run's execution-realism profile
 # 148 of TODAY'S index members backfilled to 2019 -- and said nothing about it in
 # any output it wrote. nifty100's engine has reported it all along. The bias was never
 # universe-specific; only the disclosure was.
-import survivorship as sv
-from config import read_table  # the one CSV/parquet reader: config.read_table
+import market_data
+from market_data import read_table  # the one CSV/parquet reader: market_data.read_table
 
 REBAL, VOL_WIN = 20, 60
 # REBAL ABOVE IS THE DEFAULT AND STAYS 20. The cadence this RUN selected is read
@@ -168,16 +169,15 @@ def main(u):
     print(f"ENGINE v2 FINAL -- {u.label}: cross-sectional ranking + inverse-vol + "
           f"breadth scaling")
     print("=" * 100)
-    print(f"  SURVIVORSHIP: {sv.describe_state()}")
+    print(f"  SURVIVORSHIP: {market_data.describe_state()}")
 
     # UNLISTED FIX 2026-08-28: this read /tmp/v_midcap150_expanding.csv directly and
     # raised FileNotFoundError whenever /tmp had been cleared. nifty100's engine has
-    # always used config.require_cache with the permanent copy as the fallback;
+    # always used model.require_cache with the permanent copy as the fallback;
     # this now matches it. Pre-existing bug, not introduced by the V34 work.
-    # Guard loaded per universe -- see engine_core.set_tradeability.
-    import engine_core as _ec
-    _ec.set_tradeability(u)
-    src = config.require_cache(u.score_cache, what=_T["panel_what"])
+    # Guard loaded per universe -- see market_data.set_tradeability.
+    market_data.set_tradeability(u)
+    src = model.require_cache(u.score_cache, what=_T["panel_what"])
     p = read_table(src, parse_dates=["date"])
     # THE INDEX MUST NOT BE IN THE PANEL AS A TRADABLE NAME, where the universe
     # declares that check. nifty100's engine has always asserted it; midcap150's never did.
@@ -239,8 +239,7 @@ def main(u):
                                               **_capkw)
     # THE BUY & HOLD BASKET: every name in static mode; in pit mode the members on
     # the first pit rebalance, bd[0] (owner's decision, 2026-10-10).
-    import survivorship as _sv, engine_core as _ec
-    bh = _capital_axis.selected() * (1 + _sv.buyhold_prices(px, bd[0], _ec.MEMBERSHIP)
+    bh = _capital_axis.selected() * (1 + market_data.buyhold_prices(px, bd[0], market_data.MEMBERSHIP)
                           .pct_change().loc[bd].mean(axis=1).fillna(0)).cumprod()
 
     mbase = metrics(base_eq, "Inverse-vol, 100% invested (v1 final)", tcb, nb)
@@ -354,8 +353,8 @@ def main(u):
         # v2FINAL_params.json alone knows which membership basis produced it.
         # In a pit run, the whole pit record: verdict, residual survivorship and
         # the look-ahead note. The static value is unchanged.
-        "survivorship": (sv.params_fields(u.tag)["survivorship"] if sv.is_pit()
-                         else sv.describe_state()),
+        "survivorship": (market_data.params_fields(u.tag)["survivorship"] if market_data.is_pit()
+                         else market_data.describe_state()),
         # THE DRAWDOWN-LIMIT AXIS: present only with --dd, so this file is
         # unchanged without it.
         **({} if dd_axis.is_default() else {"dd": dd_axis.params()}),
@@ -395,7 +394,7 @@ def main(u):
     # higher Sharpe") that no longer matched its own numbers.
     ax[0].set_title(settings.run_label(u.label, ["v1", "v2"]) + "\n"
                     + f"{u.label} -- ranking + inverse-vol + breadth-scaled exposure\n"
-                    + sv.describe_state(), fontsize=10)
+                    + market_data.describe_state(), fontsize=10)
     ax[0].legend(loc="upper left", fontsize=9)
     ax[0].grid(alpha=.3)
     for s, c, ls, lab in [(fin_eq, "#d62728", "-", "v2 FINAL"),

@@ -36,7 +36,7 @@ import re
 import sys
 import time
 from pathlib import Path
-from config import read_table  # the one CSV/parquet reader: config.read_table
+from market_data import read_table  # the one CSV/parquet reader: market_data.read_table
 from settings import list_dir
 
 ULP = 2.3e-16          # one unit in the last place, relative
@@ -322,7 +322,7 @@ STANDING_GATE = (
 #                         the other ten combinations are not. docs/HANDOFF.md
 #                         records the same gap.
 #   the scoring path      every cell runs on cached panels, so
-#                         build_scores_step.run() returns early. Covering it costs
+#                         model.run() returns early. Covering it costs
 #                         a 34-minute forced rebuild.
 
 

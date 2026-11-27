@@ -82,13 +82,14 @@ import pandas as pd
 ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "results"))
-import config
+import model
 import settings
-from engine_core import (backtest, precompute, metrics, score_monthly,
-                         score_floor, TOP_N, START_CAPITAL, HORIZON)
+from engine_core import backtest, metrics, TOP_N, START_CAPITAL
+from market_data import precompute
+from model import score_monthly, score_floor, HORIZON
 from settings import REGISTRY
-from seed_cache_key import seed_cache_key
-from config import read_table  # the one CSV/parquet reader: config.read_table
+from model import seed_cache_key
+from market_data import read_table  # the one CSV/parquet reader: market_data.read_table
 # Date window from config.py, NOT engine_core's year ints -- see config.py.
 
 # ALL FOUR PANEL PATHS come from settings.py -- the single definition.
@@ -109,7 +110,7 @@ VOL_WINDOWS = [40, 60, 90, 120]
 TRADE_LO, TRADE_HI = 400, 1400      # engine_core.py:495, unchanged
 
 
-# THE T2 CACHE KEY LIVES IN seed_cache_key.py, shared with validate_engine's T2,
+# THE T2 CACHE KEY LIVES IN model.py, shared with validate_engine's T2,
 # which had the identical defect. See that file for what goes into the key and
 # why there is no override flag. What this file contributes is its own source --
 # it chooses SEED_SETS and the columns written to the cache -- plus the universe
@@ -118,7 +119,8 @@ def _t2_cache_key(u, seeds, raw_path):
     return seed_cache_key(
         code_files=[ROOT / "results" / "engine_core.py",
                     ROOT / "validate_sizing.py",
-                    ROOT / "config.py", ROOT / "settings.py"],
+                    ROOT / "market_data.py", ROOT / "model.py",
+                    ROOT / "settings.py"],
         panel_path=raw_path,
         parts=(u, sorted(seeds)))
 
@@ -181,7 +183,7 @@ def main():
     print("  The four tests below are engine_core.py's, unchanged. Only the panel")
     print("  paths differ. engine_core.py itself is not modified by this script.")
 
-    score_path = config.require_cache(U["score_perm"],
+    score_path = model.require_cache(U["score_perm"],
                                       what=f"{U['label']} score panel")
     p = read_table(score_path, parse_dates=["date"])
     px = p.pivot_table(index="date", columns="symbol", values="close").ffill()
@@ -246,7 +248,7 @@ def main():
 
     # ------------------------------------------------------------------- T2
     print("\n  T2. SEED ROBUSTNESS -- does inv-vol win on OTHER score seeds?")
-    raw_path = config.require_cache(U["raw_perm"],
+    raw_path = model.require_cache(U["raw_perm"],
                                     what=f"{U['label']} raw feature panel")
     raw = read_table(raw_path, parse_dates=["date"])
     t2_rows = []

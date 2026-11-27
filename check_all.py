@@ -139,7 +139,7 @@ from pathlib import Path
 import python_floor  # before any third-party import
 python_floor.require("check_all.py")
 
-from config import read_table  # the one CSV/parquet reader: config.read_table
+from market_data import read_table  # the one CSV/parquet reader: market_data.read_table
 from settings import list_dir
 
 ROOT = Path(__file__).resolve().parent
@@ -276,7 +276,7 @@ DELEGATES = (
     # a session with no row. A synthetic universe on calendar sessions; about 10
     # seconds. The engine before 2026-10-16 fails five of its six cases.
     ("engine_tests.py", ["tradability_causality", "--quiet"], False, None),
-    # results/survivorship.py on synthetic membership files: static mode is a
+    # market_data.py on synthetic membership files: static mode is a
     # no-op, the validation gate rejects each failure mode, and the point-in-time
     # lookup holds at its boundaries. 55 checks, about a second. Writes only into
     # a tempfile.mkdtemp folder, which it does not delete. Wired 2026-10-18.
@@ -1485,8 +1485,8 @@ def gate_data_source(res, sel):
     from the same run, which is self-consistent by construction. The missing
     comparison is artefact against INPUT, and this is it.
 
-    THE MECHANISM IS BORROWED, NOT INVENTED. config.write_cache_source and
-    config._verified have recorded and enforced a cache's source since
+    THE MECHANISM IS BORROWED, NOT INVENTED. model.write_cache_source and
+    model._verified have recorded and enforced a cache's source since
     2026-09-19; the rule was correct and lived one layer too low, because
     _cache_owner() matches only score_cache and raw_cache. A
     daily_trades and a v34_params -- the files people read and quote -- were
@@ -1512,7 +1512,7 @@ def gate_data_source(res, sel):
     """
     import json
     try:
-        import config
+        import model
         import settings
         from settings import REGISTRY
     except Exception as e:
@@ -1585,13 +1585,13 @@ def gate_data_source(res, sel):
             if (t, pit) not in live:
                 from settings import pit_variant
                 uu = pit_variant(u) if pit else u
-                live[(t, pit)] = config.data_fingerprint(uu.prepare_data_dir(),
+                live[(t, pit)] = model.data_fingerprint(uu.prepare_data_dir(),
                                                          uu.raw_data_dir)
             cur = live[(t, pit)]
             for key in ("raw_data_dir", "link_target_dir", "digest"):
                 a, b = rec.get(key), cur.get(key)
                 if key != "digest" and a and b and not str(a).startswith("MIXED"):
-                    a, b = config.root_relative(a), config.root_relative(b)
+                    a, b = model.root_relative(a), model.root_relative(b)
                 if a != b:
                     res.fail("GATE 8 data source", name(f),
                              f"{key} MISMATCH -- this artefact describes data the "

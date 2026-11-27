@@ -28,7 +28,7 @@ for _p in (ROOT, ROOT / "results"):
         sys.path.insert(0, str(_p))
 
 import arms.registry as arm_reg
-from config import read_table
+from market_data import read_table
 from settings import REGISTRY, has_pit
 
 BEGIN = "<!-- tax-on tables: written by tools/readme_tax_tables.py; do not edit by hand -->"

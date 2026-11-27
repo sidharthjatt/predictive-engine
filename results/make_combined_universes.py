@@ -52,15 +52,15 @@ from matplotlib.ticker import PercentFormatter
 warnings.filterwarnings("ignore")
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-import config
+import market_data
 import settings
 from settings import REGISTRY, universe_axis, report_order
 import arms.registry as arm_reg
 from settings import cadence
 import make_chart
 
-import survivorship as sv
-from config import read_table  # the one CSV/parquet reader: config.read_table
+import market_data
+from market_data import read_table  # the one CSV/parquet reader: market_data.read_table
 def cum(s): return (s / s.iloc[0] - 1) * 100
 def dd(s):  return (s / s.cummax() - 1) * 100
 def cagr(s):
@@ -284,7 +284,7 @@ def main():
         eq_v1 = arm_reg.equity_series(eq, "v1")
         index = None
         if u.index_file is not None:
-            raw = (config.read_price_csv(u.index_file)[["date", "close"]].dropna()
+            raw = (market_data.read_price_csv(u.index_file)[["date", "close"]].dropna()
                    .set_index("date")["close"].sort_index())
             s_ = raw.reindex(eq.index.union(raw.index)).ffill().reindex(eq.index)
             index = CAP * s_ / s_.iloc[0]
@@ -320,7 +320,7 @@ def main():
     else:
         print(" Every registered universe is on this chart.")
     print("=" * 108)
-    print(f"\n  SURVIVORSHIP: {sv.describe_state()}")
+    print(f"\n  SURVIVORSHIP: {market_data.describe_state()}")
     for row in UNIV:
         _report(row)
 
@@ -653,7 +653,7 @@ def _subtitle(UNIV):
                + ", ".join(f"{t} to {e.date()}" for t, e in ends.items())
                + ". Cross-universe CAGR here is not like-for-like.\n")
 
-    return line1 + line2 + line3 + liq + win + sv.describe_state()
+    return line1 + line2 + line3 + liq + win + market_data.describe_state()
 
 
 if __name__ == "__main__":

@@ -6,7 +6,7 @@ training label ends after the purge limit of the month it trains.
 WHAT IS CHECKED
 
     For every month score_monthly would train, the training rows are taken from
-    engine_core.training_set -- the function score_monthly calls, not a copy of
+    model.training_set -- the function score_monthly calls, not a copy of
     it -- on the universe's cached raw panel. For each row the date its label
     ends (`label_end`, the symbol's own row HORIZON rows ahead) is placed on the
     panel's calendar, and
@@ -58,19 +58,19 @@ sys.path.insert(0, str(ROOT / "results"))
 
 import numpy as np                                   # noqa: E402
 import pandas as pd                                  # noqa: E402
-import config
+import model
 import settings                                        # noqa: E402
-import engine_core as _ec                            # noqa: E402
-from engine_core import HORIZON, PURGE_EMBARGO       # noqa: E402
+import model                            # noqa: E402
+from model import HORIZON, PURGE_EMBARGO       # noqa: E402
 from settings import REGISTRY, gated              # noqa: E402
-from config import read_table  # the one CSV/parquet reader: config.read_table
+from market_data import read_table  # the one CSV/parquet reader: market_data.read_table
 
 LABELS = {u.tag: u.display_name for u in gated()}
 UNIVERSES = {u.tag: (u.raw_cache, LABELS[u.tag]) for u in gated()}
 
 
 def run(uni, perm, label, W):
-    src = config.require_cache(perm, what=f"{uni} raw panel")
+    src = model.require_cache(perm, what=f"{uni} raw panel")
     raw = read_table(src, parse_dates=["date", "label_end"])
 
     W("=" * 100)
@@ -86,13 +86,13 @@ def run(uni, perm, label, W):
     cal = np.array(sorted(p["date"].unique()))
     pos = {d: i for i, d in enumerate(cal)}
     ym_col = p["date"].dt.to_period("M")
-    months = sorted(ym_col[p["date"] >= _ec.score_floor()].unique())
+    months = sorted(ym_col[p["date"] >= model.score_floor()].unique())
 
     rows, skipped, bad_target = [], 0, 0
     for ym in months:
         first = p.loc[ym_col == ym, "date"].min()
         i = pos[np.datetime64(first)]
-        ts = _ec.training_set(p, cal, i)
+        ts = model.training_set(p, cal, i)
         te = (ym_col == ym) & p["scorable"]
         if ts is None or len(ts[1]) < 5000 or not te.any():
             skipped += 1

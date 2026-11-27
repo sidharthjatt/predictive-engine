@@ -54,7 +54,7 @@ import nt_data
 import nt_run
 
 import nt_attribution
-from config import read_table  # the one CSV/parquet reader: config.read_table
+from market_data import read_table  # the one CSV/parquet reader: market_data.read_table
 
 # Selected by --universe on the command line. THE CHOICES ARE THE REGISTRY, not a
 # written-down tuple: the tuple used to name two retired universes, and the

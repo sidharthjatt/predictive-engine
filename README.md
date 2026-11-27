@@ -353,7 +353,7 @@ with `horizon = HORIZON = 20` and `embargo = PURGE_EMBARGO = 2`. The target is r
 per period, among the qualifying rows of each date. This replaced the 32-day calendar
 purge on 2026-10-22; until then only the row's date was checked.
 
-Seventeen features, defined as `FEATS_V2` in `results/features_v2.py`: three
+Seventeen features, defined as `FEATS_V2` in `market_data.py`: three
 momentum (`mom_20`, `mom_120`, `mom_12_1`), two reversal (`rev_5`, `rev_1`), five
 volatility and risk (`vol_20`, `vol_ratio`, `idio_vol_60`, `beta_60`,
 `downside_vol_60`), three liquidity (`amihud_20`, `turnover_z`, `vol_price_div`),

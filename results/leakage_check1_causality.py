@@ -27,10 +27,10 @@ sys.path.insert(0, str(ROOT)); sys.path.insert(0, str(ROOT / "results"))
 
 import numpy as np
 import pandas as pd
-import config
+import market_data
 import settings
 from settings import list_dir
-from features_v2 import FEATS_V2, add_stock_features, add_market_relative_features
+from market_data import FEATS_V2, add_stock_features, add_market_relative_features
 from settings import REGISTRY, gated
 
 N_DATES = 24
@@ -49,7 +49,7 @@ UNIVERSES = {u.tag: (u.data_dir, LABELS[u.tag])
 def load_raw(d):
     frames = []
     for f in list_dir(d, "*.csv"):
-        x = config.read_price_csv(f)[["date", "open", "high", "low", "close",
+        x = market_data.read_price_csv(f)[["date", "open", "high", "low", "close",
                                       "volume"]].dropna().sort_values("date")
         x["symbol"] = f.stem
         x["raw_close"] = x["close"]   # amihud_20's rupee volume uses the unadjusted close

@@ -32,9 +32,10 @@ warnings.filterwarnings("ignore")
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import settings
-import survivorship as sv
-import engine_core
-from engine_core import metrics, precompute
+import market_data
+import market_data
+from engine_core import metrics
+from market_data import precompute
 import settings            # the run's execution-realism profile
 import costs        # the tax RULES; this file owns the cash
 
@@ -50,8 +51,8 @@ _THIN_WARNED = set()      # see the len(s_) < TOP_N branch in backtest_exposure
 # rest surfaces as a reconciliation failure elsewhere, not as a wrong
 # number here. Value unchanged at 0.0015.
 from costs import SLIPPAGE  # noqa: E402
-from config import read_table  # the one CSV/parquet reader: config.read_table
-from numerics import rolling_std  # platform-identical variance: results/numerics.py
+from market_data import read_table  # the one CSV/parquet reader: market_data.read_table
+from market_data import rolling_std  # platform-identical variance: market_data.py
 from settings import capital_axis as _capital_axis  # noqa: E402
 import buy_shortfall as _bsf
 import settings  # noqa: E402
@@ -102,11 +103,11 @@ def breadth_momentum(mom20, dt):
     the pit folder, and a name is in that folder because it is a member on some
     date, possibly a later one; counting a non-member on `dt` would let a later
     membership change today's exposure. Before the first effective date, where no
-    list is in force, the first list is used, the rule survivorship.member_mask
+    list is in force, the first list is used, the rule market_data.member_mask
     applies there. Since 2026-10-22."""
     m = mom20.loc[dt].dropna()
-    M = engine_core.MEMBERSHIP
-    if sv.is_pit() and M is not None:
+    M = market_data.MEMBERSHIP
+    if market_data.is_pit() and M is not None:
         _members = M.lists[0] if pd.Timestamp(dt) < pd.Timestamp(M.dates[0]) \
             else M.members_on(dt)
         m = m[[str(k).upper() in _members for k in m.index]]
@@ -493,7 +494,7 @@ def backtest_exposure(px, op, sc, dates, pc, mom20,
         # TOUCH POINT 4 -- A SALE THAT WAITED FOR A ROW (since 2026-10-16).
         #
         # A name is traded only on a session that has a row for it
-        # (engine_core.tradeable_on, results/tradability.py). A sale that fell due
+        # (market_data.tradeable_on, results/tradability.py). A sale that fell due
         # on a session with no row was recorded in _owed instead of filling at the
         # forward-filled open, a price nobody quoted. Here, at each session's open,
         # every owed name that has a row today is sold at today's open, the rule
@@ -509,7 +510,7 @@ def backtest_exposure(px, op, sc, dates, pc, mom20,
         # owed and is tried again the next session. A name back in the keep list
         # at the next decision is no longer owed (see the decision below).
         for s in [x for x in list(_owed) if x in shares]:
-            if not engine_core.tradeable_on(s, dt):
+            if not market_data.tradeable_on(s, dt):
                 continue
             pr = opens.get(s, np.nan)
             if np.isnan(pr) or pr <= 0:
@@ -563,11 +564,11 @@ def backtest_exposure(px, op, sc, dates, pc, mom20,
         # the next session, as is a name with no raw price row today. The cash is
         # not reinvested until the next rebalance. Touch point 3 still removes the
         # same names from `keep` at a rebalance, which is then a no-op.
-        if sv.is_pit() and engine_core.MEMBERSHIP is not None and sv.EXIT_POLICY == "forced":
-            _members = engine_core.MEMBERSHIP.members_on(dt)
+        if market_data.is_pit() and market_data.MEMBERSHIP is not None and market_data.EXIT_POLICY == "forced":
+            _members = market_data.MEMBERSHIP.members_on(dt)
             for s in [x for x in shares if _members and x.upper() not in _members]:
                 pr = opens.get(s, np.nan)
-                if np.isnan(pr) or pr <= 0 or not engine_core.tradeable_on(s, dt):
+                if np.isnan(pr) or pr <= 0 or not market_data.tradeable_on(s, dt):
                     continue
                 q = int(shares[s])
                 _capped = _participation_limit(s, dt, participation_cap, vol20)
@@ -619,7 +620,7 @@ def backtest_exposure(px, op, sc, dates, pc, mom20,
                     # NO ROW TODAY: THE SALE IS OWED, NOT FILLED at the forward-filled
                     # open. Touch point 4 sells it at the open of its next session
                     # with a row. setdefault keeps the session it first fell due.
-                    if not engine_core.tradeable_on(s, dt):
+                    if not market_data.tradeable_on(s, dt):
                         if s not in _owed and audit is not None:
                             audit["skipped"].append({"date": dt, "side": "SELL", "symbol": s,
                                 "reason": "untradeable: no row this session, sale owed",
@@ -673,7 +674,7 @@ def backtest_exposure(px, op, sc, dates, pc, mom20,
                 # last close, which `prices` carries forward. Used only for the
                 # fixed-capital log below.
                 def _vp(s_):
-                    return opens.get(s_, np.nan) if engine_core.tradeable_on(s_, dt) \
+                    return opens.get(s_, np.nan) if market_data.tradeable_on(s_, dt) \
                         else prices.get(s_, np.nan)
                 if _fixed:
                     # THE FIXED-CAPITAL RING-FENCE (settings.fixed_axis). Profit above the
@@ -751,7 +752,7 @@ def backtest_exposure(px, op, sc, dates, pc, mom20,
                     # 33,575 shares on a date with no raw row. Since 2026-10-16 any
                     # session with no row blocks the buy, however long the gap, and
                     # the first row after a gap is tradeable.
-                    if not engine_core.tradeable_on(s, dt):
+                    if not market_data.tradeable_on(s, dt):
                         if audit is not None:
                             audit["skipped"].append({"date": dt, "side": "BUY", "symbol": s,
                                 "reason": "untradeable: no row this session",
@@ -908,7 +909,7 @@ def backtest_exposure(px, op, sc, dates, pc, mom20,
                     if dq >= 0:
                         continue
                     raw = opens.get(s, np.nan)
-                    if np.isnan(raw) or raw <= 0 or not engine_core.tradeable_on(s, dt):
+                    if np.isnan(raw) or raw <= 0 or not market_data.tradeable_on(s, dt):
                         if audit is not None:
                             audit["skipped"].append({"date": dt, "side": "SELL", "symbol": s,
                                 "reason": "dd trim: no open price (NaN/<=0)", "detail": ""})
@@ -948,7 +949,7 @@ def backtest_exposure(px, op, sc, dates, pc, mom20,
                 _f = min(1.0, cash * 0.98 / _need) if _need > 0 else 1.0
                 for s, dq in _buys:
                     raw = opens.get(s, np.nan)
-                    if np.isnan(raw) or raw <= 0 or not engine_core.tradeable_on(s, dt):
+                    if np.isnan(raw) or raw <= 0 or not market_data.tradeable_on(s, dt):
                         if audit is not None:
                             audit["skipped"].append({"date": dt, "side": "BUY", "symbol": s,
                                 "reason": "dd top-up: no open price or untradeable",
@@ -992,7 +993,7 @@ def backtest_exposure(px, op, sc, dates, pc, mom20,
         if end_sale and i == len(dates) - 1:
             for s in list(shares.keys()):
                 # No row on the last session: not sold, valued at its last close.
-                if not engine_core.tradeable_on(s, dt):
+                if not market_data.tradeable_on(s, dt):
                     continue
                 raw = opens.get(s, np.nan)
                 if np.isnan(raw) or raw <= 0:
@@ -1050,9 +1051,9 @@ def backtest_exposure(px, op, sc, dates, pc, mom20,
             s_ = sc.loc[dt].dropna()
             s_ = s_[[k for k in s_.index if not np.isnan(prices.get(k, np.nan))]]
             # TOUCH POINT 2 -- only names in the index on this date may be ranked.
-            # engine_core.MEMBERSHIP is the single holder; see the note there.
-            if sv.is_pit() and engine_core.MEMBERSHIP is not None:
-                _members = engine_core.MEMBERSHIP.members_on(dt)
+            # market_data.MEMBERSHIP is the single holder; see the note there.
+            if market_data.is_pit() and market_data.MEMBERSHIP is not None:
+                _members = market_data.MEMBERSHIP.members_on(dt)
                 s_ = s_[[k for k in s_.index if k in _members]]
             if len(s_) < TOP_N:
                 # THIS REBALANCE IS SKIPPED, AND IT USED TO BE SKIPPED SILENTLY.
@@ -1085,8 +1086,8 @@ def backtest_exposure(px, op, sc, dates, pc, mom20,
                 # TOUCH POINT 3 -- forced exits join the sell set. `to_sell` is
                 # computed as `held - keep` above, so removing them from `keep` is
                 # that union. Empty unless mode is pit AND exit policy is forced.
-                if sv.is_pit() and engine_core.MEMBERSHIP is not None:
-                    keep -= engine_core.MEMBERSHIP.forced_exits(set(shares.keys()), dt)
+                if market_data.is_pit() and market_data.MEMBERSHIP is not None:
+                    keep -= market_data.MEMBERSHIP.forced_exits(set(shares.keys()), dt)
                 # sizing="invvol" (default) reproduces the existing system exactly.
                 # "equal" gives every one of the TOP_N positions the same share of
                 # invest_value.

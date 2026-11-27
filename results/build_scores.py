@@ -6,7 +6,7 @@ build_scores_mid.py and build_scores_n100.py, which differed in nothing but the
 registry key they passed and the filenames their docstrings quoted. Step 3 of the
 collapse; the contract that made it possible is 5c636cf.
 
-The body lives once in results/build_scores_step.py, which took over from the four
+The body lives once in model.py, which took over from the four
 copies the two merged files used to be among; every difference between those was a
 universe property settings.py records. See that module for the mapping,
 and for why purge_mode is read from the registry rather than written here.
@@ -34,7 +34,7 @@ for _p in (str(ROOT), str(ROOT / "results")):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
-import build_scores_step
+import model
 
 
 def main(u):
@@ -44,7 +44,7 @@ def main(u):
     uses it, which is what steps 3-7 exist to produce and what
     transitional_asserts_check.py is watching for.
     """
-    build_scores_step.run(u)
+    model.run(u)
 
 
 if __name__ == "__main__":

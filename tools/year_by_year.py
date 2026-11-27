@@ -31,9 +31,9 @@ for _p in (ROOT, ROOT / "results"):
 import pandas as pd
 
 import arms.registry as arm_reg
-import config
+import market_data
 import settings
-from config import read_table
+from market_data import read_table
 from settings import REGISTRY
 
 SETTINGS = (("pit, tradeable, tax on", "_tradeable_tax_pit"),
@@ -62,7 +62,7 @@ def main():
     rows = []
     for tag, arm in cells:
         u = REGISTRY[tag]
-        idx = (config.read_price_csv(u.index_file)[["date", "close"]].dropna()
+        idx = (market_data.read_price_csv(u.index_file)[["date", "close"]].dropna()
                .set_index("date")["close"].sort_index())
         for setting, sfx in SETTINGS:
             eq = read_table(Path(u.metrics_dir) / f"v34_equity{sfx}.csv",

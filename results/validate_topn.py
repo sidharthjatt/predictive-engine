@@ -82,16 +82,16 @@ sys.path.insert(0, str(ROOT / "results"))
 import numpy as np
 import pandas as pd
 
-import config
+import model
 import settings
-from engine_core import precompute
+from market_data import precompute
 import test_exposure
 from test_exposure import backtest_exposure
 from settings import REGISTRY, certified
 from v34_common import arm_row, held_and_skips, _git_state
 import costs
 import settings            # the run's execution-realism profile
-from config import read_table  # the one CSV/parquet reader: config.read_table
+from market_data import read_table  # the one CSV/parquet reader: market_data.read_table
 
 VOL_WIN = 60
 BUFFER_PINNED = 16
@@ -127,10 +127,10 @@ def load_panel(cfg, uni):
     # published row must run under the production guards, or it measures a
     # different engine. rebal_cadence_sweep.py failed exactly this way:
     # midcap150 v3 AnnVol% recomputed 24.89 against 24.88 published.
-    import engine_core as _ec
+    import market_data
     from settings import REGISTRY as _REG
-    _ec.set_tradeability(_REG[uni])
-    src = config.require_cache(cfg["perm"], what=f"{uni} score panel")
+    market_data.set_tradeability(_REG[uni])
+    src = model.require_cache(cfg["perm"], what=f"{uni} score panel")
     p = read_table(src, parse_dates=["date"])
     got, want = set(p["symbol"].unique()), cfg["symbols"]()
     if got != want:

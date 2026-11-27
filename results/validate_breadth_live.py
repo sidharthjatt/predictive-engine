@@ -75,15 +75,16 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "results"))
 
-import config
+import model
 import settings
-from engine_core import (precompute, metrics, score_monthly, score_floor, HORIZON,
-                         START_CAPITAL)
+from market_data import precompute
+from engine_core import metrics, START_CAPITAL
+from model import score_monthly, score_floor, HORIZON
 from test_exposure import backtest_exposure
 from settings import REGISTRY
 import costs
 import settings            # the run's execution-realism profile
-from config import read_table  # the one CSV/parquet reader: config.read_table
+from market_data import read_table  # the one CSV/parquet reader: market_data.read_table
 
 # Date window from config.py, NOT engine_core's year ints -- see config.py.
 
@@ -92,7 +93,7 @@ from config import read_table  # the one CSV/parquet reader: config.read_table
 # "Nifty 100"/"MidCap150" spelling this file has always written into
 # breadth_live_params.json and printed.
 from settings import certified
-from seed_cache_key import seed_cache_key
+from model import seed_cache_key
 
 
 def _t1_cache(u, si, seeds, raw_path):
@@ -100,7 +101,8 @@ def _t1_cache(u, si, seeds, raw_path):
     key = seed_cache_key(
         code_files=[ROOT / "results" / "engine_core.py",
                     ROOT / "results" / "validate_breadth_live.py",
-                    ROOT / "config.py", ROOT / "settings.py"],
+                    ROOT / "market_data.py", ROOT / "model.py",
+                    ROOT / "settings.py"],
         panel_path=raw_path,
         parts=(u, sorted(seeds)))
     return Path(f"/tmp/VALBREADTH_{u}_seed{si}_{key}.csv")
@@ -213,7 +215,7 @@ def main():
     W("  T1 and T2 are copied verbatim from results/validate_breadth.py, which")
     W("  stays frozen. T3 is new and is REPORTED, NOT GATED.")
 
-    score_path = config.require_cache(U["score_perm"],
+    score_path = model.require_cache(U["score_perm"],
                                       what=f"{U['label']} score panel")
     prod = read_table(score_path, parse_dates=["date"])
     parts = panel_parts(prod)
@@ -221,7 +223,7 @@ def main():
     W(f"\n  score panel  {score_path}")
     W(f"               {parts[0].shape[1]} symbols, {len(bd)} days in the window")
 
-    raw_path = config.require_cache(U["raw_perm"],
+    raw_path = model.require_cache(U["raw_perm"],
                                     what=f"{U['label']} raw feature panel")
 
     if "--run" not in sys.argv:

@@ -87,7 +87,7 @@ from arms.registry import ARMS, ALL_ARMS, SHIPPING as SHIPPING_ARMS            #
 #                                                   when absent, and a future global of
 #                                                   the same name would be covered.
 #         nt_data.set_depth_mode(...)
-#         survivorship.set_mode(...) / set_exit_policy(...)
+#         market_data.set_mode(...) / set_exit_policy(...)
 #
 #     THE SHARPEST ONE IS rebal_cadence_sweep.py:172. It sets test_exposure.REBAL to
 #     each cadence it sweeps and NEVER RESTORES IT. Run in-process before anything
@@ -104,7 +104,7 @@ from arms.registry import ARMS, ALL_ARMS, SHIPPING as SHIPPING_ARMS            #
 #     afterwards, so the mutation cannot outlive the step that made it.
 #
 #     It also does not cover state that is not a module global: an open matplotlib
-#     figure, a populated engine_core.MEMBERSHIP built from a file, a pandas option.
+#     figure, a populated market_data.MEMBERSHIP built from a file, a pandas option.
 #     MEMBERSHIP is listed below because it IS a module global; the rest are out of
 #     scope and stay out of scope rather than being half-covered.
 #
@@ -122,8 +122,8 @@ from contextlib import contextmanager                 # noqa: E402
 WATCHED = {
     "test_exposure":  ("TOP_N", "BUFFER", "REBAL", "VOL_WIN", "SLIPPAGE",
                        "START_CAPITAL", "CASH_YIELD"),
-    "engine_core":    ("MEMBERSHIP", "TOP_N", "BUFFER", "REBAL"),
-    "survivorship":   ("SURVIVORSHIP_MODE", "EXIT_POLICY"),
+    "engine_core":    ("TOP_N", "BUFFER", "REBAL"),
+    "market_data":    ("MEMBERSHIP", "SURVIVORSHIP_MODE", "EXIT_POLICY"),
     "nt_strategy":    ("SIZING", "TOP_N", "BUFFER", "REBAL"),
     "nt_attribution": ("SIZING", "TOP_N", "BUFFER", "REBAL"),
     "nt_data":        ("DEPTH_MODE", "_VOLUME"),
@@ -726,7 +726,7 @@ def _dd_floor_arg(s):
 def _start_arg(s):
     """--start value: a date, YYYY-MM-DD, before the backtest end."""
     import pandas as _pd
-    import config as _cfg
+    import model
     import settings
     try:
         t = _pd.Timestamp(s)
@@ -1114,7 +1114,7 @@ def _capacity_lines(plan, t_start):
     run's results are already complete."""
     import costs
     import audit_step as _as
-    from config import read_table
+    from market_data import read_table
     out, cache = [], {}
     for u, a in plan["arm_runs"]:
         name = f"{u.tag} {a.name}"
@@ -1549,7 +1549,7 @@ def _pit_setup(plan):
     """Pit runs only: check the pit inputs against data/RAW_DATA_SHA256_PIT.txt,
     load every selected universe's membership, and print its record.
 
-    THE FILES FAIL survivorship.validate AND ARE USED ANYWAY, by the owner's
+    THE FILES FAIL market_data.validate AND ARE USED ANYWAY, by the owner's
     decision of 2026-10-10. The verdict, the residual survivorship and the
     look-ahead note go into this log here, into RUN.txt (_survivorship_section)
     and into every params JSON (v34_common), so no pit figure travels without them.
@@ -1562,21 +1562,21 @@ def _pit_setup(plan):
     if rc != 0:
         raise SystemExit("pit inputs do not match data/RAW_DATA_SHA256_PIT.txt; "
                          "see the lines above")
-    import engine_core as _ec
-    import survivorship as _sv
+    import market_data
+    import market_data
     plan["pit_records"] = {}
     print("\n" + "!" * 90)
     print(" SURVIVORSHIP pit -- point-in-time membership, with-survivorship prices")
     for u in plan["universes"]:
-        m = _sv.load(u.membership_file, index_name=u.tag, price_dir=u.raw_data_dir,
+        m = market_data.load(u.membership_file, index_name=u.tag, price_dir=u.raw_data_dir,
                      allow_invalid=True)
         # CURRENT MEMBERS ARE THE FILE'S LAST ROW: who is in the index today.
-        rec = _sv.pit_record(m, u.raw_data_dir, m.lists[-1],
+        rec = market_data.pit_record(m, u.raw_data_dir, m.lists[-1],
                              u.date_range[0], u.date_range[1])
         rec["window_start"] = str(u.date_range[0].date())
-        _ec.PIT_MEMBERSHIPS[u.tag] = m
-        _ec.PIT_RECORDS[u.tag] = rec
-        lines = [f"window start        : {rec['window_start']}"] + _sv.pit_record_lines(rec)
+        market_data.PIT_MEMBERSHIPS[u.tag] = m
+        market_data.PIT_RECORDS[u.tag] = rec
+        lines = [f"window start        : {rec['window_start']}"] + market_data.pit_record_lines(rec)
         plan["pit_records"][u.tag] = {"record": rec, "lines": lines}
         print(f" --- {u.tag} ---")
         for line in lines:
@@ -1665,11 +1665,11 @@ def _execute(plan, args, state):
     # per universe, and build_scores decides from its content key whether it is
     # current.
     if args.fresh:
-        import config as _cfg
+        import model
         import settings
         for u in plan["universes"]:
             gone = [f for c in (u.score_cache, u.raw_cache)
-                    for f in (c, _cfg.cache_source_file(c)) if f.exists()]
+                    for f in (c, model.cache_source_file(c)) if f.exists()]
             for f in gone:
                 f.unlink()
             print(f"--fresh: {u.tag}: deleted {len(gone)} panel file(s) under "
@@ -1690,8 +1690,8 @@ def _execute(plan, args, state):
 
     # Stated once per run, as run_all.main() did, so the log itself records which
     # universe construction produced the numbers under it.
-    import survivorship as sv
-    print(f"SURVIVORSHIP: {sv.describe_state()}\n")
+    import market_data
+    print(f"SURVIVORSHIP: {market_data.describe_state()}\n")
     # THE BIAS LABEL of every selected universe that carries one (Universe.bias_note),
     # in the log as well as RUN.txt, so no figure under it travels without it.
     for u in plan["universes"]:
@@ -1701,12 +1701,12 @@ def _execute(plan, args, state):
     # CALENDAR SESSIONS THE DATA LACKS, REPORTED ONLY. A session inside the window
     # where fewer than half of the names spanning it have a row is printed here
     # and written to RUN.txt. It stops nothing and changes no result; see
-    # engine_core.thin_sessions and KNOWN_ISSUES.md on 2020-01-07.
-    import engine_core as _ec
-    state["thin"] = {u.tag: _ec.thin_sessions(u.prepare_data_dir())
+    # market_data.thin_sessions and KNOWN_ISSUES.md on 2020-01-07.
+    import market_data
+    state["thin"] = {u.tag: market_data.thin_sessions(u.prepare_data_dir())
                      for u in plan["universes"]}
     print(f"CALENDAR COVERAGE: sessions in the window where fewer than "
-          f"{_ec.THIN_SESSION_SHARE:.0%} of the names spanning them have a row")
+          f"{market_data.THIN_SESSION_SHARE:.0%} of the names spanning them have a row")
     for t, rows in state["thin"].items():
         for d, n, m in rows:
             print(f"    {t:<12} {d.date()}  {n} of {m} names ({n / m:.1%})")
@@ -1720,7 +1720,7 @@ def _execute(plan, args, state):
         state["step"] = f"{label} {scr}" + (f" [{tag}]" if tag else "")
         # THE SKIP IS NOT DECIDED HERE ANY MORE. cached_panel() and
         # SCORE_BUILD_STEPS retired with the contract: the step that owns the panel
-        # owns the decision not to rebuild it, so build_scores_step.run() returns
+        # owns the decision not to rebuild it, so model.run() returns
         # early and prints its own line. --fresh still works, and works for a
         # better reason -- it unlinks the panel above, so the step finds no cache
         # rather than being told to ignore one.
@@ -1754,8 +1754,8 @@ def _execute(plan, args, state):
             _step = importlib.import_module(Path(scr).stem)
             # PIT RUNS: this universe's membership for the step; None otherwise, and
             # for a whole-run step (make_daily_log sets it per universe itself).
-            import engine_core as _ec
-            _ec.MEMBERSHIP = _ec.membership_for(REGISTRY[tag]) if tag else None
+            import market_data
+            market_data.MEMBERSHIP = market_data.membership_for(REGISTRY[tag]) if tag else None
             _step.main(REGISTRY[tag]) if tag else _step.main()
         print(f"    [{label} done in {(time.time()-t0)/60:.1f} min]")
 
@@ -1783,8 +1783,8 @@ def _execute(plan, args, state):
         import v34_common
         state["step"] = f"ARM {u.tag}/{a.name}"
         with pinned():
-            import engine_core as _ec
-            _ec.MEMBERSHIP = _ec.membership_for(u)
+            import market_data
+            market_data.MEMBERSHIP = market_data.membership_for(u)
             comp, out = v34_common.run_arm(u, a, rebal=args.rebal)
         (out / "RUN_IN_PROGRESS.txt").unlink(missing_ok=True)
         state["pending"] = [d for d in state["pending"] if d != out]

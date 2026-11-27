@@ -36,7 +36,7 @@ import nt_data, nt_run
 from engine_core import metrics
 import settings
 from settings import REGISTRY, certified
-from config import read_table  # the one CSV/parquet reader: config.read_table
+from market_data import read_table  # the one CSV/parquet reader: market_data.read_table
 
 SLIPPAGE = nt_run.SLIPPAGE
 
@@ -70,7 +70,7 @@ def run_mode(u, mode, raw_dir, syms):
 
 def main():
     import subprocess, datetime
-    import config as _cfg
+    import model
     import settings
     try:
         _commit = subprocess.run(["git", "rev-parse", "--short", "HEAD"], cwd=ROOT,
@@ -86,7 +86,7 @@ def main():
     print(f" Generated {datetime.date.today()} at commit {_commit}.")
     for _t, _rd, _ in UNIV:
         _u = REGISTRY[_t]
-        _fp = _cfg.data_fingerprint(_u.prepare_data_dir(), _u.raw_data_dir)
+        _fp = model.data_fingerprint(_u.prepare_data_dir(), _u.raw_data_dir)
         print(f"   {_t}: {_fp.get('n_files')} files, {_fp.get('digest')}")
         print(f"     {_fp.get('raw_data_dir')}")
     print(" SUPERSEDES THE COPY DATED 2026-09-17, which was produced before the")

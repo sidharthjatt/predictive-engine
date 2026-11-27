@@ -51,7 +51,7 @@ NEGATIVE CONTROLS, --control, applied in every variant of the invocation:
           for the first scorable symbol on the cut of T's month, its rows after
           that cut up to T are removed, so its label there ends after T. The same
           gap with --control gap and the current rule must PASS.
-  member  pit only: survivorship.member_mask and test_exposure.breadth_momentum
+  member  pit only: market_data.member_mask and test_exposure.breadth_momentum
           as before 2026-10-22, every row before the first effective date kept.
 The full variant of a control scores only through the last cut date.
 
@@ -101,10 +101,10 @@ def stock_files(src, index_name):
 def _dates(lines, source):
     """The parsed date of each data line, as read_price_csv parses the column."""
     import pandas as pd
-    import config
+    import market_data
     import settings
     first = pd.Series([ln.split(",", 1)[0] for ln in lines])
-    return config.smart_parse_dates(first, source=source)
+    return market_data.smart_parse_dates(first, source=source)
 
 
 def write_farm(u, mode, variant, T, dst, gap=None, drop=frozenset(), seed=0):
@@ -154,9 +154,9 @@ def write_membership(u, T, dst):
     """The membership file with every row whose effective date is after T removed.
     Kept rows keep their delivered text, so they parse as the original does."""
     import pandas as pd
-    import config
+    import market_data
     import settings
-    df = config.read_table(u.membership_file, dtype=str, keep_default_na=False)
+    df = market_data.read_table(u.membership_file, dtype=str, keep_default_na=False)
     col = {c.lower().strip(): c for c in df.columns}["effective_date"]
     raw = df[col].astype(str)
     d = pd.to_datetime(raw, format="%Y-%m-%d", errors="coerce")
@@ -169,8 +169,8 @@ def write_membership(u, T, dst):
 def late_names(u, T):
     """Pit symbols that are not a member on any effective date up to T and are not
     in the first list."""
-    import survivorship as sv
-    m = sv.load(u.membership_file, index_name=u.index_name, allow_invalid=True)
+    import market_data
+    m = market_data.load(u.membership_file, index_name=u.index_name, allow_invalid=True)
     known = set(m.lists[0])
     for d, L in zip(m.dates, m.lists):
         if d <= T:
@@ -185,19 +185,20 @@ def late_names(u, T):
 def apply_control(control):
     import numpy as np
     import pandas as pd
-    import engine_core as ec
-    import features_v2 as fv
+    import market_data
+    import model
+    import market_data
     if control == "leak":
-        orig = fv.add_stock_features
+        orig = market_data.add_stock_features
 
         def leaked(df):
             d = orig(df)
             c = d["close"]
             d["rev_1"] = -(c.shift(-1) / c - 1)
             return d
-        ec.add_stock_features = leaked
+        market_data.add_stock_features = leaked
     elif control == "label":
-        def old_training_set(p, cal, i_first, horizon=ec.HORIZON, embargo=ec.PURGE_EMBARGO):
+        def old_training_set(p, cal, i_first, horizon=model.HORIZON, embargo=model.PURGE_EMBARGO):
             j = i_first - horizon - embargo
             if j < 0:
                 return None
@@ -207,13 +208,13 @@ def apply_control(control):
                 p.loc[lab, "_old_rank"] = p.loc[lab].groupby("date")["fwd_ret"].rank(pct=True)
             ok = (p["date"] <= pd.Timestamp(cal[j])) & p["_old_rank"].notna()
             return p.index[ok], p.loc[ok, "_old_rank"].to_numpy()
-        ec.training_set = old_training_set
+        model.training_set = old_training_set
     elif control == "member":
-        import survivorship as sv
+        import market_data
         import test_exposure as te
 
         def old_mask(panel, membership, date_col="date", symbol_col="symbol"):
-            if not sv.is_pit() or membership is None or panel.empty:
+            if not market_data.is_pit() or membership is None or panel.empty:
                 return np.ones(len(panel), dtype=bool)
             pos = membership._pos(panel[date_col])
             syms = panel[symbol_col].astype(str).str.upper().values
@@ -221,13 +222,13 @@ def apply_control(control):
 
         def old_breadth(mom20, dt):
             m = mom20.loc[dt].dropna()
-            M = ec.MEMBERSHIP
-            if sv.is_pit() and M is not None:
+            M = market_data.MEMBERSHIP
+            if market_data.is_pit() and M is not None:
                 mem = M.members_on(dt)
                 if mem:
                     m = m[[str(k).upper() in mem for k in m.index]]
             return m
-        sv.member_mask = old_mask
+        market_data.member_mask = old_mask
         te.breadth_momentum = old_breadth
 
 
@@ -242,21 +243,22 @@ def plant_gap(u, mode, T):
     import contextlib
     import numpy as np
     import pandas as pd
-    import engine_core as ec
-    import survivorship as sv
+    import market_data
+    import model
+    import market_data
     farm = Path(tempfile.mkdtemp(prefix="lookahead_gap_"))
     write_farm(u, mode, "full", T, farm)
     if mode == "pit":
-        sv.set_mode("pit")
-        ec.MEMBERSHIP = sv.load(u.membership_file, index_name=u.index_name, allow_invalid=True)
+        market_data.set_mode("pit")
+        market_data.MEMBERSHIP = market_data.load(u.membership_file, index_name=u.index_name, allow_invalid=True)
     with contextlib.redirect_stdout(io.StringIO()):
-        p = ec.build_panel(ec.HORIZON, data_dir=farm)
-    sv.set_mode("static")
-    ec.MEMBERSHIP = None
+        p = market_data.build_panel(model.HORIZON, data_dir=farm)
+    market_data.set_mode("static")
+    market_data.MEMBERSHIP = None
     cal = np.array(sorted(p["date"].unique()))
     first = p.loc[p["date"].dt.to_period("M") == pd.Timestamp(T).to_period("M"), "date"].min()
     i = int(np.searchsorted(cal, np.datetime64(first)))
-    cut = pd.Timestamp(cal[i - ec.HORIZON - ec.PURGE_EMBARGO])
+    cut = pd.Timestamp(cal[i - model.HORIZON - model.PURGE_EMBARGO])
     sym = sorted(p.loc[(p["date"] == cut) & p["scorable"] & p["fwd_ret"].notna(), "symbol"])[0]
     return sym, cut, pd.Timestamp(T)
 
@@ -269,13 +271,14 @@ def run_variant(a):
     import contextlib
     import numpy as np
     import pandas as pd
-    import engine_core as ec
-    import survivorship as sv
-    import tradability
+    import market_data
+    import model
+    import market_data
+    import market_data
     import costs
     import settings
     import arms.registry as arm_reg
-    from build_scores_step import SEEDS
+    from model import SEEDS
     from test_exposure import backtest_exposure
 
     T = pd.Timestamp(a.T)
@@ -293,20 +296,20 @@ def run_variant(a):
     if a.mode == "pit":
         mfile = (u.membership_file if a.variant in ("full", "noise")
                  else write_membership(u, T, work / "membership.csv"))
-        sv.set_mode("pit")
-        ec.MEMBERSHIP = sv.load(mfile, index_name=u.index_name, allow_invalid=True)
-    cal = ec._load_calendar()
+        market_data.set_mode("pit")
+        market_data.MEMBERSHIP = market_data.load(mfile, index_name=u.index_name, allow_invalid=True)
+    cal = market_data._load_calendar()
     t0 = time.time()
     with contextlib.redirect_stdout(io.StringIO()):
-        raw = ec.build_panel(ec.HORIZON, data_dir=farm)
+        raw = market_data.build_panel(model.HORIZON, data_dir=farm)
     t_panel = time.time()
     through = None if (a.variant == "full" and a.through is None) else pd.Timestamp(a.through or T)
     with contextlib.redirect_stdout(io.StringIO()):
-        p = ec.score_monthly(raw[ec.SCORE_INPUT_COLS], SEEDS, purge_mode=u.purge_mode,
+        p = model.score_monthly(raw[market_data.SCORE_INPUT_COLS], SEEDS, purge_mode=u.purge_mode,
                              through=through)
     t_score = time.time()
-    ec.TRADEABLE = tradability.sessions_with_row(farm, cal)
-    ec.TRADEABLE_TAG = u.tag
+    market_data.TRADEABLE = market_data.sessions_with_row(farm, cal)
+    market_data.TRADEABLE_TAG = u.tag
     px = p.pivot_table(index="date", columns="symbol", values="close").ffill()
     op = p.pivot_table(index="date", columns="symbol", values="open").ffill()
     # Reindexed to the price dates: a variant scored only through T has no score
@@ -319,7 +322,7 @@ def run_variant(a):
         px = px.reindex(px.index.union(bd)).ffill()
         op = op.reindex(op.index.union(bd)).ffill()
         sc = sc.reindex(sc.index.union(bd))
-    pc = ec.precompute(px)
+    pc = market_data.precompute(px)
     mom20 = px / px.shift(20) - 1
     out = {"scores": p.loc[p["score"].notna(), ["date", "symbol", "score"]].reset_index(drop=True),
            "arms": {}, "bd": bd,

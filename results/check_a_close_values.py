@@ -29,10 +29,10 @@ sys.path.insert(0, str(ROOT)); sys.path.insert(0, str(ROOT / "results"))
 
 import numpy as np
 import pandas as pd
-import config
+import market_data
 import settings
 from settings import list_dir
-from features_v2 import EXTREME_RET_HI, EXTREME_RET_LO
+from market_data import EXTREME_RET_HI, EXTREME_RET_LO
 from settings import REGISTRY, certified
 
 # The DATA DIRECTORY and METRICS DIRECTORY come from settings.py --
@@ -48,7 +48,7 @@ TOL = 1e-9
 def run(uni, ddir, mdir, label, W):
     rows = []
     for f in list_dir(ddir, "*.csv"):
-        x = config.read_price_csv(f)
+        x = market_data.read_price_csv(f)
         need = ["date", "open", "high", "low", "close", "adj_close"]
         if any(c not in x.columns for c in need):
             continue
@@ -169,7 +169,7 @@ def main():
     #
     # adj_close IS REPORTED AND NOT GATED. It is out of bounds on 170 nifty100 and
     # 41 midcap150 rows, measured 2026-09-21, and that is the exact population
-    # engine_core.canonical_price already falls back to the raw close on. Gating
+    # market_data.canonical_price already falls back to the raw close on. Gating
     # it would fail the run for a condition the engine is documented to handle,
     # and this file states no tolerance for it.
     bad = {u: r for u, r in res.items() if r["close_out"]}

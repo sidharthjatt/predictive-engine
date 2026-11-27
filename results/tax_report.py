@@ -55,7 +55,7 @@ import pandas as pd
 
 from settings import tax as _tax
 import costs
-from config import read_table  # the one CSV/parquet reader: config.read_table
+from market_data import read_table  # the one CSV/parquet reader: market_data.read_table
 
 # The four stems. Composed through settings.name() -- the only composer measured to
 # carry all four axes without modification (settings.CARRIES, re-probed 2026-09-17).
@@ -245,7 +245,7 @@ def main(u):
 
     ITS POSITION IS THE END OF THE PIPELINE. The only input is the score panel,
     and running after STEP 15b means the PERMANENT copy exists rather than
-    relying on config.require_cache's /tmp fallback.
+    relying on model.require_cache's /tmp fallback.
     """
     # THE EARLY RETURN IS THE WHOLE tax=off CONTRACT, and it uses the mechanism
     # this pipeline already has rather than a new one. run_all.py:166 records it
@@ -271,16 +271,16 @@ def main(u):
     # run.py's arity probe, and pulling the engine in at import time would make
     # a --list or --dry-run pay for a backtest it never runs.
     from settings import cadence
-    import config
+    import model
     import settings
-    import engine_core
+    import market_data
     import costs
-    from engine_core import precompute
+    from market_data import precompute
     from test_exposure import backtest_exposure
     import audit_step
 
-    engine_core.set_tradeability(u)
-    src = config.require_cache(u.score_cache,
+    market_data.set_tradeability(u)
+    src = model.require_cache(u.score_cache,
                                what=f"{u.tag} score panel")
     p = read_table(src, parse_dates=["date"])
     px = p.pivot_table(index="date", columns="symbol", values="close").ffill()

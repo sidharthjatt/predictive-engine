@@ -21,8 +21,13 @@ session's open plus slippage with the BUY charge. The untaxed published buy & ho
 (`px.pct_change().mean(axis=1)`, a costless daily-rebalanced index) is a different
 construction and stays the reference line.
 """
+import sys
+from pathlib import Path
+
 import numpy as np
 
+# The repository root, for settings, costs, market_data and model when this file runs as a script.
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import costs
 from costs import calc_tc, SLIPPAGE
 from costs import fill_price
@@ -35,8 +40,8 @@ def held_lots(px, op, bd):
     o0 = op.loc[d0]
     # THE BASKET: every name in static mode; in pit mode the members on d0, the
     # first pit rebalance (owner's decision, 2026-10-10).
-    import survivorship as _sv, engine_core as _ec
-    syms = [s for s in _sv.buyhold_columns(list(o0.index), d0, _ec.MEMBERSHIP)
+    import market_data
+    syms = [s for s in market_data.buyhold_columns(list(o0.index), d0, market_data.MEMBERSHIP)
             if not np.isnan(o0[s]) and o0[s] > 0]
     _cap0 = _capital_axis.selected()
     per = _cap0 / len(syms)

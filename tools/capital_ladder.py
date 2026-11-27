@@ -39,16 +39,16 @@ for _p in (ROOT, ROOT / "results"):
 import pandas as pd
 
 import arms.registry as arm_reg
-import config
+import market_data
 import settings
-from config import read_table
+from market_data import read_table
 from settings import REGISTRY, pit_variant, has_pit, pit_refusal
 
 
 def adv_value(raw_dir, sym, cache={}):
     """Series: mean close x volume over the 20 sessions before each date."""
     if sym not in cache:
-        d = config.read_price_csv(Path(raw_dir) / f"{sym}.csv").set_index("date").sort_index()
+        d = market_data.read_price_csv(Path(raw_dir) / f"{sym}.csv").set_index("date").sort_index()
         tv = (d["close"] * d["volume"])
         cache[sym] = tv.rolling(20).mean().shift(1)
     return cache[sym]

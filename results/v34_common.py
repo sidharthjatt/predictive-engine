@@ -37,10 +37,10 @@ import matplotlib.pyplot as plt
 from matplotlib.ticker import PercentFormatter
 
 from engine_core import metrics
-import config as _config
+import model
 import settings
-import survivorship as _survivorship
-from config import read_table  # the one CSV/parquet reader: config.read_table
+import market_data
+from market_data import read_table  # the one CSV/parquet reader: market_data.read_table
 
 
 def deployed_none(expo):
@@ -249,9 +249,9 @@ def _write_core(M, SFX, comp, subs, ARM_ON, bd, bh, curves, universe_label,
         # tradeable artefacts were built on data/raw/MidCap150/clean, the
         # universe was repointed a day later, and no artefact and no gate could
         # say so. GATE 8 in check_all.py reads this field back and refuses a
-        # mismatch. See config.data_fingerprint for what the digest covers and
+        # mismatch. See model.data_fingerprint for what the digest covers and
         # why it is the whole file rather than a row count.
-        "data_source": _config.data_fingerprint(
+        "data_source": model.data_fingerprint(
             settings.REGISTRY[universe_tag].prepare_data_dir(),
             settings.REGISTRY[universe_tag].raw_data_dir),
         "run_date": str(pd.Timestamp.today().date()),
@@ -265,7 +265,7 @@ def _write_core(M, SFX, comp, subs, ARM_ON, bd, bh, curves, universe_label,
            if costs.gate_status() else {}),
         # PIT RUNS ONLY: the validator verdict, residual survivorship and the
         # look-ahead note. Absent in a static run.
-        **_survivorship.params_fields(universe_tag),
+        **market_data.params_fields(universe_tag),
         **_dd_params(),
     }, indent=2))
 
@@ -402,7 +402,7 @@ def _write_stop(M, stop_rows, stop_curves, stop_audits, bd, bh, halves,
         "reference": "equal-weight buy & hold of the same universe, same panel",
         "constants": {**consts, "REBAL": _reb},
         "git_state": _git_state(),
-        "data_source": _config.data_fingerprint(
+        "data_source": model.data_fingerprint(
             settings.REGISTRY[universe_tag].prepare_data_dir(),
             settings.REGISTRY[universe_tag].raw_data_dir),
         "run_date": str(pd.Timestamp.today().date()),
@@ -411,7 +411,7 @@ def _write_stop(M, stop_rows, stop_curves, stop_audits, bd, bh, halves,
            if costs.gate_status() else {}),
         # PIT RUNS ONLY: the validator verdict, residual survivorship and the
         # look-ahead note. Absent in a static run.
-        **_survivorship.params_fields(universe_tag),
+        **market_data.params_fields(universe_tag),
         **_dd_params(),
     }, indent=2))
     _wrote.append(M / f"v34_stop_params{SFX}.json")
@@ -500,8 +500,7 @@ def run_v34(M, universe_label, universe_tag, px, op, sc, bd, pc, mom20,
                                                         tax_enabled=_taxon, **_capkw)
     # THE BUY & HOLD BASKET: every name in static mode; in pit mode the members on
     # the first pit rebalance, bd[0] (owner's decision, 2026-10-10).
-    import survivorship as _sv, engine_core as _ec
-    bh = start_capital * (1 + _sv.buyhold_prices(px, bd[0], _ec.MEMBERSHIP)
+    bh = start_capital * (1 + market_data.buyhold_prices(px, bd[0], market_data.MEMBERSHIP)
                           .pct_change().loc[bd].mean(axis=1).fillna(0)).cumprod()
 
     # ONE TABLE DRIVES CURVES, AUDITS, ROWS AND THE EQUITY COLUMNS, so an arm
@@ -673,10 +672,8 @@ def run_arm(u, arm, rebal=None, out_dir=None):
     The construction is the same as the engines': close/open/score pivots, the
     universe's own window, precompute, 20-day momentum.
     """
-    import config
     import settings
-    from engine_core import precompute
-    import engine_core
+    from market_data import precompute
     from test_exposure import backtest_exposure, START_CAPITAL
 
     # THE CADENCE IS PART OF THE OUTPUT PATH. Without it a --rebal 40 run wrote
@@ -687,8 +684,8 @@ def run_arm(u, arm, rebal=None, out_dir=None):
     # THE GUARD IS LOADED PER UNIVERSE, HERE, because this is where the
     # universe is known. engine_core holds it (beside MEMBERSHIP) and
     # backtest_exposure reads it directly, so every call site inherits it.
-    engine_core.set_tradeability(u)
-    src = config.require_cache(u.score_cache,
+    market_data.set_tradeability(u)
+    src = model.require_cache(u.score_cache,
                                what=f"{u.label} score panel")
     p = read_table(src, parse_dates=["date"])
     px = p.pivot_table(index="date", columns="symbol", values="close").ffill()
@@ -722,9 +719,8 @@ def run_arm(u, arm, rebal=None, out_dir=None):
 
     # THE BUY & HOLD BASKET: every name in static mode; in pit mode the members on
     # the first pit rebalance, bd[0] (owner's decision, 2026-10-10).
-    import survivorship as _sv, engine_core as _ec
     from settings import capital_axis as _capital_axis
-    bh = _capital_axis.selected() * (1 + _sv.buyhold_prices(px, bd[0], _ec.MEMBERSHIP)
+    bh = _capital_axis.selected() * (1 + market_data.buyhold_prices(px, bd[0], market_data.MEMBERSHIP)
                           .pct_change().loc[bd].mean(axis=1).fillna(0)).cumprod()
     # A stop arm is not always invested: its share is the mean target exposure over
     # the rebalance grid, 0 on the days the stop holds it in cash, as for v2 and v4.
@@ -815,7 +811,7 @@ def run_arm(u, arm, rebal=None, out_dir=None):
         "trading_days": int(len(bd)),
         "deployed_pct": round(float(dep), 1),
         "git_state": _git_state(), "run_date": str(pd.Timestamp.today().date()),
-        **_survivorship.params_fields(u.tag),
+        **market_data.params_fields(u.tag),
         **_dd_params(),
     }, indent=2))
 

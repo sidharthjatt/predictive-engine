@@ -1015,7 +1015,7 @@ def closed_lots(path):
     account moved by; our slippage is a price move, not a cost, so there is no
     sense in which a clean price was ever paid.
     """
-    from config import read_table  # lazy: this module is imported without the repo root on sys.path
+    from market_data import read_table  # lazy: this module is imported without the repo root on sys.path
     if not Path(path).exists():
         return None
     tr = read_table(path, parse_dates=["date"]).sort_values("date")
@@ -1541,10 +1541,10 @@ def cap_kwargs(u, vol20=None):
         _imp.check_profile()
         return {"participation_cap": None}
     import settings as _cfg
-    import tradability as _tr
-    from engine_core import _load_calendar
+    import market_data
+    from market_data import _load_calendar
     if vol20 is None:
-        vol20 = _tr.median_volume(u.prepare_data_dir(), _load_calendar(),
+        vol20 = market_data.median_volume(u.prepare_data_dir(), _load_calendar(),
                                   _cfg.BT_START_DATE, _cfg.BT_END_DATE)
     kw = {"participation_cap": cap, "vol20": vol20}
     if not _imp.is_default():
@@ -1793,13 +1793,13 @@ def _capacity_raw(raw_dir, sym, cache):
     no NSE row. The close is every row's."""
     key = (str(raw_dir), sym)
     if key not in cache:
-        import config
+        import market_data
         import settings
         f = Path(raw_dir) / f"{sym}.csv"
         if not f.exists():
             cache[key] = None
         else:
-            d = config.read_price_csv(f).set_index("date").sort_index()
+            d = market_data.read_price_csv(f).set_index("date").sort_index()
             nse = (d["exchange"] == "NSE") if "exchange" in d.columns else False
             tv = (d["close"] * d["volume"]).where(nse)
             cache[key] = (d["close"], tv.rolling(20, min_periods=1).mean().shift(1))

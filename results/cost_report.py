@@ -612,7 +612,7 @@ BOOK_TITLES = {"held": "buy & hold, held to the end",
 def read_run_costs(M, tag):
     """(fills, years) as write() saved them for `tag`, in the frames strategy_totals reads."""
     M = Path(M)
-    from config import read_table
+    from market_data import read_table
     # `tag` is audit_step.artefact_tag(u, arm), passed in by make_daily_log
     fills = read_table(M / f"COSTS_{tag}.csv", parse_dates=["date"]).rename(columns={"stt": "stt_ctt"})
     # `tag` is audit_step.artefact_tag(u, arm), passed in by make_daily_log

@@ -33,10 +33,10 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "results"))
 import settings
-from config import read_table  # the one CSV/parquet reader: config.read_table
-from numerics import rolling_std  # platform-identical variance: results/numerics.py
+from market_data import read_table  # the one CSV/parquet reader: market_data.read_table
+from market_data import rolling_std  # platform-identical variance: market_data.py
 
-# Inlined from engine_core.precompute so this script does not need lightgbm.
+# Inlined from market_data.precompute so this script does not need lightgbm.
 VOL_WIN = 60
 def precompute(px, vol_win=VOL_WIN):
     return {"vol": rolling_std(px.pct_change(), vol_win) * np.sqrt(252)}

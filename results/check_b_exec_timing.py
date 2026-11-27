@@ -40,7 +40,7 @@ sys.path.insert(0, str(ROOT / "nautilus"))
 
 import numpy as np
 import pandas as pd
-import config
+import model
 import settings
 from settings import REGISTRY, gated
 
@@ -88,7 +88,7 @@ from costs import SLIPPAGE, fill_price  # noqa: E402
 # audit_step.artefact_tag, the writer's rule (v2 unsuffixed, others _v1/_v3/_v4).
 import arms.registry as _arm_reg
 from nt_run import reports_segment as _reports_segment
-from config import read_table  # the one CSV/parquet reader: config.read_table
+from market_data import read_table  # the one CSV/parquet reader: market_data.read_table
 
 
 def _decisions(u, arm):
@@ -149,7 +149,7 @@ def run(uni, arm, fills_p, sc_p, dec_p, label, W):
     # pipeline's run quoted, warm-up included.
     import nt_data
     import nt_run
-    pxf, opf = nt_data.load_panel(config.require_cache(sc_p, what=f"{uni} panel"))
+    pxf, opf = nt_data.load_panel(model.require_cache(sc_p, what=f"{uni} panel"))
     q_start = pd.Timestamp(settings.BT_START_DATE) - pd.Timedelta(days=nt_run.WARMUP_DAYS)
     q_end = pd.Timestamp(nt_run.UNIVERSES[uni]["end"])
     Q = {s: nt_data.quote_frame(s, pxf, opf, q_start, q_end).set_index("date")

@@ -44,12 +44,13 @@ import matplotlib.pyplot as plt
 from matplotlib.ticker import PercentFormatter
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-import config
+import market_data
+import model
 import settings
 import arms.registry as arm_reg
 from settings import cadence
-import survivorship as sv
-from config import read_table  # the one CSV/parquet reader: config.read_table
+import market_data
+from market_data import read_table  # the one CSV/parquet reader: market_data.read_table
 
 
 # ---------------------------------------------------------------------------
@@ -167,7 +168,7 @@ def equity_path_and_series(M, tag, arm_name):
     and plots nothing, which is the correct outcome: a chart with a curve missing
     is a visible defect, and a chart with the wrong curve is not.
     """
-    from config import read_table  # lazy: this module is imported without the repo root on sys.path
+    from market_data import read_table  # lazy: this module is imported without the repo root on sys.path
     M = Path(M)
     # A STOP ARM'S CURVE IS IN THE COMPANION FILE, and only there.
     if arm_name in arm_reg.STOP_ARMS:
@@ -415,7 +416,7 @@ def main(u):
     def score_panel_path():
         """This universe's score panel, resolved through the shared guard so a
         missing cache reports which file is absent instead of crashing mid-run."""
-        return config.require_cache(u.score_cache,
+        return model.require_cache(u.score_cache,
                                     what=u.engine_text["panel_what"])
     M = Path(u.metrics_dir)
     CAP = 1_000_000
@@ -429,7 +430,7 @@ def main(u):
     _v1 = arm_reg.equity_series(eq, "v1")
     params = json.loads((_ci(M/"v2FINAL_params.json")).read_text())
     inv = params["avg_exposure_pct"]
-    idx_raw = (config.read_price_csv(u.index_file)[["date","close"]].dropna()
+    idx_raw = (market_data.read_price_csv(u.index_file)[["date","close"]].dropna()
                .set_index("date")["close"].sort_index())
     s = idx_raw.reindex(eq.index.union(idx_raw.index)).ffill().reindex(eq.index)
     index = CAP*s/s.iloc[0]
@@ -440,7 +441,7 @@ def main(u):
     _syms = sorted(u.symbols())
     _raw = u.prepare_data_dir()
     for sym in _syms:
-        d = config.read_price_csv(_raw/f"{sym}.csv")[["date","close"]].dropna()
+        d = market_data.read_price_csv(_raw/f"{sym}.csv")[["date","close"]].dropna()
         if d["date"].min() > CUT:
             late.append(sym)
         else:
@@ -675,7 +676,7 @@ def main(u):
     def _sub(arms):
         held = ", ".join(f"{n} holds {d[3]:.0f}% invested" for n, d in arms.items())
         return (_window_label(eq) + "\n" + _subtitle(dict(_vals, held=held))
-                + sv.describe_state())
+                + market_data.describe_state())
 
     # ONE SUBTITLE FOR EVERY UNIVERSE, from the registry and this run's axes.
     # The eight per-universe versions it replaces claimed a direction for the

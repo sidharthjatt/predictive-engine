@@ -66,7 +66,7 @@ FileNotFoundError.
 # `os` pulls in no numeric library.
 #
 # WHY 1 AND NOT A LARGER NUMBER. Parallelism in this pipeline is at the PROCESS
-# level -- joblib runs one process per seed and engine_core._fit_seed already
+# level -- joblib runs one process per seed and model._fit_seed already
 # passes n_jobs=1 -- so pinning the thread count to 1 costs no wall clock while
 # removing every intra-library reduction-order effect. Threads are what make a
 # floating-point sum order-dependent; one thread has one order.
@@ -122,7 +122,7 @@ STEP_HELPERS = {
     # step 3 merge the two build_scores rows name the same script, so they share
     # this entry rather than needing one each. STEP_HELPERS shrinks with every
     # pair the collapse merges; that is the shape, not a special case.
-    "build_scores.py":       (R / "build_scores_step.py",),
+    "build_scores.py":       (ROOT / "model.py",),
 }
 
 

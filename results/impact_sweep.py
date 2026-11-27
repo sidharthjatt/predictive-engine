@@ -54,9 +54,10 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "results"))
 
-import config
+import model
 import settings                                    # noqa: E402
-import engine_core                               # noqa: E402
+import engine_core
+import market_data                               # noqa: E402
 from arms.registry import ARMS                   # noqa: E402
 from settings import impact_axis                               # noqa: E402
 from settings import pcap_axis                                 # noqa: E402
@@ -64,7 +65,7 @@ import costs
 import settings                                  # noqa: E402
 from test_exposure import backtest_exposure      # noqa: E402
 from settings import REGISTRY          # noqa: E402
-from config import read_table  # the one CSV/parquet reader: config.read_table
+from market_data import read_table  # the one CSV/parquet reader: market_data.read_table
 
 K_VALUES = (0.001, 0.002, 0.003, 0.005)
 CAPS = (1.00, 0.10)
@@ -80,14 +81,14 @@ CAPS = (1.00, 0.10)
 def panel(tag):
     u = REGISTRY[tag]
     # The row rule the engines load for this universe (results/tradability.py).
-    engine_core.set_tradeability(u)
-    src = config.require_cache(u.score_cache, what=f"{tag} score panel")
+    market_data.set_tradeability(u)
+    src = model.require_cache(u.score_cache, what=f"{tag} score panel")
     p = read_table(src, parse_dates=["date"])
     px = p.pivot_table(index="date", columns="symbol", values="close").ffill()
     op = p.pivot_table(index="date", columns="symbol", values="open").ffill()
     sc = p.pivot_table(index="date", columns="symbol", values="score")
     bd = px.index[(px.index >= settings.BT_START_DATE) & (px.index <= settings.BT_END_DATE)]
-    pc = engine_core.precompute(px)
+    pc = market_data.precompute(px)
     mom20 = px / px.shift(20) - 1
     # the tradeable profile's volume series, loaded once and reused by every cell
     _select(1.00, None)

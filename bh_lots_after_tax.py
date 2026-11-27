@@ -47,17 +47,17 @@ import sys; from pathlib import Path
 ROOT=Path(__file__).resolve().parent
 for p in (ROOT,ROOT/"results",ROOT/"nautilus"): sys.path.insert(0,str(p))
 import numpy as np, pandas as pd
-import config
+import model
 import costs
-import engine_core
+import market_data
 from settings import cadence
 import settings
-from engine_core import precompute
+from market_data import precompute
 from test_exposure import backtest_exposure
 from costs import calc_tc, SLIPPAGE
 from settings import capital_axis  # noqa: E402
 from settings import REGISTRY
-from config import read_table  # the one CSV/parquet reader: config.read_table
+from market_data import read_table  # the one CSV/parquet reader: market_data.read_table
 HALVES=[("2019-2022",2019,2022),("2023-2026",2023,2026)]
 
 # ---------------------------------------------------------------------------
@@ -119,7 +119,7 @@ def bh_lots(px,op,bd):
 
 
 # EVERYTHING BELOW RAN AT IMPORT UNTIL 2026-09-18, AND THAT WAS A DEFECT RATHER
-# THAN A STYLE. This loop calls config.require_cache() on EVERY registered
+# THAN A STYLE. This loop calls model.require_cache() on EVERY registered
 # universe, so the module could only be imported on a machine where every
 # universe had already been run. Registering midcap50 -- a universe this file has
 # nothing to say about, and which it would have reported on for the first time
@@ -175,8 +175,8 @@ def main(u):
         print(f" {an} AFTER TAX vs BUY & HOLD AFTER TAX   (bh_lots: equal-rupee once, "
               "no rebalance, held to the end)")
         print("="*96)
-        engine_core.set_tradeability(u)
-        p=read_table(config.require_cache(u.score_cache,what=tag),parse_dates=["date"])
+        market_data.set_tradeability(u)
+        p=read_table(model.require_cache(u.score_cache,what=tag),parse_dates=["date"])
         px=p.pivot_table(index="date",columns="symbol",values="close").ffill()
         op=p.pivot_table(index="date",columns="symbol",values="open").ffill()
         sc=p.pivot_table(index="date",columns="symbol",values="score")
@@ -195,8 +195,7 @@ def main(u):
         bh_eq,bh_tx,det=bh_lots(px,op,bd)
         bh_last=det["eq_last_day"]
         # The basket: every name in static mode, the members on bd[0] in pit mode.
-        import survivorship as _sv, engine_core as _ec
-        bh_pub=capital_axis.selected()*(1+_sv.buyhold_prices(px,bd[0],_ec.MEMBERSHIP)
+        bh_pub=capital_axis.selected()*(1+market_data.buyhold_prices(px,bd[0],market_data.MEMBERSHIP)
                               .pct_change().loc[bd].mean(axis=1).fillna(0)).cumprod()
 
         # SINCE 2026-09-25 NOTHING IS SETTLED HERE. The engine settles the last,

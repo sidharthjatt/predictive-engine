@@ -40,10 +40,10 @@ import pandas as pd
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "results"))
-import config
+import model
 import settings
 from settings import REGISTRY
-from config import read_table  # the one CSV/parquet reader: config.read_table
+from market_data import read_table  # the one CSV/parquet reader: market_data.read_table
 
 OUT_DIR = Path(__file__).resolve().parent / "data"
 # Date window from config.py. The old year cut emitted June-2026 rows that
@@ -123,7 +123,7 @@ def main():
         if tag not in _sel_u:
             print(f"  {tag}: not in this run's selection -- not exported")
             continue
-        # config.require_cache, LIKE EVERY OTHER CONSUMER OF A PERMANENT PANEL.
+        # model.require_cache, LIKE EVERY OTHER CONSUMER OF A PERMANENT PANEL.
         # v34_common, validate_engine, make_chart, engine_v2_final
         # and eight study scripts all resolve the two locations through it; this
         # file was the one hold-out, reading u.score_cache with no fallback, and
@@ -135,7 +135,7 @@ def main():
         # before this step is what makes the permanent copy the fresh one. The
         # fallback only matters if that ordering is ever broken again, and then it
         # produces correct output from /tmp instead of stopping the pipeline.
-        src = config.require_cache(u.score_cache,
+        src = model.require_cache(u.score_cache,
                                    what=f"{u.label} score panel")
         rows[tag] = len(export(Path(src), settings.nautilus_scores(u), u.label))
     print(f"\n{'=' * 66}")

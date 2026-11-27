@@ -367,7 +367,7 @@ def condition_4():
     import costs
     import bh_held
     import test_exposure as TE
-    from engine_core import precompute
+    from market_data import precompute
 
     print("\n  CONDITION 4 -- end-of-window settlement and the last-day sale")
 

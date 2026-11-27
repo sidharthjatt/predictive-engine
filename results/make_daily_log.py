@@ -22,8 +22,8 @@ import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-import survivorship as sv
-import config
+import market_data
+import market_data
 import settings
 from settings import list_dir
 
@@ -42,7 +42,7 @@ TOP_N, BUFFER = settings.TOP_N, settings.BUFFER
 # rest surfaces as a reconciliation failure elsewhere, not as a wrong
 # number here. Value unchanged at 0.0015.
 from costs import SLIPPAGE  # noqa: E402
-from config import read_table  # the one CSV/parquet reader: config.read_table
+from market_data import read_table  # the one CSV/parquet reader: market_data.read_table
 CASH_YIELD = 0.0        # must match test_exposure.py
 from settings import capital_axis as _capital_axis  # noqa: E402
 # THE DEFAULT, defined once in settings.capital_axis. A run's capital is
@@ -231,15 +231,15 @@ def legend_for(arm):
 def raw_row_index(u):
     """{symbol: set of dates that have a RAW price row}, restricted to the calendar.
 
-    Dates come from config.read_price_csv, which routes through
-    config.smart_parse_dates -- the supplier folders do not all use one date
+    Dates come from market_data.read_price_csv, which routes through
+    market_data.smart_parse_dates -- the supplier folders do not all use one date
     format, and a hardcoded strptime silently drops whole universes.
 
     The calendar restriction matters in both directions: 70 of the 148 MidCap150
     files carry market-holiday rows that are not sessions, and counting one of
     those as "a raw row exists" would hide a genuine gap.
     """
-    from engine_core import _load_calendar
+    from market_data import _load_calendar
     cal = _load_calendar()
     idx = {}
     try:
@@ -248,7 +248,7 @@ def raw_row_index(u):
         return None, None
     for f in list_dir(src, "*.csv"):
         try:
-            d = config.read_price_csv(f)
+            d = market_data.read_price_csv(f)
         except Exception:
             continue
         if "date" not in d.columns:
@@ -509,7 +509,7 @@ def build(mdir, tag, arm, bh, raw_idx=None, cal_sorted=None, op=None):
          # Stated in the header of every universe's log, so a reader who opens this
          # file six months from now sees how the universe was constructed before
          # they see a single number from it.
-         f" Survivorship    : {sv.describe_state()}",
+         f" Survivorship    : {market_data.describe_state()}",
          "=" * W, legend_for(arm), "=" * W]
 
     # THE MISSING TERM IN THE CASH IDENTITY. Empty dict under tax=off.
@@ -951,7 +951,6 @@ def main():
     guard whether or not a main() exists. The first full in-process run stopped
     here with AttributeError. The statements below are the guard's, in order.
     """
-    import config
     import settings
     from settings import REGISTRY, universe_axis
     print("Building forensic daily logs...")
@@ -1016,8 +1015,7 @@ def main():
         if _t in SEL:
             # PIT RUNS: this step loops over universes itself, so it sets each
             # universe's membership here; None in a static run.
-            import engine_core as _ec
-            _ec.MEMBERSHIP = _ec.membership_for(REGISTRY[_t])
+            market_data.MEMBERSHIP = market_data.membership_for(REGISTRY[_t])
             _logs_for(REGISTRY[_t], REGISTRY[_t].metrics_dir)
         else:
             print(f"  {_t} not selected for this run -- skipping its daily log")

@@ -58,7 +58,7 @@ from pathlib import Path
 import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-import config
+import model
 import settings
 from settings import list_dir
 
@@ -70,7 +70,7 @@ from nautilus_trader.model.enums import BookAction, OrderSide
 from nautilus_trader.model.identifiers import InstrumentId, Symbol, Venue
 from nautilus_trader.model.instruments import Equity
 from nautilus_trader.model.objects import Price, Quantity
-from config import read_table  # the one CSV/parquet reader: config.read_table
+from market_data import read_table  # the one CSV/parquet reader: market_data.read_table
 from costs import fill_price
 
 VENUE = Venue("NSE")
@@ -140,7 +140,7 @@ def set_volume_source(raw_dir, symbols=None):
     nt_data already reads bars from.
     """
     global _VOLUME
-    import config as _cfg
+    import market_data
     import settings
     _VOLUME = {}
     raw_dir = Path(raw_dir)
@@ -148,7 +148,7 @@ def set_volume_source(raw_dir, symbols=None):
         if symbols is not None and f.stem not in symbols:
             continue
         try:
-            d = _cfg.read_price_csv(f)
+            d = market_data.read_price_csv(f)
         except Exception:
             continue
         if "volume" not in d.columns:
@@ -341,13 +341,13 @@ def load_universe(cache_path, start, end, symbols=None, slippage: float = 0.0):
 
 if __name__ == "__main__":
     # Smoke test: 3 stocks, one month. Verifies parsing, paisa rounding and ordering.
-    # Reads the first certified universe's score panel through config.require_cache,
+    # Reads the first certified universe's score panel through model.require_cache,
     # which refuses a panel built from other code or other data.
-    import config
+    import model
     import settings
     from settings import certified
     _u = certified()[0]
-    cache = config.require_cache(_u.score_cache, what=f"{_u.tag} score panel")
+    cache = model.require_cache(_u.score_cache, what=f"{_u.tag} score panel")
     px, _ = load_panel(cache)
     syms = sorted(px.columns)[:3]
     print(f"Smoke test on {syms}, Jan 2020\n")

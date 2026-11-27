@@ -35,7 +35,7 @@ THE RULE THE ENGINE APPLIES, SINCE 2026-10-16: sessions_with_row()
     close, on the trading calendar. On any other session nothing in it is bought or
     sold. A held name keeps its position, valued at its last close, and a sale due
     on such a session waits for the next session with a row, at that session's
-    open. engine_core.tradeable_on(symbol, dt) asks only whether `dt` itself has a
+    open. market_data.tradeable_on(symbol, dt) asks only whether `dt` itself has a
     row, so no decision reads a row dated after it.
 
     UNTIL 2026-10-16 THE ENGINE USED untradeable() BELOW, AND IT LOOKED AHEAD. It
@@ -47,95 +47,15 @@ THE RULE THE ENGINE APPLIES, SINCE 2026-10-16: sessions_with_row()
 
 READ-ONLY AGAINST THE RAW DATA. Nothing here changes a price.
 """
+import sys
 from pathlib import Path
 
-import config
+# The repository root, for settings, costs, market_data and model when this file runs as a script.
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import settings
-from config import read_table  # the one CSV/parquet reader: config.read_table
+from market_data import read_table  # the one CSV/parquet reader: market_data.read_table
 from settings import list_dir
-
-def sessions_with_row(data_dir, cal):
-    """{symbol: frozenset(sessions on which the symbol has a row)}.
-
-    A row is a calendar session with an open and a close above zero: the rows
-    engine_core.build_panel keeps as prices, measured equal to the panel's own
-    (date, symbol) pairs on 2026-10-16. A symbol is tradeable on `dt` only if `dt`
-    is in its set. The set is built once from the whole file, but the only
-    question asked of it is about one date at a time, so no answer depends on a
-    later row.
-    """
-    out = {}
-    for f in list_dir(data_dir, "*.csv"):
-        d = config.read_price_csv(f)
-        if "date" not in d.columns:
-            continue
-        ok = d["date"].isin(cal)
-        for c in ("open", "close"):
-            if c in d.columns:
-                ok &= d[c] > 0
-        out[f.stem] = frozenset(d.loc[ok, "date"])
-    return out
-
-
-def median_volume(data_dir, cal, lo=None, hi=None, win=20):
-    """{symbol: {date: prior-`win`-session MEDIAN volume}} -- the cap's denominator.
-
-    PRIOR, so the cap never uses the day's own volume -- that would be look-ahead
-    on the very quantity the cap exists to constrain. MEDIAN rather than mean,
-    because one block trade should not licence a large fill: AIIL's mean is dragged
-    up by occasional 300,000-share days against a median of 1,272.
-
-    THE `win` SESSIONS BEFORE `lo` ARE READ, and the result is then cut to `lo`
-    onwards. Until 2026-10-14 the data was cut at `lo` before the rolling median,
-    so no symbol had a median in the window's first `win` sessions and every
-    first-rebalance buy went uncapped. The extra rows are all before the date they
-    serve, so the shift still keeps the day's own volume out.
-    """
-    import pandas as pd
-    out = {}
-    for f in list_dir(data_dir, "*.csv"):
-        d = config.read_price_csv(f)
-        if "volume" not in d.columns:
-            continue
-        d = d[d["date"].isin(cal)].sort_values("date")
-        if hi is not None:
-            d = d[d["date"] <= hi]
-        if lo is not None:
-            d = pd.concat([d[d["date"] < lo].tail(win), d[d["date"] >= lo]])
-        med = d["volume"].rolling(win).median().shift(1)
-        if lo is not None:
-            keep = (d["date"] >= lo).to_numpy()
-            d, med = d[keep], med[keep]
-        out[f.stem] = dict(zip(d["date"], med))
-    return out
-
-
-# ---------------------------------------------------------------------------
-# STUCK POSITIONS. Was results/stuck_positions.py until 2026-10-18 (last at aebf1da).
-# ---------------------------------------------------------------------------
-# stuck_positions.py -- holdings whose price file ends before the window does.
-#
-# Under the row rule (results/tradability.py) a name is sold only on a session with
-# a row. A sale owed on a name whose file has ended never fills, so the name is held
-# to the window's end, valued at its last close (owner's decision, 2026-10-16). That
-# value is an assumption: the repository does not record why such a file ends.
-#
-# For every cell that still holds such a name on its last session, this reports the
-# shares and the value they are held at, and the end equity, CAGR and maximum
-# drawdown if the position were valued at zero from the first session after its last
-# row. It is arithmetic on the cell's own daily_holdings and daily_summary files,
-# with the CAGR and drawdown formulas of engine_core.metrics; nothing is rerun. Tax
-# already charged is left as it is: the zero valuation changes no realised gain.
-#
-# run.py prints these lines in the run log and writes them to RUN.txt. A cell with no
-# such holding gets no line, so every other RUN.txt is unchanged.
-
-def last_rows(u):
-    """{symbol: its last session with a row} for universe `u`."""
-    import engine_core
-    import tradability
-    rows = tradability.sessions_with_row(u.prepare_data_dir(), engine_core._load_calendar())
-    return {s: max(d) for s, d in rows.items() if d}
+from market_data import last_rows
 
 
 def _cagr(e):

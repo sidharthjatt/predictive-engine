@@ -50,25 +50,25 @@ for _p in (str(ROOT), str(ROOT / "results")):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
-import config
+import model
 import settings                                    # noqa: E402
-from engine_core import precompute
+from market_data import precompute
 import arms.registry as arm_reg
 from settings import cadence               # noqa: E402
 from test_exposure import backtest_exposure      # noqa: E402
 import costs
 import settings            # the run's execution-realism profile
-from config import read_table  # the one CSV/parquet reader: config.read_table
+from market_data import read_table  # the one CSV/parquet reader: market_data.read_table
 
 
 def panel_path(u):
-    """The score panel, through config.require_cache.
+    """The score panel, through model.require_cache.
 
     Until 2026-09-23 this returned whichever copy existed WITHOUT checking what it
     was built from, so the audit was the one reader a stale panel passed
     silently. It now goes through the same content-key check as every other.
     """
-    return config.require_cache(u.score_cache, what=f"{u.tag} score panel")
+    return model.require_cache(u.score_cache, what=f"{u.tag} score panel")
 
 
 def prices(u):
@@ -252,8 +252,8 @@ def run(u, arm=None):
     # every owed sale and refused buy, and this step would
     # correctly refuse to write -- so the audit would vanish for a reason that is
     # not a fault.
-    import engine_core as _ec
-    _ec.set_tradeability(u)
+    import market_data
+    market_data.set_tradeability(u)
     px, op, sc, bd = prices(u)
     pc = precompute(px)
     mom20 = px / px.shift(20) - 1

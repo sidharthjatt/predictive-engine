@@ -89,7 +89,7 @@ the noise test supported, measured on the research tax-on run of 2026-10-14, on 
 tax ledger since 2026-10-14):
 - The supplier's membership files (`data/raw/Survivorship_Bias/`) are not point-in-time.
   Their symbols column is today's list edited backwards (the 2018 Nifty 50 rows list
-  JIOFIN, listed 2023), and all nine fail `survivorship.validate`. Only their
+  JIOFIN, listed 2023), and all nine fail `market_data.validate`. Only their
   inclusion and exclusion events are usable, and those miss scheduled reviews: none of
   the files records the 2024-09 or 2025-03 reconstitution, and the six universes with a
   supported cell miss 6 to 9 of the 15 reviews in the window.
@@ -108,7 +108,7 @@ tax ledger since 2026-10-14):
 
 `run.py --survivorship pit` (SURVIVORSHIP_README.md, "Pit runs in this repository")
 reads the supplier's membership files as delivered. All nine fail
-`survivorship.validate`: inclusions and exclusions disagree with the symbols column,
+`market_data.validate`: inclusions and exclusions disagree with the symbols column,
 and some excluded names are still listed in the same row. The owner decided on
 2026-10-10 that pit runs go ahead on them, with the symbols column of each row as the
 membership until the next row. Every pit run writes the verdict, the members it could
@@ -367,7 +367,7 @@ the pre-repoint nifty100 measurement and have not been re-derived.
 ### The seed ensemble reduces variance far less than independent seeds would
 
 The production score is the mean of ten LightGBM fits that differ only in seed
-(`SEEDS` in `results/build_scores_step.py`). An ensemble of independent models
+(`SEEDS` in `model.py`). An ensemble of independent models
 has error falling as K^-0.5. When this was measured (2026-09-02, 40 seeds,
 nifty100 and midcap150, `results/seed_noise_measure.py`) the fitted exponent was
 between -0.15 and -0.25 on every arm: seed-to-seed variation is mostly shared, so
@@ -940,7 +940,7 @@ Checks 1, 2 and 4 are wired into `check_all.py`, but none of them would catch a 
 
 ### `results/leakage_check2_purge.py` is retired; the live purge rule is tested by the trading-day check
 
-`leakage_check2_purge.py` builds the training cut by calendar days. The engine uses `purge_mode="trading"` (`engine_core.score_monthly`), so this script audits a path production does not take. It stays in the tree as the record of the calendar rule, and `check_all.py` lists it under `RETIRED_DELEGATES`. Do not wire it.
+`leakage_check2_purge.py` builds the training cut by calendar days. The engine uses `purge_mode="trading"` (`model.score_monthly`), so this script audits a path production does not take. It stays in the tree as the record of the calendar rule, and `check_all.py` lists it under `RETIRED_DELEGATES`. Do not wire it.
 
 The live rule is checked by `results/leakage_check2_trading_purge.py`, which is wired and passing. It calls `score_monthly` itself and finds a gap of exactly `PURGE_EMBARGO` = 2 trading days in every month (`diagnostics/leakage_check2_trading_purge.txt`). The sentence in `diagnostics/gate_verdicts.txt:80` saying no script tests the live purge rule is out of date.
 
@@ -975,8 +975,8 @@ a data gap, look here first.
 ### Cross-platform identity is proven on one universe
 
 pandas grouped and rolling variance, and its default CSV float parser, gave different
-bits on macOS and Linux. The pipeline uses numpy replacements (`results/numerics.py`)
-and reads every CSV through `config.read_table` (`float_precision="round_trip"`).
+bits on macOS and Linux. The pipeline uses numpy replacements (`market_data.py`)
+and reads every CSV through `market_data.read_table` (`float_precision="round_trip"`).
 `code_checks.py platform_identity` (GATE 5) fails on any direct `pd.read_csv` or pandas
 rolling or grouped variance in a tracked file. On 2026-09-24, midcap50 v2 built on macOS
 arm64, linux/arm64 and linux/amd64 (the amd64 one under Rosetta) gave byte-identical
@@ -1030,20 +1030,20 @@ A correct measurement over the cases in hand, written as "every universe" or "no
 The ratio cleaning (`results/ratio_clean.py`, `experiments/DATA_CLEANING_SPEC.txt`) was removed. It decided whether to repair session t from up to five later sessions. adj_close is now used as delivered, with `canonical_price`'s close fallback only. Every published figure before 2026-10-22 was computed with the cleaning and the other leaks below, and is to be replaced, not rebuilt.
 
 Fixed the same day, each a read of a value dated after the decision:
-- Training labels: `fwd_ret` is the close 20 of the symbol's own rows ahead. A row is now used to train for a month only if its `label_end` is on or before the purge limit, two sessions before the month (`engine_core.training_set`). Before the fix nifty100 static had no such row; smallcap250 pit had 37 row-uses in 6 of 126 months, the furthest 25 sessions past the limit.
+- Training labels: `fwd_ret` is the close 20 of the symbol's own rows ahead. A row is now used to train for a month only if its `label_end` is on or before the purge limit, two sessions before the month (`model.training_set`). Before the fix nifty100 static had no such row; smallcap250 pit had 37 row-uses in 6 of 126 months, the furthest 25 sessions past the limit.
 - The training target `y_rank` is ranked per month over the labels that had ended by the limit. It was ranked once over every label in `build_panel`.
 - `amihud_20` uses the unadjusted close times volume. adj_close is back-adjusted for later dividends and volume is not.
 - Pit cross-sections: the z-score peer group, the equal-weight market behind `beta_60` and `idio_vol_60`, and v2/v4 breadth use only the members on the date.
 - `tv`, the median portfolio vol over the whole backtest window, is gone with the `voltgt` and `both` modes that read it. No arm used them.
 - `nautilus/nt_data.quote_frame` no longer back-fills the first month's tick reference from that month's own close. Those rows take the fixed `TICK_SIZE`; no fill falls on them. The dated tick itself was removed on 2026-10-28; see "Fill prices are rounded to the paisa, not placed on NSE's tick".
 
-THE Z-SCORE'S LAST BITS DEPENDED ON LATER DATES, FIXED 2026-10-22. `numerics.group_mean_std` laid every date's values into one matrix as wide as the largest cross-section of any date and reduced it with numpy's nanmean and nanvar. numpy splits each row for pairwise summation by the row's length, so every date's mean and sd, and therefore every z-scored feature, depended in its last bits on the widest later cross-section. `tools/lookahead_proof.py` found it on its first run: nifty50 static with data after 2019-03-29 removed changed the 2009 features in the 15th to 16th significant digit and moved model scores in the third decimal. Each date's sum is now `math.fsum`, which depends only on that date's values and is the same on every platform.
+THE Z-SCORE'S LAST BITS DEPENDED ON LATER DATES, FIXED 2026-10-22. `market_data.group_mean_std` laid every date's values into one matrix as wide as the largest cross-section of any date and reduced it with numpy's nanmean and nanvar. numpy splits each row for pairwise summation by the row's length, so every date's mean and sd, and therefore every z-scored feature, depended in its last bits on the widest later cross-section. `tools/lookahead_proof.py` found it on its first run: nifty50 static with data after 2019-03-29 removed changed the 2009 features in the 15th to 16th significant digit and moved model scores in the third decimal. Each date's sum is now `math.fsum`, which depends only on that date's values and is the same on every platform.
 
-PIT ROWS BEFORE THE FIRST EFFECTIVE DATE, FIXED 2026-10-22. No list is in force before the membership file's first effective date. Until 2026-10-22 `survivorship.member_mask` kept every row there, and those symbols are in the pit folder only because they are members on that date or later, so the training set and the cross-sections before that date were chosen by later membership. Now a row before the first date is kept only if its symbol is in the first list (`lists[0]`), and `test_exposure.breadth_momentum` uses the same rule. A pit run never decides before the first effective date, so the first list is known whenever it is used. Training-eligible rows before the first date:
+PIT ROWS BEFORE THE FIRST EFFECTIVE DATE, FIXED 2026-10-22. No list is in force before the membership file's first effective date. Until 2026-10-22 `market_data.member_mask` kept every row there, and those symbols are in the pit folder only because they are members on that date or later, so the training set and the cross-sections before that date were chosen by later membership. Now a row before the first date is kept only if its symbol is in the first list (`lists[0]`), and `test_exposure.breadth_momentum` uses the same rule. A pit run never decides before the first effective date, so the first list is known whenever it is used. Training-eligible rows before the first date:
 - smallcap250 pit (2016-04-29): 550,235 before, 300,591 after (137 symbols, all in the first list); 59.6% of training row-uses over 2016-01 to 2026-05 are still dated before it.
 - nifty100 pit (2006-09-01): 47,811 before, 38,323 after (63 symbols); 11.9% of training row-uses.
 
-The first list keeps the survivors of that list, which is the membership known on the first date. Rows after the first date for non-members never enter training. The membership files themselves carry look-ahead (`survivorship.LOOKAHEAD_NOTE`). Static mode is today's members throughout and is not point-in-time at all.
+The first list keeps the survivors of that list, which is the membership known on the first date. Rows after the first date for non-members never enter training. The membership files themselves carry look-ahead (`market_data.LOOKAHEAD_NOTE`). Static mode is today's members throughout and is not point-in-time at all.
 
 `results/leakage_check2_trading_purge.py` checks the label-end rule on the cached panels. Its earlier version recovered the latest training date and added 20 sessions on the panel calendar, which is right only for a symbol with no missing sessions, so it passed while the leak above existed.
 
@@ -1055,7 +1055,7 @@ The pipeline reads `data/raw/Final_Without_Survivorship_Data/`, twelve folders a
 
 ### PRIVISCL's removal lives only in data/raw/ and its manifests; check_all now checks them first
 
-PRIVISCL was removed from microcap250 on 2026-10-10 for bad price data (commit `730a0c2`). The removal is the absence of its two price files from `data/raw/` and of their lines from the manifests. No code excludes it: `Universe.prepare_data_dir()` (`settings.py`) rebuilds each constituent farm under `cache/` from every CSV in the raw folder, on every call. Panel freshness checks (`config.source_key_for`, `config.py:306`), several `check_all` delegates and GATE 8 all call it.
+PRIVISCL was removed from microcap250 on 2026-10-10 for bad price data (commit `730a0c2`). The removal is the absence of its two price files from `data/raw/` and of their lines from the manifests. No code excludes it: `Universe.prepare_data_dir()` (`settings.py`) rebuilds each constituent farm under `cache/` from every CSV in the raw folder, on every call. Panel freshness checks (`model.source_key_for`, `config.py:306`), several `check_all` delegates and GATE 8 all call it.
 
 On 2026-10-15, between 20:49 and 20:53, `data/raw/` was restored from an older copy that still held both PRIVISCL files. The next `check_all`, on 2026-10-16, linked PRIVISCL back into both microcap250 farms (242 static and 304 pit names). It then failed 11 checks: three steps refused the panels as stale, and GATE 8 found eight microcap250 artefacts' data digests no longer matched. No run, panel or output was written from the restored copy. The two raw files were deleted again on 2026-10-16 by the owner's decision, and the farms are back to 241 and 303 names.
 
@@ -1139,7 +1139,7 @@ The panel takes its dates from the rows, so it skips the session. The backtest w
 
 It is not the only change. Three earlier sessions also have no row in any file of the delivery: 2016-07-06, 2017-04-04 and 2017-12-02, which had rows in 493, 384 and 81 of the eight universes' files before. They are in the model's training history and in the rolling feature windows, so the scores differ from the first rebalance: on 2019-01-01 nifty50's scores moved by up to 0.030 and one of its top eight names changed (TCS out, GRASIM in). Holdings differ from the first rebalance in each of the three cells compared (nifty50 v2, nifty100 v4, smallcap250 v1). The two effects together moved every published figure; which of the two moved each cell more has not been separated.
 
-No guard stops it. `_check_calendar` (`results/engine_core.py`) tests only dates the calendar removes. `engine_core.thin_sessions` reports the other direction: `run.py` prints every calendar session inside the window where fewer than half of the names spanning it have a row, and writes them to the run folder's RUN.txt. It reports and changes nothing. On the 2026-10-10 data it lists 2020-01-07 alone, at 0% in every universe.
+No guard stops it. `_check_calendar` (`results/engine_core.py`) tests only dates the calendar removes. `market_data.thin_sessions` reports the other direction: `run.py` prints every calendar session inside the window where fewer than half of the names spanning it have a row, and writes them to the run folder's RUN.txt. It reports and changes nothing. On the 2026-10-10 data it lists 2020-01-07 alone, at 0% in every universe.
 
 ### The calendar density guard compares against the per-year median, which is weaker than the old rule
 
@@ -1157,7 +1157,7 @@ participation-cap code reads either.
   fall on non-trading days, and the panel is built over the NSE calendar, so they
   are never traded. That is the only protection. A different calendar or a vendor
   extract whose synthetic rows land on trading days would feed their volume
-  straight into `tradability.median_volume`, the cap's denominator.
+  straight into `market_data.median_volume`, the cap's denominator.
 - 17% to 28% of in-window trading-day rows score below 0.9, on large liquid names
   as well as small ones. Nothing is filtered, because the scale is undocumented.
 
@@ -1184,7 +1184,7 @@ On the 2026-10-16 data, interior gaps exist in microcap250 (static and pit), the
 Where `Universe.prepare_data_dir` cannot hard-link a raw file, it copies it with
 `shutil.copy2` and recopies only when size or mtime differ
 (settings.py). An in-place edit of a raw file that keeps both would
-leave a stale copy in the farm. `config.data_fingerprint` reports such a copy as coming
+leave a stale copy in the farm. `model.data_fingerprint` reports such a copy as coming
 from `raw_data_dir` (config.py:549). Hard links, the normal case, cannot go stale.
 
 ### Older outputs were deleted on 2026-10-10; diagnostics/ still carries older records
@@ -1268,7 +1268,7 @@ BSE rows as a share of rows from 2019-01-01 to 2026-05-29:
 most are flat bars (open, high, low and close equal), 1,163 of them with volume 0.
 
 **Where volume is used.**
-- Three of the 17 model features (`results/features_v2.py`): `amihud_20` (|return| over
+- Three of the 17 model features (`market_data.py`): `amihud_20` (|return| over
   close x volume, 20-day mean), `turnover_z` (5-day against 60-day mean volume) and
   `vol_price_div` (the direction of 5-day against 20-day mean volume). Every feature is
   then z-scored across stocks each day, so one stock's volume moves every stock's value
@@ -1657,7 +1657,7 @@ is kept outside the repository, in a git bundle the owner holds.
 
 - `tax_acceptance_check.py` creates two temporary directories per run
   (`tempfile.mkdtemp`, lines 81 and 130) and never removes them.
-- `settings.score_cache` still calls the score panel a `.csv`; `config.read_table`'s docstring
+- `settings.score_cache` still calls the score panel a `.csv`; `market_data.read_table`'s docstring
   names `csv_reader_check.py`, which no longer exists; `results/engine_v2_final.py:180`
   and `:261` and `results/make_chart.py:62` (moved from arm_sources.py:5) name the deleted `make_final_chart_fair.py`;
   `results/validate_engine.py:57` and `:380` mention `FINAL_val_*.csv`.
