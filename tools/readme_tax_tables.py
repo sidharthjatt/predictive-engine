@@ -29,7 +29,7 @@ for _p in (ROOT, ROOT / "results"):
 
 import arms.registry as arm_reg
 from config import read_table
-from universes.registry import REGISTRY, has_pit
+from settings import REGISTRY, has_pit
 
 BEGIN = "<!-- tax-on tables: written by tools/readme_tax_tables.py; do not edit by hand -->"
 END = "<!-- end of tax-on tables -->"

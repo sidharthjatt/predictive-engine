@@ -49,7 +49,8 @@ warnings.filterwarnings("ignore")
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "results"))
 import config
-from paths import list_dir
+import settings
+from settings import list_dir
 import survivorship as sv
 from features_v2 import (FEATS_V2, add_stock_features,
                          add_market_relative_features, cross_sectional_normalize)
@@ -170,11 +171,11 @@ NOT_CHECKED = "NOT CHECKED BY THIS RUN"
 # rest surfaces as a reconciliation failure elsewhere, not as a wrong
 # number here. Value unchanged at 0.0015.
 from slippage import SLIPPAGE, fill_price  # noqa: E402
-import capital_axis as _capital_axis  # noqa: E402
-# THE DEFAULT, defined once in capital_axis.py. A run's capital is
+from settings import capital_axis as _capital_axis  # noqa: E402
+# THE DEFAULT, defined once in settings.capital_axis. A run's capital is
 # capital_axis.selected(); this name stays for callers that want the default.
 START_CAPITAL = _capital_axis.DEFAULT
-M = config.METRICS_DIR
+M = settings.METRICS_DIR
 
 
 
@@ -365,8 +366,8 @@ def thin_sessions(data_dir, lo=None, hi=None, share=THIN_SESSION_SHARE):
     on or after it. Returns [(date, rows, spanning)], oldest first. Reads only the
     date column of each CSV in `data_dir`.
     """
-    lo = config.BT_START_DATE if lo is None else pd.Timestamp(lo)
-    hi = config.BT_END_DATE if hi is None else pd.Timestamp(hi)
+    lo = settings.BT_START_DATE if lo is None else pd.Timestamp(lo)
+    hi = settings.BT_END_DATE if hi is None else pd.Timestamp(hi)
     cal = pd.DatetimeIndex(sorted(d for d in _load_calendar() if lo <= d <= hi))
     if not len(cal):
         return []
@@ -704,7 +705,7 @@ PURGE_EMBARGO = 2
 def score_floor():
     """The first day of the first month score_monthly scores (start_axis.score_floor):
     three years before the backtest start, 2016-01-01 for the default start."""
-    import start_axis
+    from settings import start_axis
     return start_axis.score_floor()
 
 

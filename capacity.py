@@ -46,6 +46,7 @@ def _raw(raw_dir, sym, cache):
     key = (str(raw_dir), sym)
     if key not in cache:
         import config
+        import settings
         f = Path(raw_dir) / f"{sym}.csv"
         if not f.exists():
             cache[key] = None

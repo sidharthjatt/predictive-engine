@@ -13,7 +13,7 @@ TWO GATES, AND THE SECOND IS THE ONE THAT MATTERS
     which is the same defect as a commit message asserting completion without
     verifying it. So for every site declaring a non-empty axis set, this check
     proves the claim: it emits the site's name under a NON-DEFAULT selection and
-    requires the tail naming.py computes to actually appear. A declaration that
+    requires the tail settings.py computes to actually appear. A declaration that
     does not survive that is a FAILURE, and until this gate existed a declared site
     was worth no more than an undeclared one.
 
@@ -33,7 +33,7 @@ DIRECTIVE SYNTAX -- immediately above the write call, or on the enclosing `def`.
     # naming: arm,cadence,profile     this name varies over exactly these axes
     # naming: <axes> via <composer>   ... and <composer> is what builds it,
     #                                 checked against its MEASURED coverage in
-    #                                 naming.CARRIES, not against its name
+    #                                 settings.CARRIES, not against its name
     # naming: axis-free -- <reason>   invariant to every axis; reason required
     # naming: delegated -- <where>    path arrives from a caller that declares it
     # naming: DEFECT <axis> -- <why>  known to omit an axis it should carry
@@ -57,11 +57,11 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
-from paths import list_dir
+from settings import list_dir
 
 SKIP_DIRS = {"venv", ".git", "__pycache__", "node_modules"}
 SKIP_PREFIX = ("forensic_snapshot_",)
-SELF = {"naming.py", "naming_declare_check.py"}
+SELF = {"settings.py", "naming_declare_check.py"}
 WRITERS = {"to_csv", "savefig", "to_parquet", "dump", "to_json", "write_text"}
 
 DIRECTIVE = re.compile(r"#\s*naming:\s*(.+?)\s*$")
@@ -74,7 +74,7 @@ HONOUR_SELECTION = {"arms": ["v1", "v3"], "cadence": 40, "profile": "tradeable",
 # THE MEMBERSHIP LIST IS GONE. Gate 2 used to ask "does this expression mention a
 # blessed helper name?", which is a question about spelling. It now asks "does the
 # composer this expression uses actually carry every axis the site declared?",
-# which is a question about behaviour. naming.CARRIES holds the measured answer
+# which is a question about behaviour. settings.CARRIES holds the measured answer
 # per composer; see the audit recorded above it. An expression whose composer is
 # unknown carries nothing and fails -- a new helper must be measured before it can
 # certify anything.
@@ -209,31 +209,21 @@ def discover():
 
 
 def honour_probe():
-    """Prove naming.py itself moves under HONOUR_SELECTION before trusting it."""
-    import naming
+    """Prove settings.tail() moves under HONOUR_SELECTION before trusting it."""
     import arms.registry as ar
-    import cadence
-    import profiles
-    import tax
+    import settings
     ar.set_selection(HONOUR_SELECTION["arms"])
-    cadence.set_selection(HONOUR_SELECTION["cadence"])
-    profiles.set_selection(HONOUR_SELECTION["profile"])
-    tax.set_selection(HONOUR_SELECTION["tax"])
-    import survivorship_axis
-    survivorship_axis.set_selection(HONOUR_SELECTION["survivorship"])
-    import dd_axis
-    dd_axis.set_selection(dd_axis.make(HONOUR_SELECTION["dd"]))
-    import capital_axis
-    capital_axis.set_selection(HONOUR_SELECTION["capital"])
-    import impact_axis
-    impact_axis.set_selection(HONOUR_SELECTION["impact"])
-    import pcap_axis
-    pcap_axis.set_selection(HONOUR_SELECTION["pcap"])
-    import fixed_axis
-    fixed_axis.set_selection(HONOUR_SELECTION["fixed"])
-    import buy_shortfall
-    buy_shortfall.set_selection(HONOUR_SELECTION["buy_shortfall"])
-    return naming, naming.tail()
+    settings.cadence.set_selection(HONOUR_SELECTION["cadence"])
+    settings.profile_axis.set_selection(HONOUR_SELECTION["profile"])
+    settings.tax.set_selection(HONOUR_SELECTION["tax"])
+    settings.survivorship_axis.set_selection(HONOUR_SELECTION["survivorship"])
+    settings.dd_axis.set_selection(settings.dd_axis.make(HONOUR_SELECTION["dd"]))
+    settings.capital_axis.set_selection(HONOUR_SELECTION["capital"])
+    settings.impact_axis.set_selection(HONOUR_SELECTION["impact"])
+    settings.pcap_axis.set_selection(HONOUR_SELECTION["pcap"])
+    settings.fixed_axis.set_selection(HONOUR_SELECTION["fixed"])
+    settings.shortfall_axis.set_selection(HONOUR_SELECTION["buy_shortfall"])
+    return settings, settings.tail()
 
 
 def added_lines(base):
@@ -286,9 +276,9 @@ def main():
                          "(e.g. HEAD, origin/main) that carries no directive")
     args = ap.parse_args()
 
-    naming, tail = honour_probe()
+    settings, tail = honour_probe()
     if not tail:
-        print("ABORT: naming.tail() is empty under the non-default honour "
+        print("ABORT: settings.tail() is empty under the non-default honour "
               "selection. The authority itself is broken; every honour result "
               "below would be vacuous.")
         return 2
@@ -320,8 +310,8 @@ def main():
                 # only `{tag}` -- textual sniffing cannot see the composer that
                 # actually built the name, and guessing from `{tag}` would credit
                 # any variable that happened to be called tag.
-                carried = (naming.carried_axes(d.composer) if d.composer
-                           else naming.carried_axes(expr))
+                carried = (settings.carried_axes(d.composer) if d.composer
+                           else settings.carried_axes(expr))
                 missing = set(d.axes) - carried
                 if missing:
                     dishonoured.append((key, ln, d, expr, sorted(missing), sorted(carried)))

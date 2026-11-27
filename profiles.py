@@ -1,4 +1,7 @@
-"""profiles.py -- the execution-realism profile this run selected.
+"""profiles.py -- what the execution-realism profile does to a run: the
+participation cap, the cap keywords for backtest_exposure, and the notices a
+non-research run carries. The selection itself is settings.profile_axis
+(research or tradeable).
 
 TWO PROFILES, NOT A BARE PARAMETER
     research   participation_cap = None   (the default)
@@ -23,7 +26,7 @@ WHY THIS IS SEPARATE FROM THE DATA GUARDS
     strategy is being measured, so it is opt-in.
 
 WHY THIS IS NOT A MODULE GLOBAL ON test_exposure
-    cadence.py records the hazard by file and line: rebal_cadence_sweep.py set
+    settings.cadence records the hazard by file and line: rebal_cadence_sweep.py set
     test_exposure.REBAL and never restored it, so every later in-process step would
     have backtested the wrong cadence with nothing to say so. The cap is recorded
     here and handed to backtest_exposure as an ARGUMENT. A parameter cannot leak
@@ -84,44 +87,19 @@ WHAT THE CAP MEANS
     cash that was already there.
     """
 
-PROFILES = {
-    "research":  {"participation_cap": None},
-    "tradeable": {"participation_cap": 1.00},
-}
-DEFAULT = "research"
-
-_SELECTED = None
-
-
-def set_selection(name):
-    """Record this run's profile. Called once by run.py. None restores the default."""
-    global _SELECTED
-    if name is None:
-        _SELECTED = None
-        return
-    if name not in PROFILES:
-        raise ValueError(f"unknown profile {name!r}; known: {', '.join(PROFILES)}")
-    _SELECTED = name
-
-
-def selected():
-    return DEFAULT if _SELECTED is None else _SELECTED
-
-
-def is_default():
-    return selected() == DEFAULT
+from settings import profile_axis
 
 
 def participation_cap():
     """The cap as a fraction of prior-20-session median volume, or None.
 
-    The profile's own value unless run.py was given --cap (pcap_axis.py), which
+    The profile's own value unless run.py was given --cap (settings.pcap_axis), which
     replaces it for the run. --cap under research is refused before this is read.
     """
-    import pcap_axis
-    if pcap_axis.selected() is not None and not is_default():
+    from settings import pcap_axis
+    if pcap_axis.selected() is not None and not profile_axis.is_default():
         return pcap_axis.selected()
-    return PROFILES[selected()]["participation_cap"]
+    return profile_axis.PROFILES[profile_axis.selected()]["participation_cap"]
 
 
 def cap_kwargs(u, vol20=None):
@@ -138,7 +116,7 @@ def cap_kwargs(u, vol20=None):
     universe. The engines and the audit must read the volume from the same place
     by the same call, which is now true by construction.
 
-    THE IMPACT MODEL RIDES HERE TOO (impact_axis.py, 2026-10-15). It needs the
+    THE IMPACT MODEL RIDES HERE TOO (settings.impact_axis, 2026-10-15). It needs the
     same vol20, so every caller that honours the cap honours --impact. The key is
     added only when --impact is non-zero, so a default call is unchanged; under
     research a non-zero k is refused rather than dropped.
@@ -148,12 +126,12 @@ def cap_kwargs(u, vol20=None):
     caller that runs many settings on one universe (results/impact_sweep.py)
     passes it.
     """
-    import impact_axis as _imp
+    from settings import impact_axis as _imp
     cap = participation_cap()
     if cap is None:
         _imp.check_profile()
         return {"participation_cap": None}
-    import config as _cfg
+    import settings as _cfg
     import tradability as _tr
     from engine_core import _load_calendar
     if vol20 is None:
@@ -188,16 +166,16 @@ def research_only(caller):
     honour the selected profile passes participation_cap() and the vol20 that goes
     with it; see backtest_exposure's refusal.
     """
-    if selected() != DEFAULT:
+    if profile_axis.selected() != profile_axis.DEFAULT:
         raise SystemExit(
             f"{caller} is declared research-only, but this run selected "
-            f"profile '{selected()}'.\n"
+            f"profile '{profile_axis.selected()}'.\n"
             f"  It passes no vol20, so the participation cap could not be applied "
             f"even though the profile asks for it, and the result would be a "
-            f"research measurement wearing a '{selected()}' label.\n"
+            f"research measurement wearing a '{profile_axis.selected()}' label.\n"
             f"  Either run it without --profile, or give it the vol20 that "
             f"backtest_exposure needs and drop this declaration.")
-    return PROFILES[DEFAULT]["participation_cap"]
+    return profile_axis.PROFILES[profile_axis.DEFAULT]["participation_cap"]
 
 
 # ---------------------------------------------------------------------------
@@ -312,9 +290,9 @@ def cap_report(cells):
     """
     import csv
     from pathlib import Path
-    from universes.registry import REGISTRY
+    from settings import REGISTRY
 
-    if is_default():
+    if profile_axis.is_default():
         return []
     out, total, unread = [], 0, 0
     # THE FILE IS NAMED BY THE WRITER'S RULE, audit_step.artefact_tag, since
@@ -354,18 +332,9 @@ def gate_status():
     against, so it returns None and nothing is added to a research artefact -- the
     byte-identical gate depends on that.
     """
-    return None if is_default() else (
+    return None if profile_axis.is_default() else (
         f"{UNGATED_NOTICE} THE CAP'S EFFECT ON THIS RUN IS NOT ASSERTED HERE: it "
         f"is counted from this run's own daily_skipped artefacts and printed in "
         f"the closing banner. No stored sentence in this file says whether the cap "
         f"bound, because one used to and it was wrong about six runs on "
         f"2026-09-22.")
-
-
-def suffix():
-    """"" for research, "_tradeable" otherwise -- the artefact name tail.
-
-    THE DEFAULT IS UNSUFFIXED so every published filename keeps the name it has and
-    the seven gates that read v34_comparison.csv keep reading the same file.
-    """
-    return "" if is_default() else f"_{selected()}"

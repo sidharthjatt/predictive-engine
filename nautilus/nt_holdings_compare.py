@@ -25,8 +25,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import nt_run
-import paths
-import config
+import settings
 from config import read_table  # the one CSV/parquet reader: config.read_table
 
 
@@ -37,14 +36,14 @@ def _universe():
     Until 2026-09-24 this tool read the retired 58's artefacts from
     results/metrics/ and could not run on any universe that exists.
     """
-    from universes.registry import CERTIFIED, REGISTRY, argv_universes, check_tags
+    from settings import CERTIFIED, REGISTRY, argv_universes, check_tags
     picked = check_tags(argv_universes(sys.argv), nt_run.UNIVERSES)
     return REGISTRY[picked[-1] if picked else CERTIFIED[0]]
 
 
 def main():
     u = _universe()
-    strat = nt_run.run(str(config.BT_START_DATE.date()), nt_run.UNIVERSES[u.tag]["end"], universe=u.tag)
+    strat = nt_run.run(str(settings.BT_START_DATE.date()), nt_run.UNIVERSES[u.tag]["end"], universe=u.tag)
 
     port = pd.DataFrame(strat.holdings_log)
     if port.empty:
@@ -52,7 +51,7 @@ def main():
         return
     port["date"] = pd.to_datetime(port["date"])
 
-    ref = read_table(paths.tagged_artefact(u, "daily_holdings"),
+    ref = read_table(settings.tagged_artefact(u, "daily_holdings"),
                       parse_dates=["date"])
 
     dates = sorted(port["date"].unique())
@@ -89,7 +88,7 @@ def main():
 
     # the fills that produced this state, in both systems
     lo = prev if prev is not None else d
-    rt = read_table(paths.tagged_artefact(u, "daily_trades"),
+    rt = read_table(settings.tagged_artefact(u, "daily_trades"),
                      parse_dates=["date"])
     rt = rt[(rt["date"] > lo) & (rt["date"] <= d)]
     pt = pd.DataFrame(strat.fills)

@@ -1,5 +1,5 @@
 """
-drawdown_overlay.py -- the drawdown-limit axis (dd_axis.py) as one state class.
+drawdown_overlay.py -- the drawdown-limit axis (settings.dd_axis) as one state class.
 
 THE RULE. At each close, with W the close equity and M its all-time peak since
 the start of the run (never reset):

@@ -32,7 +32,7 @@ import pandas as pd
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "results"))
-import config
+import settings
 from config import read_table  # the one CSV/parquet reader: config.read_table
 from numerics import rolling_std  # platform-identical variance: results/numerics.py
 
@@ -63,15 +63,15 @@ except Exception as _e:
 
 REBAL = 20
 # SELECTION -- imported from config.py, the single definition.
-TOP_N, BUFFER = config.TOP_N, config.BUFFER
+TOP_N, BUFFER = settings.TOP_N, settings.BUFFER
 # SLIPPAGE comes from slippage.py, which is the only definition. It was
 # written out in seven files until 2026-09-22; these engines are
 # cross-checked against each other, so a value changed in one and not the
 # rest surfaces as a reconciliation failure elsewhere, not as a wrong
 # number here. Value unchanged at 0.0015.
 from slippage import SLIPPAGE, fill_price  # noqa: E402
-import capital_axis as _capital_axis  # noqa: E402
-# THE DEFAULT, defined once in capital_axis.py. A run's capital is
+from settings import capital_axis as _capital_axis  # noqa: E402
+# THE DEFAULT, defined once in settings.capital_axis. A run's capital is
 # capital_axis.selected(); this name stays for callers that want the default.
 START_CAPITAL = _capital_axis.DEFAULT
 SAFETY = 0.98
@@ -90,8 +90,8 @@ def load_panel(cache_path):
     # the same dates as the engine. A year cut here against a date cut there
     # would make nt_verify fail on rebalance COUNT for a reason unrelated to
     # sizing or execution.
-    bd = px.index[(px.index >= config.BT_START_DATE)
-                  & (px.index <= config.BT_END_DATE)]
+    bd = px.index[(px.index >= settings.BT_START_DATE)
+                  & (px.index <= settings.BT_END_DATE)]
     return px, op, sc, bd, precompute(px), px / px.shift(20) - 1
 
 
@@ -138,7 +138,8 @@ def run(px, op, sc, dates, pc, mom20, holdings_out=None,
     shape (date, action, symbol, qty, price). nt_verify compares it with the
     port's strat.fills."""
     import buy_shortfall as _bsf
-    _shortfall = _bsf.selected() if buy_shortfall is None else buy_shortfall
+    import settings
+    _shortfall = settings.shortfall_axis.selected() if buy_shortfall is None else buy_shortfall
 
     def _fill(dt, action, s, q, pr):
         if fills_out is not None:
@@ -346,10 +347,10 @@ if __name__ == "__main__":
     # changes, and a stale number in a verdict is how this project has been misled
     # before. Run it and read the result.
     import nt_run
-    from universes.registry import CERTIFIED, argv_universes, check_tags
+    from settings import CERTIFIED, argv_universes, check_tags
     _picked = check_tags(argv_universes(sys.argv), nt_run.UNIVERSES)
     _tag = _picked[-1] if _picked else CERTIFIED[0]
-    _strat = nt_run.run(str(config.BT_START_DATE.date()), str(config.BT_END_DATE.date()),
+    _strat = nt_run.run(str(settings.BT_START_DATE.date()), str(settings.BT_END_DATE.date()),
                         universe=_tag)
     NAUTILUS_EQUITY = _strat.daily_equity[-1]["equity"]
 

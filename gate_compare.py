@@ -37,7 +37,7 @@ import sys
 import time
 from pathlib import Path
 from config import read_table  # the one CSV/parquet reader: config.read_table
-from paths import list_dir
+from settings import list_dir
 
 ULP = 2.3e-16          # one unit in the last place, relative
 
@@ -492,7 +492,7 @@ def main(argv=None):
     B, L = Path(a.baseline), Path(a.live)
     sys.path.insert(0, str(Path(__file__).resolve().parent))
     try:
-        from universes.registry import REGISTRY
+        from settings import REGISTRY
         known = set(REGISTRY)
     except Exception:
         known = {a.universe}

@@ -7,7 +7,7 @@ divergent pair of the four: 204 code lines differed ignoring whitespace.
 
 WHAT REACHED THE PNG, AND IS THEREFORE REGISTRY DATA, NOT A LITERAL HERE:
 the output stem, the render dpi, the drawdown-panel legend font size, the
-index-window end date. universes/registry.py carries them as chart_text. The
+index-window end date. settings.py carries them as chart_text. The
 subtitle, the drawdown labels and the buy&hold legend are built here, once, for
 every universe, since 2026-09-30; they were per-universe registry text and had
 gone stale in different ways on different rows.
@@ -45,11 +45,10 @@ from matplotlib.ticker import PercentFormatter
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import config
+import settings
 import arms.registry as arm_reg
-import cadence
-import profiles
+from settings import cadence
 import survivorship as sv
-import naming
 from config import read_table  # the one CSV/parquet reader: config.read_table
 
 
@@ -101,17 +100,16 @@ def _axes(*, for_arm_subset=False):
     time a hand-composed chain has been under-specified, and the reason the list
     of thirteen such sites is worth reading before adding a fifth axis.
     """
-    import profiles as _pf
-    import tax as _tax
-    import survivorship_axis as _sva
-    import dd_axis as _dda
-    import capital_axis as _capa
-    import impact_axis as _impa
-    import pcap_axis as _pca
-    import fixed_axis as _fxa
-    import start_axis as _sta
-    import buy_shortfall as _bsf
-    sfx = cadence.suffix() + _pf.suffix() + _tax.suffix() + _sva.suffix() + _dda.suffix() + _capa.suffix() + _impa.suffix() + _pca.suffix() + _fxa.suffix() + _sta.suffix() + _bsf.suffix()
+    import settings
+    from settings import tax as _tax
+    from settings import survivorship_axis as _sva
+    from settings import dd_axis as _dda
+    from settings import capital_axis as _capa
+    from settings import impact_axis as _impa
+    from settings import pcap_axis as _pca
+    from settings import fixed_axis as _fxa
+    from settings import start_axis as _sta
+    sfx = cadence.suffix() + settings.profile_axis.suffix() + _tax.suffix() + _sva.suffix() + _dda.suffix() + _capa.suffix() + _impa.suffix() + _pca.suffix() + _fxa.suffix() + _sta.suffix() + settings.shortfall_axis.suffix()
     # THE CORE PART OF THE SELECTION names the v34 files: a stop arm in the
     # selection goes to v34_stop_* and does not rename them.
     core = [n for n in arm_reg.selected_names() if n in arm_reg.ARMS]
@@ -272,9 +270,9 @@ def _window_label(eq=None):
     is not checkable, and a CAGR without its window has already been quoted
     against the wrong one in this project.
     """
-    import config as _c
+    import settings
     n = f", {len(eq):,} trading days" if eq is not None else ""
-    return (f"WINDOW {_c.BT_START_DATE.date()} to {_c.BT_END_DATE.date()}{n} -- "
+    return (f"WINDOW {settings.BT_START_DATE.date()} to {settings.BT_END_DATE.date()}{n} -- "
             f"every CAGR, Sharpe, drawdown and TRADE COUNT on this page is on that "
             f"window and no other.")
 def cum(s): return (s/s.iloc[0]-1)*100
@@ -344,25 +342,24 @@ def _ci(path):
     tradeable run must read the tradeable file or it would plot research curves
     under a tradeable title.
     """
-    import cadence as _cd
-    import profiles as _pf
-    import tax as _tax
+    from settings import cadence as _cd
+    import settings
+    from settings import tax as _tax
     # THE TAX AXIS JOINS THE SIBLING'S NAME (2026-09-17): under tax=on the engine
     # wrote v2FINAL_equity_tax.csv, and reading the canonical file here would
     # plot an untaxed curve on a chart whose title says otherwise.
-    import survivorship_axis as _sva
-    import dd_axis as _dda
-    import capital_axis as _capa
-    import impact_axis as _impa
-    import pcap_axis as _pca
-    import fixed_axis as _fxa
-    import start_axis as _sta
-    import buy_shortfall as _bsf
-    if (_cd.is_default() and _pf.is_default() and _tax.is_default() and _sva.is_default()
-            and _dda.is_default() and _capa.is_default() and _impa.is_default() and _pca.is_default() and _fxa.is_default() and _sta.is_default() and _bsf.is_default()):
+    from settings import survivorship_axis as _sva
+    from settings import dd_axis as _dda
+    from settings import capital_axis as _capa
+    from settings import impact_axis as _impa
+    from settings import pcap_axis as _pca
+    from settings import fixed_axis as _fxa
+    from settings import start_axis as _sta
+    if (_cd.is_default() and settings.profile_axis.is_default() and _tax.is_default() and _sva.is_default()
+            and _dda.is_default() and _capa.is_default() and _impa.is_default() and _pca.is_default() and _fxa.is_default() and _sta.is_default() and settings.shortfall_axis.is_default()):
         return path
-    c = path.with_name(path.stem + _cd.suffix() + _pf.suffix() + _tax.suffix()
-                       + _sva.suffix() + _dda.suffix() + _capa.suffix() + _impa.suffix() + _pca.suffix() + _fxa.suffix() + _sta.suffix() + _bsf.suffix() + path.suffix)
+    c = path.with_name(path.stem + _cd.suffix() + settings.profile_axis.suffix() + _tax.suffix()
+                       + _sva.suffix() + _dda.suffix() + _capa.suffix() + _impa.suffix() + _pca.suffix() + _fxa.suffix() + _sta.suffix() + settings.shortfall_axis.suffix() + path.suffix)
     # NO FALLBACK TO THE CANONICAL FILE, 2026-09-23. This returned `path` when
     # the sibling was absent, so a missing non-default artefact was silently
     # replaced by the published cadence-20 research one and plotted under this
@@ -383,19 +380,19 @@ def chart_path(M, stem, arms_on):
     The rule is unchanged from the call sites it replaces. The canonical two-arm
     figure keeps its bare name, and every other selection gets one of its own.
     """
-    import profiles as _pf
-    import tax as _tax
+    import settings
+    from settings import tax as _tax
     asf = arm_reg.suffix(arms_on) if set(arms_on) != {"v2", "v1"} else ""
-    import survivorship_axis as _sva
-    import dd_axis as _dda
-    import capital_axis as _capa
-    import impact_axis as _impa
-    import pcap_axis as _pca
-    import fixed_axis as _fxa
-    import start_axis as _sta
-    import buy_shortfall as _bsf
-    return M / (stem + asf + cadence.suffix() + _pf.suffix() + _tax.suffix()
-                + _sva.suffix() + _dda.suffix() + _capa.suffix() + _impa.suffix() + _pca.suffix() + _fxa.suffix() + _sta.suffix() + _bsf.suffix() + ".png")
+    from settings import survivorship_axis as _sva
+    from settings import dd_axis as _dda
+    from settings import capital_axis as _capa
+    from settings import impact_axis as _impa
+    from settings import pcap_axis as _pca
+    from settings import fixed_axis as _fxa
+    from settings import start_axis as _sta
+    import settings
+    return M / (stem + asf + cadence.suffix() + settings.profile_axis.suffix() + _tax.suffix()
+                + _sva.suffix() + _dda.suffix() + _capa.suffix() + _impa.suffix() + _pca.suffix() + _fxa.suffix() + _sta.suffix() + settings.shortfall_axis.suffix() + ".png")
 
 
 def main(u):
@@ -422,7 +419,7 @@ def main(u):
                                     what=u.engine_text["panel_what"])
     M = Path(u.metrics_dir)
     CAP = 1_000_000
-    CUT = config.BT_START_DATE
+    CUT = settings.BT_START_DATE
     eq = read_table(_ci(M/"v2FINAL_equity.csv"), parse_dates=["date"]).set_index("date")
     # THE TWO ARMS THIS CHART SHOWS, ASKED FOR BY NAME rather than by the column
     # each happened to be stored under. arms/registry.equity_series falls back to
@@ -573,7 +570,7 @@ def main(u):
     # change to what that run does and belongs in its own commit.
     if _CT["diagnostics"]:
         ic = read_table(score_panel_path(), usecols=["date","symbol"], parse_dates=["date"])
-        ic = ic[ic["date"] >= config.BT_START_DATE]
+        ic = ic[ic["date"] >= settings.BT_START_DATE]
         per_day = ic.groupby("date")["symbol"].nunique()
         n_panel = ic["symbol"].nunique()
         print("\n  PANEL DENSITY -- the blocker that made the first MidCap150 run invalid")
@@ -590,8 +587,8 @@ def main(u):
         print( "    was an artefact of that bug and must not be quoted.")
         _px = read_table(score_panel_path(), parse_dates=["date"]) \
                 .pivot_table(index="date", columns="symbol", values="close").ffill()
-        _bd = _px.index[(_px.index >= config.BT_START_DATE)
-                        & (_px.index <= config.BT_END_DATE)]
+        _bd = _px.index[(_px.index >= settings.BT_START_DATE)
+                        & (_px.index <= settings.BT_END_DATE)]
         _r = _px.pct_change().loc[_bd]
         _ext = _r.stack(); _ext = _ext[_ext.abs() > 0.55].sort_values(key=abs, ascending=False)
         _m = _r.mean(axis=1)
@@ -654,7 +651,7 @@ def main(u):
     # measurement nothing in the repository records; the other six said
     # "NOTHING HAS BEEN MEASURED", which survivorship_attribution.py has since
     # made untrue. What is true of all eight is stated once, from the window.
-    _y0, _y1 = config.BT_START_DATE.year, config.BT_END_DATE.year
+    _y0, _y1 = settings.BT_START_DATE.year, settings.BT_END_DATE.year
     for _line in (
             f"Names that left the index or delisted between {_y0} and {_y1} are absent",
             "from this file entirely: the universe is today's members backfilled. They",
@@ -695,12 +692,12 @@ def main(u):
                "this universe (validation_status in v2FINAL_params.json).")
         paras = [
             f"{u.label}, index excluded by name  |  {v['held']} on average  |  "
-            f"{naming.cost_basis()}",
+            f"{settings.cost_basis()}",
             f"Benchmarks: {v['index_name']} is the published CAP-WEIGHTED index "
             f"(investable, and NOT survivorship-biased). Equal-weight buy&hold is "
             f"the universe, and is NOT investable.",
             f"SURVIVORSHIP: these {v['n_all']} are TODAY'S index members backfilled "
-            f"to {config.BT_START_DATE.year}, and {v['n_late']} of them did not exist "
+            f"to {settings.BT_START_DATE.year}, and {v['n_late']} of them did not exist "
             f"at the start. Names that left during the window are absent entirely, "
             f"so the sign of the bias is not known. Do not read that buy&hold as "
             f"achievable.",
@@ -736,7 +733,7 @@ def main(u):
         ax[0].axhline(0, color="k", lw=.6, alpha=.5)
         ax[0].set_ylabel("Cumulative return (%)")
         ax[0].yaxis.set_major_formatter(PercentFormatter(decimals=0))
-        ax[0].set_title(naming.run_label(u.label, _arms) + "\n" + _sub(_arms), fontsize=9.5)
+        ax[0].set_title(settings.run_label(u.label, _arms) + "\n" + _sub(_arms), fontsize=9.5)
         ax[0].legend(loc="upper left", fontsize=8.5); ax[0].grid(alpha=.3)
         for lab, s_, c, ls, _ in series:
             ax[1].plot(s_.index, dd(s_), lw=1.4, color=c, ls=ls,
@@ -765,20 +762,19 @@ def main(u):
     # THE TAX AXIS IS IN BOTH CONDITIONS, 2026-09-23. It was missing from both,
     # so a `--tax on` run with default cadence and profile drew TAXED curves into
     # the canonical chart_<stem>.png and wrote no taxed chart of its own.
-    import tax as _tax
-    import survivorship_axis as _sva
-    import dd_axis as _dda
-    import capital_axis as _capa
-    import impact_axis as _impa
-    import pcap_axis as _pca
-    import fixed_axis as _fxa
-    import start_axis as _sta
-    import buy_shortfall as _bsf
+    from settings import tax as _tax
+    from settings import survivorship_axis as _sva
+    from settings import dd_axis as _dda
+    from settings import capital_axis as _capa
+    from settings import impact_axis as _impa
+    from settings import pcap_axis as _pca
+    from settings import fixed_axis as _fxa
+    from settings import start_axis as _sta
     # THE SURVIVORSHIP AXIS JOINS BOTH CONDITIONS, 2026-10-10, for the reason tax
     # did: without it a pit run drew pit curves into the canonical chart.
-    _axes_default = (cadence.is_default() and profiles.is_default() and _tax.is_default()
+    _axes_default = (cadence.is_default() and settings.profile_axis.is_default() and _tax.is_default()
                      and _sva.is_default() and _dda.is_default()
-            and _capa.is_default() and _impa.is_default() and _pca.is_default() and _fxa.is_default() and _sta.is_default() and _bsf.is_default())
+            and _capa.is_default() and _impa.is_default() and _pca.is_default() and _fxa.is_default() and _sta.is_default() and settings.shortfall_axis.is_default())
     _canon = {n: d for n, d in ARMS_ON.items() if n in ("v2", "v1")}
     if len(_canon) == 2 and _axes_default:
         _render(_canon, M / f"{_CT['stem']}.png")
@@ -806,7 +802,7 @@ def main(u):
 
 if __name__ == "__main__":
     # STANDALONE, BY TAG. There is no longer a file per universe to imply which.
-    from universes.registry import REGISTRY
+    from settings import REGISTRY
     if len(sys.argv) != 2 or sys.argv[1] not in REGISTRY:
         raise SystemExit(f"usage: {Path(__file__).name} <universe>   "
                          f"known: {', '.join(sorted(REGISTRY))}")

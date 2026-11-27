@@ -58,10 +58,11 @@ sys.path.insert(0, str(ROOT / "results"))
 
 import numpy as np                                   # noqa: E402
 import pandas as pd                                  # noqa: E402
-import config                                        # noqa: E402
+import config
+import settings                                        # noqa: E402
 import engine_core as _ec                            # noqa: E402
 from engine_core import HORIZON, PURGE_EMBARGO       # noqa: E402
-from universes.registry import REGISTRY, gated              # noqa: E402
+from settings import REGISTRY, gated              # noqa: E402
 from config import read_table  # the one CSV/parquet reader: config.read_table
 
 LABELS = {u.tag: u.display_name for u in gated()}

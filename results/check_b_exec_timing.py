@@ -41,8 +41,8 @@ sys.path.insert(0, str(ROOT / "nautilus"))
 import numpy as np
 import pandas as pd
 import config
-from universes.registry import REGISTRY, gated
-import paths
+import settings
+from settings import REGISTRY, gated
 
 # SLIPPAGE comes from slippage.py, which is the only definition. It was
 # written out in seven files until 2026-09-22; these engines are
@@ -150,7 +150,7 @@ def run(uni, arm, fills_p, sc_p, dec_p, label, W):
     import nt_data
     import nt_run
     pxf, opf = nt_data.load_panel(config.require_cache(sc_p, what=f"{uni} panel"))
-    q_start = pd.Timestamp(config.BT_START_DATE) - pd.Timedelta(days=nt_run.WARMUP_DAYS)
+    q_start = pd.Timestamp(settings.BT_START_DATE) - pd.Timedelta(days=nt_run.WARMUP_DAYS)
     q_end = pd.Timestamp(nt_run.UNIVERSES[uni]["end"])
     Q = {s: nt_data.quote_frame(s, pxf, opf, q_start, q_end).set_index("date")
          for s in F["symbol"].unique()}

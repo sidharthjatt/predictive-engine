@@ -25,7 +25,8 @@ both callers.
 WHAT A CALLER MUST PASS, AND WHY EACH ONE.
     code_files  every source file whose contents can change the fit. Both callers
                 pass results/engine_core.py (score_monthly IS the computation),
-                config.py (the backtest window), and THEIR OWN FILE, because each
+                config.py (the readers), settings.py (the backtest window), and
+                THEIR OWN FILE, because each
                 chooses the seed sets and the columns written to the cache.
     panel_path  the data fit against. Hashed by CONTENT, streamed. Not by path
                 and not by mtime: two panels at one path is how this repository

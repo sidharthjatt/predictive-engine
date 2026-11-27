@@ -15,7 +15,7 @@ file last exists at aebf1da; its require() is renamed so the two do not collide)
     FAT drive. Inside site-packages those files break installed packages, so a venv
     there fails later with an unrelated import or decode error. The repository
     itself may sit on such a drive: every directory listing in the code skips "._"
-    files (paths.list_dir), so that is reported as a note and the run continues.
+    files (settings.list_dir), so that is reported as a note and the run continues.
 
     Call require_drive() before any third-party import. Standard library only, so it
     runs on an environment too broken to import pandas.

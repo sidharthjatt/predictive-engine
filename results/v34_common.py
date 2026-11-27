@@ -38,8 +38,7 @@ from matplotlib.ticker import PercentFormatter
 
 from engine_core import metrics
 import config as _config
-import universes.registry as _uni_registry
-import naming
+import settings
 import survivorship as _survivorship
 from config import read_table  # the one CSV/parquet reader: config.read_table
 
@@ -48,7 +47,7 @@ def deployed_none(expo):
     """Deployed% of a mode-"none" arm. 100 without the drawdown limit, as it always
     was. With it, the engine's fourth return value, which is then the mean
     invested fraction at the close after the limit (test_exposure)."""
-    import dd_axis as _dda
+    from settings import dd_axis as _dda
     return 100.0 if _dda.is_default() else float(expo) * 100
 
 
@@ -56,13 +55,13 @@ def _dd_params():
     """{"dd": ...} when the drawdown-limit axis is on, {} when off, so a params
     file from a run without --dd is the file it always was. The other axes
     likewise, except buy_shortfall, which is written for every run."""
-    import dd_axis as _dda
-    import capital_axis as _capa
-    import impact_axis as _impa
-    import pcap_axis as _pca
-    import fixed_axis as _fxa
-    import start_axis as _sta
-    import buy_shortfall as _bsf
+    from settings import dd_axis as _dda
+    from settings import capital_axis as _capa
+    from settings import impact_axis as _impa
+    from settings import pcap_axis as _pca
+    from settings import fixed_axis as _fxa
+    from settings import start_axis as _sta
+    import settings
     return (({} if _dda.is_default() else {"dd": _dda.params()})
             | ({} if _capa.is_default() else {"capital": _capa.selected()})
             | ({} if _impa.is_default() else {"impact_k": _impa.selected()})
@@ -71,7 +70,7 @@ def _dd_params():
             | ({} if _sta.is_default() else {"bt_start": str(_sta.selected().date())})
             # Written for every run: the default itself changed on 2026-10-27, so
             # a params file without it is from a run that refused short buys.
-            | {"buy_shortfall": _bsf.selected()})
+            | {"buy_shortfall": settings.shortfall_axis.selected()})
 
 
 def _window_label(eq=None):
@@ -84,9 +83,9 @@ def _window_label(eq=None):
     is not checkable, and a CAGR without its window has already been quoted
     against the wrong one in this project.
     """
-    import config as _c
+    import settings
     n = f", {len(eq):,} trading days" if eq is not None else ""
-    return (f"WINDOW {_c.BT_START_DATE.date()} to {_c.BT_END_DATE.date()}{n} -- "
+    return (f"WINDOW {settings.BT_START_DATE.date()} to {settings.BT_END_DATE.date()}{n} -- "
             f"every CAGR, Sharpe, drawdown and TRADE COUNT on this page is on that "
             f"window and no other.")
 
@@ -253,8 +252,8 @@ def _write_core(M, SFX, comp, subs, ARM_ON, bd, bh, curves, universe_label,
         # mismatch. See config.data_fingerprint for what the digest covers and
         # why it is the whole file rather than a row count.
         "data_source": _config.data_fingerprint(
-            _uni_registry.REGISTRY[universe_tag].prepare_data_dir(),
-            _uni_registry.REGISTRY[universe_tag].raw_data_dir),
+            settings.REGISTRY[universe_tag].prepare_data_dir(),
+            settings.REGISTRY[universe_tag].raw_data_dir),
         "run_date": str(pd.Timestamp.today().date()),
         "spec": "experiments/V34_SPEC.txt",
         # THE CAVEAT TRAVELS WITH THE NUMBERS. Present only when the profile is
@@ -303,7 +302,7 @@ def _write_core(M, SFX, comp, subs, ARM_ON, bd, bh, curves, universe_label,
                   if len(_sizings) > 1 else
                   f" All arms here size {'1/vol' if 'invvol' in _sizings else 'by vol'}.")
     ax[0].set_title(
-        naming.run_label(universe_label, [n for n, *_ in ARM_ON]) + "\n" +
+        settings.run_label(universe_label, [n for n, *_ in ARM_ON]) + "\n" +
         f"{universe_label} -- {_CNT.get(len(ARM_ON), len(ARM_ON))} sizing/exposure "
         f"arm{'s' if len(ARM_ON) != 1 else ''} plus equal-weight buy & hold\n"
         f"WINDOW {bd[0].date()} to {bd[-1].date()}, {len(bd)} trading days -- every "
@@ -358,17 +357,17 @@ def _write_stop(M, stop_rows, stop_curves, stop_audits, bd, bh, halves,
                 universe_label, universe_tag, consts, _reb, _wrote, arm_reg, cadence,
                 profiles, _tax):
     """The companion v34_stop_* files: the selected stop arms and the buy & hold."""
-    import survivorship_axis as _sva
-    import dd_axis as _dda
-    import capital_axis as _capa
-    import impact_axis as _impa
-    import pcap_axis as _pca
-    import fixed_axis as _fxa
-    import start_axis as _sta
-    import buy_shortfall as _bsf
-    SFX = (arm_reg.stop_selection_suffix() + cadence.suffix() + profiles.suffix()
+    from settings import survivorship_axis as _sva
+    from settings import dd_axis as _dda
+    from settings import capital_axis as _capa
+    from settings import impact_axis as _impa
+    from settings import pcap_axis as _pca
+    from settings import fixed_axis as _fxa
+    from settings import start_axis as _sta
+    import settings
+    SFX = (arm_reg.stop_selection_suffix() + cadence.suffix() + settings.profile_axis.suffix()
             + _tax.suffix() + _sva.suffix() + _dda.suffix() + _capa.suffix() + _impa.suffix() + _pca.suffix()
-            + _fxa.suffix() + _sta.suffix() + _bsf.suffix())
+            + _fxa.suffix() + _sta.suffix() + settings.shortfall_axis.suffix())
     rows = stop_rows + [arm_row(bh, "buy & hold equal-weight", 0, 0, 100.0)]
     rows[-1]["MeanNamesHeld"], rows[-1]["CashShortSkips"] = "", ""
     pd.DataFrame(rows).to_csv(M / f"v34_stop_comparison{SFX}.csv", index=False)
@@ -404,8 +403,8 @@ def _write_stop(M, stop_rows, stop_curves, stop_audits, bd, bh, halves,
         "constants": {**consts, "REBAL": _reb},
         "git_state": _git_state(),
         "data_source": _config.data_fingerprint(
-            _uni_registry.REGISTRY[universe_tag].prepare_data_dir(),
-            _uni_registry.REGISTRY[universe_tag].raw_data_dir),
+            settings.REGISTRY[universe_tag].prepare_data_dir(),
+            settings.REGISTRY[universe_tag].raw_data_dir),
         "run_date": str(pd.Timestamp.today().date()),
         "spec": "experiments/DRAWDOWN_STOP_PREREG.txt",
         **({"gate_status": profiles.gate_status()}
@@ -444,7 +443,7 @@ def run_v34(M, universe_label, universe_tag, px, op, sc, bd, pc, mom20,
     # row to carry them and this is a whole backtest run for a discarded result.
     # THE RUN'S CADENCE, AS AN ARGUMENT. Default 20, which is what these calls
     # resolved to when they passed nothing, so the default path is unchanged.
-    import cadence
+    from settings import cadence
     _reb = cadence.selected()
     # THE TAX SELECTION, READ ONCE AND PASSED AS AN ARGUMENT -- exactly as _reb
     # above and participation_cap below. backtest_exposure's tax_enabled is a
@@ -457,16 +456,17 @@ def run_v34(M, universe_label, universe_tag, px, op, sc, bd, pc, mom20,
     # bh_lots_after_tax.py's, so `--tax on` moved filenames and nothing else: 36
     # of 40 suffixed artefacts were BYTE-IDENTICAL to their untaxed twins and the
     # other 4 differed only in a header label. The axis renamed; it did not charge.
-    import tax as _tax_axis
+    from settings import tax as _tax_axis
     _taxon = _tax_axis.selected()
     # THE PROFILE'S CAP, RESOLVED ONCE AND PASSED AS AN ARGUMENT.
-    # profiles.py records why this is not a global on test_exposure: cadence.py
+    # profiles.py records why this is not a global on test_exposure: settings.cadence
     # documents rebal_cadence_sweep.py setting test_exposure.REBAL and never
     # restoring it, so every later in-process step silently used the wrong cadence.
     # None under profile="research", so `q` is untouched and the published history
     # is exact.
     import profiles as _prof
-    from universes.registry import REGISTRY as _REG
+    import settings
+    from settings import REGISTRY as _REG
     _capkw = _prof.cap_kwargs(_REG[universe_tag])
     a2 = _blank()
     if "v2" in sel:
@@ -514,7 +514,7 @@ def run_v34(M, universe_label, universe_tag, px, op, sc, bd, pc, mom20,
         ("v4", "v4 provol, breadth-scaled", "v4_provol_breadth", v4_eq, v4_tc, v4_n, v4_expo * 100,  a4),
     ]
     ARM_ON = [a for a in ARM_DEF if a[0] in sel]
-    import buy_shortfall as _bsf
+    import settings
     if audits_out is not None:
         audits_out.update({nm: au for nm, _, _, _, _, _, _, au in ARM_ON})
 
@@ -533,7 +533,7 @@ def run_v34(M, universe_label, universe_tag, px, op, sc, bd, pc, mom20,
             r["CashShortSkips"] = nsk
             # Under trim, the buys cut to fit. A refuse run trims nothing and has
             # no such column, so its file is the one the rule always wrote.
-            if _bsf.selected() == "trim":
+            if settings.shortfall_axis.selected() == "trim":
                 r["TrimmedBuys"] = audits[r["Config"]].get("buy_shortfall", {}).get("trimmed", "")
         else:
             # buy & hold holds the whole universe every day: not-applicable,
@@ -541,7 +541,7 @@ def run_v34(M, universe_label, universe_tag, px, op, sc, bd, pc, mom20,
             # coerce the column to float and render it as NaN.
             r["MeanNamesHeld"] = ""
             r["CashShortSkips"] = ""
-            if _bsf.selected() == "trim":
+            if settings.shortfall_axis.selected() == "trim":
                 r["TrimmedBuys"] = ""
     # THE CANONICAL v34_* FILES ARE WRITTEN ONLY ON A FULL FOUR-ARM SELECTION.
     # SFX is "" then, so those paths and their contents are exactly what they have
@@ -568,26 +568,26 @@ def run_v34(M, universe_label, universe_tag, px, op, sc, bd, pc, mom20,
     # those gates read untouched and puts both profiles one directory listing apart.
     # Empty for profile="research", so the published names are unchanged.
     import profiles
-    import tax as _tax
+    from settings import tax as _tax
     # THE TAX AXIS JOINS THE NAME (2026-09-17), on the same default-is-unsuffixed
     # rule as the three before it: empty at tax=off, so every published
     # v34_* filename is byte-identical to what it has always been, and a tax run
     # writes a companion rather than overwriting the gated file. Measured, not
-    # assumed -- naming.CARRIES records what this expression was probed to carry.
+    # assumed -- settings.CARRIES records what this expression was probed to carry.
     # THE CORE PART OF THE SELECTION NAMES THE CORE FILES. A stop arm never enters
     # v34_comparison.csv: it is written to the companion v34_stop_* files below, so
     # a run of v1..v4 plus v5 still writes the canonical files with v1..v4 only.
-    import survivorship_axis as _sva
-    import dd_axis as _dda
-    import capital_axis as _capa
-    import impact_axis as _impa
-    import pcap_axis as _pca
-    import fixed_axis as _fxa
-    import start_axis as _sta
-    import buy_shortfall as _bsf
+    from settings import survivorship_axis as _sva
+    from settings import dd_axis as _dda
+    from settings import capital_axis as _capa
+    from settings import impact_axis as _impa
+    from settings import pcap_axis as _pca
+    from settings import fixed_axis as _fxa
+    from settings import start_axis as _sta
+    import settings
     SFX = (arm_reg.selection_suffix([n for n, *_ in ARM_ON]) + cadence.suffix()
-           + profiles.suffix() + _tax.suffix() + _sva.suffix() + _dda.suffix() + _capa.suffix() + _impa.suffix() + _pca.suffix()
-           + _fxa.suffix() + _sta.suffix() + _bsf.suffix())
+           + settings.profile_axis.suffix() + _tax.suffix() + _sva.suffix() + _dda.suffix() + _capa.suffix() + _impa.suffix() + _pca.suffix()
+           + _fxa.suffix() + _sta.suffix() + settings.shortfall_axis.suffix())
     # THE PATHS THIS CALL WRITES, IN ORDER. Read only by the report line below, so
     # that what is printed is derived from what was written rather than restated.
     _wrote = []
@@ -675,14 +675,14 @@ def run_arm(u, arm, rebal=None, out_dir=None):
     universe's own window, precompute, 20-day momentum.
     """
     import config
-    import paths
+    import settings
     from engine_core import precompute
     import engine_core
     from test_exposure import backtest_exposure, START_CAPITAL
 
     # THE CADENCE IS PART OF THE OUTPUT PATH. Without it a --rebal 40 run wrote
     # into runs/<uni>/<arm>/ and replaced the published cadence-20 result.
-    out = Path(out_dir) if out_dir is not None else paths.run_dir(u, arm, rebal)
+    out = Path(out_dir) if out_dir is not None else settings.run_dir(u, arm, rebal)
     out.mkdir(parents=True, exist_ok=True)
 
     # THE GUARD IS LOADED PER UNIVERSE, HERE, because this is where the
@@ -700,19 +700,20 @@ def run_arm(u, arm, rebal=None, out_dir=None):
     mom20 = px / px.shift(20) - 1
 
     # THE PROFILE'S CAP, RESOLVED ONCE AND PASSED AS AN ARGUMENT.
-    # profiles.py records why this is not a global on test_exposure: cadence.py
+    # profiles.py records why this is not a global on test_exposure: settings.cadence
     # documents rebal_cadence_sweep.py setting test_exposure.REBAL and never
     # restoring it, so every later in-process step silently used the wrong cadence.
     # None under profile="research", so `q` is untouched and the published history
     # is exact.
     import profiles as _prof
+    import settings
     _capkw = _prof.cap_kwargs(u)
     audit = {k: [] for k in ("holdings", "summary", "trades",
                              "ranking", "decisions", "skipped")}
     # THE RUN'S TAX SELECTION, as run_v34 above. run_arm writes
     # runs/<u>/<arm>/comparison.csv and params.json; without this an arm run under
     # --tax on reported untaxed numbers under a taxed run folder.
-    import tax as _tax_axis
+    from settings import tax as _tax_axis
     eq, tc, ntr, expo = backtest_exposure(
         px, op, sc, bd, pc, mom20, audit=audit, **arm.kwargs,
         tax_enabled=_tax_axis.selected(),
@@ -723,7 +724,7 @@ def run_arm(u, arm, rebal=None, out_dir=None):
     # THE BUY & HOLD BASKET: every name in static mode; in pit mode the members on
     # the first pit rebalance, bd[0] (owner's decision, 2026-10-10).
     import survivorship as _sv, engine_core as _ec
-    import capital_axis as _capital_axis
+    from settings import capital_axis as _capital_axis
     bh = _capital_axis.selected() * (1 + _sv.buyhold_prices(px, bd[0], _ec.MEMBERSHIP)
                           .pct_change().loc[bd].mean(axis=1).fillna(0)).cumprod()
     # A stop arm is not always invested: its share is the mean target exposure over
@@ -735,8 +736,8 @@ def run_arm(u, arm, rebal=None, out_dir=None):
     rows[0]["MeanNamesHeld"], rows[0]["CashShortSkips"] = round(mh, 2), nsk
     rows[1]["MeanNamesHeld"], rows[1]["CashShortSkips"] = "", ""
     # Under trim, the buys cut to fit, as in run_v34; a refuse run has no column.
-    import buy_shortfall as _bsf
-    if _bsf.selected() == "trim":
+    import settings
+    if settings.shortfall_axis.selected() == "trim":
         rows[0]["TrimmedBuys"], rows[1]["TrimmedBuys"] = audit["buy_shortfall"]["trimmed"], ""
     _bs = audit["buy_shortfall"]
     print(f"  buy_shortfall {_bs['rule']}: {arm.label}: {_bs['trimmed']} buys trimmed, "
@@ -764,27 +765,27 @@ def run_arm(u, arm, rebal=None, out_dir=None):
                          hd["buy_tc"] + hd["sell_tc"], 2 * hd["names"], 100.0)]
         for r in extra:
             r["MeanNamesHeld"], r["CashShortSkips"] = "", ""
-            if _bsf.selected() == "trim":
+            if settings.shortfall_axis.selected() == "trim":
                 r["TrimmedBuys"] = ""
         rows += extra
     comp = pd.DataFrame(rows)
-    # naming: delegated -- out is paths.run_dir(u, arm, rebal), named by naming.path_tail; run.py passes no out_dir
+    # naming: delegated -- out is settings.run_dir(u, arm, rebal), named by settings.path_tail; run.py passes no out_dir
     comp.to_csv(out / "comparison.csv", index=False)
 
     halves = [("2019-2022", 2019, 2022), ("2023-2026", 2023, 2026)]
     curves = [(arm.label, eq, dep), ("buy & hold equal-weight", bh, 100.0)]
-    # naming: delegated -- out is paths.run_dir(u, arm, rebal), named by naming.path_tail; run.py passes no out_dir
+    # naming: delegated -- out is settings.run_dir(u, arm, rebal), named by settings.path_tail; run.py passes no out_dir
     sub_rows(curves, halves, {arm.label: audit}).to_csv(out / "subperiods.csv", index=False)
 
-    # naming: delegated -- out is paths.run_dir(u, arm, rebal), named by naming.path_tail; run.py passes no out_dir
+    # naming: delegated -- out is settings.run_dir(u, arm, rebal), named by settings.path_tail; run.py passes no out_dir
     pd.DataFrame({"date": bd, arm.equity_column: eq.values,
                   "buyhold": bh.values}).to_csv(out / "equity.csv", index=False)
 
-    # THE FIXED-CAPITAL FIGURES (fixed_axis.py), in the arm directory beside
+    # THE FIXED-CAPITAL FIGURES (settings.fixed_axis), in the arm directory beside
     # comparison.csv. Written only with --fixed-capital, whose directory ends in
     # "@fixed", so no other directory gains a file.
-    import fixed_axis as _fxa
-    import start_axis as _sta
+    from settings import fixed_axis as _fxa
+    from settings import start_axis as _sta
     if not _fxa.is_default():
         import fixed_capital as fc
         _base = float(_capital_axis.selected())
@@ -793,21 +794,21 @@ def run_arm(u, arm, rebal=None, out_dir=None):
                              fc.max_invested(audit.get("fixed"), _base), bd[0], bd[-1])]
         f_years = fc.year_rows(eq, _base, fc.STRATEGY, arm.label)
         b_rows, b_years, b_curves = fc.benchmark_rows(bh, u, bd, _base, _reb, bd[0], bd[-1])
-        # naming: delegated -- out is paths.run_dir(u, arm, rebal), named by naming.path_tail; run.py passes no out_dir
+        # naming: delegated -- out is settings.run_dir(u, arm, rebal), named by settings.path_tail; run.py passes no out_dir
         pd.DataFrame(f_rows + b_rows).to_csv(out / "fixed.csv", index=False)
-        # naming: delegated -- out is paths.run_dir(u, arm, rebal), named by naming.path_tail; run.py passes no out_dir
+        # naming: delegated -- out is settings.run_dir(u, arm, rebal), named by settings.path_tail; run.py passes no out_dir
         pd.DataFrame(f_years + b_years).to_csv(out / "fixed_years.csv", index=False)
-        # naming: delegated -- out is paths.run_dir(u, arm, rebal), named by naming.path_tail; run.py passes no out_dir
+        # naming: delegated -- out is settings.run_dir(u, arm, rebal), named by settings.path_tail; run.py passes no out_dir
         pd.DataFrame({"date": bd, "strategy": eq.values,
                       **{f"{k}_fixed": v.values for k, v in b_curves.items()}}
                      ).to_csv(out / "fixed_equity.csv", index=False)
 
-    # naming: delegated -- out is paths.run_dir(u, arm, rebal), named by naming.path_tail; run.py passes no out_dir
+    # naming: delegated -- out is settings.run_dir(u, arm, rebal), named by settings.path_tail; run.py passes no out_dir
     (out / "params.json").write_text(json.dumps({
         "universe": u.label, "universe_tag": u.tag,
         "arm": arm.name, "mode": arm.mode, "sizing": arm.sizing,
         "rebal": rebal if rebal is not None else 20,
-        "profile": _prof.selected(),
+        "profile": settings.profile_axis.selected(),
         "tax": "on" if _tax_axis.selected() else "off",
         "buy_sizing": "decision close",
         "purge_mode": u.purge_mode,
@@ -829,7 +830,7 @@ def run_arm(u, arm, rebal=None, out_dir=None):
     ax[0].axhline(0, color="k", lw=.6, alpha=.5)
     ax[0].set_ylabel("Cumulative return (%)")
     ax[0].yaxis.set_major_formatter(PercentFormatter(decimals=0))
-    ax[0].set_title(naming.run_label(u.label, [arm.name]) + "\n" +
+    ax[0].set_title(settings.run_label(u.label, [arm.name]) + "\n" +
                     f"{u.label} -- {arm.label}\n{_window_label(eq)}\n"
                     f"mode={arm.mode}  sizing={arm.sizing}  "
                     f"rebal={rebal if rebal is not None else 20}", fontsize=9)
@@ -842,7 +843,7 @@ def run_arm(u, arm, rebal=None, out_dir=None):
     ax[1].legend(loc="lower left", fontsize=8); ax[1].grid(alpha=.3)
     # THE RUN LABEL TRAVELS IN THE PNG'S Title METADATA, so a script can check
     # which run drew a chart without reading pixels. 2026-09-23.
-    # naming: delegated -- out is paths.run_dir(u, arm, rebal), named by naming.path_tail; run.py passes no out_dir
+    # naming: delegated -- out is settings.run_dir(u, arm, rebal), named by settings.path_tail; run.py passes no out_dir
     plt.tight_layout(); plt.savefig(out / "chart.png", dpi=140, bbox_inches="tight", metadata={"Title": ax[0].get_title().split("\n")[0]})
     plt.close()
     return comp, out

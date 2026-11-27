@@ -9,7 +9,7 @@ WHAT THIS REPLACES
     docstrings, copies of the retired-universe script with the tail call changed.
 
     Every difference between them turned out to be a universe property that
-    universes/registry.py already records. Nothing needed inventing:
+    settings.py already records. Nothing needed inventing:
 
         window          u.trading_days(index)   -- the retired pair cut by YEAR
                                                    (2019..2026 / 2019..2025) and the
@@ -50,12 +50,14 @@ for _p in (str(ROOT), str(ROOT / "results")):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
-import config                                    # noqa: E402
+import config
+import settings                                    # noqa: E402
 from engine_core import precompute
 import arms.registry as arm_reg
-import cadence               # noqa: E402
+from settings import cadence               # noqa: E402
 from test_exposure import backtest_exposure      # noqa: E402
-import profiles as _prof            # the run's execution-realism profile
+import profiles as _prof
+import settings            # the run's execution-realism profile
 from config import read_table  # the one CSV/parquet reader: config.read_table
 
 
@@ -102,8 +104,8 @@ def artefact_tag(u, arm):
 
     `arm` may be an Arm or a bare name, because callers hold both.
     """
-    import profiles
-    import tax as _tax
+    import settings
+    from settings import tax as _tax
     name = getattr(arm, "name", arm)
     tag = u.tag if name == "v2" else f"{u.tag}_{name}"
     # THE PROFILE JOINS THE TAG for the same reason the cadence does: a
@@ -114,15 +116,15 @@ def artefact_tag(u, arm):
     # overwrite the trail the Nautilus comparison scripts and the daily log read
     # by name. Empty at tax=off, so the unsuffixed names are untouched.
     # AND THE SURVIVORSHIP AXIS, appended after tax: "" at static.
-    import survivorship_axis as _sva
-    import dd_axis as _dda
-    import capital_axis as _capa
-    import impact_axis as _impa
-    import pcap_axis as _pca
-    import fixed_axis as _fxa
-    import start_axis as _sta
-    import buy_shortfall as _bsf
-    return tag + cadence.suffix() + profiles.suffix() + _tax.suffix() + _sva.suffix() + _dda.suffix() + _capa.suffix() + _impa.suffix() + _pca.suffix() + _fxa.suffix() + _sta.suffix() + _bsf.suffix()
+    from settings import survivorship_axis as _sva
+    from settings import dd_axis as _dda
+    from settings import capital_axis as _capa
+    from settings import impact_axis as _impa
+    from settings import pcap_axis as _pca
+    from settings import fixed_axis as _fxa
+    from settings import start_axis as _sta
+    import settings
+    return tag + cadence.suffix() + settings.profile_axis.suffix() + _tax.suffix() + _sva.suffix() + _dda.suffix() + _capa.suffix() + _impa.suffix() + _pca.suffix() + _fxa.suffix() + _sta.suffix() + settings.shortfall_axis.suffix()
 
 
 def _reference_curve(M, arm_name):
@@ -175,6 +177,7 @@ def _reference_curve(M, arm_name):
     # MISMATCH of the cap's whole effect and refuse to write the trail -- the same
     # class of mispairing as the cadence one above, with the same failure mode.
     import profiles as _prof
+    import settings
     # THE TAX SUFFIX JOINS THE OTHER TWO, 2026-09-18, and it is the same hazard a
     # third time. This expression was written 2026-09-10 (0ce8ed5) and the tax
     # axis landed 2026-09-17 (7846f67), so for as long as the axis has existed
@@ -184,16 +187,15 @@ def _reference_curve(M, arm_name):
     # fourth axis, and the reconciliation below therefore compared an untaxed
     # re-run against an untaxed curve left on disk by an EARLIER, DIFFERENT run
     # and reported MATCH. It could not fail.
-    import tax as _tax_axis
-    import survivorship_axis as _sva
-    import dd_axis as _dda
-    import capital_axis as _capa
-    import impact_axis as _impa
-    import pcap_axis as _pca
-    import fixed_axis as _fxa
-    import start_axis as _sta
-    import buy_shortfall as _bsf
-    _cad = cadence.suffix() + _prof.suffix() + _tax_axis.suffix() + _sva.suffix() + _dda.suffix() + _capa.suffix() + _impa.suffix() + _pca.suffix() + _fxa.suffix() + _sta.suffix() + _bsf.suffix()
+    from settings import tax as _tax_axis
+    from settings import survivorship_axis as _sva
+    from settings import dd_axis as _dda
+    from settings import capital_axis as _capa
+    from settings import impact_axis as _impa
+    from settings import pcap_axis as _pca
+    from settings import fixed_axis as _fxa
+    from settings import start_axis as _sta
+    _cad = cadence.suffix() + settings.profile_axis.suffix() + _tax_axis.suffix() + _sva.suffix() + _dda.suffix() + _capa.suffix() + _impa.suffix() + _pca.suffix() + _fxa.suffix() + _sta.suffix() + settings.shortfall_axis.suffix()
     # A STOP ARM'S CURVE IS IN THE COMPANION FILE, and only there.
     if arm_name in _ar.STOP_ARMS:
         g = M / f"v34_stop_equity{_ar.stop_selection_suffix()}{_cad}.csv"
@@ -282,7 +284,7 @@ def run(u, arm=None):
     # THE RUN'S TAX SELECTION. The audit must replay what the engine ran, and
     # after 21c6624 the engine charges tax; an untaxed re-run would now differ
     # from the taxed curve by the whole tax effect and refuse to write the trail.
-    import tax as _tax_axis
+    from settings import tax as _tax_axis
     eq, tc, ntr, expo = backtest_exposure(
         px, op, sc, bd, pc, mom20, audit=audit, **_arm.kwargs,
         tax_enabled=_tax_axis.selected(),
@@ -382,9 +384,9 @@ def run(u, arm=None):
     # audits. Raises cost_report.CostReconciliationError, naming the check, the
     # first day and the gap, and so fails the run, if any figure does not reconcile.
     import cost_report
-    import capital_axis as _capital_axis
+    from settings import capital_axis as _capital_axis
     cost_report.write(u, _arm, tag, audit, eq, tc, px, op, bd, float(_capital_axis.selected()),
-                      _prof.selected(), bool(_tax_axis.selected()), cadence.selected())
+                      settings.profile_axis.selected(), bool(_tax_axis.selected()), cadence.selected())
 
     print(f"\n  --- SAMPLE: latest day ({s['date'].iloc[-1].date()}) ---")
     last = h[h["date"] == h["date"].max()]
@@ -407,7 +409,7 @@ def run(u, arm=None):
 #
 # The body lives once in results/audit_step.py, which took over from the three
 # near-identical copies the merged files used to be among; every difference between
-# those was a universe property universes/registry.py already records.
+# those was a universe property settings.py already records.
 #
 # Outputs, per selected arm, named by audit_step.artefact_tag(u, arm) -- so the
 # universe tag, the arm and the cadence/profile suffixes all come from the run's own
@@ -450,7 +452,7 @@ def main(u):
 
 if __name__ == "__main__":
     # STANDALONE, BY TAG. There is no longer a file per universe to imply which.
-    from universes.registry import REGISTRY
+    from settings import REGISTRY
     if len(sys.argv) != 2 or sys.argv[1] not in REGISTRY:
         raise SystemExit(f"usage: {Path(__file__).name} <universe>   "
                          f"known: {', '.join(sorted(REGISTRY))}")

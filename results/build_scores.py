@@ -8,7 +8,7 @@ collapse; the contract that made it possible is 5c636cf.
 
 The body lives once in results/build_scores_step.py, which took over from the four
 copies the two merged files used to be among; every difference between those was a
-universe property universes/registry.py records. See that module for the mapping,
+universe property settings.py records. See that module for the mapping,
 and for why purge_mode is read from the registry rather than written here.
 
 The index is excluded by pointing build_panel at a constituents-only directory,
@@ -51,7 +51,7 @@ if __name__ == "__main__":
     # STANDALONE, BY TAG. `python3 results/build_scores.py midcap150` -- the universe is
     # an argument here too, because there is no longer a file per universe to
     # imply it.
-    from universes.registry import REGISTRY
+    from settings import REGISTRY
     if len(sys.argv) != 2 or sys.argv[1] not in REGISTRY:
         raise SystemExit(f"usage: {Path(__file__).name} <universe>   "
                          f"known: {', '.join(sorted(REGISTRY))}")

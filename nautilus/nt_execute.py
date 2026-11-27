@@ -43,10 +43,9 @@ for _p in (str(ROOT), str(ROOT / "results"), str(ROOT / "nautilus")):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
-import cadence
-import config
+from settings import cadence
+import settings
 import arms.registry as arm_reg
-import universes.registry as uni_reg
 
 
 def main():
@@ -65,14 +64,14 @@ def main():
           "lifecycle.")
     print("=" * 96)
 
-    for u in uni_reg.selected():
+    for u in settings.universe_axis.selected():
         for a in arm_reg.selected():
             # run.py's arm_steps applies no refusals any more -- the two it had
             # were for the retired universes -- so neither does this, and the two
             # halves of a run still cannot disagree about what is possible.
             U = nt_run.UNIVERSES[u.tag]
-            import dd_axis
-            strat = nt_run.run(str(config.BT_START_DATE.date()), U["end"],
+            from settings import dd_axis
+            strat = nt_run.run(str(settings.BT_START_DATE.date()), U["end"],
                                universe=u.tag, rebal=reb,
                                reports_root=nt_run.PIPELINE_REPORTS,
                                dd_overlay=dd_axis.selected(), **a.kwargs)

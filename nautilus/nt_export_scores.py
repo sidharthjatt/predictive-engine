@@ -16,8 +16,8 @@ THE BOUNDARY THIS FILE DEFINES
     the time the strategy sees it, it is already a point-in-time value.
 
 ONE EXPORT PER REGISTERED UNIVERSE, DERIVED, NOT LISTED
-    Source and output both come from universes/registry.py --  u.score_cache in,
-    paths.nautilus_scores(u) out -- so this file iterates REGISTRY rather than
+    Source and output both come from settings.py --  u.score_cache in,
+    settings.nautilus_scores(u) out -- so this file iterates REGISTRY rather than
     naming four universes. It was the last place a new universe still needed a
     hand-written line: everything else in the pipeline picked one up from the
     registry, and a universe that reached the Nautilus layer without a parquet
@@ -27,7 +27,7 @@ ONE EXPORT PER REGISTERED UNIVERSE, DERIVED, NOT LISTED
     hardcoded ones were relative ("results/metrics/..."), which worked only
     because run_all.py spawned this step with cwd=ROOT.
 
-Source : u.score_cache        for every u in universes/registry.REGISTRY
+Source : u.score_cache        for every u in settings.REGISTRY
 Output : nautilus/data/{u.nautilus_scores}
 
 Reads only. Nothing under results/ or any results_<tag>/ directory is modified.
@@ -41,8 +41,8 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "results"))
 import config
-import paths
-from universes.registry import REGISTRY
+import settings
+from settings import REGISTRY
 from config import read_table  # the one CSV/parquet reader: config.read_table
 
 OUT_DIR = Path(__file__).resolve().parent / "data"
@@ -52,7 +52,7 @@ OUT_DIR = Path(__file__).resolve().parent / "data"
 
 def export(cache_path: Path, out_path: Path, tag: str) -> pd.DataFrame:
     """`year_end` is gone. It was declared and never read -- the year cut moved to
-    config.BT_START_DATE/config.BT_END_DATE ("one cut in one place is enough", above) and
+    settings.BT_START_DATE/settings.BT_END_DATE ("one cut in one place is enough", above) and
     the parameter was left behind, so three call sites passed 2026 and one passed
     2025 to something that ignored all four. A dead argument that looks like a
     per-universe window is worse than none."""
@@ -63,7 +63,7 @@ def export(cache_path: Path, out_path: Path, tag: str) -> pd.DataFrame:
     df = read_table(cache_path, usecols=["date", "symbol", "score"], parse_dates=["date"])
     print(f"  cache rows        : {len(df):,}")
 
-    df = df[(df["date"] >= config.BT_START_DATE) & (df["date"] <= config.BT_END_DATE)]
+    df = df[(df["date"] >= settings.BT_START_DATE) & (df["date"] <= settings.BT_END_DATE)]
     df = df.dropna(subset=["score"]).sort_values(["date", "symbol"]).reset_index(drop=True)
 
     # --- checks: the strategy cannot rank what it cannot see ---
@@ -117,8 +117,8 @@ def main():
     # midcap150` tried to export panels for three universes this run never built --
     # which from a warm tree silently exported STALE parquet from an earlier run,
     # and from a cold one had nothing to read.
-    import universes.registry as _ur
-    _sel_u = set(_ur.selected_tags())
+    import settings
+    _sel_u = set(settings.universe_axis.selected_tags())
     for tag, u in REGISTRY.items():
         if tag not in _sel_u:
             print(f"  {tag}: not in this run's selection -- not exported")
@@ -137,7 +137,7 @@ def main():
         # produces correct output from /tmp instead of stopping the pipeline.
         src = config.require_cache(u.score_cache,
                                    what=f"{u.label} score panel")
-        rows[tag] = len(export(Path(src), paths.nautilus_scores(u), u.label))
+        rows[tag] = len(export(Path(src), settings.nautilus_scores(u), u.label))
     print(f"\n{'=' * 66}")
     print("Done. " + " | ".join(f"{t}: {n:,} rows" for t, n in rows.items()))
     print("These files are the ONLY input the Nautilus strategy takes from the model.")

@@ -133,7 +133,7 @@ import pandas as pd
 _ROOT = Path(__file__).resolve().parents[1]
 if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
-from paths import list_dir  # noqa: E402
+from settings import list_dir  # noqa: E402
 
 # ---------------------------------------------------------------------------
 # switches

@@ -60,13 +60,13 @@ sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "results"))
 sys.path.insert(0, str(ROOT / "nautilus"))
 
-import config
+import settings
 import nt_run
 import nt_strategy
 import nt_attribution
 import nt_verify
 
-from universes.registry import REGISTRY, certified
+from settings import REGISTRY, certified
 from arms.registry import ARMS as ARM_REGISTRY
 
 # BOTH REGISTRIES FEED THIS FILE, and it is the one place where that matters
@@ -109,7 +109,7 @@ def verify_arm(universe, arm, mode, sizing):
 
     U = nt_run.UNIVERSES[universe]
     with contextlib.redirect_stdout(io.StringIO()):
-        strat = nt_run.run(str(config.BT_START_DATE.date()), U["end"],
+        strat = nt_run.run(str(settings.BT_START_DATE.date()), U["end"],
                            quiet=True, universe=universe,
                            sizing=sizing, mode=mode, drawdown_stop=None)
         dates, port = nt_verify.port_holdings(strat)
@@ -140,12 +140,12 @@ def verify_arm(universe, arm, mode, sizing):
 
 
 def main():
-    from universes.registry import argv_universes, check_tags
+    from settings import argv_universes, check_tags
     unis = check_tags(argv_universes(sys.argv), UNIVERSES) or UNIVERSES
     print("=" * 100)
     print(" V34 CORRECTNESS GATE -- nt_verify, four arms, both universes")
     print("=" * 100)
-    print(f"  window {config.BT_START_DATE.date()} to {config.BT_END_DATE.date()}"
+    print(f"  window {settings.BT_START_DATE.date()} to {settings.BT_END_DATE.date()}"
           f"   (from config.py, shared by engine and port)")
     print("  the applied columns are what each side RECORDED at its decision point,")
     print("  not what it was asked to apply, so they cannot report a rule the code")

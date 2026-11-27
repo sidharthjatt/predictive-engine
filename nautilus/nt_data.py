@@ -59,7 +59,8 @@ import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import config
-from paths import list_dir
+import settings
+from settings import list_dir
 
 from nautilus_trader.model.currencies import INR
 from nautilus_trader.model.data import (Bar, BarType, BookOrder,
@@ -140,6 +141,7 @@ def set_volume_source(raw_dir, symbols=None):
     """
     global _VOLUME
     import config as _cfg
+    import settings
     _VOLUME = {}
     raw_dir = Path(raw_dir)
     for f in list_dir(raw_dir, "*.csv"):
@@ -342,7 +344,8 @@ if __name__ == "__main__":
     # Reads the first certified universe's score panel through config.require_cache,
     # which refuses a panel built from other code or other data.
     import config
-    from universes.registry import certified
+    import settings
+    from settings import certified
     _u = certified()[0]
     cache = config.require_cache(_u.score_cache, what=f"{_u.tag} score panel")
     px, _ = load_panel(cache)

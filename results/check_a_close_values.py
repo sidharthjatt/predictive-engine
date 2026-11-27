@@ -30,11 +30,12 @@ sys.path.insert(0, str(ROOT)); sys.path.insert(0, str(ROOT / "results"))
 import numpy as np
 import pandas as pd
 import config
-from paths import list_dir
+import settings
+from settings import list_dir
 from features_v2 import EXTREME_RET_HI, EXTREME_RET_LO
-from universes.registry import REGISTRY, certified
+from settings import REGISTRY, certified
 
-# The DATA DIRECTORY and METRICS DIRECTORY come from universes/registry.py --
+# The DATA DIRECTORY and METRICS DIRECTORY come from settings.py --
 # the single definition. The LABEL stays local: it is printed into
 # diagnostics/checkA_close_bad_values.txt. Labels are presentation; paths are
 # facts. Order is load-bearing -- the report is written universe by universe.
@@ -63,7 +64,7 @@ def run(uni, ddir, mdir, label, W):
     rel = (P["close"] - P["adj_close"]).abs() / P["close"].abs().clip(lower=1e-9)
     P["disagree"] = rel > 1e-9
     D = P[P["disagree"]].copy()
-    inwin = (D["date"] >= config.BT_START_DATE) & (D["date"] <= config.BT_END_DATE)
+    inwin = (D["date"] >= settings.BT_START_DATE) & (D["date"] <= settings.BT_END_DATE)
 
     # PRIMARY: does each column sit inside its OWN row's high/low?
     for col in ("close", "adj_close"):
@@ -99,8 +100,8 @@ def run(uni, ddir, mdir, label, W):
     if len(bad_close):
         W(f"  *** {len(bad_close):,} BAD VALUES IN close -- THE COLUMN THE ENGINE")
         W("  *** USES FOR FEATURES, RETURNS AND EXECUTION PRICES.")
-        bw = bad_close[(bad_close["date"] >= config.BT_START_DATE)
-                       & (bad_close["date"] <= config.BT_END_DATE)]
+        bw = bad_close[(bad_close["date"] >= settings.BT_START_DATE)
+                       & (bad_close["date"] <= settings.BT_END_DATE)]
         W(f"      inside the backtest window: {len(bw):,}")
         W(f"      symbols affected: {bad_close['symbol'].nunique()}")
         W("")
@@ -111,7 +112,7 @@ def run(uni, ddir, mdir, label, W):
             W(f"      {r['symbol']:<14}{str(r['date'].date()):<12}{r['close']:>10.2f}"
               f"{r['low']:>10.2f}{r['high']:>10.2f}{r['close_viol_pct']:>8.2f}"
               f"{r['r_close']*100:>8.1f}%{('masked' if masked else 'PASSES'):>9}"
-              f"{('in' if config.BT_START_DATE <= r['date'] <= config.BT_END_DATE else 'out'):>8}")
+              f"{('in' if settings.BT_START_DATE <= r['date'] <= settings.BT_END_DATE else 'out'):>8}")
     else:
         W("  NO close VALUE ON ANY DISAGREEMENT ROW FALLS OUTSIDE ITS OWN SESSION'S")
         W("  RANGE. By this test the traded column is internally consistent on every")

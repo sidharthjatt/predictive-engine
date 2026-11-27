@@ -170,7 +170,7 @@ committed number moved with it.
 
 **A universe's membership is read from the supplier directory at import, and a
 change to it produces no diff in git.** `symbol_list` is
-`_constituents(<source>, <index_name>)`, evaluated when `universes/registry.py`
+`_constituents(<source>, <index_name>)`, evaluated when `settings.py`
 is imported, so the 148, 99 and 50 names are nowhere written down in this
 repository. `data/raw/` is gitignored apart from a `.gitkeep`. If the supplier
 adds, removes or renames a CSV, the affected universe silently becomes a
@@ -241,7 +241,7 @@ The five universes not yet wired will use `midcap50`, `midcap100`, `nifty200`,
 directories under those names.
 
 **The two retired universes, deleted 2026-09-11, get no new tag.** Since
-2026-09-24 they are no longer listed in `universes/registry.REPORT_ORDER`; git
+2026-09-24 they are no longer listed in `settings.REPORT_ORDER`; git
 history keeps their records.
 
 ### THE SECOND NAMING WORLD: STEP LABELS, adopted 2026-09-19

@@ -37,7 +37,7 @@ NO k IS SELECTED HERE. The sweep shows how sensitive the answer is to k. Picking
 one is a separate decision that needs a reason this file cannot supply.
 
 EVERY CORE ARM ON EVERY UNIVERSE. The arms come from arms.registry.ARMS (v1 to v4)
-and the universes from universes.registry.REGISTRY; nothing here names either.
+and the universes from settings.REGISTRY; nothing here names either.
 Each pair writes diagnostics/impact_sweep_<universe>_<arm>.csv. The no-cap, k-none
 row is the research profile, tax off, cadence 20 (test_exposure.REBAL), which is
 what the published v34_comparison.csv rows are, and is compared against them by
@@ -54,14 +54,16 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "results"))
 
-import config                                    # noqa: E402
+import config
+import settings                                    # noqa: E402
 import engine_core                               # noqa: E402
 from arms.registry import ARMS                   # noqa: E402
-import impact_axis                               # noqa: E402
-import pcap_axis                                 # noqa: E402
-import profiles                                  # noqa: E402
+from settings import impact_axis                               # noqa: E402
+from settings import pcap_axis                                 # noqa: E402
+import profiles
+import settings                                  # noqa: E402
 from test_exposure import backtest_exposure      # noqa: E402
-from universes.registry import REGISTRY          # noqa: E402
+from settings import REGISTRY          # noqa: E402
 from config import read_table  # the one CSV/parquet reader: config.read_table
 
 K_VALUES = (0.001, 0.002, 0.003, 0.005)
@@ -84,7 +86,7 @@ def panel(tag):
     px = p.pivot_table(index="date", columns="symbol", values="close").ffill()
     op = p.pivot_table(index="date", columns="symbol", values="open").ffill()
     sc = p.pivot_table(index="date", columns="symbol", values="score")
-    bd = px.index[(px.index >= config.BT_START_DATE) & (px.index <= config.BT_END_DATE)]
+    bd = px.index[(px.index >= settings.BT_START_DATE) & (px.index <= settings.BT_END_DATE)]
     pc = engine_core.precompute(px)
     mom20 = px / px.shift(20) - 1
     # the tradeable profile's volume series, loaded once and reused by every cell
@@ -97,7 +99,7 @@ def panel(tag):
 def _select(cap, k):
     """Select what run.py would for this cell: research when cap is None, else
     --profile tradeable --cap cap --impact k (k None is --impact 0)."""
-    profiles.set_selection(None if cap is None else "tradeable")
+    settings.profile_axis.set_selection(None if cap is None else "tradeable")
     pcap_axis.set_selection(cap)
     impact_axis.set_selection(k)
 
@@ -152,7 +154,7 @@ def main():
             df.to_csv(dest, index=False)
             print("=" * 100)
             print(f" IMPACT SWEEP -- {tag}   arm {arm.name} ({arm.mode}/{arm.sizing})   "
-                  f"window {config.BT_START_DATE.date()} -> {config.BT_END_DATE.date()}")
+                  f"window {settings.BT_START_DATE.date()} -> {settings.BT_END_DATE.date()}")
             print("=" * 100)
             print(df.to_string(index=False))
             print(f"  saved -> {dest.relative_to(ROOT)}")

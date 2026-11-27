@@ -1,5 +1,5 @@
 """
-fixed_capital.py -- the figures of a fixed-capital run (fixed_axis.py), and its
+fixed_capital.py -- the figures of a fixed-capital run (settings.fixed_axis), and its
 basket and index under the same rule.
 
 A fixed-capital run does not reinvest its profits, so CAGR understates it: the
@@ -161,6 +161,7 @@ def grid_mask(dates, rebal):
 def index_values(u, dates):
     """The universe's NSE price index close, forward-filled onto `dates`, or None."""
     import config
+    import settings
     from pathlib import Path
     if getattr(u, "index_file", None) is None or not Path(u.index_file).exists():
         return None

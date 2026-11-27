@@ -13,7 +13,7 @@ import pandas as pd
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-import config
+import settings
 
 from nautilus_trader.backtest.engine import BacktestEngine, BacktestEngineConfig
 from nautilus_trader.backtest.models import LatencyModel
@@ -29,8 +29,7 @@ from nt_data import VENUE, load_universe
 sys.path.insert(0, str(ROOT / "results"))
 from qbeast_in_charges import (Broker, Exchange, Product, QbeastIndianFeeModel, Segment)
 from nt_strategy import PredictiveEngineStrategy
-from universes.registry import REGISTRY
-import paths
+from settings import REGISTRY
 
 # The same panel the reference engine uses. Feeding raw CSVs instead produced a
 # different union date index and therefore different momentum windows.
@@ -40,13 +39,13 @@ import paths
 # universe is a registry entry, not a new code path -- the strategy, the venue and
 # the verification are shared, so whatever is proven on one is proven the same way
 # on the others.
-# PATHS COME FROM universes/registry.py -- the single definition, shared with the
+# PATHS COME FROM settings.py -- the single definition, shared with the
 # research side. This registry was the most complete of the nineteen: it is the
 # only one that knew all FOUR universes, and its per-universe backtest END DATE
 # lived nowhere else in the repository. That end date is now u.nautilus_end, so
 # the port and the research scripts read one definition.
 #
-# EVERY REGISTERED UNIVERSE ENDS AT config.BT_END_DATE. The constituents stop
+# EVERY REGISTERED UNIVERSE ENDS AT settings.BT_END_DATE. The constituents stop
 # before the index does, so the panel and therefore the backtest stop there too.
 # The end date is still a per-universe field because two retired universes
 # (deleted 2026-09-11) carried frozen end dates of their own; a universe that
@@ -66,8 +65,8 @@ UNIVERSES = {
 # it, none of which mention a universe themselves.
 _DEFAULT_UNIVERSE = next(iter(UNIVERSES))
 PRICE_CACHE = UNIVERSES[_DEFAULT_UNIVERSE]["cache"]
-import capital_axis as _capital_axis  # noqa: E402
-# THE DEFAULT, defined once in capital_axis.py. A run's capital is
+from settings import capital_axis as _capital_axis  # noqa: E402
+# THE DEFAULT, defined once in settings.capital_axis. A run's capital is
 # capital_axis.selected(); this name stays for callers that want the default.
 START_CAPITAL = _capital_axis.DEFAULT
 WARMUP_DAYS = 200          # calendar days of history before trading begins
@@ -106,7 +105,7 @@ def reports_segment(mode, sizing, rebal=None, drawdown_stop=None):
     a backtest engine. Inline composition is exactly how the profile went missing
     here for as long as it did -- nothing could interrogate it.
 
-    Registered in naming.CARRIES as carrying all three axes, measured, not assumed.
+    Registered in settings.CARRIES as carrying all three axes, measured, not assumed.
     """
     # THE CADENCE JOINS THE PATH, on the same rule the research side uses: the
     # default is unsuffixed so nautilus/reports/midcap150/v1/ keeps meaning what it has
@@ -126,15 +125,15 @@ def reports_segment(mode, sizing, rebal=None, drawdown_stop=None):
     # and stays unsuffixed, so nautilus/reports/midcap150/v2/ keeps meaning exactly what
     # it has always meant and no existing path moves.
     from arms.registry import path_segment
-    import naming
-    # THE CADENCE, PROFILE AND TAX TAIL COMES FROM naming.path_tail, the one rule
-    # paths.run_dir uses too. The history of each axis joining this path is in
+    import settings
+    # THE CADENCE, PROFILE AND TAX TAIL COMES FROM settings.path_tail, the one rule
+    # settings.run_dir uses too. The history of each axis joining this path is in
     # the git log of this function; NOTHING DOWNSTREAM OF IT READS THE PROFILE
     # (nt_strategy sizes with no participation cap), so `@tradeable` records
     # which profile the run SELECTED, not which one it APPLIED.
     # A STOP ARM GETS ITS OWN LEAF. v5 has v1's mode and sizing, so without the
     # stop in the segment its reports would overwrite v1's.
-    return path_segment(mode, sizing, drawdown_stop) + naming.path_tail(rebal)
+    return path_segment(mode, sizing, drawdown_stop) + settings.path_tail(rebal)
 
 
 # WHERE A RUN'S REPORTS GO. ONLY THE PIPELINE WRITES nautilus/reports/.
@@ -156,10 +155,10 @@ def run(trading_start, trading_end, symbols=None, quiet=True,
         universe=None,
         sizing="invvol", mode="breadth", rebal=None, reports_root=None,
         drawdown_stop=None, dd_overlay=None):
-    # THE REPORT DIRECTORY TAKES THE dd SEGMENT FROM THE SELECTION (naming.path_tail),
+    # THE REPORT DIRECTORY TAKES THE dd SEGMENT FROM THE SELECTION (settings.path_tail),
     # so an overlay passed without the selection, or the selection without the
     # overlay, would write a report under the wrong name. Refused.
-    import dd_axis as _dda
+    from settings import dd_axis as _dda
     if (dd_overlay is None) != _dda.is_default() or (
             dd_overlay is not None and dd_overlay != _dda.selected()):
         raise ValueError(f"nt_run.run: dd_overlay={dd_overlay!r} does not match the "
@@ -301,13 +300,13 @@ def run(trading_start, trading_end, symbols=None, quiet=True,
 
 
 if __name__ == "__main__":
-    from universes.registry import argv_universes, check_tags
+    from settings import argv_universes, check_tags
     _picked = check_tags(argv_universes(sys.argv), UNIVERSES)
     uni = _picked[-1] if _picked else _DEFAULT_UNIVERSE
     if "--full" in sys.argv:
-        run(str(config.BT_START_DATE.date()), UNIVERSES[uni]["end"], universe=uni)
+        run(str(settings.BT_START_DATE.date()), UNIVERSES[uni]["end"], universe=uni)
     else:
-        _s = config.BT_START_DATE
+        _s = settings.BT_START_DATE
         print(f"SMOKE TEST: full {uni} universe, one year from {_s.date()}\n")
         run(str(_s.date()), str((_s + pd.DateOffset(years=1) - pd.Timedelta(days=1)).date()),
             universe=uni)

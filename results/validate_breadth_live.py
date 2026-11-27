@@ -76,20 +76,22 @@ sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "results"))
 
 import config
+import settings
 from engine_core import (precompute, metrics, score_monthly, score_floor, HORIZON,
                          START_CAPITAL)
 from test_exposure import backtest_exposure
-from universes.registry import REGISTRY
-import profiles as _prof            # the run's execution-realism profile
+from settings import REGISTRY
+import profiles as _prof
+import settings            # the run's execution-realism profile
 from config import read_table  # the one CSV/parquet reader: config.read_table
 
 # Date window from config.py, NOT engine_core's year ints -- see config.py.
 
 # ALL FOUR PANEL PATHS AND THE METRICS DIRECTORY come from
-# universes/registry.py -- the single definition. The label is u.name, the
+# settings.py -- the single definition. The label is u.name, the
 # "Nifty 100"/"MidCap150" spelling this file has always written into
 # breadth_live_params.json and printed.
-from universes.registry import certified
+from settings import certified
 from seed_cache_key import seed_cache_key
 
 
@@ -98,7 +100,7 @@ def _t1_cache(u, si, seeds, raw_path):
     key = seed_cache_key(
         code_files=[ROOT / "results" / "engine_core.py",
                     ROOT / "results" / "validate_breadth_live.py",
-                    ROOT / "config.py"],
+                    ROOT / "config.py", ROOT / "settings.py"],
         panel_path=raw_path,
         parts=(u, sorted(seeds)))
     return Path(f"/tmp/VALBREADTH_{u}_seed{si}_{key}.csv")
@@ -130,7 +132,7 @@ def panel_parts(p):
 
 def window_dates(px, y0=None, y1=None):
     """The backtest window, optionally narrowed to a year range."""
-    m = (px.index >= config.BT_START_DATE) & (px.index <= config.BT_END_DATE)
+    m = (px.index >= settings.BT_START_DATE) & (px.index <= settings.BT_END_DATE)
     if y0 is not None:
         m &= (px.index.year >= y0) & (px.index.year <= y1)
     return px.index[m]
@@ -184,7 +186,7 @@ def _git_state():
 
 
 def universe_from_argv():
-    from universes.registry import argv_universes, check_tags
+    from settings import argv_universes, check_tags
     picked = check_tags(argv_universes(sys.argv), UNIVERSES)
     if picked:
         return picked[-1]
@@ -207,7 +209,7 @@ def main():
     W(f" BREADTH VALIDATION ON A LIVE UNIVERSE -- {U['label']} ({u})")
     W("=" * 104)
     W(f"  spec    experiments/BREADTH_LIVE_SPEC.txt")
-    W(f"  window  {config.BT_START_DATE.date()} to {config.BT_END_DATE.date()} inclusive")
+    W(f"  window  {settings.BT_START_DATE.date()} to {settings.BT_END_DATE.date()} inclusive")
     W("  T1 and T2 are copied verbatim from results/validate_breadth.py, which")
     W("  stays frozen. T3 is new and is REPORTED, NOT GATED.")
 
@@ -354,7 +356,7 @@ def main():
     t2.to_csv(M / "breadth_live_t2.csv", index=False)
     t3.to_csv(M / "breadth_live_t3.csv", index=False)
     params = {"universe": u, "label": U["label"],
-              "window": [str(config.BT_START_DATE.date()), str(config.BT_END_DATE.date())],
+              "window": [str(settings.BT_START_DATE.date()), str(settings.BT_END_DATE.date())],
               "seed_sets": SEED_SETS, "dd_bar_points": DD_BAR,
               "dd_bar_note": "underived; copied from validate_breadth.py, not recalibrated",
               "criteria": {k: bool(v) for k, v in passed.items()},

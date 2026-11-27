@@ -31,11 +31,11 @@ warnings.filterwarnings("ignore")
 
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-import config
+import settings
 import survivorship as sv
 import engine_core
 from engine_core import metrics, precompute
-import profiles as _prof            # the run's execution-realism profile
+import settings            # the run's execution-realism profile
 import tax_util as _tax_util        # the tax RULES; this file owns the cash
 
 try:
@@ -59,7 +59,7 @@ except Exception as _e:
 
 REBAL, VOL_WIN = 20, 60
 # SELECTION -- imported from config.py, the single definition.
-TOP_N, BUFFER = config.TOP_N, config.BUFFER
+TOP_N, BUFFER = settings.TOP_N, settings.BUFFER
 _THIN_WARNED = set()      # see the len(s_) < TOP_N branch in backtest_exposure
 # SLIPPAGE comes from slippage.py, which is the only definition. It was
 # written out in seven files until 2026-09-22; these engines are
@@ -70,16 +70,17 @@ from slippage import SLIPPAGE  # noqa: E402
 import slippage as _sl  # noqa: E402
 from config import read_table  # the one CSV/parquet reader: config.read_table
 from numerics import rolling_std  # platform-identical variance: results/numerics.py
-import capital_axis as _capital_axis  # noqa: E402
-import buy_shortfall as _bsf  # noqa: E402
-# THE DEFAULT, defined once in capital_axis.py. A run's capital is
+from settings import capital_axis as _capital_axis  # noqa: E402
+import buy_shortfall as _bsf
+import settings  # noqa: E402
+# THE DEFAULT, defined once in settings.capital_axis. A run's capital is
 # capital_axis.selected(); this name stays for callers that want the default.
 START_CAPITAL = _capital_axis.DEFAULT
 CASH_YIELD = 0.0        # no yield assumed on idle cash
 # BACKTEST WINDOW -- imported from config.py, the single definition.
 # Date-based and inclusive. The old year cut (BT_START, BT_END = 2019, 2026)
 # ran to 2026-06-08, six trading days beyond this window.
-M = config.METRICS_DIR
+M = settings.METRICS_DIR
 
 
 # THE CAP HAS NO DEFAULT, DELIBERATELY. `participation_cap=None` used to be the
@@ -172,7 +173,7 @@ def backtest_exposure(px, op, sc, dates, pc, mom20,
     """audit=None reproduces the original code path exactly: no overhead, and the
     official numbers are unchanged.
 
-    fixed_capital -- THE FIXED-CAPITAL AXIS (fixed_axis.py). Left unset, it is read
+    fixed_capital -- THE FIXED-CAPITAL AXIS (settings.fixed_axis). Left unset, it is read
         from fixed_axis.selected(), which is False unless run.py was given
         --fixed-capital, and False runs none of the code that reads it. When on, at
         each rebalance open, after the morning's sells and any tax taken that
@@ -184,7 +185,7 @@ def backtest_exposure(px, op, sc, dates, pc, mom20,
         execution day's open valuation is written to audit["fixed"]. Refused
         together with drawdown_stop, dd_overlay and funding="prorata".
 
-    dd_overlay -- THE DRAWDOWN-LIMIT AXIS (dd_axis.py, results/drawdown_overlay.py).
+    dd_overlay -- THE DRAWDOWN-LIMIT AXIS (settings.dd_axis, results/drawdown_overlay.py).
         Left unset, it is read from dd_axis.selected(), which is None unless
         run.py was given --dd, and None runs none of the code that reads it. A
         DDLimit passed explicitly (tests) overrides the selection. When on, the
@@ -217,7 +218,7 @@ def backtest_exposure(px, op, sc, dates, pc, mom20,
         passed.
 
     buy_shortfall -- A BUY CASH CANNOT FULLY PAY FOR (buy_shortfall.py). None,
-        the default, reads buy_shortfall.selected(), which is config.BUY_SHORTFALL
+        the default, reads buy_shortfall.selected(), which is settings.BUY_SHORTFALL
         ("trim") unless run.py was given --buy-shortfall. "trim" cuts the buy to the
         largest whole quantity whose cost and charges fit the cash left at that
         point of the morning, and refuses it when that is 0 or below
@@ -325,7 +326,7 @@ def backtest_exposure(px, op, sc, dates, pc, mom20,
             f"this call measures the research strategy under a "
             f"'{__import__('profiles').selected()}' label.\n"
             f"  Pass vol20=tradability.median_volume(u.prepare_data_dir(), "
-            f"_load_calendar(), config.BT_START_DATE, config.BT_END_DATE) as both engines and "
+            f"_load_calendar(), settings.BT_START_DATE, settings.BT_END_DATE) as both engines and "
             f"v34_common do, or declare the intent with "
             f"profiles.research_only(__name__) if this caller is research-only.")
     # THE EXEMPTION MAP IS BUILT ONCE, FROM THE VOLUME SERIES, BEFORE ANY FILL.
@@ -437,13 +438,13 @@ def backtest_exposure(px, op, sc, dates, pc, mom20,
     # THE DRAWDOWN-LIMIT AXIS (results/drawdown_overlay.py). Nothing below that
     # reads _dd runs when it is None, which is every run without --dd.
     if dd_overlay is _DD_FROM_SELECTION:
-        import dd_axis as _dd_axis
+        from settings import dd_axis as _dd_axis
         dd_overlay = _dd_axis.selected()
     _dd = dd_overlay
-    # THE FIXED-CAPITAL AXIS (fixed_axis.py). Nothing below that reads _fixed runs
+    # THE FIXED-CAPITAL AXIS (settings.fixed_axis). Nothing below that reads _fixed runs
     # when it is False, which is every run without --fixed-capital.
     if fixed_capital is _FIXED_FROM_SELECTION:
-        import fixed_axis as _fixed_axis
+        from settings import fixed_axis as _fixed_axis
         fixed_capital = _fixed_axis.selected()
     _fixed = bool(fixed_capital)
     if _fixed:
@@ -460,9 +461,9 @@ def backtest_exposure(px, op, sc, dates, pc, mom20,
     _reserve = 0.0
     # A BUY CASH CANNOT FULLY PAY FOR: trimmed or refused (buy_shortfall.py).
     if buy_shortfall is None:
-        buy_shortfall = _bsf.selected()
-    if buy_shortfall not in _bsf.CHOICES:
-        raise ValueError(f"buy_shortfall must be one of {_bsf.CHOICES}, got {buy_shortfall!r}")
+        buy_shortfall = settings.shortfall_axis.selected()
+    if buy_shortfall not in settings.shortfall_axis.CHOICES:
+        raise ValueError(f"buy_shortfall must be one of {settings.shortfall_axis.CHOICES}, got {buy_shortfall!r}")
     _shortfall = buy_shortfall
     _n_trimmed = _n_refused = 0
     if _dd is not None:
@@ -693,7 +694,7 @@ def backtest_exposure(px, op, sc, dates, pc, mom20,
                     return opens.get(s_, np.nan) if engine_core.tradeable_on(s_, dt) \
                         else prices.get(s_, np.nan)
                 if _fixed:
-                    # THE FIXED-CAPITAL RING-FENCE (fixed_axis.py). Profit above the
+                    # THE FIXED-CAPITAL RING-FENCE (settings.fixed_axis). Profit above the
                     # base is held back from every purchase; below the base the book
                     # is the equity, so a loss is not topped up.
                     _book = min(_cap0, port_val)
@@ -1264,7 +1265,7 @@ def backtest_exposure(px, op, sc, dates, pc, mom20,
     # size-sensitive run must not be readable without the number of fills that
     # were priced at the flat rate instead. `impact_out` is an out-parameter for
     # the same reason `applied_out` is -- the return signature has 25 callers and
-    # a module global is the leak cadence.py records.
+    # a module global is the leak settings.cadence records.
     if impact_out is not None:
         impact_out.update({"k": impact_k, "priced": _imp["priced"],
                            "exempt": _imp["exempt"],

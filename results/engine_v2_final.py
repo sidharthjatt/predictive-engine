@@ -7,7 +7,7 @@ the largest of the eight: unlike the step 3 and step 4 pairs, which differed onl
 in the tag, these two had diverged in 95 lines of code after universe names were
 normalised, and some of that divergence REACHED PUBLISHED ARTEFACTS.
 
-EVERYTHING THAT DIVERGED IS NOW REGISTRY DATA, NOT CODE. universes/registry.py
+EVERYTHING THAT DIVERGED IS NOW REGISTRY DATA, NOT CODE. settings.py
 carries, per universe: validation_status, engine_params_keys (the exact ordered
 key list for v2FINAL_params.json), engine_params_static, and engine_text (the
 panel description, the buy&hold label, and whether the index-absent assertion
@@ -42,19 +42,20 @@ warnings.filterwarnings("ignore")
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import config
-import cadence
-import dd_axis  # noqa: E402
+import settings
+from settings import cadence
+from settings import dd_axis  # noqa: E402
 import arms.registry as arm_reg
 from engine_core import metrics, precompute
 from test_exposure import backtest_exposure, CASH_YIELD
-import profiles as _prof            # the run's execution-realism profile
+import profiles as _prof
+import settings            # the run's execution-realism profile
 # SURVIVORSHIP REPORTING, BACK-PORTED FROM engine_v2_final_n100.py 2026-09-13.
 # midcap150 has run under the SAME static-membership bias as nifty100 since it existed --
 # 148 of TODAY'S index members backfilled to 2019 -- and said nothing about it in
 # any output it wrote. nifty100's engine has reported it all along. The bias was never
 # universe-specific; only the disclosure was.
 import survivorship as sv
-import naming
 from config import read_table  # the one CSV/parquet reader: config.read_table
 
 REBAL, VOL_WIN = 20, 60
@@ -63,11 +64,11 @@ REBAL, VOL_WIN = 20, 60
 # argument; the module constant is never reassigned, because a reassigned global
 # leaks into the next step (module_state.py names the case).
 # SELECTION -- imported from config.py, the single definition.
-TOP_N, BUFFER = config.TOP_N, config.BUFFER
-import capital_axis as _capital_axis  # noqa: E402
-import impact_axis  # noqa: E402
-import pcap_axis  # noqa: E402
-# THE DEFAULT, defined once in capital_axis.py. A run's capital is
+TOP_N, BUFFER = settings.TOP_N, settings.BUFFER
+from settings import capital_axis as _capital_axis  # noqa: E402
+from settings import impact_axis  # noqa: E402
+from settings import pcap_axis  # noqa: E402
+# THE DEFAULT, defined once in settings.capital_axis. A run's capital is
 # capital_axis.selected(); this name stays for callers that want the default.
 START_CAPITAL = _capital_axis.DEFAULT
 # BACKTEST WINDOW -- imported from config.py, the single definition.
@@ -109,27 +110,26 @@ def _c(path):
     same defect the cadence suffix was introduced to fix, on a third axis, and
     silent rather than fatal. See KNOWN_ISSUES.md.
     """
-    import profiles as _pf
-    import tax as _tax
+    import settings
+    from settings import tax as _tax
     # THE TAX AXIS IS PART OF THIS NAME TOO (2026-09-17). tax=on deducts a
     # lump sum from cash on a payment date, which changes the cash path, the
     # integer share counts sized from it and therefore every number this step
     # writes -- exactly the way `tradeable` does. Writing those into the
     # canonical filenames would be the same defect on a fourth axis.
-    import survivorship_axis as _sva
-    import dd_axis as _dda
-    import capital_axis as _capa
-    import impact_axis as _impa
-    import pcap_axis as _pca
-    import fixed_axis as _fxa
-    import start_axis as _sta
-    import buy_shortfall as _bsf
-    _all_default = (cadence.is_default() and _pf.is_default() and _tax.is_default()
+    from settings import survivorship_axis as _sva
+    from settings import dd_axis as _dda
+    from settings import capital_axis as _capa
+    from settings import impact_axis as _impa
+    from settings import pcap_axis as _pca
+    from settings import fixed_axis as _fxa
+    from settings import start_axis as _sta
+    _all_default = (cadence.is_default() and settings.profile_axis.is_default() and _tax.is_default()
                     and _sva.is_default() and _dda.is_default()
-            and _capa.is_default() and _impa.is_default() and _pca.is_default() and _fxa.is_default() and _sta.is_default() and _bsf.is_default())
+            and _capa.is_default() and _impa.is_default() and _pca.is_default() and _fxa.is_default() and _sta.is_default() and settings.shortfall_axis.is_default())
     _sfx = ("" if _all_default
-            else (cadence.suffix() + _pf.suffix() + _tax.suffix() + _sva.suffix()
-                  + _dda.suffix() + _capa.suffix() + _impa.suffix() + _pca.suffix() + _fxa.suffix() + _sta.suffix() + _bsf.suffix()))
+            else (cadence.suffix() + settings.profile_axis.suffix() + _tax.suffix() + _sva.suffix()
+                  + _dda.suffix() + _capa.suffix() + _impa.suffix() + _pca.suffix() + _fxa.suffix() + _sta.suffix() + settings.shortfall_axis.suffix()))
     out = path if not _sfx else path.with_name(path.stem + _sfx + path.suffix)
     # WHAT THIS RUN ACTUALLY WROTE, RECORDED HERE BECAUSE HERE IS WHERE THE NAME
     # IS DECIDED. The step used to end by printing a hardcoded list of the
@@ -189,7 +189,7 @@ def main(u):
     px = p.pivot_table(index="date", columns="symbol", values="close").ffill()
     op = p.pivot_table(index="date", columns="symbol", values="open").ffill()
     sc = p.pivot_table(index="date", columns="symbol", values="score")
-    # THE UNIVERSE'S WINDOW: config.BT_START_DATE..BT_END_DATE for every static row;
+    # THE UNIVERSE'S WINDOW: settings.BT_START_DATE..BT_END_DATE for every static row;
     # a pit row starts at its first membership row when that is later.
     bd = u.trading_days(px.index)
     pc = precompute(px)
@@ -220,15 +220,16 @@ def main(u):
     # bh_lots_after_tax.py's, so `--tax on` moved filenames and nothing else: 36
     # of 40 suffixed artefacts were BYTE-IDENTICAL to their untaxed twins and the
     # other 4 differed only in a header label. The axis renamed; it did not charge.
-    import tax as _tax_axis
+    from settings import tax as _tax_axis
     _taxon = _tax_axis.selected()
     # THE PROFILE'S CAP, RESOLVED ONCE AND PASSED AS AN ARGUMENT.
-    # profiles.py records why this is not a global on test_exposure: cadence.py
+    # profiles.py records why this is not a global on test_exposure: settings.cadence
     # documents rebal_cadence_sweep.py setting test_exposure.REBAL and never
     # restoring it, so every later in-process step silently used the wrong cadence.
     # None under profile="research", so `q` is untouched and the published history
     # is exact.
     import profiles as _prof
+    import settings
     _capkw = _prof.cap_kwargs(u)
     base_eq, tcb, nb, base_expo = backtest_exposure(px, op, sc, bd, pc, mom20, mode="none", drawdown_stop=None,
                                                     audit=base_audit, rebal=_reb,
@@ -366,7 +367,7 @@ def main(u):
                        f"CAGR {mfin['CAGR%']}% vs {mbh['CAGR%']}%"),
         # A DICT MEANS MEASURED, A STRING MEANS NOT MEASURED ON THIS UNIVERSE.
         # The asymmetry is the record of which universe got the validation work;
-        # see universes/registry.py, where it is kept deliberately un-flattened.
+        # see settings.py, where it is kept deliberately un-flattened.
         "validation_status": u.validation_status,
     }
     _vals.update(u.engine_params_static or {})
@@ -392,7 +393,7 @@ def main(u):
     # ONE TITLE FOR EVERY UNIVERSE, since 2026-09-30. It was registry text, and
     # midcap150's carried a fixed performance claim ("~half the drawdown,
     # higher Sharpe") that no longer matched its own numbers.
-    ax[0].set_title(naming.run_label(u.label, ["v1", "v2"]) + "\n"
+    ax[0].set_title(settings.run_label(u.label, ["v1", "v2"]) + "\n"
                     + f"{u.label} -- ranking + inverse-vol + breadth-scaled exposure\n"
                     + sv.describe_state(), fontsize=10)
     ax[0].legend(loc="upper left", fontsize=9)
@@ -460,7 +461,7 @@ def main(u):
     print("VERDICT")
     print("=" * 100)
     print(f"  {u.label}: {', '.join(a.name for a in _sel)} against the equal-weight buy & hold, "
-          f"cadence {_reb}, profile {_prof.selected()}, tax {'on' if _taxon else 'off'}")
+          f"cadence {_reb}, profile {settings.profile_axis.selected()}, tax {'on' if _taxon else 'off'}")
 
     def _line(name, m):
         print(f"  {name:<11}: CAGR {m['CAGR%']:>6.2f}%  Sharpe {m['Sharpe']:>5.2f}  "
@@ -523,11 +524,11 @@ def main(u):
               "capital-gains\n  tax. --tax on charges it.")
     print(f"""
   Standing caveat: the universe is today's {len(u.symbol_list)} index members backfilled to
-  {config.BT_START_DATE.date()}, so every line above carries survivorship bias of unknown sign. See
+  {settings.BT_START_DATE.date()}, so every line above carries survivorship bias of unknown sign. See
   diagnostics/survivorship_attribution.txt for what has been estimated.
 """)
 
-    from universes.registry import REGISTRY as _REG
+    from settings import REGISTRY as _REG
     n_names = len(u.symbol_list)
     print("=" * 100)
     print("SELECTIVITY -- AN OBSERVATION, NOT A CHANGE")
@@ -562,7 +563,7 @@ def main(u):
 
 if __name__ == "__main__":
     # STANDALONE, BY TAG. There is no longer a file per universe to imply which.
-    from universes.registry import REGISTRY
+    from settings import REGISTRY
     if len(sys.argv) != 2 or sys.argv[1] not in REGISTRY:
         raise SystemExit(f"usage: {Path(__file__).name} <universe>   "
                          f"known: {', '.join(sorted(REGISTRY))}")

@@ -924,7 +924,7 @@ pre-registered test and was not added. See "Three backtest implementations and o
 
 ### registry.CERTIFIED still names two universes -- DEFERRED
 
-`universes/registry.CERTIFIED` is `("nifty100", "midcap150")`. These checks have never
+`settings.CERTIFIED` is `("nifty100", "midcap150")`. These checks have never
 run on the other six: `verify_v34_arms.py`, `validate_sizing.py`,
 `results/validate_breadth_live.py`, `results/validate_engine.py`,
 `results/validate_topn.py`, `results/shuffle_test.py` and the combined pair chart. The
@@ -1055,7 +1055,7 @@ The pipeline reads `data/raw/Final_Without_Survivorship_Data/`, twelve folders a
 
 ### PRIVISCL's removal lives only in data/raw/ and its manifests; check_all now checks them first
 
-PRIVISCL was removed from microcap250 on 2026-10-10 for bad price data (commit `730a0c2`). The removal is the absence of its two price files from `data/raw/` and of their lines from the manifests. No code excludes it: `Universe.prepare_data_dir()` (`universes/registry.py:459`) rebuilds each constituent farm under `cache/` from every CSV in the raw folder, on every call. Panel freshness checks (`config.source_key_for`, `config.py:306`), several `check_all` delegates and GATE 8 all call it.
+PRIVISCL was removed from microcap250 on 2026-10-10 for bad price data (commit `730a0c2`). The removal is the absence of its two price files from `data/raw/` and of their lines from the manifests. No code excludes it: `Universe.prepare_data_dir()` (`settings.py`) rebuilds each constituent farm under `cache/` from every CSV in the raw folder, on every call. Panel freshness checks (`config.source_key_for`, `config.py:306`), several `check_all` delegates and GATE 8 all call it.
 
 On 2026-10-15, between 20:49 and 20:53, `data/raw/` was restored from an older copy that still held both PRIVISCL files. The next `check_all`, on 2026-10-16, linked PRIVISCL back into both microcap250 farms (242 static and 304 pit names). It then failed 11 checks: three steps refused the panels as stale, and GATE 8 found eight microcap250 artefacts' data digests no longer matched. No run, panel or output was written from the restored copy. The two raw files were deleted again on 2026-10-16 by the owner's decision, and the farms are back to 241 and 303 names.
 
@@ -1111,7 +1111,7 @@ The owner kept the four stocks because they could be traded. Only the price adju
 
 ### The three market-cap buckets are static only, and their bias cannot be measured
 
-`mcap1500to5000`, `mcap5001to10000` and `mcapover10000` (2026-10-16) are the supplier's folders `Final_Universe_MarcketCap_1500_5000`, `_5001_10000` and `_GT_10000`. They hold 477, 216 and 538 names plus `NIFTY 500.csv`, the broad index, which is byte-identical to nifty500's `NIFTY500.csv`. The bucket bounds carry no unit until the owner confirms it with the supplier. Each row's `bias_note` (`universes/registry.py`) is printed in the plan, RUN.txt, `v2FINAL_params`, the dashboard and the survivorship sheet:
+`mcap1500to5000`, `mcap5001to10000` and `mcapover10000` (2026-10-16) are the supplier's folders `Final_Universe_MarcketCap_1500_5000`, `_5001_10000` and `_GT_10000`. They hold 477, 216 and 538 names plus `NIFTY 500.csv`, the broad index, which is byte-identical to nifty500's `NIFTY500.csv`. The bucket bounds carry no unit until the owner confirms it with the supplier. Each row's `bias_note` (`settings.py`) is printed in the plan, RUN.txt, `v2FINAL_params`, the dashboard and the survivorship sheet:
 
 > STATIC AND NOT AN INDEX. The supplier delivered these {n} names as a market-cap bucket, with no membership history. Only {k} of the {n} stop trading before the window ends, so the list appears to hold the bucket's members near the time of delivery, not the members at each date. A stock that left the bucket or was delisted is likely missing; a stock that grew into it is present for the whole window. Both the strategy and its buy & hold therefore likely carry survivorship and look-ahead bias, which cannot be measured without membership files. The benchmark index is the broad NIFTY 500, not a bucket index.
 
@@ -1183,7 +1183,7 @@ On the 2026-10-16 data, interior gaps exist in microcap250 (static and pit), the
 
 Where `Universe.prepare_data_dir` cannot hard-link a raw file, it copies it with
 `shutil.copy2` and recopies only when size or mtime differ
-(universes/registry.py:515-543). An in-place edit of a raw file that keeps both would
+(settings.py). An in-place edit of a raw file that keeps both would
 leave a stale copy in the farm. `config.data_fingerprint` reports such a copy as coming
 from `raw_data_dir` (config.py:549). Hard links, the normal case, cannot go stale.
 
@@ -1431,14 +1431,14 @@ An artefact name is a stem plus up to four axis suffixes: arm, cadence, profile,
 - at the writer, by a `# naming:` directive, which `naming_declare_check.py` checks against a non-default selection;
 - at the reader, by the compulsory fourth field of each `run_all.REQUIRED_INPUTS` entry, which `check_inputs._present()` composes.
 
-No check compares the two, so they can drift apart, and `_present`'s docstring still describes itself as a stopgap. `naming.py` builds directory tails (`path_tail`) and chart titles (`run_label`). File names are still assembled by hand in `results/audit_step.py:106,169` (`artefact_tag`), `results/v34_common.py:319` and `results/engine_v2_final.py:115`. The next step is to have `naming_declare_check` cross-check each `REQUIRED_INPUTS` axis field against the producing writer's directive.
+No check compares the two, so they can drift apart, and `_present`'s docstring still describes itself as a stopgap. `settings.py` builds directory tails (`path_tail`) and chart titles (`run_label`). File names are still assembled by hand in `results/audit_step.py:106,169` (`artefact_tag`), `results/v34_common.py:319` and `results/engine_v2_final.py:115`. The next step is to have `naming_declare_check` cross-check each `REQUIRED_INPUTS` axis field against the producing writer's directive.
 
 ### Artefact names are composed by hand, and only the writers are checked
 
-Four axes name an artefact (naming.AXES: arm, cadence, profile, tax). naming.tail()
+Four axes name an artefact (settings.AXES: arm, cadence, profile, tax). settings.tail()
 composes them, but about eight sites still build the suffix by hand, among them
 make_chart.py:83 (`_axes`, moved there from arm_sources.py on 2026-10-18),
-audit_step.py:169, make_chart.py:376 and make_combined_universes.py:422. naming_declare_check.py and naming.CARRIES verify
+audit_step.py:169, make_chart.py:376 and make_combined_universes.py:422. naming_declare_check.py and settings.CARRIES verify
 that writers carry the axes they declare. Readers are not checked. A reader that
 misses an axis resolves to the default file, and when the check it feeds re-ran
 under the same default it reports a match that could not have failed; this
@@ -1469,7 +1469,7 @@ move in one change. The owner deferred this on 2026-09-25.
 
 ### `Universe.year_range` is read on every panel build and set by no universe
 
-`universes/registry.Universe.window()` cuts by `year_range` if it is set and by `date_range` otherwise. Every universe passes `year_range=None`, so every run takes the date cut (`config.BT_START_DATE` to `BT_END_DATE`). That result is correct, but it is a default no universe chooses. The year branch is unreachable, and it would run six sessions past `BT_END_DATE`, to the end of the price data. It was left in place when the retired universes that used it were deleted on 2026-09-11. Remove the field and the branch, or make the date range the only window.
+`settings.Universe.window()` cuts by `year_range` if it is set and by `date_range` otherwise. Every universe passes `year_range=None`, so every run takes the date cut (`settings.BT_START_DATE` to `BT_END_DATE`). That result is correct, but it is a default no universe chooses. The year branch is unreachable, and it would run six sessions past `BT_END_DATE`, to the end of the price data. It was left in place when the retired universes that used it were deleted on 2026-09-11. Remove the field and the branch, or make the date range the only window.
 
 ### --arm narrows the v34 files and per-arm outputs, not v2FINAL_*
 
@@ -1510,7 +1510,7 @@ No check finds a new case. The detector would grep every `def` whose docstring c
 
 ### The drawdown-panel label is copied into seven registry rows
 
-universes/registry.py carries `chart_text["dd_label"]` on every row. Seven rows hold
+settings.py carries `chart_text["dd_label"]` on every row. Seven rows hold
 the same lambda text; midcap150's (line 727) is different. results/make_chart.py:459
 draws it on the drawdown panel of every per-universe chart. The copies are
 deliberate, because the registry keeps each universe to one self-contained row,
@@ -1657,7 +1657,7 @@ is kept outside the repository, in a git bundle the owner holds.
 
 - `tax_acceptance_check.py` creates two temporary directories per run
   (`tempfile.mkdtemp`, lines 81 and 130) and never removes them.
-- `paths.py:39` still calls the score panel a `.csv`; `config.read_table`'s docstring
+- `settings.score_cache` still calls the score panel a `.csv`; `config.read_table`'s docstring
   names `csv_reader_check.py`, which no longer exists; `results/engine_v2_final.py:180`
   and `:261` and `results/make_chart.py:62` (moved from arm_sources.py:5) name the deleted `make_final_chart_fair.py`;
   `results/validate_engine.py:57` and `:380` mention `FINAL_val_*.csv`.

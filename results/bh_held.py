@@ -26,7 +26,7 @@ import numpy as np
 import tax_util as T
 from test_exposure import calc_tc, SLIPPAGE
 from slippage import fill_price
-import capital_axis as _capital_axis  # noqa: E402
+from settings import capital_axis as _capital_axis  # noqa: E402
 
 
 def held_lots(px, op, bd):

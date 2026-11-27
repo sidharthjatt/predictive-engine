@@ -8,7 +8,7 @@ WHAT THIS REPLACES
     it was a copy of the one before it -- a chain of copies, each one universe
     further from the original.
 
-    Every difference between them is a universe property universes/registry.py
+    Every difference between them is a universe property settings.py
     records:
 
         data directory   u.prepare_data_dir()
@@ -51,7 +51,8 @@ for _p in (str(ROOT), str(ROOT / "results")):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
-import config                                                  # noqa: E402
+import config
+import settings                                                  # noqa: E402
 from engine_core import build_panel, score_monthly, HORIZON, SCORE_INPUT_COLS  # noqa: E402
 
 # The production ensemble. Identical in all four originals; not a universe property.

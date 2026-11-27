@@ -22,7 +22,7 @@ TWO KINDS OF STEP, AND THEY SELECT DIFFERENTLY
     PIPELINE STEPS are the scripts run_all.PIPELINE_ORDER lists. The per-universe
     ones (build_scores, engine_v2_final, audit_step, make_chart, bh_lots_after_tax,
     tax_report) each take a Universe, so a NEW universe is one row in
-    universes/registry.py and gets every step and every arm with no code change.
+    settings.py and gets every step and every arm with no code change.
 
 WHAT IS NOT MOVED
     results*/metrics/ is untouched. Every existing artefact keeps its path, so the
@@ -56,8 +56,8 @@ for _p in (str(ROOT), str(ROOT / "results"), str(ROOT / "nautilus")):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
-import paths                                        # noqa: E402
-from universes.registry import REGISTRY             # noqa: E402
+import settings                                        # noqa: E402
+from settings import REGISTRY             # noqa: E402
 from arms.registry import ARMS, ALL_ARMS, SHIPPING as SHIPPING_ARMS            # noqa: E402
 
 # ---------------------------------------------------------------------------
@@ -287,7 +287,7 @@ def show(p):
     """A path as the reader will recognise it: repo-relative when it is in the repo.
 
     NOT Path.relative_to, which RAISES on a path outside ROOT. A universe is free to
-    put its metrics anywhere -- nothing in universes/registry.py says the directory
+    put its metrics anywhere -- nothing in settings.py says the directory
     must be inside this checkout, and the first throwaway universe added to test
     that (requirement 6: adding a universe is a config change) pointed its
     metrics_dir at /tmp and crashed --dry-run here. Printing a plan is not a place
@@ -312,7 +312,7 @@ def resolve_universes(name):
     `--universe nifty100,midcap150` are the same request and must produce the same artefacts, or the filename of a combined
     comparison would depend on typing order and two runs of the same selection
     would leave two files. Reporting order is a separate decision and lives in
-    universes/registry.REPORT_ORDER, which the steps that care consult.
+    settings.REPORT_ORDER, which the steps that care consult.
 
     A REPEATED TAG IS NOT AN ERROR, it is the same set: `--universe nifty50,nifty50`
     is nifty50.
@@ -323,8 +323,8 @@ def resolve_universes(name):
         # UNDER --survivorship pit, "all" IS THE UNIVERSES THAT HAVE POINT-IN-TIME
         # SOURCES (owner's decision, 2026-10-16). The static-only ones are left out,
         # and main() prints them and RUN.txt records them; see PIT_LEFT_OUT.
-        import survivorship_axis as _sva
-        from universes.registry import has_pit
+        from settings import survivorship_axis as _sva
+        from settings import has_pit
         if not _sva.is_default():
             return [u for u in REGISTRY.values() if has_pit(u)]
         return list(REGISTRY.values())
@@ -334,7 +334,7 @@ def resolve_universes(name):
                          f"or 'all'. known: {', '.join(REGISTRY)}")
     # NAMES EVERY UNKNOWN TAG, not just the first, and refuses the retired short
     # tags with the list of valid universes (registry.check_tags). Exit status 2.
-    from universes.registry import check_tags
+    from settings import check_tags
     check_tags(want)
     sel = set(want)
     return [u for t, u in REGISTRY.items() if t in sel]
@@ -428,7 +428,7 @@ def arm_steps(unis, arms, rebal=None):
 
 def _cadence_default(args):
     """True when this run uses the shipped cadence, so nothing is cadence-scoped."""
-    return args.rebal is None or int(args.rebal) == paths.DEFAULT_REBAL
+    return args.rebal is None or int(args.rebal) == settings.DEFAULT_REBAL
 
 
 # ---------------------------------------------------------------------------
@@ -451,8 +451,9 @@ def preflight(args, plan):
     is three runs to learn one thing.
     """
     import arms.registry as _arms
-    import cadence as _cad
+    from settings import cadence as _cad
     import profiles as _prof
+    import settings
 
     bad = []
 
@@ -480,11 +481,11 @@ def preflight(args, plan):
                 raise ValueError
         except (TypeError, ValueError):
             bad.append(f"cadence {args.rebal!r} -- must be a positive integer "
-                       f"number of trading sessions (default {paths.DEFAULT_REBAL})")
+                       f"number of trading sessions (default {settings.DEFAULT_REBAL})")
 
-    if args.profile is not None and args.profile not in _prof.PROFILES:
+    if args.profile is not None and args.profile not in settings.profile_axis.PROFILES:
         bad.append(f"profile {args.profile!r} -- profiles.py defines "
-                   f"{sorted(_prof.PROFILES)}")
+                   f"{sorted(settings.profile_axis.PROFILES)}")
 
     stray = _universe_artefacts_in_shared_metrics()
     if stray:
@@ -499,7 +500,7 @@ def preflight(args, plan):
     if bad:
         raise SystemExit("REFUSING TO START -- the run names something that does "
                          "not exist:\n" + "\n".join(f"  {b}" for b in bad)
-                         + "\n  Nothing has run. See universes/registry.py.")
+                         + "\n  Nothing has run. See settings.py.")
 
 
 # The naming schemes a universe's artefacts use. FINAL_*/v2FINAL_* and v34_*
@@ -512,11 +513,11 @@ _UNIVERSE_ARTEFACT = re.compile(
 
 def _universe_artefacts_in_shared_metrics():
     """Filenames in results/metrics that belong to a universe. Empty is correct."""
-    import config
-    d = Path(config.METRICS_DIR)
+    import settings
+    d = Path(settings.METRICS_DIR)
     if not d.is_dir():
         return []
-    return [f.name for f in paths.list_dir(d)
+    return [f.name for f in settings.list_dir(d)
             if f.is_file() and _UNIVERSE_ARTEFACT.search(f.name)]
 
 
@@ -542,7 +543,7 @@ def build_plan(args):
         # index exit, so its reports would describe a different strategy from the
         # engine's, and pit cells are outside nt_verify (KNOWN_ISSUES.md). Removed
         # from the plan and named, never silently.
-        import survivorship_axis as _sva
+        from settings import survivorship_axis as _sva
         if not _sva.is_default():
             plan["pit_not_run"] = [e for e in plan["pipeline"] if e[1] in PIT_NOT_RUN]
             plan["pipeline"] = [e for e in plan["pipeline"] if e[1] not in PIT_NOT_RUN]
@@ -564,41 +565,42 @@ def print_plan(plan, args, show_paths=False):
     else:
         print(f"  rebalance cadence: 20 (default, unchanged)")
     import buy_shortfall as _bsf
-    print(f"  buy_shortfall: {_bsf.selected()}"
-          + (" (default)" if _bsf.is_default() else f" (default {_bsf.DEFAULT})")
+    import settings
+    print(f"  buy_shortfall: {settings.shortfall_axis.selected()}"
+          + (" (default)" if settings.shortfall_axis.is_default() else f" (default {settings.shortfall_axis.DEFAULT})")
           + " -- a buy cash cannot fully pay for is "
           + (f"cut to the largest whole quantity that fits, if at least "
-             f"{_bsf.MIN_FILL_PCT}% of it" if _bsf.selected() == "trim"
+             f"{_bsf.MIN_FILL_PCT}% of it" if settings.shortfall_axis.selected() == "trim"
              else "refused whole"))
 
-    import survivorship_axis as _sva
+    from settings import survivorship_axis as _sva
     if not _sva.is_default():
         print(f"  survivorship: {_sva.selected()} (point-in-time membership, "
               f"with-survivorship prices; static is the default)")
     for u in unis:
         if getattr(u, "bias_note", None):
             print(f"  BIAS ({u.tag}): {u.bias_note}")
-    import capital_axis as _capa
+    from settings import capital_axis as _capa
     if not _capa.is_default():
         print(f"  starting capital: Rs {_capa.selected():,} (default Rs {_capa.DEFAULT:,})")
-    import impact_axis as _impa
+    from settings import impact_axis as _impa
     if not _impa.is_default():
         print(f"  market impact: k {_impa.selected():g} x sqrt(order / prior-20-session "
               f"median volume), on buys and sells (default 0, off)")
-    import pcap_axis as _pca
+    from settings import pcap_axis as _pca
     if not _pca.is_default():
         print(f"  participation cap: {_pca.selected():g} of prior-20-session median volume "
               f"(the profile's own is {_pca._profile_cap():g})")
-    import start_axis as _sta
+    from settings import start_axis as _sta
     if not _sta.is_default():
         print(f"  backtest start: {_sta.selected().date()} (default "
               f"{_sta.DEFAULT.date()}); scoring from {_sta.score_floor().date()}")
-    import fixed_axis as _fxa
+    from settings import fixed_axis as _fxa
     if not _fxa.is_default():
         print(f"  fixed capital: positions sized from min(base, equity), base Rs "
               f"{_capa.selected():,}; profit above the base is not reinvested (default "
               f"off, compounded)")
-    import dd_axis as _dda
+    from settings import dd_axis as _dda
     if not _dda.is_default():
         print(f"  {_dda.label()} -- EXPLORATORY, not validated; off is the default")
         print(f"  {_dd_port_note(args)}")
@@ -616,17 +618,17 @@ def print_plan(plan, args, show_paths=False):
         for u, a in plan["arm_runs"]:
             line = f"    {u.tag:<6} {a.name:<4} mode={a.mode:<8} sizing={a.sizing:<7}"
             if show_paths:
-                line += f"  -> {show(paths.run_dir(u, a, args.rebal))}/"
+                line += f"  -> {show(settings.run_dir(u, a, args.rebal))}/"
             print(line)
     elif args.steps in ("arms", "all"):
         print("\n  ARM RUNS: none selected")
 
     if plan.get("cadence_dropped"):
         print(f"\n  NOT RUN -- frozen universes cannot take a non-default cadence "
-              f"(--rebal {args.rebal}); their engines pin {paths.DEFAULT_REBAL}:")
+              f"(--rebal {args.rebal}); their engines pin {settings.DEFAULT_REBAL}:")
         for u in plan["cadence_dropped"]:
             print(f"    {u.tag:<6} whole pipeline skipped: running it at "
-                  f"{paths.DEFAULT_REBAL} would answer a different question from "
+                  f"{settings.DEFAULT_REBAL} would answer a different question from "
                   f"the one asked, and its published numbers must not move")
 
     if plan.get("dropped"):
@@ -652,7 +654,7 @@ def print_plan(plan, args, show_paths=False):
     if show_paths:
         print("\n  OUTPUT LOCATIONS")
         for u, a in plan["arm_runs"]:
-            d = show(paths.run_dir(u, a, args.rebal))
+            d = show(settings.run_dir(u, a, args.rebal))
             print(f"    {u.tag}/{a.name:<4} {d}/comparison.csv  subperiods.csv  equity.csv  "
                   f"params.json  chart.png")
         # THE LOG IS PER INVOCATION, NOT PER ARM, and this line used to promise a
@@ -661,7 +663,7 @@ def print_plan(plan, args, show_paths=False):
               f"(written on success; runs/<same name>_FAILED.log on failure)")
         seen = set()
         for u in unis:
-            m = show(paths.metrics(u))
+            m = show(settings.metrics(u))
             if m not in seen:
                 seen.add(m)
                 print(f"    {u.tag:<6} existing artefacts stay in {m}/  (unchanged)")
@@ -680,11 +682,11 @@ def _cadence_arg(s):
     except ValueError:
         raise argparse.ArgumentTypeError(
             f"{s!r} is not a whole number of trading sessions "
-            f"(default {paths.DEFAULT_REBAL})")
+            f"(default {settings.DEFAULT_REBAL})")
     if n < 1:
         raise argparse.ArgumentTypeError(
             f"{n} -- the cadence must be at least 1 trading session "
-            f"(default {paths.DEFAULT_REBAL})")
+            f"(default {settings.DEFAULT_REBAL})")
     return n
 
 
@@ -725,19 +727,20 @@ def _start_arg(s):
     """--start value: a date, YYYY-MM-DD, before the backtest end."""
     import pandas as _pd
     import config as _cfg
+    import settings
     try:
         t = _pd.Timestamp(s)
     except ValueError:
         raise argparse.ArgumentTypeError(f"{s!r} is not a date (YYYY-MM-DD)")
-    if t >= _cfg.BT_END_DATE:
+    if t >= settings.BT_END_DATE:
         raise argparse.ArgumentTypeError(f"{t.date()} -- the start must be before the "
-                                         f"backtest end, {_cfg.BT_END_DATE.date()}")
+                                         f"backtest end, {settings.BT_END_DATE.date()}")
     return t
 
 
 def _capital_arg(s):
     """--capital value: whole rupees, at least Rs 1,00,000."""
-    import capital_axis as _ca
+    from settings import capital_axis as _ca
     try:
         x = int(s)
     except ValueError:
@@ -775,7 +778,7 @@ def _dd_setup(ap, args):
 
     Before the plan is built, so --list and --dry-run name the dd paths and refuse
     what a real run would refuse."""
-    import dd_axis as _dda
+    from settings import dd_axis as _dda
     if args.dd is None:
         if args.dd_m is not None or args.dd_floor is not None:
             ap.error("--dd-m and --dd-floor need --dd")
@@ -795,8 +798,8 @@ def _dd_setup(ap, args):
 
 def _dd_port_note(args):
     """The sentence saying a dd cell is outside port verification, or None."""
-    import dd_axis as _dda
-    import survivorship_axis as _sva
+    from settings import dd_axis as _dda
+    from settings import survivorship_axis as _sva
     if _dda.is_default():
         return None
     why = []
@@ -826,9 +829,9 @@ def main(argv=None):
                     help="which kinds of step to run (default all)")
     ap.add_argument("--rebal", type=_cadence_arg, default=None,
                     help="rebalance cadence in trading days; omit for the default 20")
-    # THE FOURTH AXIS GETS ITS ENTRY POINT. It had none until 2026-09-18: tax.py
+    # THE FOURTH AXIS GETS ITS ENTRY POINT. It had none until 2026-09-18: settings.tax
     # was implemented, verified by tax_acceptance_check.py on BOTH halves, hooked
-    # into test_exposure and composed by naming.AXES -- and no flag anywhere could
+    # into test_exposure and composed by settings.AXES -- and no flag anywhere could
     # turn it on. The only callers of tax.set_selection() in the repository were
     # two CHECKERS. A run could not charge tax.
     #
@@ -847,17 +850,17 @@ def main(argv=None):
                          "participation cap. See profiles.py.")
     # THE FIFTH AXIS, 2026-10-10. Default static: today's members backfilled, every
     # published figure. pit swaps each selected universe for its point-in-time
-    # variant (universes.registry.pit_variant) BEFORE the plan is built, because
+    # variant (settings.pit_variant) BEFORE the plan is built, because
     # run_all's input table and every path are derived from REGISTRY.
     ap.add_argument("--survivorship", default="static", choices=("static", "pit"),
                     help="universe construction (default static). pit uses the "
                          "supplier's membership files and with-survivorship prices; "
-                         "every artefact gets the _pit suffix. See survivorship_axis.py.")
+                         "every artefact gets the _pit suffix. See settings.survivorship_axis.")
     # THE SIXTH AXIS, 2026-10-13. Default off. Exploratory: see README.
     ap.add_argument("--dd", type=_dd_limit_arg, default=None, metavar="L",
                     help="drawdown limit in percent (above 0, at most 50); off by default. "
                          "Exposure = max(F, min(1, m*(W-(1-L)*M)/W)). Exploratory, not "
-                         "validated. See dd_axis.py.")
+                         "validated. See settings.dd_axis.")
     ap.add_argument("--dd-m", type=_dd_m_arg, default=None, metavar="m",
                     help="cushion multiplier for --dd (above 0; default 1/L, fully "
                          "invested at a peak)")
@@ -866,39 +869,39 @@ def main(argv=None):
     # THE SEVENTH AXIS, 2026-10-14. Default Rs 10,00,000, every published run's.
     ap.add_argument("--capital", type=_capital_arg, default=None, metavar="RUPEES",
                     help="starting capital in whole rupees, at least 100000 (default "
-                         "1000000). See capital_axis.py.")
+                         "1000000). See settings.capital_axis.")
     # THE EIGHTH AND NINTH AXES, 2026-10-15. Both need --profile tradeable; under
     # research either one is refused, not ignored.
     ap.add_argument("--impact", type=_impact_arg, default=None, metavar="K",
                     help="square-root market impact coefficient k, on buys and sells "
-                         "(default 0, off; tradeable profile only). See impact_axis.py.")
+                         "(default 0, off; tradeable profile only). See settings.impact_axis.")
     ap.add_argument("--cap", type=_pcap_arg, default=None, metavar="FRACTION",
                     help="participation cap as a fraction of prior-20-session median "
                          "volume (default: the profile's own, 1.0 under tradeable; "
-                         "tradeable profile only). See pcap_axis.py.")
+                         "tradeable profile only). See settings.pcap_axis.")
     # THE TENTH AXIS, 2026-10-16. Default off: every published run compounds.
     ap.add_argument("--fixed-capital", action="store_true",
                     help="size every rebalance from min(--capital, equity) and never "
                          "reinvest profit above it (default off, compounded). Refused "
-                         "with --dd and the stop arms. See fixed_axis.py.")
+                         "with --dd and the stop arms. See settings.fixed_axis.")
     # THE ELEVENTH AXIS, 2026-10-22. Default 2019-01-01: every published run starts there.
     ap.add_argument("--start", type=_start_arg, default=None, metavar="YYYY-MM-DD",
                     help="backtest start (default 2019-01-01). Scoring starts three "
                          "years earlier. A pit run starts at the later of this and the "
-                         "first membership row. See start_axis.py.")
-    # THE TWELFTH AXIS, 2026-10-27. Default trim (config.BUY_SHORTFALL).
+                         "first membership row. See settings.start_axis.")
+    # THE TWELFTH AXIS, 2026-10-27. Default trim (settings.BUY_SHORTFALL).
     ap.add_argument("--buy-shortfall", choices=("trim", "refuse"), default=None,
                     help="a buy cash cannot fully pay for: trim it to the largest whole "
                          "quantity that fits, if at least half the wanted quantity, "
                          "or refuse it (default from "
-                         "config.BUY_SHORTFALL, trim). See buy_shortfall.py.")
+                         "settings.BUY_SHORTFALL, trim). See buy_shortfall.py.")
     ap.add_argument("--list", action="store_true", help="resolve and print the plan, run nothing")
     ap.add_argument("--dry-run", action="store_true",
                     help="like --list, and show every output location")
     ap.add_argument("--fresh", action="store_true", help="clear caches first (full rebuild)")
     args = ap.parse_args(argv)
     _dd_setup(ap, args)
-    import fixed_axis as _fxa
+    from settings import fixed_axis as _fxa
     if args.fixed_capital:
         _why = _fxa.refusal(dd=args.dd is not None,
                             stop_arms=[a.name for a in resolve_arms(args.arm)
@@ -907,25 +910,27 @@ def main(argv=None):
             ap.error(_why)
     _fxa.set_selection(bool(args.fixed_capital))
     import buy_shortfall as _bsf
-    _bsf.set_selection(args.buy_shortfall)
+    import settings
+    settings.shortfall_axis.set_selection(args.buy_shortfall)
 
     # EVERY AXIS IS RECORDED HERE, BEFORE THE PLAN IS BUILT, so --list and --dry-run
     # compose their paths from the same selection a real run writes under. Cadence,
     # profile and tax used to be set only in _execute(), after --dry-run had
     # returned, so `--tax on --dry-run` printed runs/<u>/<arm>/ for a run that
     # writes runs/<u>/<arm>@tax/. Read by the engines as arguments or at call time;
-    # see cadence.py, profiles.py and tax.py. The tax bool is built here and
+    # see settings.cadence, profiles.py and settings.tax. The tax bool is built here and
     # nowhere else.
-    import cadence as _cad
+    from settings import cadence as _cad
     import profiles as _prof
-    import tax as _tax
+    import settings
+    from settings import tax as _tax
     _cad.set_selection(args.rebal)
-    _prof.set_selection(args.profile)
+    settings.profile_axis.set_selection(args.profile)
     _tax.set_selection(args.tax == "on")
-    import capital_axis as _capa
+    from settings import capital_axis as _capa
     _capa.set_selection(args.capital)
-    import impact_axis as _impa
-    import pcap_axis as _pca
+    from settings import impact_axis as _impa
+    from settings import pcap_axis as _pca
     _impa.set_selection(args.impact)
     _pca.set_selection(args.cap)
     for _axis in (_impa, _pca):
@@ -936,19 +941,19 @@ def main(argv=None):
     # A STARTING CAPITAL OTHER THAN THE DEFAULT NEEDS A COST MODEL THAT SEES SIZE.
     # The research profile has no participation cap and no market impact, so every
     # capital gives the same return; and under tradeable the impact coefficient is
-    # a choice the run must state, 0 included (impact_axis.py chooses none).
-    _why = _capa.refusal(_prof.selected(), args.impact is not None)
+    # a choice the run must state, 0 included (settings.impact_axis chooses none).
+    _why = _capa.refusal(settings.profile_axis.selected(), args.impact is not None)
     if _why:
         ap.error(_why)
 
     # BEFORE use_pit: a pit row takes its start from the static row's window.
-    import start_axis as _sta
+    from settings import start_axis as _sta
     _sta.set_selection(args.start)
 
-    import survivorship_axis as _sva
+    from settings import survivorship_axis as _sva
     _sva.set_selection(args.survivorship)
     if not _sva.is_default():
-        from universes.registry import use_pit, has_pit, pit_refusal
+        from settings import use_pit, has_pit, pit_refusal
         if args.universe in ("all", None):
             PIT_LEFT_OUT[:] = [(u.tag, pit_refusal(u)) for u in REGISTRY.values()
                                if not has_pit(u)]
@@ -981,7 +986,7 @@ def require_price_data(plan):
     with a pandas traceback. Checked here, before execute() writes a run folder
     or a cache."""
     missing = [u for u in plan["universes"]
-               if not paths.list_dir(u.raw_data_dir or u.data_dir, "*.csv")]
+               if not settings.list_dir(u.raw_data_dir or u.data_dir, "*.csv")]
     if missing:
         raise SystemExit(
             "REFUSING TO START -- no price data for "
@@ -995,7 +1000,7 @@ def require_price_data(plan):
 def run_folder(plan, args):
     """runs/<timestamp>_<selection>_r<cadence><axes>/ for this invocation. Not created here.
 
-    THE AXES COME FROM naming.path_tail, the rule the arm directories use, with "_"
+    THE AXES COME FROM settings.path_tail, the rule the arm directories use, with "_"
     for "@": "_tradeable", "_tax", "_pit", "_dd20" in AXES order, "" at each
     default. The cadence is already spelled by run_folder_name, so the tail is
     taken at the default cadence. Until 2026-10-14 only pit and dd were appended,
@@ -1003,10 +1008,9 @@ def run_folder(plan, args):
     """
     uni = [u.tag for u in plan["universes"]]
     arm = [a.name for a in plan["arms"]]
-    reb = args.rebal if args.rebal is not None else paths.DEFAULT_REBAL
-    import naming
-    return ROOT / "runs" / (paths.run_folder_name(uni, arm, reb)
-                            + naming.path_tail(None).replace("@", "_"))
+    reb = args.rebal if args.rebal is not None else settings.DEFAULT_REBAL
+    return ROOT / "runs" / (settings.run_folder_name(uni, arm, reb)
+                            + settings.path_tail(None).replace("@", "_"))
 
 
 def collect_run_folder(plan, args, t_start, dest, thin=None):
@@ -1032,13 +1036,13 @@ def collect_run_folder(plan, args, t_start, dest, thin=None):
     import shutil
     uni = [u.tag for u in plan["universes"]]
     arm = [a.name for a in plan["arms"]]
-    reb = args.rebal if args.rebal is not None else paths.DEFAULT_REBAL
+    reb = args.rebal if args.rebal is not None else settings.DEFAULT_REBAL
     copied, failed = 0, []
-    for d in paths.artefact_dirs():
+    for d in settings.artefact_dirs():
         base = ROOT / d
         if not base.is_dir():
             continue
-        for f in paths.list_dir(base, recursive=True):
+        for f in settings.list_dir(base, recursive=True):
             if not f.is_file() or f.stat().st_mtime < t_start:
                 continue
             # DO NOT RECURSE INTO RUN FOLDERS. runs/ is an artefact dir, and a
@@ -1059,8 +1063,7 @@ def collect_run_folder(plan, args, t_start, dest, thin=None):
                 copied += 1
             except OSError as e:
                 failed.append(f"{f.relative_to(ROOT)}: {e}")
-    import profiles as _pf
-    import tax as _tax
+    from settings import tax as _tax
     import time as _time
     # HOLDINGS WHOSE PRICE FILE ENDS BEFORE THE WINDOW (results/tradability.py, run_lines):
     # printed into run.log here and written to RUN.txt below. None in most runs,
@@ -1085,7 +1088,7 @@ def collect_run_folder(plan, args, t_start, dest, thin=None):
         f"universes : {', '.join(uni)}\n"
         f"arms      : {', '.join(arm)}\n"
         f"cadence   : {reb}\n"
-        f"profile   : {_pf.selected()}\n"
+        f"profile   : {settings.profile_axis.selected()}\n"
         f"tax       : {'on' if _tax.selected() else 'off'}\n"
         + _survivorship_section(plan) + _bias_section(plan) + _dd_section() + _capital_section()
         + _impact_pcap_section() + _fixed_section() + _start_section()
@@ -1140,7 +1143,7 @@ def _bias_section(plan):
 def _survivorship_section(plan):
     """RUN.txt's survivorship lines: none in a static run, so a static RUN.txt is
     unchanged; in a pit run the mode and each universe's pit record."""
-    import survivorship_axis as _sva
+    from settings import survivorship_axis as _sva
     if _sva.is_default():
         return ""
     out = [f"survivorship : {_sva.selected()}"]
@@ -1154,7 +1157,7 @@ def _survivorship_section(plan):
 def _dd_section():
     """RUN.txt's drawdown-limit line: none when the axis is off, so RUN.txt is
     unchanged; check_all --since reads it back (read_run_record)."""
-    import dd_axis as _dda
+    from settings import dd_axis as _dda
     if _dda.is_default():
         return ""
     s = _dda.selected()
@@ -1164,27 +1167,27 @@ def _dd_section():
 
 def _capital_section():
     """RUN.txt's capital line: none at the default, so RUN.txt is unchanged."""
-    import capital_axis as _capa
+    from settings import capital_axis as _capa
     return "" if _capa.is_default() else f"capital   : {_capa.selected()}\n"
 
 
 def _impact_pcap_section():
     """RUN.txt's impact and cap lines: none at the defaults, so RUN.txt is unchanged."""
-    import impact_axis as _impa
-    import pcap_axis as _pca
+    from settings import impact_axis as _impa
+    from settings import pcap_axis as _pca
     return (("" if _impa.is_default() else f"impact    : {_impa.selected():g}\n")
             + ("" if _pca.is_default() else f"pcap      : {_pca.selected():g}\n"))
 
 
 def _fixed_section():
     """RUN.txt's fixed-capital line: none when off, so RUN.txt is unchanged."""
-    import fixed_axis as _fxa
+    from settings import fixed_axis as _fxa
     return "" if _fxa.is_default() else "fixed     : on\n"
 
 
 def _start_section():
     """RUN.txt's backtest-start line: none at the default, so RUN.txt is unchanged."""
-    import start_axis as _sta
+    from settings import start_axis as _sta
     return "" if _sta.is_default() else f"start     : {_sta.selected().date()}\n"
 
 
@@ -1192,7 +1195,8 @@ def _buy_shortfall_section():
     """RUN.txt's buy-shortfall line, written for every run. A RUN.txt without it
     was written before 2026-10-27, when every short buy was refused."""
     import buy_shortfall as _bsf
-    return f"buy_shortfall : {_bsf.selected()}\n"
+    import settings
+    return f"buy_shortfall : {settings.shortfall_axis.selected()}\n"
 
 
 def _thin_section(thin):
@@ -1287,7 +1291,7 @@ def _parse_dd(v):
     if not v:
         return None
     kv = dict(x.split("=", 1) for x in v.split())
-    import dd_axis as _dda
+    from settings import dd_axis as _dda
     return _dda.make(float(kv["limit_pct"]), float(kv["m"]), float(kv["floor_pct"]))
 
 
@@ -1297,7 +1301,7 @@ def runs_finished_since(since):
     among them."""
     base = ROOT / "runs"
     out = []
-    for d in paths.list_dir(base, "20*_r*"):
+    for d in settings.list_dir(base, "20*_r*"):
         rec = read_run_record(d) if d.is_dir() else None
         if rec is not None and rec["finished"] >= since:
             out.append(rec)
@@ -1384,7 +1388,7 @@ def execute(plan, args):
             msg = f"{type(e).__name__}: {str(e).splitlines()[0] if str(e) else ''}"
             for d in state["pending"]:
                 (d / "RUN_IN_PROGRESS.txt").unlink(missing_ok=True)
-                # naming: axis-free -- d is paths.run_dir(u, arm, rebal), which carries every axis
+                # naming: axis-free -- d is settings.run_dir(u, arm, rebal), which carries every axis
                 (d / "FAILED.txt").write_text(
                     f"This run FAILED at {state['step']}.\n{msg}\n"
                     f"No output of this run is in this directory.\n"
@@ -1550,7 +1554,7 @@ def _pit_setup(plan):
     look-ahead note go into this log here, into RUN.txt (_survivorship_section)
     and into every params JSON (v34_common), so no pit figure travels without them.
     """
-    import survivorship_axis as _sva
+    from settings import survivorship_axis as _sva
     if _sva.is_default():
         return
     import check_data
@@ -1597,8 +1601,8 @@ def _execute(plan, args, state):
     # PRE-FLIGHT FIRST, BEFORE ANY SELECTION IS RECORDED OR ANY STEP RUNS.
     preflight(args, plan)
 
-    import universes.registry as _reg
-    _reg.set_selection([u.tag for u in plan["universes"]])
+    import settings
+    settings.universe_axis.set_selection([u.tag for u in plan["universes"]])
     # THE SAME FOR ARMS. run_v34 is reached through the ENGINE, a pipeline step
     # selected by universe, so it cannot be handed the arm selection as an
     # argument the way run_arm is -- it has to read it. Set here, once, beside
@@ -1607,16 +1611,17 @@ def _execute(plan, args, state):
     _arms.set_selection([a.name for a in plan["arms"]])
     # CADENCE, PROFILE AND TAX were recorded in main(), before the plan was built,
     # so the plan, --dry-run and this run compose paths from one selection.
-    import cadence as _cad  # noqa: F401
+    from settings import cadence as _cad  # noqa: F401
     import profiles as _prof
-    import tax as _tax  # noqa: F401
+    import settings
+    from settings import tax as _tax  # noqa: F401
     # THE FIFTH AXIS was set in main(), before the plan was built, because the
     # registry swap has to precede it. Here, in a pit run, each universe's
     # membership is loaded and its record printed before any number exists.
     _pit_setup(plan)
     # THE SIXTH AXIS was set in main() too. Said here, before any number exists,
     # and the cells the port cannot check are named.
-    import dd_axis as _dda
+    from settings import dd_axis as _dda
     if not _dda.is_default():
         print("\n" + "!" * 90)
         print(f" DRAWDOWN LIMIT: {_dda.label()} -- EXPLORATORY: no result with this axis "
@@ -1632,7 +1637,7 @@ def _execute(plan, args, state):
     _gs = _prof.gate_status()
     if _gs:
         print("\n" + "!" * 90)
-        print(f" PROFILE '{_prof.selected()}' -- {_gs}")
+        print(f" PROFILE '{settings.profile_axis.selected()}' -- {_gs}")
         print("!" * 90, flush=True)
 
     # SAFETY 1 -- the determinism pin is already set, at the top of this file,
@@ -1661,6 +1666,7 @@ def _execute(plan, args, state):
     # current.
     if args.fresh:
         import config as _cfg
+        import settings
         for u in plan["universes"]:
             gone = [f for c in (u.score_cache, u.raw_cache)
                     for f in (c, _cfg.cache_source_file(c)) if f.exists()]
@@ -1672,12 +1678,12 @@ def _execute(plan, args, state):
     # MARK EVERY ARM-RUN DIRECTORY THIS RUN WILL WRITE, before any step runs.
     # See execute(): emptied now, RUN_IN_PROGRESS.txt until run_arm writes it.
     for u, a in plan["arm_runs"]:
-        d = paths.run_dir(u, a, args.rebal)
+        d = settings.run_dir(u, a, args.rebal)
         d.mkdir(parents=True, exist_ok=True)
-        for f in paths.list_dir(d):
+        for f in settings.list_dir(d):
             if f.is_file():
                 f.unlink()
-        # naming: axis-free -- d is paths.run_dir(u, arm, rebal), which carries every axis
+        # naming: axis-free -- d is settings.run_dir(u, arm, rebal), which carries every axis
         (d / "RUN_IN_PROGRESS.txt").write_text(
             "A run writing this directory started and has not finished.\n")
         state["pending"].append(d)
@@ -1797,7 +1803,7 @@ def _execute(plan, args, state):
     _gs2 = _prof.gate_status()
     if _gs2:
         print("!" * 90)
-        print(f" PROFILE '{_prof.selected()}' -- {_gs2}")
+        print(f" PROFILE '{settings.profile_axis.selected()}' -- {_gs2}")
         # AND WHAT THE CAP ACTUALLY DID, COUNTED FROM THE ARTEFACTS THIS RUN JUST
         # WROTE. Only at the end: at the start banner the files do not exist yet,
         # and a start-of-run claim about them would be either stale or invented,

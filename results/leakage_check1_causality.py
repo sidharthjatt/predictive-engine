@@ -28,14 +28,15 @@ sys.path.insert(0, str(ROOT)); sys.path.insert(0, str(ROOT / "results"))
 import numpy as np
 import pandas as pd
 import config
-from paths import list_dir
+import settings
+from settings import list_dir
 from features_v2 import FEATS_V2, add_stock_features, add_market_relative_features
-from universes.registry import REGISTRY, gated
+from settings import REGISTRY, gated
 
 N_DATES = 24
 PRICE_COLS = ["open", "high", "low", "close"]
 
-# The DATA DIRECTORY comes from universes/registry.py -- the single definition.
+# The DATA DIRECTORY comes from settings.py -- the single definition.
 # The LABEL stays local: this file's "NIFTY 100"/"MIDCAP150" spelling is printed
 # into diagnostics/leakage_check1_causality.txt, and the sibling scripts use two
 # other spellings for the same two universes. Labels are presentation; paths are
@@ -118,7 +119,7 @@ def run(uni, d, label, W):
     ref = pipeline(raw)
     # Sample dates spread across the BACKTEST window, not the whole price panel.
     dates = sorted(x for x in ref["date"].unique()
-                   if config.BT_START_DATE <= x <= config.BT_END_DATE)
+                   if settings.BT_START_DATE <= x <= settings.BT_END_DATE)
     picks = [dates[i] for i in np.linspace(0, len(dates) - 1, N_DATES).astype(int)]
     nsym = ref["symbol"].nunique()
 

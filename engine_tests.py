@@ -63,7 +63,7 @@ No data, nothing written. Exit 0 when every case passes, 1 otherwise.
     import numpy as np
     import pandas as pd
 
-    import capital_axis
+    from settings import capital_axis
     import cost_report
     from engine_core import precompute
     from test_exposure import backtest_exposure
@@ -210,7 +210,7 @@ passes, 1 otherwise.
     import numpy as np
     import pandas as pd
 
-    import dd_axis
+    from settings import dd_axis
     from arms.registry import DrawdownStop
     from engine_core import precompute
     from test_exposure import backtest_exposure, START_CAPITAL
@@ -712,7 +712,7 @@ passes, 1 otherwise.
 
 def _fixed_capital():
     """
-fixed_capital_test.py -- the fixed-capital axis (fixed_axis.py).
+fixed_capital_test.py -- the fixed-capital axis (settings.fixed_axis).
 
     ./venv/bin/python fixed_capital_test.py          # every case, with its figures
     ./venv/bin/python fixed_capital_test.py --quiet  # PASS/FAIL lines only
@@ -759,7 +759,7 @@ Exit 0 when every case passes, 1 otherwise.
     import numpy as np
     import pandas as pd
 
-    import fixed_axis
+    from settings import fixed_axis
     import fixed_capital as fc
     from engine_core import precompute
     from test_exposure import backtest_exposure
@@ -826,12 +826,14 @@ Exit 0 when every case passes, 1 otherwise.
     def select_pit(tag):
         """The selections a `run.py --survivorship pit --profile tradeable --tax on`
         run makes, and the universe's membership loaded as run._pit_setup loads it."""
-        import survivorship_axis, profiles, tax
+        import profiles
+        from settings import survivorship_axis, tax
+        import settings
         import survivorship as sv
         import engine_core as ec
-        from universes.registry import REGISTRY, use_pit
+        from settings import REGISTRY, use_pit
         survivorship_axis.set_selection("pit")
-        profiles.set_selection("tradeable")
+        settings.profile_axis.set_selection("tradeable")
         tax.set_selection(True)
         use_pit([tag])
         u = REGISTRY[tag]
@@ -849,6 +851,7 @@ Exit 0 when every case passes, 1 otherwise.
 
         def __init__(self, tag):
             import config
+            import settings
             import profiles
             from config import read_table
             with contextlib.redirect_stdout(io.StringIO()):
@@ -1021,7 +1024,7 @@ Exit 0 when every case passes, 1 otherwise.
 
         px, op, sc = falling_panel()
         import arms.registry as ar
-        import dd_axis
+        from settings import dd_axis
         refused = []
         for name, stop, dd in (("drawdown_stop", ar.DrawdownStop(threshold=0.5), None),
                                ("dd_overlay", None, dd_axis.make(20))):
@@ -1113,9 +1116,10 @@ No data, nothing written. Exit 0 when every case passes, 1 otherwise.
     import pandas as pd
 
     import cost_report
-    import impact_axis
-    import pcap_axis
+    from settings import impact_axis
+    from settings import pcap_axis
     import profiles
+    import settings
     import slippage
     from engine_core import precompute
     from test_exposure import backtest_exposure
@@ -1156,7 +1160,7 @@ No data, nothing written. Exit 0 when every case passes, 1 otherwise.
     def reset():
         impact_axis.set_selection(None)
         pcap_axis.set_selection(None)
-        profiles.set_selection(None)
+        settings.profile_axis.set_selection(None)
 
 
     def main():
@@ -1181,7 +1185,7 @@ No data, nothing written. Exit 0 when every case passes, 1 otherwise.
              not bad and zero_is_default, f"accepted wrongly: {bad}")
 
         # 2 ----------------------------------------------------------------------
-        profiles.set_selection("tradeable")
+        settings.profile_axis.set_selection("tradeable")
         names_default = (impact_axis.suffix(), impact_axis.segment(), pcap_axis.suffix(),
                          pcap_axis.segment())
         impact_axis.set_selection(K)
@@ -1214,7 +1218,7 @@ No data, nothing written. Exit 0 when every case passes, 1 otherwise.
         case("3 research refuses --impact and --cap", len(refused) == 3, f"refused: {refused}")
 
         # 4 ----------------------------------------------------------------------
-        profiles.set_selection("tradeable")
+        settings.profile_axis.set_selection("tradeable")
         own = profiles.participation_cap()
         pcap_axis.set_selection(0.1)
         over = profiles.participation_cap()
@@ -1805,7 +1809,7 @@ Nothing in the repository is written. Exit 0 when every case passes, 1 otherwise
         """mcap5001to10000 v1 on the delivered data, KAMAHOLD cut after 2019-03-15."""
         import audit_step
         from arms.registry import ARMS
-        from universes.registry import REGISTRY
+        from settings import REGISTRY
         u = REGISTRY["mcap5001to10000"]
         px, op, sc, bd = audit_step.prices(u)
         cut_day = pd.Timestamp("2019-03-15")
@@ -1880,8 +1884,9 @@ is written. Exit 1 names every case that failed.
 
     import pandas as pd                                            # noqa: E402
 
-    import config                                                  # noqa: E402
-    from universes.registry import REGISTRY                        # noqa: E402
+    import config
+    import settings                                                  # noqa: E402
+    from settings import REGISTRY                        # noqa: E402
 
     TAG = "nifty50"
     FAILS = []
@@ -1906,7 +1911,7 @@ is written. Exit 1 names every case that failed.
         b.write_text("date,symbol,close\n2020-01-01,X,1.01\n")
         check("validate_breadth_live: the T1 cache name changes with the panel content",
               vbl._t1_cache(TAG, 0, [5, 55, 555], a) != vbl._t1_cache(TAG, 0, [5, 55, 555], b))
-        code = [ROOT / "results" / "engine_core.py", ROOT / "config.py"]
+        code = [ROOT / "results" / "engine_core.py", ROOT / "config.py", ROOT / "settings.py"]
         check("seed_cache_key: one byte of panel content changes the key",
               seed_cache_key(code, a, (TAG,)) != seed_cache_key(code, b, (TAG,)))
 
@@ -1981,6 +1986,7 @@ No data, nothing written. Exit 0 when every case passes, 1 otherwise.
     import pandas as pd
 
     import buy_shortfall as bsf
+    import settings
     from engine_core import precompute
     from test_exposure import backtest_exposure, calc_tc
 
@@ -1999,16 +2005,16 @@ No data, nothing written. Exit 0 when every case passes, 1 otherwise.
         return calc_tc(p_, n, "BUY")
 
     # 1. names
-    d = (bsf.selected(), bsf.suffix(), bsf.segment(), bsf.label())
-    bsf.set_selection("refuse")
-    on = (bsf.suffix(), bsf.segment())
-    bsf.set_selection(None)
+    d = (settings.shortfall_axis.selected(), settings.shortfall_axis.suffix(), settings.shortfall_axis.segment(), settings.shortfall_axis.label())
+    settings.shortfall_axis.set_selection("refuse")
+    on = (settings.shortfall_axis.suffix(), settings.shortfall_axis.segment())
+    settings.shortfall_axis.set_selection(None)
     try:
-        bsf.set_selection("shrink")
+        settings.shortfall_axis.set_selection("shrink")
         bad = False
     except ValueError:
         bad = True
-    bsf.set_selection(None)
+    settings.shortfall_axis.set_selection(None)
     case("1 names and validation", d == ("trim", "", "", "") and on == ("_refuse", "@refuse") and bad,
          f"default {d}, refuse {on}, unknown value refused {bad}")
 
@@ -2101,9 +2107,9 @@ No data, nothing written. Exit 0 when every case passes, 1 otherwise.
         for tax in (False, True):
             lab = f"{arm} tax {'on' if tax else 'off'}"
             e0, a0 = run(mode, sizing, tax, "refuse")
-            bsf.set_selection("refuse")
+            settings.shortfall_axis.set_selection("refuse")
             e0s, a0s = run(mode, sizing, tax, None)
-            bsf.set_selection(None)
+            settings.shortfall_axis.set_selection(None)
             rs = {r["reason"] for r in a0["skipped"] if r["reason"].startswith("cash short")}
             case(f"5a {lab}: refuse trims nothing and keeps its reasons",
                  not any("wanted_qty" in r for r in a0["trades"]) and rs <= reasons_old
@@ -2202,6 +2208,7 @@ No data, nothing written. Exit 0 when every case passes, 1 otherwise.
     import pandas as pd
 
     import buy_shortfall as bsf
+    import settings
     from engine_core import precompute
     from test_exposure import backtest_exposure
 

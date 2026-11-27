@@ -25,7 +25,7 @@ port's open valuation (added 2026-09-29, pass I) went with it.
 
 --buy-shortfall=trim|refuse picks the buy rule (buy_shortfall.py) for the port,
 the reference copy and the reference trail's name; the default is
-config.BUY_SHORTFALL.
+settings.BUY_SHORTFALL.
 
 THE VERDICT. Both sides price every fill with slippage.fill_price, to the paisa.
 The port and the reference copy must hold the same names and quantities at every
@@ -49,7 +49,7 @@ import pandas as pd
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-import config
+import settings
 import nt_data
 import nt_run
 
@@ -64,7 +64,7 @@ from config import read_table  # the one CSV/parquet reader: config.read_table
 # universe.
 # An unknown tag, including a retired short tag, exits with the list of valid
 # universes rather than falling back to the default.
-from universes.registry import argv_universes, check_tags
+from settings import argv_universes, check_tags
 _picked = check_tags(argv_universes(sys.argv), nt_run.UNIVERSES)
 UNIVERSE = _picked[-1] if _picked else next(iter(nt_run.UNIVERSES))
 U = nt_run.UNIVERSES[UNIVERSE]
@@ -93,7 +93,7 @@ def _flag(name):
 
 
 if _flag("dd") is not None:
-    import dd_axis as _dda
+    from settings import dd_axis as _dda
     _DD = _dda.make(float(_flag("dd")),
                     float(_flag("dd-m")) if _flag("dd-m") is not None else None,
                     float(_flag("dd-floor")) if _flag("dd-floor") is not None else None)
@@ -109,17 +109,16 @@ elif _flag("dd-m") is not None or _flag("dd-floor") is not None:
 # balance (nt_run), the reference copy's cash (nt_attribution) and the reference
 # trail's name (_ref_tag) all follow it. Research profile, tax off, as every cell here.
 if _flag("capital") is not None:
-    import capital_axis as _capa
+    from settings import capital_axis as _capa
     _capa.set_selection(int(_flag("capital")))
     print(f"  starting capital: Rs {_capa.selected():,}")
 
 # --buy-shortfall=trim|refuse: THE BUY RULE. Selected here, so the port
 # (nt_strategy), the reference copy (nt_attribution) and the reference trail's
 # name (_ref_tag, through audit_step.artefact_tag) all follow it.
-import buy_shortfall as _bsf
 if _flag("buy-shortfall") is not None:
-    _bsf.set_selection(_flag("buy-shortfall"))
-RULE = _bsf.selected()
+    settings.shortfall_axis.set_selection(_flag("buy-shortfall"))
+RULE = settings.shortfall_axis.selected()
 # THE STOP'S DATES, compared exactly: these events on these days, on both sides.
 STOP_KEY_EVENTS = ("trigger", "exit fills", "flat", "re-entry order", "re-entry filled",
                    "peak reset", "trigger on the last session")
@@ -138,7 +137,7 @@ def _ref_tag():
     are suffixed by the writer's own rule."""
     sys.path.insert(0, str(ROOT / "results"))
     import audit_step
-    from universes.registry import REGISTRY
+    from settings import REGISTRY
     return audit_step.artefact_tag(REGISTRY[UNIVERSE], ARM)
 
 
@@ -250,11 +249,11 @@ def cadence_gap(rebal):
     that cadence's daily_summary, named by the writer's own rule. The reference
     must already exist -- run `run.py --universe <u> --arm v2 --rebal <n>` first.
     """
-    import cadence as _cd
+    from settings import cadence as _cd
     sys.path.insert(0, str(ROOT / "results"))
     import audit_step
     from arms.registry import ARMS
-    from universes.registry import REGISTRY
+    from settings import REGISTRY
     _cd.set_selection(rebal)
     ref_f = M / f"daily_summary_{audit_step.artefact_tag(REGISTRY[UNIVERSE], ARMS['v2'])}.csv"
     if not ref_f.exists():
@@ -262,7 +261,7 @@ def cadence_gap(rebal):
               f"./venv/bin/python run.py --universe {UNIVERSE} --arm v2 --rebal {rebal}")
         return 1
     with contextlib.redirect_stdout(io.StringIO()):
-        strat = nt_run.run(str(config.BT_START_DATE.date()), U["end"], quiet=True,
+        strat = nt_run.run(str(settings.BT_START_DATE.date()), U["end"], quiet=True,
                            universe=UNIVERSE, rebal=rebal)
     port = pd.DataFrame(strat.daily_equity).set_index("date")["equity"]
     ref = read_table(ref_f, parse_dates=["date"]).set_index("date")["total"]
@@ -277,10 +276,10 @@ def cadence_gap(rebal):
 
 
 def main():
-    import cadence as _cd
+    from settings import cadence as _cd
     if REBAL is not None and REBAL != _cd.DEFAULT:
         return cadence_gap(REBAL)
-    strat = nt_run.run(str(config.BT_START_DATE.date()), U["end"], universe=UNIVERSE,
+    strat = nt_run.run(str(settings.BT_START_DATE.date()), U["end"], universe=UNIVERSE,
                        **_ARM_KW)
     TAG = _ref_tag()
 

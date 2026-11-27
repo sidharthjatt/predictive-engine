@@ -53,12 +53,12 @@ import numpy as np
 import csv
 import pandas as pd
 
-import tax as _tax
+from settings import tax as _tax
 import tax_util as T
 from config import read_table  # the one CSV/parquet reader: config.read_table
 
-# The four stems. Composed through naming.name() -- the only composer measured to
-# carry all four axes without modification (naming.CARRIES, re-probed 2026-09-17).
+# The four stems. Composed through settings.name() -- the only composer measured to
+# carry all four axes without modification (settings.CARRIES, re-probed 2026-09-17).
 STEMS = ("FY_TAX_STATEMENT", "FY_EQUITY", "HOLDING_PERIOD", "HOLDING_PERIOD_LOTS")
 
 
@@ -66,19 +66,19 @@ def artefact_name(stem, tag, ext=".csv"):
     """<stem>_<tag><ext>, e.g. FY_TAX_STATEMENT_midcap150_v1_tradeable_tax.csv
 
     `tag` IS ALREADY THE FULL COMPOSITION. audit_step.artefact_tag() returns the
-    universe, the arm, and then cadence.suffix() + profiles.suffix() +
-    tax.suffix() -- all four axes, which is why naming.CARRIES credits it with
+    universe, the arm, and then cadence.suffix() + profile_axis.suffix() +
+    tax.suffix() -- all four axes, which is why settings.CARRIES credits it with
     all four. So this appends the stem and NOTHING ELSE.
 
-    IT USED TO CALL naming.name() HERE AND THAT WAS A DOUBLE COMPOSITION.
-    naming.name() appends the same four-axis tail that artefact_tag has already
+    IT USED TO CALL settings.name() HERE AND THAT WAS A DOUBLE COMPOSITION.
+    settings.name() appends the same four-axis tail that artefact_tag has already
     applied, so a taxed run wrote FY_TAX_STATEMENT_mid_tax_tax.csv -- the suffix
     twice. It did not show when this module was first written because the
     then-caller passed a BARE tag ("midcap150") rather than artefact_tag's output, so
     exactly one composition happened and the name looked right. Wiring the step
     supplied the real tag and the second suffix appeared.
 
-    THE LESSON IS THE ONE naming.py OPENS WITH: the composition rule was never
+    THE LESSON IS THE ONE settings.py OPENS WITH: the composition rule was never
     the problem, retyping it at a second site is. Here the second site was this
     function, applying a tail to a string that already had one.
     """
@@ -270,8 +270,9 @@ def main(u):
     # Imported here rather than at module scope: this module is imported by
     # run.py's arity probe, and pulling the engine in at import time would make
     # a --list or --dry-run pay for a backtest it never runs.
-    import cadence
+    from settings import cadence
     import config
+    import settings
     import engine_core
     import profiles
     from engine_core import precompute
@@ -384,7 +385,7 @@ def _one_arm(u, arm, M, px, op, sc, bd, pc, mom20,
 
 if __name__ == "__main__":
     # STANDALONE, BY TAG -- the same contract make_audit.py uses.
-    from universes.registry import REGISTRY
+    from settings import REGISTRY
     if len(sys.argv) != 2 or sys.argv[1] not in REGISTRY:
         raise SystemExit(f"usage: {Path(__file__).name} <universe>   "
                          f"known: {', '.join(sorted(REGISTRY))}")

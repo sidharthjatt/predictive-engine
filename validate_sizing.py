@@ -15,7 +15,7 @@ WHY THIS EXISTS
 
 THE FOUR TESTS ARE RE-IMPLEMENTED HERE, not called, because every path in
 engine_core.main() was a hardcoded literal for a retired universe --
-/tmp/v5_expanding.csv, /tmp/raw_panel_20.csv, M = config.METRICS_DIR -- with no
+/tmp/v5_expanding.csv, /tmp/raw_panel_20.csv, M = settings.METRICS_DIR -- with no
 universe parameter. The CRITERIA are copied verbatim; only the paths move.
 
 IMPORTING engine_core IS SAFE, AND THAT WAS VERIFIED RATHER THAN ASSUMED
@@ -83,17 +83,18 @@ ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "results"))
 import config
+import settings
 from engine_core import (backtest, precompute, metrics, score_monthly,
                          score_floor, TOP_N, START_CAPITAL, HORIZON)
-from universes.registry import REGISTRY
+from settings import REGISTRY
 from seed_cache_key import seed_cache_key
 from config import read_table  # the one CSV/parquet reader: config.read_table
 # Date window from config.py, NOT engine_core's year ints -- see config.py.
 
-# ALL FOUR PANEL PATHS come from universes/registry.py -- the single definition.
+# ALL FOUR PANEL PATHS come from settings.py -- the single definition.
 # The label is u.name, the "Nifty 100"/"MidCap150" spelling this file has always
 # written into its committed artefacts.
-from universes.registry import certified
+from settings import certified
 UNIVERSES = {
     u.tag: {"score_perm": u.score_cache,
             "raw_perm": u.raw_cache,
@@ -117,7 +118,7 @@ def _t2_cache_key(u, seeds, raw_path):
     return seed_cache_key(
         code_files=[ROOT / "results" / "engine_core.py",
                     ROOT / "validate_sizing.py",
-                    ROOT / "config.py"],
+                    ROOT / "config.py", ROOT / "settings.py"],
         panel_path=raw_path,
         parts=(u, sorted(seeds)))
 
@@ -159,7 +160,7 @@ def sharpe_exact(eq):
 
 
 def universe_from_argv():
-    from universes.registry import argv_universes, check_tags
+    from settings import argv_universes, check_tags
     picked = check_tags(argv_universes(sys.argv), UNIVERSES)
     if picked:
         return picked[-1]
@@ -186,7 +187,7 @@ def main():
     px = p.pivot_table(index="date", columns="symbol", values="close").ffill()
     op = p.pivot_table(index="date", columns="symbol", values="open").ffill()
     sc = p.pivot_table(index="date", columns="symbol", values="score")
-    bd = px.index[(px.index >= config.BT_START_DATE) & (px.index <= config.BT_END_DATE)]
+    bd = px.index[(px.index >= settings.BT_START_DATE) & (px.index <= settings.BT_END_DATE)]
     pc = precompute(px)
     print(f"\n  score panel : {score_path}")
     print(f"                {px.shape[1]} symbols, {len(px)} dates, "
@@ -264,7 +265,7 @@ def main():
         pxs = ps.pivot_table(index="date", columns="symbol", values="close").ffill()
         ops = ps.pivot_table(index="date", columns="symbol", values="open").ffill()
         scs = ps.pivot_table(index="date", columns="symbol", values="score")
-        bds = pxs.index[(pxs.index >= config.BT_START_DATE) & (pxs.index <= config.BT_END_DATE)]
+        bds = pxs.index[(pxs.index >= settings.BT_START_DATE) & (pxs.index <= settings.BT_END_DATE)]
         pcs = precompute(pxs)
         e_e, _, _, _, _ = backtest(pxs, ops, scs, bds, pcs, sizing="equal")
         e_i, _, _, _, _ = backtest(pxs, ops, scs, bds, pcs, sizing="invvol")
@@ -289,12 +290,12 @@ def main():
     for hname, y0, y1 in HALVES:
         # INTERSECTED WITH THE BACKTEST WINDOW, not sliced from the full panel.
         # Slicing px.index by year alone let the late half run to the end of the
-        # price data (2026-06-08) while the full period stopped at config.BT_END_DATE,
+        # price data (2026-06-08) while the full period stopped at settings.BT_END_DATE,
         # so the two ended on different days in the same report. engine_core.main()
         # had that bug; it affected only a retired universe, is recorded in
         # KNOWN_ISSUES.md, and went with main() on 2026-09-24.
         hd = px.index[(px.index.year >= y0) & (px.index.year <= y1)
-                      & (px.index >= config.BT_START_DATE) & (px.index <= config.BT_END_DATE)]
+                      & (px.index >= settings.BT_START_DATE) & (px.index <= settings.BT_END_DATE)]
         e_e, _, _, _, _ = backtest(px, op, sc, hd, pc, sizing="equal")
         e_i, _, _, _, _ = backtest(px, op, sc, hd, pc, sizing="invvol")
         bhh = START_CAPITAL * (1 + px.pct_change().loc[hd].mean(axis=1).fillna(0)).cumprod()
@@ -340,7 +341,7 @@ def main():
     # pass/fail criteria are untouched; nothing below feeds back into `passed`.
     #
     # It uses the same HALVES constant and the same window intersection as T3, so
-    # the late half ends on config.BT_END_DATE rather than on the last day of the price
+    # the late half ends on settings.BT_END_DATE rather than on the last day of the price
     # panel. Every arm the script already runs appears, plus equal-weight buy &
     # hold of the same universe as a constant reference line carrying the same
     # columns.
@@ -350,7 +351,7 @@ def main():
     sp_rows = []
     for hname, y0, y1 in HALVES:
         hd = px.index[(px.index.year >= y0) & (px.index.year <= y1)
-                      & (px.index >= config.BT_START_DATE) & (px.index <= config.BT_END_DATE)]
+                      & (px.index >= settings.BT_START_DATE) & (px.index <= settings.BT_END_DATE)]
         e_e, _, _, _, _ = backtest(px, op, sc, hd, pc, sizing="equal")
         e_i, _, _, _, _ = backtest(px, op, sc, hd, pc, sizing="invvol")
         bhh = START_CAPITAL * (1 + px.pct_change().loc[hd].mean(axis=1).fillna(0)).cumprod()

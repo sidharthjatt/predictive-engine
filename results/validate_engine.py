@@ -49,7 +49,7 @@ WHAT IS COMPARED, IN EVERY TEST
     in here would change what the four tests mean.
 
 WHICH UNIVERSES
-    Every registered universe is a row in universes/registry.py and can be named with
+    Every registered universe is a row in settings.py and can be named with
     --universe. The default is registry.CERTIFIED (nifty100 and midcap150), the
     universes whose verdicts are published in diagnostics/, run in registry order.
 
@@ -72,11 +72,13 @@ sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "results"))
 
 import config
-from universes.registry import REGISTRY
+import settings
+from settings import REGISTRY
 from seed_cache_key import seed_cache_key
 from engine_core import metrics, precompute, score_monthly, HORIZON
 from test_exposure import backtest_exposure, TOP_N, BUFFER, START_CAPITAL
-import profiles as _prof            # the run's execution-realism profile
+import profiles as _prof
+import settings            # the run's execution-realism profile
 from config import read_table  # the one CSV/parquet reader: config.read_table
 
 # The same three alternate seed sets engine_core's T2 uses, so T2 is a like-for-like
@@ -86,7 +88,7 @@ VOL_WINDOWS = [40, 60, 90, 120]
 HALVES = [("2019-2022", 2019, 2022), ("2023-2026", 2023, 2026)]
 TRADE_BAND = (400, 1400)          # the band engine_core's T1 used; carried over as-is
 
-# One entry per registered universe, built from universes/registry.py. Nothing
+# One entry per registered universe, built from settings.py. Nothing
 # here names a universe. The T2 seed caches are keyed by tag under /tmp.
 def _seed_cache(tag):
     return lambda si, k: Path(f"/tmp/V2VAL_{tag}_seed{si}_{k}.csv")
@@ -167,12 +169,12 @@ def run_universe(tag, cfg, W, fast=False):
     px, op, sc = pivot(p)
     # THE WINDOW IS config's, NOT A YEAR SLICE. Until 2026-09-22 this was
     # `year >= 2019 & year <= y_end`, which runs to the end of the price data
-    # (2026-06-08) while config.BT_END_DATE is 2026-05-29. This file validates
+    # (2026-06-08) while settings.BT_END_DATE is 2026-05-29. This file validates
     # the SHIPPING engine, so it measured six trading days that do not ship.
     # Same defect validate_sizing.py's T3 records and engine_core.py:543 still
     # has. y_end is kept as a per-universe upper bound and still applies.
-    bd = px.index[(px.index >= config.BT_START_DATE)
-                  & (px.index <= config.BT_END_DATE)
+    bd = px.index[(px.index >= settings.BT_START_DATE)
+                  & (px.index <= settings.BT_END_DATE)
                   & (px.index.year <= cfg["y_end"])]
     pc = precompute(px)
     mom20 = px / px.shift(20) - 1
@@ -234,7 +236,7 @@ def run_universe(tag, cfg, W, fast=False):
             key = seed_cache_key(
                 code_files=[ROOT / "results" / "engine_core.py",
                             ROOT / "results" / "validate_engine.py",
-                            ROOT / "config.py"],
+                            ROOT / "config.py", ROOT / "settings.py"],
                 panel_path=raw_src,
                 parts=(tag, sorted(seeds), cfg["purge_mode"]))
             cache = cfg["seed_cache"](si, key)
@@ -246,8 +248,8 @@ def run_universe(tag, cfg, W, fast=False):
                 ps = score_monthly(raw, seeds, purge_mode=cfg["purge_mode"])
                 ps[["date", "symbol", "open", "close", "score"]].to_csv(cache, index=False)
             pxs, ops, scs = pivot(ps)
-            bds = pxs.index[(pxs.index >= config.BT_START_DATE)
-                            & (pxs.index <= config.BT_END_DATE)
+            bds = pxs.index[(pxs.index >= settings.BT_START_DATE)
+                            & (pxs.index <= settings.BT_END_DATE)
                             & (pxs.index.year <= cfg["y_end"])]
             pcs = precompute(pxs)
             m20s = pxs / pxs.shift(20) - 1
@@ -279,8 +281,8 @@ def run_universe(tag, cfg, W, fast=False):
         # INTERSECTED WITH THE BACKTEST WINDOW, so the two halves cover exactly
         # the period the full run covers and no more.
         hd = px.index[(px.index.year >= y0) & (px.index.year <= y1)
-                      & (px.index >= config.BT_START_DATE)
-                      & (px.index <= config.BT_END_DATE)]
+                      & (px.index >= settings.BT_START_DATE)
+                      & (px.index <= settings.BT_END_DATE)]
         if len(hd) < 30:
             continue
         e_e, _, _, _ = arm(px, op, sc, hd, pc, mom20, "equal")
@@ -348,7 +350,7 @@ def main():
     # THE DEFAULT IS registry.CERTIFIED, in registry order (midcap150, nifty100),
     # which is the order this report has always been written in. An unknown tag,
     # including a retired short tag, exits 2 with the list of valid universes.
-    from universes.registry import CERTIFIED, argv_universes, check_tags
+    from settings import CERTIFIED, argv_universes, check_tags
     unis = check_tags(argv_universes(sys.argv), UNIVERSES) \
         or [t for t in UNIVERSES if t in CERTIFIED]
     diag = ROOT / "diagnostics"

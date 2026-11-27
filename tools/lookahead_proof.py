@@ -11,7 +11,7 @@
 WHAT IT RUNS. The decision path of a pipeline run, in-process, for one universe:
 build_panel, score_monthly with the production seeds, and backtest_exposure for
 each arm at the default cadence, profile and capital, tax off, from the backtest
-start --start (default 2019-01-01; the scoring floor follows it, start_axis.py).
+start --start (default 2019-01-01; the scoring floor follows it, settings.start_axis).
 It runs in these variants, each in its own process:
 
     full    every input as delivered. Scores every month, as the pipeline does.
@@ -82,7 +82,7 @@ CONTROLS = ("none", "leak", "label", "gap", "member")
 # inputs
 # ---------------------------------------------------------------------------
 def universe(tag, mode):
-    from universes.registry import REGISTRY, pit_variant
+    from settings import REGISTRY, pit_variant
     u = REGISTRY[tag]
     return pit_variant(u) if mode == "pit" else u
 
@@ -92,7 +92,7 @@ def source_dir(u, mode):
 
 
 def stock_files(src, index_name):
-    from universes.registry import normalise_stem
+    from settings import normalise_stem
     key = normalise_stem(index_name) if index_name else None
     return sorted(f for f in src.glob("*.csv")
                   if not f.name.startswith("._") and normalise_stem(f.stem) != key)
@@ -102,6 +102,7 @@ def _dates(lines, source):
     """The parsed date of each data line, as read_price_csv parses the column."""
     import pandas as pd
     import config
+    import settings
     first = pd.Series([ln.split(",", 1)[0] for ln in lines])
     return config.smart_parse_dates(first, source=source)
 
@@ -154,6 +155,7 @@ def write_membership(u, T, dst):
     Kept rows keep their delivered text, so they parse as the original does."""
     import pandas as pd
     import config
+    import settings
     df = config.read_table(u.membership_file, dtype=str, keep_default_na=False)
     col = {c.lower().strip(): c for c in df.columns}["effective_date"]
     raw = df[col].astype(str)
@@ -271,12 +273,13 @@ def run_variant(a):
     import survivorship as sv
     import tradability
     import profiles
+    import settings
     import arms.registry as arm_reg
     from build_scores_step import SEEDS
     from test_exposure import backtest_exposure
 
     T = pd.Timestamp(a.T)
-    import start_axis
+    from settings import start_axis
     start_axis.set_selection(a.start)
     u = universe(a.universe, a.mode)
     apply_control(a.control)
@@ -526,7 +529,7 @@ def main(argv=None):
     if a.control == "member" and a.mode != "pit":
         ap.error("--control member needs --mode pit")
     cuts = [pd.Timestamp(x) for x in a.cut.split(",")]
-    import start_axis
+    from settings import start_axis
     start_axis.set_selection(a.start)
     variants = ["cut", "noise"] + (["names"] if a.mode == "pit" else [])
     base = Path(a.work) / f"{a.universe}_{a.mode}_{a.control}_{time.strftime('%Y%m%dT%H%M%S')}"

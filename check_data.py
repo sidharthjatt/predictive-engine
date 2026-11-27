@@ -13,16 +13,16 @@ SHA-256, and no extra CSV sits in a folder the pipeline reads. Anything else
 exits 1 and names each file that is missing, different or extra.
 
 --universe=<tag> checks only that universe's folder, for a copy holding one
-universe. The folder comes from universes/registry.py (the row's raw_data_dir), so
+universe. The folder comes from settings.py (the row's raw_data_dir), so
 this form needs the venv; the plain form needs only the standard library. An
 unknown tag exits 2 with the list of valid universes.
 
 WHY EXTRA FILES FAIL. A universe is defined by the CSVs in its supplier folder
-(universes/registry.py builds each symbol list from the folder), so one extra
+(settings.py builds each symbol list from the folder), so one extra
 constituent file changes that universe and every figure computed on it.
 
 WHAT IS COVERED. Only data/raw/Final_Without_Survivorship_Data/, the one folder
-the pipeline reads (every universe's raw_data_dir in universes/registry.py is
+the pipeline reads (every universe's raw_data_dir in settings.py is
 under it). Other folders under data/raw/ are not read by any pipeline step and
 are not in the manifest. The manifest has the sha256sum format, one
 "<sha256>  <path relative to the repository root>" line per file, sorted by path,
@@ -38,7 +38,7 @@ The plain form still checks only the static manifest.
 import hashlib
 import sys
 from pathlib import Path
-from paths import list_dir
+from settings import list_dir
 
 ROOT = Path(__file__).resolve().parent
 MANIFEST = ROOT / "data" / "RAW_DATA_SHA256.txt"
@@ -105,7 +105,7 @@ def check_pit(tags=None):
     want, have = read_manifest(PIT_MANIFEST), pit_on_disk()
     if tags is not None:
         sys.path.insert(0, str(ROOT))
-        from universes.registry import REGISTRY
+        from settings import REGISTRY
         keep = []
         for t in tags:
             u = REGISTRY[t]
@@ -136,7 +136,7 @@ def _universe_folder(argv):
     if not vals:
         return None
     sys.path.insert(0, str(ROOT))
-    from universes.registry import REGISTRY, check_tags
+    from settings import REGISTRY, check_tags
     tag = check_tags(vals[-1:])[0]
     return Path(REGISTRY[tag].raw_data_dir).resolve().relative_to(ROOT).as_posix() + "/"
 

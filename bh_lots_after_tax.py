@@ -47,11 +47,16 @@ import sys; from pathlib import Path
 ROOT=Path(__file__).resolve().parent
 for p in (ROOT,ROOT/"results",ROOT/"nautilus"): sys.path.insert(0,str(p))
 import numpy as np, pandas as pd
-import cadence, config, profiles, engine_core, tax_util as T
+import config
+import profiles
+import engine_core
+import tax_util as T
+from settings import cadence
+import settings
 from engine_core import precompute
 from test_exposure import backtest_exposure, calc_tc, SLIPPAGE
-import capital_axis  # noqa: E402
-from universes.registry import REGISTRY
+from settings import capital_axis  # noqa: E402
+from settings import REGISTRY
 from config import read_table  # the one CSV/parquet reader: config.read_table
 HALVES=[("2019-2022",2019,2022),("2023-2026",2023,2026)]
 
@@ -152,7 +157,7 @@ def main(u):
     row is always in PIPELINE_ORDER and always invoked, and decides at run time
     to do nothing. The artefact is ABSENT at tax=off, not empty.
     """
-    import tax as _tax
+    from settings import tax as _tax
     if not _tax.selected():
         print(f"    tax=off -- no bh_lots artefact for {u.tag} "
               f"(absent, not empty)")

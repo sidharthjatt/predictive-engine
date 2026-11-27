@@ -12,7 +12,7 @@ copies, and the originals stay where the pipeline writes them.
 **THE COMBINED CHART'S FILENAME NAMES ITS SELECTION, AND THE PAIR CHART IS ALWAYS
 REFRESHED.** `make_combined_universes.py` draws one comparison across whichever
 universes the run selected and derives the filename from exactly those, tags in
-`universes/registry.REPORT_ORDER`: `--universe all` writes a chart naming all
+`settings.REPORT_ORDER`: `--universe all` writes a chart naming all
 eight.
 
 **Whenever both nifty100 and midcap150 are selected it also writes

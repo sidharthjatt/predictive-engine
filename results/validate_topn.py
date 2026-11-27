@@ -83,12 +83,14 @@ import numpy as np
 import pandas as pd
 
 import config
+import settings
 from engine_core import precompute
 import test_exposure
 from test_exposure import backtest_exposure
-from universes.registry import REGISTRY, certified
+from settings import REGISTRY, certified
 from v34_common import arm_row, held_and_skips, _git_state
-import profiles as _prof            # the run's execution-realism profile
+import profiles as _prof
+import settings            # the run's execution-realism profile
 from config import read_table  # the one CSV/parquet reader: config.read_table
 
 VOL_WIN = 60
@@ -96,7 +98,7 @@ BUFFER_PINNED = 16
 INCUMBENT, CHALLENGER = 8, 12
 HALVES = [("2019-2022", 2019, 2022), ("2023-2026", 2023, 2026)]
 
-# PATHS AND SYMBOLS COME FROM universes/registry.py -- the single definition.
+# PATHS AND SYMBOLS COME FROM settings.py -- the single definition.
 # The LABEL stays local: this file's spelling is printed into
 # diagnostics/topn_verdict.txt, which is committed and cited by EXPERIMENTS.md,
 # and the sibling scripts spell the same two universes two other ways. Labels are
@@ -126,7 +128,7 @@ def load_panel(cfg, uni):
     # different engine. rebal_cadence_sweep.py failed exactly this way:
     # midcap150 v3 AnnVol% recomputed 24.89 against 24.88 published.
     import engine_core as _ec
-    from universes.registry import REGISTRY as _REG
+    from settings import REGISTRY as _REG
     _ec.set_tradeability(_REG[uni])
     src = config.require_cache(cfg["perm"], what=f"{uni} score panel")
     p = read_table(src, parse_dates=["date"])
@@ -203,8 +205,8 @@ def run_universe(uni, cfg, out):
     src, px, op, sc = load_panel(cfg, uni)
     fp = panel_fingerprint(px, op, sc)
 
-    bd = px.index[(px.index >= config.BT_START_DATE)
-                  & (px.index <= config.BT_END_DATE)]
+    bd = px.index[(px.index >= settings.BT_START_DATE)
+                  & (px.index <= settings.BT_END_DATE)]
     pc = precompute(px)
     mom20 = px / px.shift(20) - 1
 
@@ -258,8 +260,8 @@ def run_universe(uni, cfg, out):
     subs = []
     for hname, y0, y1 in HALVES:
         hd = px.index[(px.index.year >= y0) & (px.index.year <= y1)
-                      & (px.index >= config.BT_START_DATE)
-                      & (px.index <= config.BT_END_DATE)]
+                      & (px.index >= settings.BT_START_DATE)
+                      & (px.index <= settings.BT_END_DATE)]
         for tn in (INCUMBENT, CHALLENGER):
             row, _ = run_arm(tn, px, op, sc, hd, pc, mom20,
                              f"TOP_N={tn} BUFFER={BUFFER_PINNED}")

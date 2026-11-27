@@ -62,6 +62,7 @@ def read_table(path, **kw):
     """config.read_table, the repository's one CSV reader: floats are parsed
     round-trip, and platform_identity_check fails any other CSV read."""
     import config
+    import settings
     return config.read_table(path, **kw)
 
 
@@ -286,7 +287,7 @@ def _start_of(params, seg):
 
 
 def expected_segment(ax, refuse_named=True):
-    """The arm directory name naming.path_tail would give these axes.
+    """The arm directory name settings.path_tail would give these axes.
     refuse_named=False for a run from before 2026-10-27: it refused short buys
     and its name has no @refuse."""
     s = ax["arm"]
@@ -654,8 +655,8 @@ def key_of(ax):
     return tuple(ax[a] for a in AXIS_ORDER)
 
 
-AXIS_ORDER = None  # set in main from naming.AXES
-REGISTRY_ROWS = {}  # set in main from universes.registry.REGISTRY
+AXIS_ORDER = None  # set in main from settings.AXES
+REGISTRY_ROWS = {}  # set in main from settings.REGISTRY
 RAW_DIRS = {}  # (universe tag, "static" | "pit") -> raw price directory, set in main
 CAP_CACHE = {}  # capacity.py's per-symbol price series, shared by every run of one export
 
@@ -669,16 +670,16 @@ def main():
     repo = Path(a.repo).expanduser().resolve()
     sys.path.insert(0, str(repo))
 
-    import naming
+    import settings
     import config
-    from universes.registry import REGISTRY
+    from settings import REGISTRY
     from arms.registry import ARMS
 
-    AXIS_ORDER = ("universe",) + tuple(naming.AXES)
+    AXIS_ORDER = ("universe",) + tuple(settings.AXES)
     REGISTRY_ROWS.update(REGISTRY)
-    checks = [f"Axes: universe is not in naming.AXES (it is chosen by --universe and "
-              f"names the run folder); it is listed first, then naming.AXES in order: "
-              f"{', '.join(naming.AXES)}."]
+    checks = [f"Axes: universe is not in settings.AXES (it is chosen by --universe and "
+              f"names the run folder); it is listed first, then settings.AXES in order: "
+              f"{', '.join(settings.AXES)}."]
 
     porcelain = git(repo, "status", "--porcelain")
     repo_info = {"head": git(repo, "rev-parse", "--short", "HEAD"),
@@ -694,8 +695,8 @@ def main():
 
     # Price data end: the last date in the score panels the engine reads (static and
     # pit), not the index files, which some universes carry further.
-    from universes.registry import pit_variant, has_pit
-    import survivorship_axis as _sva
+    from settings import pit_variant, has_pit
+    from settings import survivorship_axis as _sva
     panel_dates = set()
     for tag, u in REGISTRY.items():
         # A static-only universe has no pit panel (registry.has_pit).
@@ -711,11 +712,11 @@ def main():
     _sva.set_selection(None)
     panel_dates = sorted(pd.Timestamp(d) for d in panel_dates)
     data_end = panel_dates[-1] if panel_dates else None
-    bt0, bt1 = config.BT_START_DATE, config.BT_END_DATE
+    bt0, bt1 = settings.BT_START_DATE, settings.BT_END_DATE
     cut = [d for d in panel_dates if d > bt1]
     window = {
         "start": bt0.strftime("%Y-%m-%d"), "end": bt1.strftime("%Y-%m-%d"),
-        "reason": (f"Every run ends on config.BT_END_DATE, {bt1.date()}, the one backtest "
+        "reason": (f"Every run ends on settings.BT_END_DATE, {bt1.date()}, the one backtest "
                    f"window end that every live site imports; config.py notes that "
                    f"price data runs further and that the cut leaves out the last {len(cut)} trading days"
                    + (f" ({cut[0].date()} to {cut[-1].date()})" if cut else "")
@@ -884,7 +885,7 @@ def main():
          "values": uni_vals, "open_number": False,
          "cli": {v: f"--universe {v}" for v in uni_vals}},
     ]
-    for name in naming.AXES:
+    for name in settings.AXES:
         if name == "arm":
             axes.append({"name": "arm", "label": LABELS["arm"], "default": "all",
                          "values": arm_vals, "open_number": False,

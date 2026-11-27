@@ -24,7 +24,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import survivorship as sv
 import config
-from paths import list_dir
+import settings
+from settings import list_dir
 
 W = 118
 
@@ -32,7 +33,7 @@ W = 118
 # spelled "top 8", "buffer (16)" and "ranks 1-8 ... 9-16 ... 17+" as literals. They
 # happen to match config today; a change to either constant would have left this
 # file describing a selection rule the engine no longer used.
-TOP_N, BUFFER = config.TOP_N, config.BUFFER
+TOP_N, BUFFER = settings.TOP_N, settings.BUFFER
 
 # Mirrors the constants in test_exposure.py -- needed for reconciliation only.
 # SLIPPAGE comes from slippage.py, which is the only definition. It was
@@ -43,8 +44,8 @@ TOP_N, BUFFER = config.TOP_N, config.BUFFER
 from slippage import SLIPPAGE  # noqa: E402
 from config import read_table  # the one CSV/parquet reader: config.read_table
 CASH_YIELD = 0.0        # must match test_exposure.py
-import capital_axis as _capital_axis  # noqa: E402
-# THE DEFAULT, defined once in capital_axis.py. A run's capital is
+from settings import capital_axis as _capital_axis  # noqa: E402
+# THE DEFAULT, defined once in settings.capital_axis. A run's capital is
 # capital_axis.selected(); this name stays for callers that want the default.
 START_CAPITAL = _capital_axis.DEFAULT
 CASH_DAILY = (1 + CASH_YIELD) ** (1 / 252) - 1
@@ -183,7 +184,7 @@ def legend_for(arm):
                    f"            Existing holdings are never resized, so realised weights drift from target.")
     # THE CADENCE IS READ, NOT TYPED. "every 20 trading days" was a literal, so a
     # --rebal 200 log contradicted its own header, which said 10 rebalances.
-    import cadence as _cd
+    from settings import cadence as _cd
     # ONLY A STOP ARM'S LEGEND NAMES ITS EXTRA ENTRY, so a core arm's log is
     # byte-identical to the one written before the stop arms existed.
     stop_skip = ("" if arm.stop is None else
@@ -192,7 +193,8 @@ def legend_for(arm):
     # ONLY A TRIMMED RUN'S LEGEND DESCRIBES THE TRIM, so a refuse run's log is
     # byte-identical to the one written before buy_shortfall existed.
     import buy_shortfall as _bsf
-    if _bsf.selected() == "trim":
+    import settings
+    if settings.shortfall_axis.selected() == "trim":
         trim_skip = ("\n            Under buy_shortfall trim a buy cash cannot fully pay for is cut to"
                      "\n            the largest whole quantity that fits and marked TRIMMED; a"
                      f"\n            buy of which fewer than {_bsf.MIN_FILL_PCT}% of the wanted shares fit is"
@@ -334,7 +336,7 @@ def tax_due_by_date(summary_dates, trades):
     byte-identical: no term is subtracted, no line is printed, and the caller
     takes the same branch it always took.
     """
-    import tax as _taxaxis
+    from settings import tax as _taxaxis
     if not _taxaxis.selected():
         return {}
     from tax_util import Ledger, fy_label
@@ -924,7 +926,7 @@ def build(mdir, tag, arm, bh, raw_idx=None, cal_sorted=None, op=None):
     # precision, the value cost_report was given; daily_summary's total is rounded
     # to the paisa and would move gross profit.
     import cost_report
-    import tax as _tax_axis
+    from settings import tax as _tax_axis
     _cap = _capital_axis.selected()
     if ref_curve is None:
         raise cost_report.CostReconciliationError(
@@ -950,7 +952,8 @@ def main():
     here with AttributeError. The statements below are the guard's, in order.
     """
     import config
-    from universes.registry import REGISTRY, selected_tags
+    import settings
+    from settings import REGISTRY, universe_axis
     print("Building forensic daily logs...")
 
     # FOUR INDEPENDENT LOGS, ONE PER UNIVERSE. build() is the same code for all of
@@ -967,7 +970,7 @@ def main():
     #
     # SELECTION, NOT REGISTRATION. `--universe nifty50` leaves seven universes
     # registered but unselected, and this step used to do their work anyway --
-    # writing artefacts for universes the caller did not ask for. selected_tags() defaults to every
+    # writing artefacts for universes the caller did not ask for. universe_axis.selected_tags() defaults to every
     # registered universe, so a standalone run of this file is unchanged.
     # THE SCANNER LOSES ITS LITERALS HERE, KNOWINGLY. check_pipeline_order used
     # the literal REGISTRY["<tag>"] subscripts to resolve this step's outputs; a
@@ -989,7 +992,7 @@ def main():
         # same basket. cost_report.bh_costs is the call write() makes for
         # COST_SUMMARY, on the prices audit_step replays.
         import cost_report
-        import tax as _tax_axis
+        from settings import tax as _tax_axis
         _cap = _capital_axis.selected()
         bh = None
         for _arm in _ar.selected():
@@ -1008,7 +1011,7 @@ def main():
                 bh = cost_report.bh_costs(px, op, bd, float(_cap), bool(_tax_axis.selected()))
             build(mdir, tag, _arm, bh, raw_idx, cal_sorted, op)
 
-    SEL = set(selected_tags())
+    SEL = set(universe_axis.selected_tags())
     for _t in REGISTRY:
         if _t in SEL:
             # PIT RUNS: this step loops over universes itself, so it sets each

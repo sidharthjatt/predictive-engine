@@ -6,14 +6,14 @@
 WHY THIS IS TWO CONDITIONS AND NOT ONE
     The stated acceptance test for the tax axis is "with tax off, every existing
     artefact reproduces byte-exact". That test is necessary and it is NOT
-    sufficient, for a reason naming.py already writes down about a different
+    sufficient, for a reason settings.py already writes down about a different
     axis:
 
         AN OMITTED AXIS AND A DEFAULT AXIS PRODUCE THE SAME STRING.
 
     At tax=off every composer contributes "", so a writer that carries the tax
     axis and a writer that has never heard of it emit identical paths. A
-    completely empty implementation -- no tax.py, no composer edits, nothing --
+    completely empty implementation -- no settings.tax, no composer edits, nothing --
     passes the byte-exactness test perfectly. It is passed by doing nothing,
     which is precisely how site 12 survived: a research-profile run and a
     profile-blind writer were byte-identical, and they differed only when
@@ -71,12 +71,20 @@ PROBE = r'''
 import sys, pathlib, itertools, tempfile, json
 R = pathlib.Path(sys.argv[1])
 for p in (R, R/"results", R/"nautilus"): sys.path.insert(0, str(p))
-import cadence, profiles, arms.registry as arm_reg
+import arms.registry as arm_reg
 try:
-    import tax
-    HAVE_TAX = True
-except ImportError:
-    HAVE_TAX = False
+    import settings
+    cadence, profiles, naming = settings.cadence, settings.profile_axis, settings
+    tax, survivorship_axis = settings.tax, settings.survivorship_axis
+    AXIS_NS = {"settings": settings, "_dda": settings.dd_axis, "_capa": settings.capital_axis,
+               "_impa": settings.impact_axis, "_pca": settings.pcap_axis,
+               "_fxa": settings.fixed_axis, "_sta": settings.start_axis,
+               "_bsf": settings.shortfall_axis}
+except ImportError:          # a checkout from before settings.py (2026-11-27)
+    import cadence, profiles, naming, tax, survivorship_axis
+    import dd_axis, capital_axis, impact_axis, pcap_axis, fixed_axis, start_axis, buy_shortfall
+    AXIS_NS = {"_dda": dd_axis, "_capa": capital_axis, "_impa": impact_axis, "_pca": pcap_axis,
+               "_fxa": fixed_axis, "_sta": start_axis, "_bsf": buy_shortfall}
 
 D = pathlib.Path(tempfile.mkdtemp())
 for c in itertools.product(["","_r40"],["","_tradeable"],["","_tax"]):
@@ -85,7 +93,6 @@ for c in itertools.product(["","_v1"],["","_r40"],["","_tradeable"],["","_tax"])
     (D / f"chart_midcap150_FINAL{''.join(c)}.png").write_text("x")
 
 out = {}
-import naming
 out["naming.tail"] = naming.tail()
 out["naming.name"] = naming.name("stem", ".csv")
 out["selection_suffix"] = arm_reg.selection_suffix()
@@ -103,13 +110,8 @@ for l in src[i:]:
     if depth <= 0 and buf[-1]:
         break
 expr = " ".join(buf)[len("SFX = "):].strip()
-ns = {"arm_reg": arm_reg, "cadence": cadence, "profiles": profiles}
-if HAVE_TAX: ns["_tax"] = tax
-try:
-    import survivorship_axis
-    ns["_sva"] = survivorship_axis
-except ImportError:
-    pass
+ns = {"arm_reg": arm_reg, "cadence": cadence, "profiles": profiles, "_tax": tax,
+      "_sva": survivorship_axis, **AXIS_NS}
 try: out["SFX"] = eval(expr, ns)
 except Exception as e: out["SFX"] = f"EVALFAIL {type(e).__name__}: {e}"
 
@@ -184,23 +186,24 @@ def condition_2():
     """Something is actually there. The axis moves, and declarations honour it."""
     print("\n  CONDITION 2 -- off the default, the axis is real and declared")
     sys.path.insert(0, str(ROOT))
-    import naming, tax, cadence, profiles
+    from settings import tax, cadence
+    import settings
     import arms.registry as arm_reg
 
-    for m in (cadence, profiles, arm_reg, tax):
+    for m in (cadence, settings.profile_axis, arm_reg, tax):
         m.set_selection(None)
-    base = naming.tail()
+    base = settings.tail()
     tax.set_selection(True)
-    on = naming.tail()
+    on = settings.tail()
     tax.set_selection(None)
-    ok_axis = (base == "" and on == "_tax" and "tax" in naming.AXES)
+    ok_axis = (base == "" and on == "_tax" and "tax" in settings.AXES)
     print(f"    tail at default {base!r} -> at tax=on {on!r}   "
           f"{'PASS' if ok_axis else 'FAIL'}")
 
     # tax must follow the first three, and any later axis must be appended after
     # it, or every existing non-default artefact is renamed. survivorship was
     # appended after tax on 2026-10-10.
-    ok_last = naming.AXES[:4] == ("arm", "cadence", "profile", "tax")
+    ok_last = settings.AXES[:4] == ("arm", "cadence", "profile", "tax")
     print(f"    tax is fourth, later axes appended after it      "
           f"{'PASS' if ok_last else 'FAIL -- appending is what keeps _r40/_tradeable in place'}")
 
@@ -209,7 +212,7 @@ def condition_2():
     # bare substring search over the whole file matches the explanation and
     # reports the defect it is explaining. Comments and docstrings are stripped.
     import io, tokenize
-    src = (ROOT / "naming.py").read_text()
+    src = (ROOT / "settings.py").read_text()
     code = []
     for tok in tokenize.generate_tokens(io.StringIO(src).readline):
         if tok.type not in (tokenize.COMMENT, tokenize.STRING):
@@ -219,7 +222,7 @@ def condition_2():
           f"{'PASS' if ok_lit else 'FAIL -- a new axis would be auto-credited unmeasured'}")
 
     # Every composer a site may name must be measured for tax.
-    unmeasured = [k for k, v in naming.CARRIES.items() if "tax" not in v
+    unmeasured = [k for k, v in settings.CARRIES.items() if "tax" not in v
                   and k != "selection_suffix"]
     ok_meas = not unmeasured
     print(f"    every composer measured for tax                  "
@@ -228,7 +231,7 @@ def condition_2():
     # THE FROZEN ENGINE MUST STAY OFF THIS AXIS, AND THIS IS HOW IT IS ENFORCED.
     #
     # The phase-1 design said run.py should refuse --tax on for the two retired
-    # universes, taken from cadence.py's docstring, which records exactly such a
+    # universes, taken from settings.cadence's docstring, which records exactly such a
     # refusal for the cadence axis. THAT IS NOT IMPLEMENTABLE: both were deleted on
     # 2026-09-11, universes/registry.py then held only midcap150 and nifty100, and
     # run.py:396 records that the cadence skip-list was itself dropped because "every

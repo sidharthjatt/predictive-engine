@@ -1,7 +1,7 @@
 """
 buy_shortfall.py -- what a buy does when cash cannot pay for all of it.
 
-    trim    (default, config.BUY_SHORTFALL) the buy is cut to the largest whole
+    trim    (default, settings.BUY_SHORTFALL) the buy is cut to the largest whole
             quantity q with q x fill price + charges(q) <= the cash the rule
             allows, and goes ahead only if q is at least MIN_FILL_PCT of the
             wanted quantity. Below that, or at q = 0, it is refused.
@@ -12,18 +12,11 @@ Every buy that sizes against cash goes through trim() below: the engine
 (nautilus/nt_attribution.py) and the Nautilus port (nautilus/nt_strategy.py).
 The drawdown-limit top-up keeps its own rule and does not use it.
 
-The twelfth axis, appended after start in naming.AXES. The suffix is "" at the
-default trim, so the canonical names now hold trimmed runs; refuse is "_refuse"
-after every other suffix and "@refuse" in directory segments.
+The selection (trim or refuse) is settings.shortfall_axis, the twelfth axis in
+settings.AXES. The suffix is "" at the default trim, so the canonical names hold
+trimmed runs; refuse is "_refuse" after every other suffix and "@refuse" in
+directory segments.
 """
-import config
-
-CHOICES = ("trim", "refuse")
-DEFAULT = config.BUY_SHORTFALL
-assert DEFAULT in CHOICES, f"config.BUY_SHORTFALL must be one of {CHOICES}"
-
-_SELECTED = DEFAULT
-
 # THE MINIMUM FILL, a fixed constant and not a run setting. A trimmed buy of
 # fewer than half the wanted shares is refused. Without it, trim left stubs of
 # one or a few shares that the rule against resizing held names then kept at
@@ -34,40 +27,6 @@ MIN_FILL_PCT = 50
 
 # The reason a buy refused by the minimum is logged under.
 BELOW_MINIMUM = "cash short: below minimum fill"
-
-
-def set_selection(value):
-    """Record this run's setting. None restores the default."""
-    global _SELECTED
-    if value is None:
-        _SELECTED = DEFAULT
-        return
-    if value not in CHOICES:
-        raise ValueError(f"buy_shortfall is one of {', '.join(CHOICES)}; got {value!r}")
-    _SELECTED = value
-
-
-def selected():
-    return _SELECTED
-
-
-def is_default():
-    return _SELECTED == DEFAULT
-
-
-def suffix():
-    """"" at the default, else "_refuse" -- the artefact name tail."""
-    return "" if is_default() else f"_{_SELECTED}"
-
-
-def segment():
-    """"" at the default, else "@refuse" -- the directory segment tail."""
-    return "" if is_default() else f"@{_SELECTED}"
-
-
-def label():
-    """The chart-title fragment, "" at the default."""
-    return "" if is_default() else "short buys refused"
 
 
 def meets_minimum(q, q_wanted):

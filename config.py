@@ -1,172 +1,16 @@
 """
-config.py
-=========
-All phases (data prep, model training, backtest) take their
-Every phase (data prep, model training, backtest) imports its shared constants
-from this file. Symbol list, paths and date splits live in one place so that
-nothing is hardcoded anywhere else.
+config.py -- reading price and panel files, and the score-cache keys.
 
-When raw CSVs are added to RAW_DATA_DIR, their filenames must match the entries
-in the SYMBOLS list below.
+read_price_csv / read_table / write_panel read and write every data file;
+panel_code_key, cache_staleness and require_cache decide whether a cached score
+panel is current. The constants and directories are in settings.py.
 """
 
 from pathlib import Path
 
-# Imported at module level, not beside its first user further down, because
-# BT_START_DATE / BT_END_DATE below are Timestamps and are needed at import time.
 import pandas as _pd
-from paths import list_dir
 
-# ---------------------------------------------------------------------------
-# Project root -- every path below is relative to this
-# ---------------------------------------------------------------------------
-PROJECT_ROOT = Path(__file__).resolve().parent
-
-# ---------------------------------------------------------------------------
-# Symbols used by this project
-# ---------------------------------------------------------------------------
-SYMBOLS = [
-    "HDFCBANK",
-    "BRITANNIA",
-    "ABB",
-    "BAJFINANCE",
-    "BOSCHLTD",
-]
-
-# Benchmark index for equity curve comparison
-BENCHMARK_SYMBOL = "NIFTY50"
-
-# ---------------------------------------------------------------------------
-# Data paths
-# ---------------------------------------------------------------------------
-DATA_DIR = PROJECT_ROOT / "data"
-RAW_DATA_DIR = DATA_DIR / "raw"            # the cleaned source CSVs go here
-PROCESSED_DATA_DIR = DATA_DIR / "processed"  # causal feature-engineered data is built here
-
-# ---------------------------------------------------------------------------
-# Model artifact paths
-# ---------------------------------------------------------------------------
-MODELS_DIR = PROJECT_ROOT / "models"
-DT_MODELS_DIR = MODELS_DIR / "decision_tree"
-GRU_MODELS_DIR = MODELS_DIR / "attention_gru"
-TD3_MODELS_DIR = MODELS_DIR / "td3"
-
-# ---------------------------------------------------------------------------
-# Nautilus paths
-# ---------------------------------------------------------------------------
-NAUTILUS_DIR = PROJECT_ROOT / "nautilus"
-CATALOG_DIR = NAUTILUS_DIR / "catalog"
-
-# ---------------------------------------------------------------------------
-# Results
-# ---------------------------------------------------------------------------
-RESULTS_DIR = PROJECT_ROOT / "results"
-EQUITY_CURVES_DIR = RESULTS_DIR / "equity_curves"
-METRICS_DIR = RESULTS_DIR / "metrics"
-
-# CREATE THE OUTPUT DIRECTORIES AT IMPORT, so a FRESH CHECKOUT works from ANY
-# entry point -- run_all.py or a script run standalone -- rather than only when
-# these directories happen to survive from a previous run on this machine.
-# The per-universe config modules (since folded into universes/registry.py) did
-# this for their own metrics dirs; config.py did NOT, so STEP 2 (engine_core) crashed on the first
-# to_csv into a non-existent results/metrics on the first fresh run ever
-# attempted (2026-09-03). See KNOWN_ISSUES.md.
-METRICS_DIR.mkdir(parents=True, exist_ok=True)
-EQUITY_CURVES_DIR.mkdir(parents=True, exist_ok=True)
-
-# ---------------------------------------------------------------------------
-# BACKTEST WINDOW -- the single definition. Every live site imports these.
-# ---------------------------------------------------------------------------
-# Inclusive on both ends. Price data runs to 2026-06-08, so this cut is real and
-# drops six trading days: 2026-06-01 through 2026-06-08.
-#
-# THE NAMES CARRY _DATE AND ARE Timestamps: engine_core once defined BT_START and
-# BT_END as year integers, and two constants with one name and two types is how a
-# previous mismatch happened.
-#
-# THE START IS ONE SETTING SINCE 2026-10-22. BT_START_DEFAULT is the default and
-# BT_START_DATE the value in force; run.py --start changes it through
-# start_axis.set_selection, which also moves every registry row's window. Read
-# BT_START_DATE at call time, never copy it at import. engine_core's integer
-# year pair, which topn_test.py read, was removed the same day.
-BT_START_DEFAULT = _pd.Timestamp("2019-01-01")
-BT_START_DATE = BT_START_DEFAULT
-BT_END_DATE = _pd.Timestamp("2026-05-29")
-
-# ---------------------------------------------------------------------------
-# SELECTION -- the single definition. Every live site imports these.
-# ---------------------------------------------------------------------------
-# TOP_N   how many names the buy set holds at each rebalance.
-# BUFFER  the hold band: a held name is sold only when its rank falls below
-#         this, so turnover does not rise with tighter selection.
-#
-# Centralised 2026-08-29 under experiments/TOPN_SPEC.txt Part A. Before that
-# they were literals in TEN places with no single definition, and one of those
-# ten had drifted: results/make_stats_both.py carried 12, 24 (that script was
-# deleted 2026-09-04 -- dead outputs, drifted constants). Nothing could have
-# caught it, because there was nothing for it to disagree with.
-#
-# THE RETIRED ENGINES DO NOT IMPORT THESE. engine_core.py, engine_v2_final.py,
-# engine_v2_final74.py and make_cash_series.py (now in frozen/) keep their own
-# literals so the retired universes' published numbers cannot move -- the same freeze
-# the old year window carries. engine_core.py:90 therefore still defines TOP_N
-# and BUFFER, and validate_sizing.py imports TOP_N from THERE, not from here.
-# The two agree at 8 today and nothing enforces that. See KNOWN_ISSUES.md.
-#
-# No _DATE-style suffix is used. The window constants needed one because
-# engine_core's BT_START/BT_END are year INTEGERS and a same-name/different-type
-# collision had already caused a mismatch. Here both definitions are int 8 and
-# int 16, so there is no type trap -- only the divergence risk noted above.
-TOP_N = 8
-BUFFER = 16
-
-# A buy that cash cannot fully pay for: "trim" cuts it to the largest whole
-# quantity that fits, if that is at least half the wanted quantity
-# (buy_shortfall.MIN_FILL_PCT), "refuse" drops it. run.py --buy-shortfall overrides it for
-# one run. See buy_shortfall.py.
-BUY_SHORTFALL = "trim"
-
-# ---------------------------------------------------------------------------
-# Train / Validation / Test split -- DELETED 2026-08-28
-# ---------------------------------------------------------------------------
-# TRAIN_START, TRAIN_END, VAL_START, VAL_END, TEST_START and TEST_END all had
-# ZERO references anywhere in the repository, verified by raw grep rather than by
-# a filtered count. They were placeholders from the earlier decision-tree / GRU /
-# TD3 phase and described a split no current script uses.
-#
-# They were also inconsistent with the window that IS used: TEST_END read
-# 2026-06-05, which matches neither the old year cut (to 2026-06-08) nor
-# BT_END_DATE (2026-05-29). A dead date constant that disagrees with the live one
-# is a trap for the next reader.
-#
-# The backtest window is BT_START_DATE / BT_END_DATE above, and the walk-forward
-# split is not date constants at all -- it is the expanding monthly retrain with
-# the trading-session purge of engine_core.training_set.
-
-# ---------------------------------------------------------------------------
-# Feature engineering window settings (CAUSAL ONLY -- only past data is used)
-# ---------------------------------------------------------------------------
-LOOKBACK_WINDOW = 20   # how many past days of context the model sees (legacy GRU/TD3)
-RANDOM_SEED = 42
-
-BUY_TC = 0.001187
-SELL_TC = 0.001037
-STCG_RATE = 0.22
-LTCG_RATE = 0.125
-LTCG_EXEMPT = 125000
-MIN_HOLD_DAYS = 15
-RETRAIN_FREQ = "monthly"
-
-DT_MAX_DEPTH = 6
-DT_MIN_SAMPLES_LEAF = 100
-DT_CCP_ALPHA = 1e-3
-GRU_HIDDEN = 64
-GRU_LAYERS = 1
-GRU_LOOKBACK = 30
-TD3_GAMMA = 0.98
-TD3_POLICY_DELAY = 2
-TD3_TARGET_NOISE = 0.2
-TD3_NOISE_CLIP = 0.5
+from settings import PROJECT_ROOT, list_dir
 
 # ============================================================================
 # CENTRAL DATE HANDLING -- read every raw data file through this.
@@ -445,10 +289,10 @@ def pit_membership_key(u):
 def _cache_owner(path):
     """The registered universe whose cache `path` is, or None.
 
-    IMPORTED LAZILY. universes/registry.py imports this module at its own import
-    time, so a module-level import here is a cycle.
+    IMPORTED LAZILY. settings.py is imported by this module at its own import
+    time, and REGISTRY is built at the end of settings' import.
     """
-    from universes.registry import REGISTRY
+    from settings import REGISTRY
     p = Path(path).resolve()
     for u in REGISTRY.values():
         for cand in (u.score_cache, u.raw_cache):

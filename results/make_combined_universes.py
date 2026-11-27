@@ -17,7 +17,7 @@ THE RULE ABOUT HOW MANY UNIVERSES
             never a universe that was not selected.
 
 SELECTION, NOT REGISTRATION
-    It asks universes/registry.selected_tags(), not REGISTRY.
+    It asks settings.universe_axis.selected_tags(), not REGISTRY.
     `--universe midcap150,nifty100` leaves six universes registered and
     unselected; plotting them would put universes on the page nobody asked for. Run on its own with no selection set, the default
     is every registered universe, which is what the old step saw.
@@ -53,11 +53,10 @@ warnings.filterwarnings("ignore")
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import config
-from universes.registry import REGISTRY, selected_tags, report_order
+import settings
+from settings import REGISTRY, universe_axis, report_order
 import arms.registry as arm_reg
-import naming
-import cadence
-import profiles
+from settings import cadence
 import make_chart
 
 import survivorship as sv
@@ -152,7 +151,7 @@ _COUNT_WORD = {2: "both", 3: "all three", 4: "all four"}
 # IT IS STILL CHECKED AGAINST THE REGISTRY at import, because the one thing it may
 # not be is a pair that cannot exist -- that would fail at chart time, deep in a
 # draw call, rather than here.
-from universes.registry import CERTIFIED as PAIR_CHART  # noqa: E402
+from settings import CERTIFIED as PAIR_CHART  # noqa: E402
 
 # THE REGISTRY SIZE THIS PAIR WAS LAST CONFIRMED AGAINST. Widened 2026-09-18, when
 # the registry was about to go from 2 universes to 10.
@@ -228,7 +227,7 @@ def main():
     # WHICHEVER UNIVERSES THIS RUN SELECTED, IN REPORT ORDER. report_order puts
     # nifty100 before midcap150, so the pair's filename is
     # chart_COMBINED_nifty100_midcap150.png whatever order they were typed in.
-    tags = report_order(t for t in selected_tags() if t in REGISTRY)
+    tags = report_order(t for t in universe_axis.selected_tags() if t in REGISTRY)
 
     sel = set(arm_reg.selected_names())
 
@@ -418,25 +417,24 @@ def _ci(path):
     one axis at a time: this one reported `cadence` where its two same-named
     siblings reported `cadence, profile`.
     """
-    import profiles as _pf
-    import tax as _tax
+    import settings
+    from settings import tax as _tax
     # THE TAX AXIS, 2026-09-17. This helper is the one that was found composing
     # one axis fewer than its two same-named siblings; it gets the fourth at the
     # same time they do, so the three cannot drift apart again.
-    import survivorship_axis as _sva
-    import dd_axis as _dda
-    import capital_axis as _capa
-    import impact_axis as _impa
-    import pcap_axis as _pca
-    import fixed_axis as _fxa
-    import start_axis as _sta
-    import buy_shortfall as _bsf
-    if (cadence.is_default() and _pf.is_default() and _tax.is_default()
+    from settings import survivorship_axis as _sva
+    from settings import dd_axis as _dda
+    from settings import capital_axis as _capa
+    from settings import impact_axis as _impa
+    from settings import pcap_axis as _pca
+    from settings import fixed_axis as _fxa
+    from settings import start_axis as _sta
+    if (cadence.is_default() and settings.profile_axis.is_default() and _tax.is_default()
             and _sva.is_default() and _dda.is_default()
-            and _capa.is_default() and _impa.is_default() and _pca.is_default() and _fxa.is_default() and _sta.is_default() and _bsf.is_default()):
+            and _capa.is_default() and _impa.is_default() and _pca.is_default() and _fxa.is_default() and _sta.is_default() and settings.shortfall_axis.is_default()):
         return path
-    c = path.with_name(path.stem + cadence.suffix() + _pf.suffix()
-                       + _tax.suffix() + _sva.suffix() + _dda.suffix() + _capa.suffix() + _impa.suffix() + _pca.suffix() + _fxa.suffix() + _sta.suffix() + _bsf.suffix() + path.suffix)
+    c = path.with_name(path.stem + cadence.suffix() + settings.profile_axis.suffix()
+                       + _tax.suffix() + _sva.suffix() + _dda.suffix() + _capa.suffix() + _impa.suffix() + _pca.suffix() + _fxa.suffix() + _sta.suffix() + settings.shortfall_axis.suffix() + path.suffix)
     # NO FALLBACK TO THE CANONICAL FILE, 2026-09-23. This returned `path` when
     # the sibling was absent, so a missing non-default artefact was silently
     # replaced by the published cadence-20 research one and plotted under this
@@ -522,18 +520,17 @@ def combined_chart_path(M, tags, out_suffix=""):
     measure. Rule unchanged -- universe tags, then the arm suffix the caller
     chose, then cadence and profile.
     """
-    import profiles as _pf
-    import tax as _tax
-    import survivorship_axis as _sva
-    import dd_axis as _dda
-    import capital_axis as _capa
-    import impact_axis as _impa
-    import pcap_axis as _pca
-    import fixed_axis as _fxa
-    import start_axis as _sta
-    import buy_shortfall as _bsf
+    import settings
+    from settings import tax as _tax
+    from settings import survivorship_axis as _sva
+    from settings import dd_axis as _dda
+    from settings import capital_axis as _capa
+    from settings import impact_axis as _impa
+    from settings import pcap_axis as _pca
+    from settings import fixed_axis as _fxa
+    from settings import start_axis as _sta
     return M / ("chart_COMBINED_" + "_".join(tags) + out_suffix
-                + cadence.suffix() + _pf.suffix() + _tax.suffix() + _sva.suffix() + _dda.suffix() + _capa.suffix() + _impa.suffix() + _pca.suffix() + _fxa.suffix() + _sta.suffix() + _bsf.suffix()
+                + cadence.suffix() + settings.profile_axis.suffix() + _tax.suffix() + _sva.suffix() + _dda.suffix() + _capa.suffix() + _impa.suffix() + _pca.suffix() + _fxa.suffix() + _sta.suffix() + settings.shortfall_axis.suffix()
                 + ".png")
 
 
@@ -547,7 +544,7 @@ def _draw(rows, out_path):
     ax[0].axhline(0, color="k", lw=.6, alpha=.5)
     ax[0].set_ylabel("Cumulative return (%)")
     ax[0].yaxis.set_major_formatter(PercentFormatter(decimals=0))
-    ax[0].set_title(naming.run_label([r["u"].label for r in rows],
+    ax[0].set_title(settings.run_label([r["u"].label for r in rows],
                                      sorted({n for r in rows for n in r["arms"]}))
                     + "\n" + sub, fontsize=9)
     ax[0].legend(loc="upper left", fontsize=8); ax[0].grid(alpha=.3)
@@ -601,7 +598,7 @@ def _subtitle(UNIV):
                 "published cap-weighted index where the universe has one")
              + "\n")
 
-    line2 = ("ALL STRATEGY NUMBERS " + naming.cost_basis()[len("ALL NUMBERS "):]
+    line2 = ("ALL STRATEGY NUMBERS " + settings.cost_basis()[len("ALL NUMBERS "):]
              + "; before-TC also shown in the legend.")
     if unsel:
         # A COUNT, NOT A LIST, SINCE 2026-09-18. This named every registered
@@ -635,7 +632,7 @@ def _subtitle(UNIV):
     #   Each universe's individual chart carries its own liquidity line, but this
     #   is the only page where they appear together, and the contrast is the whole
     #   point: the depth model's cost differs by universe (see each universe's
-    #   liquidity_note in universes/registry.py).
+    #   liquidity_note in settings.py).
     # None CONTRIBUTES NOTHING, exactly as an absent key used to. The difference is
     # upstream: the field must be supplied, so "this universe has no note" is a
     # statement somebody made rather than a gap nobody noticed.

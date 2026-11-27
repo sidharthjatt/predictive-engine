@@ -82,7 +82,7 @@ not price and a look-ahead note in its log, RUN.txt and params JSON. See
 capital of the strategy and of the investable buy & hold. Every published figure is at
 the default, which adds nothing to any name; another capital adds `_cap<rupees>` to
 files and `@cap<rupees>` to folders, and appears in chart titles, params.json and
-RUN.txt. The default is defined once, in `capital_axis.py`. `nautilus/nt_verify.py
+RUN.txt. The default is defined once, in `settings.capital_axis`. `nautilus/nt_verify.py
 --capital=<rupees>` checks the port at that capital (static, research, tax off).
 
 A capital other than the default needs `--profile tradeable` and an explicit `--impact K`
@@ -129,7 +129,7 @@ slippage are paid from the account, as in every run. The mode is refused with `-
 and with the stop arms. Off adds nothing to any name; on adds `_fixed` after every
 other suffix and `@fixed` to folders.
 
-`--buy-shortfall trim|refuse` (default `trim`, `config.BUY_SHORTFALL`) decides what a
+`--buy-shortfall trim|refuse` (default `trim`, `settings.BUY_SHORTFALL`) decides what a
 buy does when the cash left at that point of the rebalance morning cannot pay for all
 of it. Buys are filled in score order after the day's sells and any tax taken that
 morning. Under `trim` the quantity becomes the largest whole number q with q x fill
@@ -1726,7 +1726,7 @@ it is here too.
 backfilled over the window. Names dropped or delisted during the window are absent
 entirely, so both the strategy and its buy & hold benchmark are inflated by an
 unknown amount. `--survivorship pit`
-(`survivorship_axis.py`) runs on the supplier's point-in-time membership files and
+(`settings.survivorship_axis`) runs on the supplier's point-in-time membership files and
 with-survivorship prices for the nine index universes; those files fail validation
 and are used by decision (KNOWN_ISSUES.md). The three market-cap buckets have no
 membership files and are static only. The earlier attempt at rebuilding
@@ -1975,7 +1975,7 @@ It compares every file against the tracked manifest `data/RAW_DATA_SHA256.txt`
 (SHA-256 per file) and exits 0 only if all 2,868 match and no extra file is present;
 otherwise it lists each missing, different or extra file. It needs only the Python
 standard library. For a copy holding one universe, check just that folder (this
-form reads universes/registry.py, so it needs the venv):
+form reads settings.py, so it needs the venv):
 
 ```
 ./venv/bin/python check_data.py --universe=midcap50

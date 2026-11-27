@@ -32,8 +32,9 @@ import pandas as pd
 
 import arms.registry as arm_reg
 import config
+import settings
 from config import read_table
-from universes.registry import REGISTRY
+from settings import REGISTRY
 
 SETTINGS = (("pit, tradeable, tax on", "_tradeable_tax_pit"),
             ("static, tradeable, tax on", "_tradeable_tax"))

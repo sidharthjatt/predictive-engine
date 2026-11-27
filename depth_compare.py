@@ -34,7 +34,8 @@ sys.path.insert(0, str(ROOT / "results"))
 
 import nt_data, nt_run
 from engine_core import metrics
-from universes.registry import REGISTRY, certified
+import settings
+from settings import REGISTRY, certified
 from config import read_table  # the one CSV/parquet reader: config.read_table
 
 SLIPPAGE = nt_run.SLIPPAGE
@@ -62,7 +63,7 @@ def run_mode(u, mode, raw_dir, syms):
         print(f"    volume loaded for {n} symbols", flush=True)
     U = nt_run.UNIVERSES[u]
     with contextlib.redirect_stdout(io.StringIO()):
-        s = nt_run.run(str(config.BT_START_DATE.date()), U["end"], quiet=True, universe=u)
+        s = nt_run.run(str(settings.BT_START_DATE.date()), U["end"], quiet=True, universe=u)
     nt_data.set_depth_mode("unlimited")
     return s
 
@@ -70,6 +71,7 @@ def run_mode(u, mode, raw_dir, syms):
 def main():
     import subprocess, datetime
     import config as _cfg
+    import settings
     try:
         _commit = subprocess.run(["git", "rev-parse", "--short", "HEAD"], cwd=ROOT,
                                  capture_output=True, text=True).stdout.strip()

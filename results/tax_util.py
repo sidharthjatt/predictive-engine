@@ -2,7 +2,7 @@
 tax_util.py -- Indian capital-gains tax on a realised trade log. THE RULES ONLY.
 ===============================================================================
 
-    axis: tax.py            engine hook: results/test_exposure.py
+    axis: settings.tax            engine hook: results/test_exposure.py
     spec: the reference document's section 3, implemented verbatim
 
 UNPARKED 2026-09-17, AND WHY

@@ -256,7 +256,7 @@ def row_span(row):
     if span is None:
         return ()
     if span == SPANS_REGISTRY:
-        from universes.registry import REGISTRY
+        from settings import REGISTRY
         return tuple(REGISTRY)
     unknown = [t for t in span if t not in _registry_tags()]
     if unknown:
@@ -271,7 +271,7 @@ def row_span(row):
 
 
 def _registry_tags():
-    from universes.registry import REGISTRY
+    from settings import REGISTRY
     return set(REGISTRY)
 
 
@@ -374,7 +374,7 @@ PIPELINE_ORDER = [
     ("STEP 10.11", "audit_step.py",             "microcap250"),
     ("STEP 10.12", "make_chart.py",             "microcap250"),
     # THE THREE MARKET-CAP BUCKETS, ADDED 2026-10-16. Static only: the supplier
-    # delivered no membership files for them (universes/registry.py).
+    # delivered no membership files for them (settings.py).
     ("STEP 10.13", "build_scores.py",           "mcap1500to5000"),
     ("STEP 10.14", "engine_v2_final.py",        "mcap1500to5000"),
     ("STEP 10.15", "audit_step.py",             "mcap1500to5000"),
@@ -493,8 +493,8 @@ PIPELINE_ORDER = [
 # outlived the retired universes they served by five days and were deleted in
 # 6d618ac.
 #
-# THE PATHS COME FROM paths.py, NOT FROM A FORMAT STRING WRITTEN HERE.
-# paths.tagged_artefact(u, "daily_trades") is the existing definition of the
+# THE PATHS COME FROM settings.py, NOT FROM A FORMAT STRING WRITTEN HERE.
+# settings.tagged_artefact(u, "daily_trades") is the existing definition of the
 # daily-audit family's naming -- the one place that puts the tag in the FILENAME
 # as well as the directory -- and re-spelling it here would be a second rule that
 # can disagree with the first. Same for nautilus_scores() and score_cache().
@@ -564,18 +564,18 @@ def _step_label(script, tag):
 #
 # build_scores_step already declared `# naming: axis-free` on both writes. That was
 # a CLAIM; it is now a measured one.
-import naming as _naming
+import settings
 AXIS_FREE = ()                      # the name carries no run axis at all
-# Every axis the writers put in a name, taken from naming.AXES. The arm is left
+# Every axis the writers put in a name, taken from settings.AXES. The arm is left
 # out because it is part of the stem (daily_trades_v1_<tag> against
 # daily_trades_<tag>), not of the tail.
 #
 # This was a hand-kept string, "cadence,profile,tax,survivorship", and it fell
-# behind naming.AXES when dd, capital, impact, pcap and fixed were added. A v1 or
+# behind settings.AXES when dd, capital, impact, pcap and fixed were added. A v1 or
 # v2 run with any of those five asked for the default cell's unsuffixed trade
 # file, so on a fresh clone it stopped at STEP 10p, and where that file existed
 # the check passed without looking at the file the run had written.
-RUN_AXES = tuple(a for a in _naming.AXES if a != "arm")
+RUN_AXES = tuple(a for a in settings.AXES if a != "arm")
 
 
 def _required_inputs():
@@ -586,8 +586,8 @@ def _required_inputs():
     uniformly to inputs that do not all carry the same axes, so "unspecified" must
     not be spellable.
     """
-    import paths
-    from universes.registry import REGISTRY
+    import settings
+    from settings import REGISTRY
     out = {"make_chart.py": [], "make_combined_universes.py": [],
            "nt_execute.py": [], "nt_export_scores.py": [], "tax_report.py": [],
            "bh_lots_after_tax.py": []}
@@ -598,10 +598,10 @@ def _required_inputs():
         # `--arm v1,v3` impossible from a cold tree, and it only ever passed
         # because an earlier default run had left the file on disk.
         out["make_chart.py"].append(
-            (paths.tagged_artefact(u, "daily_trades"),
+            (settings.tagged_artefact(u, "daily_trades"),
              _step_label("audit_step.py", u.tag), f"u:{u.tag},v2", RUN_AXES))
         out["make_chart.py"].append(
-            (paths.tagged_artefact(u, "daily_trades_v1"),
+            (settings.tagged_artefact(u, "daily_trades_v1"),
              _step_label("engine_v2_final.py", u.tag), f"u:{u.tag},v1", RUN_AXES))
         # THE COMBINED STEP READS EVERY SELECTED UNIVERSE'S TRADE LOG. It is
         # qualified by ARM only: the universe is carried by the path, and this
@@ -621,18 +621,18 @@ def _required_inputs():
         # which universe's file it is, so it drops when that universe is not
         # selected instead of being demanded regardless.
         out["make_combined_universes.py"].append(
-            (paths.tagged_artefact(u, "daily_trades"),
+            (settings.tagged_artefact(u, "daily_trades"),
              _step_label("audit_step.py", u.tag), f"u:{u.tag},v2", RUN_AXES))
         # UNIVERSE-TAGGED. The port loads the parquet for each SELECTED universe,
         # and a run that selected one universe has one of these.
         out["nt_execute.py"].append(
-            (paths.nautilus_scores(u),
+            (settings.nautilus_scores(u),
              _step_label("nt_export_scores.py", None), f"u:{u.tag}", AXIS_FREE))
         # STEP 16 reads the score panel build_scores wrote. Named so that if the
         # two are ever re-ordered the run stops with the missing filename and the
         # step that owes it, instead of dying inside pandas.
         out["nt_export_scores.py"].append(
-            (paths.score_cache(u),
+            (settings.score_cache(u),
              _step_label("build_scores.py", u.tag), f"u:{u.tag}", AXIS_FREE))
         # STEP 18 RE-RUNS THE BACKTEST, so its only input is the score panel --
         # the same one nt_export_scores reads, from the same writer.
@@ -649,7 +649,7 @@ def _required_inputs():
         # score panel carries no axis suffix, so composing one onto it would
         # demand v_midcap150_expanding_tax.csv, which nothing writes.
         out["tax_report.py"].append(
-            (paths.score_cache(u),
+            (settings.score_cache(u),
              _step_label("build_scores.py", u.tag), f"u:{u.tag}", AXIS_FREE))
     return out
 
@@ -737,7 +737,7 @@ def entry_applies(e, tag, usel, asel, label="", script=""):
     # IMPORTED LOCALLY, as cadence and profiles are in this file. run_all is
     # imported by the plan check via runpy at module scope and must not pull an
     # axis module in at import time.
-    import tax as _tax
+    from settings import tax as _tax
 
     quals = [q.strip() for q in str(e[2]).split(",")] if len(e) >= 3 else []
     if tag is not None and not any(q.startswith("u:") for q in quals):
@@ -789,7 +789,7 @@ def entry_applies(e, tag, usel, asel, label="", script=""):
             #     out["some_tax_chart.py"].append(
             #         (M / "FY_TAX_STATEMENT_<tag>_tax.csv",
             #          _step_label("tax_report.py", u.tag),
-            #          f"u:{u.tag},tax:on", naming.AXES))
+            #          f"u:{u.tag},tax:on", settings.AXES))
             #
             # -- demanded when the run is taxed and dropped when it is not, so a
             # tax=off plan does not require a file that run never writes.
@@ -877,19 +877,19 @@ def check_inputs(label, script, tag):
         # _required_inputs(). An input that DOES carry an axis is unchanged, and
         # the substitution refusal below is unchanged with it.
         #
-        # naming.tail composes the suffixes the writers use, in their order, so
+        # settings.tail composes the suffixes the writers use, in their order, so
         # the check cannot list a different set of axes from the writers.
-        _sfx = _naming.tail(axes)
+        _sfx = settings.tail(axes)
         want = f if not _sfx else f.with_name(f.stem + _sfx + f.suffix)
         if want.exists():
             return True
-        from paths import list_dir
+        from settings import list_dir
         _found.append((f, want, [
             q.name for q in list_dir(want.parent, f.stem + "*" + f.suffix)][:6]))
         return False
 
-    import universes.registry as _ur
-    _usel = set(_ur.selected_tags())
+    import settings
+    _usel = set(settings.universe_axis.selected_tags())
 
     def _wanted(e):
         """This invocation's view of one entry. See entry_applies() above -- ONE

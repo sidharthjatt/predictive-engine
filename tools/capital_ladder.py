@@ -40,8 +40,9 @@ import pandas as pd
 
 import arms.registry as arm_reg
 import config
+import settings
 from config import read_table
-from universes.registry import REGISTRY, pit_variant, has_pit, pit_refusal
+from settings import REGISTRY, pit_variant, has_pit, pit_refusal
 
 
 def adv_value(raw_dir, sym, cache={}):
@@ -67,8 +68,9 @@ def main():
     caps = [int(x) for x in a.capitals.split(",")]
     ks = [float(x) for x in a.impacts.split(",")]
     pcs = [float(x) for x in a.pcaps.split(",")]
-    import capital_axis, impact_axis, pcap_axis, profiles
-    profiles.set_selection("tradeable")
+    from settings import capital_axis, impact_axis, pcap_axis
+    import settings
+    settings.profile_axis.set_selection("tradeable")
 
     def tail(cap, k, pc):
         """The capital, impact and cap suffixes, from the axes' own composers."""

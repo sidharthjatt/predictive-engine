@@ -140,7 +140,7 @@ import python_floor  # before any third-party import
 python_floor.require("check_all.py")
 
 from config import read_table  # the one CSV/parquet reader: config.read_table
-from paths import list_dir
+from settings import list_dir
 
 ROOT = Path(__file__).resolve().parent
 if str(ROOT) not in sys.path:
@@ -173,7 +173,7 @@ SKIP_PREFIX = ("forensic_snapshot_",)
 # having asserted nothing -- `return` with no value, then `sys.exit(main())`.
 # Wiring them without --run would have produced a green over zero tests, which
 # is the defect class this file exists to catch.
-from universes.registry import CERTIFIED as _CERTIFIED  # noqa: E402
+from settings import CERTIFIED as _CERTIFIED  # noqa: E402
 
 # GATE 9's members. They run inside the delegate loop like every other delegate
 # and are reported in the same table; they are tallied as their own gate.
@@ -406,9 +406,9 @@ SLOW_SHORT = "refits the model; needs --slow"
 # input" would also classify a genuinely missing file the code should have
 # written. Each entry lists what the script reads, from the registry.
 def _needs(label):
-    import paths as _p
-    from universes.registry import REGISTRY as _R
-    from universes.registry import certified as _certified, gated as _gated
+    import settings
+    from settings import REGISTRY as _R
+    from settings import certified as _certified, gated as _gated
     two = _certified()
     every = _gated()
     if label == "results/leakage_check2_trading_purge.py":
@@ -634,7 +634,7 @@ def gate_table(res):
     # _step_label cannot name a producer. What this adds is WHERE: the failure
     # arrives naming the rows that were missed, at the table, instead of naming
     # the first consumer that could not find a producer.
-    from universes.registry import REGISTRY
+    from settings import REGISTRY
     missing = stale = 0
     for row in rows:
         label, script = row[0], row[1]
@@ -732,7 +732,7 @@ def gate_outputs(res, rows, since, sel):
                  "no pipeline table")
         return
     import run_all
-    from universes.registry import REGISTRY
+    from settings import REGISTRY
     if since is None:
         res.skip(4, "GATE 4  SKIPPED -- needs --since <epoch>, i.e. a run to "
                  "check against. Not counted as passed.", "need --since")
@@ -936,7 +936,7 @@ def gate_delegates(res, slow):
                     f"as passed.",
                  f"live-like delegates lack run artefacts ({', '.join(skip9)})")
     elif not missing9 and all(v == "PASS" for v in live.values()):
-        from universes.registry import gated as _gated
+        from settings import gated as _gated
         res.note(f"GATE 9  {len(LIVE_LIKE)} of {len(LIVE_LIKE)} live-like delegates "
                  f"passed on all {len(_gated())} universes: next-open fills to the "
                  f"paisa, no feature look-ahead on sampled dates, purge gap > 0")
@@ -959,24 +959,23 @@ def _run_axes(rec=None, tax_on=True):
     """Select a run's cadence, profile and arms, and tax on or off, for the
     duration of the block, so the writers' own composers name what that run
     wrote. rec=None selects the defaults (cadence 20, research, all four arms)."""
-    import cadence as _cd
-    import profiles as _pf
-    import tax as _tx
+    from settings import cadence as _cd
+    import settings
+    from settings import tax as _tx
     import arms.registry as _ar
-    import survivorship_axis as _sva
-    import dd_axis as _dda
-    import capital_axis as _capa
-    import impact_axis as _impa
-    import pcap_axis as _pca
-    import fixed_axis as _fxa
-    import start_axis as _sta
-    import buy_shortfall as _bsf
-    saved = (_cd._SELECTED, _pf.selected(), _tx.selected(), _ar._SELECTED,
+    from settings import survivorship_axis as _sva
+    from settings import dd_axis as _dda
+    from settings import capital_axis as _capa
+    from settings import impact_axis as _impa
+    from settings import pcap_axis as _pca
+    from settings import fixed_axis as _fxa
+    from settings import start_axis as _sta
+    saved = (_cd._SELECTED, settings.profile_axis.selected(), _tx.selected(), _ar._SELECTED,
              _sva.selected(), _dda.selected(), _capa._SELECTED, _impa._SELECTED,
-             _pca._SELECTED, _fxa._SELECTED, _sta._SELECTED, _bsf.selected())
+             _pca._SELECTED, _fxa._SELECTED, _sta._SELECTED, settings.shortfall_axis.selected())
     try:
         _cd.set_selection(rec["cadence"] if rec else None)
-        _pf.set_selection(rec["profile"] if rec else None)
+        settings.profile_axis.set_selection(rec["profile"] if rec else None)
         _ar.set_selection(rec["arms"] if rec else None)
         _tx.set_selection(tax_on)
         _sva.set_selection((rec or {}).get("survivorship"))
@@ -986,10 +985,10 @@ def _run_axes(rec=None, tax_on=True):
         _pca.set_selection((rec or {}).get("pcap"))
         _fxa.set_selection(bool((rec or {}).get("fixed")))
         _sta.set_selection((rec or {}).get("start"))
-        _bsf.set_selection((rec or {}).get("buy_shortfall"))
+        settings.shortfall_axis.set_selection((rec or {}).get("buy_shortfall"))
         yield
     finally:
-        _cd.set_selection(saved[0]); _pf.set_selection(saved[1])
+        _cd.set_selection(saved[0]); settings.profile_axis.set_selection(saved[1])
         _tx.set_selection(saved[2]); _ar._SELECTED = saved[3]
         _sva.set_selection(saved[4])
         _dda.set_selection(saved[5])
@@ -998,7 +997,7 @@ def _run_axes(rec=None, tax_on=True):
         _pca.set_selection(saved[8])
         _fxa.set_selection(saved[9])
         _sta.set_selection(saved[10])
-        _bsf.set_selection(saved[11])
+        settings.shortfall_axis.set_selection(saved[11])
 
 
 def _tax_ledger(u, M, arm="v2", stems=("FY_EQUITY", "FY_TAX_STATEMENT"), rec=None):
@@ -1019,9 +1018,9 @@ def _v34_equity_pair(M, rec, arm=None):
     v34_common.write_v34 composes them: arm subset, cadence, profile, tax. A stop
     arm's curve is in the companion v34_stop_equity file, named the same way from
     the stop part of the selection."""
-    import cadence as _cd
-    import profiles as _pf
-    import tax as _tx
+    from settings import cadence as _cd
+    import settings
+    from settings import tax as _tx
     import arms.registry as _ar
     stop = getattr(arm, "name", arm) in _ar.STOP_ARMS
     out = []
@@ -1029,16 +1028,16 @@ def _v34_equity_pair(M, rec, arm=None):
         with _run_axes(rec, tax_on=on):
             head = (f"v34_stop_equity{_ar.stop_selection_suffix()}" if stop
                     else f"v34_equity{_ar.selection_suffix()}")
-            import survivorship_axis as _sva
-            import dd_axis as _dda
-            import capital_axis as _capa
-            import impact_axis as _impa
-            import pcap_axis as _pca
-            import fixed_axis as _fxa
-            import start_axis as _sta
-            import buy_shortfall as _bsf
-            out.append(M / f"{head}{_cd.suffix()}{_pf.suffix()}{_tx.suffix()}"
-                           f"{_sva.suffix()}{_dda.suffix()}{_capa.suffix() + _impa.suffix() + _pca.suffix() + _fxa.suffix() + _sta.suffix() + _bsf.suffix()}.csv")
+            from settings import survivorship_axis as _sva
+            from settings import dd_axis as _dda
+            from settings import capital_axis as _capa
+            from settings import impact_axis as _impa
+            from settings import pcap_axis as _pca
+            from settings import fixed_axis as _fxa
+            from settings import start_axis as _sta
+            import settings
+            out.append(M / f"{head}{_cd.suffix()}{settings.profile_axis.suffix()}{_tx.suffix()}"
+                           f"{_sva.suffix()}{_dda.suffix()}{_capa.suffix() + _impa.suffix() + _pca.suffix() + _fxa.suffix() + _sta.suffix() + settings.shortfall_axis.suffix()}.csv")
     return tuple(out)
 
 
@@ -1051,7 +1050,7 @@ def _tax_targets(res, gate, since):
     reading of RUN.txt as gate 4; see gate_outputs.
     """
     import datetime
-    from universes.registry import REGISTRY
+    from settings import REGISTRY
     from arms.registry import ALL_ARMS as ARMS
     runs = _runs_since(since)
     if not runs:
@@ -1189,7 +1188,7 @@ def gate_tax(res, since, sel):
         return
     try:
         sys.path.insert(0, str(ROOT))
-        from universes.registry import REGISTRY
+        from settings import REGISTRY
     except Exception as e:
         res.fail("GATE 6 tax", "registry", f"{type(e).__name__}: {e}")
         return
@@ -1325,7 +1324,7 @@ def gate_ltcg(res, sel, since=None):
     try:
         sys.path.insert(0, str(ROOT))
         sys.path.insert(0, str(ROOT / "results"))
-        from universes.registry import REGISTRY
+        from settings import REGISTRY
         import pandas as pd
         import tax_util as T
         import tax_report as TR
@@ -1514,7 +1513,8 @@ def gate_data_source(res, sel):
     import json
     try:
         import config
-        from universes.registry import REGISTRY
+        import settings
+        from settings import REGISTRY
     except Exception as e:
         res.fail("GATE 8 data source", "registry",
                  f"{type(e).__name__}: {e}")
@@ -1583,7 +1583,7 @@ def gate_data_source(res, sel):
                             r"(_impact[0-9p]+)?(_pcap[0-9p]+)?(_fixed)?(_s[0-9]{8})?$",
                             f.stem) is not None
             if (t, pit) not in live:
-                from universes.registry import pit_variant
+                from settings import pit_variant
                 uu = pit_variant(u) if pit else u
                 live[(t, pit)] = config.data_fingerprint(uu.prepare_data_dir(),
                                                          uu.raw_data_dir)

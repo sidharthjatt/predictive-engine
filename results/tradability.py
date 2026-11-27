@@ -50,8 +50,9 @@ READ-ONLY AGAINST THE RAW DATA. Nothing here changes a price.
 from pathlib import Path
 
 import config
+import settings
 from config import read_table  # the one CSV/parquet reader: config.read_table
-from paths import list_dir
+from settings import list_dir
 
 def sessions_with_row(data_dir, cal):
     """{symbol: frozenset(sessions on which the symbol has a row)}.
@@ -179,12 +180,12 @@ def cell_lines(u, tag, last=None):
 def run_lines(universes, arms):
     """The lines for every (universe, arm) cell of one run.py invocation."""
     import audit_step
-    import survivorship_axis as _sva
-    from universes import registry as R
+    from settings import survivorship_axis as _sva
+    import settings
     out = []
     for u in universes:
-        if not _sva.is_default() and R.has_pit(u) and not u.is_pit:
-            u = R.pit_variant(u)
+        if not _sva.is_default() and settings.has_pit(u) and not u.is_pit:
+            u = settings.pit_variant(u)
         last = None
         for a in arms:
             if last is None:

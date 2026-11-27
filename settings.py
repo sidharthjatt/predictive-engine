@@ -1,75 +1,1029 @@
 """
-universes/registry.py -- the single definition of what a universe IS.
-=====================================================================
+settings.py -- constants, directories, artefact paths and names, every run
+setting, and the universe registry.
 
-WHY THIS EXISTS
-    Nineteen files independently declare a `UNIVERSES` dict mapping a tag to its
-    paths, under NINE mutually incompatible key vocabularies -- `perm`/`tmp` in
-    validate_topn and shuffle_test, `score_perm`/`score_tmp`/`raw_perm`/`raw_tmp`
-    in validate_sizing and validate_breadth_live, `sc`/`sc_tmp`/`raw`/`raw_tmp`/`md`
-    in purge_fix_measure, `cache`/`scores`/`metrics`/`tag`/`end` in nt_run, and so
-    on. They express the same handful of facts and cannot be checked against each
-    other. Adding a universe means editing nineteen files; deleting one means
-    finding all nineteen.
+Sections, in the order they are defined:
+  1. constants and directories   the backtest window, selection sizes, data dirs
+  2. artefact paths              where each artefact is written
+  3. run settings                one object per setting: cadence, profile_axis,
+                                 tax, survivorship_axis, dd_axis, capital_axis,
+                                 impact_axis, pcap_axis, fixed_axis, start_axis,
+                                 shortfall_axis
+  4. universe registry           Universe, REGISTRY, use_pit, universe_axis
+  5. artefact naming             AXES, tail, name, path_tail, CARRIES
 
-    This module is that definition, once. It began as a DECLARATIVE reader of the
-    existing config modules; at step 7 it absorbed them, and the midcap150 and
-    nifty100 config modules were deleted in the same commit. Nothing about any
-    path changed in the move -- the values below are the values those files
-    computed, and every artefact was checksummed pre/post on the same panel to
-    prove it.
-
-A UNIVERSE IS NOW ONE ROW HERE, AND THAT IS HOW IT IS REMOVED
-    It used to be removable by deleting its config module, and _optional() existed
-    so that deleting one did not make this module unimportable and take the others
-    down with it. There is no config module to delete any more: a universe is added
-    by writing a row and removed by deleting one, in this file, and neither touches
-    the other rows. The property that mattered -- going through one universe to
-    reach another -- is what the registry exists to prevent, and it still holds.
-
-    DELETING A UNIVERSE'S DATA DOES NOT REMOVE THE UNIVERSE, and it did not before
-    either: the midcap150 config module globbed a directory that might not
-    exist, got an empty symbol list, and imported fine. A row whose data is
-    gone is a registered universe with no symbols, which is a broken checkout
-    rather than a removal.
-
-config.RAW_DATA_DIR IS THE PARENT OF EVERY UNIVERSE'S FOLDER
-    `config.RAW_DATA_DIR` is data/raw, which holds every universe's source
-    folder. Pointing a panel build at it would sweep in every universe at once,
-    which is one reason engine_core.build_panel takes data_dir with no default.
-
-    `config.SYMBOLS` is not any universe's symbol list -- it holds five names,
-    is used nowhere, and is vestigial. A universe's names are the symbol_list on
-    its row.
-
-THERE IS NO `frozen` FLAG ANY MORE, DELIBERATELY
-    Two retired universes carried `frozen=True`, which pinned
-    purge_mode="calendar", value_at_open=False and a year-cut window so their
-    published numbers could not move. Both were deleted on 2026-09-11 and the
-    flag went with them rather than being kept "for the next retirement": an
-    axis that is defined but drives nothing reads as live to the next person.
-    If a universe needs freezing again, the field comes back then, with a
-    universe actually setting it. See git history
-    (git show 50562ed:RETIRED_UNIVERSES.md).
+Each run setting is one object with set_selection(), selected(), is_default(),
+suffix(), segment() and label(). run.py calls set_selection() once per run and
+everything else reads the selection. The participation cap rules stay in
+profiles.py and the buy-trim rule in buy_shortfall.py; reading files and the
+score-cache keys stay in config.py.
 """
+import os
+import shutil
+import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional, Tuple
 
-import os
-import shutil
-import sys
+# Imported at module level because BT_START_DATE / BT_END_DATE below are
+# Timestamps and are needed at import time.
+import pandas as _pd
 
-ROOT = Path(__file__).resolve().parents[1]
+
+# ===========================================================================
+# 1. CONSTANTS AND DIRECTORIES
+# ===========================================================================
+# ---------------------------------------------------------------------------
+# Project root -- every path below is relative to this
+# ---------------------------------------------------------------------------
+PROJECT_ROOT = Path(__file__).resolve().parent
+
+# ---------------------------------------------------------------------------
+# Symbols used by this project
+# ---------------------------------------------------------------------------
+SYMBOLS = [
+    "HDFCBANK",
+    "BRITANNIA",
+    "ABB",
+    "BAJFINANCE",
+    "BOSCHLTD",
+]
+
+# Benchmark index for equity curve comparison
+BENCHMARK_SYMBOL = "NIFTY50"
+
+# ---------------------------------------------------------------------------
+# Data paths
+# ---------------------------------------------------------------------------
+DATA_DIR = PROJECT_ROOT / "data"
+RAW_DATA_DIR = DATA_DIR / "raw"            # the cleaned source CSVs go here
+PROCESSED_DATA_DIR = DATA_DIR / "processed"  # causal feature-engineered data is built here
+
+# ---------------------------------------------------------------------------
+# Model artifact paths
+# ---------------------------------------------------------------------------
+MODELS_DIR = PROJECT_ROOT / "models"
+DT_MODELS_DIR = MODELS_DIR / "decision_tree"
+GRU_MODELS_DIR = MODELS_DIR / "attention_gru"
+TD3_MODELS_DIR = MODELS_DIR / "td3"
+
+# ---------------------------------------------------------------------------
+# Nautilus paths
+# ---------------------------------------------------------------------------
+NAUTILUS_DIR = PROJECT_ROOT / "nautilus"
+CATALOG_DIR = NAUTILUS_DIR / "catalog"
+
+# ---------------------------------------------------------------------------
+# Results
+# ---------------------------------------------------------------------------
+RESULTS_DIR = PROJECT_ROOT / "results"
+EQUITY_CURVES_DIR = RESULTS_DIR / "equity_curves"
+METRICS_DIR = RESULTS_DIR / "metrics"
+
+# CREATE THE OUTPUT DIRECTORIES AT IMPORT, so a FRESH CHECKOUT works from ANY
+# entry point -- run_all.py or a script run standalone -- rather than only when
+# these directories happen to survive from a previous run on this machine.
+# The per-universe config modules (since folded into the universe registry) did
+# this for their own metrics dirs; config.py did NOT, so STEP 2 (engine_core) crashed on the first
+# to_csv into a non-existent results/metrics on the first fresh run ever
+# attempted (2026-09-03). See KNOWN_ISSUES.md.
+METRICS_DIR.mkdir(parents=True, exist_ok=True)
+EQUITY_CURVES_DIR.mkdir(parents=True, exist_ok=True)
+
+# ---------------------------------------------------------------------------
+# BACKTEST WINDOW -- the single definition. Every live site imports these.
+# ---------------------------------------------------------------------------
+# Inclusive on both ends. Price data runs to 2026-06-08, so this cut is real and
+# drops six trading days: 2026-06-01 through 2026-06-08.
+#
+# THE NAMES CARRY _DATE AND ARE Timestamps: engine_core once defined BT_START and
+# BT_END as year integers, and two constants with one name and two types is how a
+# previous mismatch happened.
+#
+# THE START IS ONE SETTING SINCE 2026-10-22. BT_START_DEFAULT is the default and
+# BT_START_DATE the value in force; run.py --start changes it through
+# start_axis.set_selection, which also moves every registry row's window. Read
+# BT_START_DATE at call time, never copy it at import. engine_core's integer
+# year pair, which topn_test.py read, was removed the same day.
+BT_START_DEFAULT = _pd.Timestamp("2019-01-01")
+BT_START_DATE = BT_START_DEFAULT
+BT_END_DATE = _pd.Timestamp("2026-05-29")
+
+# ---------------------------------------------------------------------------
+# SELECTION -- the single definition. Every live site imports these.
+# ---------------------------------------------------------------------------
+# TOP_N   how many names the buy set holds at each rebalance.
+# BUFFER  the hold band: a held name is sold only when its rank falls below
+#         this, so turnover does not rise with tighter selection.
+#
+# Centralised 2026-08-29 under experiments/TOPN_SPEC.txt Part A. Before that
+# they were literals in TEN places with no single definition, and one of those
+# ten had drifted: results/make_stats_both.py carried 12, 24 (that script was
+# deleted 2026-09-04 -- dead outputs, drifted constants). Nothing could have
+# caught it, because there was nothing for it to disagree with.
+#
+# THE RETIRED ENGINES DO NOT IMPORT THESE. engine_core.py, engine_v2_final.py,
+# engine_v2_final74.py and make_cash_series.py (now in frozen/) keep their own
+# literals so the retired universes' published numbers cannot move -- the same freeze
+# the old year window carries. engine_core.py:90 therefore still defines TOP_N
+# and BUFFER, and validate_sizing.py imports TOP_N from THERE, not from here.
+# The two agree at 8 today and nothing enforces that. See KNOWN_ISSUES.md.
+#
+# No _DATE-style suffix is used. The window constants needed one because
+# engine_core's BT_START/BT_END are year INTEGERS and a same-name/different-type
+# collision had already caused a mismatch. Here both definitions are int 8 and
+# int 16, so there is no type trap -- only the divergence risk noted above.
+TOP_N = 8
+BUFFER = 16
+
+# A buy that cash cannot fully pay for: "trim" cuts it to the largest whole
+# quantity that fits, if that is at least half the wanted quantity
+# (buy_shortfall.MIN_FILL_PCT), "refuse" drops it. run.py --buy-shortfall overrides it for
+# one run through shortfall_axis (section 3). The rule is buy_shortfall.py.
+BUY_SHORTFALL = "trim"
+
+# ---------------------------------------------------------------------------
+# Train / Validation / Test split -- DELETED 2026-08-28
+# ---------------------------------------------------------------------------
+# TRAIN_START, TRAIN_END, VAL_START, VAL_END, TEST_START and TEST_END all had
+# ZERO references anywhere in the repository, verified by raw grep rather than by
+# a filtered count. They were placeholders from the earlier decision-tree / GRU /
+# TD3 phase and described a split no current script uses.
+#
+# They were also inconsistent with the window that IS used: TEST_END read
+# 2026-06-05, which matches neither the old year cut (to 2026-06-08) nor
+# BT_END_DATE (2026-05-29). A dead date constant that disagrees with the live one
+# is a trap for the next reader.
+#
+# The backtest window is BT_START_DATE / BT_END_DATE above, and the walk-forward
+# split is not date constants at all -- it is the expanding monthly retrain with
+# the trading-session purge of engine_core.training_set.
+
+# ---------------------------------------------------------------------------
+# Feature engineering window settings (CAUSAL ONLY -- only past data is used)
+# ---------------------------------------------------------------------------
+LOOKBACK_WINDOW = 20   # how many past days of context the model sees (legacy GRU/TD3)
+RANDOM_SEED = 42
+
+BUY_TC = 0.001187
+SELL_TC = 0.001037
+STCG_RATE = 0.22
+LTCG_RATE = 0.125
+LTCG_EXEMPT = 125000
+MIN_HOLD_DAYS = 15
+RETRAIN_FREQ = "monthly"
+
+DT_MAX_DEPTH = 6
+DT_MIN_SAMPLES_LEAF = 100
+DT_CCP_ALPHA = 1e-3
+GRU_HIDDEN = 64
+GRU_LAYERS = 1
+GRU_LOOKBACK = 30
+TD3_GAMMA = 0.98
+TD3_POLICY_DELAY = 2
+TD3_TARGET_NOISE = 0.2
+TD3_NOISE_CLIP = 0.5
+
+
+# ===========================================================================
+# 2. ARTEFACT PATHS
+# ===========================================================================
+# Where every artefact goes, derived once.
+#
+# WHAT THIS IS FOR
+#     Output paths are currently written as literals at the point of use: a script
+#     imports its universe's config module, binds its metrics directory to `M`,
+#     and then writes `M / "v34_comparison.csv"`. That works, and it is why the
+#     universes do not collide today -- the universe is in the DIRECTORY. But it
+#     means the layout is not stated anywhere; it is implied by ninety-odd write
+#     calls spread across the repository.
+#
+#     This module states it. Every function here returns the path that is ALREADY
+#     produced today. It is a description, not a redesign.
+#
+# WHAT IT DOES NOT DO YET, DELIBERATELY
+#     The survey proposed `runs/{universe}/{arm}/` so that two arms cannot overwrite
+#     each other -- the collision that makes verify_v34_arms leave only the last
+#     arm's Nautilus reports on disk. That change MOVES artefacts, so it is not part
+#     of building the definition. `run_dir()` below records the proposed layout and
+#     is not called by anything; adopting it is a separate, verifiable step.
+#
+#     Until then `metrics()` is the real answer and carries no arm, exactly as the
+#     repository behaves now.
+
+ROOT = PROJECT_ROOT
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-# config IS NOT A UNIVERSE'S CONFIG, IT IS THE PROJECT'S -- BT_START_DATE,
-# BT_END_DATE, read_price_csv and require_cache all live in it and every universe
-# uses them. Its absence is a broken checkout, not a universe removal, so it is
-# imported unconditionally and fails loudly.
-import config
-from paths import list_dir
+DIAGNOSTICS_DIR = ROOT / "diagnostics"
+
+
+# ------------------------------------------------------------ listing a folder
+# EVERY DIRECTORY LISTING IN THE REPOSITORY GOES THROUGH list_dir().
+#
+# On macOS, a file written to an exFAT or FAT drive gets a "._<name>" twin
+# holding its extended attributes, and macOS attaches com.apple.provenance to
+# every new file, so this cannot be prevented from Python. With the project on
+# such a drive, the constituents farms built during a run held ._360ONE.csv
+# beside 360ONE.csv, a bare glob("*.csv") counted the twin as a symbol, and
+# prepare_data_dir() failed with "constituents directory does not match
+# symbol_list" -- for a different universe on each run, since each run makes
+# new twins. .DS_Store is Finder's equivalent on any drive.
+#
+# This module imports nothing from the repository at import time, so the
+# registry and config can use list_dir() while they are themselves loading.
+def is_os_metadata(name):
+    """True for a macOS metadata file: an AppleDouble "._" twin or .DS_Store."""
+    return name.startswith("._") or name == ".DS_Store"
+
+
+def list_dir(directory, pattern="*", recursive=False):
+    """Entries of `directory` matching `pattern`, sorted, without macOS metadata.
+
+    glob(pattern), or rglob(pattern) when recursive. Files and directories are
+    both returned; callers that want one kind filter with is_file()/is_dir(). An
+    entry is dropped if any part of its path below `directory` is metadata. A
+    missing directory yields [], as Path.glob does.
+    """
+    d = Path(directory)
+    found = d.rglob(pattern) if recursive else d.glob(pattern)
+    return sorted(p for p in found
+                  if not any(is_os_metadata(x) for x in p.relative_to(d).parts))
+
+
+# --------------------------------------------------------------- score panels
+def score_cache(u):
+    """The score panel, cache/<tag>/v_<tag>_expanding.csv. Written by build_scores."""
+    return u.score_cache
+
+
+def raw_cache(u):
+    return u.raw_cache
+
+
+# ------------------------------------------------------------------- outputs
+def metrics(u):
+    """The universe's artefact directory. THE UNIVERSE IS IN THE PATH; the arm is
+    not, which is why all four arms share one v34_comparison.csv."""
+    return u.metrics_dir
+
+
+def artefact(u, name):
+    """One named artefact for a universe, e.g. artefact(midcap150, 'v34_comparison.csv')."""
+    return u.metrics_dir / name
+
+
+def tagged_artefact(u, stem, ext="csv"):
+    """The daily-audit family, which puts the tag in the FILENAME as well as the
+    directory -- daily_holdings_midcap150.csv and so on. Belt and braces, and the only
+    place in the repository that does it."""
+    return u.metrics_dir / f"{stem}_{u.tag}.{ext}"
+
+
+# ------------------------------------------------------------------ nautilus
+def nautilus_scores(u):
+    """Score parquet the port reads. The universe is in the FILENAME here."""
+    return NAUTILUS_DIR / "data" / u.nautilus_scores
+
+
+def nautilus_reports(u, arm=None):
+    """orders.csv / fills.csv / positions.csv for one universe and one arm.
+
+    ONE DIRECTORY PER UNIVERSE AND ARM. A single shared reports/ once left only the
+    last universe's files on disk; adding the universe fixed that and left the same
+    hole one level down, so verify_v34_arms -- four arms over two universes -- kept
+    only the last arm's reports while the directory still looked like the
+    universe's. Both axes are in the path now.
+
+    `arm` may be an Arm, an arm name, or None. None returns the universe directory
+    itself, which is what a caller wants when it is listing every arm rather than
+    naming one.
+    """
+    d = NAUTILUS_DIR / "reports" / u.tag
+    if arm is None:
+        return d
+    return d / (arm if isinstance(arm, str) else arm.name)
+
+
+# --------------------------------------------------------------- diagnostics
+def diagnostic(name, u=None):
+    """A findings file. Some are per-universe (topn_midcap150.txt), some are combined
+    verdicts (topn_verdict.txt); both spellings already exist."""
+    DIAGNOSTICS_DIR.mkdir(exist_ok=True)
+    return DIAGNOSTICS_DIR / (f"{name}_{u.tag}.txt" if u else f"{name}.txt")
+
+
+# ------------------------------------------------------- proposed, not in use
+DEFAULT_REBAL = 20
+
+# Directories a run's artefacts can land in. Used to collect a run folder; kept
+# here beside run_dir() rather than in run.py so the two agree about what an
+# artefact IS.
+#
+# THE PER-UNIVERSE HALF IS READ FROM THE REGISTRY, not written down. It used to be
+# four literal paths, two of which (the metrics dirs of two retired universes,
+# deleted 2026-09-11) outlived the universes that wrote into them -- a run folder
+# would still have gone looking for artefacts nothing could produce. A new
+# universe's metrics dir is now collected the moment it is registered.
+#
+# results/metrics IS STILL LISTED, but no longer as any universe's output: it is
+# the shared, non-universe artefact directory (stability_*, feature docs). See
+# engine_core.refuse_universe_artefact().
+#
+# A FUNCTION, NOT A CONSTANT COMPUTED AT IMPORT. Computing it at import made this
+# module import the registry, so the registry could not import this module.
+def artefact_dirs():
+    per_universe = tuple(
+        str(u.metrics_dir.relative_to(ROOT)) for u in REGISTRY.values())
+    return per_universe + ("results/metrics", "runs",
+                           "nautilus/reports", "nautilus/data")
+
+
+
+def run_folder_name(uni_tags, arm_names, rebal, when=None):
+    """`20260906T1432_all_all_r20` -- one folder per invocation, named for it.
+
+    THE NAME SAYS WHAT THE RUN WAS, not just when it happened. A timestamp alone
+    sorts correctly and tells you nothing; the selection is what you actually
+    search for six weeks later. "all" is used where an axis is fully selected,
+    because midcap150-nifty100-nifty50-midcap50_v1-v2-v3-v4 is not more informative
+    than "all", only longer.
+
+    The cadence is always spelled, including the default, so that a folder name is
+    never ambiguous about which cadence produced it -- unlike the ARTEFACT names,
+    where an unsuffixed file must keep meaning the published default.
+    """
+    import datetime
+    ts = (when or datetime.datetime.now()).strftime("%Y%m%dT%H%M%S")
+    u = "all" if len(uni_tags) >= 4 else "-".join(uni_tags)
+    # "all" only for exactly the core four; any selection with a stop arm in it,
+    # or a core subset, is spelled out.
+    from arms.registry import ARMS as _CORE
+    a = "all" if set(arm_names) == set(_CORE) else "-".join(arm_names)
+    return f"{ts}_{u or 'none'}_{a or 'none'}_r{int(rebal)}"
+
+
+def run_dir(u, arm=None, rebal=None):
+    """runs/{universe}/{arm}/ -- and {arm}@r{n} for a non-default cadence.
+
+    THE CADENCE BELONGS IN THE PATH, AND ITS ABSENCE WAS A BUG. `--rebal 40`
+    wrote its results straight into runs/midcap150/v1/, replacing the published
+    cadence-20 artefacts with cadence-40 ones. params.json recorded `rebal: 40`,
+    so the FILE said what it was while the PATH said something else -- and the
+    next reader of runs/midcap150/v1/comparison.csv had no way to know. Verified by
+    checksum before this change: one `--rebal 40` run changed that file.
+
+    THE DEFAULT CADENCE IS UNSUFFIXED, so runs/midcap150/v1/ keeps meaning exactly what
+    it has always meant and every published artefact under runs/ is untouched.
+    Only a non-default cadence gets a name of its own: runs/midcap150/v1@r40/.
+
+    "@" RATHER THAN "_" separates the two axes visually and cannot collide with an
+    arm name: arm names are v1..v4 and never contain "@", so runs/midcap150/v1@r40 can
+    only ever parse one way.
+    """
+    # THE PROFILE AND TAX AXES JOIN THE PATH, 2026-09-23, from path_tail,
+    # the rule nautilus/reports already used. Until then a `--tax on` or
+    # `--profile tradeable` arm run wrote into runs/<u>/<arm>/ over the research
+    # run's chart.
+    d = ROOT / "runs" / u.tag
+    if arm is None:
+        return d
+    return d / (arm.name + path_tail(rebal))
+
+
+# ===========================================================================
+# 3. RUN SETTINGS
+# ===========================================================================
+# One object per setting, named as the module it replaces (cadence, tax,
+# capital_axis, ...), so `from settings import cadence` replaces `import cadence`
+# and every call site reads as before. run.py calls set_selection() once per
+# run; everything else reads selected(). At the default, suffix() and segment()
+# return "", so a default run writes the canonical published names, and each
+# non-default setting appends its own code in naming order (AXES, section 5).
+#
+# The shared methods live once on _Axis. A setting overrides one only where its
+# rule differs from the shared one.
+
+
+class _Axis:
+    """One run setting. DEFAULT is the value when nothing was selected."""
+    DEFAULT = None
+    _SELECTED = None
+
+    def selected(self):
+        return self.DEFAULT if self._SELECTED is None else self._SELECTED
+
+    def is_default(self):
+        return self.selected() == self.DEFAULT
+
+    def _code(self):
+        raise NotImplementedError
+
+    def suffix(self):
+        """"" at the default, else "_" + the setting's code -- the artefact name tail."""
+        return "" if self.is_default() else "_" + self._code()
+
+    def segment(self):
+        """"" at the default, else "@" + the setting's code -- the directory segment tail."""
+        return "" if self.is_default() else "@" + self._code()
+
+    def label(self):
+        """The chart-title fragment, "" at the default."""
+        return ""
+
+
+# --- cadence ---------------------------------------------------------------
+# The rebalance cadence in trading days. Recorded here and handed to
+# backtest_exposure(..., rebal=n) as an argument, never written into
+# test_exposure as a module global: a global set by one in-process step leaks
+# into the next (rebal_cadence_sweep.py once set test_exposure.REBAL and never
+# restored it). The default is 20, which every engine's REBAL already was, so a
+# default run passes rebal=20 and resolves to the same value. The suffix is "" at
+# 20 and "_r40" otherwise. run.py refuses a non-default cadence for the retired
+# universes (deleted 2026-09-11), whose engines and port were pinned to 20.
+class _Cadence(_Axis):
+    DEFAULT = 20
+
+    def set_selection(self, n):
+        """Record this run's cadence. Called once by run.py. None restores the default."""
+        if n is None:
+            self._SELECTED = None
+            return
+        n = int(n)
+        if n < 1:
+            raise ValueError(f"rebalance cadence must be >= 1 trading day, got {n}")
+        self._SELECTED = n
+
+    def _code(self):
+        return f"r{self.selected()}"
+
+
+cadence = _Cadence()
+
+
+# --- profile ---------------------------------------------------------------
+# The execution-realism profile: research (no participation cap, the default)
+# or tradeable (cap 1.00 of prior-20-session median volume). The suffix is "" for
+# research and "_tradeable" otherwise. What the cap does, and every function
+# that reads it, is in profiles.py.
+class _Profile(_Axis):
+    PROFILES = {
+        "research":  {"participation_cap": None},
+        "tradeable": {"participation_cap": 1.00},
+    }
+    DEFAULT = "research"
+
+    def set_selection(self, name):
+        """Record this run's profile. Called once by run.py. None restores the default."""
+        if name is None:
+            self._SELECTED = None
+            return
+        if name not in self.PROFILES:
+            raise ValueError(f"unknown profile {name!r}; known: {', '.join(self.PROFILES)}")
+        self._SELECTED = name
+
+    def _code(self):
+        return self.selected()
+
+
+profile_axis = _Profile()
+
+
+# --- tax -------------------------------------------------------------------
+# Whether a run charges capital-gains tax. The selection only: the rates,
+# exemption and financial-year rules are in results/tax_util.py. Default off,
+# and off is unsuffixed, so every path a tax-off run composes is the path it
+# composed before the axis existed; "_tax" when on. Because an omitted axis and a
+# default axis give the same string, only naming_declare_check.py's declarations
+# reveal a writer that forgot the axis.
+#
+# One selection per run. run.py passes a bool; the None branch is for callers
+# that restore the default (tax_acceptance_check.py, check_all's selection
+# save and restore).
+class TaxAxisError(Exception):
+    """The tax selection is not a single value across this run."""
+
+
+class _Tax(_Axis):
+    DEFAULT = False
+    TaxAxisError = TaxAxisError
+
+    def set_selection(self, on):
+        """Record this run's tax selection. None restores the default."""
+        if on is None:
+            self._SELECTED = None
+            return
+        if not isinstance(on, bool):
+            raise TypeError(f"tax selection must be a bool, got {on!r}")
+        self._SELECTED = on
+
+    def _code(self):
+        return "tax"
+
+    def is_uniform_over_plan(self, plan):
+        """True when this axis has one value across every invocation in `plan`.
+
+        A `tax:` qualifier in run_all.PIPELINE_ORDER is evaluated against the
+        run, which is correct only while the selection cannot vary within a run.
+        Nothing can vary it today, so this returns True. It is the place that
+        fails first if a per-invocation tax selection is ever added.
+        """
+        del plan          # no per-invocation tax state exists to disagree with
+        return True
+
+
+tax = _Tax()
+
+
+# --- survivorship ----------------------------------------------------------
+# Which universe construction a run uses:
+#     static   today's index members backfilled to the window start, priced from
+#              data/raw/Final_Without_Survivorship_Data. Every published figure.
+#     pit      point-in-time membership from data/raw/Survivorship_Bias, priced
+#              from data/raw/Final_With_Survivorship_Data, which also holds
+#              dropped names.
+# The selection itself is results/survivorship.py's SURVIVORSHIP_MODE, which the
+# engine reads; this object sets and reads it and holds no copy. "_pit" goes
+# after the tax suffix ("v34_equity_tax_pit.csv"), "@pit" after "@tax".
+class _Survivorship(_Axis):
+    DEFAULT = "static"
+    CHOICES = ("static", "pit")
+
+    @staticmethod
+    def _sv():
+        _res = str(PROJECT_ROOT / "results")
+        if _res not in sys.path:
+            sys.path.insert(0, _res)
+        import survivorship
+        return survivorship
+
+    def set_selection(self, mode):
+        """Record this run's selection. None restores the default."""
+        self._sv().set_mode(self.DEFAULT if mode is None else mode)
+
+    def selected(self):
+        return self._sv().SURVIVORSHIP_MODE
+
+    def _code(self):
+        return "pit"
+
+
+survivorship_axis = _Survivorship()
+
+
+# --- drawdown limit --------------------------------------------------------
+# When on, the engine scales every arm's book with the cushion rule of
+# results/drawdown_overlay.py:
+#
+#     E = max(F, min(1, m * (W - (1 - L) * M) / W))
+#
+# W is the close equity, M its all-time peak since the start of the run (never
+# reset), L the limit, m the multiplier (default 1 / L, fully invested at a
+# peak) and F the exposure floor (default 25%), which keeps part of the book
+# invested so the portfolio can recover. The suffix is "" when off and "_dd20"
+# after "_pit" when on ("_dd20m3f10" when m or the floor is not the default).
+# Exploratory: no result with the axis on has been validated. See README.
+class _DrawdownLimit(_Axis):
+    DEFAULT_FLOOR = 0.25      # 25 percent of the portfolio stays invested at most drawdowns
+    BAND = 0.05               # no trade unless the invested fraction moves more than 5 points
+    MAX_LIMIT = 0.50
+
+    def make(self, limit_pct, m=None, floor_pct=None):
+        """A DDLimit from command-line units: L and F in percent, m as a number."""
+        L = float(limit_pct) / 100.0
+        if not (0.0 < L <= self.MAX_LIMIT):
+            raise ValueError(f"drawdown limit must be above 0 and at most {self.MAX_LIMIT:.0%}, "
+                             f"got {limit_pct}")
+        mm = 1.0 / L if m is None else float(m)
+        if not mm > 0:
+            raise ValueError(f"--dd-m must be above 0, got {m}")
+        F = self.DEFAULT_FLOOR if floor_pct is None else float(floor_pct) / 100.0
+        if not (0.0 < F <= 1.0):
+            raise ValueError(f"--dd-floor must be above 0 and at most 100, got {floor_pct}")
+        return DDLimit(L, mm, F)
+
+    def set_selection(self, sel):
+        """Record this run's selection: a DDLimit, or None for off. Called once by run.py."""
+        if sel is not None and not isinstance(sel, DDLimit):
+            raise TypeError(f"dd_axis.set_selection takes a DDLimit or None, got {sel!r}")
+        self._SELECTED = sel
+
+    def is_default(self):
+        return self._SELECTED is None
+
+    @staticmethod
+    def _num(x):
+        """12.5 -> "12p5", 20.0 -> "20": a number safe in a file name."""
+        s = f"{x:.4g}"
+        return s.replace(".", "p")
+
+    def _code(self):
+        s = self._SELECTED
+        out = f"dd{self._num(s.limit * 100)}"
+        if not s.m_is_default:
+            out += f"m{self._num(s.m)}"
+        if not s.floor_is_default:
+            out += f"f{self._num(s.floor * 100)}"
+        return out
+
+    def label(self):
+        if self.is_default():
+            return ""
+        s = self._SELECTED
+        return (f"dd limit {s.limit * 100:g}% (m {s.m:.3g}, floor {s.floor * 100:g}%)")
+
+    def params(self):
+        """The params.json entry when on. Callers add the key only when the axis is on,
+        so a run with the axis off writes the file it always wrote."""
+        s = self._SELECTED
+        return {"limit_pct": round(s.limit * 100, 6), "m": round(s.m, 6),
+                "m_is_default": s.m_is_default, "floor_pct": round(s.floor * 100, 6),
+                "band_pct": round(s.band * 100, 6), "check": "daily, at the close",
+                "trades": "next open, proportional across holdings",
+                "status": "exploratory, not validated"}
+
+    @staticmethod
+    def peak_warning(sel):
+        """The warning line when m < 1/L, or None."""
+        if sel.m < 1.0 / sel.limit - 1e-12:
+            return (f"WARNING: --dd-m {sel.m:g} is below 1/L = {1.0 / sel.limit:g}: the portfolio "
+                    f"will not be fully invested at a peak (exposure at a peak is "
+                    f"{min(1.0, sel.m * sel.limit):.0%})")
+        return None
+
+
+@dataclass(frozen=True)
+class DDLimit:
+    """The selected drawdown limit, all as fractions of the portfolio."""
+    limit: float           # L
+    m: float               # cushion multiplier
+    floor: float           # F
+    band: float = _DrawdownLimit.BAND
+
+    @property
+    def m_is_default(self):
+        return abs(self.m - 1.0 / self.limit) < 1e-12
+
+    @property
+    def floor_is_default(self):
+        return abs(self.floor - _DrawdownLimit.DEFAULT_FLOOR) < 1e-12
+
+
+_DrawdownLimit.DDLimit = DDLimit
+dd_axis = _DrawdownLimit()
+
+
+# --- starting capital ------------------------------------------------------
+# DEFAULT is the starting capital of every published run, Rs 10,00,000. Every
+# START_CAPITAL name in the engines is this value, and every code path a run
+# takes reads selected(), so --capital reaches the engine, the buy & hold, the
+# cost report, the daily log and the Nautilus port alike. "_cap5000000" (whole
+# rupees) after the dd suffix, "@cap5000000" in directory segments.
+class _Capital(_Axis):
+    DEFAULT = 1_000_000
+    MINIMUM = 100_000          # Rs 1 lakh
+
+    def set_selection(self, rupees):
+        """Record this run's capital. None restores the default. Called once by run.py."""
+        if rupees is None:
+            self._SELECTED = None
+            return
+        if int(rupees) != rupees or int(rupees) < self.MINIMUM:
+            raise ValueError(f"starting capital must be a whole number of rupees, at least "
+                             f"{self.MINIMUM:,}; got {rupees!r}")
+        self._SELECTED = int(rupees)
+
+    def _code(self):
+        return f"cap{self.selected()}"
+
+    def label(self):
+        return "" if self.is_default() else f"capital Rs {self.selected():,}"
+
+    def refusal(self, profile, impact_given):
+        """Why run.py refuses this capital, or None.
+
+        A capital other than DEFAULT is refused under the research profile, which has
+        no participation cap and no market impact and so gives the same return at any
+        size, and under the tradeable profile unless --impact is given, 0 included.
+        The values listed are results/impact_sweep.py's K_VALUES."""
+        if self.is_default():
+            return None
+        if profile == "research":
+            return (f"--capital {self.selected():,} needs --profile tradeable: the research profile "
+                    f"ignores capital size (it has no participation cap and no market impact, so "
+                    f"every capital gives the same return). Use --profile tradeable with "
+                    f"--impact K.")
+        if not impact_given:
+            return (f"--capital {self.selected():,} needs an explicit --impact K under the tradeable "
+                    f"profile: no impact coefficient is assumed. Give --impact 0 for no market "
+                    f"impact, or one of the values results/impact_sweep.py measures: "
+                    f"{', '.join(f'{k:g}' for k in self.sweep_k_values())}.")
+        return None
+
+    @staticmethod
+    def sweep_k_values():
+        """results/impact_sweep.py's K_VALUES, read from its source without importing it
+        (it imports the engine)."""
+        import ast
+        src = (PROJECT_ROOT / "results" / "impact_sweep.py").read_text()
+        for node in ast.parse(src).body:
+            if isinstance(node, ast.Assign) and any(getattr(t, "id", "") == "K_VALUES"
+                                                     for t in node.targets):
+                return tuple(ast.literal_eval(node.value))
+        raise RuntimeError("results/impact_sweep.py defines no K_VALUES")
+
+
+capital_axis = _Capital()
+
+
+# --- market impact ---------------------------------------------------------
+# k is the coefficient of slippage.impact, the square-root model
+#     impact = k * sqrt(order shares / prior-20-session median volume)
+# added to the flat SLIPPAGE on every buy and every sell. k = 0 is the default
+# and means the model is not run: backtest_exposure gets impact_k=None, the path
+# every published run takes. The model needs the prior-20-session median volume,
+# which only the tradeable profile loads, so a non-zero k under research is
+# refused (check_profile). "_impact0p003" after the capital suffix.
+class _Impact(_Axis):
+    DEFAULT = 0.0
+
+    def set_selection(self, k):
+        """Record this run's k. None or 0 restores the default. Called once by run.py."""
+        if k is None or float(k) == 0.0:
+            self._SELECTED = None
+            return
+        k = float(k)
+        if not k > 0:
+            raise ValueError(f"impact k must be zero or positive; got {k!r}")
+        self._SELECTED = k
+
+    def is_default(self):
+        return self._SELECTED is None
+
+    def impact_k(self):
+        """What backtest_exposure takes: None at the default, so the model never runs."""
+        return None if self.is_default() else self._SELECTED
+
+    def _code(self):
+        return f"impact{self._SELECTED:g}".replace(".", "p")
+
+    def label(self):
+        return "" if self.is_default() else f"impact k {self._SELECTED:g}"
+
+    def check_profile(self):
+        """Refuse a non-zero k under the research profile. Called by run.py."""
+        if not self.is_default() and profile_axis.is_default():
+            raise ValueError(
+                f"--impact {self._SELECTED:g} needs the tradeable profile: the impact model "
+                f"sizes each fill against the prior-20-session median volume, which the "
+                f"research profile does not load. Add --profile tradeable, or drop --impact.")
+
+
+impact_axis = _Impact()
+
+
+# --- participation cap -----------------------------------------------------
+# --cap replaces the tradeable profile's participation cap (a fraction of the
+# symbol's prior-20-session median volume, applied to buys and sells) for one
+# run; profiles.participation_cap() returns it. Under research there is no cap
+# and no volume to apply one to, so any --cap is refused (check_profile). The
+# suffix is "" when the cap is the profile's own, including --cap 1.0 under
+# tradeable; otherwise "_pcap0p1". "pcap", because "_cap" is the capital's.
+class _ParticipationCap(_Axis):
+
+    def set_selection(self, cap):
+        """Record this run's cap. None restores the profile's. Called once by run.py."""
+        if cap is None:
+            self._SELECTED = None
+            return
+        cap = float(cap)
+        if not cap > 0:
+            raise ValueError(f"participation cap must be positive; got {cap!r}")
+        self._SELECTED = cap
+
+    @staticmethod
+    def _profile_cap():
+        return profile_axis.PROFILES[profile_axis.selected()]["participation_cap"]
+
+    def is_default(self):
+        return self._SELECTED is None or self._SELECTED == self._profile_cap()
+
+    def _code(self):
+        return f"pcap{self._SELECTED:g}".replace(".", "p")
+
+    def label(self):
+        return "" if self.is_default() else f"participation cap {self._SELECTED:g}"
+
+    def check_profile(self):
+        """Refuse any --cap under the research profile. Called by run.py."""
+        if self._SELECTED is not None and profile_axis.is_default():
+            raise ValueError(
+                f"--cap {self._SELECTED:g} needs the tradeable profile: the research profile "
+                f"has no participation cap and loads no volume to apply one to. Add "
+                f"--profile tradeable, or drop --cap.")
+
+
+pcap_axis = _ParticipationCap()
+
+
+# --- fixed capital ---------------------------------------------------------
+# Off (the default) is the compounded run every published figure comes from:
+# each rebalance sizes its buys from the whole portfolio, profits included.
+# On (--fixed-capital) is the non-compounded run ("don't reinvest"). The buys
+# are sized from the decision close; at the rebalance open, after the morning's
+# sells and any tax taken that morning (results/test_exposure.py):
+#
+#     book       = min(base, value at the decision close)    base is --capital
+#     reserve    = max(0, value at this open - base)          never spent
+#     invest_val = book * exposure * 0.98
+#     the cash tests read spendable = cash - reserve
+#
+# So purchases never lift invested value above min(base, value at the fill
+# open). Below the base the book is the equity, so losses are not topped up.
+# Held names are never trimmed: a winner can carry invested value above the
+# book, and only new purchases are held inside it. The idle reserve earns
+# test_exposure.CASH_YIELD, which is 0. Refused with --dd and with the stop arms
+# v5 and v6, which act on the running peak of compounded equity. Only
+# backtest_exposure has the mode; engine_core.backtest and the Nautilus port do
+# not. "_fixed" after the pcap suffix.
+class _Fixed(_Axis):
+    DEFAULT = False
+    _SELECTED = False
+    REFUSAL = ("--fixed-capital cannot run with {what}: {why} The fixed-capital book is "
+               "min(base, equity), and the two rules would act on one account with two "
+               "different ideas of its size. Drop one of the two.")
+
+    def set_selection(self, on):
+        """Record whether this run is fixed-capital. None or False restores the default."""
+        if on is None:
+            self._SELECTED = False
+            return
+        if not isinstance(on, bool):
+            raise ValueError(f"fixed capital is on or off (a bool); got {on!r}")
+        self._SELECTED = on
+
+    def _code(self):
+        return "fixed"
+
+    def label(self):
+        return "fixed capital, profits not reinvested" if self._SELECTED else ""
+
+    def refusal(self, dd=False, stop_arms=()):
+        """The message run.py prints when the flag meets --dd or a stop arm, or None."""
+        if dd:
+            return self.REFUSAL.format(
+                what="--dd", why="the drawdown limit sizes the book from the running peak "
+                                 "of compounded equity.")
+        if stop_arms:
+            return self.REFUSAL.format(
+                what=f"the stop arm(s) {', '.join(stop_arms)}",
+                why="the drawdown stop exits on a fall from the running peak of "
+                    "compounded equity.")
+        return None
+
+
+fixed_axis = _Fixed()
+
+
+# --- backtest start --------------------------------------------------------
+# BT_START_DATE (section 1) is the one setting; set_selection changes it and
+# moves every static registry row whose window starts at the current setting.
+# Call it before use_pit: a pit row's start is the later of this and its first
+# membership row, taken when the pit variant is made. Code that means "the
+# backtest start" reads settings.BT_START_DATE at call time.
+#
+# The scoring floor follows the start: engine_core.score_floor() is the first
+# day of the month SCORE_LEAD_YEARS before it, 2016-01-01 for the default start,
+# which is the `year >= 2016` the scoring loop used until 2026-10-22. "_s20070924"
+# after the fixed suffix.
+class _Start(_Axis):
+    DEFAULT = BT_START_DEFAULT
+    SCORE_LEAD_YEARS = 3
+
+    def set_selection(self, start):
+        """Record this run's backtest start and apply it. None restores the default."""
+        global BT_START_DATE
+        new = self.DEFAULT if start is None else _pd.Timestamp(start)
+        if new >= BT_END_DATE:
+            raise ValueError(f"backtest start {new.date()} is not before the end "
+                             f"{BT_END_DATE.date()}")
+        import dataclasses
+        old = BT_START_DATE
+        for tag, u in list(REGISTRY.items()):
+            d0, d1 = u.date_range
+            if _pd.Timestamp(d0) == old:
+                REGISTRY[tag] = dataclasses.replace(u, date_range=(new, d1))
+        BT_START_DATE = new
+        self._SELECTED = None if new == self.DEFAULT else new
+
+    def selected(self):
+        """The backtest start, a Timestamp."""
+        return BT_START_DATE
+
+    def is_default(self):
+        return self._SELECTED is None
+
+    def _code(self):
+        return f"s{self._SELECTED:%Y%m%d}"
+
+    def label(self):
+        return "" if self.is_default() else f"start {self._SELECTED.date()}"
+
+    def score_floor(self):
+        """The first session month the scoring step scores: SCORE_LEAD_YEARS before
+        the backtest start, from the first day of that month."""
+        s = BT_START_DATE - _pd.DateOffset(years=self.SCORE_LEAD_YEARS)
+        return _pd.Timestamp(s.year, s.month, 1)
+
+
+start_axis = _Start()
+
+
+# --- buy shortfall ---------------------------------------------------------
+# What a buy does when cash cannot pay for all of it: "trim" (the default,
+# BUY_SHORTFALL) or "refuse". The rule itself is buy_shortfall.py. The suffix is
+# "" at trim, so the canonical names hold trimmed runs; refuse is "_refuse"
+# after the start suffix.
+class _BuyShortfall(_Axis):
+    CHOICES = ("trim", "refuse")
+    DEFAULT = BUY_SHORTFALL
+    _SELECTED = BUY_SHORTFALL
+
+    def set_selection(self, value):
+        """Record this run's setting. None restores the default."""
+        if value is None:
+            self._SELECTED = self.DEFAULT
+            return
+        if value not in self.CHOICES:
+            raise ValueError(f"buy_shortfall is one of {', '.join(self.CHOICES)}; got {value!r}")
+        self._SELECTED = value
+
+    def _code(self):
+        return f"{self._SELECTED}"
+
+    def label(self):
+        return "" if self.is_default() else "short buys refused"
+
+
+assert _BuyShortfall.DEFAULT in _BuyShortfall.CHOICES, \
+    f"settings.BUY_SHORTFALL must be one of {_BuyShortfall.CHOICES}"
+shortfall_axis = _BuyShortfall()
+
+
+# ===========================================================================
+# 4. UNIVERSE REGISTRY
+# ===========================================================================
+# The single definition of what a universe IS.
+#
+# WHY THIS EXISTS
+#     Nineteen files independently declare a `UNIVERSES` dict mapping a tag to its
+#     paths, under NINE mutually incompatible key vocabularies -- `perm`/`tmp` in
+#     validate_topn and shuffle_test, `score_perm`/`score_tmp`/`raw_perm`/`raw_tmp`
+#     in validate_sizing and validate_breadth_live, `sc`/`sc_tmp`/`raw`/`raw_tmp`/`md`
+#     in purge_fix_measure, `cache`/`scores`/`metrics`/`tag`/`end` in nt_run, and so
+#     on. They express the same handful of facts and cannot be checked against each
+#     other. Adding a universe means editing nineteen files; deleting one means
+#     finding all nineteen.
+#
+#     This module is that definition, once. It began as a DECLARATIVE reader of the
+#     existing config modules; at step 7 it absorbed them, and the midcap150 and
+#     nifty100 config modules were deleted in the same commit. Nothing about any
+#     path changed in the move -- the values below are the values those files
+#     computed, and every artefact was checksummed pre/post on the same panel to
+#     prove it.
+#
+# A UNIVERSE IS NOW ONE ROW HERE, AND THAT IS HOW IT IS REMOVED
+#     It used to be removable by deleting its config module, and _optional() existed
+#     so that deleting one did not make this module unimportable and take the others
+#     down with it. There is no config module to delete any more: a universe is added
+#     by writing a row and removed by deleting one, in this file, and neither touches
+#     the other rows. The property that mattered -- going through one universe to
+#     reach another -- is what the registry exists to prevent, and it still holds.
+#
+#     DELETING A UNIVERSE'S DATA DOES NOT REMOVE THE UNIVERSE, and it did not before
+#     either: the midcap150 config module globbed a directory that might not
+#     exist, got an empty symbol list, and imported fine. A row whose data is
+#     gone is a registered universe with no symbols, which is a broken checkout
+#     rather than a removal.
+#
+# RAW_DATA_DIR IS THE PARENT OF EVERY UNIVERSE'S FOLDER
+#     `RAW_DATA_DIR` is data/raw, which holds every universe's source
+#     folder. Pointing a panel build at it would sweep in every universe at once,
+#     which is one reason engine_core.build_panel takes data_dir with no default.
+#
+#     `SYMBOLS` is not any universe's symbol list -- it holds five names,
+#     is used nowhere, and is vestigial. A universe's names are the symbol_list on
+#     its row.
+#
+# THERE IS NO `frozen` FLAG ANY MORE, DELIBERATELY
+#     Two retired universes carried `frozen=True`, which pinned
+#     purge_mode="calendar", value_at_open=False and a year-cut window so their
+#     published numbers could not move. Both were deleted on 2026-09-11 and the
+#     flag went with them rather than being kept "for the next retirement": an
+#     axis that is defined but drives nothing reads as live to the next person.
+#     If a universe needs freezing again, the field comes back then, with a
+#     universe actually setting it. See git history
+#     (git show 50562ed:RETIRED_UNIVERSES.md).
 
 HORIZON = 20          # engine_core.HORIZON; repeated here only to name the caches
 
@@ -575,7 +1529,7 @@ class Universe:
         """Restrict a price index to this universe's backtest window.
 
         ONLY THE DATE CUT IS LIVE. Every remaining universe cuts by DATE
-        (config.BT_START_DATE..BT_END_DATE). The year-cut branch below is what two
+        (BT_START_DATE..BT_END_DATE). The year-cut branch below is what two
         retired universes used (deleted 2026-09-11; six trading days longer);
         no universe sets `year_range` any more, so it is currently unreachable.
         """
@@ -646,13 +1600,13 @@ _MIDCAP150 = Universe(
         symbol_list=_constituents(_MIDCAP150_SOURCE, _MIDCAP150_INDEX),
         metrics_dir=_MIDCAP150_METRICS,
         nautilus_scores="scores_midcap150.parquet",
-        nautilus_end=str(config.BT_END_DATE.date()),
+        nautilus_end=str(BT_END_DATE.date()),
         purge_mode="trading",
         index_name=_MIDCAP150_INDEX,
         # THE PUBLISHED CAP-WEIGHTED INDEX. Benchmark only, never a tradable name.
         # Base 1-Apr-2005 = 1000, which the file reproduces exactly.
         index_file=_MIDCAP150_SOURCE / f"{_MIDCAP150_INDEX}.csv",
-        year_range=None, date_range=(config.BT_START_DATE, config.BT_END_DATE),
+        year_range=None, date_range=(BT_START_DATE, BT_END_DATE),
         display_name="MIDCAP150",
         chart_colours=("#e377c2", "#17becf", "#8fd08f", "#7f7f7f",
                        "#1b9e77", "#e6ab02"),
@@ -740,14 +1694,14 @@ _NIFTY100 = Universe(
         symbol_list=_constituents(_NIFTY100_SOURCE, _NIFTY100_INDEX),
         metrics_dir=_NIFTY100_METRICS,
         nautilus_scores="scores_nifty100.parquet",
-        nautilus_end=str(config.BT_END_DATE.date()),
+        nautilus_end=str(BT_END_DATE.date()),
         purge_mode="trading",
         index_name=_NIFTY100_INDEX,
         # THE PUBLISHED CAP-WEIGHTED INDEX. Benchmark only, never a tradable name.
         # Base 1-Jan-2003 = 1000; the file reads 1,008.00 on 2003-01-02, consistent
         # with NSE's published methodology. Verified, not assumed.
         index_file=_NIFTY100_SOURCE / f"{_NIFTY100_INDEX}.csv",
-        year_range=None, date_range=(config.BT_START_DATE, config.BT_END_DATE),
+        year_range=None, date_range=(BT_START_DATE, BT_END_DATE),
         display_name="NIFTY 100",
         chart_colours=("#c0392b", "#2e6da4", "#3a9d3a", "#000000",
                        "#7f3f98", "#d95f02"),
@@ -844,7 +1798,7 @@ _NIFTY50 = Universe(
         symbol_list=_constituents(_NIFTY50_SOURCE, _NIFTY50_INDEX),
         metrics_dir=_NIFTY50_METRICS,
         nautilus_scores="scores_nifty50.parquet",
-        nautilus_end=str(config.BT_END_DATE.date()),
+        nautilus_end=str(BT_END_DATE.date()),
         purge_mode="trading",
         index_name=_NIFTY50_INDEX,
         # THE PUBLISHED CAP-WEIGHTED INDEX. Benchmark only, never a tradable name.
@@ -855,7 +1809,7 @@ _NIFTY50 = Universe(
         # checking it. On the 2026-10-10 delivery the file carries 6,612 rows,
         # 03-01-2000..06-08-2026.
         index_file=_NIFTY50_SOURCE / f"{_NIFTY50_INDEX}.csv",
-        year_range=None, date_range=(config.BT_START_DATE, config.BT_END_DATE),
+        year_range=None, date_range=(BT_START_DATE, BT_END_DATE),
         display_name="NIFTY 50",
         # MEASURED, NOT PICKED. The first tuple here was matplotlib's tab10
         # head, chosen by eye, and it collided three ways against nifty100 in NORMAL
@@ -929,7 +1883,7 @@ _NIFTY50 = Universe(
 #
 # nifty50 IS APPENDED, NEVER INSERTED, so midcap150 and nifty100 keep positions
 # 0 and 1 and every caller relying on declaration order sees what it saw before. Same
-# constraint as naming.AXES, same reason: position is load-bearing somewhere the
+# constraint as AXES, same reason: position is load-bearing somewhere the
 # row itself does not mention.
 _MIDCAP50_SOURCE = _WITHOUT_SURV / "Final_NIFTYMidCap50_EoD_Data"
 _MIDCAP50_METRICS = ROOT / "results_midcap50" / "metrics"
@@ -962,7 +1916,7 @@ _MIDCAP50 = Universe(
         symbol_list=_constituents(_MIDCAP50_SOURCE, _MIDCAP50_INDEX),
         metrics_dir=_MIDCAP50_METRICS,
         nautilus_scores="scores_midcap50.parquet",
-        nautilus_end=str(config.BT_END_DATE.date()),
+        nautilus_end=str(BT_END_DATE.date()),
         purge_mode="trading",
         index_name=_MIDCAP50_INDEX,
         # THE PUBLISHED CAP-WEIGHTED INDEX. Benchmark only, never a tradable
@@ -970,7 +1924,7 @@ _MIDCAP50 = Universe(
         # mid-series value, so like nifty50's row there is no base-date reading
         # here to check a methodology against. 5,588 rows, 01-01-2004..06-08-2026.
         index_file=_MIDCAP50_SOURCE / f"{_MIDCAP50_INDEX}.csv",
-        year_range=None, date_range=(config.BT_START_DATE, config.BT_END_DATE),
+        year_range=None, date_range=(BT_START_DATE, BT_END_DATE),
         display_name="NIFTY MIDCAP 50",
         # MEASURED, NOT PICKED, and the margin is THINNER THAN nifty50's -- which
         # is the finding, not a footnote. Searched under the constraint that
@@ -1088,7 +2042,7 @@ _MIDCAP100 = Universe(
         symbol_list=_constituents(_MIDCAP100_SOURCE, _MIDCAP100_INDEX),
         metrics_dir=_MIDCAP100_METRICS,
         nautilus_scores="scores_midcap100.parquet",
-        nautilus_end=str(config.BT_END_DATE.date()),
+        nautilus_end=str(BT_END_DATE.date()),
         purge_mode="trading",
         index_name=_MIDCAP100_INDEX,
         # THE PUBLISHED CAP-WEIGHTED INDEX. Benchmark only, never a tradable
@@ -1097,7 +2051,7 @@ _MIDCAP100 = Universe(
         # reading here to check a methodology against. 6,361 rows,
         # 01-01-2001..06-08-2026.
         index_file=_MIDCAP100_SOURCE / f"{_MIDCAP100_INDEX}.csv",
-        year_range=None, date_range=(config.BT_START_DATE, config.BT_END_DATE),
+        year_range=None, date_range=(BT_START_DATE, BT_END_DATE),
         display_name="NIFTY MIDCAP 100",
         # MEASURED, NOT PICKED, AND IT DOES NOT CLEAR dE 10 -- WHICH IS THE
         # FINDING, NOT A COMPROMISE. Full method, both candidate tuples and the
@@ -1209,14 +2163,14 @@ _NIFTY200 = Universe(
         symbol_list=_constituents(_NIFTY200_SOURCE, _NIFTY200_INDEX),
         metrics_dir=_NIFTY200_METRICS,
         nautilus_scores="scores_nifty200.parquet",
-        nautilus_end=str(config.BT_END_DATE.date()),
+        nautilus_end=str(BT_END_DATE.date()),
         purge_mode="trading",
         index_name=_NIFTY200_INDEX,
         # THE PUBLISHED CAP-WEIGHTED INDEX. Benchmark only, never a tradable
         # name. NO BASE VALUE IS CLAIMED: the file begins 01-01-2004, a
         # mid-series value. 5,609 rows, 01-01-2004..06-08-2026.
         index_file=_NIFTY200_SOURCE / f"{_NIFTY200_INDEX}.csv",
-        year_range=None, date_range=(config.BT_START_DATE, config.BT_END_DATE),
+        year_range=None, date_range=(BT_START_DATE, BT_END_DATE),
         display_name="NIFTY 200",
         # MEASURED 2026-09-19, AGAINST THIRTY SLOTS. dE2000 = 7.484141, binary
         # searched to 1e-4 inside the readable band L* 30-72, against all 30
@@ -1315,14 +2269,14 @@ _SMALLCAP250 = Universe(
         symbol_list=_constituents(_SMALLCAP250_SOURCE, _SMALLCAP250_INDEX),
         metrics_dir=_SMALLCAP250_METRICS,
         nautilus_scores="scores_smallcap250.parquet",
-        nautilus_end=str(config.BT_END_DATE.date()),
+        nautilus_end=str(BT_END_DATE.date()),
         purge_mode="trading",
         index_name=_SMALLCAP250_INDEX,
         # THE PUBLISHED CAP-WEIGHTED INDEX. Benchmark only, never a tradable
         # name. NO BASE VALUE IS CLAIMED: the file begins 01-04-2005, a
         # mid-series value. 5,294 rows, 01-04-2005..06-08-2026.
         index_file=_SMALLCAP250_SOURCE / f"{_SMALLCAP250_INDEX}.csv",
-        year_range=None, date_range=(config.BT_START_DATE, config.BT_END_DATE),
+        year_range=None, date_range=(BT_START_DATE, BT_END_DATE),
         display_name="NIFTY SMALLCAP 250",
         # MEASURED 2026-09-19, AGAINST THIRTY-SIX SLOTS. dE2000 = 6.801402,
         # binary searched to 1e-4 inside the readable band L* 30-72, against all
@@ -1411,7 +2365,7 @@ _NIFTY500 = Universe(
         symbol_list=_constituents(_NIFTY500_SOURCE, _NIFTY500_INDEX),
         metrics_dir=_NIFTY500_METRICS,
         nautilus_scores="scores_nifty500.parquet",
-        nautilus_end=str(config.BT_END_DATE.date()),
+        nautilus_end=str(BT_END_DATE.date()),
         purge_mode="trading",
         index_name=_NIFTY500_INDEX,
         # THE PUBLISHED CAP-WEIGHTED INDEX. Benchmark only, never a tradable
@@ -1419,7 +2373,7 @@ _NIFTY500 = Universe(
         # mid-series value. 6,612 rows, 03-01-2000..06-08-2026 -- with nifty50's,
         # the longest index series of the nine.
         index_file=_NIFTY500_SOURCE / f"{_NIFTY500_INDEX}.csv",
-        year_range=None, date_range=(config.BT_START_DATE, config.BT_END_DATE),
+        year_range=None, date_range=(BT_START_DATE, BT_END_DATE),
         display_name="NIFTY 500",
         # MEASURED 2026-09-19, AGAINST FORTY-TWO SLOTS -- the last palette this
         # registry needs. dE2000 = 6.136133, binary searched to 1e-4 inside the
@@ -1497,13 +2451,13 @@ _MICROCAP250 = Universe(
         symbol_list=_constituents(_MICROCAP250_SOURCE, _MICROCAP250_INDEX),
         metrics_dir=_MICROCAP250_METRICS,
         nautilus_scores="scores_microcap250.parquet",
-        nautilus_end=str(config.BT_END_DATE.date()),
+        nautilus_end=str(BT_END_DATE.date()),
         purge_mode="trading",
         index_name=_MICROCAP250_INDEX,
         # THE PUBLISHED CAP-WEIGHTED INDEX. Benchmark only, never a tradable
         # name. 5,282 rows, 01-04-2005..06-08-2026; the first row is 1000.0.
         index_file=_MICROCAP250_SOURCE / f"{_MICROCAP250_INDEX}.csv",
-        year_range=None, date_range=(config.BT_START_DATE, config.BT_END_DATE),
+        year_range=None, date_range=(BT_START_DATE, BT_END_DATE),
         display_name="NIFTY MICROCAP 250",
         # MEASURED 2026-10-10, AGAINST FORTY-EIGHT SLOTS. Greedy maximin search
         # over 6,000 random sRGB colours with L* 30-72 (generator seed 20261010),
@@ -1589,13 +2543,13 @@ def _mcap_row(tag, folder, bounds, k, colours):
         symbol_list=_constituents(src, _MCAP_INDEX),
         metrics_dir=ROOT / f"results_{tag}" / "metrics",
         nautilus_scores=f"scores_{tag}.parquet",
-        nautilus_end=str(config.BT_END_DATE.date()),
+        nautilus_end=str(BT_END_DATE.date()),
         purge_mode="trading",
         index_name=_MCAP_INDEX,
         # THE PUBLISHED CAP-WEIGHTED NIFTY 500. Benchmark only, never a tradable
         # name. 6,612 rows, 03-01-2000..06-08-2026, as nifty500's.
         index_file=src / f"{_MCAP_INDEX}.csv",
-        year_range=None, date_range=(config.BT_START_DATE, config.BT_END_DATE),
+        year_range=None, date_range=(BT_START_DATE, BT_END_DATE),
         display_name=f"MARKET CAP {bounds}",
         # MEASURED 2026-10-16, AGAINST FIFTY-FOUR SLOTS. Greedy maximin search over
         # 6,000 random sRGB colours with L* 30-72 (generator seed 20261016),
@@ -1835,42 +2789,43 @@ def gated():
 # before this existed. So a step run on its own -- `python results/<step>.py`, a
 # test, an import from a notebook -- behaves as it always did, and a full
 # `--universe all` run is unchanged. Verified byte-identical on all 281 artefacts.
-_SELECTED = None
+class _UniverseSelection:
+    """Which registered universes this run works on. run.py sets it once."""
+    _SELECTED = None
+
+    def set_selection(self, tags):
+        """Record which universes this run selected. Called once by run.py.
+
+        Unknown tags raise: silently narrowing a selection to nothing is how a run
+        produces no output and reports success. Passing None restores the default.
+        """
+        if tags is None:
+            self._SELECTED = None
+            return
+        want = [t.tag if hasattr(t, "tag") else t for t in tags]
+        unknown = [t for t in want if t not in REGISTRY]
+        if unknown:
+            raise KeyError(f"cannot select unregistered universe(s) {', '.join(unknown)}; "
+                           f"registered: {', '.join(REGISTRY)}")
+        self._SELECTED = [t for t in REGISTRY if t in set(want)]
+
+    def selected_tags(self):
+        """The tags this run is working on, in REGISTRY order.
+
+        Defaults to every registered universe when nothing has set a selection.
+        Intersected with REGISTRY on every call, so a universe removed after the
+        selection was set cannot come back through this door.
+        """
+        if self._SELECTED is None:
+            return list(REGISTRY)
+        return [t for t in self._SELECTED if t in REGISTRY]
+
+    def selected(self):
+        """selected_tags() as Universe objects."""
+        return [REGISTRY[t] for t in self.selected_tags()]
 
 
-def set_selection(tags):
-    """Record which universes this run selected. Called once by run.py.
-
-    Unknown tags raise: silently narrowing a selection to nothing is how a run
-    produces no output and reports success. Passing None restores the default.
-    """
-    global _SELECTED
-    if tags is None:
-        _SELECTED = None
-        return
-    want = [t.tag if hasattr(t, "tag") else t for t in tags]
-    unknown = [t for t in want if t not in REGISTRY]
-    if unknown:
-        raise KeyError(f"cannot select unregistered universe(s) {', '.join(unknown)}; "
-                       f"registered: {', '.join(REGISTRY)}")
-    _SELECTED = [t for t in REGISTRY if t in set(want)]
-
-
-def selected_tags():
-    """The tags this run is working on, in REGISTRY order.
-
-    Defaults to every registered universe when nothing has set a selection.
-    Intersected with REGISTRY on every call, so a universe removed after the
-    selection was set cannot come back through this door.
-    """
-    if _SELECTED is None:
-        return list(REGISTRY)
-    return [t for t in _SELECTED if t in REGISTRY]
-
-
-def selected():
-    """selected_tags() as Universe objects."""
-    return [REGISTRY[t] for t in selected_tags()]
+universe_axis = _UniverseSelection()
 
 
 def report_order(tags):
@@ -1885,7 +2840,7 @@ def report_order(tags):
     missing = [t for t in want if t not in REPORT_ORDER]
     if missing:
         raise KeyError(
-            f"universes/registry.REPORT_ORDER does not name {', '.join(missing)}. "
+            f"settings.REPORT_ORDER does not name {', '.join(missing)}. "
             "Every registered universe must have a position there, or it would be "
             "dropped from combined reports without an error. Add it.")
     seen = set(want)
@@ -1965,3 +2920,332 @@ def from_argv(argv, default=None, choices=None):
     if picked:
         return [REGISTRY[t] for t in picked]
     return [REGISTRY[default]] if default else list(LIVE)
+
+
+# ===========================================================================
+# 5. ARTEFACT NAMING
+# ===========================================================================
+# The single naming authority. One place composes an artefact's name.
+#
+# WHY THIS EXISTS
+#     The same bug has now been found on three axes in turn: a hardcoded artefact
+#     name where a selection-derived one belonged, on the CADENCE axis, then the
+#     ARM axis, then the PROFILE axis. Each was fixed at its own call site. That is
+#     why it kept recurring -- there was no single place to fix it, so each new axis
+#     re-opened the same hole somewhere else.
+#
+#     The composition rule itself was never the problem. It is four lines, and
+#     `results/v34_common.py:300` already writes them correctly:
+#
+#         SFX = arm_reg.selection_suffix() + cadence.suffix() + profiles.suffix()
+#
+#     The problem is that those four lines are RETYPED at every site, and a site
+#     that retypes three of the four axes is indistinguishable, by reading, from one
+#     that legitimately varies over three. This module makes the composition callable
+#     once and the omission declarable -- so that leaving an axis out becomes a
+#     statement a reader can check, rather than an absence nobody can see.
+#
+# WHAT IT DOES NOT DO
+#     It does not rename anything. `tail()` returns exactly the string the existing
+#     sites already build, in the existing order, with the existing default-is-empty
+#     rule on every axis. Adopting it at a site is a refactor with no artefact churn;
+#     if a filename moves, that is a bug in this module, not an intended migration.
+#
+# THE DEFAULT-IS-UNSUFFIXED RULE, AND ITS ONE SHARP EDGE
+#     Every axis returns "" at its default, so a fully-default run writes the
+#     canonical published name. That is what keeps the seven v34_comparison gates
+#     reading one file. It also means AN OMITTED AXIS AND A DEFAULT AXIS PRODUCE THE
+#     SAME STRING -- which is precisely how site 12 went unnoticed: a research-profile
+#     run and a profile-blind writer are byte-identical in their output paths, and
+#     they differ only when someone finally runs `tradeable`. The name cannot reveal
+#     the omission. Only a declaration can, which is what `declare()` is for.
+
+import arms.registry as _arm  # noqa: E402
+
+# The axes, in the order they appear in a name. This order is LOAD-BEARING: it is
+# the order v34_common.py has always used, and changing it renames every
+# non-default artefact in the repository.
+#
+# SURVIVORSHIP IS APPENDED AFTER TAX (2026-10-10), for the same reason: "" at
+# static, so no existing name moves, and "_pit" lands after "_tax" when it is not.
+#
+# THE DRAWDOWN LIMIT IS APPENDED AFTER SURVIVORSHIP (2026-10-13): "" when off,
+# "_dd20" after "_pit" when on. No existing name moves.
+#
+# STARTING CAPITAL IS APPENDED AFTER dd (2026-10-14): "" at Rs 10,00,000,
+# "_cap5000000" after every other suffix otherwise.
+#
+# MARKET IMPACT, THEN THE PARTICIPATION CAP, ARE APPENDED AFTER CAPITAL
+# (2026-10-15): "" at k 0 and at the profile's own cap; "_impact0p003" and
+# "_pcap0p1" otherwise.
+#
+# FIXED CAPITAL IS APPENDED AFTER THE PARTICIPATION CAP (2026-10-16): "" when off,
+# "_fixed" after every other suffix when on. No existing name moves.
+#
+# THE BACKTEST START IS APPENDED AFTER FIXED CAPITAL (2026-10-22): "" at
+# 2019-01-01, "_s20070924" after every other suffix otherwise. No existing name
+# moves.
+#
+# THE BUY-SHORTFALL RULE IS APPENDED AFTER THE START (2026-10-27): "" at the
+# default trim, "_refuse" after every other suffix otherwise. No name moves, but
+# the unsuffixed names now hold trimmed runs; refuse is the rule they held before.
+#
+# TAX IS APPENDED, NEVER INSERTED (2026-09-17). Appending leaves every existing
+# non-default name -- every _r40, every _tradeable, every arm suffix -- exactly
+# where it was, because the tax suffix is empty at the default and lands after
+# the other three when it is not. Inserting it anywhere else in this tuple
+# renames artefacts whose names are recorded by SHA-256 in the retired-universe
+# manifest (deleted 2026-09-24; git show 50562ed:RETIRED_UNIVERSES-manifest.txt).
+AXES = ("arm", "cadence", "profile", "tax", "survivorship", "dd", "capital", "impact",
+        "pcap", "fixed", "start", "buy_shortfall")
+
+_SUFFIX = {
+    "arm": lambda: _arm.selection_suffix(),
+    "cadence": lambda: cadence.suffix(),
+    "profile": lambda: profile_axis.suffix(),
+    "tax": lambda: tax.suffix(),
+    "survivorship": lambda: survivorship_axis.suffix(),
+    "dd": lambda: dd_axis.suffix(),
+    "capital": lambda: capital_axis.suffix(),
+    "impact": lambda: impact_axis.suffix(),
+    "pcap": lambda: pcap_axis.suffix(),
+    "fixed": lambda: fixed_axis.suffix(),
+    "start": lambda: start_axis.suffix(),
+    "buy_shortfall": lambda: shortfall_axis.suffix(),
+}
+
+
+class UndeclaredAxis(Exception):
+    """A site composed a name without saying what it varies over."""
+
+
+def tail(axes=AXES):
+    """The artefact name tail for the CURRENT selection, over the given axes.
+
+    tail() with no argument is the full four-axis composition and is what almost
+    every site wants. Passing a subset is the explicit, greppable way to say "this
+    artefact genuinely does not vary over the profile" -- and every such call is
+    expected to carry a comment saying why.
+    """
+    unknown = [a for a in axes if a not in _SUFFIX]
+    if unknown:
+        raise UndeclaredAxis(
+            f"unknown axis {unknown!r}; known axes are {', '.join(AXES)}")
+    return "".join(_SUFFIX[a]() for a in AXES if a in axes)
+
+
+def name(stem, ext, axes=AXES):
+    """A full artefact filename: stem + tail + ext. `ext` carries its own dot."""
+    return f"{stem}{tail(axes)}{ext}"
+
+
+def cost_basis():
+    """What a run's figures are net of, from the selected profile and tax.
+
+    One phrase for chart subtitles, so a --profile tradeable or --tax on chart
+    does not carry the research, before-tax wording every chart used to print.
+    """
+    from slippage import SLIPPAGE
+    import profiles
+    cap = profiles.participation_cap()
+    s = f"ALL NUMBERS AFTER Zerodha charges and a flat {SLIPPAGE*100:g}% slippage"
+    if cap is not None:
+        s += f", with fills capped at {cap*100:g}% of prior-20-session median volume"
+    if not impact_axis.is_default():
+        s += (f", plus square-root impact k {impact_axis.selected():g} x sqrt(order / "
+              f"prior-20-session median volume)")
+    return s + (", and AFTER capital-gains tax" if tax.selected() else ", BEFORE tax")
+
+
+def run_label(universe, arms):
+    """The line every chart title starts with: universe, arm(s), cadence, tax, profile.
+
+    Added 2026-09-23. A cadence-3 engine chart stated no cadence anywhere, and a
+    chart that does not say which run drew it cannot be checked against the run.
+    `universe` is a label or a list of labels; `arms` is an iterable of arm names.
+    """
+    uni = universe if isinstance(universe, str) else ", ".join(universe)
+    arms = list(arms)
+    return (f"{uni}  |  arm{'s' if len(arms) != 1 else ''} {', '.join(arms)}  |  "
+            f"cadence {cadence.selected()}  |  tax {'on' if tax.selected() else 'off'}"
+            f"  |  profile {profile_axis.selected()}"
+            + ("" if survivorship_axis.is_default() else f"  |  survivorship {survivorship_axis.selected()}")
+            + ("" if dd_axis.is_default() else f"  |  {dd_axis.label()}")
+            + ("" if capital_axis.is_default() else f"  |  {capital_axis.label()}")
+            + ("" if impact_axis.is_default() else f"  |  {impact_axis.label()}")
+            + ("" if pcap_axis.is_default() else f"  |  {pcap_axis.label()}")
+            + ("" if fixed_axis.is_default() else f"  |  {fixed_axis.label()}")
+            + ("" if start_axis.is_default() else f"  |  {start_axis.label()}")
+            + ("" if shortfall_axis.is_default() else f"  |  {shortfall_axis.label()}"))
+
+
+def path_tail(rebal=None):
+    """The directory-segment tail for the current cadence, profile and tax:
+    "" at every default, else "@r40", "@tradeable", "@tax" in AXES order.
+
+    ONE RULE FOR BOTH PER-COMBINATION DIRECTORY TREES. nautilus/reports/<u>/<seg>
+    (nt_run.reports_segment) carried all three axes; runs/<u>/<seg>
+    (run_dir) carried the cadence only, so a `--tax on` or `--profile
+    tradeable` arm run wrote into the same runs/<u>/<arm>/ as a research run and
+    replaced its chart. Both now take the tail from here.
+
+    THE CADENCE IS THE ARGUMENT, NOT THE SELECTION: both callers are handed
+    `rebal` explicitly, and None means the default, as reports_segment always
+    treated it. Profile and tax are read from the selection.
+    """
+    r = cadence.DEFAULT if rebal is None else int(rebal)
+    seg = "" if r == cadence.DEFAULT else f"@r{r}"
+    if not profile_axis.is_default():
+        seg += f"@{profile_axis.selected()}"
+    if not tax.is_default():
+        seg += "@tax"
+    return (seg + survivorship_axis.segment() + dd_axis.segment() + capital_axis.segment() + impact_axis.segment()
+            + pcap_axis.segment() + fixed_axis.segment() + start_axis.segment() + shortfall_axis.segment())
+
+
+# ---------------------------------------------------------------------------
+# THE LEGACY COMPOSERS, AND EXACTLY WHICH AXES EACH ONE CARRIES
+# ---------------------------------------------------------------------------
+# This replaces a MEMBERSHIP list. Gate 2 used to accept a site if its write
+# expression mentioned any of a set of blessed helper names -- which asked "is
+# this composer on the list?" and never "does this composer carry the axes the
+# site just declared?". A helper that composes wrongly got a green, and a green
+# from an enforcement check reads as proof. That is worse than no check.
+#
+# MEASURED, NOT ASSUMED. Every entry below was probed by varying one axis off
+# its default at a time and observing whether the composed name changed
+# (2026-09-12). Six of the eight entries on the old list turned out NOT to carry
+# the three axes a site could freely declare beside them:
+#
+#   settings.name / settings.tail             arm, cadence, profile   SOUND
+#   SFX            v34_common.py:300      arm, cadence, profile   SOUND
+#   artefact_tag   audit_step.py:108      arm, cadence, profile   SOUND
+#                                          (arm rides in the tag body: v3 -> midcap150_v3)
+#   _c             engine_v2_final_mid    cadence, profile        NO ARM
+#   _c             engine_v2_final_n100   cadence, profile        NO ARM
+#   _ci            make_mid_chart         cadence, profile        NO ARM
+#   _ci            make_n100_chart        cadence, profile        NO ARM
+#   _ci            make_combined_universes  cadence               NO ARM, NO PROFILE
+#   selection_suffix  arms/registry.py    arm                     NO CADENCE, NO PROFILE
+#
+# RE-PROBED 2026-09-17, when the TAX axis was added. Adding an axis invalidates
+# every measurement in this table, so all of it was measured again rather than
+# edited by inspection. Two probe artefacts had to be removed before the numbers
+# meant anything, and both would have produced a WRONG table:
+#
+#   _ci is EXISTENCE-GATED -- `return c if c.exists() else path`. Probing it in a
+#   directory without the sibling files measures the fallback, and both _ci
+#   entries reported "(nothing)". The probe now pre-creates every sibling the
+#   four axes can name before it measures.
+#
+#   artefact_tag and chart_path take the ARM AS AN ARGUMENT, not from the
+#   registry selection. Varying arm_reg and holding the argument fixed reported
+#   "NO ARM" for two composers that carry it fine. The probe now varies the
+#   argument alongside the selection.
+#
+# Corrected result: the five legacy composers carried arm/cadence/profile exactly
+# as recorded above and NONE of them carried tax, which is what the four edits of
+# 2026-09-17 fixed. The table below is the post-edit measurement.
+#
+# The two _c composers and the two chart _ci composers carrying no arm is not
+# necessarily a defect: v2FINAL_equity.csv holds every arm as COLUMNS, so the arm
+# is legitimately not in that filename. What was a defect is that a site could
+# declare `arm,cadence,profile` beside any of them and pass.
+#
+# Gate 2 now compares DECLARED against CARRIED and fails on anything the composer
+# cannot support. An unknown composer carries nothing and fails, which is the
+# right default: a new helper must be measured before it can certify anything.
+#
+# RETIREMENT. Each entry leaves this table when its sites route through name()
+# instead. The table is a migration ledger, not a permanent fixture -- when it is
+# empty, delete it.
+# EVERY VALUE IS AN EXPLICIT LITERAL. It used to be `frozenset(AXES)` on eight of
+# the eleven entries, which reads as "carries everything" and is a LIVE REFERENCE
+# to the axis tuple. Adding the tax axis on 2026-09-17 therefore handed those
+# eight an instant, unmeasured green for an axis not one of them composed -- six
+# of them wrongly. That is the precise failure this table was built to stop, and
+# the table's own comment ("over-crediting one hands out an unearned green") was
+# describing it two lines above the construct that caused it.
+#
+# RE-PROBED 2026-10-10 FOR THE SURVIVORSHIP AXIS, one composer at a time with only
+# that axis off its default (survivorship_axis.set_selection("pit")): every entry
+# but selection_suffix gained "_pit" or "@pit". selection_suffix carries the arm
+# alone, as before.
+#
+# RE-PROBED 2026-10-13 FOR THE DRAWDOWN-LIMIT AXIS, the same way, with only
+# dd_axis.set_selection(dd_axis.make(20)) off its default: every entry but
+# selection_suffix gained "_dd20" or "@dd20".
+#
+# RE-PROBED 2026-10-14 FOR THE CAPITAL AXIS, with only
+# capital_axis.set_selection(5_000_000) off its default: every entry but
+# selection_suffix gained "_cap5000000" or "@cap5000000".
+#
+# RE-PROBED 2026-10-15 FOR THE IMPACT AND PARTICIPATION-CAP AXES, with only
+# impact_axis.set_selection(0.003) and pcap_axis.set_selection(0.1) off their
+# defaults under the tradeable profile: every entry but selection_suffix gained
+# "_impact0p003_pcap0p1" or "@impact0p003@pcap0p1".
+#
+# RE-PROBED 2026-10-16 FOR THE FIXED-CAPITAL AXIS, with only
+# fixed_axis.set_selection(True) off its default: every entry but selection_suffix
+# gained "_fixed" or "@fixed".
+#
+# RE-PROBED 2026-10-22 FOR THE BACKTEST-START AXIS, with only
+# start_axis.set_selection("2007-09-24") off its default: every entry but
+# selection_suffix gained "_s20070924" or "@s20070924".
+#
+# RE-PROBED 2026-10-27 FOR THE BUY-SHORTFALL AXIS, with only
+# buy_shortfall.set_selection("refuse") off its default: every entry but
+# selection_suffix gained "_refuse" or "@refuse".
+#
+# A spelled-out set cannot do that. An axis added to AXES now appears in NO
+# entry's value until somebody measures it and types it in, so the default for a
+# new axis is "unproven", which is the only safe default an enforcement table has.
+CARRIES = {
+    "settings.name":       frozenset({"arm", "cadence", "profile", "tax", "survivorship",
+                                    "dd", "capital", "impact", "pcap", "fixed", "start",
+                                    "buy_shortfall"}),
+    "settings.tail":       frozenset({"arm", "cadence", "profile", "tax", "survivorship",
+                                    "dd", "capital", "impact", "pcap", "fixed", "start",
+                                    "buy_shortfall"}),
+    "SFX":               frozenset({"arm", "cadence", "profile", "tax", "survivorship",
+                                    "dd", "capital", "impact", "pcap", "fixed", "start",
+                                    "buy_shortfall"}),
+    "artefact_tag":      frozenset({"arm", "cadence", "profile", "tax", "survivorship",
+                                    "dd", "capital", "impact", "pcap", "fixed", "start",
+                                    "buy_shortfall"}),
+    "_c(":               frozenset({"cadence", "profile", "tax", "survivorship", "dd", "capital", "impact", "pcap", "fixed", "start",
+                                    "buy_shortfall"}),
+    "_ci(":              frozenset({"cadence", "profile", "tax", "survivorship", "dd", "capital", "impact", "pcap", "fixed", "start",
+                                    "buy_shortfall"}),
+    "selection_suffix":  frozenset({"arm"}),
+    "nt_reports_segment": frozenset({"arm", "cadence", "profile", "tax", "survivorship",
+                                     "dd", "capital", "impact", "pcap", "fixed", "start",
+                                    "buy_shortfall"}),
+    "reports_segment":   frozenset({"arm", "cadence", "profile", "tax", "survivorship",
+                                    "dd", "capital", "impact", "pcap", "fixed", "start",
+                                    "buy_shortfall"}),
+    "chart_path":        frozenset({"arm", "cadence", "profile", "tax", "survivorship",
+                                    "dd", "capital", "impact", "pcap", "fixed", "start",
+                                    "buy_shortfall"}),
+    "combined_chart_path": frozenset({"arm", "cadence", "profile", "tax", "survivorship",
+                                      "dd", "capital", "impact", "pcap", "fixed", "start",
+                                    "buy_shortfall"}),
+}
+
+# `_ci` is three different functions and a textual check cannot tell them apart,
+# so the entry is pinned to the WEAKEST of the three. It read `cadence` alone
+# until 2026-09-12, when make_combined_universes' copy was brought up to the
+# cadence+profile composition its two siblings already had -- so the three now
+# agree and the pin costs nothing. If they ever diverge again this entry drops to
+# the weakest of them: under-crediting a composer costs a comment, over-crediting
+# one hands out an unearned green.
+CARRIES_NOTE = "_ci( is pinned to the weakest of three same-named composers"
+
+
+def carried_axes(expr):
+    """The axes a write expression can actually support, from CARRIES."""
+    got = set()
+    for token, axes in CARRIES.items():
+        if token in expr:
+            got |= set(axes)
+    return got

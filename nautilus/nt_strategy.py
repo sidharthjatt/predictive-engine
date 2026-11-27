@@ -77,10 +77,10 @@ from nautilus_trader.model.objects import Quantity
 from nautilus_trader.trading.strategy import Strategy
 
 # SELECTION -- imported from config.py, the single definition.
-import config
+import settings
 import buy_shortfall as _bsf
 from slippage import SLIPPAGE
-TOP_N, BUFFER = config.TOP_N, config.BUFFER
+TOP_N, BUFFER = settings.TOP_N, settings.BUFFER
 REBAL = 20
 VOL_WIN = 60
 MOM_WIN = 20
@@ -459,7 +459,7 @@ class PredictiveEngineStrategy(Strategy):
             # every buy.
             free = self._free_cash()
             if free < q * px + leg_charges(px, q, "BUY"):
-                if _bsf.selected() != "trim":
+                if settings.shortfall_axis.selected() != "trim":
                     continue
                 q, _, _, _ = _bsf.trim(q, free, lambda n: px,
                                        lambda p_, n: leg_charges(p_, n, "BUY"))

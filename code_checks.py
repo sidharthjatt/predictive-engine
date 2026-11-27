@@ -235,7 +235,7 @@ Run it directly, or read its exit code.
     import ast
     import sys
     from pathlib import Path
-    from paths import list_dir
+    from settings import list_dir
 
     ROOT = Path(__file__).resolve().parent
     MARKER = "TRANSITIONAL-ASSERT"
@@ -291,7 +291,7 @@ Run it directly, or read its exit code.
     def scan():
         """Every step that takes a universe, with its marker and hardcoding state."""
         sys.path.insert(0, str(ROOT))
-        from universes.registry import REGISTRY
+        from settings import REGISTRY
         tags = set(REGISTRY)
         rows = []
         for d in (ROOT / "results", ROOT / "nautilus"):
@@ -475,22 +475,24 @@ the first day and the gap; 0 if all reconcile.
         if str(_p) not in sys.path:
             sys.path.insert(0, str(_p))
 
-    import config                                                    # noqa: E402
+    import config
+    import settings                                                    # noqa: E402
     import cost_report                                               # noqa: E402
     import engine_core                                               # noqa: E402
-    import profiles                                                  # noqa: E402
+    import profiles
+    import settings                                                  # noqa: E402
     import arms.registry as arm_reg                                  # noqa: E402
     from config import read_table                                    # noqa: E402
     from engine_core import precompute                               # noqa: E402
     from test_exposure import backtest_exposure, START_CAPITAL       # noqa: E402
-    from universes.registry import REGISTRY, argv_universes, check_tags  # noqa: E402
+    from settings import REGISTRY, argv_universes, check_tags  # noqa: E402
 
     KEYS = ("holdings", "summary", "trades", "ranking", "decisions", "skipped")
 
 
     def cell(u, arm, panel, profile, tax_on):
         px, op, sc, bd, pc, mom20 = panel
-        profiles.set_selection(profile)
+        settings.profile_axis.set_selection(profile)
         try:
             audit = {k: [] for k in KEYS}
             audit["costs"] = {"fills": [], "days": []}
@@ -498,7 +500,7 @@ the first day and the gap; 0 if all reconcile.
                                                tax_enabled=tax_on,
                                                **arm.kwargs, **profiles.cap_kwargs(u))
         finally:
-            profiles.set_selection(None)
+            settings.profile_axis.set_selection(None)
         tx = audit.get("tax")
         cost_report.reconcile(audit["costs"], audit["trades"], list(bd), float(START_CAPITAL), tc,
                               float(tx["cum_tax"]) if tx else 0.0, tax_on,
@@ -527,7 +529,7 @@ the first day and the gap; 0 if all reconcile.
                     print(f"  FAIL  {what:<36} {e}", flush=True)
                 n += 1
             for arm in arm_reg.ARMS.values():
-                for profile in profiles.PROFILES:
+                for profile in settings.profile_axis.PROFILES:
                     for tax_on in (False, True):
                         what = f"{tag} {arm.name} {profile} tax {'on' if tax_on else 'off'}"
                         try:

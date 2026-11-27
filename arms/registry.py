@@ -213,7 +213,7 @@ SHIPPING = [ARMS["v1"], ARMS["v2"]]
 
 
 # ---------------------------------------------------------------------------
-# WHAT THIS RUN SELECTED -- the same distinction universes/registry.py draws.
+# WHAT THIS RUN SELECTED -- the same distinction settings.py draws.
 # ---------------------------------------------------------------------------
 # ARMS answers "which arms exist". A run answers "which arms did the caller ask
 # for". run_v34 conflated the two: it computed and wrote all four unconditionally,
