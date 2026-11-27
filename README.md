@@ -37,7 +37,7 @@ data folder in from a machine that has it (ask the owner, see "The price data").
 in, if a selected universe has no price files. The pinned requirements were resolved on
 Python 3.12.13, and that is the version every published result was produced on. On
 Python 3.11 pip installs nothing: `scipy==1.18.1` and `nautilus_trader==1.229.0`
-need 3.12. `run.py` and `check_all.py` stop at start-up with a message naming the
+need 3.12. `run.py` and `checks.py` stop at start-up with a message naming the
 version if they are started on an older Python.
 
 Create the venv on the internal disk, not on an external exFAT or FAT drive: macOS
@@ -48,10 +48,10 @@ repository folder itself may be on an external drive; `run.py` notes it and runs
 
 ```
 # 1. put the price data at data/raw/Final_Without_Survivorship_Data/ and check it
-python3 check_data.py
+python3 checks.py check_data
 #    for --survivorship pit runs, also put Final_With_Survivorship_Data/ and
 #    Survivorship_Bias/ in data/raw/ and check them
-python3 check_data.py --pit
+python3 checks.py check_data --pit
 # 2. build the environment with Python 3.12
 python3.12 --version          # must print 3.12.x; 3.12.13 reproduces the results
 python3.12 -m venv venv
@@ -82,13 +82,13 @@ not price and a look-ahead note in its log, RUN.txt and params JSON. See
 capital of the strategy and of the investable buy & hold. Every published figure is at
 the default, which adds nothing to any name; another capital adds `_cap<rupees>` to
 files and `@cap<rupees>` to folders, and appears in chart titles, params.json and
-RUN.txt. The default is defined once, in `settings.capital_axis`. `nautilus/nt_verify.py
+RUN.txt. The default is defined once, in `settings.capital_axis`. `checks.py nt_verify
 --capital=<rupees>` checks the port at that capital (static, research, tax off).
 
 A capital other than the default needs `--profile tradeable` and an explicit `--impact K`
 (0 allowed). `run.py` refuses it under the research profile, which has no participation
 cap and no market impact and so shows the same return at any capital, and refuses it
-under tradeable without `--impact`, listing the values `results/impact_sweep.py`
+under tradeable without `--impact`, listing the values `reports.py`
 measures.
 
 **Capacity.** After every run `costs.py` compares each buy fill with the stock's
@@ -145,7 +145,7 @@ TRIMMED, and the run log prints the trimmed and refused buys per arm; under `tri
 `v34_comparison` and `comparison.csv` add a `TrimmedBuys` column. `trim` adds nothing to
 any name; `refuse` adds `_refuse` after every other suffix and `@refuse` to folders.
 Every run writes the setting to RUN.txt and params.json. Runs made before 2026-10-27
-have neither and refused short buys under the unsuffixed names. `nt_verify.py` checks
+have neither and refused short buys under the unsuffixed names. `checks.py nt_verify` checks
 the port under trim with tax off only: the port has no tax ledger, so it cannot cover
 the tax-on cells.
 
@@ -201,7 +201,7 @@ without it, it is the arm's own mean exposure, as before.
 Names: `_dd20` after every other suffix (`_dd12p5`, `_dd20m3f10` when m or F is not
 the default), `@dd20` in directory names, the limit in chart titles, a `dd` entry in
 params.json and a `dd` line in RUN.txt. `--dd` is refused with v5 or v6, which carry
-their own stop. The Nautilus port runs the limit; `nautilus/nt_verify.py --dd=20`
+their own stop. The Nautilus port runs the limit; `checks.py nt_verify --dd=20`
 checks static, research, tax-off cells only. See KNOWN_ISSUES.md.
 
 Two more arms exist and are not part of `--arm all`: v5 (v1 plus a drawdown stop)
@@ -225,7 +225,7 @@ companion `v34_stop_*` files.
 
 Every v5 and v6 figure, including the Nautilus port check, was measured on the
 previous data delivery. On that data the port verified 9 of the 16 v5/v6 cells
-(research, tax off). Since 2026-10-10 no v5/v6 cell is gated in `check_all.py`:
+(research, tax off). Since 2026-10-10 no v5/v6 cell is gated in `checks.py`:
 both arms are rejected and outside `--arm all`, and their engine files were not
 rebuilt on the new data.
 
@@ -255,8 +255,8 @@ the itemised Zerodha delivery rates in `costs.py`; the charges
 section of `data/reference/TAX_AND_CHARGES.docx` is out of date, and its tax rules are
 the ones the code uses.
 
-`./venv/bin/python check_all.py` runs the repository's checks. Outside a git checkout
-`code_checks.py platform_identity` is reported as a named skip, and most delegates skip
+`./venv/bin/python checks.py` runs the repository's checks. Outside a git checkout
+`checks.py code_checks platform_identity` is reported as a named skip, and most delegates skip
 until the runs they check have been made.
 
 ## The noise test, measured on the previous data delivery (2026-09-29)
@@ -342,7 +342,7 @@ LightGBM regressor on cross-sectional rank targets. `n_estimators=400`,
 11, 22, 33, 101]` — averaged. Retrained monthly on an expanding window. A row trains
 the model only if its label ends at least 2 trading sessions before the scored month:
 a label-end purge plus a 2-session embargo. `training_set()` in
-`results/engine_core.py` keeps a row only when all of these hold, in trading sessions
+`model.py` keeps a row only when all of these hold, in trading sessions
 on the panel's own calendar, where `cal[i_first]` is the scored month's first session:
 
     date      <= cal[i_first - horizon - embargo]    the cut
@@ -362,8 +362,8 @@ and `rsi_14`.
 
 Parameters:
 
-    HORIZON, REBAL, TOP_N, BUFFER, VOL_WIN = 20, 20, 8, 16, 60    results/engine_core.py
-    PURGE_EMBARGO = 2                                             results/engine_core.py
+    HORIZON = 20; REBAL, TOP_N, BUFFER, VOL_WIN = 20, 8, 16, 60  model.py; settings.py, portfolio.py
+    PURGE_EMBARGO = 2                                             model.py
     SLIPPAGE      = 0.0015                                        costs.py
     START_CAPITAL = 1_000_000                                     capital_axis.DEFAULT
     CASH_YIELD    = 0.0                                           portfolio.py
@@ -1618,7 +1618,7 @@ and the port consumes that; the parquet is the only channel between the two.
 
 The port is checked against the research engine on every rebalance date at zero
 tolerance — plain equality on integer share counts, no epsilon. Measured
-2026-09-25 on the numerics of that date with `nautilus/nt_verify.py --universe=<tag>`,
+2026-09-25 on the numerics of that date with `checks.py nt_verify --universe=<tag>`,
 v2, cadence 20, n = 92 rebalances per universe. check_all gates nifty100 and
 midcap150 on every run; the other six were measured once:
 
@@ -1638,7 +1638,7 @@ prices were rounded to the paisa with the NSE tick grid removed (2026-10-29); th
 has not been re-measured since, except for the gated cells below.*
 
 **The gated cells, re-measured 2026-11-23 on d9cdcd9:** nifty100 and midcap150, arms v1
-to v4, `nautilus/nt_verify.py --universe=<tag> --arm=<arm>`, cadence 20, 92 rebalances.
+to v4, `checks.py nt_verify --universe=<tag> --arm=<arm>`, cadence 20, 92 rebalances.
 All 8 cells VERIFIED. In each, the port and the reference copy hold the same names and
 quantities on 92 of 92 rebalances and fill the same orders in 92 of 92 periods, and the
 port's holdings equal the engine's own audit trail at exact share counts on 92 of 92.
@@ -1663,7 +1663,7 @@ unverified. See `KNOWN_ISSUES.md`.
 > measured before the 2026-09-24 numerics rebuild, when the window held 93
 > rebalances.*
 
-**Every arm, measured 2026-09-26** with `nt_verify.py --arm=<arm>` on all eight
+**Every arm, measured 2026-09-26** with `checks.py nt_verify --arm=<arm>` on all eight
 universes (`diagnostics/nt_verify_all_arms_20260926.txt`; for v2 only midcap50 changes,
 see the note under the table above):
 
@@ -1676,7 +1676,7 @@ see the note under the table above):
 
 All four arms verify on nifty100 and midcap150. The table is the 2026-09-26
 measurement. check_all now gates 39 cells; the 9 that do not verify (midcap100 v3 and
-eight market-cap bucket cells) are listed in `check_all.py` with their reasons. Every
+eight market-cap bucket cells) are listed in `checks.py` with their reasons. Every
 Nautilus figure for a cell that is not gated is unverified.
 
 > *Superseded 2026-09-26: this block first read "No v1 or v3 cell is verified by
@@ -1803,7 +1803,7 @@ going 1.90 to 1.89 and 11 orders walking the book (n=1,006 fills, re-run
 > own median-volume definition until 2026-09-20 and now uses the participation cap's;
 > measured on the same fills that change moves the aggregate almost not at all
 > (midcap150 max 34.458% either way). The depth-model CAGR figures are from
-> `depth_compare.py` and are not restated here.* A filter that removed untradeable names was tested
+> `nautilus_port.py depth_compare` and are not restated here.* A filter that removed untradeable names was tested
 as EXP20 and rejected, failing one sub-period gate by 0.02 Sharpe.
 
 Those depth figures are measured on the Nautilus port, not on the research engine,
@@ -1813,7 +1813,7 @@ the only way the figure means anything.
 
 > *Superseded 2026-09-20: this paragraph read "the port reads mid at 29.16% where
 > the research engine reads 29.18%, and n100 at 25.43% against 25.36%", and quoted
-> the depth cost as 1.80 points, 29.16% to 27.36%. `depth_compare.py` was re-run on
+> the depth cost as 1.80 points, 29.16% to 27.36%. `nautilus_port.py depth_compare` was re-run on
 > 2026-09-20 against the repointed data and now reports midcap150 27.79% unlimited
 > against 27.75% volume, and nifty100 19.00% against 19.00%. The port-versus-engine
 > comparison above is not restated: those research-engine figures were measured
@@ -1874,7 +1874,7 @@ writes nothing outside `dashboard/`. From the repository root:
 
 The page is `dashboard/dashboard.html`, built from `dashboard/dashboard_data.json`.
 Open it by double-clicking: it needs no network. Both files are about 24 MB, change
-on every rebuild and are not tracked. `dashboard/test_dashboard.py` drives the page
+on every rebuild and are not tracked. `checks.py test_dashboard` drives the page
 in headless Chrome and needs Chrome installed.
 
 **After every successful `run.py` run the dashboard is rebuilt** with the two
@@ -1915,20 +1915,21 @@ into `[published]` and the folder it names as published into `[superseded]`.
     reports.py        charts, the daily log, the cost and tax reports, the README
                       tax tables and the hand-run reports
     dashboard.py      exports the run data and builds dashboard/dashboard.html
-    results/          the validation engine (engine_core.py), the slow validation
-                      gates and the look-ahead checks; results*/metrics/ holds
-                      each universe's artefacts
-    nautilus/         the NautilusTrader port, its verification harness, and
-                      NAUTILUS_STATUS.md
+    checks.py         every check: `checks.py` runs them all (was check_all.py),
+                      `checks.py --slow` adds the gates that refit the model,
+                      `checks.py TOOL [ARGS]` runs one
+    nautilus_port.py  the strategy on NautilusTrader and its fee model
+    python_floor.py   the Python version floor, checked before any third-party
+                      import by run.py and checks.py
+    results*/metrics/ each universe's artefacts
+    nautilus/         the port's reports and data, and NAUTILUS_STATUS.md
     experiments/      EXPERIMENTS.md, five pre-registrations, and the two restored
                       early test records
     diagnostics/      measured findings: liquidity, depth, tick behaviour, equity
                       reconciliations, and the membership rebuild
     docs/             published copies of two pipeline figures, for this README
     data/reference/   NSE press-release manifest, symbol rename map, circular index
-    dashboard/        the dashboard's template, data file and page, and its
-                      browser test
-    tools/            lookahead_proof.py
+    dashboard/        the dashboard's template, data file and page
 
 Not tracked, and why: `venv/`, everything under `results*/metrics/`,
 `nautilus/reports/`, the score parquets and `cache/` are all rebuilt by
@@ -1974,7 +1975,7 @@ A `--survivorship pit` run also reads two more folders: `Final_With_Survivorship
 (1,470 MB, the with-survivorship prices) and `Survivorship_Bias/` (1 MB, the membership
 files). Copy both into `data/raw/` for pit runs; static runs do not need them. Their
 2,288 checked files are in a second manifest, `data/RAW_DATA_SHA256_PIT.txt`, which
-`check_data.py --pit` checks. `run.py` checks the selected universes' part of it before
+`checks.py check_data --pit` checks. `run.py` checks the selected universes' part of it before
 a pit run starts. The three market-cap bucket folders have no pit data.
 
 **Disk space.** About 3 GB for the data (1.6 GB static, 1.4 GB pit). The score and raw
@@ -1986,7 +1987,7 @@ folders are deleted.
 **Check your copy before running anything:**
 
 ```
-python3 check_data.py
+python3 checks.py check_data
 ```
 
 It compares every file against the tracked manifest `data/RAW_DATA_SHA256.txt`
@@ -1996,7 +1997,7 @@ standard library. For a copy holding one universe, check just that folder (this
 form reads settings.py, so it needs the venv):
 
 ```
-./venv/bin/python check_data.py --universe=midcap50
+./venv/bin/python checks.py check_data --universe=midcap50
 ```
 
 ## Running it
@@ -2011,8 +2012,8 @@ or Ubuntu the `python3.12-venv` package). The official Docker image
 git clone https://github.com/sidharthjatt/predictive-engine.git
 cd predictive-engine
 # copy the price data into data/raw/ -- see "The price data"
-python3 check_data.py
-python3 check_data.py --pit     # only if you copied the pit data
+python3 checks.py check_data
+python3 checks.py check_data --pit     # only if you copied the pit data
 python3.12 -m venv venv
 ./venv/bin/python -m pip install -r requirements.txt -c installed_versions.txt
 ```
@@ -2055,7 +2056,7 @@ clones.
 **Everything:** `./venv/bin/python run.py --universe all --arm all` runs all twelve universes and all
 four arms.
 
-`./venv/bin/python nautilus/nt_verify.py --universe=nifty100` runs the
+`./venv/bin/python checks.py nt_verify --universe=nifty100` runs the
 reconciliation for v2 (`--arm=v1`, `v3` or `v4` for another arm;
 `--universe=midcap150` for the other certified universe;
 `--rebal=<n>` reports the port-versus-vectorised gap at another cadence without

@@ -2,7 +2,7 @@
 # 3.11 pip installs nothing (scipy==1.18.1 and nautilus_trader==1.229.0 need 3.12).
 #     python3.12 -m venv venv
 #     ./venv/bin/python -m pip install -r requirements.txt -c installed_versions.txt
-# run.py and check_all.py stop at start-up on an older Python (python_floor.py).
+# run.py and checks.py stop at start-up on an older Python (python_floor.py).
 # ===========================================================================
 # requirements.txt -- cross-sectional equity ranking engine for Indian markets
 #
@@ -65,7 +65,7 @@ pandas==2.3.3
 numpy==2.2.6
 
 # pyarrow is NOT optional here even though nothing imports it directly.
-# STEP 16 nautilus/nt_export_scores.py calls df.to_parquet / pd.read_parquet,
+# STEP 16 nautilus_port.py nt_export_scores calls df.to_parquet / pd.read_parquet,
 # and pandas needs a parquet engine for both.
 pyarrow==25.0.1
 
@@ -81,7 +81,7 @@ nautilus_trader==1.229.0
 # --- Plotting / equity curve charts ---
 matplotlib==3.11.2
 
-# --- Parallel seed fitting (engine_core.score_monthly, one process per seed) ---
+# --- Parallel seed fitting (model.score_monthly, one process per seed) ---
 joblib==1.6.0
 
 # ===========================================================================

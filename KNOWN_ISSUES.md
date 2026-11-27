@@ -142,7 +142,7 @@ not price and the look-ahead note into its run.log, RUN.txt and params JSON.
 The Nautilus port has no membership rule and no index exit, so its reports would
 describe a different strategy from the engine's pit run. A pit run leaves out STEP 16
 and STEP 17 (`run.PIT_NOT_RUN`), and check_all lists every pit cell as not covered
-(`check_all.NOT_COVERED`). Pit figures are engine figures only, checked by no port.
+(`checks.NOT_COVERED`). Pit figures are engine figures only, checked by no port.
 
 ### The drawdown limit (--dd) is exploratory, and the port checks only part of it
 
@@ -154,8 +154,8 @@ period). Their tax-off figures are unaffected; their tax-on figures, including t
 midcap150 v3 and nifty50 v1 pit tax-on cells and the limit's marginal tax, are on the
 old rules and were not rerun.
 
-The Nautilus port runs the limit (`nautilus/nt_strategy.py`, through the same
-`portfolio.py` the engine uses), and `nt_verify.py --dd=L` compares it
+The Nautilus port runs the limit (`nautilus_port.py nt_strategy`, through the same
+`portfolio.py` the engine uses), and `checks.py nt_verify --dd=L` compares it
 with the engine at research profile, tax off, static. Every other `--dd` cell is
 outside port verification:
 
@@ -167,7 +167,7 @@ outside port verification:
   Nautilus steps anyway.
 
 run.py prints this at the start of every such run, and check_all lists the cells as
-not covered (`check_all.NOT_COVERED`). No `nt_verify --dd` cell is in check_all's
+not covered (`checks.NOT_COVERED`). No `nt_verify --dd` cell is in check_all's
 gated set; it is run by hand.
 
 Four properties of the rule matter when reading a `--dd` result:
@@ -269,7 +269,7 @@ The breadth rule (v2, v4) moves the book to cash when breadth collapses. The sam
 
 Every published gap compares an arm that is partly in cash with a buy & hold that is always fully invested. That comparison mixes what selection earns with what the exposure rule spends and buys. No script builds an exposure-matched benchmark, meaning the universe held at the arm's own daily invested fraction. The only such measurement (2026-09-11, retired data) found that the exposure rule alone gave about 90% of the drawdown reduction. It has not been repeated on current data. Whether the trade is worth making is a risk decision and is not a defect.
 
-`validate_sizing.py:242` and `results/validate_engine.py:215` print "CAGR moves +/-0.5% per refit". That figure was never measured. The last seed-noise measurement (`diagnostics/seed_noise.txt`, 2026-09-20, pre-numerics) found sd about 1 point.
+`checks.py validate_sizing` and `checks.py validate_engine` print "CAGR moves +/-0.5% per refit". That figure was never measured. The last seed-noise measurement (`diagnostics/seed_noise.txt`, 2026-09-20, pre-numerics) found sd about 1 point.
 
 ### v2's smaller drawdown comes mostly from the breadth rule, not from selection
 
@@ -321,7 +321,7 @@ trim with it:
 | v4 | 24.37 | 24.77 | 24.77 |
 
 The Nautilus port uses the same function (`portfolio.trim`), and
-`nt_verify.py` checks it under trim. Since 2026-10-28 both sides fill to the paisa
+`checks.py nt_verify` checks it under trim. Since 2026-10-28 both sides fill to the paisa
 (`costs.fill_price`), and the holdings at every rebalance and the orders of every
 rebalance period must be identical; any period that differs fails. The 0.05-grid
 stage (decisions, a 0.50% NAV limit and a 0.10-point CAGR limit) went with the NSE
@@ -342,14 +342,14 @@ On the 2026-10-10 figures (research, tax off), the 100%-invested arms skip 101 t
 buys per run and hold a mean of 7.49 to 8.07 names across the eight universes; the
 breadth-scaled arms skip 0 to 8 and hold 9.1 to 10.1. The counts are in every
 `v34_comparison*.csv` (`CashShortSkips`, `MeanNamesHeld`). This is why
-`results/validate_engine.py` fails T1 (mean book below `TOP_N`) on v1.
+`checks.py validate_engine` fails T1 (mean book below `TOP_N`) on v1.
 
 It is a trade-off, not a bug. Every alternative measured in 2026-09 that fills
 the book (trimming the buffer, strict target weights, `funding="prorata"`) cost
 CAGR on every universe then tested, because it spread capital over more,
 lower-ranked names. `funding="prorata"` is implemented and off by default;
 switching it moves every published figure and must be mirrored in
-`nautilus/nt_strategy.py` in the same commit.
+`nautilus_port.py nt_strategy` in the same commit.
 
 ### The held-lots buy & hold is concentration-limited, and midcap50 exceeds the limit
 
@@ -493,24 +493,24 @@ repository. Making charges dated changes every published cost figure.
 
 ### The Nautilus port applies neither the participation cap nor impact
 
-`nautilus/nt_strategy.py` sizes every order with no participation cap, and its fills
+`nautilus_port.py nt_strategy` sizes every order with no participation cap, and its fills
 take the flat `SLIPPAGE` through the quote prices it is fed (bid and ask at open x
-(1 -/+ SLIPPAGE), `nautilus/nt_run.py`), so no fill pays size-sensitive impact. A run
+(1 -/+ SLIPPAGE), `nautilus_port.py nt_run`), so no fill pays size-sensitive impact. A run
 with `--profile tradeable`, `--cap` or `--impact` still runs the Nautilus steps, and
 its reports land under the run's `@tradeable`, `@pcap...` or `@impact...` folder, but
 they describe the uncapped, flat-slippage strategy. Nothing compares them with the
-engine: `nt_verify.py` checks research-profile cells only. Treat every engine figure
+engine: `checks.py nt_verify` checks research-profile cells only. Treat every engine figure
 with the cap or impact on as unverified by the port.
 
-### Fixed capital (--fixed-capital) is gated by engine_tests.py fixed_capital only
+### Fixed capital (--fixed-capital) is gated by checks.py engine_tests fixed_capital only
 
-`nautilus/nt_strategy.py` and `nautilus/nt_attribution.py` size every rebalance from
-the whole portfolio and have no fixed-capital rule, and `nt_verify.py` checks
+`nautilus_port.py nt_strategy` and `checks.py nt_attribution` size every rebalance from
+the whole portfolio and have no fixed-capital rule, and `checks.py nt_verify` checks
 compounded research cells only. A run with `--fixed-capital` that reaches the Nautilus
 steps writes its reports under the run's `@fixed` folder, but they describe the
 compounded strategy. Nothing compares a fixed-capital engine figure with the port.
 
-What does check the mode is `engine_tests.py fixed_capital`, a check_all delegate:
+What does check the mode is `checks.py engine_tests fixed_capital`, a check_all delegate:
 - On every execution day, purchases never lift invested value above the book. Run on
   nifty200, pit, tradeable, v1 to v4, tax off and on.
 - The fixed and compounded runs are identical up to the session before the first
@@ -539,7 +539,7 @@ the 32 core cells of the eight universes pass; midcap100 v3 fails, because some
 rebalances hold a different symbol set even against the open-valued baseline. On
 the 0.01 grid the quote-mid rule reproduces every rebalance, but nt_verify fails a
 symbol-set difference against the open-valued baseline before it reaches that rule.
-The cell is in `check_all.NT_VERIFY_UNGATED`, with the reason (see "midcap100 v3 is
+The cell is in `checks.NT_VERIFY_UNGATED`, with the reason (see "midcap100 v3 is
 not gated in nt_verify"). microcap250 v3, rerun without PRIVISCL, verifies by quote-mid
 valuation (port +0.11% against the reference's final equity) and is gated. The
 production port fills on the NSE 0.05 grid and the research engine does not round
@@ -552,7 +552,7 @@ against `v34_equity.csv`, research, tax off) is -4.00% (nifty200 v1) to +6.08%
 (`diagnostics/nt_verify_all_arms_20260929.txt`) it was -1.82% (midcap100 v1) to +1.08%
 (midcap150 v3), and the port held a different symbol set from the close-valued
 reference on 1 or 2 rebalances in 7 cells, all v1 or v3.
-`nt_attribution.run` with only `tick_round` changed reproduced both sides of the two
+`checks.nt_attribution_run` with only `tick_round` changed reproduced both sides of the two
 largest forks on 2026-09-26. A Nautilus figure is not the engine's figure to the rupee.
 
 
@@ -574,9 +574,9 @@ investable buy & hold held to the end and sold on the last day.
   and the buy & hold, held and sold, against `backtest_runs.held_lots`. The printed tax
   total must also equal COST_TAX_YEARS `total_tax` summed and the ledger's final
   `cum_tax`, within Rs 0.01 (`reports.check_tax_total`), and the per-year table
-  must add up to it. `code_checks.py cost_reconcile` (check_all) runs this on all 32 cells
+  must add up to it. `checks.py code_checks cost_reconcile` (check_all) runs this on all 32 cells
   under both profiles with tax off and on, and each universe's buy & hold: 144
-  combinations. `engine_tests.py tax_total` (check_all) checks the printed tax figures on a
+  combinations. `checks.py engine_tests tax_total` (check_all) checks the printed tax figures on a
   synthetic tax-on run.
 
 ### The COSTS block left the 4% cess out of its tax total from 2026-10-14 to 2026-10-16
@@ -617,7 +617,7 @@ code first, and each carries one line saying it was rebuilt. Blocks from before
   - `calc_tc` stops with an ImportError if the charge library cannot be imported.
     Until 2026-10-14 it fell back to a flat 0.11% without saying so, in
     `portfolio.py`, `results/engine_core.py` and
-    `nautilus/nt_attribution.py`.
+    `checks.py nt_attribution`.
 - The report rounds as the engine does. The engine's prices are numpy floats, and
   round() on 1607.585 gives 1607.58 there and 1607.59 on a Python float; the buy & hold
   (`bh_held`) uses Python floats.
@@ -637,7 +637,7 @@ experiments/EXPERIMENTS.md for old against new.
   long-term gains only; oldest loss first; set off before the LTCG exemption.
 - Cess: 4% health and education cess on the tax.
 
-`engine_tests.py tax_rules` (in check_all) checks each rule on a hand-worked case to the paisa.
+`checks.py engine_tests tax_rules` (in check_all) checks each rule on a hand-worked case to the paisa.
 
 Still left out:
 - Surcharge. It depends on the person's total income, which a backtest does not know.
@@ -662,7 +662,7 @@ below, on 2026-09-23 and 2026-09-25:
   the headline (midcap50 v2).
 - That sale is not participation-capped under `--profile tradeable`
   (portfolio.py), and README publishes that column anyway. Deferred.
-- `tax_acceptance_check.py` condition 4 checks all of this against hand-worked numbers.
+- `checks.py tax_acceptance_check` condition 4 checks all of this against hand-worked numbers.
 
 ### When in the day the annual tax is deducted
 
@@ -701,7 +701,7 @@ is what the code follows. It is not an off-by-one-year bug.
 
 ### Buy quantities come from the decision close; two rules still read the fill session
 
-Since 2026-10-28 the engine, `nautilus/nt_attribution.py` and the Nautilus port size
+Since 2026-10-28 the engine, `checks.py nt_attribution` and the Nautilus port size
 every buy at the decision close: the book's value there, less the tax deducted
 before the next morning's fills, x exposure x 0.98 x the weight, divided by the
 name's close x (1 + slippage). The fill session's open sets the fill price, the cash
@@ -723,8 +723,8 @@ Two rules still read data dated on the fill session, deliberately:
 - Pit index exit (`portfolio.py`, touch point 7): a held name that is not in the
   membership in force on the fill session is sold at its open. Index changes are
   announced weeks ahead, so the order could be placed in time. Pit only.
-- Drawdown-limit top-ups (`portfolio.py`, `nt_attribution.py`,
-  `nt_strategy._dd_buy_legs`): the order is decided at the close, then scaled by
+- Drawdown-limit top-ups (`portfolio.py`, `checks.py nt_attribution`,
+  `nautilus_port._dd_buy_legs`): the order is decided at the close, then scaled by
   `min(1, cash x 0.98 / need)` with `need` priced at the fill session's open. That
   factor is part of the drawdown control's rule and only fits the order to cash.
 
@@ -732,8 +732,8 @@ The fill session's row and open still decide whether a buy or sell can fill at a
 
 ### Fill prices are rounded to the paisa, not placed on NSE's tick
 
-Since 2026-10-28 every fill, in the engine, `engine_core.backtest`, `bh_held`,
-`nautilus/nt_attribution.py` and the Nautilus port's quotes, is
+Since 2026-10-28 every fill, in the engine, `checks.backtest`, `bh_held`,
+`checks.py nt_attribution` and the Nautilus port's quotes, is
 `costs.fill_price`: round(open x (1 + rate), 2) for a buy and round(open x
 (1 - rate), 2) for a sale, in float64 and rounded by NumPy (half to even on the
 binary value), the rule of predictive-backtest's `engine.fill_price`. Charges, the
@@ -753,7 +753,7 @@ tick and its price band apply to the price traded that day, the band comes from 
 previous month's last close, and both need the unadjusted price. Taken from the
 adjusted price they use a later corporate action. The port's "nse" tick mode did
 that, with its band from the adjusted month-end close; it was removed on
-2026-10-28 with both tick tables, `nt_data._round_to`, `nautilus/nt_gate_diagnose.py`
+2026-10-28 with both tick tables, `nautilus_port._round_to`, `nautilus/nt_gate_diagnose.py`
 and nt_verify's 0.05-grid stage.
 
 WHOLE-SHARE QUANTITIES ARE COUNTED ON THE ADJUSTED BASIS (accepted by the owner,
@@ -791,7 +791,7 @@ Removed 2026-10-28. The port no longer values its book at the open, so there is 
 quote-mid difference left to explain; `mid_valued` and `nautilus/nt_mid_trace.py` are
 deleted. The record below describes the rule while it applied.
 
-`nautilus/nt_verify.py` passes a 0.01-grid difference beyond the one-share signature
+`checks.py nt_verify` passes a 0.01-grid difference beyond the one-share signature
 only if the reference valued at the port's quote mid (`mid_valued`) reproduces the
 port's holdings, names and share counts, on every rebalance. On the previous data all
 32 cells verified (`diagnostics/nt_verify_all_arms_20260929.txt`): 20 by the one-share
@@ -804,7 +804,7 @@ so eight supported cells still read "not port-verified" in `diagnostics/cleaned_
 
 ### midcap100 v3 is not gated in nt_verify
 
-It is listed in `check_all.NT_VERIFY_UNGATED`, with the reason, since 2026-10-10.
+It is listed in `checks.NT_VERIFY_UNGATED`, with the reason, since 2026-10-10.
 Neither the port nor the rule was changed.
 
 - **midcap100 v3** holds different names from the open-valued baseline. The first
@@ -822,7 +822,7 @@ Neither the port nor the rule was changed.
 ### v5 and v6 are not gated, and every v5/v6 figure is from the previous data delivery
 
 Both arms are rejected and outside `--arm all`. Since 2026-10-10 none of their 16
-nt_verify cells is gated in `check_all.py`. On the previous delivery the port verified
+nt_verify cells is gated in `checks.py`. On the previous delivery the port verified
 9 of the 16; the engine's v5/v6 files were not rebuilt on the 2026-10-10 data, so
 those 9 no longer pass. Every v5/v6 figure in the README, in
 `experiments/DRAWDOWN_STOP_RESULT.txt` and in `experiments/EXPERIMENTS.md` was measured
@@ -843,7 +843,7 @@ noise-test records are superseded".
 
 ### Gates loosened or failing after the cleaning, accepted by the owner 2026-09-27
 
-- `verify_v34_arms.ONE_SHARE_TOLERATED` let midcap150 v1, v2 and v3 pass when every
+- `checks.ONE_SHARE_TOLERATED` let midcap150 v1, v2 and v3 pass when every
   divergence was exactly one share (89, 90 and 88 of 92 rebalances, from quote-mid
   rounding). Removed 2026-10-28: with buys sized from the decision close on both sides,
   all eight cells are 92 of 92 and the gate is strict again.
@@ -860,13 +860,13 @@ noise-test records are superseded".
 
 All four arms, all eight universes:
 - GATE 9 (`check_b_exec_timing`, leakage checks 1 and 2), GATE 6 and GATE 7 tax.
-- `reports.py`, `backtest_runs.py`, `code_checks.py cost_reconcile`.
-- `nautilus/nt_verify.py`: 39 of the 48 cells of the twelve universes are gated;
+- `reports.py`, `backtest_runs.py`, `checks.py code_checks cost_reconcile`.
+- `checks.py nt_verify`: 39 of the 48 cells of the twelve universes are gated;
   midcap100 v3 and the eight mcap1500to5000 and mcap5001to10000 cells are not (see
   below). No v5 or v6 cell is gated, and no pit cell is covered (see "Pit cells are not covered by nt_verify").
 - The cleaned after-tax noise test (`results/noise_parallel.py`).
 
-All four arms, nifty100 and midcap150 only: `verify_v34_arms.py`, 92 of 92 required on
+All four arms, nifty100 and midcap150 only: `checks.py verify_v34_arms`, 92 of 92 required on
 every cell.
 
 Not extended beyond v2 (or v1 against v2), because each would be a new test needing its
@@ -885,16 +885,16 @@ are pairwise by design, so they are not extended to v3 and v4.
 
 ### Validation of sizing and breadth, as of 2026-09-27
 
-Three suites, run as slow `check_all.py` delegates on nifty100 and midcap150 only
+Three suites, run as slow `checks.py` delegates on nifty100 and midcap150 only
 (`registry.CERTIFIED`):
-- `results/validate_engine.py`: the four inverse-vol tests against the shipping
+- `checks.py validate_engine`: the four inverse-vol tests against the shipping
   engine. FAIL, 2 of 4 on each universe; T1 (mean book below `TOP_N`, see the
   cash-funding entry) and T3 (sub-period) fail
   (`diagnostics/validate_engine_verdict.txt`).
-- `results/validate_breadth_live.py`: the breadth rule on the shipping engine.
+- `checks.py validate_breadth_live`: the breadth rule on the shipping engine.
   midcap150 PASS; nifty100 FAIL on T2 sub-period stability. T3, the
   constant-exposure control, is reported and ungated by design.
-- `validate_sizing.py`: the same four tests on `engine_core.backtest`, which is not
+- `checks.py validate_sizing`: the same four tests on `checks.backtest`, which is not
   the engine that ships. Its verdicts say nothing direct about published figures.
 
 The owner ruled on 2026-09-27 to record these failures and change no thresholds.
@@ -902,7 +902,7 @@ No suite has been run on the other six universes.
 
 ### validate_engine: 2 of 4 on both certified universes, cleaned prices, 2026-09-27
 
-`results/validate_engine.py` runs T1-T4 against the shipping engine (`portfolio.backtest_exposure`), inverse-vol against equal-rupee at 100% invested. Record: `diagnostics/validate_engine_{midcap150,nifty100,verdict}.txt`.
+`checks.py validate_engine` runs T1-T4 against the shipping engine (`portfolio.backtest_exposure`), inverse-vol against equal-rupee at 100% invested. Record: `diagnostics/validate_engine_{midcap150,nifty100,verdict}.txt`.
 - T2 (seed sets) and T4 (vol window) pass on both. The smallest margins are +0.0205 (midcap150 T2) and +0.0076 Sharpe (nifty100 T4, vol_win=40).
 - T3 fails on both. Inverse-vol loses 2019-2022 (-0.2038 midcap150, -0.0776 nifty100) and wins 2023-2026.
 - T1 fails on both because the mean book is 7.91 and 7.88, below TOP_N=8. The cause is cash-short skipped buys; see the funding-gap entry.
@@ -912,10 +912,10 @@ No suite has been run on the other six universes.
 
 ### validate_engine and validate_sizing answer T3 with different engines
 
-`results/validate_engine.py` decides its sub-period test (T3, inverse-vol against
+`checks.py validate_engine` decides its sub-period test (T3, inverse-vol against
 equal-rupee) on `portfolio.backtest_exposure`, the engine that produces the
-published figures. `validate_sizing.py` decides the same test on
-`engine_core.backtest`, which has a slot cap and no exposure mode. On 2026-09-22 they
+published figures. `checks.py validate_sizing` decides the same test on
+`checks.backtest`, which has a slot cap and no exposure mode. On 2026-09-22 they
 disagreed in sign on both halves of nifty100 and by a factor of four on midcap150's
 late half. Neither engine was shown to be wrong. validate_sizing's records date from
 2026-09-20 and have not been re-run on the current numerics or cleaned prices. Quote a
@@ -925,28 +925,28 @@ pre-registered test and was not added. See "Three backtest implementations and o
 ### registry.CERTIFIED still names two universes -- DEFERRED
 
 `settings.CERTIFIED` is `("nifty100", "midcap150")`. These checks have never
-run on the other six: `verify_v34_arms.py`, `validate_sizing.py`,
-`results/validate_breadth_live.py`, `results/validate_engine.py`,
-`results/validate_topn.py`, `results/shuffle_test.py` and the combined pair chart. The
+run on the other six: `checks.py verify_v34_arms`, `checks.py validate_sizing`,
+`checks.py validate_breadth_live`, `checks.py validate_engine`,
+`checks.py validate_topn`, `results/shuffle_test.py` and the combined pair chart. The
 refit validations cost about 22 minutes per universe each. nt_verify and GATE 9 already
 cover all eight. So "certified" means "covered by the refit validations", not "the only
 universes that verify". The owner deferred widening it on 2026-09-25.
 
 ### Leakage check 3 (normalisation scope) has no script, and two documents cite its output
 
-`experiments/LEAKAGE_SPEC.txt:140` specifies CHECK 3: list every scaling, rank or standardisation between the raw CSV and the model input, with its scope. Line 254 names the output `diagnostics/leakage_check3_normalisation.txt`. No script implements it and the file has never existed. It is still cited as evidence in the leakage table of this file and in `experiments/EXPERIMENTS.md:3866,3925`. Those citations point at nothing. Row 4's primary evidence, `leakage_check1_causality.txt`, does exist.
+`experiments/LEAKAGE_SPEC.txt:140` specifies CHECK 3: list every scaling, rank or standardisation between the raw CSV and the model input, with its scope. Line 254 names the output `diagnostics/leakage_check3_normalisation.txt`. No script implements it and the file has never existed. It is still cited as evidence in the leakage table of this file and in `experiments/EXPERIMENTS.md:3866,3925`. Those citations point at nothing. Row 4's primary evidence, `checks.txt`, does exist.
 
-Checks 1, 2 and 4 are wired into `check_all.py`, but none of them would catch a scaler fitted over the whole panel. Their passing results say nothing about normalisation scope.
+Checks 1, 2 and 4 are wired into `checks.py`, but none of them would catch a scaler fitted over the whole panel. Their passing results say nothing about normalisation scope.
 
 ### `results/leakage_check2_purge.py` is retired; the live purge rule is tested by the trading-day check
 
-`leakage_check2_purge.py` builds the training cut by calendar days. The engine uses `purge_mode="trading"` (`model.score_monthly`), so this script audits a path production does not take. It stays in the tree as the record of the calendar rule, and `check_all.py` lists it under `RETIRED_DELEGATES`. Do not wire it.
+`leakage_check2_purge.py` builds the training cut by calendar days. The engine uses `purge_mode="trading"` (`model.score_monthly`), so this script audits a path production does not take. It stays in the tree as the record of the calendar rule, and `checks.py` lists it under `RETIRED_DELEGATES`. Do not wire it.
 
-The live rule is checked by `results/leakage_check2_trading_purge.py`, which is wired and passing. It calls `score_monthly` itself and finds a gap of exactly `PURGE_EMBARGO` = 2 trading days in every month (`diagnostics/leakage_check2_trading_purge.txt`). The sentence in `diagnostics/gate_verdicts.txt:80` saying no script tests the live purge rule is out of date.
+The live rule is checked by `checks.py leakage_check2_trading_purge`, which is wired and passing. It calls `score_monthly` itself and finds a gap of exactly `PURGE_EMBARGO` = 2 trading days in every month (`diagnostics/leakage_check2_trading_purge.txt`). The sentence in `diagnostics/gate_verdicts.txt:80` saying no script tests the live purge rule is out of date.
 
 ### The port is certified at cadence 20 only
 
-nt_verify's gate runs at cadence 20. `nautilus/nt_verify.py --universe=<u> --rebal=<n>`
+nt_verify's gate runs at cadence 20. `checks.py nt_verify --universe=<u> --rebal=<n>`
 prints the port against the vectorised engine at another cadence and always exits 0.
 No tolerance has been argued for, so it is not gated. The last measurement, on
 2026-09-23 under nautilus_trader 1.229.0 with nifty100 v2, was identical to the paisa at
@@ -964,10 +964,10 @@ prices, so a report from an unpinned venv can look like a close fill when it is 
 
 ### The Nautilus port skips a rebalance the engine would make when no symbol has momentum
 
-nautilus/nt_strategy.py:548 returns from rebalance() when no symbol has 20-day
+nautilus_port.py nt_strategy returns from rebalance() when no symbol has 20-day
 momentum data. Under mode="none" (arms v1 and v3) the research engine never reads
 momentum, so on such a date it would trade and the port would not. With
-WARMUP_DAYS = 200 (nautilus/nt_run.py:70) the case does not arise in the current
+WARMUP_DAYS = 200 (nautilus_port.py nt_run) the case does not arise in the current
 window. The guard is left as it is because changing it changes when the port
 rebalances. If nt_verify ever fails on a v1 or v3 cell at the first rebalance after
 a data gap, look here first.
@@ -977,14 +977,14 @@ a data gap, look here first.
 pandas grouped and rolling variance, and its default CSV float parser, gave different
 bits on macOS and Linux. The pipeline uses numpy replacements (`market_data.py`)
 and reads every CSV through `market_data.read_table` (`float_precision="round_trip"`).
-`code_checks.py platform_identity` (GATE 5) fails on any direct `pd.read_csv` or pandas
+`checks.py code_checks platform_identity` (GATE 5) fails on any direct `pd.read_csv` or pandas
 rolling or grouped variance in a tracked file. On 2026-09-24, midcap50 v2 built on macOS
 arm64, linux/arm64 and linux/amd64 (the amd64 one under Rosetta) gave byte-identical
 panels and CSVs. The other seven universes have not been rebuilt off the Mac.
 
-### code_checks.py platform_identity needs a git checkout or a tracked-file manifest
+### checks.py code_checks platform_identity needs a git checkout or a tracked-file manifest
 
-`code_checks.py platform_identity` lists the tracked `.py` files with `git ls-files`. Outside
+`checks.py code_checks platform_identity` lists the tracked `.py` files with `git ls-files`. Outside
 a checkout it falls back to `TRACKED_FILES_SHA256.txt` ("<sha256>  <path>" per line),
 whose listed files must still match; with neither it exits 3, which check_all reports
 as a named skip. No such manifest is in the tree yet, so a copy without `.git` skips
@@ -992,24 +992,24 @@ this check.
 
 ### Documented commands are checked by hand, not by any gate
 
-The README "How to run" commands (`check_data.py`, venv build, `./venv/bin/python run.py ...`) were run in a fresh copy with a fresh venv on 2026-09-29, and five combinations reproduced byte for byte. `check_all.py` GATE 1 imports every module under the interpreter it runs in, so a missing package fails it by name. Nothing runs the commands the documentation gives. Module docstrings still say `python3 <script>` in about 30 places (e.g. `validate_sizing.py:71`, `gate_compare.py:29`). On the owner's machine `python3` is 3.11 without lightgbm, and every child step inherits the launching interpreter (`sys.executable`). Only `check_data.py` works under plain `python3`, because it uses the standard library alone. Use `./venv/bin/python` for everything else.
+The README "How to run" commands (`checks.py check_data`, venv build, `./venv/bin/python run.py ...`) were run in a fresh copy with a fresh venv on 2026-09-29, and five combinations reproduced byte for byte. `checks.py` GATE 1 imports every module under the interpreter it runs in, so a missing package fails it by name. Nothing runs the commands the documentation gives. Module docstrings still say `python3 <script>` in about 30 places (e.g. `checks.py validate_sizing`, `checks.py gate_compare`). On the owner's machine `python3` is 3.11 without lightgbm, and every child step inherits the launching interpreter (`sys.executable`). Only `checks.py check_data` works under plain `python3`, because it uses the standard library alone. Use `./venv/bin/python` for everything else.
 
-### naming_declare_check.py finds 100 undeclared write calls, and check_all reads the count, not the exit code
+### checks.py naming_declare_check finds 100 undeclared write calls, and check_all reads the count, not the exit code
 
-`naming_declare_check.py` finds 100 write calls across 54 sites with no `# naming:` directive. Its own gate 1 (DECLARE) exits 1 for them. check_all runs it as a GATE 5 delegate, ignores that exit code, and fails only when the count rises above `NAMING_UNDECLARED_BASELINE` in `check_all.py`. The baseline is 100 as of this commit (111 before); it may only go down.
+`checks.py naming_declare_check` finds 100 write calls across 54 sites with no `# naming:` directive. Its own gate 1 (DECLARE) exits 1 for them. check_all runs it as a GATE 5 delegate, ignores that exit code, and fails only when the count rises above `NAMING_UNDECLARED_BASELINE` in `checks.py`. The baseline is 100 as of this commit (111 before); it may only go down.
 
 ### Run the gates after `git add`, and quote that run
 
-naming_declare_check.py and check_all.py scan the working tree, untracked files
+checks.py naming_declare_check and checks.py scan the working tree, untracked files
 included. A figure taken before the change is staged describes a tree the commit
 does not contain, and it always shows no change, so it reads as proof exactly when
-it proves nothing. Run check_all.py after `git add` and before `git commit`, and
+it proves nothing. Run checks.py after `git add` and before `git commit`, and
 quote the numbers from that run. There is no hook enforcing this.
 
 ### A check has to test the code that shipped, and these guards exist because some did not
 
 In September 2026 several changes were declared safe on evidence about something else. Examples: a gate that counted untouched baseline files as matches, a merged module gated on cached panels so none of it ran, and an audit that replayed the uncapped strategy against the capped curve. The guards added in response are load-bearing:
-- `gate_compare.py` compares only files the cell under test wrote, and fails on any file it cannot account for;
+- `checks.py gate_compare` compares only files the cell under test wrote, and fails on any file it cannot account for;
 - `registry_coverage_check.py` failed a run if a registered universe was missing from any of the seven per-universe tables. It was retired on 2026-11-26 (see "Files retired on 2026-11-26" below), and nothing replaces it yet;
 - `backtest_exposure` refuses a participation cap passed without `vol20`;
 - scripts outside the profile axis call `costs.research_only`, which refuses a non-research profile.
@@ -1035,9 +1035,9 @@ Fixed the same day, each a read of a value dated after the decision:
 - `amihud_20` uses the unadjusted close times volume. adj_close is back-adjusted for later dividends and volume is not.
 - Pit cross-sections: the z-score peer group, the equal-weight market behind `beta_60` and `idio_vol_60`, and v2/v4 breadth use only the members on the date.
 - `tv`, the median portfolio vol over the whole backtest window, is gone with the `voltgt` and `both` modes that read it. No arm used them.
-- `nautilus/nt_data.quote_frame` no longer back-fills the first month's tick reference from that month's own close. Those rows take the fixed `TICK_SIZE`; no fill falls on them. The dated tick itself was removed on 2026-10-28; see "Fill prices are rounded to the paisa, not placed on NSE's tick".
+- `nautilus_port.quote_frame` no longer back-fills the first month's tick reference from that month's own close. Those rows take the fixed `TICK_SIZE`; no fill falls on them. The dated tick itself was removed on 2026-10-28; see "Fill prices are rounded to the paisa, not placed on NSE's tick".
 
-THE Z-SCORE'S LAST BITS DEPENDED ON LATER DATES, FIXED 2026-10-22. `market_data.group_mean_std` laid every date's values into one matrix as wide as the largest cross-section of any date and reduced it with numpy's nanmean and nanvar. numpy splits each row for pairwise summation by the row's length, so every date's mean and sd, and therefore every z-scored feature, depended in its last bits on the widest later cross-section. `tools/lookahead_proof.py` found it on its first run: nifty50 static with data after 2019-03-29 removed changed the 2009 features in the 15th to 16th significant digit and moved model scores in the third decimal. Each date's sum is now `math.fsum`, which depends only on that date's values and is the same on every platform.
+THE Z-SCORE'S LAST BITS DEPENDED ON LATER DATES, FIXED 2026-10-22. `market_data.group_mean_std` laid every date's values into one matrix as wide as the largest cross-section of any date and reduced it with numpy's nanmean and nanvar. numpy splits each row for pairwise summation by the row's length, so every date's mean and sd, and therefore every z-scored feature, depended in its last bits on the widest later cross-section. `checks.py lookahead_proof` found it on its first run: nifty50 static with data after 2019-03-29 removed changed the 2009 features in the 15th to 16th significant digit and moved model scores in the third decimal. Each date's sum is now `math.fsum`, which depends only on that date's values and is the same on every platform.
 
 PIT ROWS BEFORE THE FIRST EFFECTIVE DATE, FIXED 2026-10-22. No list is in force before the membership file's first effective date. Until 2026-10-22 `market_data.member_mask` kept every row there, and those symbols are in the pit folder only because they are members on that date or later, so the training set and the cross-sections before that date were chosen by later membership. Now a row before the first date is kept only if its symbol is in the first list (`lists[0]`), and `portfolio.breadth_momentum` uses the same rule. A pit run never decides before the first effective date, so the first list is known whenever it is used. Training-eligible rows before the first date:
 - smallcap250 pit (2016-04-29): 550,235 before, 300,591 after (137 symbols, all in the first list); 59.6% of training row-uses over 2016-01 to 2026-05 are still dated before it.
@@ -1045,11 +1045,11 @@ PIT ROWS BEFORE THE FIRST EFFECTIVE DATE, FIXED 2026-10-22. No list is in force 
 
 The first list keeps the survivors of that list, which is the membership known on the first date. Rows after the first date for non-members never enter training. The membership files themselves carry look-ahead (`market_data.LOOKAHEAD_NOTE`). Static mode is today's members throughout and is not point-in-time at all.
 
-`results/leakage_check2_trading_purge.py` checks the label-end rule on the cached panels. Its earlier version recovered the latest training date and added 20 sessions on the panel calendar, which is right only for a symbol with no missing sessions, so it passed while the leak above existed.
+`checks.py leakage_check2_trading_purge` checks the label-end rule on the cached panels. Its earlier version recovered the latest training date and added 20 sessions on the panel calendar, which is right only for a symbol with no missing sessions, so it passed while the leak above existed.
 
 ### The price data is not in the repository and can only come from the owner
 
-The pipeline reads `data/raw/Final_Without_Survivorship_Data/`, twelve folders and 2,868 CSVs, which is untracked vendor OHLCV. A clone cannot run without a copy from the owner. `check_data.py` compares a copy against the tracked `data/RAW_DATA_SHA256.txt` and fails on any missing, changed or extra file. The files carry vendor columns (`source`, `_window*`, `_dq_score`, `_gap_filled`, `_merged_at`) that show a private merged extract, and no document describes those columns. There is no licence and no fetch script. If the owner's copy is lost, it cannot be rebuilt from this repository.
+The pipeline reads `data/raw/Final_Without_Survivorship_Data/`, twelve folders and 2,868 CSVs, which is untracked vendor OHLCV. A clone cannot run without a copy from the owner. `checks.py check_data` compares a copy against the tracked `data/RAW_DATA_SHA256.txt` and fails on any missing, changed or extra file. The files carry vendor columns (`source`, `_window*`, `_dq_score`, `_gap_filled`, `_merged_at`) that show a private merged extract, and no document describes those columns. There is no licence and no fetch script. If the owner's copy is lost, it cannot be rebuilt from this repository.
 
 `survivorship_attribution.py` also reads `data/raw/Survivorship_Bias/*_membership.csv` and the price files of `Final_With_Survivorship_Data/`. Neither is in the checksum manifest.
 
@@ -1059,7 +1059,7 @@ PRIVISCL was removed from microcap250 on 2026-10-10 for bad price data (commit `
 
 On 2026-10-15, between 20:49 and 20:53, `data/raw/` was restored from an older copy that still held both PRIVISCL files. The next `check_all`, on 2026-10-16, linked PRIVISCL back into both microcap250 farms (242 static and 304 pit names). It then failed 11 checks: three steps refused the panels as stale, and GATE 8 found eight microcap250 artefacts' data digests no longer matched. No run, panel or output was written from the restored copy. The two raw files were deleted again on 2026-10-16 by the owner's decision, and the farms are back to 241 and 303 names.
 
-`check_all` now runs `check_data.py` and `check_data.py --pit` (both read-only) as GATE 0, before any gate that rebuilds a farm. Any missing, different or extra price file stops the run and names the file. `run.py` still checks only the pit inputs before a pit run. A pipeline run outside `check_all` on a mismatched copy is not stopped by this gate.
+`check_all` now runs `checks.py check_data` and `checks.py check_data --pit` (both read-only) as GATE 0, before any gate that rebuilds a farm. Any missing, different or extra price file stops the run and names the file. `run.py` still checks only the pit inputs before a pit run. A pipeline run outside `check_all` on a mismatched copy is not stopped by this gate.
 
 The supplier's mcapover10000 folder (`Final_Universe_MarcketCap_GT_10000`, delivered 2026-10-16) also held PRIVISCL. The owner removed it before the folder was added to the manifest, recording its SHA-256 first: `ef38652256706b98fd302651aa12a66f650f21eb8ce1f90992c391fb9fe77268`, the same file removed on 2026-10-10. It has no line in the manifest, so a restore that brings it back is an extra file at GATE 0.
 
@@ -1127,7 +1127,7 @@ nt_verify gates 4 of the 12 bucket cells: mcapover10000 v1 to v4 verify 92 of 92
 
 ### The NSE trading calendar is frozen data with no generator and no way to extend it
 
-`data/nse_trading_calendar.csv` is tracked and filters every panel (`results/engine_core._load_calendar`, `_check_calendar`). It was built once from a retired universe's raw files by `results/make_trading_calendar.py`. Both the script and the files were deleted in 2fe48ff. The calendar ends on 2026-06-08, and nothing in the repository appends to it. Any data past that date needs a new source of sessions, and that source has not been chosen. Do not hand-edit it: a wrong tail changes every backtest window.
+`data/nse_trading_calendar.csv` is tracked and filters every panel (`market_data._load_calendar`, `_check_calendar`). It was built once from a retired universe's raw files by `results/make_trading_calendar.py`. Both the script and the files were deleted in 2fe48ff. The calendar ends on 2026-06-08, and nothing in the repository appends to it. Any data past that date needs a new source of sessions, and that source has not been chosen. Do not hand-edit it: a wrong tail changes every backtest window.
 
 On the 2026-10-10 delivery no price file in the nine universes has a row on a date the calendar lacks. The previous delivery carried 237 such dates, 107 of them inside the backtest window, and the supplier removed them. The union of every file's dates is now the calendar minus four sessions that no file has a row for: 2016-07-06, 2017-04-04, 2017-12-02 and 2020-01-07, the only one inside the backtest window (see the entry below). A calendar derived from today's files would drop those four. The finding that no coverage threshold reproduces the calendar on nifty100 or midcap150 (`experiments/CALENDAR_DECOUPLE_SPEC.txt`, marked BLOCKED; `diagnostics/calendar_coverage_probe.txt`) was measured on the previous delivery. The probe no longer applies: the 2026-10-10 data has no calendar-excluded date for it to examine, and on this data it stops with IndexError before writing a report. No external NSE holiday list has been checked against the calendar.
 
@@ -1139,11 +1139,11 @@ The panel takes its dates from the rows, so it skips the session. The backtest w
 
 It is not the only change. Three earlier sessions also have no row in any file of the delivery: 2016-07-06, 2017-04-04 and 2017-12-02, which had rows in 493, 384 and 81 of the eight universes' files before. They are in the model's training history and in the rolling feature windows, so the scores differ from the first rebalance: on 2019-01-01 nifty50's scores moved by up to 0.030 and one of its top eight names changed (TCS out, GRASIM in). Holdings differ from the first rebalance in each of the three cells compared (nifty50 v2, nifty100 v4, smallcap250 v1). The two effects together moved every published figure; which of the two moved each cell more has not been separated.
 
-No guard stops it. `_check_calendar` (`results/engine_core.py`) tests only dates the calendar removes. `market_data.thin_sessions` reports the other direction: `run.py` prints every calendar session inside the window where fewer than half of the names spanning it have a row, and writes them to the run folder's RUN.txt. It reports and changes nothing. On the 2026-10-10 data it lists 2020-01-07 alone, at 0% in every universe.
+No guard stops it. `_check_calendar` (`market_data.py`) tests only dates the calendar removes. `market_data.thin_sessions` reports the other direction: `run.py` prints every calendar session inside the window where fewer than half of the names spanning it have a row, and writes them to the run folder's RUN.txt. It reports and changes nothing. On the 2026-10-10 data it lists 2020-01-07 alone, at 0% in every universe.
 
 ### The calendar density guard compares against the per-year median, which is weaker than the old rule
 
-`results/engine_core._check_calendar` refuses to drop a date that the calendar marks as a holiday if that date carries as many symbols as the median day of its own year. Until 2026-09-19 it compared against the median over 2000-2026. That was loosened for smallcap250: most of its names did not exist for most of those years, so 23 phantom holidays cleared the long-run median and aborted the run.
+`market_data._check_calendar` refuses to drop a date that the calendar marks as a holiday if that date carries as many symbols as the median day of its own year. Until 2026-09-19 it compared against the median over 2000-2026. That was loosened for smallcap250: most of its names did not exist for most of those years, so 23 phantom holidays cleared the long-run median and aborted the run.
 
 The per-year rule flags a subset of what the old rule flagged. Measured on seven universes (not nifty500), 2026-09-19: the change passed exactly those 23 smallcap250 dates and nothing else. The highest ratio of a phantom date to its year's median was 0.60 (smallcap250, 2025-12-25), against a threshold of 1.00. None of the 237 phantom dates is in the NSE calendar. nifty500 has not been measured.
 
@@ -1210,7 +1210,7 @@ rewritten on the 2026-10-10 data.
 ### Most files in diagnostics/ describe panels that no longer exist
 
 `diagnostics/` is a mix of current outputs and dated records, and nothing marks
-which is which. Files rewritten by `check_all.py` delegates (for example
+which is which. Files rewritten by `checks.py` delegates (for example
 `topn_verdict.txt`, `validate_engine_verdict.txt`, `breadth_live_<universe>.txt`)
 describe today's panels. Most others were computed before the 2026-09-24
 numerics change or the 2026-09-27 cleaning, and those with old tags in their names
@@ -1317,16 +1317,16 @@ arrives every published figure stands as computed, with this entry.
 
 ## Code and maintenance
 
-### Four checks became cases of code_checks.py on 2026-10-19
+### Four checks became cases of checks.py code_checks on 2026-10-19
 
-The old files last exist at commit `b2742a1`. Each old file's body is one function of `code_checks.py`, unchanged apart from indentation, and the case name is removed from `sys.argv` before it runs. One exception: `stop_callsite_check.py` imported `tracked_py` and `SKIP` from `platform_identity_check.py`, so those two, with `subprocess`, `Path`, `ROOT` and `MANIFEST`, are at module level, and stop_callsite's body no longer has that import or its `sys.path` line. On 2026-10-19 each old file and its case gave the same exit code; the output differed only in the tracked-file count (117 before, 114 after the merge) and in cost_reconcile's elapsed minutes.
+The old files last exist at commit `b2742a1`. Each old file's body is one function of `checks.py code_checks`, unchanged apart from indentation, and the case name is removed from `sys.argv` before it runs. One exception: `stop_callsite_check.py` imported `tracked_py` and `SKIP` from `platform_identity_check.py`, so those two, with `subprocess`, `Path`, `ROOT` and `MANIFEST`, are at module level, and stop_callsite's body no longer has that import or its `sys.path` line. On 2026-10-19 each old file and its case gave the same exit code; the output differed only in the tracked-file count (117 before, 114 after the merge) and in cost_reconcile's elapsed minutes.
 
 | old command | new command |
 |---|---|
-| `stop_callsite_check.py` | `code_checks.py stop_callsite` |
-| `transitional_asserts_check.py` | `code_checks.py transitional_asserts` |
-| `platform_identity_check.py` | `code_checks.py platform_identity` |
-| `cost_reconcile_check.py [--universe=<tag>[,<tag>...]]` | `code_checks.py cost_reconcile [--universe=<tag>[,<tag>...]]` |
+| `stop_callsite_check.py` | `checks.py code_checks stop_callsite` |
+| `transitional_asserts_check.py` | `checks.py code_checks transitional_asserts` |
+| `platform_identity_check.py` | `checks.py code_checks platform_identity` |
+| `cost_reconcile_check.py [--universe=<tag>[,<tag>...]]` | `checks.py code_checks cost_reconcile [--universe=<tag>[,<tag>...]]` |
 
 ### Six helper modules were merged into the files that use them on 2026-10-18
 
@@ -1343,26 +1343,26 @@ The old files last exist at commit `aebf1da`. Each function moved unchanged; a n
 
 `results/build_scores.py` was not merged into `results/build_scores_step.py`: `experiments/DRAWDOWN_STOP_PREREG.txt` names build_scores_step.py as the source of the production seeds, and a pre-registered file is not edited.
 
-### Ten tests became cases of engine_tests.py on 2026-10-18
+### Ten tests became cases of checks.py engine_tests on 2026-10-18
 
-The old files last exist at commit `24614bb`. Each old file's body is one function of `engine_tests.py`, unchanged apart from indentation, and runs only when its case is named; check_all runs each case as its own subprocess. On 2026-10-18 every old file and its case, run without `--quiet` on the same tree, gave the same exit code and byte-identical output. To rerun an older record, use the new command:
+The old files last exist at commit `24614bb`. Each old file's body is one function of `checks.py engine_tests`, unchanged apart from indentation, and runs only when its case is named; check_all runs each case as its own subprocess. On 2026-10-18 every old file and its case, run without `--quiet` on the same tree, gave the same exit code and byte-identical output. To rerun an older record, use the new command:
 
 | old command | new command |
 |---|---|
-| `capital_axis_test.py [--quiet]` | `engine_tests.py capital_axis [--quiet]` |
-| `dd_overlay_test.py [--quiet]` | `engine_tests.py dd_overlay [--quiet]` |
-| `drawdown_stop_test.py [--quiet]` | `engine_tests.py drawdown_stop [--quiet]` |
-| `fixed_capital_test.py [--quiet]` | `engine_tests.py fixed_capital [--quiet]` |
-| `impact_pcap_axis_test.py [--quiet]` | `engine_tests.py impact_pcap_axis [--quiet]` |
-| `tax_rules_test.py [--quiet]` | `engine_tests.py tax_rules [--quiet]` |
-| `tax_total_test.py [--quiet] [--module PATH]` | `engine_tests.py tax_total [--quiet] [--module PATH]` |
-| `tradability_causality_test.py [--quiet] [--real]` | `engine_tests.py tradability_causality [--quiet] [--real]` |
-| `cache_key_test.py` | `engine_tests.py cache_key` |
-| `noise_harness_test.py` | `engine_tests.py noise_harness` |
+| `capital_axis_test.py [--quiet]` | `checks.py engine_tests capital_axis [--quiet]` |
+| `dd_overlay_test.py [--quiet]` | `checks.py engine_tests dd_overlay [--quiet]` |
+| `drawdown_stop_test.py [--quiet]` | `checks.py engine_tests drawdown_stop [--quiet]` |
+| `fixed_capital_test.py [--quiet]` | `checks.py engine_tests fixed_capital [--quiet]` |
+| `impact_pcap_axis_test.py [--quiet]` | `checks.py engine_tests impact_pcap_axis [--quiet]` |
+| `tax_rules_test.py [--quiet]` | `checks.py engine_tests tax_rules [--quiet]` |
+| `tax_total_test.py [--quiet] [--module PATH]` | `checks.py engine_tests tax_total [--quiet] [--module PATH]` |
+| `tradability_causality_test.py [--quiet] [--real]` | `checks.py engine_tests tradability_causality [--quiet] [--real]` |
+| `cache_key_test.py` | `checks.py engine_tests cache_key` |
+| `noise_harness_test.py` | `checks.py engine_tests noise_harness` |
 
 Two comments in engine files still name the old files: `results/engine_core.py` (tradability_causality_test.py) and `portfolio.py` (fixed_capital_test.py). The one in `backtest_runs.py` was fixed on 2026-10-18. They are left until those files change for another reason: engine_core.py's bytes are in the fit-cache key, and the source of portfolio.backtest_exposure is hashed into `diagnostics/drawdown_exit.txt`.
 
-`naming_declare_check.py` names a write site by its outermost function, so the writes in these tests are now counted under `engine_tests.py::_cache_key` and the like: the call count is unchanged and the site count falls.
+`checks.py naming_declare_check` names a write site by its outermost function, so the writes in these tests are now counted under `checks.py engine_tests::_cache_key` and the like: the call count is unchanged and the site count falls.
 
 ### Six report scripts became subcommands on 2026-10-18
 
@@ -1401,22 +1401,22 @@ They held 19 of the 100 undeclared write calls, so `NAMING_UNDECLARED_BASELINE` 
 
 ### Three backtest implementations and one port, and which one each check tests
 
-- `portfolio.backtest_exposure` is the shipping engine. It produces every published figure, and `validate_engine.py`, `backtest_runs.py`, `reports.py` and the sweeps all run it.
-- `results/engine_core.backtest` has no breadth mode and sizes against cash rather than portfolio value. Only `validate_sizing.py` uses it. validate_sizing's verdicts describe this engine, not what ships.
-- `nautilus/nt_attribution.run` is a deliberate independent copy, used as nt_verify's reference.
-- `nautilus/nt_strategy.py` is the Nautilus port that nt_verify tests.
+- `portfolio.backtest_exposure` is the shipping engine. It produces every published figure, and `checks.py validate_engine`, `backtest_runs.py`, `reports.py` and the sweeps all run it.
+- `checks.backtest` has no breadth mode and sizes against cash rather than portfolio value. Only `checks.py validate_sizing` uses it. validate_sizing's verdicts describe this engine, not what ships.
+- `checks.nt_attribution_run` is a deliberate independent copy, used as nt_verify's reference.
+- `nautilus_port.py nt_strategy` is the Nautilus port that nt_verify tests.
 
 `results/drawdown_exit_measure.py` also execs a patched copy of `backtest_exposure`'s source, and refuses if the patch point has changed. `TOP_N` and `BUFFER` are centralised in config. Rule changes are not: a change to one engine's rules has to be made in each of the others. When two of them disagree, as they do on the T3 sub-period sign (see "validate_engine and validate_sizing answer T3 with different engines"), do not assume the shipping engine is the one that is right.
 
 ### VOL_WIN = 60 is defined in 20 files and nothing checks they agree
 
 The 60-day volatility lookback sets inverse-vol position sizes and the portfolio
-volatility used by the shipping engine. `config.py` does not define it. Twenty
+volatility used by the shipping engine. `settings.py` does not define it. Twenty
 tracked files each assign their own `VOL_WIN = 60`, including the shipping engine
 (`portfolio.py`, `backtest_runs.py`), the Nautilus port
-(`nautilus/nt_strategy.py`, `nautilus/nt_attribution.py`) and the noise harnesses
+(`nautilus_port.py nt_strategy`, `checks.py nt_attribution`) and the noise harnesses
 (`results/noise_parallel.py`, `results/after_tax_noise.py`). Only
-`results/validate_breadth_live.py` imports it from `engine_core`.
+`checks.py validate_breadth_live` imports it from `engine_core`.
 
 Every copy reads 60 today. If one changed, sizing would change in that script
 alone, and the first sign would be a reconciliation failure elsewhere (nt_verify,
@@ -1428,7 +1428,7 @@ list.
 ### Which axes an artefact's name carries is written in two places, and nothing compares them
 
 An artefact name is a stem plus up to four axis suffixes: arm, cadence, profile, tax. Each is empty at its default. The axes an artefact actually carries are stated twice:
-- at the writer, by a `# naming:` directive, which `naming_declare_check.py` checks against a non-default selection;
+- at the writer, by a `# naming:` directive, which `checks.py naming_declare_check` checks against a non-default selection;
 - at the reader, by the compulsory fourth field of each `backtest_runs.REQUIRED_INPUTS` entry, which `check_inputs._present()` composes.
 
 No check compares the two, so they can drift apart, and `_present`'s docstring still describes itself as a stopgap. `settings.py` builds directory tails (`path_tail`) and chart titles (`run_label`). File names are still assembled by hand in `backtest_runs.py,169` (`artefact_tag`), `backtest_runs.py` and `backtest_runs.py`. The next step is to have `naming_declare_check` cross-check each `REQUIRED_INPUTS` axis field against the producing writer's directive.
@@ -1438,7 +1438,7 @@ No check compares the two, so they can drift apart, and `_present`'s docstring s
 Four axes name an artefact (settings.AXES: arm, cadence, profile, tax). settings.tail()
 composes them, but about eight sites still build the suffix by hand, among them
 reports.py (`_axes`, moved there from arm_sources.py on 2026-10-18),
-backtest_runs.py, reports.py and reports.py. naming_declare_check.py and settings.CARRIES verify
+backtest_runs.py, reports.py. checks.py naming_declare_check and settings.CARRIES verify
 that writers carry the axes they declare. Readers are not checked. A reader that
 misses an axis resolves to the default file, and when the check it feeds re-ran
 under the same default it reports a match that could not have failed; this
@@ -1584,11 +1584,11 @@ These four cannot, and are kept as records, not rebuilt:
 Many scripts here are not in `backtest_runs.PIPELINE_ORDER` and are imported by nothing,
 but produce a diagnostic that `EXPERIMENTS.md`, a spec or this file cites as
 evidence. Deleting one leaves the cited `.txt` with no way to regenerate it. Some
-write only to stdout (`verify_v34_arms.py` has no file write at all; its record
+write only to stdout (`checks.py verify_v34_arms` has no file write at all; its record
 was made by redirection), so a scan for writes finds nothing either.
 
 A file is dead only if all four hold: it is not in `PIPELINE_ORDER` or
-`check_all.DELEGATES`; no `.py` imports it; its name, stem or a glob matching it
+`checks.DELEGATES`; no `.py` imports it; its name, stem or a glob matching it
 appears in no tracked `.md`, `.txt` or `.json`; and nothing it writes, including by
 redirection, is cited anywhere. Exclude `diagnostics/INVENTORY.csv` from the name
 search: it lists every file in the repository and makes everything look
@@ -1655,14 +1655,14 @@ is kept outside the repository, in a git bundle the owner holds.
 
 ### Small stale comments and one leaking check
 
-- `tax_acceptance_check.py` creates two temporary directories per run
+- `checks.py tax_acceptance_check` creates two temporary directories per run
   (`tempfile.mkdtemp`, lines 81 and 130) and never removes them.
 - `settings.score_cache` still calls the score panel a `.csv`; `market_data.read_table`'s docstring
   names `csv_reader_check.py`, which no longer exists; `backtest_runs.py`
   and `:261` and `reports.py` (moved from arm_sources.py:5) name the deleted `make_final_chart_fair.py`;
-  `results/validate_engine.py:57` and `:380` mention `FINAL_val_*.csv`.
+  `checks.py validate_engine` and `:380` mention `FINAL_val_*.csv`.
 - `diagnostics/gate_verdicts.txt:80` says the live purge rule is tested by no script;
-  `results/leakage_check2_trading_purge.py` tests it.
+  `checks.py leakage_check2_trading_purge` tests it.
 
 
 ---
@@ -1674,7 +1674,7 @@ Deleted in the first consolidation batch. Each still exists at commit dbe387e: `
 - One-off measurements and studies, not called by any run or check: `heldout_prereg_run.py`, `jackknife.py`, `liquidity_participation.py`, `measured_universes.py`, `palette_distance.py`, `param_surface.py`, `topn_test.py`, `survivorship_attribution.py`, and in `results/`: `atom_measure.py`, `attribution_v2.py`, `drawdown_exit_measure.py`, `drawdown_stop_judge.py`, `nifty500_baseline_trace.py`, `overdraft_measure.py`, `pinned_mask_test.py`, `rebal_cadence_sweep.py`, `seed_noise_measure.py`, `seed_noise_report.py`, `selection_margin.py`, `shuffle_test.py`, `survivorship_sheet.py`.
 - `results/leakage_check4_corpactions.py`: descriptive only, with no pass condition; check_all always skipped it.
 - `check_pipeline_order.py` and `registry_coverage_check.py`: they checked the order and coverage of backtest_runs.PIPELINE_ORDER's script list, which the consolidation replaces. run.py no longer runs them before a run, and check_all no longer runs them. The issue "check_pipeline_order resolves edges per script, not per universe" above no longer applies.
-- The noise harness: `results/noise_parallel.py`, `results/price_noise_measure.py`, `results/after_tax_noise.py`, `tools/pit_noise_band.py`, `results/seed_band_fit.py`, `results/drawdown_stop_band.py`, `scripts/run_noise_stage.sh`, `scripts/run_seed_band_fit.sh`, with the `engine_tests.py noise_harness` case and the noise cases of `engine_tests.py cache_key`. `engine_tests.py fixed_capital` now has its own copy of `select_pit`. The sealed drawdown-stop band, `experiments/DRAWDOWN_STOP_BAND.csv`, is kept and still read by `portfolio.py`; its writer is gone, so the band can only be recomputed from history.
+- The noise harness: `results/noise_parallel.py`, `results/price_noise_measure.py`, `results/after_tax_noise.py`, `tools/pit_noise_band.py`, `results/seed_band_fit.py`, `results/drawdown_stop_band.py`, `scripts/run_noise_stage.sh`, `scripts/run_seed_band_fit.sh`, with the `checks.py engine_tests noise_harness` case and the noise cases of `checks.py engine_tests cache_key`. `checks.py engine_tests fixed_capital` now has its own copy of `select_pit`. The sealed drawdown-stop band, `experiments/DRAWDOWN_STOP_BAND.csv`, is kept and still read by `portfolio.py`; its writer is gone, so the band can only be recomputed from history.
 
 ## Out of scope
 

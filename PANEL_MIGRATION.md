@@ -211,13 +211,13 @@ gate whose opening commit is its own exception list is a report with a non-zero
 exit code, and an exception list is somewhere to put the thing nobody wanted to
 fix.
 
-**`naming_declare_check.py` reports 111 undeclared write calls**, and reported
+**`checks.py naming_declare_check` reports 111 undeclared write calls**, and reported
 111 before any of this work began. Verified by stashing the changes and
 re-running. Nothing in this migration introduced or repaired it; one write added
 along the way carries a directive so the count did not move. Inside `backtest_runs.py`
 the same gate is configured as reporting-only and does not block.
 
-**`naming_declare_check.py` walks `ROOT.rglob("*.py")` and does not consult
+**`checks.py naming_declare_check` walks `ROOT.rglob("*.py")` and does not consult
 `.gitignore`.** It honours only its own `SKIP_DIRS` and
 `SKIP_PREFIX = ("forensic_snapshot_",)`. A gitignored directory is therefore
 still scanned: `pre_repoint_baseline/` is invisible to it only because it holds
@@ -411,7 +411,7 @@ OBJECTIONS TO IT:**
    measured number in it and is no longer true of `universe_tag`. A hand-edited
    run artefact is the weaker form of provenance, and it is the price of not
    waiting for a run.
-2. **`gate_compare.py` accepts exactly one non-identical field set, `git_state`,
+2. **`checks.py gate_compare` accepts exactly one non-identical field set, `git_state`,
    and says so as data rather than as a review-time argument.** A params file that
    moves in any other field is DIFFERS. These six have now moved in another field.
    A pre/post comparison spanning this commit will therefore flag them, and that
@@ -460,7 +460,7 @@ imports fine until `_step_label` cannot name a producer.
 
 **`reports.py` has no `__main__` guard.** Its body moved into
 `main()` when the pipeline stopped spawning subprocesses, and nothing calls
-`main()` when the file is run directly. `./venv/bin/python results/make_daily_log.py`
+`main()` when the file is run directly. `run.py --steps pipeline`
 does nothing, writes nothing, prints nothing and **exits 0** -- a silent success,
 which is the failure mode this repository has named more often than any other.
 The first daily-log regeneration in the rename commit "succeeded" that way and

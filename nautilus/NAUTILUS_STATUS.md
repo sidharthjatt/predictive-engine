@@ -59,7 +59,7 @@ has a measured explanation.
 ## Current state: VERIFIED
 
 ```
-python3 nautilus/nt_verify.py
+python3 checks.py nt_verify
 ```
 
 is the single measure of progress. As of the last run:
@@ -116,7 +116,7 @@ things, neither of which is a bug:
 > run WAS performed on 2026-08-23 and reported VERIFIED, but its output was never
 > written to a project artefact, so there is nothing on disk to cite and the
 > numbers are deliberately NOT reproduced from memory. **Re-run
-> `nt_verify.py --universe=nifty100` and capture the output to `diagnostics/` before
+> `checks.py nt_verify --universe=nifty100` and capture the output to `diagnostics/` before
 > filling that row in.**
 >
 > How both were found: a read-only audit of the Nautilus layer on 2026-08-23
@@ -125,7 +125,7 @@ things, neither of which is a bug:
 
 > **RESOLVED, 2026-08-27 — nifty100 is now recorded, and it is VERIFIED.**
 >
-> `nt_verify.py --universe=n100` was run on **2026-08-27 at 17:02** and the
+> `checks.py nt_verify --universe=n100` was run on **2026-08-27 at 17:02** and the
 > complete output captured to **`diagnostics/nt_verify_n100.txt`** (58 lines).
 > The row below is transcribed from that artefact; nothing in it comes from
 > memory. The point-2 note above is left standing because it records what the
@@ -150,7 +150,7 @@ things, neither of which is a bug:
 > universes are "verified the same way". Read naturally, that says fill counts
 > were reconciled and passed. **They were not reconciled at all.**
 >
-> `nt_verify.py` does print `fills reference N port M` side by side (line 212),
+> `checks.py nt_verify` does print `fills reference N port M` side by side (line 212),
 > but the VERIFIED / NOT VERIFIED verdict at lines 225-250 tests exactly four
 > things — `idx_ok`, `a_check[0]`, `d_sym` and `t_stats[0]`. **Fill count is not
 > one of them.** A run with mismatched fill counts would still print VERIFIED.
@@ -160,7 +160,7 @@ things, neither of which is a bug:
 >
 > **What the reconciliation actually establishes:** the port and the research
 > engine agree on **93 of 93 rebalance dates, at zero tolerance on integer share
-> counts**. `compare()` at `nt_verify.py:43-57` is plain dict equality on
+> counts**. `compare()` at `checks.py nt_verify` is plain dict equality on
 > `{symbol: int qty}` — no epsilon, no percentage band. Measured on a 0.01 tick
 > grid, which is a CONTROL configuration, not the traded 0.05 grid.
 >
@@ -192,21 +192,21 @@ were certified against on 2026-08-27, transcribed from `diagnostics/` artefacts
 about the engine as it stands today: the price basis became `adj_close` after
 they were taken, and the published figures moved when it did. The inputs still
 exist, so unlike the pair above these can be re-established by re-running
-`nt_verify.py` — and until that is done they are a record of a past run, not a
+`checks.py nt_verify` — and until that is done they are a record of a past run, not a
 current certification.
 
 **THE RE-RUN IS NOT SCHEDULED, AND MUST NOT BE RUN YET.** `nt_run`'s reports path
-carries no profile segment (`nt_run.py:161-169`), so a re-certification today
+carries no profile segment (`nautilus_port.py nt_run`), so a re-certification today
 would write into a directory a later `tradeable` run can overwrite in place, and
 the new figure would be stale by construction the moment it landed. The naming
-authority closes that first. See `naming_declare_check.py`, where this site is
+authority closes that first. See `checks.py naming_declare_check`, where this site is
 declared DEFECT and fails the check until it is fixed.
 
 ### The bar tick was a bug, and removing it is what verified midcap150
 
 midcap150 previously reconciled at only 49 of 93 on the 0.01 grid, and that was blamed
 on tick granularity being coarser in relative terms on cheap names. It was not.
-The cause was that `nt_data.py` snapped the daily bar's OHLC to the tick grid
+The cause was that `nautilus_port.py nt_data` snapped the daily bar's OHLC to the tick grid
 before handing it to the strategy. A tick governs the price an order may be
 PLACED at; a historical close is already a traded price, so rounding it a second
 time models nothing. The strategy estimates 60-day volatility from those closes
@@ -236,7 +236,7 @@ panel's prices carry more than two decimals and would otherwise be re-rounded by
 the formatter. That change was measured separately and moves nothing: at legacy
 bar-tick the equity is identical to the paisa at precision 2 and precision 6.
 
-`nt_verify.py` reports all four comparisons, including both controls. The ARM A
+`checks.py nt_verify` reports all four comparisons, including both controls. The ARM A
 control is what licenses ARM D as a baseline at all: if ARM A ever stops
 reproducing the reference's own holdings, the ARM D number means nothing, and the
 script says INCONCLUSIVE rather than passing.
@@ -249,15 +249,15 @@ live code path has never been exercised.
 
 | File | Role |
 |---|---|
-| `nt_data.py` | Builds instruments and market data. Reads `results/metrics/v5_expanding_cache.csv` — the same price panel the engine uses. |
-| `nt_export_scores.py` | Exports model scores to parquet. Run once; already done. |
-| `nt_strategy.py` | The strategy: ranking, buffer, inverse-vol sizing, breadth exposure. |
-| `nt_run.py` | Assembles the venue and runs the backtest. `--full` for 2019–2026. |
-| `nt_verify.py` | **The progress metric.** Run after every change. |
-| `nt_holdings_compare.py` | Finds the first rebalance where holdings differ, and prints both systems' fills. |
-| `nt_daily_compare.py` | Finds the first day the equity curves separate. |
-| `nt_attribution.py` | Re-implements the reference engine locally and isolates single causes. ARM A reproduces the reference exactly (93 of 93 rebalances), which is what makes it trustworthy. |
-| `verify_next_open_execution.py` | Proves the execution timing model. |
+| `nautilus_port.py nt_data` | Builds instruments and market data. Reads `results/metrics/v5_expanding_cache.csv` — the same price panel the engine uses. |
+| `nautilus_port.py nt_export_scores` | Exports model scores to parquet. Run once; already done. |
+| `nautilus_port.py nt_strategy` | The strategy: ranking, buffer, inverse-vol sizing, breadth exposure. |
+| `nautilus_port.py nt_run` | Assembles the venue and runs the backtest. `--full` for 2019–2026. |
+| `checks.py nt_verify` | **The progress metric.** Run after every change. |
+| `nautilus_port.py nt_holdings_compare` | Finds the first rebalance where holdings differ, and prints both systems' fills. |
+| `nautilus_port.py nt_daily_compare` | Finds the first day the equity curves separate. |
+| `checks.py nt_attribution` | Re-implements the reference engine locally and isolates single causes. ARM A reproduces the reference exactly (93 of 93 rebalances), which is what makes it trustworthy. |
+| `checks.py verify_next_open_execution` | Proves the execution timing model. |
 
 ## Reports: `nautilus/reports/<universe>/`
 
@@ -278,7 +278,7 @@ appearing to be retired A's output.
 
 ### `orders.csv` CANNOT show a DENIED, CANCELED or REJECTED order
 
-It is generated by `eng.trader.generate_order_fills_report()` (`nt_run.py:119`), which
+It is generated by `eng.trader.generate_order_fills_report()` (`nautilus_port.py nt_run`), which
 is built from FILL events. **Every row it can contain is FILLED by construction.**
 Reading "all 929 orders are FILLED" as proof that nothing was denied is therefore
 circular: that report has no way to represent an order that never filled, so its
@@ -287,10 +287,10 @@ silence is not evidence.
 The actual evidence for zero denials is two independent facts, and it is these that
 should be quoted, never the report:
 
-1. **The strategy's denial handler.** `on_order_denied` (`nt_strategy.py:202`) logs a
+1. **The strategy's denial handler.** `on_order_denied` (`nautilus_port.py nt_strategy`) logs a
    warning on every denial. Across all three universes this produces zero denial log
    lines and no "DENIED" anywhere in the run output.
-2. **Submitted equals filled.** `nt_run.py` counts submissions from the strategy and
+2. **Submitted equals filled.** `nautilus_port.py nt_run` counts submissions from the strategy and
    filled orders from `eng.cache.orders()` filtered on the real status string. These
    agree exactly: 929/929, 883/883, 985/985. An order that was denied would be
    submitted and not filled, so equality is what rules it out.
@@ -336,7 +336,7 @@ Venue settings that matter: `bar_execution=False`, `allow_cash_borrowing=False`,
    SELL was undercharged by about Rs 15.34 against the reference. Now enabled.
 5. **Buy sizing.** Quantities were computed at the decision close instead of the
    execution open.
-6. **A hardcoded number** in `nt_attribution.py` produced a stale verdict. It now
+6. **A hardcoded number** in `checks.py nt_attribution` produced a stale verdict. It now
    runs the port live. Watch for this pattern anywhere.
 7. **Buys were sent before sells.** Orders went out from `on_quote_tick`, so the
    sequence was quote-arrival order, i.e. alphabetical. On 2019-10-29 four buys
@@ -408,16 +408,16 @@ What has **not** been done, and should come before real money:
 Two rules from this work are worth keeping. Do not propose a cause without a
 number attached. And when a number looks wrong, check the measuring instrument
 before the system: the "missing" 93rd rebalance was a counting artefact in
-`nt_verify.py`, and the quantity gap was measured against a baseline the port was
+`checks.py nt_verify`, and the quantity gap was measured against a baseline the port was
 never designed to match.
 
 Method that has worked every time on this project, and guessing that has not:
 
-1. Run `nt_holdings_compare.py` to find the first rebalance whose **symbol sets**
+1. Run `nautilus_port.py nt_holdings_compare` to find the first rebalance whose **symbol sets**
    differ.
 2. Trace that single rebalance end to end in both systems: the ranking, the buffer
    set, the held set, the planned orders, the fills.
-3. Change one thing, then run `nt_verify.py` and report
+3. Change one thing, then run `checks.py nt_verify` and report
    "identical holdings X of 92".
 
 Four separate hypotheses about this gap were wrong before measurement caught them.

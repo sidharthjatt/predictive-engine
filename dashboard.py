@@ -24,7 +24,7 @@ HERE = Path(__file__).resolve().parent / "dashboard"
 # ======================================================================================
 # EXPORT THE DASHBOARD DATA. From dashboard/export_dashboard_data.py (moved 2026-11-27).
 # ======================================================================================
-# export_dashboard_data.py -- collect every finished run's results into dashboard_data.json.
+# export_dashboard_data -- collect every finished run's results into dashboard_data.json.
 #
 #     ./venv/bin/python dashboard.py export      (from the repository root)
 #
@@ -138,23 +138,23 @@ def read_run_txt(p):
 # The repository's own formulas, copied from where they live.
 # ---------------------------------------------------------------------------
 def years_between(d0, d1):
-    """results/engine_core.py metrics(): calendar days / 365.25."""
+    """backtest_runs.metrics(): calendar days / 365.25."""
     return (d1 - d0).days / 365.25
 
 
 def cagr_pct(s):
-    """results/make_chart.py cagr() and tools/year_by_year.py cagr()."""
+    """reports.py cagr() and reports.py cagr()."""
     y = years_between(s.index[0], s.index[-1])
     return ((s.iloc[-1] / s.iloc[0]) ** (1 / y) - 1) * 100
 
 
 def dd_pct(s):
-    """results/make_chart.py dd(): percent below the running peak."""
+    """reports.py dd(): percent below the running peak."""
     return (s / s.cummax() - 1) * 100
 
 
 def yearly_pct(s):
-    """tools/year_by_year.py yearly(): each calendar year from the previous year's
+    """reports.py yearly(): each calendar year from the previous year's
     last close (the window's first value for the first year) to its own last close."""
     out, prev = {}, s.iloc[0]
     for y, g in s.groupby(s.index.year):
@@ -182,20 +182,20 @@ def deepest_episode(eq):
 
 
 # ---------------------------------------------------------------------------
-# nt_verify coverage, read from check_all.py's gate list.
+# nt_verify coverage, read from checks.py's gate list.
 # ---------------------------------------------------------------------------
 def nt_verify_cells(repo):
-    """(gated cells, ungated cells) as named in check_all.py. The gate runs
+    """(gated cells, ungated cells) as named in checks.py. The gate runs
     nt_verify at the default cell only: static, research, tax off, cadence 20,
     Rs 10 lakh, no drawdown limit, no impact, no cap."""
-    src = (repo / "check_all.py").read_text()
+    src = (repo / "checks.py").read_text()
     tree = ast.parse(src)
     ungated = set()
     for node in tree.body:
         if isinstance(node, ast.Assign) and any(
                 getattr(t, "id", "") == "NT_VERIFY_UNGATED" for t in node.targets):
             ungated = {(u, a) for u, a, _ in ast.literal_eval(node.value)}
-    start = src.index('("nautilus/nt_verify.py"')
+    start = src.index('("nt_verify"')
     end = src.index("NT_VERIFY_UNGATED}]", start)
     listed = set(re.findall(r'\("(\w+)", "(v\d)"\)', src[start:end]))
     return listed - ungated, ungated
@@ -243,7 +243,7 @@ ROUNDED = {}  # column -> decimals seen in the source files, filled as runs are 
 def rounded_to(path):
     """Decimals of the rounded figures this run reads from comparison.csv. Recorded
     per run as the most decimals any comparison.csv carries in that column, which is
-    the writer's rounding (results/engine_core.py metrics(): round(x, 2)); a single
+    the writer's rounding (backtest_runs.metrics(): round(x, 2)); a single
     value such as "30.0" has dropped its trailing zero and would understate it."""
     import csv
     with open(path, newline="") as f:
@@ -1059,16 +1059,16 @@ def export_dashboard_data():
                       f"basket) {p.get('cagr')}, {p.get('basket_cagr')}, {p.get('max_dd')}"
                       + (". " + "; ".join(bad) if bad else "."))
 
-    checks.append("nt_verify: \"pass\" for the cells check_all.py gates with nt_verify "
+    checks.append("nt_verify: \"pass\" for the cells checks.py gates with nt_verify "
                   f"({len(gated)} cells) and \"fail\" for its NT_VERIFY_UNGATED cells "
                   f"({', '.join(f'{u} {a}' for u, a in sorted(ungated))}); the gate runs only the "
                   "static, research, tax off, cadence 20, Rs 10 lakh cell with no drawdown limit "
                   "or impact. Every other run is \"not covered\". The pass status is the gate's "
-                  "last clearing check_all run, not a fresh nt_verify run.")
+                  "last clearing checks.py run, not a fresh nt_verify run.")
     checks.append("Yearly tax_paid is FY_TAX_STATEMENT total_tax summed by the calendar year of "
                   "its assessed_on date (the day the tax left cash). It is 0 for tax-off runs.")
     checks.append("index is the universe's own NSE price index file, forward-filled onto the "
-                  "run's dates and scaled to the run's start equity (results/make_chart.py); "
+                  "run's dates and scaled to the run's start equity (reports.make_chart); "
                   "its CAGR uses the repository's CAGR formula, its max_dd the running-peak "
                   "drawdown.")
 
@@ -1111,7 +1111,7 @@ def export_dashboard_data():
 # ======================================================================================
 # BUILD THE DASHBOARD PAGE. From dashboard/build_dashboard.py (moved 2026-11-27).
 # ======================================================================================
-# build_dashboard.py -- check dashboard_data.json and write dashboard.html with it embedded.
+# build_dashboard -- check dashboard_data.json and write dashboard.html with it embedded.
 #
 #     python3 dashboard.py build      (from the repository root)
 #

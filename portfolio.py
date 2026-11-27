@@ -38,7 +38,7 @@ from settings import capital_axis as _capital_axis
 # ======================================================================================
 # ARMS: WHAT AN ARM IS, THE DRAWDOWN-STOP SEAL, WHAT A RUN SELECTED. From arms/registry.py (moved 2026-11-27).
 # ======================================================================================
-# arms/registry.py -- the single definition of what an ARM is.
+# arms registry -- the single definition of what an ARM is.
 # ============================================================
 #
 # WHY THIS IS SHORT, AND WHY IT STILL EARNS A FILE
@@ -51,7 +51,7 @@ from settings import capital_axis as _capital_axis
 #     v34_common, as a list of pairs in verify_v34_arms, and as column names in
 #     v34_equity.csv -- and those three did not agree.
 #
-#     Until 2026-09-04 verify_v34_arms.ARMS listed only SIZING, pairing v1 with v2
+#     Until 2026-09-04 checks.ARMS listed only SIZING, pairing v1 with v2
 #     and v3 with v4, because the Nautilus port had no exposure mode at all and
 #     always ran at breadth: its "four arms" were two configurations run twice. The
 #     port now takes mode, so the four arms are four arms and this module is the one
@@ -133,7 +133,7 @@ def stop_sealed():
 def require_unsealed(stop):
     """Refuse to run the registered stop while it is sealed.
 
-    Called by results/drawdown_stop.StopState for every stop any loop runs -- the
+    Called by portfolio.StopState for every stop any loop runs -- the
     engine, the reference copy and the port -- so the seal holds however the stop
     was obtained, not only through Arm.kwargs. A fixture threshold passes; the
     registered threshold passes only once BAND_FILE is tracked.
@@ -166,7 +166,7 @@ def stop_in_force(stop):
 class Arm:
     """One arm = one (exposure mode, sizing rule) pair, optionally with the stop.
 
-    `mode` and `sizing` are passed straight to test_exposure.backtest_exposure:
+    `mode` and `sizing` are passed straight to portfolio.backtest_exposure:
         mode   -- "none" (always 100% invested) | "breadth" (scale by breadth)
                   the function also accepts "const", which no named arm uses.
         sizing -- "invvol" (w = 1/vol) | "provol" (w = vol) | "equal"
@@ -409,7 +409,7 @@ def path_segment(mode, sizing, drawdown_stop=None):
 # ======================================================================================
 # THE BUY-SHORTFALL RULE: TRIM OR REFUSE A BUY CASH CANNOT PAY FOR. From buy_shortfall.py (moved 2026-11-27).
 # ======================================================================================
-# buy_shortfall.py -- what a buy does when cash cannot pay for all of it.
+# buy_shortfall -- what a buy does when cash cannot pay for all of it.
 #
 #     trim    (default, settings.BUY_SHORTFALL) the buy is cut to the largest whole
 #             quantity q with q x fill price + charges(q) <= the cash the rule
@@ -419,7 +419,7 @@ def path_segment(mode, sizing, drawdown_stop=None):
 #
 # Every buy that sizes against cash goes through trim() below: the engine
 # (portfolio.py), the reference copy nt_verify re-runs
-# (nautilus/nt_attribution.py) and the Nautilus port (nautilus/nt_strategy.py).
+# (checks.py nt_attribution) and the Nautilus port (nautilus_port.py nt_strategy).
 # The drawdown-limit top-up keeps its own rule and does not use it.
 #
 # The selection (trim or refuse) is settings.shortfall_axis, the twelfth axis in
@@ -499,7 +499,7 @@ def largest_fit(q_wanted, cash_allowed, price_at, charges):
 # ======================================================================================
 # THE DRAWDOWN-LIMIT OVERLAY. From results/drawdown_overlay.py (moved 2026-11-27).
 # ======================================================================================
-# drawdown_overlay.py -- the drawdown-limit axis (settings.dd_axis) as one state class.
+# drawdown_overlay -- the drawdown-limit axis (settings.dd_axis) as one state class.
 #
 # THE RULE. At each close, with W the close equity and M its all-time peak since
 # the start of the run (never reset):
@@ -535,7 +535,7 @@ def largest_fit(q_wanted, cash_allowed, price_at, charges):
 # the actual book.
 #
 # ONE CLASS, THREE LOOPS: portfolio.backtest_exposure,
-# nautilus/nt_attribution.run and nautilus/nt_strategy.PredictiveEngineStrategy.
+# checks.nt_attribution_run and nautilus_port.PredictiveEngineStrategy.
 # This file decides; the callers own cash, holdings and fills.
 #
 # Exploratory: no result with the axis on has been validated.
@@ -699,14 +699,14 @@ EVENT_COLUMNS = ["date", "event", "equity", "peak", "drawdown_pct", "limit_expos
 # ======================================================================================
 # THE DRAWDOWN STOP OF v5 AND v6. From results/drawdown_stop.py (moved 2026-11-27).
 # ======================================================================================
-# drawdown_stop.py -- the drawdown stop of v5 and v6, as one state machine.
+# drawdown_stop -- the drawdown stop of v5 and v6, as one state machine.
 #
 # experiments/DRAWDOWN_STOP_PREREG.txt states the rule. This file is the only
 # implementation of it. Three loops call it, each at the same four points of its
 # trading day:
 #     portfolio.backtest_exposure   the engine every published arm runs
-#     nautilus/nt_attribution.run               the reference copy nt_verify compares with
-#     nautilus/nt_strategy.PredictiveEngineStrategy   the port
+#     checks.nt_attribution_run               the reference copy nt_verify compares with
+#     nautilus_port.PredictiveEngineStrategy   the port
 # The caller owns its orders, cash and holdings. This class only decides when the
 # arm must sell everything, when it may place its normal order again, and when the
 # peak resets, and it writes down why.
@@ -867,7 +867,7 @@ class StopState:
 # ======================================================================================
 # RANKING, SIZING, BUY AND SELL DECISIONS AND THE DAILY LOOP. From results/test_exposure.py (moved 2026-11-27).
 # ======================================================================================
-# test_exposure.py -- Crash protection via MARKET-LEVEL exposure scaling
+# test_exposure -- Crash protection via MARKET-LEVEL exposure scaling
 #
 # PROBLEM: the model produces a relative rank. In a crash it ranks the stock that is
 # falling least at number one, and the strategy buys it -- even though that stock is
@@ -894,14 +894,14 @@ class StopState:
 warnings.filterwarnings("ignore")
 
 REBAL, VOL_WIN = 20, 60
-# SELECTION -- imported from config.py, the single definition.
+# SELECTION -- imported from settings.py, the single definition.
 TOP_N, BUFFER = settings.TOP_N, settings.BUFFER
 _THIN_WARNED = set()      # see the len(s_) < TOP_N branch in backtest_exposure
 # THE DEFAULT, defined once in settings.capital_axis. A run's capital is
 # capital_axis.selected(); this name stays for callers that want the default.
 START_CAPITAL = _capital_axis.DEFAULT
 CASH_YIELD = 0.0        # no yield assumed on idle cash
-# BACKTEST WINDOW -- imported from config.py, the single definition.
+# BACKTEST WINDOW -- imported from settings.py, the single definition.
 # Date-based and inclusive. The old year cut (BT_START, BT_END = 2019, 2026)
 # ran to 2026-06-08, six trading days beyond this window.
 M = settings.METRICS_DIR
@@ -1009,7 +1009,7 @@ def backtest_exposure(px, op, sc, dates, pc, mom20,
         execution day's open valuation is written to audit["fixed"]. Refused
         together with drawdown_stop, dd_overlay and funding="prorata".
 
-    dd_overlay -- THE DRAWDOWN-LIMIT AXIS (settings.dd_axis, results/drawdown_overlay.py).
+    dd_overlay -- THE DRAWDOWN-LIMIT AXIS (settings.dd_axis, portfolio.py).
         Left unset, it is read from dd_axis.selected(), which is None unless
         run.py was given --dd, and None runs none of the code that reads it. A
         DDLimit passed explicitly (tests) overrides the selection. When on, the
@@ -1041,12 +1041,12 @@ def backtest_exposure(px, op, sc, dates, pc, mom20,
         Every transition is written to audit["stop_events"] when an audit dict is
         passed.
 
-    buy_shortfall -- A BUY CASH CANNOT FULLY PAY FOR (buy_shortfall.py). None,
-        the default, reads buy_shortfall.selected(), which is settings.BUY_SHORTFALL
+    buy_shortfall -- A BUY CASH CANNOT FULLY PAY FOR (portfolio.py). None,
+        the default, reads settings.shortfall_axis.selected(), which is settings.BUY_SHORTFALL
         ("trim") unless run.py was given --buy-shortfall. "trim" cuts the buy to the
         largest whole quantity whose cost and charges fit the cash left at that
         point of the morning, and refuses it when that is 0 or below
-        buy_shortfall.MIN_FILL_PCT of the wanted quantity, logged `cash short:
+        portfolio.MIN_FILL_PCT of the wanted quantity, logged `cash short:
         below minimum fill` in the second case. "refuse" refuses
         it whole, the rule before 2026-10-27. A buy that fits is filled the same
         way under both. With an audit dict, the counts are in
@@ -1109,7 +1109,7 @@ def backtest_exposure(px, op, sc, dates, pc, mom20,
         figure and re-baselines the seven identity gates that read
         v34_comparison.csv. FUNDING_SPEC.txt gates the model but does not authorise
         that flip, which is a separate decision with its own blast radius. Note
-        also that nautilus/nt_strategy.py mirrors this sizing rule; the mirror is
+        also that nautilus_port.py nt_strategy mirrors this sizing rule; the mirror is
         exact only while the default is unchanged, so a flip must update the port
         in the same commit."""
     if participation_cap is _CAP_REQUIRED:
@@ -1933,7 +1933,7 @@ def backtest_exposure(px, op, sc, dates, pc, mom20,
                 # "provol" is the mirror of invvol: the raw vol instead of its
                 # reciprocal, so a high-vol name gets the LARGE position. Same guard,
                 # same normalisation, same fallback -- only the numerator differs.
-                # Mirrored in nautilus/nt_strategy.py; the two must not drift.
+                # Mirrored in nautilus_port.py nt_strategy; the two must not drift.
                 # v IS READ BY THE AUDIT BLOCK BELOW, ON EVERY PATH, so it is
                 # bound here rather than inside the else. It used to be bound only
                 # where it was USED FOR SIZING, which made sizing="equal" with an
@@ -1960,7 +1960,7 @@ def backtest_exposure(px, op, sc, dates, pc, mom20,
                          else {s: 1.0/len(top) for s in top})
                 w["_exposure"] = expo
                 pending = (w, keep)
-                # The order exactly as planned, unrounded, for tools/lookahead_proof.py.
+                # The order exactly as planned, unrounded, for checks.py lookahead_proof.
                 # Audit only: nothing reads it back.
                 if audit is not None:
                     audit.setdefault("orders", []).append(

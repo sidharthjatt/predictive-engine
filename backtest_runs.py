@@ -26,10 +26,6 @@ _os.environ["PYTHONHASHSEED"] = "0"
 
 import sys
 from pathlib import Path
-# engine_core.py (metrics() and the validation backtest) stays in results/ until
-# batch 8 moves it into checks.py.
-sys.path.append(str(Path(__file__).resolve().parent / "results"))
-
 import matplotlib
 matplotlib.use("Agg")
 import time
@@ -45,7 +41,6 @@ from matplotlib.ticker import PercentFormatter
 from settings import cadence
 from settings import dd_axis
 import portfolio as arm_reg
-from engine_core import metrics
 from market_data import precompute
 from portfolio import backtest_exposure
 from portfolio import CASH_YIELD
@@ -67,9 +62,27 @@ from settings import REGISTRY
 
 
 # ======================================================================================
+# METRICS: CAGR, Sharpe, Sortino, max drawdown, Calmar. From results/engine_core.py
+# (moved 2026-11-27).
+# ======================================================================================
+def metrics(eq, label, tc=0, ntr=0):
+    r = eq.pct_change().dropna()
+    ny = (eq.index[-1] - eq.index[0]).days / 365.25
+    cagr = (eq.iloc[-1] / eq.iloc[0]) ** (1 / ny) - 1
+    sh = r.mean() / r.std() * np.sqrt(252) if r.std() > 0 else 0
+    dd = ((eq - eq.cummax()) / eq.cummax()).min()
+    dn = r[r < 0].std()
+    so = r.mean() / dn * np.sqrt(252) if dn > 0 else 0
+    return {"Config": label, "CAGR%": round(cagr * 100, 2), "Sharpe": round(sh, 2),
+            "Sortino": round(so, 2), "MaxDD%": round(dd * 100, 2),
+            "Calmar": round(cagr / abs(dd), 2) if dd else 0,
+            "Trades": ntr, "TC_Rs": round(tc, 0)}
+
+
+# ======================================================================================
 # THE PIPELINE: STEP TABLE, INPUT GUARD, NAMING GATE. From run_all.py (moved 2026-11-27).
 # ======================================================================================
-# run_all.py -- the complete pipeline (every universe + benchmark), from scratch, in one command.
+# run_all -- the complete pipeline (every universe + benchmark), from scratch, in one command.
 # =================================================================================
 #     ./venv/bin/python run.py --universe all --arm all            # uses cache if present
 #     ./venv/bin/python run.py --universe all --arm all --fresh    # everything from scratch
@@ -139,8 +152,8 @@ STEP_HOME = {
     "make_combined_universes": ("reports.py", "make_combined_universes"),
     "make_daily_log":          ("reports.py", "make_daily_log"),
     "tax_report":              ("reports.py", "tax_report"),
-    "nt_export_scores":        ("nautilus/nt_export_scores.py", "main"),
-    "nt_execute":              ("nautilus/nt_execute.py", "main"),
+    "nt_export_scores":        ("nautilus_port.py", "nt_export_scores"),
+    "nt_execute":              ("nautilus_port.py", "nt_execute"),
 }
 
 
@@ -291,7 +304,7 @@ def _registry_tags():
 
 
 # HOW MANY ROWS THIS TABLE HAS, DECLARED, so that a bulk edit over it cannot
-# quietly cover part of it. check_all.py asserts len(PIPELINE_ORDER) against this
+# quietly cover part of it. checks.py asserts len(PIPELINE_ORDER) against this
 # number and fails when they disagree.
 #
 # IT EXISTS BECAUSE A REGEX MATCHED 12 OF 15 ROWS, TWICE. The script column
@@ -550,7 +563,7 @@ def _step_label(script, tag):
 # ---------------------------------------------------------------------------
 # WHICH AXES AN INPUT'S NAME CARRIES -- THE FOURTH FIELD, AND WHY IT EXISTS
 # ---------------------------------------------------------------------------
-# check_inputs._present() used to compose cadence.suffix() + profiles.suffix()
+# check_inputs._present() used to compose cadence.suffix() + settings.profile_axis.suffix()
 # onto EVERY required input, as though all five were alike. Two of them are not.
 #
 #   `--rebal 200` on midcap150 v3 completed eight of nine steps and died at STEP 16
@@ -706,7 +719,7 @@ def entry_applies(e, tag, usel, asel, label="", script=""):
 
     A `u:` QUALIFIER IS EVALUATED AGAINST THE INVOCATION, NOT THE RUN. This is the
     defect this function grew a parameter for. The qualifier arrived with step 6 to
-    stop a merged make_chart.py demanding the other universe's files, and it was
+    stop a merged reports.py demanding the other universe's files, and it was
     tested with `q[2:] in selected_tags()` -- which asks "did this RUN select
     nifty100", not "is this invocation nifty100". Both hold under `--universe all`, so
     STEP 10d (midcap150's chart) demanded nifty100's trade logs, which STEP 10f and 10g write
@@ -715,7 +728,7 @@ def entry_applies(e, tag, usel, asel, label="", script=""):
     THE LIST FORM ARRIVED WITH STEP 6. Before the collapse, a chart's inputs were
     keyed by a per-universe FILENAME -- make_mid_chart.py -- so the file identity
     supplied the universe and the third field only had to name the arm. One merged
-    make_chart.py serves both universes from one key, so a `--universe midcap150` run
+    reports.py serves both universes from one key, so a `--universe midcap150` run
     would have been made to demand nifty100's trade logs. The universe is now written
     down beside the arm instead of being implied by which file the entry sits under.
     """
@@ -839,7 +852,7 @@ def check_inputs(label, script, tag):
     THE STATIC INVENTORY IS UNAFFECTED, AND NOT FOR THE REASON THIS DOCSTRING
     USED TO GIVE. It said check_pipeline_order reads the literal paths out of
     REQUIRED_INPUTS, so they had to stay literal. It does not: analyse() scans
-    PIPELINE_ORDER's step scripts and their STEP_HELPERS, and run_all.py is never
+    PIPELINE_ORDER's step scripts and their STEP_HELPERS, and run.py is never
     among them. The edge inventory is unaffected because this table was never part
     of it -- which is what made step 8 possible.
     """
@@ -971,15 +984,15 @@ def naming_gate():
     THE RATCHET IS NOT WIRED IN HERE. It needs a base revision to diff against,
     which a pipeline run does not have and a review does:
 
-        ./venv/bin/python naming_declare_check.py --gate-declared-only --ratchet origin/main
+        ./venv/bin/python checks.py naming_declare_check --gate-declared-only --ratchet origin/main
 
     That is the call that closes the new-writer hole, and it belongs wherever
     changes are reviewed, not in the thing that runs the backtest.
     """
     import subprocess
     r = subprocess.run(
-        [sys.executable, str(Path(__file__).resolve().parent / "naming_declare_check.py"),
-         "--gate-declared-only"],
+        [sys.executable, str(Path(__file__).resolve().parent / "checks.py"),
+         "naming_declare_check", "--gate-declared-only"],
         cwd=Path(__file__).resolve().parent)
     if r.returncode != 0:
         print("\nNAMING GATE FAILED -- the run has not started.")
@@ -991,7 +1004,7 @@ def naming_gate():
 # ======================================================================================
 # STEP: BUILD THE SCORE PANEL. From results/build_scores.py (moved 2026-11-27).
 # ======================================================================================
-# build_scores.py -- one universe's raw panel and monthly scores
+# build_scores -- one universe's raw panel and monthly scores
 #
 # THE PER-UNIVERSE ENTRY POINT, for every universe. Merged 2026-09-15 from
 # build_scores_mid.py and build_scores_n100.py, which differed in nothing but the
@@ -1031,7 +1044,7 @@ def build_scores(u):
 # ======================================================================================
 # STEP: THE ENGINE RUN PER UNIVERSE (v1, v2, buy-and-hold). From results/engine_v2_final.py (moved 2026-11-27).
 # ======================================================================================
-# engine_v2_final.py -- FINAL v2 STRATEGY (breadth-scaled), for one universe
+# engine_v2_final -- FINAL v2 STRATEGY (breadth-scaled), for one universe
 #
 # THE PER-UNIVERSE ENTRY POINT, for every universe. Merged 2026-09-15 from
 # engine_v2_final_mid.py and engine_v2_final_n100.py. Step 5 of the collapse, and
@@ -1073,12 +1086,12 @@ REBAL, VOL_WIN = 20, 60
 # from cadence.selected() at call time and passed to backtest_exposure as an
 # argument; the module constant is never reassigned, because a reassigned global
 # leaks into the next step (module_state.py names the case).
-# SELECTION -- imported from config.py, the single definition.
+# SELECTION -- imported from settings.py, the single definition.
 TOP_N, BUFFER = settings.TOP_N, settings.BUFFER
 # THE DEFAULT, defined once in settings.capital_axis. A run's capital is
 # capital_axis.selected(); this name stays for callers that want the default.
 START_CAPITAL = _capital_axis.DEFAULT
-# BACKTEST WINDOW -- imported from config.py, the single definition.
+# BACKTEST WINDOW -- imported from settings.py, the single definition.
 # Date-based and inclusive. The old year cut (BT_START, BT_END = 2019, 2026)
 # ran to 2026-06-08, six trading days beyond this window.
 
@@ -1112,7 +1125,7 @@ def _c(path):
     
     THE PROFILE IS PART OF THIS NAME. `tradeable` caps fills at the symbol's
     prior-20-session median volume, which changes every number this step writes.
-    Until 2026-09-12 only audit_step.py and v34_common.py consulted the profile,
+    Until 2026-09-12 only backtest_runs.py consulted the profile,
     so the pipeline half wrote CAPPED numbers into the CANONICAL filenames -- the
     same defect the cadence suffix was introduced to fix, on a third axis, and
     silent rather than fatal. See KNOWN_ISSUES.md.
@@ -1567,7 +1580,7 @@ def engine_v2_final(u):
 # ======================================================================================
 # THE ARM RUNNER: run_arm, run_v34 AND THE v34 WRITERS. From results/v34_common.py (moved 2026-11-27).
 # ======================================================================================
-# v34_common.py -- the four-arm pro-vol measurement, shared by both live engines.
+# v34_common -- the four-arm pro-vol measurement, shared by both live engines.
 #
 # WHY THIS IS ONE MODULE AND NOT TWO COPIES
 #     engine_v2_final_n100.py and engine_v2_final_mid.py both need the identical
@@ -1586,7 +1599,7 @@ def engine_v2_final(u):
 #     v4 are computed here.
 #
 # WHAT metrics() DOES NOT GIVE, AND WHY IT IS EXTENDED HERE RATHER THAN CHANGED
-#     engine_core.metrics() returns Config, CAGR%, Sharpe, Sortino, MaxDD%, Calmar,
+#     backtest_runs.metrics() returns Config, CAGR%, Sharpe, Sortino, MaxDD%, Calmar,
 #     Trades, TC_Rs. The spec also wants annualised volatility%, average deployed%
 #     and final equity. metrics() is NOT modified: it writes v2FINAL_comparison.csv,
 #     whose columns must not move. The three extra columns are added on top here.
@@ -1758,7 +1771,7 @@ def _git_state():
 
 
 # naming: arm,cadence,profile via SFX -- the caller composes SFX from
-# selection_suffix() + cadence.suffix() + profiles.suffix() + tax suffix.
+# selection_suffix() + cadence.suffix() + settings.profile_axis.suffix() + tax suffix.
 def _write_core(M, SFX, comp, subs, ARM_ON, bd, bh, curves, universe_label,
                 universe_tag, consts, _reb, _wrote, arm_reg, cadence, costs):
     """The canonical v34_* files and chart_v34, exactly as run_v34 wrote them
@@ -1798,7 +1811,7 @@ def _write_core(M, SFX, comp, subs, ARM_ON, bd, bh, curves, universe_label,
         # until 2026-09-20, and that is the half that moved: midcap150's two
         # tradeable artefacts were built on data/raw/MidCap150/clean, the
         # universe was repointed a day later, and no artefact and no gate could
-        # say so. GATE 8 in check_all.py reads this field back and refuses a
+        # say so. GATE 8 in checks.py reads this field back and refuses a
         # mismatch. See model.data_fingerprint for what the digest covers and
         # why it is the whole file rather than a row count.
         "data_source": model.data_fingerprint(
@@ -1881,7 +1894,7 @@ def _write_core(M, SFX, comp, subs, ARM_ON, bd, bh, curves, universe_label,
 def _write_fixed(M, SFX, ARM_ON, bd, bh, base, u, rebal, _wrote):
     """The fixed-capital companions: v34_fixed (figures per line), v34_fixed_years
     (rupee P&L per calendar year) and v34_fixed_equity (the basket's and the
-    index's fixed-capital curves). See results/fixed_capital.py."""
+    index's fixed-capital curves). See backtest_runs.py."""
     w0, w1 = bd[0], bd[-1]
     rows, years = [], []
     for _, lab, _, eq, _, _, _, au in ARM_ON:
@@ -1968,7 +1981,7 @@ def _write_stop(M, stop_rows, stop_curves, stop_audits, bd, bh, halves,
 
 # naming: arm,cadence,profile via SFX -- every artefact this step writes is
 # named `<stem>{SFX}.<ext>` with SFX composed at backtest_runs.py from
-# selection_suffix() + cadence.suffix() + profiles.suffix().
+# selection_suffix() + cadence.suffix() + settings.profile_axis.suffix().
 def run_v34(M, universe_label, universe_tag, px, op, sc, bd, pc, mom20,
             backtest_exposure, v1_eq, v1_tc, v1_n, v2_eq, v2_tc, v2_n, v2_expo,
             start_capital, halves, consts, v1_audit=None, audits_out=None, v1_expo=1.0):
@@ -2394,7 +2407,7 @@ def run_arm(u, arm, rebal=None, out_dir=None):
 # ======================================================================================
 # FIXED-CAPITAL FIGURES. From results/fixed_capital.py (moved 2026-11-27).
 # ======================================================================================
-# fixed_capital.py -- the figures of a fixed-capital run (settings.fixed_axis), and its
+# fixed_capital -- the figures of a fixed-capital run (settings.fixed_axis), and its
 # basket and index under the same rule.
 #
 # A fixed-capital run does not reinvest its profits, so CAGR understates it: the
@@ -2416,7 +2429,7 @@ def run_arm(u, arm, rebal=None, out_dir=None):
 #                         and the index: at a grid-day close, before that day's reset.
 #     CAGR%               shown, and labelled as understating a fixed-capital run
 #
-# years is calendar days / 365.25, as engine_core.metrics() computes it.
+# years is calendar days / 365.25, as backtest_runs.metrics() computes it.
 #
 # THE BASKET AND THE INDEX UNDER THE SAME RULE. On each of the strategy's grid days
 # (every `rebal`-th session from the first, the days the strategy decides a
@@ -2462,7 +2475,7 @@ def yearly_sum_check(eq, base):
 
     Each float converts to Decimal exactly, so the sum telescopes exactly. It
     checks the yearly table is complete and anchored at the base; it cannot catch
-    an engine error, which `engine_tests.py fixed_capital`'s trade-log reconciliation does."""
+    an engine error, which `checks.py engine_tests fixed_capital`'s trade-log reconciliation does."""
     with localcontext() as ctx:
         ctx.prec = 400          # wide enough that no float's exact value is rounded
         vals = [Decimal(float(base))]
@@ -2598,7 +2611,7 @@ NOTES = (
 # ======================================================================================
 # BUY-AND-HOLD HOLDINGS. From results/bh_held.py (moved 2026-11-27).
 # ======================================================================================
-# bh_held.py -- the investable buy & hold: equal-rupee lots bought once, never rebalanced.
+# bh_held -- the investable buy & hold: equal-rupee lots bought once, never rebalanced.
 #
 # One construction, two endings, used by backtest_runs.py and by
 # backtest_runs.run_arm so both report the same numbers:
@@ -2682,7 +2695,7 @@ def held_lots(px, op, bd):
 # ======================================================================================
 # STEP: THE DAILY AUDIT TRAIL. From results/audit_step.py (moved 2026-11-27).
 # ======================================================================================
-# audit_step.py -- the daily audit trail, once, for any universe.
+# audit_step -- the daily audit trail, once, for any universe.
 # ==============================================================
 #
 # WHAT THIS REPLACES
@@ -2756,8 +2769,8 @@ def artefact_tag(u, arm):
         drifts from it the moment either changes. There is now one rule and both
         sides call it.
 
-    v2 KEEPS THE UNSUFFIXED FILENAMES. nt_verify.py, nt_daily_compare.py and
-    nt_holdings_compare.py read daily_summary_{tag}.csv, daily_holdings_{tag}.csv
+    v2 KEEPS THE UNSUFFIXED FILENAMES. checks.py nt_verify, nautilus_port.py nt_daily_compare and
+    nautilus_port.py nt_holdings_compare read daily_summary_{tag}.csv, daily_holdings_{tag}.csv
     and daily_trades_{tag}.csv by those exact names, and they are the 92-of-92
     correctness gate. Suffixing v2 would break the gate that certifies the engine.
     DAILY_LOG_{tag}.txt inherits the same rule. Every other arm is suffixed.
@@ -2888,7 +2901,7 @@ def _reference_curve(M, arm_name):
 
 # naming: arm,cadence,profile via artefact_tag -- every daily_* artefact is
 # artefact_tag() (backtest_runs.py), which appends cadence.suffix() and
-# profiles.suffix(); the arm is in the tag body. nt_verify and make_daily_log
+# settings.profile_axis.suffix(); the arm is in the tag body. nt_verify and make_daily_log
 # read these by the same rule.
 def run(u, arm=None):
     """Write the daily audit trail for one universe and one arm.
@@ -2898,7 +2911,7 @@ def run(u, arm=None):
     behaviour exactly, which is why every existing caller keeps working.
 
     FILENAMES. v2 writes the unsuffixed daily_*_{tag}.csv it always has, because
-    nt_verify.py, nt_daily_compare.py and nt_holdings_compare.py read those exact
+    checks.py nt_verify, nautilus_port.py nt_daily_compare and nautilus_port.py nt_holdings_compare read those exact
     names and they are the 92-of-92 correctness gate. Every other arm writes
     daily_*_{tag}_{arm}.csv. v2 is therefore NOT special-cased in what it
     measures, only in what its files are called -- and that is a compatibility
@@ -3116,9 +3129,9 @@ def audit_step(u):
 # ======================================================================================
 # STEP: BUY-AND-HOLD LOTS AFTER TAX. From bh_lots_after_tax.py (moved 2026-11-27).
 # ======================================================================================
-# bh_lots_after_tax.py -- v2 after tax against a GENUINE buy & hold after tax.
+# bh_lots_after_tax -- v2 after tax against a GENUINE buy & hold after tax.
 #
-#     ./venv/bin/python bh_lots_after_tax.py
+#     `run.py --steps pipeline`
 #
 # READ THE CONCENTRATION WARNING BEFORE QUOTING THE midcap150 NUMBERS. This script
 # prints it; it is repeated here because a figure gets copied out of a terminal
@@ -3200,7 +3213,7 @@ def cagr(s):
 
 def bh_lots(px,op,bd):
     """-> (headline equity, last-day tax row, detail). Thin wrapper over
-    results/bh_held.held_lots, kept so the name and its callers survive.
+    backtest_runs.held_lots, kept so the name and its callers survive.
 
     SINCE 2026-09-25 the headline is held to the end and never sold, so it pays
     no tax and no sell charge; the "sold on the last day" curve and its tax are
@@ -3217,7 +3230,7 @@ def bh_lots(px,op,bd):
 # universe had already been run. Registering midcap50 -- a universe this file has
 # nothing to say about, and which it would have reported on for the first time
 # only after a full run -- made `import bh_lots_after_tax` raise
-# FileNotFoundError, and check_all.py GATE 1 went red on a wiring commit that had
+# FileNotFoundError, and checks.py GATE 1 went red on a wiring commit that had
 # not touched this file.
 #
 # A MODULE THAT READS CACHES AT IMPORT BREAKS EVERY TIME A UNIVERSE IS
@@ -3228,7 +3241,7 @@ def bh_lots(px,op,bd):
 # it is why this fires for the last time here.
 #
 # Nothing imports this module -- checked 2026-09-18 across the repository -- so
-# the move costs no caller. `./venv/bin/python bh_lots_after_tax.py` behaves
+# the move costs no caller. `run.py --steps pipeline` behaves
 # exactly as before.
 def bh_lots_after_tax(u):
     """One universe's after-tax comparison, and the artefact STEP 18 reads.
@@ -3242,7 +3255,7 @@ def bh_lots_after_tax(u):
     IT WRITES BH_LOTS_<tag>_tax.csv, which is the whole reason it is a step.
     tax_report composes TAX_TURNOVER from this plus its own FY_EQUITY, so the
     buy&hold side of that comparison comes from a REAL RUN rather than from an
-    untaxed log with arithmetic applied -- tax_report.py:22 records that the
+    untaxed log with arithmetic applied -- reports.py records that the
     implied and charged figures differ by about 4% and that "the implied one
     describes a run that did not happen".
 

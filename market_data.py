@@ -139,7 +139,7 @@ def read_price_csv(path, date_col="date", **kw):
 # ======================================================================================
 # PLATFORM-IDENTICAL VARIANCE. From numerics.py (moved 2026-11-27).
 # ======================================================================================
-# numerics.py -- variance and standard deviation that give the same bits on every
+# numerics -- variance and standard deviation that give the same bits on every
 # platform this project is run on.
 #
 # WHY THIS EXISTS. Measured 2026-09-24 on macOS arm64, Linux arm64 and Linux
@@ -244,7 +244,7 @@ def group_mean_std(values, groups):
 # ======================================================================================
 # FEATURES. From features_v2.py (moved 2026-11-27).
 # ======================================================================================
-# features_v2.py -- Feature set v2: breaking the dependence on momentum
+# features_v2 -- Feature set v2: breaking the dependence on momentum
 # =====================================================================
 # Problem (identified by diagnose_alpha.py): around 10 of the previous 16 features
 # were momentum. The model rested on a single factor, and when momentum broke down
@@ -870,7 +870,7 @@ def precompute(px, vol_win=VOL_WIN):
 # ======================================================================================
 # POINT-IN-TIME MEMBERSHIP. From survivorship.py and engine_core.py (moved 2026-11-27).
 # ======================================================================================
-# survivorship.py -- point-in-time index membership, behind a switch.
+# survivorship -- point-in-time index membership, behind a switch.
 #
 # WHY THIS EXISTS
 #     Every universe in this project is built from a list of TODAY'S index members,
@@ -980,9 +980,9 @@ def precompute(px, vol_win=VOL_WIN):
 #     # 5. Names to force out at a rebalance, given what is held.
 #     m.forced_exits(held_symbols, decision_date)
 #
-# COMMAND LINE: removed 2026-11-27 with results/survivorship.py. validate(),
+# COMMAND LINE: removed 2026-11-27 with market_data.py. validate(),
 # Membership.members_on() and residual_survivorship() are the same calls from Python,
-# and results/test_survivorship.py exercises them.
+# and checks.py test_survivorship exercises them.
 
 # ---------------------------------------------------------------------------
 # switches
@@ -1656,7 +1656,7 @@ def membership_for(u):
 # ======================================================================================
 # TRADABILITY: A NAME TRADES ONLY ON A SESSION WITH A ROW. From tradability.py and engine_core.py (moved 2026-11-27).
 # ======================================================================================
-# tradability.py -- which (symbol, date) pairs the backtest may transact on.
+# tradability -- which (symbol, date) pairs the backtest may transact on.
 #
 # WHAT THIS EXISTS TO STOP
 #     px and op are pivots with .ffill() applied -- 41 such pivots across 37 files.
@@ -1682,7 +1682,7 @@ def membership_for(u):
 #
 # WHY A SEPARATE, PRICE-SIDE FLAG AND NOT bad_ret OR scorable
 #     bad_ret feeds the feature mask and the fwd_ret label; it is return-side.
-#     scorable is deliberately SCORE-side (engine_core.py:325, :340, :366) -- the
+#     scorable is deliberately SCORE-side (the panel build in market_data.py) -- the
 #     price/score separation exists because the old `dropna(subset=FEATS_V2)` deleted
 #     PRICES for a feature reason and ffill then bridged the hole, which is where the
 #     +24,772.7% PATANJALI figure came from. Widening scorable would re-introduce
@@ -1767,7 +1767,7 @@ def median_volume(data_dir, cal, lo=None, hi=None, win=20):
 # ---------------------------------------------------------------------------
 # stuck_positions.py -- holdings whose price file ends before the window does.
 #
-# Under the row rule (results/tradability.py) a name is sold only on a session with
+# Under the row rule (market_data.py) a name is sold only on a session with
 # a row. A sale owed on a name whose file has ended never fills, so the name is held
 # to the window's end, valued at its last close (owner's decision, 2026-10-16). That
 # value is an assumption: the repository does not record why such a file ends.
@@ -1776,7 +1776,7 @@ def median_volume(data_dir, cal, lo=None, hi=None, win=20):
 # shares and the value they are held at, and the end equity, CAGR and maximum
 # drawdown if the position were valued at zero from the first session after its last
 # row. It is arithmetic on the cell's own daily_holdings and daily_summary files,
-# with the CAGR and drawdown formulas of engine_core.metrics; nothing is rerun. Tax
+# with the CAGR and drawdown formulas of backtest_runs.metrics; nothing is rerun. Tax
 # already charged is left as it is: the zero valuation changes no realised gain.
 #
 # run.py prints these lines in the run log and writes them to RUN.txt. A cell with no
@@ -1789,7 +1789,7 @@ def last_rows(u):
 
 
 # ---------------------------------------------------------------------------
-# TRADEABILITY -- the third, PRICE-SIDE flag. See results/tradability.py.
+# TRADEABILITY -- the third, PRICE-SIDE flag. See market_data.py.
 # ---------------------------------------------------------------------------
 # {symbol: frozenset(sessions with a row)}, or None for "no rule". Held here, next
 # to MEMBERSHIP, for the same reason and read the same way:
@@ -1798,7 +1798,7 @@ def last_rows(u):
 # change. Threading a parameter through 25 sites is how a rule ends up applied in
 # four places and absent in twenty-one.
 #
-# THE RULE, SINCE 2026-10-16 (results/tradability.py). A name is traded only on a
+# THE RULE, SINCE 2026-10-16 (market_data.py). A name is traded only on a
 # session with a row for it. tradeable_on(symbol, dt) answers that for `dt` alone,
 # so no decision on day i reads a row dated after day i. Until 2026-10-16 this held
 # a map of blocked sessions built from gaps of two or more sessions, whose length

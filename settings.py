@@ -16,7 +16,7 @@ Each run setting is one object with set_selection(), selected(), is_default(),
 suffix(), segment() and label(). run.py calls set_selection() once per run and
 everything else reads the selection. The participation cap rules stay in
 costs.py and the buy-trim rule in portfolio.py; reading files and the
-score-cache keys stay in config.py.
+score-cache keys are in model.py.
 """
 import os
 import shutil
@@ -81,7 +81,7 @@ EQUITY_CURVES_DIR = RESULTS_DIR / "equity_curves"
 METRICS_DIR = RESULTS_DIR / "metrics"
 
 # CREATE THE OUTPUT DIRECTORIES AT IMPORT, so a FRESH CHECKOUT works from ANY
-# entry point -- run_all.py or a script run standalone -- rather than only when
+# entry point -- run.py or a script run standalone -- rather than only when
 # these directories happen to survive from a previous run on this machine.
 # The per-universe config modules (since folded into the universe registry) did
 # this for their own metrics dirs; config.py did NOT, so STEP 2 (engine_core) crashed on the first
@@ -125,8 +125,8 @@ BT_END_DATE = _pd.Timestamp("2026-05-29")
 # THE RETIRED ENGINES DO NOT IMPORT THESE. engine_core.py, engine_v2_final.py,
 # engine_v2_final74.py and make_cash_series.py (now in frozen/) keep their own
 # literals so the retired universes' published numbers cannot move -- the same freeze
-# the old year window carries. engine_core.py:90 therefore still defines TOP_N
-# and BUFFER, and validate_sizing.py imports TOP_N from THERE, not from here.
+# the old year window carries. the engine_core section of checks.py therefore still defines TOP_N
+# and BUFFER, and checks.py validate_sizing imports TOP_N from THERE, not from here.
 # The two agree at 8 today and nothing enforces that. See KNOWN_ISSUES.md.
 #
 # No _DATE-style suffix is used. The window constants needed one because
@@ -494,11 +494,11 @@ profile_axis = _Profile()
 # exemption and financial-year rules are in costs.py. Default off,
 # and off is unsuffixed, so every path a tax-off run composes is the path it
 # composed before the axis existed; "_tax" when on. Because an omitted axis and a
-# default axis give the same string, only naming_declare_check.py's declarations
+# default axis give the same string, only checks.py naming_declare_check's declarations
 # reveal a writer that forgot the axis.
 #
 # One selection per run. run.py passes a bool; the None branch is for callers
-# that restore the default (tax_acceptance_check.py, check_all's selection
+# that restore the default (checks.py tax_acceptance_check, check_all's selection
 # save and restore).
 class TaxAxisError(Exception):
     """The tax selection is not a single value across this run."""
@@ -523,7 +523,7 @@ class _Tax(_Axis):
     def is_uniform_over_plan(self, plan):
         """True when this axis has one value across every invocation in `plan`.
 
-        A `tax:` qualifier in run_all.PIPELINE_ORDER is evaluated against the
+        A `tax:` qualifier in backtest_runs.PIPELINE_ORDER is evaluated against the
         run, which is correct only while the selection cannot vary within a run.
         Nothing can vary it today, so this returns True. It is the place that
         fails first if a per-invocation tax selection is ever added.
@@ -702,7 +702,7 @@ class _Capital(_Axis):
         A capital other than DEFAULT is refused under the research profile, which has
         no participation cap and no market impact and so gives the same return at any
         size, and under the tradeable profile unless --impact is given, 0 included.
-        The values listed are results/impact_sweep.py's K_VALUES."""
+        The values listed are reports.py's K_VALUES."""
         if self.is_default():
             return None
         if profile == "research":
@@ -719,15 +719,15 @@ class _Capital(_Axis):
 
     @staticmethod
     def sweep_k_values():
-        """results/impact_sweep.py's K_VALUES, read from its source without importing it
-        (it imports the engine)."""
+        """reports.py's K_VALUES (the impact_sweep report), read from its source
+        without importing it (it imports the engine)."""
         import ast
-        src = (PROJECT_ROOT / "results" / "impact_sweep.py").read_text()
+        src = (PROJECT_ROOT / "reports.py").read_text()
         for node in ast.parse(src).body:
             if isinstance(node, ast.Assign) and any(getattr(t, "id", "") == "K_VALUES"
                                                      for t in node.targets):
                 return tuple(ast.literal_eval(node.value))
-        raise RuntimeError("results/impact_sweep.py defines no K_VALUES")
+        raise RuntimeError("reports.py defines no K_VALUES")
 
 
 capital_axis = _Capital()
@@ -841,7 +841,7 @@ pcap_axis = _ParticipationCap()
 # book, and only new purchases are held inside it. The idle reserve earns
 # portfolio.CASH_YIELD, which is 0. Refused with --dd and with the stop arms
 # v5 and v6, which act on the running peak of compounded equity. Only
-# backtest_exposure has the mode; engine_core.backtest and the Nautilus port do
+# backtest_exposure has the mode; checks.backtest and the Nautilus port do
 # not. "_fixed" after the pcap suffix.
 class _Fixed(_Axis):
     DEFAULT = False
@@ -1189,7 +1189,7 @@ class Universe:
     # ------------------------------------------------------------------
     # WHAT THE COMBINED CHART SHOWS FOR THIS UNIVERSE -- phase 2, 2026-09-16
     # ------------------------------------------------------------------
-    # THREE TABLES IN results/make_combined_universes.py, MOVED HERE VERBATIM.
+    # THREE TABLES IN reports.py, MOVED HERE VERBATIM.
     # They were keyed by tag, so adding a universe meant finding all three; two of
     # the three refused loudly when one was missing and one did not.
     #
@@ -1213,10 +1213,10 @@ class Universe:
     # these; a chart that picks a colour by accident is not reproducible.
     # WHAT THIS FIELD ACTUALLY GOVERNS, AND WHAT IT DOES NOT. Measured
     # 2026-09-18 by resolving every reader in the repository. It has exactly TWO
-    # consumers: make_combined_universes.py:365, which draws the COMBINED chart,
+    # consumers: reports.py, which draws the COMBINED chart,
     # and palette_distance.py, which measures the same lines.
     #
-    # THE PER-UNIVERSE CHART DOES NOT READ IT. make_chart.py hardcodes six
+    # THE PER-UNIVERSE CHART DOES NOT READ IT. reports.py hardcodes six
     # colours -- #c0392b v2, #2e6da4 v1, #1b9e77 v3, #e6ab02 v4, #3a9d3a
     # buy&hold, #000000 index -- and draws EVERY universe in them. So
     # chart_<tag>.png looks the same whatever this tuple says, and a palette
@@ -1269,15 +1269,15 @@ class Universe:
     # engine_params_keys defaulted to (), engine_text and chart_text to None.
     # Measured on a Universe constructed without them, before the change:
     #
-    #   engine_params_keys = ()   ->  engine_v2_final.py:333 writes
+    #   engine_params_keys = ()   ->  backtest_runs.py writes
     #       json.dumps({k: _vals[k] for k in u.engine_params_keys}, indent=2)
     #       which is the two bytes "{}". Valid JSON. No exception, no warning.
     #       v2FINAL_params.json exists, is well-formed, and says NOTHING -- and
     #       it is the file that records which arm, which sizing, which CAGR and
     #       which validation status produced the run beside it.
     #
-    #   engine_text = None        ->  TypeError at engine_v2_final.py:138
-    #   chart_text  = None        ->  TypeError at make_chart.py:176
+    #   engine_text = None        ->  TypeError at backtest_runs.py
+    #   chart_text  = None        ->  TypeError at reports.py
     #       Loud, but not until STEP 10n and STEP 10p -- after build_scores has
     #       already spent its time on the panel.
     #
@@ -1316,7 +1316,7 @@ class Universe:
     #
     # validation_status JOINED THE REQUIRED FIELDS ON 2026-09-18, one commit after
     # the other three, once the decision was taken. Its default was None, and
-    # None IS REACHABLE AS AN ARTEFACT VALUE: engine_v2_final.py:329 puts this
+    # None IS REACHABLE AS AN ARTEFACT VALUE: backtest_runs.py puts this
     # field straight into v2FINAL_params.json, so a row that left it alone wrote
     #
     #     "validation_status": null
@@ -1667,7 +1667,7 @@ _MIDCAP150 = Universe(
             # CORRECTED 2026-09-18 FROM 2026-06-08. `NIFTY MIDCAP 150.csv` ends
             # 2026-08-06; the old value cut the printed index window 10 sessions
             # short of the file. It was display-only -- the sole reader is
-            # make_chart.py, which slices the INDEX series for one console line
+            # reports.py, which slices the INDEX series for one console line
             # and never the score panel or the engine -- so no committed number
             # moved. WHY it was wrong is recorded as OPEN in PANEL_MIGRATION.md
             # section 6: the transposition reading does not explain the value
@@ -2715,7 +2715,7 @@ for _u in REGISTRY.values():
 # nifty200, smallcap250, nifty500. A caller whose OUTPUT depends on order must
 # use report_order() or certified(), or name the universes explicitly, rather
 # than iterate LIVE. Iterating LIVE for an ordered report once swapped the two
-# blocks of verify_v34_arms.py's report, which is how this note came to exist.
+# blocks of checks.py verify_v34_arms's report, which is how this note came to exist.
 LIVE = list(REGISTRY.values())
 
 
@@ -2733,7 +2733,7 @@ LIVE = list(REGISTRY.values())
 # because it is a strict subset of it, so the two large-cap lines are adjacent
 # in every combined report.
 #
-# FILENAMES DEPEND ON THIS ORDER. make_combined_universes.py names the combined
+# FILENAMES DEPEND ON THIS ORDER. reports.py names the combined
 # chart from the selected tags in this sequence, so the certified pair is
 # chart_COMBINED_nifty100_midcap150.png whatever order the tags were typed in.
 # Reordering this tuple renames every combined figure.
@@ -2939,9 +2939,9 @@ def from_argv(argv, default=None, choices=None):
 #     re-opened the same hole somewhere else.
 #
 #     The composition rule itself was never the problem. It is four lines, and
-#     `results/v34_common.py:300` already writes them correctly:
+#     `backtest_runs.py` already writes them correctly:
 #
-#         SFX = arm_reg.selection_suffix() + cadence.suffix() + profiles.suffix()
+#         SFX = arm_reg.selection_suffix() + cadence.suffix() + settings.profile_axis.suffix()
 #
 #     The problem is that those four lines are RETYPED at every site, and a site
 #     that retypes three of the four axes is indistinguishable, by reading, from one
@@ -2971,7 +2971,7 @@ def _arm():
     return portfolio
 
 # The axes, in the order they appear in a name. This order is LOAD-BEARING: it is
-# the order v34_common.py has always used, and changing it renames every
+# the order backtest_runs.py has always used, and changing it renames every
 # non-default artefact in the repository.
 #
 # SURVIVORSHIP IS APPENDED AFTER TAX (2026-10-10), for the same reason: "" at
@@ -3092,7 +3092,7 @@ def path_tail(rebal=None):
     "" at every default, else "@r40", "@tradeable", "@tax" in AXES order.
 
     ONE RULE FOR BOTH PER-COMBINATION DIRECTORY TREES. nautilus/reports/<u>/<seg>
-    (nt_run.reports_segment) carried all three axes; runs/<u>/<seg>
+    (nautilus_port.reports_segment) carried all three axes; runs/<u>/<seg>
     (run_dir) carried the cadence only, so a `--tax on` or `--profile
     tradeable` arm run wrote into the same runs/<u>/<arm>/ as a research run and
     replaced its chart. Both now take the tail from here.
@@ -3126,8 +3126,8 @@ def path_tail(rebal=None):
 # the three axes a site could freely declare beside them:
 #
 #   settings.name / settings.tail             arm, cadence, profile   SOUND
-#   SFX            v34_common.py:300      arm, cadence, profile   SOUND
-#   artefact_tag   audit_step.py:108      arm, cadence, profile   SOUND
+#   SFX            backtest_runs.py      arm, cadence, profile   SOUND
+#   artefact_tag   backtest_runs.py      arm, cadence, profile   SOUND
 #                                          (arm rides in the tag body: v3 -> midcap150_v3)
 #   _c             engine_v2_final_mid    cadence, profile        NO ARM
 #   _c             engine_v2_final_n100   cadence, profile        NO ARM

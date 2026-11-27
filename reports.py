@@ -52,13 +52,20 @@ from settings import pit_variant
 from settings import pit_refusal
 from settings import gated
 
+import io
+import contextlib
+import backtest_runs as engine_core
+from portfolio import ARMS
+from settings import impact_axis
+from settings import pcap_axis
+from portfolio import backtest_exposure
 ROOT = Path(__file__).resolve().parent
 
 
 # ======================================================================================
 # COST REPORT AND RECONCILIATION. From results/cost_report.py (moved 2026-11-27).
 # ======================================================================================
-# cost_report.py -- charges, slippage and tax for one run, reconciled to the paisa.
+# cost_report -- charges, slippage and tax for one run, reconciled to the paisa.
 #
 # Called by backtest_runs.py for every (universe, arm) it audits, under every
 # cadence, profile and tax setting, and by cost_reconcile_check.py for the gate. It
@@ -357,7 +364,7 @@ def _pct(x, base):
 
 
 def bh_costs(px, op, bd, start_capital, tax_on):
-    """Charges, slippage and tax of the investable buy & hold (bh_held.held_lots),
+    """Charges, slippage and tax of the investable buy & hold (backtest_runs.held_lots),
     held to the end and sold on the last day, recomputed fill by fill and reconciled
     against held_lots to the paisa. Raises CostReconciliationError on a gap."""
     import backtest_runs as bh_held
@@ -843,7 +850,7 @@ def write(u, arm, tag, audit, equity, engine_tc, px, op, bd, start_capital, prof
 # ======================================================================================
 # STEP: TAX REPORT. From results/tax_report.py (moved 2026-11-27).
 # ======================================================================================
-# tax_report.py -- the four tax artefacts. Written only when tax=on.
+# tax_report -- the four tax artefacts. Written only when tax=on.
 # ===============================================================================
 #
 #     FY_TAX_STATEMENT_<tag>.csv    per financial year: buckets, netting, tax
@@ -893,7 +900,7 @@ STEMS = ("FY_TAX_STATEMENT", "FY_EQUITY", "HOLDING_PERIOD", "HOLDING_PERIOD_LOTS
 def artefact_name(stem, tag, ext=".csv"):
     """<stem>_<tag><ext>, e.g. FY_TAX_STATEMENT_midcap150_v1_tradeable_tax.csv
 
-    `tag` IS ALREADY THE FULL COMPOSITION. audit_step.artefact_tag() returns the
+    `tag` IS ALREADY THE FULL COMPOSITION. backtest_runs.artefact_tag() returns the
     universe, the arm, and then cadence.suffix() + profile_axis.suffix() +
     tax.suffix() -- all four axes, which is why settings.CARRIES credits it with
     all four. So this appends the stem and NOTHING ELSE.
@@ -940,7 +947,7 @@ def holding_period(lots):
     """The distribution, and the ceiling the long-term branch is measured against.
 
     `max_held_days` is the number `costs.max_holding_days()` reads and the
-    LTCG-boundary condition in check_all.py asserts on.
+    LTCG-boundary condition in checks.py asserts on.
 
     NO HEADROOM NUMBER IS CARRIED IN THIS DOCSTRING, DELIBERATELY. Whether the
     long-term branch fires is a PER-UNIVERSE property of the window, not a
@@ -1215,7 +1222,7 @@ def _one_arm(u, arm, M, px, op, sc, bd, pc, mom20,
 # ======================================================================================
 # STEP: PER-UNIVERSE CHART. From results/make_chart.py (moved 2026-11-27).
 # ======================================================================================
-# make_chart.py -- the published chart and the printed record, for one universe.
+# make_chart -- the published chart and the printed record, for one universe.
 #
 # THE PER-UNIVERSE ENTRY POINT, for every universe. Merged 2026-09-15 from
 # make_mid_chart.py and make_n100_chart.py. Step 6 of the collapse, and the most
@@ -1291,11 +1298,11 @@ def _axes(*, for_arm_subset=False):
     v2FINAL_equity.csv, daily_trades_midcap50.csv and v34_equity.csv -- byte-
     identical paths to the tax=off selection. This is make_chart's source lookup
     (STEP 10t), so chart_<tag>_..._tax.png was drawn with a correct name over
-    UNTAXED arm series, while make_chart.py:161's own _ci() composed all four
+    UNTAXED arm series, while reports.py's own _ci() composed all four
     axes. ONE STEP, TWO CONVENTIONS, and the chart that came out of it was
     part-taxed rather than wrong in a way anybody would notice.
 
-    THE RULE THIS FUNCTION NOW FOLLOWS is make_chart.py:161's, which is the same
+    THE RULE THIS FUNCTION NOW FOLLOWS is reports.py's, which is the same
     chain in the same order. See KNOWN_ISSUES.md instance 6: this is the fourth
     time a hand-composed chain has been under-specified, and the reason the list
     of thirteen such sites is worth reading before adding a fifth axis.
@@ -1349,14 +1356,14 @@ def equity_path_and_series(M, tag, arm_name):
     a caller drawing a chart titled tradeable. Silently, and with the substitution
     unrecorded: the caller received the path and discarded it.
 
-    THIS IS NOT HYPOTHETICAL AND IT IS NOT NEW. `make_combined_universes.py`'s
+    THIS IS NOT HYPOTHETICAL AND IT IS NOT NEW. `reports.py`'s
     `_ci` carried exactly this defect -- cadence composed, profile omitted, silent
     fall-through to the canonical file -- and it fed THESE SAME THREE CHARTS. It
     was found and fixed on 2026-09-12. This function is the same defect in the same
     repository on the same code path, and it survived that fix because the audit
     measured writers and nothing measured readers.
 
-    THE PATTERN IS `audit_step.py:160-176`, three files away, which has composed
+    THE PATTERN IS `backtest_runs.py`, three files away, which has composed
     both axes and returned None rather than substituting since the profile existed.
     Its docstring records the measured cost of the cadence half: reconciling a
     cadence-40 trail against a cadence-20 curve reported v1 MISMATCH Rs 2,923,934
@@ -1943,7 +1950,7 @@ def make_chart(u):
         ax[1].legend(loc="lower left", fontsize=_CT["legend_fontsize"]); ax[1].grid(alpha=.3)
         plt.tight_layout()
         # naming: arm,cadence,profile via chart_path -- _render receives a path
-        # compose from arm_reg.suffix(), cadence.suffix() and profiles.suffix();
+        # compose from arm_reg.suffix(), cadence.suffix() and settings.profile_axis.suffix();
         # the canonical two-arm figure is written only at an all-default selection.
         plt.savefig(_path, dpi=_CT["dpi"], bbox_inches="tight", metadata={"Title": ax[0].get_title().split("\n")[0]}); plt.close()
         _rendered.append(_path)
@@ -2003,7 +2010,7 @@ def make_chart(u):
 # ======================================================================================
 # STEP: COMBINED UNIVERSES CHART. From results/make_combined_universes.py (moved 2026-11-27).
 # ======================================================================================
-# make_combined_universes.py -- ONE combined chart across whichever universes this
+# make_combined_universes -- ONE combined chart across whichever universes this
 # run selected.
 #
 # WHAT REPLACED WHAT
@@ -2384,8 +2391,8 @@ def _ci_combined(path):
     """This run's cadence-, profile- and tax-named sibling of `path`.
 
     THE PROFILE WAS MISSING HERE AND PRESENT IN THE OTHER TWO. The two per-universe
-    chart scripts (since merged into make_chart.py) each carried a `_ci` that composed
-    cadence.suffix() + profiles.suffix(); this one composed the cadence alone. So
+    chart scripts (since merged into reports.py) each carried a `_ci` that composed
+    cadence.suffix() + settings.profile_axis.suffix(); this one composed the cadence alone. So
     under `--profile tradeable` the engines wrote v2FINAL_equity_tradeable.csv and
     this helper looked for a file that did not exist, fell through to `path`, and
     loaded the RESEARCH curve into a chart drawn under a tradeable title.
@@ -2534,7 +2541,7 @@ def _draw(rows, out_path):
     plt.tight_layout()
     # naming: arm,cadence,profile via combined_chart_path -- composed by the
     # (reports.py and :398) from the universe tags plus the
-    # arm suffix, cadence.suffix() and profiles.suffix(). The OUTPUT side of this
+    # arm suffix, cadence.suffix() and settings.profile_axis.suffix(). The OUTPUT side of this
     # step was already axis-complete; it was the INPUT side, the FILES dict, that
     # named canonical files and could not say what it had read.
     plt.savefig(out_path, dpi=150, bbox_inches="tight", metadata={"Title": ax[0].get_title().split("\n")[0]})
@@ -2636,7 +2643,7 @@ def _subtitle(UNIV):
 # ======================================================================================
 # STEP: DAILY LOG. From results/make_daily_log.py (moved 2026-11-27).
 # ======================================================================================
-# make_daily_log.py -- forensic DAILY LOG.
+# make_daily_log -- forensic DAILY LOG.
 #
 # A complete record of every trading day, in four sections:
 #   [A] ORDER EXECUTION   the previous rebalance order, filled at TODAY's OPEN
@@ -3000,7 +3007,7 @@ def _replay_fills(led, g, d):
 def build(mdir, tag, arm, bh, raw_idx=None, cal_sorted=None, op=None):
     """One forensic log for one already-written audit trail, named by `tag`.
 
-    `bh` is cost_report.bh_costs' result for the universe, for the totals block.
+    `bh` is reports.bh_costs' result for the universe, for the totals block.
     `op` is the panel's opens, the price each fill was moved from; without it the
     open is derived from the fill price, which is rounded to the paisa and so
     gives the open only to within half a paisa.
@@ -3010,7 +3017,7 @@ def build(mdir, tag, arm, bh, raw_idx=None, cal_sorted=None, op=None):
     asking for the writer's rule. Under `--arm v3` or `--rebal 200` the trail it
     wanted did not exist, so it printed a skip and produced no forensic log at all
     -- the behaviour this change removes. The caller now resolves the tag through
-    audit_step.artefact_tag(), the one definition, and passes it in.
+    backtest_runs.artefact_tag(), the one definition, and passes it in.
     """
     M = Path(mdir)
     h, s, t, rk, dc, sk = load(M, tag)
@@ -3567,8 +3574,8 @@ def make_daily_log():
     """STEP 15. Body moved out of the __main__ guard, unchanged.
 
     S4 gave every pipeline step a function boundary so run.py could call it in
-    process; this file and nt_export_scores.py were missed, and nothing noticed
-    because run_all.py still SPAWNED each step, and a subprocess runs the __main__
+    process; this file and nautilus_port.py nt_export_scores were missed, and nothing noticed
+    because run.py still SPAWNED each step, and a subprocess runs the __main__
     guard whether or not a main() exists. The first full in-process run stopped
     here with AttributeError. The statements below are the guard's, in order.
     """
@@ -3644,7 +3651,7 @@ def make_daily_log():
 # ======================================================================================
 # CELL AND RUN SUMMARY LINES. From results/tradability.py (moved 2026-11-27).
 # ======================================================================================
-# tradability.py -- which (symbol, date) pairs the backtest may transact on.
+# tradability -- which (symbol, date) pairs the backtest may transact on.
 #
 # WHAT THIS EXISTS TO STOP
 #     px and op are pivots with .ffill() applied -- 41 such pivots across 37 files.
@@ -3670,7 +3677,7 @@ def make_daily_log():
 #
 # WHY A SEPARATE, PRICE-SIDE FLAG AND NOT bad_ret OR scorable
 #     bad_ret feeds the feature mask and the fwd_ret label; it is return-side.
-#     scorable is deliberately SCORE-side (engine_core.py:325, :340, :366) -- the
+#     scorable is deliberately SCORE-side (the panel build in market_data.py) -- the
 #     price/score separation exists because the old `dropna(subset=FEATS_V2)` deleted
 #     PRICES for a feature reason and ffill then bridged the hole, which is where the
 #     +24,772.7% PATANJALI figure came from. Widening scorable would re-introduce
@@ -3752,7 +3759,7 @@ def run_lines(universes, arms):
 # ======================================================================================
 # REPORT: README TAX-ON TABLES. From tools/readme_tax_tables.py (moved 2026-11-27).
 # ======================================================================================
-# readme_tax_tables.py -- write README.md's current tax-on tables from the run artefacts.
+# readme_tax_tables -- write README.md's current tax-on tables from the run artefacts.
 #
 #     ./venv/bin/python run.py --report readme_tax_tables           # rewrite the block in README.md
 #     ./venv/bin/python run.py --report readme_tax_tables --print   # print it, write nothing
@@ -3867,7 +3874,7 @@ def readme_tax_tables():
 # ======================================================================================
 # REPORT: YEAR BY YEAR. From tools/year_by_year.py (moved 2026-11-27).
 # ======================================================================================
-# year_by_year.py -- calendar-year and sub-period returns of named cells against the
+# year_by_year -- calendar-year and sub-period returns of named cells against the
 # equal-weight basket and the NSE index.
 #
 #     ./venv/bin/python run.py --report year_by_year --cells nifty200:v3,nifty200:v1,midcap100:v1
@@ -3943,7 +3950,7 @@ def year_by_year():
 # ======================================================================================
 # REPORT: CAPITAL LADDER. From tools/capital_ladder.py (moved 2026-11-27).
 # ======================================================================================
-# capital_ladder.py -- named cells at several starting capitals, from their run artefacts.
+# capital_ladder -- named cells at several starting capitals, from their run artefacts.
 #
 #     ./venv/bin/python run.py --report capital_ladder --cells nifty200:v3,nifty200:v1,midcap100:v1 \
 #         --capitals 500000,1000000,2500000,5000000,10000000,20000000,50000000
@@ -4070,7 +4077,7 @@ def capital_ladder():
 # ======================================================================================
 # REPORT: CELL REPORTS. From tools/cell_reports.py (moved 2026-11-27).
 # ======================================================================================
-# cell_reports.py -- five reports over published cells, one subcommand each.
+# cell_reports -- five reports over published cells, one subcommand each.
 #
 #     ./venv/bin/python run.py --report cell_reports tax-on-all-arms
 #     ./venv/bin/python run.py --report cell_reports tradeable-tax-grid
@@ -4085,7 +4092,7 @@ def capital_ladder():
 # docstring is kept below as the *_DOC constant of its section.
 
 def _cell_cagr(eq):
-    """engine_core.metrics' CAGR, in percent, at full precision."""
+    """backtest_runs.metrics' CAGR, in percent, at full precision."""
     ny = (eq.index[-1] - eq.index[0]).days / 365.25
     return float(((eq.iloc[-1] / eq.iloc[0]) ** (1 / ny) - 1) * 100)
 
@@ -4431,3 +4438,152 @@ def cell_reports(argv):
         print(__doc__)
         return 2
     return COMMANDS[argv[0]](argv[1:])
+
+
+# ======================================================================================
+# impact_sweep. From results/impact_sweep.py (moved 2026-11-27).
+# ======================================================================================
+# impact_sweep -- what the participation cap costs, and what market impact costs,
+# measured separately.
+#
+# WHY SEPARATELY. Lowering the cap and charging size-sensitive slippage both reduce
+# the return, and a single combined figure cannot say which did it. The grid below
+# holds one of the two fixed in every comparison:
+#
+#     research            cap None,  k None      the published arithmetic
+#     cap 1.00, k None    cap only               the loosest cap
+#     cap 0.10, k None    cap only               the cap's own contribution
+#     cap 1.00, k = x     slippage plus the      isolates impact only where
+#                         loosest cap            cap 1.00 binds on nothing
+#     cap 0.10, k = x     both                   the combined figure
+#
+# `cap 1.00` is NOT a no-op everywhere. On v2 of nifty100 and midcap150 it binds on
+# no fill. Measured 2026-10-10, on that day's data delivery, over every core arm of the
+# nine universes (microcap250 without PRIVISCL), it binds in 13 of 36 CSVs (cap 1.00,
+# k none row; BUY + SELL binds, CAGR change).
+#
+#     nifty100 v1     1 + 0   +0.22        smallcap250 v1   4 + 1   -0.71
+#     midcap50 v1     1 + 0   -0.05        smallcap250 v3   2 + 0   -3.08
+#     midcap50 v3     1 + 0   -0.03        nifty500 v1      3 + 0   -0.18
+#     midcap100 v1    1 + 0   -0.02        nifty500 v3      1 + 0   +0.28
+#     midcap100 v3    1 + 0   -0.05        microcap250 v1  12 + 9   -0.67
+#     microcap250 v2  3 + 2   +0.15        microcap250 v3  16 + 11  -4.79
+#     microcap250 v4  3 + 1   +0.04
+#
+# Read each CSV's cap_BUY and cap_SELL columns before treating its cap 1.00 rows as
+# impact only.
+#
+# THE BIND COUNTS ARE PART OF THE RESULT, NOT DIAGNOSTICS. A CAGR that moved while
+# the cap bound 200 times means something different from one that moved while it
+# bound twice. Every cell carries its BUY and SELL cap-bind counts and its
+# impact-exemption count.
+#
+# NO k IS SELECTED HERE. The sweep shows how sensitive the answer is to k. Picking
+# one is a separate decision that needs a reason this file cannot supply.
+#
+# EVERY CORE ARM ON EVERY UNIVERSE. The arms come from portfolio.ARMS (v1 to v4)
+# and the universes from settings.REGISTRY; nothing here names either.
+# Each pair writes diagnostics/impact_sweep_<universe>_<arm>.csv. The no-cap, k-none
+# row is the research profile, tax off, cadence 20 (portfolio.REBAL), which is
+# what the published v34_comparison.csv rows are, and is compared against them by
+# the caller.
+
+K_VALUES = (0.001, 0.002, 0.003, 0.005)
+CAPS = (1.00, 0.10)
+
+# THE SETTINGS, NOT A COPY OF THEM (2026-10-15). Each cell selects the profile,
+# --cap and --impact exactly as run.py does and takes its keywords from
+# costs.cap_kwargs, so the volume series, the cap and k reach backtest_exposure
+# by the path every run takes. Until then this file loaded its own volume series,
+# on the score panel's dates rather than the engine's calendar, and passed cap and
+# k by hand.
+
+
+def panel(tag):
+    u = REGISTRY[tag]
+    # The row rule the engines load for this universe (reports.py).
+    market_data.set_tradeability(u)
+    src = model.require_cache(u.score_cache, what=f"{tag} score panel")
+    p = read_table(src, parse_dates=["date"])
+    px = p.pivot_table(index="date", columns="symbol", values="close").ffill()
+    op = p.pivot_table(index="date", columns="symbol", values="open").ffill()
+    sc = p.pivot_table(index="date", columns="symbol", values="score")
+    bd = px.index[(px.index >= settings.BT_START_DATE) & (px.index <= settings.BT_END_DATE)]
+    pc = market_data.precompute(px)
+    mom20 = px / px.shift(20) - 1
+    # the tradeable profile's volume series, loaded once and reused by every cell
+    _select(1.00, None)
+    v20 = costs.cap_kwargs(u)["vol20"]
+    _select(None, None)
+    return u, px, op, sc, bd, pc, mom20, v20
+
+
+def _select(cap, k):
+    """Select what run.py would for this cell: research when cap is None, else
+    --profile tradeable --cap cap --impact k (k None is --impact 0)."""
+    settings.profile_axis.set_selection(None if cap is None else "tradeable")
+    pcap_axis.set_selection(cap)
+    impact_axis.set_selection(k)
+
+
+def cell(u, px, op, sc, bd, pc, mom20, v20, arm, cap, k):
+    aud = {x: [] for x in ("holdings", "summary", "trades", "ranking",
+                           "decisions", "skipped")}
+    iout = {}
+    _select(cap, k)
+    try:
+        kw = costs.cap_kwargs(u, vol20=v20)
+    finally:
+        _select(None, None)
+    eq, tc, ntr, _ = backtest_exposure(
+        px, op, sc, bd, pc, mom20, drawdown_stop=None, **arm.kwargs,
+        audit=aud, impact_out=iout, **kw)
+    m = engine_core.metrics(eq, "cell", tc, ntr)
+    sk = pd.DataFrame(aud["skipped"])
+    caprows = sk[sk["reason"] == "participation cap"] if len(sk) else sk
+    by_side = caprows.groupby("side").size().to_dict() if len(caprows) else {}
+    return {
+        "cap": "none" if cap is None else f"{cap:.2f}",
+        "k": "none" if k is None else f"{k:.3f}",
+        "CAGR%": m["CAGR%"], "Sharpe": m["Sharpe"], "MaxDD%": m["MaxDD%"],
+        "trades": ntr, "final": round(float(eq.iloc[-1]), 2),
+        "cap_BUY": by_side.get("BUY", 0), "cap_SELL": by_side.get("SELL", 0),
+        "k_priced": iout.get("priced", 0), "k_exempt": iout.get("exempt", 0),
+    }
+
+
+def impact_sweep():
+    out = {}
+    for tag in REGISTRY:
+        with contextlib.redirect_stdout(io.StringIO()):
+            P = panel(tag)
+        for arm in ARMS.values():
+            rows = [cell(*P, arm, None, None)]
+            for cap in CAPS:
+                rows.append(cell(*P, arm, cap, None))
+            for cap in CAPS:
+                for k in K_VALUES:
+                    rows.append(cell(*P, arm, cap, k))
+            df = pd.DataFrame(rows)
+            base = df.iloc[0]
+            df["dCAGR"] = (df["CAGR%"] - base["CAGR%"]).round(2)
+            out[(tag, arm.name)] = df
+            dest = ROOT / "diagnostics" / f"impact_sweep_{tag}_{arm.name}.csv"
+            # naming: axis-free -- every core arm and universe is written, each under
+            # its registry names; run.py's arm, cadence, profile and tax selections
+            # do not reach this script. The cap and k axes are columns, because the
+            # sweep is over them.
+            df.to_csv(dest, index=False)
+            print("=" * 100)
+            print(f" IMPACT SWEEP -- {tag}   arm {arm.name} ({arm.mode}/{arm.sizing})   "
+                  f"window {settings.BT_START_DATE.date()} -> {settings.BT_END_DATE.date()}")
+            print("=" * 100)
+            print(df.to_string(index=False))
+            print(f"  saved -> {dest.relative_to(ROOT)}")
+            print()
+    return out
+
+
+def _cli_impact_sweep():
+    """`python reports.py impact_sweep [ARGS]`: what running results/impact_sweep.py did."""
+    impact_sweep()

@@ -76,7 +76,7 @@ from portfolio import ARMS, ALL_ARMS, SHIPPING as SHIPPING_ARMS            # noq
 #     Nine scripts in this repository reassign a shared module's globals to steer a
 #     measurement, and they do it by writing straight into the module object:
 #
-#         portfolio.TOP_N     = top_n        validate_topn.py:154
+#         portfolio.TOP_N     = top_n        checks.py validate_topn
 #         portfolio.BUFFER    = BUFFER_PINNED
 #         test_exposure.REBAL     = rebal        rebal_cadence_sweep.py:172
 #         nt_strategy / nt_attribution           -- SIZING was a global here too until
@@ -86,7 +86,7 @@ from portfolio import ARMS, ALL_ARMS, SHIPPING as SHIPPING_ARMS            # noq
 #                                                   in WATCHED below: hasattr skips them
 #                                                   when absent, and a future global of
 #                                                   the same name would be covered.
-#         nt_data.set_depth_mode(...)
+#         nautilus_port.set_depth_mode(...)
 #         market_data.set_mode(...) / set_exit_policy(...)
 #
 #     THE SHARPEST ONE IS rebal_cadence_sweep.py:172. It sets test_exposure.REBAL to
@@ -122,11 +122,11 @@ from contextlib import contextmanager                 # noqa: E402
 WATCHED = {
     "portfolio":      ("TOP_N", "BUFFER", "REBAL", "VOL_WIN", "SLIPPAGE",
                        "START_CAPITAL", "CASH_YIELD"),
-    "engine_core":    ("TOP_N", "BUFFER", "REBAL"),
+    "checks":         ("ENGINE_CORE_TOP_N", "ENGINE_CORE_BUFFER", "ENGINE_CORE_REBAL",
+                       "NT_ATTRIBUTION_TOP_N", "NT_ATTRIBUTION_BUFFER",
+                       "NT_ATTRIBUTION_REBAL"),
     "market_data":    ("MEMBERSHIP", "SURVIVORSHIP_MODE", "EXIT_POLICY"),
-    "nt_strategy":    ("SIZING", "TOP_N", "BUFFER", "REBAL"),
-    "nt_attribution": ("SIZING", "TOP_N", "BUFFER", "REBAL"),
-    "nt_data":        ("DEPTH_MODE", "_VOLUME"),
+    "nautilus_port":  ("SIZING", "TOP_N", "BUFFER", "REBAL", "DEPTH_MODE", "_VOLUME"),
 }
 
 
@@ -824,7 +824,8 @@ def _dd_port_note(args):
 
 # THE HAND-RUN REPORTS, reached through `run.py --report NAME [ARGS]`. Each reads
 # its own arguments from sys.argv, as it did as a script; ARGS are passed through.
-REPORTS = ("readme_tax_tables", "year_by_year", "capital_ladder", "cell_reports")
+REPORTS = ("readme_tax_tables", "year_by_year", "capital_ladder", "cell_reports",
+           "impact_sweep")
 
 
 def run_report(argv):
@@ -858,7 +859,7 @@ def main(argv=None):
     ap.add_argument("--rebal", type=_cadence_arg, default=None,
                     help="rebalance cadence in trading days; omit for the default 20")
     # THE FOURTH AXIS GETS ITS ENTRY POINT. It had none until 2026-09-18: settings.tax
-    # was implemented, verified by tax_acceptance_check.py on BOTH halves, hooked
+    # was implemented, verified by checks.py tax_acceptance_check on BOTH halves, hooked
     # into test_exposure and composed by settings.AXES -- and no flag anywhere could
     # turn it on. The only callers of tax.set_selection() in the repository were
     # two CHECKERS. A run could not charge tax.
@@ -922,7 +923,7 @@ def main(argv=None):
                     help="a buy cash cannot fully pay for: trim it to the largest whole "
                          "quantity that fits, if at least half the wanted quantity, "
                          "or refuse it (default from "
-                         "settings.BUY_SHORTFALL, trim). See buy_shortfall.py.")
+                         "settings.BUY_SHORTFALL, trim). See portfolio.trim.")
     ap.add_argument("--list", action="store_true", help="resolve and print the plan, run nothing")
     ap.add_argument("--dry-run", action="store_true",
                     help="like --list, and show every output location")
@@ -1112,7 +1113,7 @@ def collect_run_folder(plan, args, t_start, dest, thin=None):
     for line in cap_lines:
         print(f"  {line}")
     dest.mkdir(parents=True, exist_ok=True)
-    # started/finished are epoch seconds. check_all.py --since reads them to find
+    # started/finished are epoch seconds. checks.py --since reads them to find
     # the runs that finished after --since and what they selected; see
     # read_run_record(). Folders written before 2026-09-30 lack both lines.
     (dest / "RUN.txt").write_text(
@@ -1591,8 +1592,8 @@ def _pit_setup(plan):
     from settings import survivorship_axis as _sva
     if _sva.is_default():
         return
-    import check_data
-    rc = check_data.check_pit([u.tag for u in plan["universes"]])
+    import checks
+    rc = checks.check_pit([u.tag for u in plan["universes"]])
     if rc != 0:
         raise SystemExit("pit inputs do not match data/RAW_DATA_SHA256_PIT.txt; "
                          "see the lines above")
@@ -1681,7 +1682,7 @@ def _execute(plan, args, state):
     # THE WORKING DIRECTORY IS ROOT, AND THAT IS NOT COSMETIC.
     # backtest_runs.run() spawned every step with an explicit cwd=ROOT. In process there
     # is no cwd argument, so a step is handed whatever directory the shell happened
-    # to be in -- and nautilus/nt_export_scores.py builds its four input paths as
+    # to be in -- and nautilus_port.py nt_export_scores builds its four input paths as
     # bare relatives ("results/metrics/v5_expanding_cache.csv"). Without this,
     # run.py works from the repo root and fails from anywhere else, on one step,
     # with a FileNotFoundError that names a path the reader can see exists.

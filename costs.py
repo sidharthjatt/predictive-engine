@@ -32,14 +32,14 @@ from settings import profile_axis
 # ======================================================================================
 # SLIPPAGE AND MARKET IMPACT. From slippage.py (moved 2026-11-27).
 # ======================================================================================
-# slippage.py -- the execution slippage constant, in one place.
+# slippage -- the execution slippage constant, in one place.
 #
 # WHY THIS EXISTS. SLIPPAGE = 0.0015 was written out SEVEN times:
 #
-#     portfolio.py        results/engine_core.py:140
-#     reports.py       results/check_b_exec_timing.py:44
-#     nautilus/nt_run.py:73              nautilus/nt_attribution.py:64
-#     depth_compare.py:40                (derived from nt_run, not a definition)
+#     portfolio.py        checks.py (engine_core section)
+#     reports.py       checks.py check_b_exec_timing
+#     nautilus_port.py nt_run              checks.py nt_attribution
+#     nautilus_port.py depth_compare                (derived from nt_run, not a definition)
 #
 # nt_run's carried the comment "matches SLIPPAGE in portfolio.py",
 # which is a duplicate admitting it is one. This repository already records
@@ -197,7 +197,7 @@ def resolve(sym, dt, vol20, first_priced):
 # ======================================================================================
 # TRANSACTION CHARGES (Zerodha, Dhan, Upstox; NSE and BSE). From qbeast_in_charges.py (moved 2026-11-27).
 # ======================================================================================
-# qbeast_in_charges.py
+# costs.py
 # ====================================================================================
 # QBEAST-AI.N | Indian broker transaction-charges engine (Dhan / Zerodha Kite / Upstox)
 # Segments : EQUITY (delivery, intraday, futures, options) | COMMODITY (futures, options)
@@ -549,85 +549,6 @@ def compute_roundtrip(
     }
 
 
-# ============================================================ NautilusTrader =====
-# Thin adapter so QBEAST strategies can plug Indian charges straight into the
-# backtest engine via BacktestVenueConfig(fee_model=...).
-#
-# CAVEATS (read before wiring into M9+ live/backtest paths):
-#   1. `get_commission` is invoked PER FILL. The discount-broker "Rs 20 per ORDER"
-#      cap is per-order, not per-fill. For single-fill market orders this is exact;
-#      for orders that fill in multiple partials it can over-count brokerage. Pin a
-#      DECISION-V1-NNN on the chosen handling if you trade large/iceberg orders.
-#   2. DP is a per-scrip-per-DAY depository charge, not a per-order one. It is
-#      therefore OFF by default in the Nautilus path (include_dp=False) and should
-#      be reconciled at EOD by the M9 Data Manager rather than booked per fill.
-# --------------------------------------------------------------------------------
-try:
-    from nautilus_trader.backtest.models import FeeModel  # type: ignore
-    from nautilus_trader.model.objects import Money, Currency  # type: ignore
-    from nautilus_trader.model.enums import OrderSide  # type: ignore
-    _HAS_NAUTILUS = True
-except Exception:  # pragma: no cover  (core stays importable without the framework)
-    _HAS_NAUTILUS = False
-    FeeModel = object  # type: ignore
-
-
-class QbeastIndianFeeModel(FeeModel):
-    """
-    NautilusTrader FeeModel returning the all-in Indian charge for each fill.
-
-    Example
-    -------
-        from nautilus_trader.config import BacktestVenueConfig
-        fee_model = QbeastIndianFeeModel(
-            broker=Broker.ZERODHA, segment=Segment.EQUITY,
-            product=Product.INTRADAY, exchange=Exchange.NSE,
-        )
-        venue = BacktestVenueConfig(name="NSE", fee_model=fee_model, ...)
-    """
-
-    def __init__(
-        self,
-        broker: Broker,
-        segment: Segment,
-        product: Product,
-        exchange: Exchange,
-        *,
-        female: bool = False,
-        is_agri: bool = False,
-        include_dp: bool = False,     # OFF in the per-fill path (see caveat 2)
-        include_ipft: bool = False,
-        currency: str = "INR",
-    ):
-        if _HAS_NAUTILUS:
-            super().__init__()
-        self.broker = broker
-        self.segment = segment
-        self.product = product
-        self.exchange = exchange
-        self.female = female
-        self.is_agri = is_agri
-        self.include_dp = include_dp
-        self.include_ipft = include_ipft
-        self._ccy = currency
-
-    # Cython-style parameter names per NautilusTrader's FeeModel base signature.
-    def get_commission(self, Order_order, Quantity_fill_qty, Price_fill_px, Instrument_instrument):
-        side = Side.SELL if Order_order.side == OrderSide.SELL else Side.BUY
-        # str() on Price/Quantity yields an exact decimal string -> no float drift.
-        price = Decimal(str(Price_fill_px))
-        qty = Decimal(str(Quantity_fill_qty))
-
-        bd = compute_leg_charges(
-            self.broker, self.segment, self.product, side, price, qty, self.exchange,
-            female=self.female, is_agri=self.is_agri,
-            include_dp=self.include_dp, include_ipft=self.include_ipft,
-        )
-
-        ccy = getattr(Instrument_instrument, "quote_currency", None) or Currency.from_str(self._ccy)
-        return Money(float(bd.total), ccy)
-
-
 # ==================================================================== self-test ==
 def _selftest() -> None:
     """Zero-skip / zero-xfail worked examples cross-checked vs broker calculators."""
@@ -699,7 +620,7 @@ def calc_tc(price, qty, side):
 # ======================================================================================
 # CAPITAL-GAINS TAX RULES AND THE TAX LEDGER. From tax_util.py (moved 2026-11-27).
 # ======================================================================================
-# tax_util.py -- Indian capital-gains tax on a realised trade log. THE RULES ONLY.
+# tax_util -- Indian capital-gains tax on a realised trade log. THE RULES ONLY.
 # ===============================================================================
 #
 #     axis: settings.tax            engine hook: portfolio.py
@@ -1075,7 +996,7 @@ def max_holding_days(lots):
 
     THE FAILURE MODE THIS FUNCTION WAS WRITTEN AGAINST IS THE ONE THAT HAPPENED:
     the branch began firing and nothing said so, because this function had no
-    caller for as long as it existed. It has one now -- check_all.py's
+    caller for as long as it existed. It has one now -- checks.py's
     LTCG-boundary condition. Do not leave it uncalled again; an uncalled guard
     is prose with a def in front of it.
     """
@@ -1410,7 +1331,7 @@ class Ledger:
 # ======================================================================================
 # PARTICIPATION CAP AND PROFILE NOTICES. From profiles.py (moved 2026-11-27).
 # ======================================================================================
-# profiles.py -- what the execution-realism profile does to a run: the
+# profiles -- what the execution-realism profile does to a run: the
 # participation cap, the cap keywords for backtest_exposure, and the notices a
 # non-research run carries. The selection itself is settings.profile_axis
 # (research or tradeable).
@@ -1532,7 +1453,7 @@ def cap_kwargs(u, vol20=None):
 
     `vol20`, when given, is a series this function returned earlier for the same
     universe; it is reused instead of reading every price file again. Only a
-    caller that runs many settings on one universe (results/impact_sweep.py)
+    caller that runs many settings on one universe (reports.py)
     passes it.
     """
     from settings import impact_axis as _imp
@@ -1596,7 +1517,7 @@ def research_only(caller):
 # a run that finishes, writes every artefact and exits 0 looks like a run that was
 # checked.
 #
-# IT HAS NEVER BEEN CHECKED. gate_compare.STANDING_GATE's two tradeable cells are
+# IT HAS NEVER BEEN CHECKED. checks.STANDING_GATE's two tradeable cells are
 # [PARTIAL] and stop at STEP 10d/12b/15b; STEP 16 and STEP 17 had never executed
 # under this profile before 2026-09-16, and no cell compares what they produce
 # against anything. Until a gate cell exists, every tradeable number is a number
@@ -1652,7 +1573,7 @@ UNGATED_NOTICE = (
 # equals research" is reading a statement about 1.00.
 #
 # The full grid, with per-cell bind counts and the cap/slippage split, is
-# diagnostics/impact_sweep_{universe}_{arm}.csv from results/impact_sweep.py.
+# diagnostics/impact_sweep_{universe}_{arm}.csv from reports.py.
 # CAP_INERT_NOTICE WAS A STORED CLAIM AND IS GONE. SUPERSEDED 2026-09-22.
 #
 # IT READ, VERBATIM:
@@ -1751,7 +1672,7 @@ def gate_status():
 # ======================================================================================
 # CAPACITY. From capacity.py (moved 2026-11-27).
 # ======================================================================================
-# capacity.py -- can the universe absorb the orders a run sent? One definition.
+# capacity -- can the universe absorb the orders a run sent? One definition.
 #
 # Measured after a run from its own artefacts and the universe's raw price files; it
 # changes no results file. run.py prints it into run.log and RUN.txt, and

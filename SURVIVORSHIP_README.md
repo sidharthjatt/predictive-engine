@@ -1,4 +1,4 @@
-# survivorship.py — point-in-time index membership, behind a switch
+# market_data.py — point-in-time index membership, behind a switch
 
 Removes survivorship bias from a backtest when a valid membership history is
 available, and leaves existing behaviour byte-identical when it is not.
@@ -45,9 +45,9 @@ sv.set_exit_policy("forced")  # "forced" (default) | "buffer"
 From the command line:
 
 ```bash
-./venv/bin/python results/survivorship.py validate <membership.csv> --prices <dir> --index nifty100
-./venv/bin/python results/survivorship.py members  <membership.csv> 2021-06-15
-./venv/bin/python results/survivorship.py coverage <membership.csv> --prices <dir>
+./venv/bin/python market_data.py validate <membership.csv> --prices <dir> --index nifty100
+./venv/bin/python market_data.py members  <membership.csv> 2021-06-15
+./venv/bin/python market_data.py coverage <membership.csv> --prices <dir>
 ```
 
 `validate` exits 0 on pass, 2 on fail — usable as a CI gate.
@@ -69,7 +69,7 @@ serves every universe:
   Static runs read `Final_Without_Survivorship_Data` as before.
 - caches: `cache/<tag>/pit/`, so no pit file can replace a static one.
 - inputs: checked against `data/RAW_DATA_SHA256_PIT.txt` before the run starts
-  (`check_data.py --pit`).
+  (`checks.py check_data --pit`).
 - window: starts at the first session on or after the file's first row.
 - buy & hold: the members on the first pit rebalance, held.
 - the Nautilus port is not run, and pit cells are outside nt_verify.
@@ -256,7 +256,7 @@ Dates may be ISO or day-first; both are handled.
 ## Tests
 
 ```bash
-./venv/bin/python results/test_survivorship.py
+./venv/bin/python checks.py test_survivorship
 echo $?    # 0 = all passed
 ```
 
@@ -304,6 +304,6 @@ widens in a single step. Both are now fixtures.
 ## Testing your own file
 
 ```bash
-./venv/bin/python results/survivorship.py validate your_file.csv --prices your_price_dir
+./venv/bin/python market_data.py validate your_file.csv --prices your_price_dir
 echo $?    # 0 = pass, 2 = fail
 ```

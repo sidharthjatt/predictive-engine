@@ -201,7 +201,7 @@ def score_monthly(raw, seeds, purge_mode="trading", through=None):
 # ======================================================================================
 # THE SCORE BUILD STEP. From build_scores_step.py (moved 2026-11-27).
 # ======================================================================================
-# build_scores_step.py -- the raw panel and monthly score panel, once, for any universe.
+# build_scores_step -- the raw panel and monthly score panel, once, for any universe.
 # ======================================================================================
 #
 # WHAT THIS REPLACES
@@ -670,14 +670,14 @@ def require_cache(path, what="score panel"):
 # ======================================================================================
 # FIT-CACHE AND SOURCE-DATA KEYS. From seed_cache_key.py (moved 2026-11-27).
 # ======================================================================================
-# seed_cache_key.py -- the keys for cached model fits and cached panels, in one place.
+# seed_cache_key -- the keys for cached model fits and cached panels, in one place.
 #
 # Two keys live here: seed_cache_key() for a cached fit, and source_key() for the
 # price CSVs a score or raw panel is built from (see the block above
 # source_key()). Both hash content, never a path or an mtime.
 #
 # WHY THIS EXISTS. Two scripts cache score_monthly's output under /tmp and read it
-# back on a later run: validate_sizing.py's T2 and results/validate_engine.py's T2.
+# back on a later run: checks.py validate_sizing's T2 and checks.py validate_engine's T2.
 # Both were keyed on the universe and the INDEX into SEED_SETS and nothing else --
 # no code hash, no panel hash -- so neither could miss on a code change or a panel
 # change. A cache written by any earlier engine against any earlier panel landed on
@@ -696,8 +696,8 @@ def require_cache(path, what="score panel"):
 #
 # WHAT A CALLER MUST PASS, AND WHY EACH ONE.
 #     code_files  every source file whose contents can change the fit. Both callers
-#                 pass results/engine_core.py (score_monthly IS the computation),
-#                 config.py (the readers), settings.py (the backtest window), and
+#                 pass model.py (score_monthly IS the computation),
+#                 market_data.py (the readers), settings.py (the backtest window), and
 #                 THEIR OWN FILE, because each
 #                 chooses the seed sets and the columns written to the cache.
 #     panel_path  the data fit against. Hashed by CONTENT, streamed. Not by path
