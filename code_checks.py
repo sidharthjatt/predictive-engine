@@ -479,7 +479,7 @@ the first day and the gap; 0 if all reconcile.
     import settings                                                    # noqa: E402
     import cost_report                                               # noqa: E402
     import engine_core                                               # noqa: E402
-    import profiles
+    import costs
     import settings                                                  # noqa: E402
     import arms.registry as arm_reg                                  # noqa: E402
     from config import read_table                                    # noqa: E402
@@ -498,7 +498,7 @@ the first day and the gap; 0 if all reconcile.
             audit["costs"] = {"fills": [], "days": []}
             _eq, tc, _n, _ = backtest_exposure(px, op, sc, bd, pc, mom20, audit=audit,
                                                tax_enabled=tax_on,
-                                               **arm.kwargs, **profiles.cap_kwargs(u))
+                                               **arm.kwargs, **costs.cap_kwargs(u))
         finally:
             settings.profile_axis.set_selection(None)
         tx = audit.get("tax")

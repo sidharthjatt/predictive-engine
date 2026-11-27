@@ -322,7 +322,7 @@ trim with it:
 
 The Nautilus port uses the same function (`buy_shortfall.trim`), and
 `nt_verify.py` checks it under trim. Since 2026-10-28 both sides fill to the paisa
-(`slippage.fill_price`), and the holdings at every rebalance and the orders of every
+(`costs.fill_price`), and the holdings at every rebalance and the orders of every
 rebalance period must be identical; any period that differs fails. The 0.05-grid
 stage (decisions, a 0.50% NAV limit and a 0.10-point CAGR limit) went with the NSE
 tick. Measured 2026-10-28 on nifty100, nifty50, midcap150, smallcap250 and nifty500,
@@ -382,8 +382,8 @@ current sensitivity evidence is the cleaned noise test
 
 ### The tradeable profile is ungated, and the cap can raise or lower a cell's CAGR
 
-`--profile tradeable` adds only the participation cap (`profiles.py`). Nothing replays
-the port under it (`profiles.UNGATED_NOTICE`). The figures are in
+`--profile tradeable` adds only the participation cap (`costs.py`). Nothing replays
+the port under it (`costs.UNGATED_NOTICE`). The figures are in
 `diagnostics/tradeable_tax_all_arms.csv`, tax on, on the 2026-10-10 data and the tax ledger
 since 2026-10-14:
 - The cap binds in 9 of the 32 cells of the eight original universes and changes the
@@ -413,8 +413,8 @@ no order on 2019-01-02 now exceeds the cap.
 What is still uncapped: a symbol whose own price file has fewer than 20 sessions before
 a fill has no median, and `_participation_limit` returns None for it, so that fill goes
 through uncapped and nothing is logged (results/test_exposure.py:112-131). The impact
-model (`slippage.impact`) exempts the same fills explicitly and counts them
-(`slippage.first_priced_date`, `resolve`). The cap does not count them. Measured
+model (`costs.impact`) exempts the same fills explicitly and counts them
+(`costs.first_priced_date`, `resolve`). The cap does not count them. Measured
 2026-10-15 on nifty200 v3, nifty200 v1 and midcap100 v1 (pit, tradeable, tax on,
 Rs 10 lakh): no fill falls in this case (0 of 826, 842 and 782 fills).
 
@@ -482,8 +482,8 @@ to find out.
   figures are the engine's and are unchanged.
 ### Charges use the 2026-04-01 rate table for every fill since 2019; tax is dated
 
-results/tax_util.py applies the capital-gains regime by sale date (15%/10% before
-2024-07-23, 20%/12.5% from it). results/qbeast_in_charges.py has no date input:
+costs.py applies the capital-gains regime by sale date (15%/10% before
+2024-07-23, 20%/12.5% from it). costs.py has no date input:
 compute_leg_charges() takes no date, and SPEC_LOCK fixes rates effective
 2026-04-01, so STT, stamp duty, exchange and SEBI fees and GST are charged at
 today's rates on every fill from 2019-01-01. The tax figures are period-accurate
@@ -530,7 +530,7 @@ Three definitions are choices, not measurements:
 ### Nautilus figures differ from the engine's by up to 6.1%, and on the 100%-invested arms can hold different names
 
 Since 2026-10-28 the port and the engine both fill to the paisa with
-`slippage.fill_price`, and nt_verify gates the port against the reference copy
+`costs.fill_price`, and nt_verify gates the port against the reference copy
 (`nt_attribution`) at that rule alone; the 0.05-grid quotes and the 0.01-grid re-run
 described below are gone. The figures below are from before that change.
 
@@ -570,7 +570,7 @@ which `run.py` prints at the end of `run.log`. The summary compares the arm with
 investable buy & hold held to the end and sold on the last day.
 - The run fails unless, to the paisa: cash reconciles every day; slippage and the
   itemised charges every fill; tax every financial year (by replaying
-  `tax_util.Ledger`); the per-fill charges and per-day tax against the run's totals;
+  `costs.Ledger`); the per-fill charges and per-day tax against the run's totals;
   and the buy & hold, held and sold, against `bh_held.held_lots`. The printed tax
   total must also equal COST_TAX_YEARS `total_tax` summed and the ledger's final
   `cum_tax`, within Rs 0.01 (`cost_report.check_tax_total`), and the per-year table
@@ -595,22 +595,22 @@ under `results_*/metrics/`, and in the run folders 397 of each plus 397 blocks i
 `run.log` files. Each rebuilt block reproduced the old one byte for byte with the old
 code first, and each carries one line saying it was rebuilt. Blocks from before
 `b61621b` charged no cess and were not changed.
-- Slippage in both profiles is `slippage.py`'s flat 0.15% of the reference price, the
+- Slippage in both profiles is `costs.py`'s flat 0.15% of the reference price, the
   execution day's open (the close for the last-day sale where the open is missing).
   The size-sensitive term exists and no production caller uses it. The tradeable
   profile adds only the participation cap.
-- Charges are the itemised Zerodha delivery rates in `results/qbeast_in_charges.py`.
+- Charges are the itemised Zerodha delivery rates in `costs.py`.
   The charges section of `data/reference/TAX_AND_CHARGES.docx` (flat 0.11%, 4.5% cash
   yield, no DP charge) is out of date and is kept as a reference copy. Its tax rules
   were the ones used until 2026-10-14; since then four of them are replaced (next
   entry).
   - The DP charge (Rs 13 plus GST, Rs 15.34) is charged on every sell order
-    (`qbeast_in_charges.py:322-323`). The depository charges it once per stock per
+    (`costs.py`). The depository charges it once per stock per
     day, so two sells of one stock on one day would pay it twice. On nifty200 v3, pit,
     tradeable, tax on, Rs 10 lakh, the size is zero: 409 sell orders fall on 409
     distinct (day, stock) pairs, because the engine always sells a whole position in
     one order. Total DP charged there is Rs 6,274.06.
-  - IPFT is not charged (`include_ipft=False`, `qbeast_in_charges.py:274, 319-320`).
+  - IPFT is not charged (`include_ipft=False`, `costs.py, 319-320`).
     At the library's rate of Rs 0.01 per crore, the rate Zerodha's charges page lists,
     the same cell's Rs 42.64 crore of turnover would owe Rs 0.05 including GST. Per
     leg it rounds to zero paisa: the largest leg, Rs 26.1 lakh, owes Rs 0.0003.
@@ -625,7 +625,7 @@ code first, and each carries one line saying it was rebuilt. Blocks from before
 ### The tax rules since 2026-10-14, and what is still left out
 
 The reference document departed from the Income-tax Act for listed equity in four
-places, and on 2026-10-14 the ledger (`results/tax_util.py`) was changed to follow the
+places, and on 2026-10-14 the ledger (`costs.py`) was changed to follow the
 Act. Every tax-on figure before that date was computed without them; see
 experiments/EXPERIMENTS.md for old against new.
 
@@ -653,7 +653,7 @@ Still left out:
 The rules are in `data/reference/TAX_AND_CHARGES.docx`. The owner decided the choices
 below, on 2026-09-23 and 2026-09-25:
 - FY2026-27, cut short by the data ending 2026-05-29, is settled on the last session
-  with the full Rs 1,25,000 exemption (`tax_util.Ledger.due_on`, `assessed_basis =
+  with the full Rs 1,25,000 exemption (`costs.Ledger.due_on`, `assessed_basis =
   "backtest end"`). The document does not cover a window that ends mid-year.
 - On a trading 31 March (2020 to 2023), the year is assessed after that day's fills, so
   a sale made that day is taxed. Every other year is assessed before the fills.
@@ -679,7 +679,7 @@ untaxed one, and its tax is not the tax computed from an untaxed run's trade log
 
 ### STCG and LTCG are netted in opposite orders, on purpose
 
-results/tax_util.py allocates the short-term taxable base old-rate portion first
+costs.py allocates the short-term taxable base old-rate portion first
 (line 345) and the long-term base new-rate portion first (line 357). Both are
 copied from section 3.4 of data/reference/TAX_AND_CHARGES.docx (sha256
 a5be987a1a75238796dd059c777b370b14be43f8a418206c93ee4201ddec8972; the file is
@@ -689,7 +689,7 @@ document changes.
 
 ### The LTCG exemption follows the financial year; the rate follows the sale date
 
-results/tax_util.py:207 gives the Rs 1,25,000 exemption to every year from FY2024-25,
+costs.py gives the Rs 1,25,000 exemption to every year from FY2024-25,
 while regime_of() sets the rate by sale date against 2024-07-23. So a lot sold in
 May 2024 is taxed at the old 10% but draws the new exemption. The document's
 section 3.1 table suggests otherwise; section 3.4's formula and section 3.6's
@@ -734,7 +734,7 @@ The fill session's row and open still decide whether a buy or sell can fill at a
 
 Since 2026-10-28 every fill, in the engine, `engine_core.backtest`, `bh_held`,
 `nautilus/nt_attribution.py` and the Nautilus port's quotes, is
-`slippage.fill_price`: round(open x (1 + rate), 2) for a buy and round(open x
+`costs.fill_price`: round(open x (1 + rate), 2) for a buy and round(open x
 (1 - rate), 2) for a sale, in float64 and rounded by NumPy (half to even on the
 binary value), the rule of predictive-backtest's `engine.fill_price`. Charges, the
 trim and the cash test use that price. A buy's quantity is still sized from the
@@ -1012,7 +1012,7 @@ In September 2026 several changes were declared safe on evidence about something
 - `gate_compare.py` compares only files the cell under test wrote, and fails on any file it cannot account for;
 - `registry_coverage_check.py` failed a run if a registered universe was missing from any of the seven per-universe tables. It was retired on 2026-11-26 (see "Files retired on 2026-11-26" below), and nothing replaces it yet;
 - `backtest_exposure` refuses a participation cap passed without `vol20`;
-- scripts outside the profile axis call `profiles.research_only`, which refuses a non-research profile.
+- scripts outside the profile axis call `costs.research_only`, which refuses a non-research profile.
 
 Nothing checks that a commit message's "not exercised" or "verified" claim matches what ran. When a commit says a branch was not exercised, run that path yourself before accepting it.
 
@@ -1275,8 +1275,8 @@ most are flat bars (open, high, low and close equal), 1,163 of them with volume 
   on that day.
 - The tradeable participation cap and market impact: `results/tradability.py`
   `median_volume`, the prior-20-session median volume (`vol20`), read by
-  `results/test_exposure.py` and `slippage.py`.
-- `capacity.py`, the capacity warning. Since 2026-10-20 it counts NSE rows only
+  `results/test_exposure.py` and `costs.py`.
+- `costs.py`, the capacity warning. Since 2026-10-20 it counts NSE rows only
   (`exchange == NSE`) and reports a fill with no NSE row in its 20 sessions as not
   measurable. Nothing else leaves the BSE rows out.
 
@@ -1502,7 +1502,7 @@ read. Audit trails, daily logs and trade logs are written per selected arm.
 
 ### Guards and authorities that are declared but not called, and the one still standing
 
-A function whose docstring says what it guards against, but which has no call site, reads as a solved problem to anyone who finds the docstring. This happened with `tax.set_selection` and `tax_util.max_holding_days`, and both are now wired.
+A function whose docstring says what it guards against, but which has no call site, reads as a solved problem to anyone who finds the docstring. This happened with `tax.set_selection` and `costs.max_holding_days`, and both are now wired.
 
 Still open: `results/make_chart.py`, the per-universe chart, ignores the registry palette. Lines 290, 292, 308, 445 and 446 hardcode six colours, nifty100's slots 0-3 and midcap150's slots 4-5, and every universe is drawn in them. `palette_distance.py` measures only `REGISTRY[t].chart_colours`, so this set has never been gated. Its closest pair under deuteranopia is v2 against buy & hold at dE 7.55. Fixing it re-renders every universe's chart.
 

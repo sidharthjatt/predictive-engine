@@ -11,7 +11,7 @@ v34_common.run_arm so both report the same numbers:
     last_day      "sold on the last day": every lot is sold at the last session's
                   open (its close where the open is missing) less slippage, the
                   same calc_tc sell charge the strategy pays is deducted, and the
-                  realised gain is taxed with tax_util.tax_for_fy for the financial
+                  realised gain is taxed with costs.tax_for_fy for the financial
                   year of that session -- the document's netting and full annual
                   exemption, nothing else.
 
@@ -23,9 +23,9 @@ construction and stays the reference line.
 """
 import numpy as np
 
-import tax_util as T
-from test_exposure import calc_tc, SLIPPAGE
-from slippage import fill_price
+import costs
+from costs import calc_tc, SLIPPAGE
+from costs import fill_price
 from settings import capital_axis as _capital_axis  # noqa: E402
 
 
@@ -68,18 +68,18 @@ def held_lots(px, op, bd):
         sell_tc += calc_tc(pr, q, "SELL")
         gain += q * (round(pr, 2) - round(bp, 2))   # section 3(C): price difference only
     held_days = (dN - d0).days
-    fy = T.financial_year(dN)
-    reg = T.regime_of(dN)
-    b = dict.fromkeys(T.BUCKETS, 0.0)
-    b[("long_" if T.is_long_term(d0, dN) else "short_") + reg] = gain
-    tx = T.tax_for_fy(fy, b)
+    fy = costs.financial_year(dN)
+    reg = costs.regime_of(dN)
+    b = dict.fromkeys(costs.BUCKETS, 0.0)
+    b[("long_" if costs.is_long_term(d0, dN) else "short_") + reg] = gain
+    tx = costs.tax_for_fy(fy, b)
     eq_last_day = eq_headline.copy()
     eq_last_day.iloc[-1] = cash + proceeds - sell_tc - tx["total_tax"]
     return {
         "eq_headline": eq_headline,
         "eq_last_day": eq_last_day,
         "shares": shares,
-        "detail": dict(names=len(shares), held_days=held_days, fy=T.fy_label(fy),
+        "detail": dict(names=len(shares), held_days=held_days, fy=costs.fy_label(fy),
                        regime=reg, gain=gain, tax=tx["total_tax"],
                        exemption=tx["exemption"], residual_cash=cash,
                        proceeds=proceeds, sell_tc=sell_tc, buy_tc=buy_tc,

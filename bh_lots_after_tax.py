@@ -48,13 +48,13 @@ ROOT=Path(__file__).resolve().parent
 for p in (ROOT,ROOT/"results",ROOT/"nautilus"): sys.path.insert(0,str(p))
 import numpy as np, pandas as pd
 import config
-import profiles
+import costs
 import engine_core
-import tax_util as T
 from settings import cadence
 import settings
 from engine_core import precompute
-from test_exposure import backtest_exposure, calc_tc, SLIPPAGE
+from test_exposure import backtest_exposure
+from costs import calc_tc, SLIPPAGE
 from settings import capital_axis  # noqa: E402
 from settings import REGISTRY
 from config import read_table  # the one CSV/parquet reader: config.read_table
@@ -183,14 +183,14 @@ def main(u):
         pc=precompute(px); mom20=px/px.shift(20)-1
         bd=u.trading_days(px.index)   # the universe's window; see engine_v2_final
         kw=dict(rebal=cadence.selected(),
-                **arm.kwargs,**profiles.cap_kwargs(u))
+                **arm.kwargs,**costs.cap_kwargs(u))
         v2_off,_,_,_=backtest_exposure(px,op,sc,bd,pc,mom20,audit=None,tax_enabled=False,**kw)
         a={k:[] for k in ("holdings","summary","trades","ranking","decisions","skipped")}
         v2_on ,_,_,_=backtest_exposure(px,op,sc,bd,pc,mom20,audit=a,tax_enabled=True,**kw)
         a2={k:[] for k in ("holdings","summary","trades","ranking","decisions","skipped")}
         v2_last,_,_,_=backtest_exposure(px,op,sc,bd,pc,mom20,audit=a2,tax_enabled=True,
                                         end_sale=True,**kw)
-        stmt,_=T.liability_schedule(a["tax"]["lots"],bd)
+        stmt,_=costs.liability_schedule(a["tax"]["lots"],bd)
 
         bh_eq,bh_tx,det=bh_lots(px,op,bd)
         bh_last=det["eq_last_day"]
@@ -200,7 +200,7 @@ def main(u):
                               .pct_change().loc[bd].mean(axis=1).fillna(0)).cumprod()
 
         # SINCE 2026-09-25 NOTHING IS SETTLED HERE. The engine settles the last,
-        # partial financial year in-loop on the final session (tax_util.Ledger
+        # partial financial year in-loop on the final session (costs.Ledger
         # .due_on), so v2_on is already after all tax on what it realised. The
         # headline sells nothing at the end, for either line; the "sold on the
         # last day" lines sell everything, pay the sell charges and are taxed.
@@ -214,7 +214,7 @@ def main(u):
         print(f"      single realisation in {det['fy']}, regime '{det['regime']}', gain Rs {det['gain']:,.0f}, "
               f"exemption Rs {det['exemption']:,.0f}")
         print(f"      if sold on the last day: LTCG due Rs {det['tax']:,.0f}   (rate "
-              f"{T.LTCG_RATE[det['regime']]*100:g}%), sell charges Rs {det['sell_tc']:,.0f}; "
+              f"{costs.LTCG_RATE[det['regime']]*100:g}%), sell charges Rs {det['sell_tc']:,.0f}; "
               f"headline sells nothing and pays neither")
 
         # THE LABELS SAY *WHEN*, NOT ONLY *WHETHER*. "after tax (settled)" was true

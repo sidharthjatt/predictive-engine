@@ -60,7 +60,7 @@ import engine_core                               # noqa: E402
 from arms.registry import ARMS                   # noqa: E402
 from settings import impact_axis                               # noqa: E402
 from settings import pcap_axis                                 # noqa: E402
-import profiles
+import costs
 import settings                                  # noqa: E402
 from test_exposure import backtest_exposure      # noqa: E402
 from settings import REGISTRY          # noqa: E402
@@ -71,7 +71,7 @@ CAPS = (1.00, 0.10)
 
 # THE SETTINGS, NOT A COPY OF THEM (2026-10-15). Each cell selects the profile,
 # --cap and --impact exactly as run.py does and takes its keywords from
-# profiles.cap_kwargs, so the volume series, the cap and k reach backtest_exposure
+# costs.cap_kwargs, so the volume series, the cap and k reach backtest_exposure
 # by the path every run takes. Until then this file loaded its own volume series,
 # on the score panel's dates rather than the engine's calendar, and passed cap and
 # k by hand.
@@ -91,7 +91,7 @@ def panel(tag):
     mom20 = px / px.shift(20) - 1
     # the tradeable profile's volume series, loaded once and reused by every cell
     _select(1.00, None)
-    v20 = profiles.cap_kwargs(u)["vol20"]
+    v20 = costs.cap_kwargs(u)["vol20"]
     _select(None, None)
     return u, px, op, sc, bd, pc, mom20, v20
 
@@ -110,7 +110,7 @@ def cell(u, px, op, sc, bd, pc, mom20, v20, arm, cap, k):
     iout = {}
     _select(cap, k)
     try:
-        kw = profiles.cap_kwargs(u, vol20=v20)
+        kw = costs.cap_kwargs(u, vol20=v20)
     finally:
         _select(None, None)
     eq, tc, ntr, _ = backtest_exposure(

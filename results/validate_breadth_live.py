@@ -81,7 +81,7 @@ from engine_core import (precompute, metrics, score_monthly, score_floor, HORIZO
                          START_CAPITAL)
 from test_exposure import backtest_exposure
 from settings import REGISTRY
-import profiles as _prof
+import costs
 import settings            # the run's execution-realism profile
 from config import read_table  # the one CSV/parquet reader: config.read_table
 
@@ -144,8 +144,8 @@ def run_mode(parts, dd, mode, const_expo=None):
     # RESEARCH-ONLY, DECLARED. This caller passes no vol20, so it could not
     # apply a participation cap even if one were selected; research_only()
     # makes that a statement rather than an accident, and STOPS the run if
-    # --profile ever reaches here. See profiles.research_only.
-    eq, tc, ntr, expo = backtest_exposure(px, op, sc, dd, pc, mom20, drawdown_stop=None, mode=mode, const_expo=const_expo, participation_cap=_prof.research_only(__name__))
+    # --profile ever reaches here. See costs.research_only.
+    eq, tc, ntr, expo = backtest_exposure(px, op, sc, dd, pc, mom20, drawdown_stop=None, mode=mode, const_expo=const_expo, participation_cap=costs.research_only(__name__))
     return metrics(eq, mode, tc, ntr), float(expo)
 
 

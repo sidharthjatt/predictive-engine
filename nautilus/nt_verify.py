@@ -27,7 +27,7 @@ port's open valuation (added 2026-09-29, pass I) went with it.
 the reference copy and the reference trail's name; the default is
 settings.BUY_SHORTFALL.
 
-THE VERDICT. Both sides price every fill with slippage.fill_price, to the paisa.
+THE VERDICT. Both sides price every fill with costs.fill_price, to the paisa.
 The port and the reference copy must hold the same names and quantities at every
 rebalance and fill the same orders (name, side, quantity) in every rebalance
 period: n of n, with no exemption. Any period that differs is unexplained and

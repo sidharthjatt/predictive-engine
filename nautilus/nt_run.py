@@ -27,7 +27,7 @@ from nt_data import VENUE, load_universe
 
 # The project's own Zerodha charge calculator already ships a Nautilus FeeModel.
 sys.path.insert(0, str(ROOT / "results"))
-from qbeast_in_charges import (Broker, Exchange, Product, QbeastIndianFeeModel, Segment)
+from costs import (Broker, Exchange, Product, QbeastIndianFeeModel, Segment)
 from nt_strategy import PredictiveEngineStrategy
 from settings import REGISTRY
 
@@ -73,12 +73,12 @@ WARMUP_DAYS = 200          # calendar days of history before trading begins
 # No latency. The strategy now plans at the close and sends at the next open, so
 # nothing depends on delaying a resting order.
 LATENCY_NS = 0
-# SLIPPAGE comes from slippage.py, which is the only definition. It was
+# SLIPPAGE comes from costs.py, which is the only definition. It was
 # written out in seven files until 2026-09-22; these engines are
 # cross-checked against each other, so a value changed in one and not the
 # rest surfaces as a reconciliation failure elsewhere, not as a wrong
 # number here. Value unchanged at 0.0015.
-from slippage import SLIPPAGE  # noqa: E402
+from costs import SLIPPAGE  # noqa: E402
 
 # Real Zerodha delivery-equity charges: brokerage, STT, stamp duty, exchange,
 # SEBI turnover fee and GST. Same calculator the reference engine uses, so the

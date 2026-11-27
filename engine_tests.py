@@ -826,7 +826,7 @@ Exit 0 when every case passes, 1 otherwise.
     def select_pit(tag):
         """The selections a `run.py --survivorship pit --profile tradeable --tax on`
         run makes, and the universe's membership loaded as run._pit_setup loads it."""
-        import profiles
+        import costs
         from settings import survivorship_axis, tax
         import settings
         import survivorship as sv
@@ -852,7 +852,7 @@ Exit 0 when every case passes, 1 otherwise.
         def __init__(self, tag):
             import config
             import settings
-            import profiles
+            import costs
             from config import read_table
             with contextlib.redirect_stdout(io.StringIO()):
                 self.u = u = select_pit(tag)
@@ -865,7 +865,7 @@ Exit 0 when every case passes, 1 otherwise.
             self.pc = precompute(self.px)
             self.mom20 = self.px / self.px.shift(20) - 1
             with contextlib.redirect_stdout(io.StringIO()):
-                self.capkw = profiles.cap_kwargs(u)
+                self.capkw = costs.cap_kwargs(u)
 
         def run(self, arm, tax, fixed):
             import arms.registry as ar
@@ -1091,11 +1091,11 @@ synthetic panel.
     2. names: "" at the defaults, "_impact0p003" / "@impact0p003" and
        "_pcap0p1" / "@pcap0p1" otherwise; --cap at the profile's own value is ""
     3. the research profile refuses a non-zero k and any cap, in check_profile and
-       in profiles.cap_kwargs
-    4. profiles.participation_cap: the profile's value, or --cap's under tradeable
+       in costs.cap_kwargs
+    4. costs.participation_cap: the profile's value, or --cap's under tradeable
     5. the default path: impact_k unset and impact_k=None give the same curve, and
        the cost trail carries no impact keys
-    6. with impact on, every fill is slippage.impact on top of the flat rate, the
+    6. with impact on, every fill is costs.impact on top of the flat rate, the
        run reconciles to the paisa, and impact is reported apart from slippage:
        flat slippage is exactly reference x SLIPPAGE x qty, and gross profit
        includes impact
@@ -1118,9 +1118,8 @@ No data, nothing written. Exit 0 when every case passes, 1 otherwise.
     import cost_report
     from settings import impact_axis
     from settings import pcap_axis
-    import profiles
+    import costs
     import settings
-    import slippage
     from engine_core import precompute
     from test_exposure import backtest_exposure
 
@@ -1203,7 +1202,7 @@ No data, nothing written. Exit 0 when every case passes, 1 otherwise.
         refused = []
         impact_axis.set_selection(K)
         for what, fn in (("impact check_profile", impact_axis.check_profile),
-                         ("cap_kwargs", lambda: profiles.cap_kwargs(None))):
+                         ("cap_kwargs", lambda: costs.cap_kwargs(None))):
             try:
                 fn()
             except ValueError:
@@ -1219,9 +1218,9 @@ No data, nothing written. Exit 0 when every case passes, 1 otherwise.
 
         # 4 ----------------------------------------------------------------------
         settings.profile_axis.set_selection("tradeable")
-        own = profiles.participation_cap()
+        own = costs.participation_cap()
         pcap_axis.set_selection(0.1)
-        over = profiles.participation_cap()
+        over = costs.participation_cap()
         reset()
         case("4 participation_cap: profile's 1.0, --cap's 0.1", own == 1.0 and over == 0.1,
              f"own {own}, with --cap 0.1 {over}")
@@ -1239,11 +1238,11 @@ No data, nothing written. Exit 0 when every case passes, 1 otherwise.
         eK, tcK, aK = run(px, op, sc, participation_cap=1.0, vol20=vol20, impact_k=K)
         fills, lots, years, days = cost_report.reconcile(aK["costs"], aK["trades"], list(DATES),
                                                          1_000_000.0, tcK, 0.0, False)
-        want = [slippage.impact(int(r.qty), vol20[r.symbol][r.date], K) for r in fills.itertuples()]
+        want = [costs.impact(int(r.qty), vol20[r.symbol][r.date], K) for r in fills.itertuples()]
         rate_ok = np.allclose(fills["impact_rate"], want, rtol=0, atol=1e-15)
         # The fill is rounded to the paisa, so the flat part carries up to half a
         # paisa a share of rounding.
-        flat = fills["reference_price"] * slippage.SLIPPAGE * fills["qty"]
+        flat = fills["reference_price"] * costs.SLIPPAGE * fills["qty"]
         flat_ok = bool((np.abs(fills["slippage_rs"] - flat) <= 0.005 * fills["qty"] + 1e-6).all())
         S = cost_report.strategy_totals(1_000_000.0, float(eK.iloc[-1]), fills, years)
         gross_ok = abs(S["gross"] - (S["final"] - 1_000_000.0 + S["charges"] + S["slippage"]
@@ -1275,7 +1274,7 @@ tax_rules_test.py -- the tax rules of 2026-10-14, each on a hand-worked case.
     ./venv/bin/python tax_rules_test.py          # every case, with its arithmetic
     ./venv/bin/python tax_rules_test.py --quiet  # PASS/FAIL lines only
 
-results/tax_util.py charges capital-gains tax on listed equity as the Income-tax
+costs.py charges capital-gains tax on listed equity as the Income-tax
 Act does for s.111A/112A, with these rules added on 2026-10-14:
 
     holding period   long-term only when held more than twelve calendar months
@@ -1287,7 +1286,7 @@ Act does for s.111A/112A, with these rules added on 2026-10-14:
     cess             4% on the tax
 
 Each case below states its arithmetic and is checked to the paisa (0.005). The
-last case runs the same years through tax_util.Ledger, the class the engine uses,
+last case runs the same years through costs.Ledger, the class the engine uses,
 so the in-loop path is checked as well as the function. No data, nothing written.
 Exit 0 when every case passes, 1 otherwise.
 """
@@ -1299,7 +1298,7 @@ Exit 0 when every case passes, 1 otherwise.
 
     import pandas as pd
 
-    import tax_util as T
+    import costs
 
     QUIET = "--quiet" in sys.argv
     PAISA = 0.005
@@ -1307,7 +1306,7 @@ Exit 0 when every case passes, 1 otherwise.
 
 
     def B(**kw):
-        b = dict.fromkeys(T.BUCKETS, 0.0)
+        b = dict.fromkeys(costs.BUCKETS, 0.0)
         b.update({k: float(v) for k, v in kw.items()})
         return b
 
@@ -1320,17 +1319,17 @@ Exit 0 when every case passes, 1 otherwise.
 
 
     def years(by_fy):
-        return T.assess_years(by_fy)
+        return costs.assess_years(by_fy)
 
 
     def main():
         # 1. cess on a plain short-term gain
-        t = T.tax_for_fy(2025, B(short_new=10_000))
+        t = costs.tax_for_fy(2025, B(short_new=10_000))
         case("1 cess", t["total_tax"], 2_080.00,
              "10,000 x 20% = 2,000; cess 4% = 80; 2,080")
 
         # 2. within a year: a net short-term loss against a long-term gain, before the exemption
-        t = T.tax_for_fy(2021, B(short_old=-30_000, long_old=150_000))
+        t = costs.tax_for_fy(2021, B(short_old=-30_000, long_old=150_000))
         case("2 short loss against this year's long gain", t["total_tax"], 2_080.00,
              "150,000 - 30,000 = 120,000; less exemption 1,00,000 = 20,000 x 10% = 2,000; +4% = 2,080")
 
@@ -1376,13 +1375,13 @@ Exit 0 when every case passes, 1 otherwise.
         # 9. holding period by calendar months
         for buy, sell, want in (("2023-01-31", "2024-01-31", 0.0), ("2023-01-31", "2024-02-01", 1.0),
                                 ("2023-03-01", "2024-02-29", 0.0), ("2023-03-01", "2024-03-02", 1.0)):
-            got = 1.0 if T.is_long_term(pd.Timestamp(buy), pd.Timestamp(sell)) else 0.0
+            got = 1.0 if costs.is_long_term(pd.Timestamp(buy), pd.Timestamp(sell)) else 0.0
             case(f"9 bought {buy}, sold {sell}: long", got, want,
                  "long-term only when sold after the buy date plus 12 calendar months")
 
         # 10. the engine's Ledger, in its own order, against the function
         dates = pd.bdate_range("2020-04-01", "2023-06-30")
-        led = T.Ledger(dates)
+        led = costs.Ledger(dates)
         led.buy("A", 100, 100.0, pd.Timestamp("2020-05-04"))
         led.sell("A", 100, 70.0, pd.Timestamp("2020-06-01"))      # FY2020 short -3,000
         led.buy("B", 100, 100.0, pd.Timestamp("2021-05-03"))
@@ -1610,7 +1609,7 @@ Nothing in the repository is written. Exit 0 when every case passes, 1 otherwise
 
     import engine_core
     from config import read_table  # the one CSV/parquet reader: config.read_table
-    import slippage
+    import costs
     from engine_core import precompute
     from test_exposure import backtest_exposure
 
@@ -1746,7 +1745,7 @@ Nothing in the repository is written. Exit 0 when every case passes, 1 otherwise
         # 2 ----------------------------------------------------------------------
         t = trades(full, "S01")
         sells = [r for r in t if r["action"] == "SELL"]
-        want = round(slippage.sell_price(float(op.loc[D(43), "S01"]), 0, None, None), 2)
+        want = round(costs.sell_price(float(op.loc[D(43), "S01"]), 0, None, None), 2)
         owed = [r for r in full["skipped"] if r["symbol"] == "S01"
                 and str(r["reason"]).startswith("untradeable: no row this session, sale owed")]
         case("2 owed sale fills at the next row's open",
@@ -1988,7 +1987,8 @@ No data, nothing written. Exit 0 when every case passes, 1 otherwise.
     import buy_shortfall as bsf
     import settings
     from engine_core import precompute
-    from test_exposure import backtest_exposure, calc_tc
+    from test_exposure import backtest_exposure
+    from costs import calc_tc
 
     QUIET = "--quiet" in sys.argv
     RESULTS = []
@@ -2298,7 +2298,7 @@ fill_price -- every fill price is the open moved by the slippage, to the paisa.
 
     ./venv/bin/python engine_tests.py fill_price [--quiet]
 
-Since 2026-10-28 slippage.fill_price prices every fill, as
+Since 2026-10-28 costs.fill_price prices every fill, as
 ~/Downloads/predictive-backtest's engine.fill_price does: round(open x (1 +/-
 rate), 2) in float64, rounded by NumPy.
     1. a buy and a sale of a price already in paise round to the paisa
@@ -2321,7 +2321,7 @@ No data, nothing written. Exit 0 when every case passes, 1 otherwise.
     import numpy as np
     import pandas as pd
 
-    import slippage as sl
+    import costs
     from engine_core import precompute
     from test_exposure import backtest_exposure
 
@@ -2332,16 +2332,16 @@ No data, nothing written. Exit 0 when every case passes, 1 otherwise.
         RESULTS.append(bool(ok))
         print(f"  {'PASS' if ok else 'FAIL'}  {name}" + (f"   {detail}" if detail and not QUIET else ""))
 
-    b, s_ = sl.fill_price(123.45, 0.0015, True), sl.fill_price(123.45, 0.0015, False)
+    b, s_ = costs.fill_price(123.45, 0.0015, True), costs.fill_price(123.45, 0.0015, False)
     case("1 Rs 123.45 buys at 123.64 and sells at 123.26", b == 123.64 and s_ == 123.26,
          f"buy {b}, sell {s_}")
-    h = sl.fill_price(3450, 0.0015, False)
+    h = costs.fill_price(3450, 0.0015, False)
     case("2 3450 x 0.9985 = 3444.825 sells at 3444.82", h == 3444.82, f"got {h}")
-    imp = sl.impact(1000, 50_000, 0.002)
-    ok3 = (sl.buy_price(987.65, 0, None, None) == sl.fill_price(987.65, sl.SLIPPAGE, True)
-           and sl.sell_price(987.65, 0, None, None) == sl.fill_price(987.65, sl.SLIPPAGE, False)
-           and sl.buy_price(987.65, 1000, 50_000, 0.002)
-           == sl.fill_price(987.65, sl.SLIPPAGE + imp, True))
+    imp = costs.impact(1000, 50_000, 0.002)
+    ok3 = (costs.buy_price(987.65, 0, None, None) == costs.fill_price(987.65, costs.SLIPPAGE, True)
+           and costs.sell_price(987.65, 0, None, None) == costs.fill_price(987.65, costs.SLIPPAGE, False)
+           and costs.buy_price(987.65, 1000, 50_000, 0.002)
+           == costs.fill_price(987.65, costs.SLIPPAGE + imp, True))
     case("3 buy_price and sell_price are fill_price at SLIPPAGE", ok3)
 
     rng = np.random.default_rng(11)
@@ -2366,8 +2366,8 @@ No data, nothing written. Exit 0 when every case passes, 1 otherwise.
                               drawdown_stop=None, tax_enabled=tax)
             f = audit["costs"]["fills"]
             off = [r for r in f if abs(r["fill_price"] * 100 - round(r["fill_price"] * 100)) > 1e-6]
-            bad = [r for r in f if r["fill_price"] != sl.fill_price(
-                r["reference_price"], sl.SLIPPAGE, r["side"] == "BUY")]
+            bad = [r for r in f if r["fill_price"] != costs.fill_price(
+                r["reference_price"], costs.SLIPPAGE, r["side"] == "BUY")]
             case(f"4 {name} tax {'on' if tax else 'off'}: fills in whole paise, each fill_price "
                  f"of its reference", len(f) > 0 and not off and not bad,
                  f"{len(f)} fills, {len(off)} off the paisa, {len(bad)} not fill_price")

@@ -36,38 +36,20 @@ import survivorship as sv
 import engine_core
 from engine_core import metrics, precompute
 import settings            # the run's execution-realism profile
-import tax_util as _tax_util        # the tax RULES; this file owns the cash
+import costs        # the tax RULES; this file owns the cash
 
-try:
-    from qbeast_in_charges import (compute_leg_charges, Broker, Segment,
-                                   Product, Side as QSide, Exchange)
-    from decimal import Decimal
-    def calc_tc(price, qty, side):
-        if price <= 0 or qty <= 0:
-            return 0.0
-        bd = compute_leg_charges(Broker.ZERODHA, Segment.EQUITY, Product.DELIVERY,
-                                 QSide.BUY if side == "BUY" else QSide.SELL,
-                                 Decimal(str(round(price, 2))), Decimal(str(round(qty, 4))),
-                                 Exchange.NSE)
-        return float(bd.total)
-except Exception as _e:
-    # No fallback. A flat 0.11% here once replaced the charge library without a
-    # word whenever its import failed, which moves every cost figure by about 9%.
-    raise ImportError(
-        f"qbeast_in_charges could not be imported ({type(_e).__name__}: {_e}). "
-        f"calc_tc has no fallback rate; fix the import.") from _e
+from costs import calc_tc  # the one copy; see costs.py
 
 REBAL, VOL_WIN = 20, 60
 # SELECTION -- imported from config.py, the single definition.
 TOP_N, BUFFER = settings.TOP_N, settings.BUFFER
 _THIN_WARNED = set()      # see the len(s_) < TOP_N branch in backtest_exposure
-# SLIPPAGE comes from slippage.py, which is the only definition. It was
+# SLIPPAGE comes from costs.py, which is the only definition. It was
 # written out in seven files until 2026-09-22; these engines are
 # cross-checked against each other, so a value changed in one and not the
 # rest surfaces as a reconciliation failure elsewhere, not as a wrong
 # number here. Value unchanged at 0.0015.
-from slippage import SLIPPAGE  # noqa: E402
-import slippage as _sl  # noqa: E402
+from costs import SLIPPAGE  # noqa: E402
 from config import read_table  # the one CSV/parquet reader: config.read_table
 from numerics import rolling_std  # platform-identical variance: results/numerics.py
 from settings import capital_axis as _capital_axis  # noqa: E402
@@ -291,7 +273,7 @@ def backtest_exposure(px, op, sc, dates, pc, mom20,
     if participation_cap is _CAP_REQUIRED:
         raise TypeError(
             "backtest_exposure(): participation_cap is required. Pass "
-            "profiles.participation_cap() -- None under the 'research' profile, a "
+            "costs.participation_cap() -- None under the 'research' profile, a "
             "fraction of prior-20-session median volume under 'tradeable'. It had "
             "a None default, which meant a caller that omitted it silently "
             "measured the research profile whatever the run had selected.")
@@ -324,16 +306,16 @@ def backtest_exposure(px, op, sc, dates, pc, mom20,
             f"  The cap is applied only where a prior-20-session median volume "
             f"exists for the symbol, so without vol20 NO BUY IS EVER CAPPED and "
             f"this call measures the research strategy under a "
-            f"'{__import__('profiles').selected()}' label.\n"
+            f"'{settings.profile_axis.selected()}' label.\n"
             f"  Pass vol20=tradability.median_volume(u.prepare_data_dir(), "
             f"_load_calendar(), settings.BT_START_DATE, settings.BT_END_DATE) as both engines and "
             f"v34_common do, or declare the intent with "
-            f"profiles.research_only(__name__) if this caller is research-only.")
+            f"costs.research_only(__name__) if this caller is research-only.")
     # THE EXEMPTION MAP IS BUILT ONCE, FROM THE VOLUME SERIES, BEFORE ANY FILL.
     # Defining it by construction is requirement one: a fill that has no median
     # for any reason OTHER than "its symbol's window has not started" must still
     # raise, and a map built up front is what makes that distinguishable.
-    _imp_first = _sl.first_priced_date(vol20) if impact_k is not None else {}
+    _imp_first = costs.first_priced_date(vol20) if impact_k is not None else {}
     _imp = {"priced": 0, "exempt": 0}
 
     def _fill_price(side, sym, dt_, raw, qty):
@@ -344,10 +326,10 @@ def backtest_exposure(px, op, sc, dates, pc, mom20,
         it read 1,008 priced against 1,006 trades on midcap150. The caller calls
         _commit_impact() once the trade is actually taken.
         """
-        flat = (_sl.buy_price if side == "BUY" else _sl.sell_price)
+        flat = (costs.buy_price if side == "BUY" else costs.sell_price)
         if impact_k is None:
             return flat(raw, qty, None, None), None
-        med, exempt = _sl.resolve(sym, dt_, vol20, _imp_first)
+        med, exempt = costs.resolve(sym, dt_, vol20, _imp_first)
         if exempt:
             return flat(raw, qty, None, None), {
                 "date": dt_, "side": side, "symbol": sym, "qty": qty,
@@ -401,7 +383,7 @@ def backtest_exposure(px, op, sc, dates, pc, mom20,
     # read of tax.selected(), for the same reason rebal and participation_cap are:
     # the caller owns the selection and the engine stays callable from a test that
     # never touches the axis.
-    ledger = _tax_util.Ledger(dates) if tax_enabled else None
+    ledger = costs.Ledger(dates) if tax_enabled else None
     cum_tax = 0.0
     # THE COST TRAIL (results/cost_report.py). Filled only when the caller's audit
     # dict carries a "costs" key, with every fill and every day's cash at full
@@ -411,7 +393,7 @@ def backtest_exposure(px, op, sc, dates, pc, mom20,
 
     # WITH THE IMPACT MODEL ON, each fill also records the median volume it was
     # priced against (None for a fill the model exempted), so cost_report can
-    # recompute the impact rate with slippage.impact and split it from the flat
+    # recompute the impact rate with costs.impact and split it from the flat
     # slippage. Without the model the record has no such key and is unchanged.
     def _cost_fill(dt_, side, sym, q_, ref, fill, tc_, kind, pend=None):
         if _costs is not None:
@@ -779,7 +761,7 @@ def backtest_exposure(px, op, sc, dates, pc, mom20,
                     # unrounded; the cap then shrinks it, and the fill price, at
                     # this open, charges impact on the quantity actually
                     # transacted. Under impact_k=None the fill price is the open
-                    # at the flat rate, to the paisa (slippage.fill_price).
+                    # at the flat rate, to the paisa (costs.fill_price).
                     _size_px = _dec_px.get(s, np.nan) * (1 + SLIPPAGE)
                     if np.isnan(_size_px) or _size_px <= 0:
                         if audit is not None:
@@ -787,9 +769,9 @@ def backtest_exposure(px, op, sc, dates, pc, mom20,
                                 "reason": "no close on the decision session", "detail": ""})
                         continue
                     _raw_buy = pr
-                    pr = _sl.buy_price(_raw_buy, 0, None, None)
+                    pr = costs.buy_price(_raw_buy, 0, None, None)
                     q = int((invest_val * w * f) // _size_px)
-                    # PARTICIPATION CAP -- profiles.py. None at the default profile,
+                    # PARTICIPATION CAP -- costs.py. None at the default profile,
                     # so `q` is untouched and the published history is exact.
                     #
                     # APPLIED BEFORE THE CASH TEST BELOW, deliberately: the cap
@@ -962,7 +944,7 @@ def backtest_exposure(px, op, sc, dates, pc, mom20,
                 for s, dq in _buys:
                     raw = opens.get(s, np.nan)
                     if not (np.isnan(raw) or raw <= 0):
-                        _need += dq * _sl.buy_price(raw, 0, None, None)
+                        _need += dq * costs.buy_price(raw, 0, None, None)
                 _f = min(1.0, cash * 0.98 / _need) if _need > 0 else 1.0
                 for s, dq in _buys:
                     raw = opens.get(s, np.nan)
@@ -972,7 +954,7 @@ def backtest_exposure(px, op, sc, dates, pc, mom20,
                                 "reason": "dd top-up: no open price or untradeable",
                                 "detail": ""})
                         continue
-                    pr = _sl.buy_price(raw, 0, None, None)
+                    pr = costs.buy_price(raw, 0, None, None)
                     q = int(dq * _f)
                     _capped = _participation_limit(s, dt, participation_cap, vol20)
                     if _capped is not None and q > _capped[0]:
@@ -1181,7 +1163,7 @@ def backtest_exposure(px, op, sc, dates, pc, mom20,
 
         # TOUCH POINT 6, SECOND HALF -- a year assessed on a day still inside
         # that year (31 March) is charged AFTER the day's fills, so a sell that
-        # day is taxed with its own year. See tax_util.Ledger.due_on.
+        # day is taxed with its own year. See costs.Ledger.due_on.
         if ledger is not None:
             _due = ledger.due_on(dt, after_fills=True)
             if _due:

@@ -67,7 +67,7 @@ import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "results"))
-from qbeast_in_charges import (Broker, Exchange, Product, Segment, Side as QSide,
+from costs import (Broker, Exchange, Product, Segment, Side as QSide,
                                compute_leg_charges)
 
 from nautilus_trader.model.data import BarType
@@ -79,7 +79,7 @@ from nautilus_trader.trading.strategy import Strategy
 # SELECTION -- imported from config.py, the single definition.
 import settings
 import buy_shortfall as _bsf
-from slippage import SLIPPAGE
+from costs import SLIPPAGE
 TOP_N, BUFFER = settings.TOP_N, settings.BUFFER
 REBAL = 20
 VOL_WIN = 60
@@ -432,7 +432,7 @@ class PredictiveEngineStrategy(Strategy):
             #
             # NO PARTICIPATION CAP IS APPLIED HERE, AND THAT IS THE CURRENT STATE
             # OF THIS PORT, not a plan. The reference engine caps a buy at
-            # profiles.participation_cap() x the symbol's prior-20-session median
+            # costs.participation_cap() x the symbol's prior-20-session median
             # volume (results/test_exposure.py, _participation_limit). This line has
             # no equivalent: `participation_cap`, `vol20` and `median_volume` appear
             # nowhere in nautilus/, and the strategy is handed scores, not

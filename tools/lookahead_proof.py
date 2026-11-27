@@ -272,7 +272,7 @@ def run_variant(a):
     import engine_core as ec
     import survivorship as sv
     import tradability
-    import profiles
+    import costs
     import settings
     import arms.registry as arm_reg
     from build_scores_step import SEEDS
@@ -331,7 +331,7 @@ def run_variant(a):
         with contextlib.redirect_stdout(io.StringIO()):
             eq, _tc, _n, _e = backtest_exposure(px, op, sc, bd, pc, mom20, audit=audit,
                                                 tax_enabled=False, **arm.kwargs,
-                                                **profiles.cap_kwargs(u))
+                                                **costs.cap_kwargs(u))
         audit.pop("tax", None)
         out["arms"][name] = {"audit": audit, "equity": eq}
     out["seconds"]["backtest"] = round(time.time() - t_score, 1)

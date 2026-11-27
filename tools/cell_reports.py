@@ -127,7 +127,7 @@ and writes diagnostics/tradeable_tax_all_arms.csv, one row per (universe, arm).
                                     two must be equal, and the script checks it
     gap_research, gap_tradeable     arm minus the investable taxed buy & hold
 
-The tradeable profile is UNGATED (profiles.UNGATED_NOTICE): nothing replays what
+The tradeable profile is UNGATED (costs.UNGATED_NOTICE): nothing replays what
 the port does under it. These are engine figures, not certified ones.
 """
 

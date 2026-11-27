@@ -1292,7 +1292,7 @@ def gate_tax(res, since, sel):
 def gate_ltcg(res, sel, since=None):
     """HOLDING_PERIOD's claim about the long-term branch must match its lots.
 
-    THIS GATE EXISTS BECAUSE ITS ABSENCE WAS MEASURED. tax_util.max_holding_days
+    THIS GATE EXISTS BECAUSE ITS ABSENCE WAS MEASURED. costs.max_holding_days
     was written with the docstring "EXISTS SO A GATE CAN WATCH THE 326-DAY
     CEILING ... the failure mode is silent: the long-term rate simply starts
     applying and every tax figure moves." It then sat with ZERO CALL SITES for
@@ -1326,7 +1326,7 @@ def gate_ltcg(res, sel, since=None):
         sys.path.insert(0, str(ROOT / "results"))
         from settings import REGISTRY
         import pandas as pd
-        import tax_util as T
+        import costs
         import tax_report as TR
     except Exception as e:
         res.fail("GATE 7 ltcg", "import", f"{type(e).__name__}: {e}")
@@ -1372,10 +1372,10 @@ def gate_ltcg(res, sel, since=None):
             continue
         checked += 1
 
-        mx = T.max_holding_days(lots)          # THE CALL SITE. Do not remove it.
+        mx = costs.max_holding_days(lots)          # THE CALL SITE. Do not remove it.
         # the count must come from the same predicate that routes the lot: held
-        # more than twelve calendar months (tax_util.long_term_mask, 2026-10-14)
-        routed = int(T.long_term_mask(lots).sum())
+        # more than twelve calendar months (costs.long_term_mask, 2026-10-14)
+        routed = int(costs.long_term_mask(lots).sum())
         fires = routed > 0
         row = TR.holding_period(lots).iloc[0]
         note = str(row["note"]).lower()
@@ -1385,14 +1385,14 @@ def gate_ltcg(res, sel, since=None):
         if int(row["lots_long_term"]) != routed:
             res.fail("GATE 7 ltcg", f"{t} lots_long_term",
                      f"artefact counts {int(row['lots_long_term'])} long lots, the "
-                     f"routing predicate (more than {T.LTCG_HOLD_MONTHS} calendar "
+                     f"routing predicate (more than {costs.LTCG_HOLD_MONTHS} calendar "
                      f"months) finds {routed}. The count and the bucket disagree, "
                      f"which means LTCG may be charged at STCG rates or the reverse.")
 
         if fires and (says_not or not says_fires):
             res.fail("GATE 7 ltcg", f"{t} HOLDING_PERIOD note",
                      f"longest hold is {mx} days and {routed} lot(s) were held more "
-                     f"than {T.LTCG_HOLD_MONTHS} calendar months and took the long "
+                     f"than {costs.LTCG_HOLD_MONTHS} calendar months and took the long "
                      f"branch -- but the note still claims the branch does not "
                      f"fire:\n      {row['note']}\n"
                      f"      headroom_days={int(row['headroom_days'])} in the same "
@@ -1401,7 +1401,7 @@ def gate_ltcg(res, sel, since=None):
                      f"margin. See tax_report.holding_period.")
         elif not fires and says_fires:
             res.fail("GATE 7 ltcg", f"{t} HOLDING_PERIOD note",
-                     f"no lot was held more than {T.LTCG_HOLD_MONTHS} calendar months "
+                     f"no lot was held more than {costs.LTCG_HOLD_MONTHS} calendar months "
                      f"(longest {mx} days), but the note claims the branch fires:"
                      f"\n      {row['note']}")
         else:

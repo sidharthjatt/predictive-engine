@@ -305,10 +305,10 @@ def condition_3():
     """
     import pandas as pd
     sys.path.insert(0, str(ROOT / "results"))
-    import tax_util as T
+    import costs
 
     # SUPERSEDED 2026-10-14: the boundary is no longer `held_days >= 365` but
-    # MORE THAN TWELVE CALENDAR MONTHS (tax_util.is_long_term), by the owner's
+    # MORE THAN TWELVE CALENDAR MONTHS (costs.is_long_term), by the owner's
     # decision to follow the Act rather than section 3.2 of the document. The
     # rationale above is kept as the record; the fixtures below are the new
     # boundary, each one day either side of buy date + 12 months, and a leap-year
@@ -326,12 +326,12 @@ def condition_3():
     ok_all = True
     for b_, s_, want_long in cases:
         buy, sell = pd.Timestamp(b_), pd.Timestamp(s_)
-        led = T.Ledger(dates)
+        led = costs.Ledger(dates)
         led.buy("FIXTURE", 10, 100.0, buy)
         led.sell("FIXTURE", 10, 110.0, sell)
         row = led.rows[-1]
         want_arm = "long" if want_long else "short"
-        got_arm = ("long_" if row["is_long"] else "short_") + T.regime_of(sell)
+        got_arm = ("long_" if row["is_long"] else "short_") + costs.regime_of(sell)
         ok = bool(row["is_long"]) == want_long and got_arm.startswith(want_arm)
         ok_all = ok_all and ok
         print(f"    bought {b_} sold {s_} ({(sell - buy).days}d)  is_long="
@@ -339,8 +339,8 @@ def condition_3():
               f"{'PASS' if ok else 'FAIL'}")
         assert ok, (f"LTCG boundary wrong: bought {b_}, sold {s_} -> is_long="
                     f"{bool(row['is_long'])}, expected {want_long} (more than "
-                    f"{T.LTCG_HOLD_MONTHS} calendar months).")
-    assert T.LTCG_HOLD_MONTHS == 12
+                    f"{costs.LTCG_HOLD_MONTHS} calendar months).")
+    assert costs.LTCG_HOLD_MONTHS == 12
     print(f"    LTCG_HOLD_MONTHS == 12                           PASS")
     return ok_all
 
@@ -364,7 +364,7 @@ def condition_4():
     for p in (ROOT, ROOT / "results"):
         if str(p) not in sys.path:
             sys.path.insert(0, str(p))
-    import tax_util as T
+    import costs
     import bh_held
     import test_exposure as TE
     from engine_core import precompute
@@ -373,7 +373,7 @@ def condition_4():
 
     # ---- 4a. Partial-year settlement, worked by hand ------------------------
     dates = pd.bdate_range("2026-03-02", "2026-05-29")
-    led = T.Ledger(dates)
+    led = costs.Ledger(dates)
     fills = {   # date -> [(side, sym, qty, price)]
         pd.Timestamp("2026-03-10"): [("SELL", "D", 10, 150.0)],
         pd.Timestamp("2026-04-06"): [("BUY", "A", 100, 100.0), ("BUY", "C", 50, 200.0)],
@@ -400,7 +400,7 @@ def condition_4():
     ok_a = (set(paid) == set(want)
             and all(abs(paid[d] - want[d]) < 1e-6 for d in want)
             and led.settled_at_end == {2026})
-    stmt, _ = T.liability_schedule(pd.DataFrame(led.rows), dates)
+    stmt, _ = costs.liability_schedule(pd.DataFrame(led.rows), dates)
     r26 = stmt[stmt["fy"] == 2026].iloc[0]
     ok_a = ok_a and bool(r26["assessed"]) and r26["assessed_basis"] == "backtest end" \
         and abs(float(r26["total_tax"]) - 22_854.0) < 1e-6
@@ -418,7 +418,7 @@ def condition_4():
     r = bh_held.held_lots(px, op, bd)
     cash = TE.START_CAPITAL
     qty, bpx = {}, {}
-    # Fill prices to the paisa (slippage.fill_price): 100 x 1.0015 = 100.15 and
+    # Fill prices to the paisa (costs.fill_price): 100 x 1.0015 = 100.15 and
     # 200 x 1.0015 = 200.30 to buy; 150 x 0.9985 = 149.775, a double just above the
     # half, sells at 149.78, and 180 x 0.9985 at 179.73.
     buy_px = {"X": 100.15, "Y": 200.30}
@@ -476,7 +476,7 @@ def condition_4():
                                             audit=a, tax_enabled=True, end_sale=end_sale,
                                             participation_cap=None)
         led = a["tax"]["ledger"]
-        want_tax = sum(t["total_tax"] for t in T.assess_years(led.realized).values())
+        want_tax = sum(t["total_tax"] for t in costs.assess_years(led.realized).values())
         out[end_sale] = dict(held=a["summary"][-1]["n_stocks"], tax=a["tax"]["cum_tax"],
                              want=want_tax, cash=a["summary"][-1]["cash"], final=eq.iloc[-1])
     h, l = out[False], out[True]

@@ -210,7 +210,7 @@ def _git_state():
 # naming: arm,cadence,profile via SFX -- the caller composes SFX from
 # selection_suffix() + cadence.suffix() + profiles.suffix() + tax suffix.
 def _write_core(M, SFX, comp, subs, ARM_ON, bd, bh, curves, universe_label,
-                universe_tag, consts, _reb, _wrote, arm_reg, cadence, profiles):
+                universe_tag, consts, _reb, _wrote, arm_reg, cadence, costs):
     """The canonical v34_* files and chart_v34, exactly as run_v34 wrote them
     inline before the stop arms existed."""
     comp.to_csv(M / f"v34_comparison{SFX}.csv", index=False)
@@ -259,10 +259,10 @@ def _write_core(M, SFX, comp, subs, ARM_ON, bd, bh, curves, universe_label,
         # THE CAVEAT TRAVELS WITH THE NUMBERS. Present only when the profile is
         # not `research`, so every research artefact is byte-for-byte what it was
         # -- which the standing gate proves rather than this comment asserting.
-        # profiles.gate_status() returns None under research and the key is
+        # costs.gate_status() returns None under research and the key is
         # dropped, so the key SET of a gated artefact does not move either.
-        **({"gate_status": profiles.gate_status()}
-           if profiles.gate_status() else {}),
+        **({"gate_status": costs.gate_status()}
+           if costs.gate_status() else {}),
         # PIT RUNS ONLY: the validator verdict, residual survivorship and the
         # look-ahead note. Absent in a static run.
         **_survivorship.params_fields(universe_tag),
@@ -355,7 +355,7 @@ def _write_fixed(M, SFX, ARM_ON, bd, bh, base, u, rebal, _wrote):
 # SFX composed from stop_selection_suffix() + cadence, profile and tax suffixes.
 def _write_stop(M, stop_rows, stop_curves, stop_audits, bd, bh, halves,
                 universe_label, universe_tag, consts, _reb, _wrote, arm_reg, cadence,
-                profiles, _tax):
+                costs, _tax):
     """The companion v34_stop_* files: the selected stop arms and the buy & hold."""
     from settings import survivorship_axis as _sva
     from settings import dd_axis as _dda
@@ -407,8 +407,8 @@ def _write_stop(M, stop_rows, stop_curves, stop_audits, bd, bh, halves,
             settings.REGISTRY[universe_tag].raw_data_dir),
         "run_date": str(pd.Timestamp.today().date()),
         "spec": "experiments/DRAWDOWN_STOP_PREREG.txt",
-        **({"gate_status": profiles.gate_status()}
-           if profiles.gate_status() else {}),
+        **({"gate_status": costs.gate_status()}
+           if costs.gate_status() else {}),
         # PIT RUNS ONLY: the validator verdict, residual survivorship and the
         # look-ahead note. Absent in a static run.
         **_survivorship.params_fields(universe_tag),
@@ -459,15 +459,15 @@ def run_v34(M, universe_label, universe_tag, px, op, sc, bd, pc, mom20,
     from settings import tax as _tax_axis
     _taxon = _tax_axis.selected()
     # THE PROFILE'S CAP, RESOLVED ONCE AND PASSED AS AN ARGUMENT.
-    # profiles.py records why this is not a global on test_exposure: settings.cadence
+    # costs.py records why this is not a global on test_exposure: settings.cadence
     # documents rebal_cadence_sweep.py setting test_exposure.REBAL and never
     # restoring it, so every later in-process step silently used the wrong cadence.
     # None under profile="research", so `q` is untouched and the published history
     # is exact.
-    import profiles as _prof
+    import costs
     import settings
     from settings import REGISTRY as _REG
-    _capkw = _prof.cap_kwargs(_REG[universe_tag])
+    _capkw = costs.cap_kwargs(_REG[universe_tag])
     a2 = _blank()
     if "v2" in sel:
         backtest_exposure(px, op, sc, bd, pc, mom20, mode="breadth",
@@ -567,7 +567,6 @@ def run_v34(M, universe_label, universe_tag, px, op, sc, bd, pc, mom20,
     # compute without any of them erroring. A suffixed companion leaves the file
     # those gates read untouched and puts both profiles one directory listing apart.
     # Empty for profile="research", so the published names are unchanged.
-    import profiles
     from settings import tax as _tax
     # THE TAX AXIS JOINS THE NAME (2026-09-17), on the same default-is-unsuffixed
     # rule as the three before it: empty at tax=off, so every published
@@ -597,7 +596,7 @@ def run_v34(M, universe_label, universe_tag, px, op, sc, bd, pc, mom20,
     # A SELECTION OF STOP ARMS ONLY HAS NO CORE TABLE TO WRITE.
     if ARM_ON:
         _write_core(M, SFX, comp, subs, ARM_ON, bd, bh, curves, universe_label,
-                    universe_tag, consts, _reb, _wrote, arm_reg, cadence, profiles)
+                    universe_tag, consts, _reb, _wrote, arm_reg, cadence, costs)
         if not _fxa.is_default():
             _write_fixed(M, SFX, ARM_ON, bd, bh, start_capital, _REG[universe_tag],
                          _reb, _wrote)
@@ -625,7 +624,7 @@ def run_v34(M, universe_label, universe_tag, px, op, sc, bd, pc, mom20,
     if stop_rows:
         _write_stop(M, stop_rows, stop_curves, stop_audits, bd, bh, halves,
                     universe_label, universe_tag, consts, _reb, _wrote, arm_reg,
-                    cadence, profiles, _tax)
+                    cadence, costs, _tax)
         comp = pd.concat([comp, pd.DataFrame(stop_rows)], ignore_index=True)
 
     # THIS STEP REPORTS ITS OWN WRITES, AND IT IS THE ONLY THING THAT CAN. SFX is
@@ -700,14 +699,14 @@ def run_arm(u, arm, rebal=None, out_dir=None):
     mom20 = px / px.shift(20) - 1
 
     # THE PROFILE'S CAP, RESOLVED ONCE AND PASSED AS AN ARGUMENT.
-    # profiles.py records why this is not a global on test_exposure: settings.cadence
+    # costs.py records why this is not a global on test_exposure: settings.cadence
     # documents rebal_cadence_sweep.py setting test_exposure.REBAL and never
     # restoring it, so every later in-process step silently used the wrong cadence.
     # None under profile="research", so `q` is untouched and the published history
     # is exact.
-    import profiles as _prof
+    import costs
     import settings
-    _capkw = _prof.cap_kwargs(u)
+    _capkw = costs.cap_kwargs(u)
     audit = {k: [] for k in ("holdings", "summary", "trades",
                              "ranking", "decisions", "skipped")}
     # THE RUN'S TAX SELECTION, as run_v34 above. run_arm writes

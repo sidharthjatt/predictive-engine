@@ -446,12 +446,12 @@ def build_run(repo, folder, udir, seg, run_txt, index_files, checks):
         names = [n for n in ("brokerage", "stt", "exchange_txn", "sebi", "stamp_duty",
                              "ipft", "dp", "gst") if n in c]
         breakdown = {n: float(c[n].sum()) for n in names}
-    # CAPACITY (capacity.py): fills against the stock's 20-day average traded value,
+    # CAPACITY (costs.py): fills against the stock's 20-day average traded value,
     # and what the cap left unfilled. None when the run folder holds no COSTS file.
     capacity = None
     if costs_f:
-        import capacity as _capacity
-        capacity = _capacity.measure(c, read_table(skipped_f) if skipped_f else None,
+        import costs as _costs
+        capacity = _costs.capacity_measure(c, read_table(skipped_f) if skipped_f else None,
                                      RAW_DIRS[(u, ax["survivorship"])], CAP_CACHE)
     if years_f:
         costs["tax"] = float(read_table(years_f)["total_tax"].sum())
@@ -658,7 +658,7 @@ def key_of(ax):
 AXIS_ORDER = None  # set in main from settings.AXES
 REGISTRY_ROWS = {}  # set in main from settings.REGISTRY
 RAW_DIRS = {}  # (universe tag, "static" | "pit") -> raw price directory, set in main
-CAP_CACHE = {}  # capacity.py's per-symbol price series, shared by every run of one export
+CAP_CACHE = {}  # costs.py's per-symbol price series, shared by every run of one export
 
 
 def main():
@@ -828,7 +828,7 @@ def main():
     _cw = [r for r in runs if r["capacity"] and r["capacity"]["warning"]]
     _nm = sum(r["capacity"]["not_measurable_fills"] for r in runs if r["capacity"])
     _nb = sum(r["capacity"]["buy_fills"] for r in runs if r["capacity"])
-    checks.append(f"Capacity (capacity.py, NSE rows only): {sum(1 for r in runs if r['capacity'])} of "
+    checks.append(f"Capacity (costs.py, NSE rows only): {sum(1 for r in runs if r['capacity'])} of "
                   f"{len(runs)} published runs measured; {_nm:,} of {_nb:,} buy fills not measurable "
                   f"({_nm / _nb * 100 if _nb else 0:.1f}%, no NSE row in their 20 sessions); "
                   f"{len(_cw)} pass a threshold"

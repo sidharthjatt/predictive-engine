@@ -48,7 +48,7 @@ from settings import dd_axis  # noqa: E402
 import arms.registry as arm_reg
 from engine_core import metrics, precompute
 from test_exposure import backtest_exposure, CASH_YIELD
-import profiles as _prof
+import costs
 import settings            # the run's execution-realism profile
 # SURVIVORSHIP REPORTING, BACK-PORTED FROM engine_v2_final_n100.py 2026-09-13.
 # midcap150 has run under the SAME static-membership bias as nifty100 since it existed --
@@ -223,14 +223,14 @@ def main(u):
     from settings import tax as _tax_axis
     _taxon = _tax_axis.selected()
     # THE PROFILE'S CAP, RESOLVED ONCE AND PASSED AS AN ARGUMENT.
-    # profiles.py records why this is not a global on test_exposure: settings.cadence
+    # costs.py records why this is not a global on test_exposure: settings.cadence
     # documents rebal_cadence_sweep.py setting test_exposure.REBAL and never
     # restoring it, so every later in-process step silently used the wrong cadence.
     # None under profile="research", so `q` is untouched and the published history
     # is exact.
-    import profiles as _prof
+    import costs
     import settings
-    _capkw = _prof.cap_kwargs(u)
+    _capkw = costs.cap_kwargs(u)
     base_eq, tcb, nb, base_expo = backtest_exposure(px, op, sc, bd, pc, mom20, mode="none", drawdown_stop=None,
                                                     audit=base_audit, rebal=_reb,
                                                     tax_enabled=_taxon, **_capkw)

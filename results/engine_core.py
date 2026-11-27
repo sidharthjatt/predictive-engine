@@ -136,24 +136,7 @@ def tradeable_on(symbol, dt):
     return rows is not None and dt in rows
 
 
-try:
-    from qbeast_in_charges import (compute_leg_charges, Broker, Segment,
-                                   Product, Side as QSide, Exchange)
-    from decimal import Decimal
-    def calc_tc(price, qty, side):
-        if price <= 0 or qty <= 0:
-            return 0.0
-        bd = compute_leg_charges(Broker.ZERODHA, Segment.EQUITY, Product.DELIVERY,
-                                 QSide.BUY if side == "BUY" else QSide.SELL,
-                                 Decimal(str(round(price, 2))), Decimal(str(round(qty, 4))),
-                                 Exchange.NSE)
-        return float(bd.total)
-except Exception as _e:
-    # No fallback. A flat 0.11% here once replaced the charge library without a
-    # word whenever its import failed, which moves every cost figure by about 9%.
-    raise ImportError(
-        f"qbeast_in_charges could not be imported ({type(_e).__name__}: {_e}). "
-        f"calc_tc has no fallback rate; fix the import.") from _e
+from costs import calc_tc  # the one copy; see costs.py
 
 # TOP_N and BUFFER are defined LIVE in config.py as of 2026-08-29; this line
 # keeps its own literals, exactly as the year window does. NOTE that
@@ -165,12 +148,12 @@ HORIZON, REBAL, TOP_N, BUFFER, VOL_WIN = 20, 20, 8, 16, 60
 # Status label for a checklist row that is RECORDED, not computed. It exists so
 # that no row can quietly go back to asserting a verdict this run did not reach.
 NOT_CHECKED = "NOT CHECKED BY THIS RUN"
-# SLIPPAGE comes from slippage.py, which is the only definition. It was
+# SLIPPAGE comes from costs.py, which is the only definition. It was
 # written out in seven files until 2026-09-22; these engines are
 # cross-checked against each other, so a value changed in one and not the
 # rest surfaces as a reconciliation failure elsewhere, not as a wrong
 # number here. Value unchanged at 0.0015.
-from slippage import SLIPPAGE, fill_price  # noqa: E402
+from costs import SLIPPAGE, fill_price  # noqa: E402
 from settings import capital_axis as _capital_axis  # noqa: E402
 # THE DEFAULT, defined once in settings.capital_axis. A run's capital is
 # capital_axis.selected(); this name stays for callers that want the default.

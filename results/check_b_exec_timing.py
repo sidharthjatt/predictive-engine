@@ -17,7 +17,7 @@ because the tolerance is loose":
     (d) the PREVIOUS session's OPEN
 
 Slippage is applied against the trade and the port rounds the fill price to the
-paisa, so each candidate is reconstructed with slippage.fill_price, the port's own
+paisa, so each candidate is reconstructed with costs.fill_price, the port's own
 rule, from the port's own rows (nt_data.quote_frame), and must equal the fill
 exactly. Every fill price must also be in whole paise. It certifies the
 PIPELINE's fills, nautilus/reports/, which since 2026-09-24 no other program
@@ -44,14 +44,14 @@ import config
 import settings
 from settings import REGISTRY, gated
 
-# SLIPPAGE comes from slippage.py, which is the only definition. It was
+# SLIPPAGE comes from costs.py, which is the only definition. It was
 # written out in seven files until 2026-09-22; these engines are
 # cross-checked against each other, so a value changed in one and not the
 # rest surfaces as a reconciliation failure elsewhere, not as a wrong
 # number here. Value unchanged at 0.0015.
-from slippage import SLIPPAGE, fill_price  # noqa: E402
+from costs import SLIPPAGE, fill_price  # noqa: E402
 # EXACT EQUALITY, SINCE 2026-10-28. The port and the reconstruction both round to
-# the paisa with slippage.fill_price, so a fill at the open matches to the bit.
+# the paisa with costs.fill_price, so a fill at the open matches to the bit.
 # From 2026-09-24 the port quoted on NSE's dated tick and the tolerance was half
 # that tick; the tick was removed because its price band came from the adjusted
 # close, which carries later splits and bonuses.
@@ -175,7 +175,7 @@ def run(uni, arm, fills_p, sc_p, dec_p, label, W):
     W(f"  off the paisa   {_off:,} of {len(F):,} fill prices")
     W(f"  price panel     {Path(sc_p).name}")
     W(f"  reconstruction  price * (1 +/- {SLIPPAGE}) rounded to the paisa")
-    W("                  (slippage.fill_price, the port's own rule)")
+    W("                  (costs.fill_price, the port's own rule)")
     W("  tolerance       none: exact equality")
     W("")
 

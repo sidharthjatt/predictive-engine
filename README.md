@@ -91,7 +91,7 @@ cap and no market impact and so shows the same return at any capital, and refuse
 under tradeable without `--impact`, listing the values `results/impact_sweep.py`
 measures.
 
-**Capacity.** After every run `capacity.py` compares each buy fill with the stock's
+**Capacity.** After every run `costs.py` compares each buy fill with the stock's
 average traded value over the 20 sessions before it, counting NSE rows only, and
 measures the buy value the participation cap left unfilled. The price files mix NSE and
 BSE rows day by day, and a BSE row's volume is BSE's alone (KNOWN_ISSUES.md, "The price
@@ -111,7 +111,7 @@ measurable, from 2.6% in nifty50 to 34.0% in mcap1500to5000.
 
 `--impact K` (default 0, off) adds square-root market impact to every buy and sell:
 the fill pays the flat 0.15% plus K x sqrt(order shares / prior-20-session median
-volume), the formula in `slippage.py`. `--cap F` (default the profile's own, 1.0 under
+volume), the formula in `costs.py`. `--cap F` (default the profile's own, 1.0 under
 tradeable) replaces the participation cap. Both need `--profile tradeable`; under
 research either one is refused. Neither has a chosen value. At the defaults nothing is
 added to any name; otherwise `_impact<k>` and `_pcap<f>` follow every other suffix
@@ -251,7 +251,7 @@ gross profit, per financial year, and against the buy & hold. The same block is 
 
 Every figure is reconciled to the paisa against the run's cash and the tax rules
 (`results/cost_report.py`); a run whose costs do not reconcile fails. Charges come from
-the itemised Zerodha delivery rates in `results/qbeast_in_charges.py`; the charges
+the itemised Zerodha delivery rates in `costs.py`; the charges
 section of `data/reference/TAX_AND_CHARGES.docx` is out of date, and its tax rules are
 the ones the code uses.
 
@@ -364,13 +364,13 @@ Parameters:
 
     HORIZON, REBAL, TOP_N, BUFFER, VOL_WIN = 20, 20, 8, 16, 60    results/engine_core.py
     PURGE_EMBARGO = 2                                             results/engine_core.py
-    SLIPPAGE      = 0.0015                                        slippage.py
+    SLIPPAGE      = 0.0015                                        costs.py
     START_CAPITAL = 1_000_000                                     capital_axis.DEFAULT
     CASH_YIELD    = 0.0                                           results/test_exposure.py
 
 Costs are the real Zerodha delivery-equity schedule — brokerage, STT, stamp duty,
 exchange and SEBI fees, GST, and the per-scrip DP charge on sells — computed in
-`results/qbeast_in_charges.py`, plus 15 bps of slippage on top. Idle cash earns
+`costs.py`, plus 15 bps of slippage on top. Idle cash earns
 nothing, which is deliberate and conservative.
 
 Decisions are made on the close and orders fill at the next open. A buy's quantity
@@ -380,7 +380,7 @@ name's weight, divided by the name's close x (1 + slippage). The next open sets 
 the fill price, the cash test and the trim. Until 2026-10-28 the quantity came from
 the fill session's open and the book valued at it. The fill price is the open x
 (1 + slippage) for a buy and x (1 - slippage) for a sale, rounded to the paisa
-(`slippage.fill_price`), as predictive-backtest prices it; charges, the trim and the
+(`costs.fill_price`), as predictive-backtest prices it; charges, the trim and the
 cash test use it. It is not placed on NSE's tick: the prices are adjusted for later
 splits and bonuses, so the tick that applied on the day cannot be known, and share
 counts are on the adjusted basis too (`KNOWN_ISSUES.md`). A name is traded
@@ -871,7 +871,7 @@ headline, CAGR points (`diagnostics/tax_on_all_arms.csv`, full precision):
 (`diagnostics/tradeable_tax_all_arms.csv`), and those are the nine below; in the
 other 23 the tradeable figures equal the research ones exactly. All 64 (cell,
 profile) rows are in `diagnostics/cells_20261010.csv`. The profile is UNGATED
-(`profiles.UNGATED_NOTICE`).
+(`costs.UNGATED_NOTICE`).
 
 *Superseded by "Current results (re-run 2026-11-24 on d9cdcd9)" above. Computed before the 2026-10-22 look-ahead fixes and the 2026-10-27 to 10-29 fill and sizing changes; a cell not in that section has not been re-run.*
 
@@ -1176,7 +1176,7 @@ headline, CAGR points (`diagnostics/tax_on_all_arms.csv`, full precision):
 (`diagnostics/tradeable_tax_all_arms.csv`) and changes the CAGR in the seven below; in
 the other 25 the tradeable figures equal the research ones exactly. All 64 (cell, profile) rows are in
 `diagnostics/cells_cleaned_20260927.csv`. The profile is UNGATED
-(`profiles.UNGATED_NOTICE`).
+(`costs.UNGATED_NOTICE`).
 
 *Superseded by "Current results (re-run 2026-11-24 on d9cdcd9)" above. Computed before the 2026-10-22 look-ahead fixes and the 2026-10-27 to 10-29 fill and sizing changes; a cell not in that section has not been re-run.*
 
@@ -1717,7 +1717,7 @@ it is here too.
 > a maximum error of 0.13%", measured before the 2026-09-24 numerics rebuild.*
 
 > *Superseded 2026-10-28: the port no longer quotes on the 0.05 tick grid. It and the
-> engine both fill to the paisa with `slippage.fill_price`, and nt_verify gates the port
+> engine both fill to the paisa with `costs.fill_price`, and nt_verify gates the port
 > against the engine's reference copy at that one rule, 92 of 92 rebalances.*
 
 ## What is wrong with these results

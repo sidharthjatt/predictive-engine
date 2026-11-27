@@ -17,18 +17,18 @@ WHAT IT WRITES, beside the daily_* files and named by the same artefact tag:
                               left cash. Tax columns are zero when tax is off.
     COST_SUMMARY_<tag>.txt    the summary block run.py prints at the end of run.log
 
-THE SLIPPAGE MODEL. Both profiles use slippage.py's flat rate: a BUY fills at the
+THE SLIPPAGE MODEL. Both profiles use costs.py's flat rate: a BUY fills at the
 reference price times (1 + SLIPPAGE), a SELL at (1 - SLIPPAGE), SLIPPAGE = 0.0015,
-rounded to the paisa (slippage.fill_price).
+rounded to the paisa (costs.fill_price).
 The reference price is the execution day's open from the score panel (the adjusted
 price basis), or for the optional last-day sale the close where the open is
-missing. The size-sensitive term (slippage.impact) runs only with run.py --impact
+missing. The size-sensitive term (costs.impact) runs only with run.py --impact
 (tradeable profile): a fill then pays SLIPPAGE + k x sqrt(qty / prior-20-session
 median volume), and the report shows the second part as "impact", apart from the
 flat slippage. Without --impact it is not run. The tradeable profile adds the
 participation cap (--cap replaces its value), which changes quantities, not the rate.
 
-THE CHARGES are results/qbeast_in_charges.compute_leg_charges for Zerodha delivery
+THE CHARGES are costs.compute_leg_charges for Zerodha delivery
 equity on NSE, called exactly as test_exposure.calc_tc calls it: on the fill price
 rounded to two decimals, per fill. The reconciliation requires the itemised total to
 equal the charge the engine deducted.
@@ -57,10 +57,9 @@ for _p in (str(ROOT), str(ROOT / "results")):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
-import tax_util as T                                      # noqa: E402
-from slippage import SLIPPAGE                             # noqa: E402
-import slippage as _sl                                    # noqa: E402
-from qbeast_in_charges import (compute_leg_charges, Broker, Segment,  # noqa: E402
+import costs as _costs                             # noqa: E402
+from costs import SLIPPAGE                             # noqa: E402
+from costs import (compute_leg_charges, Broker, Segment,  # noqa: E402
                                Product, Side as QSide, Exchange)
 
 PAISA = 0.005
@@ -112,7 +111,7 @@ def fills_frame(costs):
     # IMPACT IS SPLIT FROM FLAT SLIPPAGE WHEN THE MODEL RAN (--impact). The engine
     # then records, per fill, k and the median volume the fill was priced against
     # (None where the model exempted it). The rate is recomputed here with
-    # slippage.impact, impact_rs = reference x rate x qty, and slippage_rs keeps
+    # costs.impact, impact_rs = reference x rate x qty, and slippage_rs keeps
     # only the flat part. Without the model there are no such keys and no columns.
     has_imp = any("impact_median" in r for r in costs["fills"])
     f = pd.DataFrame(costs["fills"], columns=["date", "side", "symbol", "qty", "reference_price",
@@ -127,7 +126,7 @@ def fills_frame(costs):
     sign = np.where(f["side"] == "BUY", 1.0, -1.0)
     f["slippage_rs"] = (f["fill_price"] - f["reference_price"]) * f["qty"] * sign
     if has_imp:
-        f["impact_rate"] = [0.0 if (m is None or m != m) else _sl.impact(int(q), float(m), float(k))
+        f["impact_rate"] = [0.0 if (m is None or m != m) else _costs.impact(int(q), float(m), float(k))
                             for q, m, k in zip(f["qty"], f["impact_median"], f["impact_k"])]
         f["impact_rs"] = f["reference_price"] * f["impact_rate"] * f["qty"]
         f["slippage_rs"] = f["slippage_rs"] - f["impact_rs"]
@@ -142,9 +141,9 @@ def replay_ledger(fills, dates):
     """Replay the tax rules on the recorded fills, in the engine's order.
 
     -> (lots frame, {date: tax due before fills}, {date: tax due after fills},
-        {fy: date assessed}). tax_util.Ledger is the engine's own class, fed the
+        {fy: date assessed}). costs.Ledger is the engine's own class, fed the
     same prices (the fill rounded to two decimals) in the same order."""
-    led = T.Ledger(dates)
+    led = _costs.Ledger(dates)
     pre, post, when = {}, {}, {}
     by_day = {d: g for d, g in fills.groupby("date")} if len(fills) else {}
     for d in dates:
@@ -175,21 +174,21 @@ def replay_ledger(fills, dates):
 
 def tax_years(lots, dates, when, tax_on):
     """One row per financial year of the window, with every intermediate the rules use."""
-    buckets = T.realized_buckets(lots)
+    buckets = _costs.realized_buckets(lots)
     # ONE PASS IN ASCENDING YEARS, so losses carry forward as the engine's ledger
-    # carries them (tax_util.assess_years).
-    assessed = T.assess_years(buckets, {T.financial_year(d) for d in dates})
+    # carries them (costs.assess_years).
+    assessed = _costs.assess_years(buckets, {_costs.financial_year(d) for d in dates})
     rows = []
-    for fy in sorted({T.financial_year(d) for d in dates}):
-        b = buckets.get(fy, dict.fromkeys(T.BUCKETS, 0.0))
+    for fy in sorted({_costs.financial_year(d) for d in dates}):
+        b = buckets.get(fy, dict.fromkeys(_costs.BUCKETS, 0.0))
         t = assessed[fy]
-        r = {"fy": T.fy_label(fy), "tax": "on" if tax_on else "off",
-             **{k: b[k] for k in T.BUCKETS},
+        r = {"fy": _costs.fy_label(fy), "tax": "on" if tax_on else "off",
+             **{k: b[k] for k in _costs.BUCKETS},
              "stcg_net": t["stcg_net"], "stcg_taxable": t["stcg_taxable"],
-             "stcg_old_taxed": t["stcg_old_taxed"], "stcg_old_rate": T.STCG_RATE["old"],
-             "stcg_old_tax": t["stcg_old_taxed"] * T.STCG_RATE["old"],
-             "stcg_new_taxed": t["stcg_new_taxed"], "stcg_new_rate": T.STCG_RATE["new"],
-             "stcg_new_tax": t["stcg_new_taxed"] * T.STCG_RATE["new"],
+             "stcg_old_taxed": t["stcg_old_taxed"], "stcg_old_rate": _costs.STCG_RATE["old"],
+             "stcg_old_tax": t["stcg_old_taxed"] * _costs.STCG_RATE["old"],
+             "stcg_new_taxed": t["stcg_new_taxed"], "stcg_new_rate": _costs.STCG_RATE["new"],
+             "stcg_new_tax": t["stcg_new_taxed"] * _costs.STCG_RATE["new"],
              "stcg_tax": t["stcg_tax"],
              "stcl_set_off_vs_ltcg": t["stcl_set_off_vs_ltcg"],
              "bf_short_used": t["bf_short_used"], "bf_long_used": t["bf_long_used"],
@@ -198,10 +197,10 @@ def tax_years(lots, dates, when, tax_on):
              "exemption_available": t["exemption"],
              "exemption_used": t["exemption_used"],
              "ltcg_taxable": t["ltcg_taxable"],
-             "ltcg_old_taxed": t["ltcg_old_taxed"], "ltcg_old_rate": T.LTCG_RATE["old"],
-             "ltcg_old_tax": t["ltcg_old_taxed"] * T.LTCG_RATE["old"],
-             "ltcg_new_taxed": t["ltcg_new_taxed"], "ltcg_new_rate": T.LTCG_RATE["new"],
-             "ltcg_new_tax": t["ltcg_new_taxed"] * T.LTCG_RATE["new"],
+             "ltcg_old_taxed": t["ltcg_old_taxed"], "ltcg_old_rate": _costs.LTCG_RATE["old"],
+             "ltcg_old_tax": t["ltcg_old_taxed"] * _costs.LTCG_RATE["old"],
+             "ltcg_new_taxed": t["ltcg_new_taxed"], "ltcg_new_rate": _costs.LTCG_RATE["new"],
+             "ltcg_new_tax": t["ltcg_new_taxed"] * _costs.LTCG_RATE["new"],
              "ltcg_tax": t["ltcg_tax"], "cess": t["cess"], "total_tax": t["total_tax"],
              "deducted_on": when.get(fy), "net_loss_year": (t["stcg_net"] + t["ltcg_net"]) < 0}
         if not tax_on:
@@ -236,10 +235,10 @@ def reconcile(costs, trades, dates, start_capital, engine_tc, engine_tax, tax_on
                   f"fill {i} ({a['side']} {a['symbol']}): charges differ from its trades row")
     # --- slippage and charges, every fill ------------------------------------
     if len(fills):
-        # The model is slippage.fill_price, the engine's own rule: the rate
+        # The model is costs.fill_price, the engine's own rule: the rate
         # applied to the reference price, rounded to the paisa.
         r = fills["impact_rate"] if "impact_rate" in fills.columns else 0.0 * fills["qty"]
-        model = np.array([_sl.fill_price(ref, SLIPPAGE + rt, side == "BUY") for ref, rt, side
+        model = np.array([_costs.fill_price(ref, SLIPPAGE + rt, side == "BUY") for ref, rt, side
                           in zip(fills["reference_price"], r, fills["side"])])
         gap = (fills["fill_price"] - model) * fills["qty"]
         bad = np.flatnonzero(np.abs(gap) >= PAISA)
@@ -336,16 +335,16 @@ def bh_costs(px, op, bd, start_capital, tax_on):
         ref_n = float(oN.get(sym, np.nan))
         if np.isnan(ref_n) or ref_n <= 0:
             ref_n = float(px.loc[dN, sym])
-        sp = _sl.fill_price(ref_n, SLIPPAGE, False)
+        sp = _costs.fill_price(ref_n, SLIPPAGE, False)
         s_ = charge_breakdown(sp, q, "SELL", numpy_round=False)
         for k, _ in CHARGES:
             sell[k] += s_[k]
         sell_slip += (ref_n - sp) * q
         proceeds += q * sp
         gain += q * (round(sp, 2) - round(pr, 2))
-    bucket = dict.fromkeys(T.BUCKETS, 0.0)
-    bucket[("long_" if T.is_long_term(d0, dN) else "short_") + T.regime_of(dN)] = gain
-    tx = T.tax_for_fy(T.financial_year(dN), bucket)
+    bucket = dict.fromkeys(_costs.BUCKETS, 0.0)
+    bucket[("long_" if _costs.is_long_term(d0, dN) else "short_") + _costs.regime_of(dN)] = gain
+    tx = _costs.tax_for_fy(_costs.financial_year(dN), bucket)
     held_final = cash + float((px.loc[bd, list(r["shares"])].ffill().iloc[-1]
                                * np.array([q for q, _ in r["shares"].values()], dtype=float)).sum())
     sold_final = cash + proceeds - sum(sell.values()) - tx["total_tax"]
@@ -377,7 +376,7 @@ def strategy_totals(start_capital, final, fills, years):
     # THE TAX TOTAL IS total_tax, THE FIGURE THE LEDGER DEDUCTED FROM CASH. It is
     # short + long + the 4% cess. Until 2026-10-16 this was stcg + ltcg, which left
     # the cess out of the printed total, the gross profit and every "of gross"
-    # percentage from 2026-10-14, when tax_util began charging the cess. A
+    # percentage from 2026-10-14, when the tax rules began charging the cess. A
     # COST_TAX_YEARS file from before then has no cess column and no cess.
     cess = float(years["cess"].sum()) if "cess" in years.columns else 0.0
     tax = float(years["total_tax"].sum())
@@ -501,9 +500,9 @@ def summary_block(label, profile, tax_on, rebal, start_capital, equity, fills, y
           + (f"{'impact':>12}" if has_imp else "")
           + f"{'short tax':>12}{'long tax':>11}{'cess':>11}{'exempt used':>13}{'costs % gross':>15}"]
     paid = years.dropna(subset=["deducted_on"]).copy()
-    paid["paid_fy"] = paid["deducted_on"].map(T.financial_year)
-    fyof = pd.Series([T.financial_year(d) for d in equity.index], index=equity.index)
-    ffy = fills["date"].map(T.financial_year) if len(fills) else pd.Series(dtype=int)
+    paid["paid_fy"] = paid["deducted_on"].map(_costs.financial_year)
+    fyof = pd.Series([_costs.financial_year(d) for d in equity.index], index=equity.index)
+    ffy = fills["date"].map(_costs.financial_year) if len(fills) else pd.Series(dtype=int)
     prev, sums, imp_sum = start_capital, np.zeros(6), 0.0
     for fy in sorted(fyof.unique()):
         end = float(equity.loc[fyof[fyof == fy].index[-1]])
@@ -516,7 +515,7 @@ def summary_block(label, profile, tax_on, rebal, start_capital, equity, fills, y
         if has_imp:
             i_ = float(fl["impact_rs"].sum()) if len(fl) else 0.0
             g = end - prev + c + s_ + i_ + st + lt + ce
-            L.append(f"  {T.fy_label(fy):<11}{g:>15,.2f}{c:>13,.2f}{s_:>12,.2f}{i_:>12,.2f}"
+            L.append(f"  {_costs.fy_label(fy):<11}{g:>15,.2f}{c:>13,.2f}{s_:>12,.2f}{i_:>12,.2f}"
                      f"{st:>12,.2f}{lt:>11,.2f}{ce:>11,.2f}{ex:>13,.2f}"
                      f"{_pct(c + s_ + i_ + st + lt + ce, g):>15}"
                      + (f"   tax settles {', '.join(y['fy'])}" if len(y) else ""))
@@ -524,7 +523,7 @@ def summary_block(label, profile, tax_on, rebal, start_capital, equity, fills, y
         else:
             g = end - prev + c + s_ + st + lt + ce
             settles = ", ".join(y["fy"]) if len(y) else ""
-            L.append(f"  {T.fy_label(fy):<11}{g:>15,.2f}{c:>13,.2f}{s_:>12,.2f}{st:>12,.2f}{lt:>11,.2f}"
+            L.append(f"  {_costs.fy_label(fy):<11}{g:>15,.2f}{c:>13,.2f}{s_:>12,.2f}{st:>12,.2f}{lt:>11,.2f}"
                      f"{ce:>11,.2f}{ex:>13,.2f}{_pct(c + s_ + st + lt + ce, g):>15}"
                      + (f"   tax settles {settles}" if settles else ""))
         sums += (g, c, s_, st, lt, ce)
@@ -777,7 +776,7 @@ def write(u, arm, tag, audit, equity, engine_tc, px, op, bd, start_capital, prof
     lo["term"] = np.where(lo["is_long"], "long", "short")
     lo = lo[["date", "symbol", "qty", "buy_date", "buy_price", "sell_price", "days_held", "term",
              "regime", "fy", "gain"]]
-    lo["fy"] = lo["fy"].map(T.fy_label)
+    lo["fy"] = lo["fy"].map(_costs.fy_label)
     bh = bh_costs(px, op, bd, start_capital, tax_on)
     lines = summary_block(f"{u.tag} {getattr(arm, 'name', arm)}", profile, tax_on, rebal,
                           start_capital, equity, fills, years, days, bh,

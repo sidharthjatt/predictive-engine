@@ -89,7 +89,7 @@ import test_exposure
 from test_exposure import backtest_exposure
 from settings import REGISTRY, certified
 from v34_common import arm_row, held_and_skips, _git_state
-import profiles as _prof
+import costs
 import settings            # the run's execution-realism profile
 from config import read_table  # the one CSV/parquet reader: config.read_table
 
@@ -168,8 +168,8 @@ def run_arm(top_n, px, op, sc, dates, pc, mom20, label):
     # RESEARCH-ONLY, DECLARED. This caller passes no vol20, so it could not
     # apply a participation cap even if one were selected; research_only()
     # makes that a statement rather than an accident, and STOPS the run if
-    # --profile ever reaches here. See profiles.research_only.
-    eq, tc, ntr, expo = backtest_exposure(px, op, sc, dates, pc, mom20, drawdown_stop=None, mode="breadth", audit=audit, participation_cap=_prof.research_only(__name__))
+    # --profile ever reaches here. See costs.research_only.
+    eq, tc, ntr, expo = backtest_exposure(px, op, sc, dates, pc, mom20, drawdown_stop=None, mode="breadth", audit=audit, participation_cap=costs.research_only(__name__))
     # backtest_exposure returns the MEAN exposure already, as a scalar.
     dep = float(expo) * 100
     row = arm_row(eq, label, tc, ntr, dep)

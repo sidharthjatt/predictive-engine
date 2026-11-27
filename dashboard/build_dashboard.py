@@ -168,7 +168,7 @@ def validate(d):
             if not (isinstance(rt, dict) and all(isinstance(v, int) and not isinstance(v, bool)
                                                  for v in rt.values())):
                 p.append(f"{w}: rounded_to must map figure names to whole numbers of decimals.")
-            # capacity is optional: null, or the capacity.py figures and a warning.
+            # capacity is optional: null, or the costs.py figures and a warning.
             cp = run.get("capacity")
             if cp is not None and not (isinstance(cp, dict)
                                        and all(num_or_null(cp.get(k)) for k in

@@ -15,7 +15,7 @@ Sections, in the order they are defined:
 Each run setting is one object with set_selection(), selected(), is_default(),
 suffix(), segment() and label(). run.py calls set_selection() once per run and
 everything else reads the selection. The participation cap rules stay in
-profiles.py and the buy-trim rule in buy_shortfall.py; reading files and the
+costs.py and the buy-trim rule in buy_shortfall.py; reading files and the
 score-cache keys stay in config.py.
 """
 import os
@@ -465,7 +465,7 @@ cadence = _Cadence()
 # The execution-realism profile: research (no participation cap, the default)
 # or tradeable (cap 1.00 of prior-20-session median volume). The suffix is "" for
 # research and "_tradeable" otherwise. What the cap does, and every function
-# that reads it, is in profiles.py.
+# that reads it, is in costs.py.
 class _Profile(_Axis):
     PROFILES = {
         "research":  {"participation_cap": None},
@@ -491,7 +491,7 @@ profile_axis = _Profile()
 
 # --- tax -------------------------------------------------------------------
 # Whether a run charges capital-gains tax. The selection only: the rates,
-# exemption and financial-year rules are in results/tax_util.py. Default off,
+# exemption and financial-year rules are in costs.py. Default off,
 # and off is unsuffixed, so every path a tax-off run composes is the path it
 # composed before the axis existed; "_tax" when on. Because an omitted axis and a
 # default axis give the same string, only naming_declare_check.py's declarations
@@ -737,7 +737,7 @@ capital_axis = _Capital()
 
 
 # --- market impact ---------------------------------------------------------
-# k is the coefficient of slippage.impact, the square-root model
+# k is the coefficient of costs.impact, the square-root model
 #     impact = k * sqrt(order shares / prior-20-session median volume)
 # added to the flat SLIPPAGE on every buy and every sell. k = 0 is the default
 # and means the model is not run: backtest_exposure gets impact_k=None, the path
@@ -785,7 +785,7 @@ impact_axis = _Impact()
 # --- participation cap -----------------------------------------------------
 # --cap replaces the tradeable profile's participation cap (a fraction of the
 # symbol's prior-20-session median volume, applied to buys and sells) for one
-# run; profiles.participation_cap() returns it. Under research there is no cap
+# run; costs.participation_cap() returns it. Under research there is no cap
 # and no volume to apply one to, so any --cap is refused (check_profile). The
 # suffix is "" when the cap is the profile's own, including --cap 1.0 under
 # tradeable; otherwise "_pcap0p1". "pcap", because "_cap" is the capital's.
@@ -3045,9 +3045,9 @@ def cost_basis():
     One phrase for chart subtitles, so a --profile tradeable or --tax on chart
     does not carry the research, before-tax wording every chart used to print.
     """
-    from slippage import SLIPPAGE
-    import profiles
-    cap = profiles.participation_cap()
+    from costs import SLIPPAGE
+    import costs
+    cap = costs.participation_cap()
     s = f"ALL NUMBERS AFTER Zerodha charges and a flat {SLIPPAGE*100:g}% slippage"
     if cap is not None:
         s += f", with fills capped at {cap*100:g}% of prior-20-session median volume"

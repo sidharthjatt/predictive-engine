@@ -452,7 +452,7 @@ def preflight(args, plan):
     """
     import arms.registry as _arms
     from settings import cadence as _cad
-    import profiles as _prof
+    import costs
     import settings
 
     bad = []
@@ -484,7 +484,7 @@ def preflight(args, plan):
                        f"number of trading sessions (default {settings.DEFAULT_REBAL})")
 
     if args.profile is not None and args.profile not in settings.profile_axis.PROFILES:
-        bad.append(f"profile {args.profile!r} -- profiles.py defines "
+        bad.append(f"profile {args.profile!r} -- settings.profile_axis defines "
                    f"{sorted(settings.profile_axis.PROFILES)}")
 
     stray = _universe_artefacts_in_shared_metrics()
@@ -847,7 +847,7 @@ def main(argv=None):
     ap.add_argument("--profile", default=None, choices=("research", "tradeable"),
                     help="execution-realism profile; research (default) reproduces "
                          "the published history exactly, tradeable applies the "
-                         "participation cap. See profiles.py.")
+                         "participation cap. See costs.py.")
     # THE FIFTH AXIS, 2026-10-10. Default static: today's members backfilled, every
     # published figure. pit swaps each selected universe for its point-in-time
     # variant (settings.pit_variant) BEFORE the plan is built, because
@@ -918,10 +918,10 @@ def main(argv=None):
     # profile and tax used to be set only in _execute(), after --dry-run had
     # returned, so `--tax on --dry-run` printed runs/<u>/<arm>/ for a run that
     # writes runs/<u>/<arm>@tax/. Read by the engines as arguments or at call time;
-    # see settings.cadence, profiles.py and settings.tax. The tax bool is built here and
+    # see settings.cadence, costs.py and settings.tax. The tax bool is built here and
     # nowhere else.
     from settings import cadence as _cad
-    import profiles as _prof
+    import costs
     import settings
     from settings import tax as _tax
     _cad.set_selection(args.rebal)
@@ -1072,7 +1072,7 @@ def collect_run_folder(plan, args, t_start, dest, thin=None):
     stuck = tradability.run_lines(plan["universes"], plan["arms"])
     for line in stuck:
         print(line)
-    # CAN THE UNIVERSE ABSORB THESE ORDERS (capacity.py)? Printed into run.log here
+    # CAN THE UNIVERSE ABSORB THESE ORDERS (costs.py)? Printed into run.log here
     # and written to RUN.txt below; read from this run's own artefacts, so no
     # results file changes.
     cap_lines = _capacity_lines(plan, t_start)
@@ -1108,11 +1108,11 @@ def collect_run_folder(plan, args, t_start, dest, thin=None):
 
 
 def _capacity_lines(plan, t_start):
-    """capacity.lines for every arm run this invocation audited, from its COSTS_ and
+    """costs.capacity_lines for every arm run this invocation audited, from its COSTS_ and
     daily_skipped_ files. An arm whose COSTS file this run did not write gets one
     "not measured" line; a failure to measure is reported, never raised, because the
     run's results are already complete."""
-    import capacity
+    import costs
     import audit_step as _as
     from config import read_table
     out, cache = [], {}
@@ -1126,8 +1126,8 @@ def _capacity_lines(plan, t_start):
                 continue
             sf = Path(u.metrics_dir) / f"daily_skipped_{tag}.csv"
             sk = read_table(sf, parse_dates=["date"]) if sf.exists() else None
-            m = capacity.measure(read_table(cf, parse_dates=["date"]), sk, u.raw_data_dir, cache)
-            out += capacity.lines(name, m)
+            m = costs.capacity_measure(read_table(cf, parse_dates=["date"]), sk, u.raw_data_dir, cache)
+            out += costs.capacity_lines(name, m)
         except Exception as e:
             out.append(f"capacity  : {name}: not measured ({type(e).__name__}: {e})")
     return out
@@ -1612,7 +1612,7 @@ def _execute(plan, args, state):
     # CADENCE, PROFILE AND TAX were recorded in main(), before the plan was built,
     # so the plan, --dry-run and this run compose paths from one selection.
     from settings import cadence as _cad  # noqa: F401
-    import profiles as _prof
+    import costs
     import settings
     from settings import tax as _tax  # noqa: F401
     # THE FIFTH AXIS was set in main(), before the plan was built, because the
@@ -1630,11 +1630,11 @@ def _execute(plan, args, state):
         print("!" * 90, flush=True)
     # LOUD, AT THE START, BEFORE ANY NUMBER EXISTS. A run under a non-default
     # profile completes and exits 0, which is indistinguishable from a run that was
-    # checked unless something says otherwise. profiles.gate_status() owns the
+    # checked unless something says otherwise. costs.gate_status() owns the
     # words; this prints them where the reader is looking before the output
     # scrolls, and the same sentence is written into v34_params{SFX}.json so it
     # survives the terminal.
-    _gs = _prof.gate_status()
+    _gs = costs.gate_status()
     if _gs:
         print("\n" + "!" * 90)
         print(f" PROFILE '{settings.profile_axis.selected()}' -- {_gs}")
@@ -1800,15 +1800,15 @@ def _execute(plan, args, state):
     # "DONE" is the line a reader stops at. Saying it twice is the point: the one
     # thing that must not be inferred from a clean exit is that the numbers were
     # checked.
-    _gs2 = _prof.gate_status()
+    _gs2 = costs.gate_status()
     if _gs2:
         print("!" * 90)
         print(f" PROFILE '{settings.profile_axis.selected()}' -- {_gs2}")
         # AND WHAT THE CAP ACTUALLY DID, COUNTED FROM THE ARTEFACTS THIS RUN JUST
         # WROTE. Only at the end: at the start banner the files do not exist yet,
         # and a start-of-run claim about them would be either stale or invented,
-        # which is the defect profiles.py records where CAP_INERT_NOTICE used to be.
-        for _line in _prof.cap_report(
+        # which is the defect costs.py records where CAP_INERT_NOTICE used to be.
+        for _line in costs.cap_report(
                 [(u.tag, a.name) for u, a in plan["arm_runs"]]):
             print(_line)
         print("!" * 90, flush=True)

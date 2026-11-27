@@ -77,7 +77,7 @@ from settings import REGISTRY
 from seed_cache_key import seed_cache_key
 from engine_core import metrics, precompute, score_monthly, HORIZON
 from test_exposure import backtest_exposure, TOP_N, BUFFER, START_CAPITAL
-import profiles as _prof
+import costs
 import settings            # the run's execution-realism profile
 from config import read_table  # the one CSV/parquet reader: config.read_table
 
@@ -123,8 +123,8 @@ def arm(px, op, sc, dates, pc, mom20, sizing, audit=None):
     # RESEARCH-ONLY, DECLARED. This caller passes no vol20, so it could not
     # apply a participation cap even if one were selected; research_only()
     # makes that a statement rather than an accident, and STOPS the run if
-    # --profile ever reaches here. See profiles.research_only.
-    return backtest_exposure(px, op, sc, dates, pc, mom20, drawdown_stop=None, mode="none", sizing=sizing, audit=audit, participation_cap=_prof.research_only(__name__))
+    # --profile ever reaches here. See costs.research_only.
+    return backtest_exposure(px, op, sc, dates, pc, mom20, drawdown_stop=None, mode="none", sizing=sizing, audit=audit, participation_cap=costs.research_only(__name__))
 
 
 def mean_book(audit):

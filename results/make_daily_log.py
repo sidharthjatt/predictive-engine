@@ -36,12 +36,12 @@ W = 118
 TOP_N, BUFFER = settings.TOP_N, settings.BUFFER
 
 # Mirrors the constants in test_exposure.py -- needed for reconciliation only.
-# SLIPPAGE comes from slippage.py, which is the only definition. It was
+# SLIPPAGE comes from costs.py, which is the only definition. It was
 # written out in seven files until 2026-09-22; these engines are
 # cross-checked against each other, so a value changed in one and not the
 # rest surfaces as a reconciliation failure elsewhere, not as a wrong
 # number here. Value unchanged at 0.0015.
-from slippage import SLIPPAGE  # noqa: E402
+from costs import SLIPPAGE  # noqa: E402
 from config import read_table  # the one CSV/parquet reader: config.read_table
 CASH_YIELD = 0.0        # must match test_exposure.py
 from settings import capital_axis as _capital_axis  # noqa: E402
@@ -312,12 +312,12 @@ def tax_due_by_date(summary_dates, trades):
     of every arm. THE DATA WAS NEVER WRONG; THE IDENTITY WAS INCOMPLETE.
 
     THE RUPEES ARE NOT RECONSTRUCTED HERE AND NO TAX ARITHMETIC IS REPEATED.
-    tax_util.Ledger is the class the engine itself uses, `due_on` is the method
+    costs.Ledger is the class the engine itself uses, `due_on` is the method
     the engine itself calls, and this replays the run's own filled trades
     through it in the run's own order -- SELLs then BUYs, and `due_on(d)` asked
     BEFORE the day's fills, exactly as touch point 6 orders them. Reimplementing
     FIFO lot matching, bucket netting, the exemption or the rate schedule in
-    this file would be a second copy of results/tax_util.py that could drift
+    this file would be a second copy of costs.py that could drift
     from the first, which is the defect this repository keeps finding.
 
     NOT READ FROM FY_TAX_STATEMENT, and the reason is coverage rather than
@@ -339,7 +339,7 @@ def tax_due_by_date(summary_dates, trades):
     from settings import tax as _taxaxis
     if not _taxaxis.selected():
         return {}
-    from tax_util import Ledger, fy_label
+    from costs import Ledger, fy_label
     led = Ledger(summary_dates)
     tg = {d: g for d, g in trades.groupby("date")}
     due, label = {}, {}
@@ -353,7 +353,7 @@ def tax_due_by_date(summary_dates, trades):
             _replay_fills(led, g, d)
         # THE SECOND PHASE, as the engine orders it: a year assessed on a day
         # inside that year is charged after the day's fills. See
-        # tax_util.Ledger.due_on.
+        # costs.Ledger.due_on.
         late = led.due_on(d, after_fills=True)
         if late:
             due[d] = due.get(d, 0.0) + late

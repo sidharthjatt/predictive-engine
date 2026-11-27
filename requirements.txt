@@ -74,7 +74,7 @@ pyarrow==25.0.1
 scipy==1.18.1
 
 # --- Backtesting / execution engine ---
-# Imported by qbeast_in_charges.py, which the pipeline reaches for cost
+# Imported by costs.py, which the pipeline reaches for cost
 # modelling. Sets the 3.12 Python floor noted in the header.
 nautilus_trader==1.229.0
 

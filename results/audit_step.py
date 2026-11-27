@@ -56,7 +56,7 @@ from engine_core import precompute
 import arms.registry as arm_reg
 from settings import cadence               # noqa: E402
 from test_exposure import backtest_exposure      # noqa: E402
-import profiles as _prof
+import costs
 import settings            # the run's execution-realism profile
 from config import read_table  # the one CSV/parquet reader: config.read_table
 
@@ -176,7 +176,7 @@ def _reference_curve(M, arm_name):
     # v34_equity_tradeable.csv; resolving to the research curve here would report a
     # MISMATCH of the cap's whole effect and refuse to write the trail -- the same
     # class of mispairing as the cadence one above, with the same failure mode.
-    import profiles as _prof
+    import costs
     import settings
     # THE TAX SUFFIX JOINS THE OTHER TWO, 2026-09-18, and it is the same hazard a
     # third time. This expression was written 2026-09-10 (0ce8ed5) and the tax
@@ -280,7 +280,7 @@ def run(u, arm=None):
     # v34_common.py build vol20 exactly this way; the audit must replay what the
     # engine ran, so it reads the volume from the same place by the same call
     # rather than by an equivalent-looking one.
-    _capkw = _prof.cap_kwargs(u)
+    _capkw = costs.cap_kwargs(u)
     # THE RUN'S TAX SELECTION. The audit must replay what the engine ran, and
     # after 21c6624 the engine charges tax; an untaxed re-run would now differ
     # from the taxed curve by the whole tax effect and refuse to write the trail.

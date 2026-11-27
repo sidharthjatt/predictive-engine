@@ -268,7 +268,7 @@ STANDING_GATE = (
 # and replayed correctly", NOT "the tradeable pipeline is verified".
 #
 # UNTIL A CELL EXISTS THAT ANCHORS THEM, EVERY TRADEABLE ARTEFACT SAYS SO OF
-# ITSELF: profiles.gate_status() is bannered by run.py at both ends of the run and
+# ITSELF: costs.gate_status() is bannered by run.py at both ends of the run and
 # written into v34_params{SFX}.json. Research artefacts are untouched by it, which
 # the standing gate proves.
 #
@@ -278,7 +278,7 @@ STANDING_GATE = (
 # date, a capped result ... on these runs applying it changed nothing." That was
 # true of the two universes it was written from and false of six cells run on
 # 2026-09-22, over which the banner printed CAP DID NOT BIND while the cap bound.
-# The stored claim is deleted and profiles.cap_report() now counts the
+# The stored claim is deleted and costs.cap_report() now counts the
 # `participation cap` rows out of the run's own daily_skipped instead. A green
 # tradeable cell still means "the cap is applied and replayed correctly" and
 # whether applying it changed anything is a per-run measurement, not a property.

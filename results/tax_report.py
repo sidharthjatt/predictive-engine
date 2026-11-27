@@ -24,7 +24,7 @@ THE NUMBERS HERE ARE THE TAXED RUN'S OWN, NEVER THE UNTAXED LOG'S
     the in-loop ledger that charged it. It is not recomputed from a trade log,
     and in particular it is not the figure an untaxed run's log implies -- those
     differ by about 4% (midcap150: Rs 833,105 implied against Rs 798,365 charged, see
-    tax_util's TAX PARTIALLY DAMPS ITSELF), and the implied one describes a run
+    costs.py, TAX PARTIALLY DAMPS ITSELF), and the implied one describes a run
     that did not happen.
 
     THE CONSEQUENCE IS THAT FY_TAX_STATEMENT RECONCILES WITH FY_EQUITY TO THE
@@ -54,7 +54,7 @@ import csv
 import pandas as pd
 
 from settings import tax as _tax
-import tax_util as T
+import costs
 from config import read_table  # the one CSV/parquet reader: config.read_table
 
 # The four stems. Composed through settings.name() -- the only composer measured to
@@ -100,7 +100,7 @@ def fy_equity(eq, fys):
             continue
         start = eq[eq.index <= pd.Timestamp(year=fy, month=4, day=1)]
         open_v = float(start.iloc[-1]) if len(start) else float(eq.iloc[0])
-        rows.append({"fy": fy, "fy_label": T.fy_label(fy),
+        rows.append({"fy": fy, "fy_label": costs.fy_label(fy),
                      "close_date": s.index[-1], "open_equity": open_v,
                      "close_equity": float(s.iloc[-1]),
                      "fy_return_pct": (float(s.iloc[-1]) / open_v - 1) * 100
@@ -111,7 +111,7 @@ def fy_equity(eq, fys):
 def holding_period(lots):
     """The distribution, and the ceiling the long-term branch is measured against.
 
-    `max_held_days` is the number `tax_util.max_holding_days()` reads and the
+    `max_held_days` is the number `costs.max_holding_days()` reads and the
     LTCG-boundary condition in check_all.py asserts on.
 
     NO HEADROOM NUMBER IS CARRIED IN THIS DOCSTRING, DELIBERATELY. Whether the
@@ -126,13 +126,13 @@ def holding_period(lots):
         return pd.DataFrame()
     h = lots["held_days"]
     mx = int(h.max())
-    # THE ROUTING PREDICATE: more than twelve calendar months (tax_util, 2026-10-14).
+    # THE ROUTING PREDICATE: more than twelve calendar months (costs.is_long_term, 2026-10-14).
     # headroom_days is how many more days the lot nearest the line needed to be
     # long-term (positive), or how far past the line the furthest lot went
     # (negative or zero).
-    line = pd.to_datetime(lots["buy_date"]) + pd.DateOffset(months=T.LTCG_HOLD_MONTHS)
+    line = pd.to_datetime(lots["buy_date"]) + pd.DateOffset(months=costs.LTCG_HOLD_MONTHS)
     sold = pd.to_datetime(lots["sell_date"] if "sell_date" in lots else lots["date"])
-    n_long = int(T.long_term_mask(lots).sum())
+    n_long = int(costs.long_term_mask(lots).sum())
     margin = int(((line - sold).dt.days + 1).min())
     # THE WHOLE SENTENCE IS COMPUTED, INCLUDING WHICH SENTENCE IT IS. The
     # previous version interpolated the margin into a hardcoded "does not fire",
@@ -143,7 +143,7 @@ def holding_period(lots):
     if n_long > 0:
         verb = "is" if n_long == 1 else "are"
         claim = (f"the long-term branch FIRES on this window: {n_long} of "
-                 f"{len(lots)} lots {verb} held more than {T.LTCG_HOLD_MONTHS} "
+                 f"{len(lots)} lots {verb} held more than {costs.LTCG_HOLD_MONTHS} "
                  f"calendar months, the longest {mx} days, and LTCG_RATE applies to "
                  f"those lots")
     else:
@@ -155,7 +155,7 @@ def holding_period(lots):
         "mean_held_days": round(float(h.mean()), 2),
         "median_held_days": float(h.median()),
         "p95_held_days": float(h.quantile(0.95)),
-        "long_term_rule": f"held more than {T.LTCG_HOLD_MONTHS} calendar months",
+        "long_term_rule": f"held more than {costs.LTCG_HOLD_MONTHS} calendar months",
         "lots_long_term": n_long,
         "headroom_days": margin,
         "note": claim + (" -- EMPIRICAL, not structural: a cadence or buffer "
@@ -190,7 +190,7 @@ def write_all(M, tag, eq, tax_audit, dates):
     actually charged the tax, not a recomputation.
     """
     lots = tax_audit["lots"]
-    stmt, _due = T.liability_schedule(lots, dates)
+    stmt, _due = costs.liability_schedule(lots, dates)
     reconcile(stmt, tax_audit["cum_tax"])
 
     # FY_EQUITY ENDS AT THE FINAL SESSION. The statement has a row only for a year
@@ -199,7 +199,7 @@ def write_all(M, tag, eq, tax_audit, dates):
     # last row was then 2026-03-30 and the check below failed by Rs 60,402.08.
     # When the last year already has a row the set is unchanged; every v1 to v4
     # tax run has passed the check below, so each already has that row.
-    fys = sorted(set(stmt["fy"]) | {T.financial_year(dates[-1])})
+    fys = sorted(set(stmt["fy"]) | {costs.financial_year(dates[-1])})
     wrote = []
     for stem, df in (("FY_TAX_STATEMENT", stmt),
                      ("FY_EQUITY", fy_equity(eq, fys)),
@@ -274,7 +274,7 @@ def main(u):
     import config
     import settings
     import engine_core
-    import profiles
+    import costs
     from engine_core import precompute
     from test_exposure import backtest_exposure
     import audit_step
@@ -300,11 +300,11 @@ def main(u):
     M = Path(u.metrics_dir)
     for arm in arm_reg.selected():
         _one_arm(u, arm, M, px, op, sc, bd, pc, mom20,
-                 cadence, profiles, backtest_exposure, audit_step)
+                 cadence, costs, backtest_exposure, audit_step)
 
 
 def _one_arm(u, arm, M, px, op, sc, bd, pc, mom20,
-             cadence, profiles, backtest_exposure, audit_step):
+             cadence, costs, backtest_exposure, audit_step):
     """One arm's taxed backtest, its four artefacts and its TAX_TURNOVER."""
     an = arm.name
     audit = {k: [] for k in
@@ -312,7 +312,7 @@ def _one_arm(u, arm, M, px, op, sc, bd, pc, mom20,
     eq, _tc, _ntr, _expo = backtest_exposure(
         px, op, sc, bd, pc, mom20, **arm.kwargs,
         rebal=cadence.selected(),
-        audit=audit, tax_enabled=True, **profiles.cap_kwargs(u))
+        audit=audit, tax_enabled=True, **costs.cap_kwargs(u))
 
     # THE TAG COMES FROM audit_step.artefact_tag, NOT FROM u.tag ALONE, so these
     # four sit beside the trail they describe under every axis combination.

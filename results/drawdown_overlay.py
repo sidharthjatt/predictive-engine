@@ -182,7 +182,7 @@ def marginal_tax(ledger_rows, dd_row_ids):
     overlay's sales left out. Losses are set off within a year, so this is not an
     exact attribution; it is what those sales added to the bills."""
     import pandas as pd
-    import tax_util as T
+    import costs
     if not ledger_rows:
         return 0.0
     df = pd.DataFrame(ledger_rows)
@@ -190,7 +190,7 @@ def marginal_tax(ledger_rows, dd_row_ids):
 
     def total(lots):
         return sum(t["total_tax"]
-                   for t in T.assess_years(T.realized_buckets(lots)).values())
+                   for t in costs.assess_years(costs.realized_buckets(lots)).values())
     return total(df) - total(keep)
 
 

@@ -71,7 +71,7 @@ from nautilus_trader.model.identifiers import InstrumentId, Symbol, Venue
 from nautilus_trader.model.instruments import Equity
 from nautilus_trader.model.objects import Price, Quantity
 from config import read_table  # the one CSV/parquet reader: config.read_table
-from slippage import fill_price
+from costs import fill_price
 
 VENUE = Venue("NSE")
 OPEN_TIME = pd.Timedelta(hours=9, minutes=15)    # NSE open
@@ -169,7 +169,7 @@ def make_instrument(symbol: str) -> Equity:
         raw_symbol=Symbol(symbol),
         currency=INR,
         price_precision=PRICE_PRECISION,
-        # Fill prices are in whole paise (slippage.fill_price).
+        # Fill prices are in whole paise (costs.fill_price).
         price_increment=Price.from_str(_px("0.01")),
         lot_size=Quantity.from_int(1),
         ts_event=0,
@@ -214,7 +214,7 @@ def quote_frame(symbol, px, op, start, end):
     ONE DEFINITION FOR THE PORT AND FOR ITS CHECK. load_symbol_from_panel builds
     its opening quotes from these rows; results/check_b_exec_timing.py
     reconstructs the expected fill price from the same rows with
-    slippage.fill_price.
+    costs.fill_price.
     """
     idx = px.index[(px.index >= start) & (px.index <= end)]
     df = pd.DataFrame({"date": idx,
