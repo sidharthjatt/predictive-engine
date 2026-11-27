@@ -276,7 +276,7 @@ def main(u):
     import market_data
     import costs
     from market_data import precompute
-    from test_exposure import backtest_exposure
+    from portfolio import backtest_exposure
     import audit_step
 
     market_data.set_tradeability(u)
@@ -296,7 +296,7 @@ def main(u):
     # four artefacts under audit_step.artefact_tag (v2 unsuffixed, the others
     # _v1/_v3/_v4), the same reconcile() to the paisa, and its own TAX_TURNOVER
     # from its own BH_LOTS file.
-    import arms.registry as arm_reg
+    import portfolio as arm_reg
     M = Path(u.metrics_dir)
     for arm in arm_reg.selected():
         _one_arm(u, arm, M, px, op, sc, bd, pc, mom20,

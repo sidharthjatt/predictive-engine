@@ -46,7 +46,7 @@ THE OUTCOME WORD IS "NOT CONTRADICTED" OR "CONTRADICTED". NEVER "RE-EARNED".
     contrast, and a pass cannot re-earn that acceptance. See the spec.
 
 WHICH ENGINE, AND WHY IT MATTERS
-    test_exposure.backtest_exposure -- the SHIPPING engine, the same side of the
+    portfolio.backtest_exposure -- the SHIPPING engine, the same side of the
     split as validate_breadth_live.py. Per KNOWN_ISSUES.md the two engines sit
     1.80 CAGR points apart on a retired universe, so a TOP_N result measured on
     engine_core.backtest would not cover production.
@@ -85,8 +85,8 @@ import pandas as pd
 import model
 import settings
 from market_data import precompute
-import test_exposure
-from test_exposure import backtest_exposure
+import portfolio
+from portfolio import backtest_exposure
 from settings import REGISTRY, certified
 from v34_common import arm_row, held_and_skips, _git_state
 import costs
@@ -161,8 +161,8 @@ def panel_fingerprint(px, op, sc):
 
 def run_arm(top_n, px, op, sc, dates, pc, mom20, label):
     """One arm over one date range. BUFFER is pinned for every call."""
-    test_exposure.TOP_N = top_n
-    test_exposure.BUFFER = BUFFER_PINNED
+    portfolio.TOP_N = top_n
+    portfolio.BUFFER = BUFFER_PINNED
     audit = {k: [] for k in
              ("holdings", "summary", "trades", "ranking", "decisions", "skipped")}
     # RESEARCH-ONLY, DECLARED. This caller passes no vol20, so it could not

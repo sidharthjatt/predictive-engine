@@ -486,7 +486,7 @@ def cross_sectional_normalize(panel, feats):
 #
 # THE WHOLE BAR MOVES TOGETHER, NOT JUST THE CLOSE
 #     `open` has no adjusted counterpart in the source data, and op is the FILL
-#     PRICE for every buy and every sell (test_exposure.py:152) while px is what
+#     PRICE for every buy and every sell (portfolio.py) while px is what
 #     the book is VALUED at. Leaving open on the raw basis while close moves to the
 #     adjusted one puts the fill and the valuation on two different bases, and the
 #     same-day open->close return is then wrong by exactly (ratio - 1) on every
@@ -923,7 +923,7 @@ def precompute(px, vol_win=VOL_WIN):
 #
 # HOW A NAME LEAVING THE INDEX IS HANDLED
 #     Forced exit on the exclusion date, not a buffer exit at the next rebalance.
-#     The shipping engine (results/test_exposure.py, beside touch point 4) sells a
+#     The shipping engine (portfolio.py, beside touch point 4) sells a
 #     held name at the open of the first session on or after the effective date of
 #     the first row that does not list it. Index changes are announced weeks ahead,
 #     so that order could be placed in time.
@@ -1793,7 +1793,7 @@ def last_rows(u):
 # ---------------------------------------------------------------------------
 # {symbol: frozenset(sessions with a row)}, or None for "no rule". Held here, next
 # to MEMBERSHIP, for the same reason and read the same way:
-# test_exposure.backtest_exposure consults it directly rather than taking it as an
+# portfolio.backtest_exposure consults it directly rather than taking it as an
 # argument, so all 25 of its call sites inherit the rule without a signature
 # change. Threading a parameter through 25 sites is how a rule ends up applied in
 # four places and absent in twenty-one.

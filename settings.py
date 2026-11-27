@@ -15,7 +15,7 @@ Sections, in the order they are defined:
 Each run setting is one object with set_selection(), selected(), is_default(),
 suffix(), segment() and label(). run.py calls set_selection() once per run and
 everything else reads the selection. The participation cap rules stay in
-costs.py and the buy-trim rule in buy_shortfall.py; reading files and the
+costs.py and the buy-trim rule in portfolio.py; reading files and the
 score-cache keys stay in config.py.
 """
 import os
@@ -138,8 +138,8 @@ BUFFER = 16
 
 # A buy that cash cannot fully pay for: "trim" cuts it to the largest whole
 # quantity that fits, if that is at least half the wanted quantity
-# (buy_shortfall.MIN_FILL_PCT), "refuse" drops it. run.py --buy-shortfall overrides it for
-# one run through shortfall_axis (section 3). The rule is buy_shortfall.py.
+# (portfolio.MIN_FILL_PCT), "refuse" drops it. run.py --buy-shortfall overrides it for
+# one run through shortfall_axis (section 3). The rule is portfolio.py.
 BUY_SHORTFALL = "trim"
 
 # ---------------------------------------------------------------------------
@@ -358,7 +358,7 @@ def run_folder_name(uni_tags, arm_names, rebal, when=None):
     u = "all" if len(uni_tags) >= 4 else "-".join(uni_tags)
     # "all" only for exactly the core four; any selection with a stop arm in it,
     # or a core subset, is spelled out.
-    from arms.registry import ARMS as _CORE
+    from portfolio import ARMS as _CORE
     a = "all" if set(arm_names) == set(_CORE) else "-".join(arm_names)
     return f"{ts}_{u or 'none'}_{a or 'none'}_r{int(rebal)}"
 
@@ -570,7 +570,7 @@ survivorship_axis = _Survivorship()
 
 # --- drawdown limit --------------------------------------------------------
 # When on, the engine scales every arm's book with the cushion rule of
-# results/drawdown_overlay.py:
+# portfolio.py:
 #
 #     E = max(F, min(1, m * (W - (1 - L) * M) / W))
 #
@@ -828,7 +828,7 @@ pcap_axis = _ParticipationCap()
 # each rebalance sizes its buys from the whole portfolio, profits included.
 # On (--fixed-capital) is the non-compounded run ("don't reinvest"). The buys
 # are sized from the decision close; at the rebalance open, after the morning's
-# sells and any tax taken that morning (results/test_exposure.py):
+# sells and any tax taken that morning (portfolio.py):
 #
 #     book       = min(base, value at the decision close)    base is --capital
 #     reserve    = max(0, value at this open - base)          never spent
@@ -839,7 +839,7 @@ pcap_axis = _ParticipationCap()
 # open). Below the base the book is the equity, so losses are not topped up.
 # Held names are never trimmed: a winner can carry invested value above the
 # book, and only new purchases are held inside it. The idle reserve earns
-# test_exposure.CASH_YIELD, which is 0. Refused with --dd and with the stop arms
+# portfolio.CASH_YIELD, which is 0. Refused with --dd and with the stop arms
 # v5 and v6, which act on the running peak of compounded equity. Only
 # backtest_exposure has the mode; engine_core.backtest and the Nautilus port do
 # not. "_fixed" after the pcap suffix.
@@ -940,7 +940,7 @@ start_axis = _Start()
 
 # --- buy shortfall ---------------------------------------------------------
 # What a buy does when cash cannot pay for all of it: "trim" (the default,
-# BUY_SHORTFALL) or "refuse". The rule itself is buy_shortfall.py. The suffix is
+# BUY_SHORTFALL) or "refuse". The rule itself is portfolio.py. The suffix is
 # "" at trim, so the canonical names hold trimmed runs; refuse is "_refuse"
 # after the start suffix.
 class _BuyShortfall(_Axis):
@@ -2964,7 +2964,11 @@ def from_argv(argv, default=None, choices=None):
 #     they differ only when someone finally runs `tradeable`. The name cannot reveal
 #     the omission. Only a declaration can, which is what `declare()` is for.
 
-import arms.registry as _arm  # noqa: E402
+def _arm():
+    """portfolio.py, imported on first use. portfolio.py imports this module,
+    so importing it at load would be circular."""
+    import portfolio
+    return portfolio
 
 # The axes, in the order they appear in a name. This order is LOAD-BEARING: it is
 # the order v34_common.py has always used, and changing it renames every
@@ -3004,7 +3008,7 @@ AXES = ("arm", "cadence", "profile", "tax", "survivorship", "dd", "capital", "im
         "pcap", "fixed", "start", "buy_shortfall")
 
 _SUFFIX = {
-    "arm": lambda: _arm.selection_suffix(),
+    "arm": lambda: _arm().selection_suffix(),
     "cadence": lambda: cadence.suffix(),
     "profile": lambda: profile_axis.suffix(),
     "tax": lambda: tax.suffix(),
@@ -3130,7 +3134,7 @@ def path_tail(rebal=None):
 #   _ci            make_mid_chart         cadence, profile        NO ARM
 #   _ci            make_n100_chart        cadence, profile        NO ARM
 #   _ci            make_combined_universes  cadence               NO ARM, NO PROFILE
-#   selection_suffix  arms/registry.py    arm                     NO CADENCE, NO PROFILE
+#   selection_suffix  portfolio.py    arm                     NO CADENCE, NO PROFILE
 #
 # RE-PROBED 2026-09-17, when the TAX axis was added. Adding an axis invalidates
 # every measurement in this table, so all of it was measured again rather than
@@ -3198,7 +3202,7 @@ def path_tail(rebal=None):
 # selection_suffix gained "_s20070924" or "@s20070924".
 #
 # RE-PROBED 2026-10-27 FOR THE BUY-SHORTFALL AXIS, with only
-# buy_shortfall.set_selection("refuse") off its default: every entry but
+# portfolio.set_selection("refuse") off its default: every entry but
 # selection_suffix gained "_refuse" or "@refuse".
 #
 # A spelled-out set cannot do that. An axis added to AXES now appears in NO

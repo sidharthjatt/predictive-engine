@@ -1,61 +1,902 @@
 """
-test_exposure.py -- Crash protection via MARKET-LEVEL exposure scaling
+portfolio.py -- what the strategy holds and how it trades, day by day.
 
-PROBLEM: the model produces a relative rank. In a crash it ranks the stock that is
-falling least at number one, and the strategy buys it -- even though that stock is
-also down 25%.
+Sections, in order:
+  1. arms: Arm, ARMS, STOP_ARMS, the drawdown-stop seal, what a run selected
+  2. the buy-shortfall rule: trim, largest_fit, MIN_FILL_PCT
+  3. the drawdown-limit overlay: OverlayState, marginal_tax
+  4. the drawdown stop of v5 and v6: StopState
+  5. ranking, sizing, buy and sell decisions and the daily loop:
+     breadth_momentum, the participation limit, backtest_exposure
 
-WHAT FAILED BEFORE: the absolute gate (blocking individual stocks killed the
-mean-reversion edge, Sharpe 1.03 -> 0.76), and the slope regime rule (lagging,
-14 fires with 4 correct).
-
-THIS APPROACH works at market level and never blocks an individual stock:
-  A. BREADTH: invest the fraction of capital equal to the fraction of stocks with
-     positive momentum; hold the rest in cash. In a crash breadth falls and cash
-     rises, while good stocks are still bought.
-  B. CONST: a fixed exposure, the control breadth is compared against.
-
-The vol-target and min(breadth, vol-target) modes were removed on 2026-10-22: their
-target was the median portfolio vol over the whole backtest window, a value no
-decision could know on its own date, and no arm used them.
-
-The experiment's own main(), which read a fixed /tmp/v5_expanding.csv from a
-retired universe and wrote into results/metrics/, was removed on 2026-09-27;
-nothing called it. What remains is backtest_exposure, the engine every arm runs.
+The panel and point-in-time membership are in market_data.py, the model and
+scores in model.py, slippage, charges and the tax rules in costs.py.
 """
-import sys, warnings
+import math
+import os
+import subprocess
+import warnings
+from dataclasses import dataclass, replace
 from pathlib import Path
+
 import numpy as np
 import pandas as pd
-warnings.filterwarnings("ignore")
 
-sys.path.append(str(Path(__file__).resolve().parents[1]))
-sys.path.insert(0, str(Path(__file__).resolve().parent))
-import settings
-import market_data
-import market_data
-from engine_core import metrics
-from market_data import precompute
-import settings            # the run's execution-realism profile
 import costs        # the tax RULES; this file owns the cash
-
+import market_data
+import settings            # the run's execution-realism profile
 from costs import calc_tc  # the one copy; see costs.py
-
-REBAL, VOL_WIN = 20, 60
-# SELECTION -- imported from config.py, the single definition.
-TOP_N, BUFFER = settings.TOP_N, settings.BUFFER
-_THIN_WARNED = set()      # see the len(s_) < TOP_N branch in backtest_exposure
 # SLIPPAGE comes from costs.py, which is the only definition. It was
 # written out in seven files until 2026-09-22; these engines are
 # cross-checked against each other, so a value changed in one and not the
 # rest surfaces as a reconciliation failure elsewhere, not as a wrong
 # number here. Value unchanged at 0.0015.
-from costs import SLIPPAGE  # noqa: E402
-from market_data import read_table  # the one CSV/parquet reader: market_data.read_table
-from market_data import rolling_std  # platform-identical variance: market_data.py
-from settings import capital_axis as _capital_axis  # noqa: E402
-import buy_shortfall as _bsf
-import settings  # noqa: E402
+from costs import SLIPPAGE
+from settings import capital_axis as _capital_axis
+
+
+# ======================================================================================
+# ARMS: WHAT AN ARM IS, THE DRAWDOWN-STOP SEAL, WHAT A RUN SELECTED. From arms/registry.py (moved 2026-11-27).
+# ======================================================================================
+# arms/registry.py -- the single definition of what an ARM is.
+# ============================================================
+#
+# WHY THIS IS SHORT, AND WHY IT STILL EARNS A FILE
+#     Unlike universes, the arms were never duplicated: they are two keyword
+#     arguments to `portfolio.backtest_exposure`, and v34_common.py already
+#     assembles the four named combinations in one place. There is no nineteen-way
+#     duplication to collapse here.
+#
+#     What IS scattered is the NAMING. "v1".."v4" appear as label strings in
+#     v34_common, as a list of pairs in verify_v34_arms, and as column names in
+#     v34_equity.csv -- and those three did not agree.
+#
+#     Until 2026-09-04 verify_v34_arms.ARMS listed only SIZING, pairing v1 with v2
+#     and v3 with v4, because the Nautilus port had no exposure mode at all and
+#     always ran at breadth: its "four arms" were two configurations run twice. The
+#     port now takes mode, so the four arms are four arms and this module is the one
+#     definition all of them read.
+#
+#     This module names the four arms once, in terms of the two parameters that
+#     actually produce them, so a caller cannot invent a fifth spelling.
+#
+# NOTHING HERE CHANGES BEHAVIOUR. The values are exactly those v34_common passes.
+#
+# THE STOP ARMS, v5 AND v6 (2026-10-02, experiments/DRAWDOWN_STOP_PREREG.txt).
+#     v5 is v1 plus the drawdown stop and v6 is v3 plus the stop. They live in
+#     STOP_ARMS, not in ARMS. ARMS stays the core four: everything that iterates it,
+#     `--arm all`, the full-selection test and the canonical v34_* files see exactly
+#     what they saw before. A stop arm is selected by name and writes companion
+#     v34_stop_* files. They join the core set only if the measurement accepts them.
+#
+#     THE STOP IS SEALED until the band file of the pre-registration is committed:
+#     Arm.kwargs raises for a stop arm, and portfolio.StopState refuses
+#     the registered threshold however it was passed, so no engine, port or audit
+#     can run one at that threshold before then. One thing passes the seal: the test
+#     fixture below, which replaces the threshold and is never a result.
+
+_ROOT = Path(__file__).resolve().parent
+
+
+@dataclass(frozen=True)
+class DrawdownStop:
+    """The stop of v5 and v6. Fixed by the pre-registration; never tuned.
+
+    threshold        exit when close equity <= (1 - threshold) x running peak
+    cooldown_cycles  rebalance cycles in cash, counted from the day the book is flat
+    reentry_breadth  re-enter on a rebalance day whose breadth is at least this
+    """
+    threshold: float = 0.20
+    cooldown_cycles: int = 1
+    reentry_breadth: float = 0.50
+
+
+REGISTERED_STOP = DrawdownStop()
+
+# THE BAND FILE. The seal lifts when it is tracked by git at the checked-out commit.
+BAND_FILE = _ROOT / "experiments" / "DRAWDOWN_STOP_BAND.csv"
+
+# THE TEST FIXTURE. A threshold in (0, 1] given in this environment variable
+# replaces the registered one for every stop arm in the process and its children.
+# It exists for the gates of stage 3 (0.01 to force exits, 1.0 to force none) and
+# for nothing else: a run under it is a test of the wiring, never a result.
+FIXTURE_ENV = "DRAWDOWN_STOP_FIXTURE"
+
+
+class StopSealed(RuntimeError):
+    pass
+
+
+def fixture_threshold():
+    """The fixture threshold, or None when no fixture is set."""
+    raw = os.environ.get(FIXTURE_ENV)
+    if raw in (None, ""):
+        return None
+    t = float(raw)
+    if not 0.0 < t <= 1.0:
+        raise ValueError(f"{FIXTURE_ENV}={raw!r}: a fixture threshold must be in (0, 1]")
+    if t == REGISTERED_STOP.threshold:
+        raise StopSealed(f"{FIXTURE_ENV}={raw!r} is the registered threshold; a fixture "
+                         "cannot be used to run the registered stop")
+    return t
+
+
+def stop_sealed():
+    """True until BAND_FILE exists and git tracks it."""
+    if not BAND_FILE.exists():
+        return True
+    r = subprocess.run(["git", "ls-files", "--error-unmatch", str(BAND_FILE)],
+                       cwd=_ROOT, capture_output=True)
+    return r.returncode != 0
+
+
+def require_unsealed(stop):
+    """Refuse to run the registered stop while it is sealed.
+
+    Called by results/drawdown_stop.StopState for every stop any loop runs -- the
+    engine, the reference copy and the port -- so the seal holds however the stop
+    was obtained, not only through Arm.kwargs. A fixture threshold passes; the
+    registered threshold passes only once BAND_FILE is tracked.
+    """
+    if stop.threshold != REGISTERED_STOP.threshold:
+        return
+    if stop_sealed():
+        raise StopSealed(
+            "the drawdown stop is sealed: no run at the registered threshold before "
+            f"{BAND_FILE.relative_to(_ROOT)} is committed "
+            "(experiments/DRAWDOWN_STOP_PREREG.txt, SEALING)")
+
+
+def stop_in_force(stop):
+    """The DrawdownStop a run uses: the fixture's threshold if set, else the
+    registered stop, which is refused while sealed."""
+    t = fixture_threshold()
+    if t is not None:
+        return replace(stop, threshold=t)
+    if stop_sealed():
+        raise StopSealed(
+            "the drawdown stop is sealed: no v5 or v6 run at the registered "
+            f"threshold before {BAND_FILE.relative_to(_ROOT)} is committed "
+            "(experiments/DRAWDOWN_STOP_PREREG.txt, SEALING). For a wiring test "
+            f"set {FIXTURE_ENV}=0.01; such a run is never a result.")
+    return stop
+
+
+@dataclass(frozen=True)
+class Arm:
+    """One arm = one (exposure mode, sizing rule) pair, optionally with the stop.
+
+    `mode` and `sizing` are passed straight to test_exposure.backtest_exposure:
+        mode   -- "none" (always 100% invested) | "breadth" (scale by breadth)
+                  the function also accepts "const", which no named arm uses.
+        sizing -- "invvol" (w = 1/vol) | "provol" (w = vol) | "equal"
+    `stop` is None for the core four. For v5 and v6 it is REGISTERED_STOP and
+    `parent` names the core arm the stop is added to.
+    """
+    name: str
+    mode: str
+    sizing: str
+    label: str          # the exact string v34_common writes into its artefacts
+    equity_column: str  # the exact column name in v34_equity.csv
+    stop: DrawdownStop = None
+    parent: str = None
+
+    @property
+    def kwargs(self):
+        """What to hand backtest_exposure for this arm.
+
+        The core four get exactly {"mode", "sizing"}, as before. A stop arm adds
+        drawdown_stop, resolved through the seal and the fixture.
+        """
+        kw = {"mode": self.mode, "sizing": self.sizing}
+        if self.stop is not None:
+            kw["drawdown_stop"] = stop_in_force(self.stop)
+        return kw
+
+
+ARMS = {a.name: a for a in (
+    Arm("v1", "none",    "invvol",
+        "v1 invvol, 100% invested",  "v1_invvol_none"),
+    Arm("v2", "breadth", "invvol",
+        "v2 invvol, breadth-scaled", "v2_invvol_breadth"),
+    Arm("v3", "none",    "provol",
+        "v3 provol, 100% invested",  "v3_provol_none"),
+    Arm("v4", "breadth", "provol",
+        "v4 provol, breadth-scaled", "v4_provol_breadth"),
+)}
+
+STOP_ARMS = {a.name: a for a in (
+    Arm("v5", "none", "invvol",
+        "v5 invvol, 100% invested, drawdown stop", "v5_invvol_none_stop",
+        stop=REGISTERED_STOP, parent="v1"),
+    Arm("v6", "none", "provol",
+        "v6 provol, 100% invested, drawdown stop", "v6_provol_none_stop",
+        stop=REGISTERED_STOP, parent="v3"),
+)}
+
+# Every arm that can be named on the command line: the core four, then the stop arms.
+ALL_ARMS = {**ARMS, **STOP_ARMS}
+
+# The two that ship on every universe. v3 and v4 are computed only for the live
+# universes, inside v34_common.run_v34.
+SHIPPING = [ARMS["v1"], ARMS["v2"]]
+
+
+# ---------------------------------------------------------------------------
+# WHAT THIS RUN SELECTED -- the same distinction settings.py draws.
+# ---------------------------------------------------------------------------
+# ARMS answers "which arms exist". A run answers "which arms did the caller ask
+# for". run_v34 conflated the two: it computed and wrote all four unconditionally,
+# so `--arm v1,v3` still produced a v34_comparison.csv with v2 and v4 rows in it.
+#
+# THE DEFAULT IS ALL FOUR, which is exactly what run_v34 saw before this existed,
+# so a full run and any standalone import behave as they always did.
+#
+# WHY THIS IS NOT THE WHOLE STORY, AND THAT IS DELIBERATE. v1 and v2 are not only
+# measurement arms: they are the SHIPPING strategy and its control, computed by
+# each engine and written as the `strategy` and `baseline_invvol` COLUMNS of
+# v2FINAL_equity.csv. The daily audit trail asserts against that file, and the
+# combined, fair-comparison and summary outputs read those two columns and know
+# nothing of v3/v4. Selection therefore reaches the v34 MEASUREMENT artefacts and
+# the per-arm run directories; making v2FINAL_* arm-aware means restructuring it
+# into per-arm columns and re-baselining the seven identity gates, which is its
+# own step. See KNOWN_ISSUES.md.
+_SELECTED = None
+
+
+def set_selection(names):
+    """Record which arms this run selected. Called once by run.py.
+
+    Unknown names raise rather than narrowing the selection silently. Passing
+    None restores the default.
+    """
+    global _SELECTED
+    if names is None:
+        _SELECTED = None
+        return
+    want = [a.name if hasattr(a, "name") else a for a in names]
+    unknown = [n for n in want if n not in ALL_ARMS]
+    if unknown:
+        raise KeyError(f"cannot select unknown arm(s) {', '.join(unknown)}; "
+                       f"known: {', '.join(ALL_ARMS)}")
+    _SELECTED = [n for n in ALL_ARMS if n in set(want)]
+
+
+def selected_names():
+    """The arm names this run is working on, in ALL_ARMS order. Defaults to the
+    core four; a stop arm is in it only when selected by name."""
+    return list(ARMS) if _SELECTED is None else list(_SELECTED)
+
+
+def selected():
+    """selected_names() as Arm objects."""
+    return [ALL_ARMS[n] for n in selected_names()]
+
+
+def selected_core():
+    """The selected arms that are in the core set, as Arm objects."""
+    return [a for a in selected() if a.name in ARMS]
+
+
+def selected_stop():
+    """The selected stop arms, as Arm objects."""
+    return [a for a in selected() if a.name in STOP_ARMS]
+
+
+def stop_selection_suffix(names=None):
+    """"" when both stop arms are selected, "_v5" or "_v6" for one of them: the
+    tail of the companion v34_stop_* artefacts, the counterpart of
+    selection_suffix() for the core files."""
+    n = selected_names() if names is None else [
+        a.name if hasattr(a, "name") else a for a in names]
+    s = [x for x in STOP_ARMS if x in set(n)]
+    return "" if set(s) == set(STOP_ARMS) else "_" + "_".join(s)
+
+
+def is_full_selection(names=None):
+    """True when every one of the four arms is in play.
+
+    THE CANONICAL v34_* ARTEFACTS ARE WRITTEN ONLY ON A FULL SELECTION, and this
+    is the predicate that decides it. v34_comparison.csv is the four-arm table
+    that seven identity gates read -- six of them assert on its v2 row -- so
+    overwriting it with a two-arm subset would leave those gates comparing against
+    a table that no longer contains their reference, and they would find out later
+    and elsewhere. A subset writes its own selection-named files instead.
+    """
+    n = selected_names() if names is None else [
+        a.name if hasattr(a, "name") else a for a in names]
+    return set(n) == set(ARMS)
+
+
+def selection_suffix(names=None):
+    """"" for a full selection, "_v1_v3" for a subset -- the artefact name tail."""
+    if is_full_selection(names):
+        return ""
+    n = selected_names() if names is None else [
+        a.name if hasattr(a, "name") else a for a in names]
+    return "_" + "_".join(x for x in ALL_ARMS if x in set(n))
+
+
+def get(name):
+    try:
+        return ALL_ARMS[name]
+    except KeyError:
+        raise KeyError(
+            f"unknown arm {name!r}; known: {', '.join(ALL_ARMS)}") from None
+
+
+# ---------------------------------------------------------------------------
+# READING AN ARM'S CURVE OUT OF v2FINAL_equity.csv
+# ---------------------------------------------------------------------------
+# That file was written with columns named for what a curve was FOR, not for
+# which arm it IS: `strategy` is v2 and `baseline_invvol` is v1. Nothing could
+# ask it for v3 or v4, because those names have no slot. The live engines now
+# also write the arm-keyed names (Arm.equity_column), and every reader goes
+# through equity_series() below.
+#
+# THE RETIRED UNIVERSES (deleted 2026-09-11) WROTE ONLY THE OLD NAMES: their
+# engines were those universes' provenance and were never modified. So the lookup
+# tries the arm-keyed name and falls back to the legacy one. That fallback is not
+# a transition shim to be deleted later -- it is how a frozen universe's file is
+# read, permanently.
+LEGACY_EQUITY_COLUMN = {"v1": "baseline_invvol", "v2": "strategy"}
+
+
+def suffix(names):
+    """"_v1_v3" for any set of arms, INCLUDING the full four.
+
+    NOT selection_suffix(). That one is empty for a full selection because it
+    names the CANONICAL v34 artefacts, which only a four-arm run may write. This
+    one always names what is on the figure, because a chart drawn over all four
+    arms is an additional file sitting beside the published two-arm one and needs
+    a name of its own.
+    """
+    n = {a.name if hasattr(a, "name") else a for a in names}
+    return "_" + "_".join(x for x in ALL_ARMS if x in n)
+
+
+def equity_series(df, arm):
+    """One arm's equity curve from a v2FINAL_equity.csv frame, or None.
+
+    None means "this file does not carry that arm" -- asking a frozen universe
+    for v3 is a legitimate question with the answer "there isn't one", and the
+    caller decides whether that is a skip or an error. Raising here would make
+    every caller wrap it in a try.
+    """
+    name = arm.name if hasattr(arm, "name") else arm
+    if name not in ALL_ARMS:
+        raise KeyError(f"unknown arm {name!r}; known: {', '.join(ALL_ARMS)}")
+    for col in (ALL_ARMS[name].equity_column, LEGACY_EQUITY_COLUMN.get(name)):
+        if col is not None and col in df.columns:
+            return df[col]
+    return None
+
+
+# Core arms only: v5 and v6 share v1's and v3's (mode, sizing) and are told apart
+# by their stop. path_segment takes the stop for that reason.
+_BY_PARAMS = {(a.mode, a.sizing): a for a in ARMS.values()}
+_STOP_BY_PARAMS = {(a.mode, a.sizing): a for a in STOP_ARMS.values()}
+
+
+def by_params(mode, sizing):
+    """The named arm for a (mode, sizing) pair, or None if it is not one of the four.
+
+    backtest_exposure accepts a mode ("const") and a sizing
+    ("equal") that no named arm uses, so this is deliberately partial: a caller that
+    needs a name for an unnamed combination should say so in its own terms rather
+    than have one invented here. See path_segment().
+    """
+    return _BY_PARAMS.get((mode, sizing))
+
+
+def path_segment(mode, sizing, drawdown_stop=None):
+    """A filesystem-safe directory name identifying one (mode, sizing) combination.
+
+    A named arm gives its name -- "v3". Anything else gives "{mode}-{sizing}", which
+    is still unique and still readable, so an exploratory combination writes beside
+    the four named ones instead of into one of them. This is total by design: the
+    point of the segment is that two different configurations cannot land in the
+    same directory, and raising on the unnamed case would just push the collision
+    back to whichever caller shrugged and passed a constant.
+    """
+    if drawdown_stop is not None:
+        a = _STOP_BY_PARAMS.get((mode, sizing))
+        return a.name if a is not None else f"{mode}-{sizing}-stop"
+    a = by_params(mode, sizing)
+    return a.name if a is not None else f"{mode}-{sizing}"
+
+
+# ======================================================================================
+# THE BUY-SHORTFALL RULE: TRIM OR REFUSE A BUY CASH CANNOT PAY FOR. From buy_shortfall.py (moved 2026-11-27).
+# ======================================================================================
+# buy_shortfall.py -- what a buy does when cash cannot pay for all of it.
+#
+#     trim    (default, settings.BUY_SHORTFALL) the buy is cut to the largest whole
+#             quantity q with q x fill price + charges(q) <= the cash the rule
+#             allows, and goes ahead only if q is at least MIN_FILL_PCT of the
+#             wanted quantity. Below that, or at q = 0, it is refused.
+#     refuse  the buy is refused whole, the rule before 2026-10-27.
+#
+# Every buy that sizes against cash goes through trim() below: the engine
+# (portfolio.py), the reference copy nt_verify re-runs
+# (nautilus/nt_attribution.py) and the Nautilus port (nautilus/nt_strategy.py).
+# The drawdown-limit top-up keeps its own rule and does not use it.
+#
+# The selection (trim or refuse) is settings.shortfall_axis, the twelfth axis in
+# settings.AXES. The suffix is "" at the default trim, so the canonical names hold
+# trimmed runs; refuse is "_refuse" after every other suffix and "@refuse" in
+# directory segments.
+
+# THE MINIMUM FILL, a fixed constant and not a run setting. A trimmed buy of
+# fewer than half the wanted shares is refused. Without it, trim left stubs of
+# one or a few shares that the rule against resizing held names then kept at
+# that size while the name stayed a target: on nifty100 tax off, 21 of v1's
+# and 21 of v3's 88 trimmed holdings were still held as a target at a later
+# rebalance, measured 2026-10-27.
+MIN_FILL_PCT = 50
+
+# The reason a buy refused by the minimum is logged under.
+BELOW_MINIMUM = "cash short: below minimum fill"
+
+
+def meets_minimum(q, q_wanted):
+    """True when q is at least MIN_FILL_PCT of q_wanted, in exact integers."""
+    return q * 100 >= MIN_FILL_PCT * q_wanted
+
+
+def trim(q_wanted, cash_allowed, price_at, charges):
+    """(q, fill price, charges, reason) for a buy cash cannot fully pay for.
+
+    q is the largest quantity cash pays for (largest_fit) when that is at least
+    MIN_FILL_PCT of q_wanted, and reason is None. Otherwise q is 0, the price
+    and charges are those of the wanted quantity, and reason is "cash short"
+    when not one share fits or BELOW_MINIMUM when some do but too few.
+    """
+    q, pr, tc = largest_fit(q_wanted, cash_allowed, price_at, charges)
+    if q >= 1 and meets_minimum(q, q_wanted):
+        return q, pr, tc, None
+    reason = "cash short" if q == 0 else BELOW_MINIMUM
+    pr = price_at(q_wanted)
+    return 0, pr, charges(pr, q_wanted), reason
+
+
+def largest_fit(q_wanted, cash_allowed, price_at, charges):
+    """(q, fill price, charges) for the largest q <= q_wanted that cash can pay for.
+
+    price_at(q) is the fill price of a buy of q shares; it does not depend on q
+    under the flat slippage model and rises with q under market impact.
+    charges(price, q) is the rupee charge for that leg. A buy of q costs
+    q x price_at(q) + charges(price_at(q), q).
+
+    That cost rises strictly with q: the price is non-decreasing in q, and every
+    charge component is a rounded (to the rupee or the paisa, half up) multiple
+    of the notional, so non-decreasing in it. So the largest q that fits is found
+    by starting at an upper bound and stepping down one share at a time until the
+    cost fits; the rounding of the charges decides the last step or two. The
+    bound is q_wanted, or one more than floor(cash_allowed / price_at(1)) if that
+    is smaller: no q above cash_allowed / price_at(1) can fit, since price_at(q)
+    >= price_at(1), and the one share more covers a floating-point floor that
+    lands one short (0.25 // 0.05 is 4.0, though five shares at Rs 0.05 cost
+    exactly Rs 0.25).
+
+    Returns q = 0 (price and charges of the wanted quantity) when not even one
+    share fits, or when cash_allowed is not positive.
+    """
+    if q_wanted < 1:
+        raise ValueError(f"largest_fit needs q_wanted >= 1; got {q_wanted}")
+    if cash_allowed > 0:
+        q = min(int(q_wanted), int(cash_allowed // price_at(1)) + 1)
+        while q >= 1:
+            pr = price_at(q)
+            tc = charges(pr, q)
+            if q * pr + tc <= cash_allowed:
+                return q, pr, tc
+            q -= 1
+    pr = price_at(q_wanted)
+    return 0, pr, charges(pr, q_wanted)
+
+
+# ======================================================================================
+# THE DRAWDOWN-LIMIT OVERLAY. From results/drawdown_overlay.py (moved 2026-11-27).
+# ======================================================================================
+# drawdown_overlay.py -- the drawdown-limit axis (settings.dd_axis) as one state class.
+#
+# THE RULE. At each close, with W the close equity and M its all-time peak since
+# the start of the run (never reset):
+#
+#     C = W - (1 - L) * M                      the cushion
+#     E = max(F, min(1, m * C / W))            the overlay's exposure limit
+#
+# The arm still decides which names to hold and, for v2/v4, its own exposure A
+# (1 for v1/v3). The overlay only cuts. With x the invested fraction at the close:
+#
+#     trim     when x > min(E, A) + band        to min(E, A)
+#     top-up   only after a trim, when x < min(E, 0.98 A) - band, or, once E is 1,
+#              when the gap is more than SNAP   to min(E, 0.98 A)
+#
+# 0.98 is the arm's own haircut on invest_value, so a top-up never buys more than
+# the arm itself would. "Only after a trim" keeps the overlay from investing cash
+# the arm chose to hold (v2/v4 breadth, cash-short residuals). The trim flag clears
+# once the book is back within SNAP of the arm's own level, 0.98 A.
+#
+# TRADES. The order is placed at the close and filled at the next open. Each held
+# name is resized by the same ratio r = target / x: floor(shares * (1 - r)) sold,
+# or floor(shares * (r - 1)) bought. Quantities are fixed at the close; prices are
+# the next open's. The caller fills them after the arm's own orders that morning,
+# through its normal slippage, charges, participation cap and tax ledger, and skips
+# a name the arm or a forced exit has already sold. Entrants bought that morning
+# are sized at min(E, A) instead of A, so they are not bought full and trimmed the
+# same morning (entry_factor).
+#
+# NO MULTIPLIER IS CARRIED BETWEEN DAYS. The first version tracked a multiplier k of
+# the arm's book and inferred the arm's own exposure as x / k. Prices move the
+# invested fraction without a trade, so that inference drifted: on a synthetic
+# recovery k stayed at 0.79 with the book 99.9% invested. Every decision now reads
+# the actual book.
+#
+# ONE CLASS, THREE LOOPS: portfolio.backtest_exposure,
+# nautilus/nt_attribution.run and nautilus/nt_strategy.PredictiveEngineStrategy.
+# This file decides; the callers own cash, holdings and fills.
+#
+# Exploratory: no result with the axis on has been validated.
+
+SNAP = 0.01       # 1 point of the portfolio: the minimum move back to full once E is 1
+HAIRCUT = 0.98    # the arm's own haircut on invest_value (test_exposure, nt_strategy)
+
+
+class OverlayState:
+    def __init__(self, cfg, start_capital):
+        self.cfg = cfg
+        self.peak = float(start_capital)       # M; the start is the first peak
+        self.peak_date = None
+        self.E = 1.0                           # the limit decided at the last close
+        self.cut = False                       # True from a trim until the book is restored
+        self.order = None                      # {symbol: signed qty} for the next open
+        self.events = []                       # one dict per order and per fill
+        self.worst_dd = 0.0                    # most negative W / M - 1 at a close
+        self.worst_date = None
+        self.worst_peak_date = None
+        self.sessions_below = 0                # closes with W < (1 - L) * M
+        self.days_at_floor = 0                 # closes where E was held up by the floor
+        self.n_orders = 0
+        self.last_invested = None
+
+    # ------------------------------------------------------------------ rule
+    def target(self, W):
+        """E for close equity W against the current peak."""
+        L, m, F = self.cfg.limit, self.cfg.m, self.cfg.floor
+        if W <= 0:
+            return F
+        C = W - (1.0 - L) * self.peak
+        raw = m * C / W
+        # AT A PEAK m * C / W IS m * L, WHICH IS 1 AT THE DEFAULT m = 1 / L, but in
+        # floating point it lands a rounding error above or below 1 depending on W.
+        # The two sides of nt_verify carry W a few rupees apart, so one read E = 1
+        # (the snap back to full) and the other 0.9999999999 (the band), and their
+        # books parted on nifty50 v1 on 2019-03-14. Within 1e-9 of 1 is 1.
+        if abs(raw - 1.0) < 1e-9:
+            raw = 1.0
+        return max(F, min(1.0, raw))
+
+    def entry_factor(self, arm_expo):
+        """Multiplier on the arm's invest_value for entrants at the next open:
+        min(E, A) / A, from the E decided at the last close."""
+        if arm_expo <= 0:
+            return 1.0
+        return min(1.0, self.E / arm_expo)
+
+    # ------------------------------------------------------------ at the close
+    def at_close(self, date, W, mtm, shares, last, arm_expo):
+        """Update the peak and the drawdown record, and decide the next open's order.
+
+        `shares` is {symbol: qty} at this close, `arm_expo` the arm's own exposure
+        (A). Sets self.order (or None) and returns it. Nothing is ordered on the
+        last session.
+        """
+        cfg = self.cfg
+        L = cfg.limit
+        if W > self.peak:
+            self.peak, self.peak_date = float(W), date
+        dd = W / self.peak - 1.0
+        if dd < self.worst_dd:
+            self.worst_dd, self.worst_date, self.worst_peak_date = dd, date, self.peak_date
+        if W < (1.0 - L) * self.peak:
+            self.sessions_below += 1
+        E = self.target(W)
+        raw = (cfg.m * (W - (1.0 - L) * self.peak) / W) if W > 0 else 0.0
+        if raw < cfg.floor and E == cfg.floor:
+            self.days_at_floor += 1
+        self.E = E
+        self.order = None
+        x = (mtm / W) if W > 0 else 0.0
+        self.last_invested = x
+        if x <= 0:
+            return None
+        t_cut = min(E, arm_expo)
+        t_up = min(E, HAIRCUT * arm_expo)
+        kind, tgt = None, None
+        if x - t_cut > cfg.band:
+            kind, tgt = "trim", t_cut
+        elif self.cut and t_up - x > (cfg.band if E < 1.0 else SNAP):
+            kind, tgt = "top-up", t_up
+        elif self.cut and x >= HAIRCUT * arm_expo - SNAP:
+            # Restored to the arm's own level, not merely to the overlay's target:
+            # right after a trim the book sits at its target, and clearing the flag
+            # there stopped every later top-up.
+            self.cut = False
+        if kind is None or last:
+            return None
+        r = tgt / x
+        order = {}
+        for s, q in sorted(shares.items()):
+            dq = math.floor(q * (1.0 - r)) if r < 1.0 else math.floor(q * (r - 1.0))
+            if dq >= 1:
+                order[s] = -int(dq) if r < 1.0 else int(dq)
+        if kind == "trim":
+            self.cut = True
+        self.events.append({"date": date, "event": kind + " order", "equity": W,
+                            "peak": self.peak, "drawdown_pct": dd * 100,
+                            "limit_exposure_pct": E * 100, "arm_exposure_pct": arm_expo * 100,
+                            "invested_pct": x * 100, "target_invested_pct": tgt * 100,
+                            "names": len(order),
+                            "detail": f"{kind} every holding by {abs(1.0 - r):.2%} at the next open"})
+        self.n_orders += 1
+        self.order = order or None
+        return self.order
+
+    # ---------------------------------------------------------- after the fills
+    def after_fills(self, date, before, after):
+        """Record what filled. `before` and `after` are {symbol: qty} for the names
+        in the order, before and after the overlay's own fills."""
+        moved = sum(abs(after.get(s, 0) - q) for s, q in before.items())
+        self.events.append({"date": date, "event": "filled", "equity": None, "peak": self.peak,
+                            "drawdown_pct": None, "limit_exposure_pct": None,
+                            "arm_exposure_pct": None, "invested_pct": None,
+                            "target_invested_pct": None, "names": len(before),
+                            "detail": f"{moved:,} shares across {len(before)} names"})
+        self.order = None
+
+    def cancel(self):
+        """The order is dropped (nothing it names is still held)."""
+        self.order = None
+
+    # ----------------------------------------------------------------- report
+    def summary(self):
+        L = self.cfg.limit
+        breach = -self.worst_dd - L
+        return {"limit_pct": L * 100, "m": self.cfg.m, "floor_pct": self.cfg.floor * 100,
+                "band_pct": self.cfg.band * 100,
+                "worst_dd_pct": self.worst_dd * 100, "worst_date": self.worst_date,
+                "worst_peak_date": self.worst_peak_date,
+                "breached": breach > 1e-12, "breach_points": max(0.0, breach) * 100,
+                "sessions_below_limit": self.sessions_below,
+                "days_at_floor": self.days_at_floor, "orders": self.n_orders,
+                "invested_final_pct": (self.last_invested or 0.0) * 100}
+
+
+def marginal_tax(ledger_rows, dd_row_ids):
+    """Tax caused by the overlay's sales, as a marginal figure: each financial
+    year's tax on every realised gain, less its tax with the gains realised by the
+    overlay's sales left out. Losses are set off within a year, so this is not an
+    exact attribution; it is what those sales added to the bills."""
+    import pandas as pd
+    import costs
+    if not ledger_rows:
+        return 0.0
+    df = pd.DataFrame(ledger_rows)
+    keep = df[[i not in dd_row_ids for i in range(len(df))]]
+
+    def total(lots):
+        return sum(t["total_tax"]
+                   for t in costs.assess_years(costs.realized_buckets(lots)).values())
+    return total(df) - total(keep)
+
+
+EVENT_COLUMNS = ["date", "event", "equity", "peak", "drawdown_pct", "limit_exposure_pct",
+                 "arm_exposure_pct", "invested_pct", "target_invested_pct", "names", "detail"]
+
+
+# ======================================================================================
+# THE DRAWDOWN STOP OF v5 AND v6. From results/drawdown_stop.py (moved 2026-11-27).
+# ======================================================================================
+# drawdown_stop.py -- the drawdown stop of v5 and v6, as one state machine.
+#
+# experiments/DRAWDOWN_STOP_PREREG.txt states the rule. This file is the only
+# implementation of it. Three loops call it, each at the same four points of its
+# trading day:
+#     portfolio.backtest_exposure   the engine every published arm runs
+#     nautilus/nt_attribution.run               the reference copy nt_verify compares with
+#     nautilus/nt_strategy.PredictiveEngineStrategy   the port
+# The caller owns its orders, cash and holdings. This class only decides when the
+# arm must sell everything, when it may place its normal order again, and when the
+# peak resets, and it writes down why.
+#
+# STATES
+#     IN           the running peak of close equity is updated each close. A close at
+#                  or below (1 - threshold) x peak triggers an exit at the next open.
+#     LIQUIDATING  an order to sell every holding stands. What did not fill (a missing
+#                  open, the participation cap) is offered again at each next open.
+#     OUT          from the day the book is flat. No order for cooldown_cycles x rebal
+#                  trading days. Then, on each rebalance-grid day, breadth decides: at
+#                  reentry_breadth or more the arm's normal order is placed.
+#     REENTERED    the re-entry order filled at least one buy today; at this close the
+#                  peak resets to this close's equity and the state returns to IN.
+#
+# THE CALLING SEQUENCE FOR ONE TRADING DAY, index i
+#     1. begin_day()
+#     2. after the morning's fills, if exit_pending or reentry_pending:
+#            after_fills(i, held_now, held_before, date_of)
+#     3. on a rebalance-grid day while state != "IN":
+#            allowed = grid_allows_order(i, breadth_fn)
+#        and, if allowed, after the caller's normal ordering:
+#            after_reentry_order(order_placed)
+#        while state == "IN" the caller rebalances as it always does.
+#     4. at the close:
+#            action = at_close(i, date, equity, order_placed_today, holdings_left, last)
+#        action "exit" means: replace any order placed today with an order to sell
+#        every holding at the next open. Then rows(date, equity) gives the day's events.
+
+IN, LIQUIDATING, OUT, REENTERED = "IN", "LIQUIDATING", "OUT", "REENTERED"
+
+
+class StopState:
+    def __init__(self, stop, rebal, n_days):
+        # THE SEAL, checked here so that no loop can run the registered stop before
+        # the band file is committed, however it was handed the stop.
+        require_unsealed(stop)
+        self.stop = stop
+        self.rebal = int(rebal)
+        self.n_days = int(n_days)
+        self.state = IN
+        self.peak = None
+        self.peak_date = None
+        self.flat_i = None
+        self.cool_end_i = None
+        self.exit_pending = False      # an exit order fills at the next open
+        self.reentry_pending = False   # a re-entry order fills at the next open
+        self.events = []
+        self.breadth = None
+
+    def begin_day(self):
+        self.events = []
+        self.breadth = None
+
+    def _ev(self, name, detail):
+        self.events.append((name, detail))
+
+    def after_fills(self, i, held_now, held_before, date_of):
+        """Book what this morning's exit or re-entry order did."""
+        if self.exit_pending:
+            self.exit_pending = False
+            sold = {k: int(q) - int(held_now.get(k, 0)) for k, q in held_before.items()
+                    if int(held_now.get(k, 0)) < int(q)}
+            self._ev("exit fills", f"sold {len(sold)} name(s) at this open: "
+                     + (", ".join(f"{k} {q:,} sh" for k, q in sorted(sold.items()))
+                        or "none"))
+            if not held_now:
+                self.state, self.flat_i = OUT, i
+                self.cool_end_i = i + self.rebal * int(self.stop.cooldown_cycles)
+                end = (date_of(self.cool_end_i) if self.cool_end_i < self.n_days
+                       else "after the window")
+                self._ev("flat", f"book flat at this open; cooldown until {end}")
+            else:
+                self._ev("exit partly filled",
+                         f"{len(held_now)} name(s) still held: "
+                         + ", ".join(f"{k} {int(q):,} sh" for k, q in sorted(held_now.items()))
+                         + "; offered again at the next open")
+        elif self.reentry_pending:
+            self.reentry_pending = False
+            if held_now:
+                self.state = REENTERED
+                self._ev("re-entry filled", f"{len(held_now)} name(s) bought; "
+                         "peak resets to this close")
+            else:
+                self._ev("re-entry not filled",
+                         "no buy filled; stays in cash, peak not reset")
+
+    def grid_allows_order(self, i, breadth_fn):
+        """On a rebalance-grid day while not IN: may the arm place its order today?
+
+        breadth_fn() returns the day's breadth, computed the way the caller's
+        mode="breadth" computes it. It is called only once the cooldown is over.
+        """
+        if self.state == OUT and i >= self.cool_end_i:
+            self.breadth = float(breadth_fn())
+            if self.breadth >= self.stop.reentry_breadth:
+                return True
+            self._ev("waiting", f"breadth {self.breadth:.4f} < "
+                     f"{self.stop.reentry_breadth:.2f}; stays in cash")
+        elif self.state == OUT:
+            self._ev("cooldown", "rebalance day inside the cooldown; no order")
+        else:
+            self._ev("liquidating", "rebalance day while the exit is unfilled; no order")
+        return False
+
+    def after_reentry_order(self, order_placed):
+        if order_placed:
+            self.reentry_pending = True
+            self._ev("re-entry order", f"breadth {self.breadth:.4f} >= "
+                     f"{self.stop.reentry_breadth:.2f}; the arm's normal order fills "
+                     "at the next open")
+        else:
+            self._ev("re-entry skipped", "breadth allows re-entry but no order was "
+                     "placed (fewer than TOP_N rankable names)")
+
+    def at_close(self, i, date, equity, order_placed_today, holdings_left, last):
+        """-> "exit" when an order to sell everything must stand for the next open."""
+        if self.state == REENTERED:
+            self.state, self.peak, self.peak_date = IN, equity, date
+            self._ev("peak reset", "peak reset to the re-entry day's close")
+            return None
+        if self.state == IN:
+            if self.peak is None or equity > self.peak:
+                self.peak, self.peak_date = equity, date
+            if equity <= (1.0 - self.stop.threshold) * self.peak:
+                if last:
+                    self._ev("trigger on the last session", "no next open; nothing is sold")
+                    return None
+                if order_placed_today:
+                    self._ev("order superseded", "this close's rebalance order is "
+                             "replaced by the drawdown exit")
+                self.state, self.exit_pending = LIQUIDATING, True
+                self._ev("trigger", f"close equity {equity / self.peak - 1:+.2%} from "
+                         "the peak; sell everything at the next open")
+                return "exit"
+            return None
+        if self.state == LIQUIDATING and holdings_left and not last:
+            self.exit_pending = True
+            self._ev("exit retried", "remaining holdings offered at the next open")
+            return "exit"
+        return None
+
+    def drawdown(self, equity):
+        return equity / self.peak - 1 if self.peak else None
+
+    def rows(self, date, equity):
+        """The day's events as rows of daily_stop_events_<tag>.csv."""
+        dd = self.drawdown(equity)
+        return [{"date": date, "event": name, "state": self.state,
+                 "peak": round(self.peak, 2) if self.peak is not None else None,
+                 "peak_date": self.peak_date, "equity": round(equity, 2),
+                 "drawdown_pct": round(dd * 100, 4) if dd is not None else None,
+                 "breadth": round(self.breadth, 4) if self.breadth is not None else None,
+                 "detail": detail}
+                for name, detail in self.events]
+
+
+# ======================================================================================
+# RANKING, SIZING, BUY AND SELL DECISIONS AND THE DAILY LOOP. From results/test_exposure.py (moved 2026-11-27).
+# ======================================================================================
+# test_exposure.py -- Crash protection via MARKET-LEVEL exposure scaling
+#
+# PROBLEM: the model produces a relative rank. In a crash it ranks the stock that is
+# falling least at number one, and the strategy buys it -- even though that stock is
+# also down 25%.
+#
+# WHAT FAILED BEFORE: the absolute gate (blocking individual stocks killed the
+# mean-reversion edge, Sharpe 1.03 -> 0.76), and the slope regime rule (lagging,
+# 14 fires with 4 correct).
+#
+# THIS APPROACH works at market level and never blocks an individual stock:
+#   A. BREADTH: invest the fraction of capital equal to the fraction of stocks with
+#      positive momentum; hold the rest in cash. In a crash breadth falls and cash
+#      rises, while good stocks are still bought.
+#   B. CONST: a fixed exposure, the control breadth is compared against.
+#
+# The vol-target and min(breadth, vol-target) modes were removed on 2026-10-22: their
+# target was the median portfolio vol over the whole backtest window, a value no
+# decision could know on its own date, and no arm used them.
+#
+# The experiment's own main(), which read a fixed /tmp/v5_expanding.csv from a
+# retired universe and wrote into results/metrics/, was removed on 2026-09-27;
+# nothing called it. What remains is backtest_exposure, the engine every arm runs.
+
+warnings.filterwarnings("ignore")
+
+REBAL, VOL_WIN = 20, 60
+# SELECTION -- imported from config.py, the single definition.
+TOP_N, BUFFER = settings.TOP_N, settings.BUFFER
+_THIN_WARNED = set()      # see the len(s_) < TOP_N branch in backtest_exposure
 # THE DEFAULT, defined once in settings.capital_axis. A run's capital is
 # capital_axis.selected(); this name stays for callers that want the default.
 START_CAPITAL = _capital_axis.DEFAULT
@@ -360,7 +1201,7 @@ def backtest_exposure(px, op, sc, dates, pc, mom20,
     # REBALANCE CADENCE. None means "use the module value", which is what every
     # caller relied on when this was only a module global -- so omitting it is
     # byte-identical to the previous behaviour, and rebal_cadence_sweep.py's
-    # `test_exposure.REBAL = n` override still works because the module value is
+    # `portfolio.REBAL = n` override still works because the module value is
     # read HERE, at call time, not bound at import.
     _rebal = REBAL if rebal is None else int(rebal)
     if _rebal < 1:
@@ -409,16 +1250,15 @@ def backtest_exposure(px, op, sc, dates, pc, mom20,
 
     cash_daily = (1 + CASH_YIELD) ** (1 / 252) - 1
 
-    # THE DRAWDOWN STOP (results/drawdown_stop.py). Nothing here exists when
+    # THE DRAWDOWN STOP (portfolio.py). Nothing here exists when
     # drawdown_stop is None.
     _stop = drawdown_stop
     if _stop is not None:
-        from drawdown_stop import StopState
         _st = StopState(_stop, _rebal, len(dates))
         _stop_log = audit.setdefault("stop_events", []) if audit is not None else None
         _EXIT_ORDER = ({"_exposure": 0.0}, set())   # sell every holding, buy nothing
 
-    # THE DRAWDOWN-LIMIT AXIS (results/drawdown_overlay.py). Nothing below that
+    # THE DRAWDOWN-LIMIT AXIS (portfolio.py). Nothing below that
     # reads _dd runs when it is None, which is every run without --dd.
     if dd_overlay is _DD_FROM_SELECTION:
         from settings import dd_axis as _dd_axis
@@ -442,7 +1282,7 @@ def backtest_exposure(px, op, sc, dates, pc, mom20,
     # The idle profit ring-fenced at this morning's open. 0.0 off the axis, and
     # cash - 0.0 is cash exactly, so the cash tests below are unchanged.
     _reserve = 0.0
-    # A BUY CASH CANNOT FULLY PAY FOR: trimmed or refused (buy_shortfall.py).
+    # A BUY CASH CANNOT FULLY PAY FOR: trimmed or refused (portfolio.py).
     if buy_shortfall is None:
         buy_shortfall = settings.shortfall_axis.selected()
     if buy_shortfall not in settings.shortfall_axis.CHOICES:
@@ -452,7 +1292,6 @@ def backtest_exposure(px, op, sc, dates, pc, mom20,
     if _dd is not None:
         if _stop is not None:
             raise ValueError("the drawdown-limit axis cannot run on a stop arm (v5/v6)")
-        from drawdown_overlay import OverlayState
         _ds = OverlayState(_dd, _cap0)
         _dd_rows = set()          # ledger row indices realised by the overlay's sales
         _dd_invested = []         # mtm / equity at each close: Deployed% with the axis on
@@ -811,11 +1650,11 @@ def backtest_exposure(px, op, sc, dates, pc, mom20,
                     _pend = None
                     if impact_k is not None:
                         pr, _pend = _fill_price("BUY", s, dt, _raw_buy, q)
-                    # A BUY CASH CANNOT FULLY PAY FOR (buy_shortfall.py). A buy that
+                    # A BUY CASH CANNOT FULLY PAY FOR (portfolio.py). A buy that
                     # fits is filled exactly as before. One that does not is cut to
                     # the largest whole quantity that fits under "trim" and refused
                     # under "refuse"; under trim it is refused when that quantity is
-                    # 0 or below buy_shortfall.MIN_FILL_PCT of the wanted quantity.
+                    # 0 or below portfolio.MIN_FILL_PCT of the wanted quantity.
                     # The cash is what is left at this point of the morning, after
                     # the sells, any tax taken today and the higher-ranked buys.
                     _short = cash - _reserve < q * pr
@@ -823,7 +1662,7 @@ def backtest_exposure(px, op, sc, dates, pc, mom20,
                     _short = _short or cash - _reserve < q * pr + tc
                     _trim = _below_min = None
                     if _short and _shortfall == "trim":
-                        _q, _pr, _tc, _why = _bsf.trim(
+                        _q, _pr, _tc, _why = trim(
                             q, cash - _reserve,
                             (lambda n: pr) if impact_k is None
                             else (lambda n: _fill_price("BUY", s, dt, _raw_buy, n)[0]),
@@ -835,8 +1674,8 @@ def backtest_exposure(px, op, sc, dates, pc, mom20,
                             if impact_k is not None:
                                 pr, _pend = _fill_price("BUY", s, dt, _raw_buy, _q)
                             q, tc, _short = _q, _tc, False
-                        elif _why == _bsf.BELOW_MINIMUM:
-                            _below_min = _bsf.largest_fit(
+                        elif _why == BELOW_MINIMUM:
+                            _below_min = largest_fit(
                                 q, cash - _reserve,
                                 (lambda n: pr) if impact_k is None
                                 else (lambda n: _fill_price("BUY", s, dt, _raw_buy, n)[0]),
@@ -845,10 +1684,10 @@ def backtest_exposure(px, op, sc, dates, pc, mom20,
                         _n_refused += 1
                         if audit is not None:
                             audit["skipped"].append({"date": dt, "side": "BUY", "symbol": s,
-                                "reason": _bsf.BELOW_MINIMUM,
+                                "reason": BELOW_MINIMUM,
                                 "detail": f"wanted {q:,} sh, cash pays for {_below_min:,} sh "
                                           f"({_below_min / q * 100:.1f}%), minimum "
-                                          f"{_bsf.MIN_FILL_PCT}%; have Rs {cash:,.0f}"
+                                          f"{MIN_FILL_PCT}%; have Rs {cash:,.0f}"
                                           + (f", of which Rs {_reserve:,.0f} is the fixed-"
                                              f"capital reserve" if _fixed else "")})
                         continue
@@ -895,7 +1734,7 @@ def backtest_exposure(px, op, sc, dates, pc, mom20,
                                 lambda k: pd.Timestamp(dates[k]).date())
 
         # THE DRAWDOWN-LIMIT ORDER placed at the last close, after the arm's own
-        # fills. See results/drawdown_overlay.py. Each name the order still finds
+        # fills. See portfolio.py. Each name the order still finds
         # held is resized by the same ratio: sells first, then top-ups funded from
         # cash with the usual 0.98 haircut, scaled down together when cash is short.
         if _dd is not None and _ds.order is not None:
@@ -1234,7 +2073,6 @@ def backtest_exposure(px, op, sc, dates, pc, mom20,
     # finds it under "tax"; a caller that does not is unaffected, which is what
     # keeps tax=off byte-identical rather than merely equal.
     if _dd is not None and audit is not None:
-        from drawdown_overlay import marginal_tax
         audit["dd_events"] = _ds.events
         audit["dd"] = dict(_ds.summary(), marginal_tax=(
             marginal_tax(ledger.rows, _dd_rows) if ledger is not None else 0.0))

@@ -673,7 +673,7 @@ def main():
     import settings
     import market_data
     from settings import REGISTRY
-    from arms.registry import ARMS
+    from portfolio import ARMS
 
     AXIS_ORDER = ("universe",) + tuple(settings.AXES)
     REGISTRY_ROWS.update(REGISTRY)

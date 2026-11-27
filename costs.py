@@ -12,7 +12,7 @@ Sections, in order:
   5. capacity: buy fills against the stock's traded value, measured after a run
 
 The run settings these read (profile, impact, cap) are in settings.py. The rule
-for a buy that cash cannot fully pay for is in buy_shortfall.py.
+for a buy that cash cannot fully pay for is in portfolio.py.
 """
 from __future__ import annotations
 
@@ -36,12 +36,12 @@ from settings import profile_axis
 #
 # WHY THIS EXISTS. SLIPPAGE = 0.0015 was written out SEVEN times:
 #
-#     results/test_exposure.py:61        results/engine_core.py:140
+#     portfolio.py        results/engine_core.py:140
 #     results/make_daily_log.py:37       results/check_b_exec_timing.py:44
 #     nautilus/nt_run.py:73              nautilus/nt_attribution.py:64
 #     depth_compare.py:40                (derived from nt_run, not a definition)
 #
-# nt_run's carried the comment "matches SLIPPAGE in results/test_exposure.py",
+# nt_run's carried the comment "matches SLIPPAGE in portfolio.py",
 # which is a duplicate admitting it is one. This repository already records
 # VOL_WIN = 60 having sixteen independent definitions and no central home, and four
 # tables -- REQUIRED_INPUTS, PIPELINE_ORDER, REPORT_ORDER, FILES -- that each went
@@ -702,7 +702,7 @@ def calc_tc(price, qty, side):
 # tax_util.py -- Indian capital-gains tax on a realised trade log. THE RULES ONLY.
 # ===============================================================================
 #
-#     axis: settings.tax            engine hook: results/test_exposure.py
+#     axis: settings.tax            engine hook: portfolio.py
 #     spec: the reference document's section 3, implemented verbatim
 #
 # UNPARKED 2026-09-17, AND WHY
@@ -1000,8 +1000,8 @@ def closed_lots(path):
     silently as zero -- the parked file's behaviour, which was right.
 
     FIFO IS IMPLEMENTED AND CANNOT CURRENTLY BIND. The engine opens a position
-    only when the symbol is absent (test_exposure.py:306) and always exits the
-    whole position (test_exposure.py:260), so there is exactly one open lot per
+    only when the symbol is absent (portfolio.py) and always exits the
+    whole position (portfolio.py), so there is exactly one open lot per
     symbol and FIFO, LIFO and average-cost are identical. The loop is kept
     general because a future partial-exit rule would otherwise be silently
     mismatched, and a wrong basis does not raise -- it just reports.
@@ -1226,7 +1226,7 @@ def liability_schedule(lots, trading_days):
     A YEAR SECTION 3(9) WOULD ASSESS AFTER THE WINDOW IS SETTLED ON ITS LAST
     SESSION (since 2026-09-25, matching Ledger.due_on), so every year is in the
     dict and `assessed_basis` says which rule dated it. Nothing here deducts
-    anything or touches an equity curve; results/test_exposure.py moves the cash.
+    anything or touches an equity curve; portfolio.py moves the cash.
     """
     buckets = realized_buckets(lots)
     rows = list(assess_years(buckets).values())
@@ -1277,7 +1277,7 @@ def liability_schedule(lots, trading_days):
 # for a year reduces the capital available to trade the following one.
 #
 # THIS CLASS HOLDS NO CASH AND MOVES NONE. It is told about fills and asked what
-# is due; results/test_exposure.py owns the cash and does the subtraction.
+# is due; portfolio.py owns the cash and does the subtraction.
 class Ledger:
     """Realised-gain accumulator with per-financial-year assessment.
 
@@ -1439,7 +1439,7 @@ class Ledger:
 #
 # WHY THIS IS NOT A MODULE GLOBAL ON test_exposure
 #     settings.cadence records the hazard by file and line: rebal_cadence_sweep.py set
-#     test_exposure.REBAL and never restored it, so every later in-process step would
+#     portfolio.REBAL and never restored it, so every later in-process step would
 #     have backtested the wrong cadence with nothing to say so. The cap is recorded
 #     here and handed to backtest_exposure as an ARGUMENT. A parameter cannot leak
 #     into the next step; a global can, and once did.

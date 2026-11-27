@@ -182,7 +182,7 @@ def _strip_provenance(doc, name="", path=None):
 # FOUR CELLS, AND THE TWO KINDS ARE NOT INTERCHANGEABLE. Measured 2026-09-15 by
 # running each and recording what it wrote, rather than reasoning about it.
 #
-# arms.registry.selection_suffix() is EMPTY for a full selection, because only a
+# portfolio.selection_suffix() is EMPTY for a full selection, because only a
 # four-arm run may write the canonical v34 artefacts. So:
 #
 #   --arm all  writes  v34_comparison.csv      chart_v34.png      DAILY_LOG_midcap150.txt
@@ -317,7 +317,7 @@ STANDING_GATE = (
 #                         its one true name and STEP 16 does not block. The block
 #                         at lines 161-165 above records the same discharge.
 #   --rebal 40            the _r40 cadence suffix. Exercised by no cell here.
-#   9 of 15 arm subsets   arms.registry.suffix() names any subset (_v1_v3 and so
+#   9 of 15 arm subsets   portfolio.suffix() names any subset (_v1_v3 and so
 #                         on); four singles and one full selection are covered,
 #                         the other ten combinations are not. docs/HANDOFF.md
 #                         records the same gap.

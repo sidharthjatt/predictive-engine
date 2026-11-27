@@ -58,7 +58,7 @@ for _p in (str(ROOT), str(ROOT / "results"), str(ROOT / "nautilus")):
 
 import settings                                        # noqa: E402
 from settings import REGISTRY             # noqa: E402
-from arms.registry import ARMS, ALL_ARMS, SHIPPING as SHIPPING_ARMS            # noqa: E402
+from portfolio import ARMS, ALL_ARMS, SHIPPING as SHIPPING_ARMS            # noqa: E402
 
 # ---------------------------------------------------------------------------
 # SAVE AND RESTORE MODULE GLOBALS. Was module_state.py until 2026-10-18 (last at aebf1da).
@@ -76,8 +76,8 @@ from arms.registry import ARMS, ALL_ARMS, SHIPPING as SHIPPING_ARMS            #
 #     Nine scripts in this repository reassign a shared module's globals to steer a
 #     measurement, and they do it by writing straight into the module object:
 #
-#         test_exposure.TOP_N     = top_n        validate_topn.py:154
-#         test_exposure.BUFFER    = BUFFER_PINNED
+#         portfolio.TOP_N     = top_n        validate_topn.py:154
+#         portfolio.BUFFER    = BUFFER_PINNED
 #         test_exposure.REBAL     = rebal        rebal_cadence_sweep.py:172
 #         nt_strategy / nt_attribution           -- SIZING was a global here too until
 #                                                   2026-09-04; both now take sizing
@@ -120,7 +120,7 @@ from contextlib import contextmanager                 # noqa: E402
 # Recorded per module rather than guessed, so a name added later is a deliberate
 # edit here rather than a silent gap.
 WATCHED = {
-    "test_exposure":  ("TOP_N", "BUFFER", "REBAL", "VOL_WIN", "SLIPPAGE",
+    "portfolio":      ("TOP_N", "BUFFER", "REBAL", "VOL_WIN", "SLIPPAGE",
                        "START_CAPITAL", "CASH_YIELD"),
     "engine_core":    ("TOP_N", "BUFFER", "REBAL"),
     "market_data":    ("MEMBERSHIP", "SURVIVORSHIP_MODE", "EXIT_POLICY"),
@@ -354,7 +354,7 @@ def resolve_arms(name):
     A REPEATED NAME IS NOT AN ERROR, it is the same set. Deduplication happens
     through ARMS iteration below, so an arm cannot appear twice in one table.
 
-    "all" IS THE CORE FOUR. The stop arms v5 and v6 (arms.registry.STOP_ARMS) are
+    "all" IS THE CORE FOUR. The stop arms v5 and v6 (portfolio.STOP_ARMS) are
     selected by name only, until experiments/DRAWDOWN_STOP_PREREG.txt accepts them.
     """
     if name in ("all", None):
@@ -450,7 +450,7 @@ def preflight(args, plan):
     Each check names EVERY offender, not the first: learning about one typo per run
     is three runs to learn one thing.
     """
-    import arms.registry as _arms
+    import portfolio as _arms
     from settings import cadence as _cad
     import costs
     import settings
@@ -466,7 +466,7 @@ def preflight(args, plan):
     if unknown_a:
         bad.append(f"arm(s) {sorted(unknown_a)} -- registry defines {sorted(ALL_ARMS)}")
     # A SEALED STOP ARM IS REFUSED HERE, before any step runs, not halfway through.
-    import arms.registry as _ar
+    import portfolio as _ar
     for a in plan["arms"]:
         if a.name in _ar.STOP_ARMS:
             try:
@@ -564,7 +564,7 @@ def print_plan(plan, args, show_paths=False):
         print(f"  rebalance cadence: {args.rebal} (default 20)")
     else:
         print(f"  rebalance cadence: 20 (default, unchanged)")
-    import buy_shortfall as _bsf
+    import portfolio as _bsf
     import settings
     print(f"  buy_shortfall: {settings.shortfall_axis.selected()}"
           + (" (default)" if settings.shortfall_axis.is_default() else f" (default {settings.shortfall_axis.DEFAULT})")
@@ -909,7 +909,7 @@ def main(argv=None):
         if _why:
             ap.error(_why)
     _fxa.set_selection(bool(args.fixed_capital))
-    import buy_shortfall as _bsf
+    import portfolio as _bsf
     import settings
     settings.shortfall_axis.set_selection(args.buy_shortfall)
 
@@ -1194,7 +1194,7 @@ def _start_section():
 def _buy_shortfall_section():
     """RUN.txt's buy-shortfall line, written for every run. A RUN.txt without it
     was written before 2026-10-27, when every short buy was refused."""
-    import buy_shortfall as _bsf
+    import portfolio as _bsf
     import settings
     return f"buy_shortfall : {settings.shortfall_axis.selected()}\n"
 
@@ -1607,7 +1607,7 @@ def _execute(plan, args, state):
     # selected by universe, so it cannot be handed the arm selection as an
     # argument the way run_arm is -- it has to read it. Set here, once, beside
     # the universe selection.
-    import arms.registry as _arms
+    import portfolio as _arms
     _arms.set_selection([a.name for a in plan["arms"]])
     # CADENCE, PROFILE AND TAX were recorded in main(), before the plan was built,
     # so the plan, --dry-run and this run compose paths from one selection.

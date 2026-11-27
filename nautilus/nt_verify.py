@@ -23,7 +23,7 @@ Both sides size every buy at the decision session's close (since 2026-10-28), so
 neither values its book at the open. The quote-mid exemption that covered the
 port's open valuation (added 2026-09-29, pass I) went with it.
 
---buy-shortfall=trim|refuse picks the buy rule (buy_shortfall.py) for the port,
+--buy-shortfall=trim|refuse picks the buy rule (portfolio.py) for the port,
 the reference copy and the reference trail's name; the default is
 settings.BUY_SHORTFALL.
 
@@ -72,14 +72,14 @@ M = U["metrics"]
 TAG = U["tag"]
 REBAL = next((int(a.split("=", 1)[1]) for a in sys.argv if a.startswith("--rebal=")), None)
 
-from arms.registry import ALL_ARMS as _ARMS
+from portfolio import ALL_ARMS as _ARMS
 _ARM_NAME = next((a.split("=", 1)[1] for a in sys.argv if a.startswith("--arm=")), "v2")
 if _ARM_NAME not in _ARMS:
     raise SystemExit(f"unknown arm {_ARM_NAME!r}; known: {', '.join(_ARMS)}")
 ARM = _ARMS[_ARM_NAME]
 # THE ARM'S OWN KWARGS: mode and sizing, and for v5/v6 the drawdown stop, which
 # the port and the reference copy then both run. Sealed for a stop arm unless the
-# test fixture is set (arms.registry.FIXTURE_ENV).
+# test fixture is set (portfolio.FIXTURE_ENV).
 _ARM_KW = ARM.kwargs
 
 # --dd=L [--dd-m=m] [--dd-floor=F]: THE DRAWDOWN-LIMIT AXIS. The selection is set
@@ -252,7 +252,7 @@ def cadence_gap(rebal):
     from settings import cadence as _cd
     sys.path.insert(0, str(ROOT / "results"))
     import audit_step
-    from arms.registry import ARMS
+    from portfolio import ARMS
     from settings import REGISTRY
     _cd.set_selection(rebal)
     ref_f = M / f"daily_summary_{audit_step.artefact_tag(REGISTRY[UNIVERSE], ARMS['v2'])}.csv"
@@ -379,7 +379,7 @@ def main():
     report("vs REFERENCE (the engine's own audit trail, not gated)", ref_stats, n)
     report("vs the reference copy (gated)", r_stats, n)
     # THE CONTROL GATES SELECTION AND MEASURES SIZING. nt_attribution.run and
-    # test_exposure.backtest_exposure are two of this repository's backtest
+    # portfolio.backtest_exposure are two of this repository's backtest
     # reimplementations. Selection is gated; their integer sizing is reported only.
     # See KNOWN_ISSUES.md, "There are FIVE reimplementations of the backtest".
     _a_mism, _a_sym, _a_qty, _a_worst = a_check

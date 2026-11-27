@@ -831,7 +831,7 @@ def check_inputs(label, script, tag):
     among them. The edge inventory is unaffected because this table was never part
     of it -- which is what made step 8 possible.
     """
-    import arms.registry as _ar
+    import portfolio as _ar
     _sel = set(_ar.selected_names())
 
     def _present(f, axes):

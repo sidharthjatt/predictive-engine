@@ -55,7 +55,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import market_data
 import settings
 from settings import REGISTRY, universe_axis, report_order
-import arms.registry as arm_reg
+import portfolio as arm_reg
 from settings import cadence
 import make_chart
 

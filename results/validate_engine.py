@@ -9,7 +9,7 @@ WHY THIS FILE EXISTS
     The four-test suite (T1 baseline, T2 seed robustness, T3 sub-period, T4 vol-window)
     lived inside engine_core.main() (deleted 2026-09-24 with the retired universe it
     served) and tested engine_core.backtest. That is NOT the engine that produces the
-    published numbers -- those come from test_exposure.backtest_exposure. The two
+    published numbers -- those come from portfolio.backtest_exposure. The two
     disagreed by 1.80 CAGR points on a retired universe (26.42 vs 24.62), for three
     independent reasons measured on 2026-09-04:
       - sizing base   : cash * 0.98        vs  port_val * exposure * 0.98
@@ -78,7 +78,7 @@ from model import seed_cache_key
 from engine_core import metrics
 from market_data import precompute
 from model import score_monthly, HORIZON
-from test_exposure import backtest_exposure, TOP_N, BUFFER, START_CAPITAL
+from portfolio import backtest_exposure, TOP_N, BUFFER, START_CAPITAL
 import costs
 import settings            # the run's execution-realism profile
 from market_data import read_table  # the one CSV/parquet reader: market_data.read_table
@@ -193,7 +193,7 @@ def run_universe(tag, cfg, W, fast=False):
     W("      design. A book pinned at TOP_N would mean the buffer had stopped working.")
     # NO AUDIT ON THE EQUAL ARM. backtest_exposure(sizing="equal", audit=<dict>)
     # raises UnboundLocalError: `v` (the vol series) is bound only in the non-equal
-    # branch at test_exposure.py:198, but the audit's ranking block reads v.get(...)
+    # branch at portfolio.py, but the audit's ranking block reads v.get(...)
     # at :231 unconditionally. That defect is PRE-EXISTING -- it is in git HEAD and is
     # not introduced by the valuation fix -- and it is reported rather than patched
     # here, because repairing the shipping engine is not this file's job. Only the

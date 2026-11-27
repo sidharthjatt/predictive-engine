@@ -31,7 +31,7 @@ THE STALE-CONFIG RISK, AND HOW IT IS PROVEN ABSENT
     has nothing to do with the port.
 
 Nothing is hardcoded: the 92 comes from the run's own rebalance count. The four
-arms come from arms/registry.py, so an arm added there is verified here with no
+arms come from portfolio.py, so an arm added there is verified here with no
 edit to this file.
 
 Reads the panels and writes NOTHING TRACKED. It is not side-effect free, and the
@@ -67,13 +67,13 @@ import nt_attribution
 import nt_verify
 
 from settings import REGISTRY, certified
-from arms.registry import ARMS as ARM_REGISTRY
+from portfolio import ARMS as ARM_REGISTRY
 
 # BOTH REGISTRIES FEED THIS FILE, and it is the one place where that matters
 # most: this is the correctness gate, so a name here that disagreed with the name
 # the engine uses would verify the wrong thing and still print 92 of 92.
 #
-# ARMS carries each arm's MODE and SIZING, both taken from arms/registry.py rather
+# ARMS carries each arm's MODE and SIZING, both taken from portfolio.py rather
 # than re-listed here, so the gate cannot drift from the definition the research
 # engine uses.
 # NOW CARRIES THE EXPOSURE MODE TOO. Until 2026-09-04 the port had no exposure

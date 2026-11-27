@@ -210,7 +210,7 @@ def discover():
 
 def honour_probe():
     """Prove settings.tail() moves under HONOUR_SELECTION before trusting it."""
-    import arms.registry as ar
+    import portfolio as ar
     import settings
     ar.set_selection(HONOUR_SELECTION["arms"])
     settings.cadence.set_selection(HONOUR_SELECTION["cadence"])

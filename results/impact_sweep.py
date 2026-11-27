@@ -36,10 +36,10 @@ impact-exemption count.
 NO k IS SELECTED HERE. The sweep shows how sensitive the answer is to k. Picking
 one is a separate decision that needs a reason this file cannot supply.
 
-EVERY CORE ARM ON EVERY UNIVERSE. The arms come from arms.registry.ARMS (v1 to v4)
+EVERY CORE ARM ON EVERY UNIVERSE. The arms come from portfolio.ARMS (v1 to v4)
 and the universes from settings.REGISTRY; nothing here names either.
 Each pair writes diagnostics/impact_sweep_<universe>_<arm>.csv. The no-cap, k-none
-row is the research profile, tax off, cadence 20 (test_exposure.REBAL), which is
+row is the research profile, tax off, cadence 20 (portfolio.REBAL), which is
 what the published v34_comparison.csv rows are, and is compared against them by
 the caller.
 """
@@ -58,12 +58,12 @@ import model
 import settings                                    # noqa: E402
 import engine_core
 import market_data                               # noqa: E402
-from arms.registry import ARMS                   # noqa: E402
+from portfolio import ARMS                   # noqa: E402
 from settings import impact_axis                               # noqa: E402
 from settings import pcap_axis                                 # noqa: E402
 import costs
 import settings                                  # noqa: E402
-from test_exposure import backtest_exposure      # noqa: E402
+from portfolio import backtest_exposure      # noqa: E402
 from settings import REGISTRY          # noqa: E402
 from market_data import read_table  # the one CSV/parquet reader: market_data.read_table
 

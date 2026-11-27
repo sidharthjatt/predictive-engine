@@ -60,7 +60,7 @@ THE SEED LOOP IS SEQUENTIAL, MATCHING engine_core.py
 
 WHAT CANNOT BE CHECKED HERE
     There is no artefact to gate the baseline against. engine_core.backtest is a
-    separate implementation from the production test_exposure.backtest_exposure --
+    separate implementation from the production portfolio.backtest_exposure --
     on the retired universe they disagreed by design, 26.42% against 24.62% for
     the same sizing.
     So this script cannot prove it reproduces anything published. The strongest

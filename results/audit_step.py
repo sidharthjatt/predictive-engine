@@ -53,9 +53,9 @@ for _p in (str(ROOT), str(ROOT / "results")):
 import model
 import settings                                    # noqa: E402
 from market_data import precompute
-import arms.registry as arm_reg
+import portfolio as arm_reg
 from settings import cadence               # noqa: E402
-from test_exposure import backtest_exposure      # noqa: E402
+from portfolio import backtest_exposure      # noqa: E402
 import costs
 import settings            # the run's execution-realism profile
 from market_data import read_table  # the one CSV/parquet reader: market_data.read_table
@@ -145,7 +145,7 @@ def _reference_curve(M, arm_name):
     universe has no v3/v4 at all, and an arm-subset run has no file for an arm it
     did not measure. The caller reports that rather than asserting against nothing.
     """
-    import arms.registry as _ar
+    import portfolio as _ar
     # SPELLED `M / "..."`, NOT `Path(M) / "..."`. check_pipeline_order matches the
     # bare `<dir> / "<literal>"` shape; wrapping the directory in Path() made this
     # read invisible to the scanner and the edge vanished from its inventory.
@@ -349,7 +349,7 @@ def run(u, arm=None):
               f"{int((stdf['event'] == 're-entry filled').sum())} re-entries)")
     # THE DRAWDOWN-LIMIT AXIS: one row per order and per fill. Only with --dd.
     if "dd_events" in audit:
-        from drawdown_overlay import EVENT_COLUMNS
+        from portfolio import EVENT_COLUMNS
         dddf = pd.DataFrame(audit["dd_events"], columns=EVENT_COLUMNS)
         # naming: arm,cadence,profile,tax,survivorship,dd via artefact_tag -- `tag` is artefact_tag(u, _arm)
         dddf.to_csv(M / f"daily_dd_events_{tag}.csv", index=False)

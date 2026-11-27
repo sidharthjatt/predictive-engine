@@ -30,7 +30,7 @@ for _p in (ROOT, ROOT / "results"):
 
 import pandas as pd
 
-import arms.registry as arm_reg
+import portfolio as arm_reg
 import market_data
 import settings
 from market_data import read_table

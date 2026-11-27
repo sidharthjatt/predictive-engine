@@ -53,7 +53,7 @@ import market_data
 from settings import cadence
 import settings
 from market_data import precompute
-from test_exposure import backtest_exposure
+from portfolio import backtest_exposure
 from costs import calc_tc, SLIPPAGE
 from settings import capital_axis  # noqa: E402
 from settings import REGISTRY
@@ -168,7 +168,7 @@ def main(u):
     # buy & hold rows are the same basket in every arm's file. v2 keeps its row
     # labels ("v2 after tax" and so on), which after_tax_noise.published and
     # tax_report read by name; the other arms' rows carry their own name.
-    import arms.registry as arm_reg
+    import portfolio as arm_reg
     for arm in arm_reg.selected():
         an = arm.name
         print("="*96)

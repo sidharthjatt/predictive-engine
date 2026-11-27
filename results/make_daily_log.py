@@ -10,7 +10,7 @@ A complete record of every trading day, in four sections:
 Everything is read from the audit CSVs. No backtest number is recomputed here;
 section [B] only checks the figures that were already written.
 
-Timing (verified against test_exposure.backtest_exposure):
+Timing (verified against portfolio.backtest_exposure):
   each day the cash balance is carried forward first, then the pending order is
   filled (all SELLs, then all BUYs), then positions are marked at the CLOSE, and
   finally a new order is created if today is a rebalance day. An order always
@@ -35,7 +35,7 @@ W = 118
 # file describing a selection rule the engine no longer used.
 TOP_N, BUFFER = settings.TOP_N, settings.BUFFER
 
-# Mirrors the constants in test_exposure.py -- needed for reconciliation only.
+# Mirrors the constants in portfolio.py -- needed for reconciliation only.
 # SLIPPAGE comes from costs.py, which is the only definition. It was
 # written out in seven files until 2026-09-22; these engines are
 # cross-checked against each other, so a value changed in one and not the
@@ -43,7 +43,7 @@ TOP_N, BUFFER = settings.TOP_N, settings.BUFFER
 # number here. Value unchanged at 0.0015.
 from costs import SLIPPAGE  # noqa: E402
 from market_data import read_table  # the one CSV/parquet reader: market_data.read_table
-CASH_YIELD = 0.0        # must match test_exposure.py
+CASH_YIELD = 0.0        # must match portfolio.py
 from settings import capital_axis as _capital_axis  # noqa: E402
 # THE DEFAULT, defined once in settings.capital_axis. A run's capital is
 # capital_axis.selected(); this name stays for callers that want the default.
@@ -149,7 +149,7 @@ SIZING_PROSE = {
 
 def arm_reg_fixture():
     """The drawdown stop's test-fixture threshold, or None."""
-    import arms.registry as _ar
+    import portfolio as _ar
     return _ar.fixture_threshold()
 
 
@@ -192,7 +192,7 @@ def legend_for(arm):
                  '            close that triggered the exit.')
     # ONLY A TRIMMED RUN'S LEGEND DESCRIBES THE TRIM, so a refuse run's log is
     # byte-identical to the one written before buy_shortfall existed.
-    import buy_shortfall as _bsf
+    import portfolio as _bsf
     import settings
     if settings.shortfall_axis.selected() == "trim":
         trim_skip = ("\n            Under buy_shortfall trim a buy cash cannot fully pay for is cut to"
@@ -304,7 +304,7 @@ def tax_due_by_date(summary_dates, trades):
     and reads
         opening + yield + sales - purchases - fees = closing
     which is the whole of the engine's cash movement UNDER tax=off and is short
-    one term under tax=on. test_exposure.backtest_exposure does
+    one term under tax=on. portfolio.backtest_exposure does
     `cash -= ledger.due_on(dt)` on each assessment date, so on those six-or-so
     days the recorded closing cash is legitimately BELOW what this identity
     predicts. The log then reported "*** FAIL ***" on correct data and closed
@@ -980,7 +980,7 @@ def main():
     # ONE LOG PER (UNIVERSE, SELECTED ARM), not one per universe. The tag comes
     # from audit_step.artefact_tag -- the same call the writer uses -- so the
     # reader cannot drift from the writer's naming.
-    import arms.registry as _ar
+    import portfolio as _ar
     import audit_step
 
     def _logs_for(u, mdir):

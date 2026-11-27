@@ -397,7 +397,7 @@ def _write_stop(M, stop_rows, stop_curves, stop_audits, bd, bh, halves,
                               "reentry_breadth": st.reentry_breadth}
                           for n, st in _stop.items()},
         # A FIXTURE RUN SAYS SO IN ITS OWN RECORD. It tests the wiring and is never
-        # a result (arms.registry.FIXTURE_ENV).
+        # a result (portfolio.FIXTURE_ENV).
         "test_fixture": arm_reg.fixture_threshold() is not None,
         "reference": "equal-weight buy & hold of the same universe, same panel",
         "constants": {**consts, "REBAL": _reb},
@@ -435,7 +435,7 @@ def run_v34(M, universe_label, universe_tag, px, op, sc, bd, pc, mom20,
     # is safe: passing an audit dict was verified to leave the equity curve, the
     # transaction cost and the trade count bit-identical, so the reported v2 row
     # still comes from the caller's original curve, not from this run.
-    import arms.registry as arm_reg
+    import portfolio as arm_reg
     sel = set(arm_reg.selected_names())
 
     # GATED ON v2 BEING SELECTED, like v3 and v4 below. Its only purpose is v2's
@@ -447,7 +447,7 @@ def run_v34(M, universe_label, universe_tag, px, op, sc, bd, pc, mom20,
     _reb = cadence.selected()
     # THE TAX SELECTION, READ ONCE AND PASSED AS AN ARGUMENT -- exactly as _reb
     # above and participation_cap below. backtest_exposure's tax_enabled is a
-    # PARAMETER by design (test_exposure.py:203 gives the reason: same as rebal
+    # PARAMETER by design (portfolio.py gives the reason: same as rebal
     # and participation_cap), so it stays one; what was missing was any caller on
     # the PUBLISHED path passing it.
     #
@@ -674,7 +674,7 @@ def run_arm(u, arm, rebal=None, out_dir=None):
     """
     import settings
     from market_data import precompute
-    from test_exposure import backtest_exposure, START_CAPITAL
+    from portfolio import backtest_exposure, START_CAPITAL
 
     # THE CADENCE IS PART OF THE OUTPUT PATH. Without it a --rebal 40 run wrote
     # into runs/<uni>/<arm>/ and replaced the published cadence-20 result.

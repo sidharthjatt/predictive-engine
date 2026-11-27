@@ -155,7 +155,7 @@ midcap150 v3 and nifty50 v1 pit tax-on cells and the limit's marginal tax, are o
 old rules and were not rerun.
 
 The Nautilus port runs the limit (`nautilus/nt_strategy.py`, through the same
-`results/drawdown_overlay.py` the engine uses), and `nt_verify.py --dd=L` compares it
+`portfolio.py` the engine uses), and `nt_verify.py --dd=L` compares it
 with the engine at research profile, tax off, static. Every other `--dd` cell is
 outside port verification:
 
@@ -295,7 +295,7 @@ with no target weight. When the entrants do not fit, the lowest-ranked are
 short of cash. Since 2026-10-27 (`--buy-shortfall trim`, the default) each such buy is
 cut to the largest whole quantity q whose cost and charges fit the cash left, and
 goes ahead only if q is at least 50% of the wanted quantity
-(`buy_shortfall.MIN_FILL_PCT`, a fixed constant, not a run setting). Below 50% the
+(`portfolio.MIN_FILL_PCT`, a fixed constant, not a run setting). Below 50% the
 buy is refused whole and logged `cash short: below minimum fill`, with the wanted
 quantity, the quantity cash pays for and that share in the detail. A buy of which
 not one share fits is refused and logged `cash short (before TC)` or `(incl TC)`, as
@@ -320,7 +320,7 @@ trim with it:
 | v3 | 32.51 | 30.64 | 32.12 |
 | v4 | 24.37 | 24.77 | 24.77 |
 
-The Nautilus port uses the same function (`buy_shortfall.trim`), and
+The Nautilus port uses the same function (`portfolio.trim`), and
 `nt_verify.py` checks it under trim. Since 2026-10-28 both sides fill to the paisa
 (`costs.fill_price`), and the holdings at every rebalance and the orders of every
 rebalance period must be identical; any period that differs fails. The 0.05-grid
@@ -412,7 +412,7 @@ no order on 2019-01-02 now exceeds the cap.
 
 What is still uncapped: a symbol whose own price file has fewer than 20 sessions before
 a fill has no median, and `_participation_limit` returns None for it, so that fill goes
-through uncapped and nothing is logged (results/test_exposure.py:112-131). The impact
+through uncapped and nothing is logged (portfolio.py). The impact
 model (`costs.impact`) exempts the same fills explicitly and counts them
 (`costs.first_priced_date`, `resolve`). The cap does not count them. Measured
 2026-10-15 on nifty200 v3, nifty200 v1 and midcap100 v1 (pit, tradeable, tax on,
@@ -420,7 +420,7 @@ Rs 10 lakh): no fill falls in this case (0 of 826, 842 and 782 fills).
 
 ### The participation cap changes which trades happen, not only what they cost
 
-The cap in `backtest_exposure` (results/test_exposure.py:568-599) acts in three ways:
+The cap in `backtest_exposure` (portfolio.py) acts in three ways:
 1. A shrunk order's unspent cash stays in cash for the session.
 2. That cash can fund a lower-ranked name the loop used to drop.
 3. The shrink can bring the order itself under the cash on hand. An order the research
@@ -460,7 +460,7 @@ to find out.
 
 ### Tax deductions overdraw cash in 18 of 32 taxed cells, and the overdraft is free
 
-`results/test_exposure.py` deducts each year's tax without a clamp. Measured with
+`portfolio.py` deducts each year's tax without a clamp. Measured with
 `results/overdraft_measure.py` (`diagnostics/overdraft_on_tax_day.txt`), tax on, cadence
 20, both profiles, read-only, on the 2026-10-10 data and the tax ledger since 2026-10-14
 (regenerated 2026-10-15):
@@ -616,7 +616,7 @@ code first, and each carries one line saying it was rebuilt. Blocks from before
     leg it rounds to zero paisa: the largest leg, Rs 26.1 lakh, owes Rs 0.0003.
   - `calc_tc` stops with an ImportError if the charge library cannot be imported.
     Until 2026-10-14 it fell back to a flat 0.11% without saying so, in
-    `results/test_exposure.py`, `results/engine_core.py` and
+    `portfolio.py`, `results/engine_core.py` and
     `nautilus/nt_attribution.py`.
 - The report rounds as the engine does. The engine's prices are numpy floats, and
   round() on 1607.585 gives 1607.58 there and 1607.59 on a Python float; the buy & hold
@@ -661,14 +661,14 @@ below, on 2026-09-23 and 2026-09-25:
 - "Sold on the last day" (`end_sale=True`) sells at the open, so it can come out above
   the headline (midcap50 v2).
 - That sale is not participation-capped under `--profile tradeable`
-  (results/test_exposure.py:619-642), and README publishes that column anyway. Deferred.
+  (portfolio.py), and README publishes that column anyway. Deferred.
 - `tax_acceptance_check.py` condition 4 checks all of this against hand-worked numbers.
 
 ### When in the day the annual tax is deducted
 
 Each financial year is assessed once, on the first trading day on or after
 31 March (TAX_AND_CHARGES.docx section 3(9)). The document does not say where in
-that day the money leaves. results/test_exposure.py deducts it before the day's
+that day the money leaves. portfolio.py deducts it before the day's
 fills, so the tax reduces the cash the morning's orders are sized from. Two cases
 are deducted after the fills instead: a year assessed on 31 March while that day
 is still inside the year (so a sale that day is in its own year's bill), and the
@@ -720,10 +720,10 @@ the paisa since 2026-10-28 (see "Fill prices are rounded to the paisa, not place
 NSE's tick"), it is 788 of 788.
 
 Two rules still read data dated on the fill session, deliberately:
-- Pit index exit (`test_exposure.py`, touch point 7): a held name that is not in the
+- Pit index exit (`portfolio.py`, touch point 7): a held name that is not in the
   membership in force on the fill session is sold at its open. Index changes are
   announced weeks ahead, so the order could be placed in time. Pit only.
-- Drawdown-limit top-ups (`test_exposure.py`, `nt_attribution.py`,
+- Drawdown-limit top-ups (`portfolio.py`, `nt_attribution.py`,
   `nt_strategy._dd_buy_legs`): the order is decided at the close, then scaled by
   `min(1, cash x 0.98 / need)` with `need` priced at the fill session's open. That
   factor is part of the drawdown control's rule and only fits the order to cash.
@@ -902,7 +902,7 @@ No suite has been run on the other six universes.
 
 ### validate_engine: 2 of 4 on both certified universes, cleaned prices, 2026-09-27
 
-`results/validate_engine.py` runs T1-T4 against the shipping engine (`test_exposure.backtest_exposure`), inverse-vol against equal-rupee at 100% invested. Record: `diagnostics/validate_engine_{midcap150,nifty100,verdict}.txt`.
+`results/validate_engine.py` runs T1-T4 against the shipping engine (`portfolio.backtest_exposure`), inverse-vol against equal-rupee at 100% invested. Record: `diagnostics/validate_engine_{midcap150,nifty100,verdict}.txt`.
 - T2 (seed sets) and T4 (vol window) pass on both. The smallest margins are +0.0205 (midcap150 T2) and +0.0076 Sharpe (nifty100 T4, vol_win=40).
 - T3 fails on both. Inverse-vol loses 2019-2022 (-0.2038 midcap150, -0.0776 nifty100) and wins 2023-2026.
 - T1 fails on both because the mean book is 7.91 and 7.88, below TOP_N=8. The cause is cash-short skipped buys; see the funding-gap entry.
@@ -913,7 +913,7 @@ No suite has been run on the other six universes.
 ### validate_engine and validate_sizing answer T3 with different engines
 
 `results/validate_engine.py` decides its sub-period test (T3, inverse-vol against
-equal-rupee) on `test_exposure.backtest_exposure`, the engine that produces the
+equal-rupee) on `portfolio.backtest_exposure`, the engine that produces the
 published figures. `validate_sizing.py` decides the same test on
 `engine_core.backtest`, which has a slot cap and no exposure mode. On 2026-09-22 they
 disagreed in sign on both halves of nifty100 and by a factor of four on midcap150's
@@ -1039,7 +1039,7 @@ Fixed the same day, each a read of a value dated after the decision:
 
 THE Z-SCORE'S LAST BITS DEPENDED ON LATER DATES, FIXED 2026-10-22. `market_data.group_mean_std` laid every date's values into one matrix as wide as the largest cross-section of any date and reduced it with numpy's nanmean and nanvar. numpy splits each row for pairwise summation by the row's length, so every date's mean and sd, and therefore every z-scored feature, depended in its last bits on the widest later cross-section. `tools/lookahead_proof.py` found it on its first run: nifty50 static with data after 2019-03-29 removed changed the 2009 features in the 15th to 16th significant digit and moved model scores in the third decimal. Each date's sum is now `math.fsum`, which depends only on that date's values and is the same on every platform.
 
-PIT ROWS BEFORE THE FIRST EFFECTIVE DATE, FIXED 2026-10-22. No list is in force before the membership file's first effective date. Until 2026-10-22 `market_data.member_mask` kept every row there, and those symbols are in the pit folder only because they are members on that date or later, so the training set and the cross-sections before that date were chosen by later membership. Now a row before the first date is kept only if its symbol is in the first list (`lists[0]`), and `test_exposure.breadth_momentum` uses the same rule. A pit run never decides before the first effective date, so the first list is known whenever it is used. Training-eligible rows before the first date:
+PIT ROWS BEFORE THE FIRST EFFECTIVE DATE, FIXED 2026-10-22. No list is in force before the membership file's first effective date. Until 2026-10-22 `market_data.member_mask` kept every row there, and those symbols are in the pit folder only because they are members on that date or later, so the training set and the cross-sections before that date were chosen by later membership. Now a row before the first date is kept only if its symbol is in the first list (`lists[0]`), and `portfolio.breadth_momentum` uses the same rule. A pit run never decides before the first effective date, so the first list is known whenever it is used. Training-eligible rows before the first date:
 - smallcap250 pit (2016-04-29): 550,235 before, 300,591 after (137 symbols, all in the first list); 59.6% of training row-uses over 2016-01 to 2026-05 are still dated before it.
 - nifty100 pit (2006-09-01): 47,811 before, 38,323 after (63 symbols); 11.9% of training row-uses.
 
@@ -1163,7 +1163,7 @@ participation-cap code reads either.
 
 ### The engine's tradeability guard read rows dated after the decision day (fixed 2026-10-16)
 
-Until 2026-10-16 the engine (`results/test_exposure.py`, `results/engine_core.py`) blocked a name only across a gap of two or more sessions without a row, a length known only from the date of the next row, and sold a held name at the open of the last session before such a gap because the next session had no row. Both decisions read rows dated after the decision day. A one-session gap was not blocked, so a name was also bought or sold on a session without a row, at the forward-filled open, a price nobody quoted. `tradability_causality_test.py` fails five of its six cases on that code and passes all six on the current one; its `--real` replay of mcap5001to10000 v1 (KAMAHOLD, no row on 2019-03-18 and 2019-03-19) fails on that code too.
+Until 2026-10-16 the engine (`portfolio.py`, `results/engine_core.py`) blocked a name only across a gap of two or more sessions without a row, a length known only from the date of the next row, and sold a held name at the open of the last session before such a gap because the next session had no row. Both decisions read rows dated after the decision day. A one-session gap was not blocked, so a name was also bought or sold on a session without a row, at the forward-filled open, a price nobody quoted. `tradability_causality_test.py` fails five of its six cases on that code and passes all six on the current one; its `--real` replay of mcap5001to10000 v1 (KAMAHOLD, no row on 2019-03-18 and 2019-03-19) fails on that code too.
 
 The rule since then: a name is traded only on a session with a row, a valid open and close on the calendar. On any other session nothing in it is bought or sold. A held name keeps its position at its last close; a sale due that session is owed and fills at the open of the next session with a row; a buy due that session is not made. An owed sale is cancelled if the next decision keeps the name, and a leftover capped by the participation cap stays owed. The first row after a gap is tradeable.
 
@@ -1275,7 +1275,7 @@ most are flat bars (open, high, low and close equal), 1,163 of them with volume 
   on that day.
 - The tradeable participation cap and market impact: `results/tradability.py`
   `median_volume`, the prior-20-session median volume (`vol20`), read by
-  `results/test_exposure.py` and `costs.py`.
+  `portfolio.py` and `costs.py`.
 - `costs.py`, the capacity warning. Since 2026-10-20 it counts NSE rows only
   (`exchange == NSE`) and reports a fill with no NSE row in its 20 sessions as not
   measurable. Nothing else leaves the BSE rows out.
@@ -1360,7 +1360,7 @@ The old files last exist at commit `24614bb`. Each old file's body is one functi
 | `cache_key_test.py` | `engine_tests.py cache_key` |
 | `noise_harness_test.py` | `engine_tests.py noise_harness` |
 
-Two comments in engine files still name the old files: `results/engine_core.py` (tradability_causality_test.py) and `results/test_exposure.py` (fixed_capital_test.py). The one in `results/fixed_capital.py` was fixed on 2026-10-18. They are left until those files change for another reason: engine_core.py's bytes are in the fit-cache key, and the source of test_exposure.backtest_exposure is hashed into `diagnostics/drawdown_exit.txt`.
+Two comments in engine files still name the old files: `results/engine_core.py` (tradability_causality_test.py) and `portfolio.py` (fixed_capital_test.py). The one in `results/fixed_capital.py` was fixed on 2026-10-18. They are left until those files change for another reason: engine_core.py's bytes are in the fit-cache key, and the source of portfolio.backtest_exposure is hashed into `diagnostics/drawdown_exit.txt`.
 
 `naming_declare_check.py` names a write site by its outermost function, so the writes in these tests are now counted under `engine_tests.py::_cache_key` and the like: the call count is unchanged and the site count falls.
 
@@ -1401,7 +1401,7 @@ They held 19 of the 100 undeclared write calls, so `NAMING_UNDECLARED_BASELINE` 
 
 ### Three backtest implementations and one port, and which one each check tests
 
-- `results/test_exposure.backtest_exposure` is the shipping engine. It produces every published figure, and `validate_engine.py`, `audit_step.py`, `tax_report.py` and the sweeps all run it.
+- `portfolio.backtest_exposure` is the shipping engine. It produces every published figure, and `validate_engine.py`, `audit_step.py`, `tax_report.py` and the sweeps all run it.
 - `results/engine_core.backtest` has no breadth mode and sizes against cash rather than portfolio value. Only `validate_sizing.py` uses it. validate_sizing's verdicts describe this engine, not what ships.
 - `nautilus/nt_attribution.run` is a deliberate independent copy, used as nt_verify's reference.
 - `nautilus/nt_strategy.py` is the Nautilus port that nt_verify tests.
@@ -1413,7 +1413,7 @@ They held 19 of the 100 undeclared write calls, so `NAMING_UNDECLARED_BASELINE` 
 The 60-day volatility lookback sets inverse-vol position sizes and the portfolio
 volatility used by the shipping engine. `config.py` does not define it. Twenty
 tracked files each assign their own `VOL_WIN = 60`, including the shipping engine
-(`results/test_exposure.py`, `results/engine_v2_final.py`), the Nautilus port
+(`portfolio.py`, `results/engine_v2_final.py`), the Nautilus port
 (`nautilus/nt_strategy.py`, `nautilus/nt_attribution.py`) and the noise harnesses
 (`results/noise_parallel.py`, `results/after_tax_noise.py`). Only
 `results/validate_breadth_live.py` imports it from `engine_core`.
@@ -1491,7 +1491,7 @@ On 2026-10-03 the v5/v6 runs over all eight universes and four settings left eve
 changed carried the same Sharpe, MaxDD and CAGR as the published v2 rows. The 21
 charts that changed could not be compared with their previous versions, which were
 not kept. None of these files is tracked by git (`results_*/metrics/` is ignored),
-so the rewrite shows in no diff. `arms/registry.py` records the same gap: making
+so the rewrite shows in no diff. `portfolio.py` records the same gap: making
 `v2FINAL_*` arm-aware means restructuring it into per-arm columns and
 re-baselining the identity gates. Not fixed.
 
@@ -1557,7 +1557,7 @@ different plausible line. Example: a record cited `test_exposure.py:625` for the
 `i < len(dates) - 1`, which is now at line 645.
 
 Before inserting lines into a file, grep for `<file>.py:` references into it.
-Citing by symbol name (`test_exposure.backtest_exposure`, the `invest_val`
+Citing by symbol name (`portfolio.backtest_exposure`, the `invest_val`
 assignment) does not have this failure. Pre-registrations under `experiments/`
 keep their original line numbers on purpose: they record what was true when they
 were written.
@@ -1674,7 +1674,7 @@ Deleted in the first consolidation batch. Each still exists at commit dbe387e: `
 - One-off measurements and studies, not called by any run or check: `heldout_prereg_run.py`, `jackknife.py`, `liquidity_participation.py`, `measured_universes.py`, `palette_distance.py`, `param_surface.py`, `topn_test.py`, `survivorship_attribution.py`, and in `results/`: `atom_measure.py`, `attribution_v2.py`, `drawdown_exit_measure.py`, `drawdown_stop_judge.py`, `nifty500_baseline_trace.py`, `overdraft_measure.py`, `pinned_mask_test.py`, `rebal_cadence_sweep.py`, `seed_noise_measure.py`, `seed_noise_report.py`, `selection_margin.py`, `shuffle_test.py`, `survivorship_sheet.py`.
 - `results/leakage_check4_corpactions.py`: descriptive only, with no pass condition; check_all always skipped it.
 - `check_pipeline_order.py` and `registry_coverage_check.py`: they checked the order and coverage of run_all.PIPELINE_ORDER's script list, which the consolidation replaces. run.py no longer runs them before a run, and check_all no longer runs them. The issue "check_pipeline_order resolves edges per script, not per universe" above no longer applies.
-- The noise harness: `results/noise_parallel.py`, `results/price_noise_measure.py`, `results/after_tax_noise.py`, `tools/pit_noise_band.py`, `results/seed_band_fit.py`, `results/drawdown_stop_band.py`, `scripts/run_noise_stage.sh`, `scripts/run_seed_band_fit.sh`, with the `engine_tests.py noise_harness` case and the noise cases of `engine_tests.py cache_key`. `engine_tests.py fixed_capital` now has its own copy of `select_pit`. The sealed drawdown-stop band, `experiments/DRAWDOWN_STOP_BAND.csv`, is kept and still read by `arms/registry.py`; its writer is gone, so the band can only be recomputed from history.
+- The noise harness: `results/noise_parallel.py`, `results/price_noise_measure.py`, `results/after_tax_noise.py`, `tools/pit_noise_band.py`, `results/seed_band_fit.py`, `results/drawdown_stop_band.py`, `scripts/run_noise_stage.sh`, `scripts/run_seed_band_fit.sh`, with the `engine_tests.py noise_harness` case and the noise cases of `engine_tests.py cache_key`. `engine_tests.py fixed_capital` now has its own copy of `select_pit`. The sealed drawdown-stop band, `experiments/DRAWDOWN_STOP_BAND.csv`, is kept and still read by `portfolio.py`; its writer is gone, so the band can only be recomputed from history.
 
 ## Out of scope
 
@@ -1683,7 +1683,7 @@ Deleted in the first consolidation batch. Each still exists at commit dbe387e: `
 Producing orders for the open of D+1 from data ending on D is being built elsewhere.
 What this code does and does not do, recorded for whoever builds it:
 - It scores every name on the last day of its data, but never makes a decision on the
-  window's last day (`test_exposure.backtest_exposure`, the rebalance guard
+  window's last day (`portfolio.backtest_exposure`, the rebalance guard
   `i < len(dates) - 1`). It sizes buys at the decision close (since 2026-10-28), so
   a trade-next file could carry quantities, not only names.
 - Rebalance days are counted from 2019-01-01, so an arbitrary D is usually not one.

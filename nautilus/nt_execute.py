@@ -45,7 +45,7 @@ for _p in (str(ROOT), str(ROOT / "results"), str(ROOT / "nautilus")):
 
 from settings import cadence
 import settings
-import arms.registry as arm_reg
+import portfolio as arm_reg
 
 
 def main():

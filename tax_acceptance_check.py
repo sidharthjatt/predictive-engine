@@ -71,7 +71,10 @@ PROBE = r'''
 import sys, pathlib, itertools, tempfile, json
 R = pathlib.Path(sys.argv[1])
 for p in (R, R/"results", R/"nautilus"): sys.path.insert(0, str(p))
-import arms.registry as arm_reg
+try:
+    import portfolio as arm_reg
+except ImportError:          # a checkout from before portfolio.py (2026-11-27)
+    import arms.registry as arm_reg
 try:
     import settings
     cadence, profiles, naming = settings.cadence, settings.profile_axis, settings
@@ -188,7 +191,7 @@ def condition_2():
     sys.path.insert(0, str(ROOT))
     from settings import tax, cadence
     import settings
-    import arms.registry as arm_reg
+    import portfolio as arm_reg
 
     for m in (cadence, settings.profile_axis, arm_reg, tax):
         m.set_selection(None)
@@ -366,7 +369,7 @@ def condition_4():
             sys.path.insert(0, str(p))
     import costs
     import bh_held
-    import test_exposure as TE
+    import portfolio as TE
     from market_data import precompute
 
     print("\n  CONDITION 4 -- end-of-window settlement and the last-day sale")

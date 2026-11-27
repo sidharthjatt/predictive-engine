@@ -124,7 +124,7 @@ def reports_segment(mode, sizing, rebal=None, drawdown_stop=None):
     # SAME DEFAULT-IS-UNSUFFIXED RULE as every other axis: research is the default
     # and stays unsuffixed, so nautilus/reports/midcap150/v2/ keeps meaning exactly what
     # it has always meant and no existing path moves.
-    from arms.registry import path_segment
+    from portfolio import path_segment
     import settings
     # THE CADENCE, PROFILE AND TAX TAIL COMES FROM settings.path_tail, the one rule
     # settings.run_dir uses too. The history of each axis joining this path is in

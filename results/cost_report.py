@@ -29,7 +29,7 @@ flat slippage. Without --impact it is not run. The tradeable profile adds the
 participation cap (--cap replaces its value), which changes quantities, not the rate.
 
 THE CHARGES are costs.compute_leg_charges for Zerodha delivery
-equity on NSE, called exactly as test_exposure.calc_tc calls it: on the fill price
+equity on NSE, called exactly as portfolio.calc_tc calls it: on the fill price
 rounded to two decimals, per fill. The reconciliation requires the itemised total to
 equal the charge the engine deducted.
 
@@ -84,7 +84,7 @@ class CostReconciliationError(RuntimeError):
 
 
 def charge_breakdown(fill_price, qty, side, numpy_round=True):
-    """{charge: rupees} for one fill, as test_exposure.calc_tc computes the total."""
+    """{charge: rupees} for one fill, as portfolio.calc_tc computes the total."""
     # NUMPY SCALARS, AS IN THE ENGINE: its prices come out of a pandas row as
     # numpy float64, and round() on one can land a half-paisa the other way from
     # round() on a Python float (1607.585 -> 1607.58 against 1607.59). Rounding the
@@ -428,7 +428,7 @@ def dd_block(dd, fills, tax_on):
 
     Its trims and top-ups are fill kinds "dd trim" and "dd top-up", so their
     charges and slippage are summed from the reconciled fills. Its tax is the
-    marginal figure drawdown_overlay.marginal_tax computes."""
+    marginal figure portfolio.marginal_tax computes."""
     if not dd:
         return []
     f = fills[fills["kind"].astype(str).str.startswith("dd ")] if len(fills) else fills
@@ -705,7 +705,7 @@ def daily_log_totals(M, tag, arm_name, final, bh, start_capital, tax_on, width,
     for b, T_ in books.items():
         mine.update(_book_figures(b, T_))
     mine["sold/tax_if_on"] = bh["tax_if_on"]
-    import arms.registry as _ar
+    import portfolio as _ar
     _stop_arm = _ar.get(arm_name).stop is not None
     if _stop_arm:
         mine["strategy/exit_costs"] = exit_costs(fills)

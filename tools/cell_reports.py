@@ -25,7 +25,7 @@ for _p in (ROOT, ROOT / "results"):
 
 import pandas as pd                                            # noqa: E402
 
-import arms.registry as arm_reg                                # noqa: E402
+import portfolio as arm_reg                                # noqa: E402
 from market_data import read_table                                  # noqa: E402
 from settings import REGISTRY, gated                 # noqa: E402
 

@@ -51,7 +51,7 @@ NEGATIVE CONTROLS, --control, applied in every variant of the invocation:
           for the first scorable symbol on the cut of T's month, its rows after
           that cut up to T are removed, so its label there ends after T. The same
           gap with --control gap and the current rule must PASS.
-  member  pit only: market_data.member_mask and test_exposure.breadth_momentum
+  member  pit only: market_data.member_mask and portfolio.breadth_momentum
           as before 2026-10-22, every row before the first effective date kept.
 The full variant of a control scores only through the last cut date.
 
@@ -211,7 +211,7 @@ def apply_control(control):
         model.training_set = old_training_set
     elif control == "member":
         import market_data
-        import test_exposure as te
+        import portfolio as te
 
         def old_mask(panel, membership, date_col="date", symbol_col="symbol"):
             if not market_data.is_pit() or membership is None or panel.empty:
@@ -277,9 +277,9 @@ def run_variant(a):
     import market_data
     import costs
     import settings
-    import arms.registry as arm_reg
+    import portfolio as arm_reg
     from model import SEEDS
-    from test_exposure import backtest_exposure
+    from portfolio import backtest_exposure
 
     T = pd.Timestamp(a.T)
     from settings import start_axis

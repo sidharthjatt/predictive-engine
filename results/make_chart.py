@@ -47,7 +47,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import market_data
 import model
 import settings
-import arms.registry as arm_reg
+import portfolio as arm_reg
 from settings import cadence
 import market_data
 from market_data import read_table  # the one CSV/parquet reader: market_data.read_table

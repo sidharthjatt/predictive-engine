@@ -418,7 +418,7 @@ def _needs(label):
     if label == "results/validate_topn.py":
         return [u.score_cache for u in two] + [u.metrics_dir / "v34_comparison.csv" for u in two]
     if label == "results/check_b_exec_timing.py":
-        from arms.registry import ARMS as _A
+        from portfolio import ARMS as _A
         return [u.score_cache for u in every] + [
             ROOT / "nautilus" / "reports" / u.tag / a / "fills.csv"
             for u in every for a in _A]
@@ -962,7 +962,7 @@ def _run_axes(rec=None, tax_on=True):
     from settings import cadence as _cd
     import settings
     from settings import tax as _tx
-    import arms.registry as _ar
+    import portfolio as _ar
     from settings import survivorship_axis as _sva
     from settings import dd_axis as _dda
     from settings import capital_axis as _capa
@@ -1007,7 +1007,7 @@ def _tax_ledger(u, M, arm="v2", stems=("FY_EQUITY", "FY_TAX_STATEMENT"), rec=Non
     sys.path.insert(0, str(ROOT / "results"))
     import audit_step
     import tax_report
-    from arms.registry import ALL_ARMS
+    from portfolio import ALL_ARMS
     with _run_axes(rec):
         tag = audit_step.artefact_tag(u, ALL_ARMS[getattr(arm, "name", arm)])
         return tuple(M / tax_report.artefact_name(s, tag) for s in stems)
@@ -1021,7 +1021,7 @@ def _v34_equity_pair(M, rec, arm=None):
     from settings import cadence as _cd
     import settings
     from settings import tax as _tx
-    import arms.registry as _ar
+    import portfolio as _ar
     stop = getattr(arm, "name", arm) in _ar.STOP_ARMS
     out = []
     for on in (True, False):
@@ -1051,7 +1051,7 @@ def _tax_targets(res, gate, since):
     """
     import datetime
     from settings import REGISTRY
-    from arms.registry import ALL_ARMS as ARMS
+    from portfolio import ALL_ARMS as ARMS
     runs = _runs_since(since)
     if not runs:
         when = datetime.datetime.fromtimestamp(since).strftime("%Y-%m-%d %H:%M:%S")
@@ -1342,7 +1342,7 @@ def gate_ltcg(res, sel, since=None):
     # HOLDING_PERIOD_LOTS_*_tax.csv in sort order, which was v2's research file
     # only by the accident of "_tax" sorting before "_tradeable_tax" and "_v1_tax".
     # Each arm's lots are now named by the writer's rule (_tax_ledger) and checked.
-    from arms.registry import ALL_ARMS as _ARMS
+    from portfolio import ALL_ARMS as _ARMS
     if since is None:
         tags = sorted(REGISTRY) if sel in (None, "all") else [t.strip() for t in sel.split(",")]
         items = [(None, t, a) for t in tags for a in _ARMS.values()]

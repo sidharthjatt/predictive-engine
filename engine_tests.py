@@ -66,7 +66,7 @@ No data, nothing written. Exit 0 when every case passes, 1 otherwise.
     from settings import capital_axis
     import cost_report
     from market_data import precompute
-    from test_exposure import backtest_exposure
+    from portfolio import backtest_exposure
 
     QUIET = "--quiet" in sys.argv
     RESULTS = []
@@ -154,14 +154,14 @@ No data, nothing written. Exit 0 when every case passes, 1 otherwise.
              f"shares at Rs 10 lakh {q1:,}, at Rs 30 lakh {q3:,}")
 
         # 6 ----------------------------------------------------------------------
-        import test_exposure
+        import portfolio
         import engine_core
         import market_data
         import engine_v2_final
         import make_daily_log
         import nt_attribution
         import nt_run
-        vals = {m.__name__: m.START_CAPITAL for m in (test_exposure, engine_core, engine_v2_final,
+        vals = {m.__name__: m.START_CAPITAL for m in (portfolio, engine_core, engine_v2_final,
                                                       make_daily_log, nt_attribution, nt_run)}
         case("6 every START_CAPITAL is capital_axis.DEFAULT",
              all(v == capital_axis.DEFAULT for v in vals.values()), str(vals))
@@ -181,8 +181,8 @@ dd_overlay_test.py -- the drawdown-limit axis on a synthetic panel.
     ./venv/bin/python dd_overlay_test.py --quiet  # PASS/FAIL lines only
 
 The axis adds the engine's only partial sells and its only top-ups of held names
-(results/drawdown_overlay.py). Each case builds a price path that reaches one
-behaviour, runs results/test_exposure.backtest_exposure with an explicit
+(portfolio.py). Each case builds a price path that reaches one
+behaviour, runs portfolio.backtest_exposure with an explicit
 dd_overlay and an audit dict, and asserts on the fills. Every case also passes the
 cost trail through results/cost_report.reconcile, which replays cash, charges,
 slippage and the tax ledger fill by fill and raises on a paisa of difference.
@@ -217,9 +217,9 @@ passes, 1 otherwise.
     import pandas as pd
 
     from settings import dd_axis
-    from arms.registry import DrawdownStop
+    from portfolio import DrawdownStop
     from market_data import precompute
-    from test_exposure import backtest_exposure, START_CAPITAL
+    from portfolio import backtest_exposure, START_CAPITAL
     import cost_report
 
     QUIET = "--quiet" in sys.argv
@@ -445,7 +445,7 @@ experiments/DRAWDOWN_STOP_PREREG.txt and section 3 of the approved design list h
 the stop behaves at its edges. A run on real prices reaches only some of them, so
 each one is built here on purpose: twelve symbols, one common price path, scores
 fixed by name, and a crash placed on the day the case needs. Each case runs
-results/test_exposure.backtest_exposure with an audit dict and asserts on its
+portfolio.backtest_exposure with an audit dict and asserts on its
 stop events, skipped orders and fills. The cases without a cap or tax also run
 nautilus/nt_attribution.run, the reference copy nt_verify compares the port with,
 and require the same exit and re-entry dates.
@@ -474,9 +474,9 @@ passes, 1 otherwise.
     import numpy as np
     import pandas as pd
 
-    from arms.registry import DrawdownStop
+    from portfolio import DrawdownStop
     from market_data import precompute
-    from test_exposure import backtest_exposure
+    from portfolio import backtest_exposure
     import nt_attribution
 
     QUIET = "--quiet" in sys.argv
@@ -768,7 +768,7 @@ Exit 0 when every case passes, 1 otherwise.
     from settings import fixed_axis
     import fixed_capital as fc
     from market_data import precompute
-    from test_exposure import backtest_exposure
+    from portfolio import backtest_exposure
 
     QUIET = "--quiet" in sys.argv
     RESULTS = []
@@ -874,7 +874,7 @@ Exit 0 when every case passes, 1 otherwise.
                 self.capkw = costs.cap_kwargs(u)
 
         def run(self, arm, tax, fixed):
-            import arms.registry as ar
+            import portfolio as ar
             a = ar.ARMS[arm]
             audit = blank()
             with contextlib.redirect_stdout(io.StringIO()):
@@ -1029,7 +1029,7 @@ Exit 0 when every case passes, 1 otherwise.
         case("1 names", d == ("", "", "") and on == ("_fixed", "@fixed"), f"off {d}, on {on}")
 
         px, op, sc = falling_panel()
-        import arms.registry as ar
+        import portfolio as ar
         from settings import dd_axis
         refused = []
         for name, stop, dd in (("drawdown_stop", ar.DrawdownStop(threshold=0.5), None),
@@ -1127,7 +1127,7 @@ No data, nothing written. Exit 0 when every case passes, 1 otherwise.
     import costs
     import settings
     from market_data import precompute
-    from test_exposure import backtest_exposure
+    from portfolio import backtest_exposure
 
     QUIET = "--quiet" in sys.argv
     RESULTS = []
@@ -1446,7 +1446,7 @@ No data, nothing written. Exit 0 when every case passes, 1 otherwise.
     import pandas as pd
 
     from market_data import precompute
-    from test_exposure import backtest_exposure
+    from portfolio import backtest_exposure
 
     QUIET = "--quiet" in sys.argv
     RESULTS = []
@@ -1578,7 +1578,7 @@ tradability_causality_test.py -- no trade on day i may depend on a row dated aft
 
 A synthetic universe of 20 names on real NSE calendar sessions, written as price
 files to a temporary folder and loaded through market_data.set_tradeability, the
-way every engine run loads it. Each case runs test_exposure.backtest_exposure.
+way every engine run loads it. Each case runs portfolio.backtest_exposure.
 
     1. causality: a held name has no row on two sessions. Removing every row of that
        name dated after day i must leave every trade and holding up to day i
@@ -1618,7 +1618,7 @@ Nothing in the repository is written. Exit 0 when every case passes, 1 otherwise
     from market_data import read_table  # the one CSV/parquet reader: market_data.read_table
     import costs
     from market_data import precompute
-    from test_exposure import backtest_exposure
+    from portfolio import backtest_exposure
 
     QUIET = "--quiet" in sys.argv
     RESULTS = []
@@ -1814,7 +1814,7 @@ Nothing in the repository is written. Exit 0 when every case passes, 1 otherwise
     def real():
         """mcap5001to10000 v1 on the delivered data, KAMAHOLD cut after 2019-03-15."""
         import audit_step
-        from arms.registry import ARMS
+        from portfolio import ARMS
         from settings import REGISTRY
         u = REGISTRY["mcap5001to10000"]
         px, op, sc, bd = audit_step.prices(u)
@@ -1940,7 +1940,7 @@ is written. Exit 1 names every case that failed.
 
 def _buy_shortfall():
     """
-buy_shortfall -- a buy cash cannot fully pay for: trimmed or refused (buy_shortfall.py).
+buy_shortfall -- a buy cash cannot fully pay for: trimmed or refused (portfolio.py).
 
     ./venv/bin/python engine_tests.py buy_shortfall [--quiet]
 
@@ -1992,10 +1992,10 @@ No data, nothing written. Exit 0 when every case passes, 1 otherwise.
     import numpy as np
     import pandas as pd
 
-    import buy_shortfall as bsf
+    import portfolio as bsf
     import settings
     from market_data import precompute
-    from test_exposure import backtest_exposure
+    from portfolio import backtest_exposure
     from costs import calc_tc
 
     QUIET = "--quiet" in sys.argv
@@ -2215,10 +2215,10 @@ No data, nothing written. Exit 0 when every case passes, 1 otherwise.
     import numpy as np
     import pandas as pd
 
-    import buy_shortfall as bsf
+    import portfolio as bsf
     import settings
     from market_data import precompute
-    from test_exposure import backtest_exposure
+    from portfolio import backtest_exposure
 
     QUIET = "--quiet" in sys.argv
     RESULTS = []
@@ -2331,7 +2331,7 @@ No data, nothing written. Exit 0 when every case passes, 1 otherwise.
 
     import costs
     from market_data import precompute
-    from test_exposure import backtest_exposure
+    from portfolio import backtest_exposure
 
     QUIET = "--quiet" in sys.argv
     RESULTS = []
@@ -2362,7 +2362,7 @@ No data, nothing written. Exit 0 when every case passes, 1 otherwise.
     pc = precompute(px)
     mom20 = px / px.shift(20) - 1
     dates = list(idx[80:])
-    import arms.registry as AR
+    import portfolio as AR
     for name in ("v1", "v2", "v3", "v4"):
         arm = AR.ARMS[name]
         for tax in (False, True):

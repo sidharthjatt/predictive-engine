@@ -27,7 +27,7 @@ for _p in (ROOT, ROOT / "results"):
     if str(_p) not in sys.path:
         sys.path.insert(0, str(_p))
 
-import arms.registry as arm_reg
+import portfolio as arm_reg
 from market_data import read_table
 from settings import REGISTRY, has_pit
 

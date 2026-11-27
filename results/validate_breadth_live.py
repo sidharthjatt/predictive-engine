@@ -80,7 +80,7 @@ import settings
 from market_data import precompute
 from engine_core import metrics, START_CAPITAL
 from model import score_monthly, score_floor, HORIZON
-from test_exposure import backtest_exposure
+from portfolio import backtest_exposure
 from settings import REGISTRY
 import costs
 import settings            # the run's execution-realism profile

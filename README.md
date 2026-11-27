@@ -134,12 +134,12 @@ buy does when the cash left at that point of the rebalance morning cannot pay fo
 of it. Buys are filled in score order after the day's sells and any tax taken that
 morning. Under `trim` the quantity becomes the largest whole number q with q x fill
 price + charges(q) <= that cash, and the buy goes ahead only if q is at least 50% of
-the wanted quantity (`buy_shortfall.MIN_FILL_PCT`, a fixed constant, not a run
+the wanted quantity (`portfolio.MIN_FILL_PCT`, a fixed constant, not a run
 setting). Below 50% the buy is refused whole and logged `cash short: below minimum
 fill`; at q = 0 it is refused and logged `cash short (before TC)` or `(incl TC)`.
 `refuse` is still selectable: the buy is refused whole, which was the only rule
 before 2026-10-27. A buy that fits is filled the same way under both, held names are never resized, and the engine, the Nautilus
-port and nt_attribution use the same function (`buy_shortfall.trim`). A trimmed buy's
+port and nt_attribution use the same function (`portfolio.trim`). A trimmed buy's
 row in `daily_trades` carries `wanted_qty` and `cash_shortfall`, the daily log marks it
 TRIMMED, and the run log prints the trimmed and refused buys per arm; under `trim`,
 `v34_comparison` and `comparison.csv` add a `TrimmedBuys` column. `trim` adds nothing to
@@ -366,7 +366,7 @@ Parameters:
     PURGE_EMBARGO = 2                                             results/engine_core.py
     SLIPPAGE      = 0.0015                                        costs.py
     START_CAPITAL = 1_000_000                                     capital_axis.DEFAULT
-    CASH_YIELD    = 0.0                                           results/test_exposure.py
+    CASH_YIELD    = 0.0                                           portfolio.py
 
 Costs are the real Zerodha delivery-equity schedule — brokerage, STT, stamp duty,
 exchange and SEBI fees, GST, and the per-scrip DP charge on sells — computed in

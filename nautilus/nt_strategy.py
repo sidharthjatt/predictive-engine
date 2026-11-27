@@ -78,7 +78,7 @@ from nautilus_trader.trading.strategy import Strategy
 
 # SELECTION -- imported from config.py, the single definition.
 import settings
-import buy_shortfall as _bsf
+import portfolio as _bsf
 from costs import SLIPPAGE
 TOP_N, BUFFER = settings.TOP_N, settings.BUFFER
 REBAL = 20
@@ -88,7 +88,7 @@ SAFETY = 0.98
 TRADING_DAYS = 252
 
 # ---------------------------------------------------------------------------
-# SIZING AND EXPOSURE MODE -- mirror test_exposure.py's `sizing` and `mode` arguments
+# SIZING AND EXPOSURE MODE -- mirror portfolio.py's `sizing` and `mode` arguments
 # ---------------------------------------------------------------------------
 # "invvol" (default)  w = 1/vol   -- low vol gets the large position
 # "provol"            w = vol     -- high vol gets the large position
@@ -109,7 +109,7 @@ TRADING_DAYS = 252
 #   sizing  "invvol" w = 1/vol  (low vol, large position)  | "provol" w = vol
 #   mode    "breadth" exposure = fraction with positive 20d momentum | "none" = 1.0
 #
-# THE RULES MUST MATCH test_exposure.py EXACTLY. Same guard (vol > 0.01), same zero
+# THE RULES MUST MATCH portfolio.py EXACTLY. Same guard (vol > 0.01), same zero
 # weight when it fails, same normalisation, same equal-weight fallback, and the same
 # two exposure modes. If these drift, nt_verify stops reconciling and the divergence
 # looks like an execution bug.
@@ -207,15 +207,15 @@ class PredictiveEngineStrategy(Strategy):
         self.instruments = list(instruments)
         self.trading_start = pd.Timestamp(trading_start)
         # THE DRAWDOWN STOP, the same state machine the engine runs
-        # (results/drawdown_stop.py). None for the core arms: nothing below runs.
+        # (portfolio.py). None for the core arms: nothing below runs.
         self.dd_stop = None
         if drawdown_stop is not None:
-            from drawdown_stop import StopState
+            from portfolio import StopState
             _days = sorted(d for d in self._scores_by_day if d >= self.trading_start)
             self._stop_days = _days
             self.dd_stop = StopState(drawdown_stop, self.rebal, len(_days))
             self._held_at_exit = {}
-        # THE DRAWDOWN-LIMIT AXIS (results/drawdown_overlay.py), the class the
+        # THE DRAWDOWN-LIMIT AXIS (portfolio.py), the class the
         # engine and nt_attribution also run. None without --dd: nothing below runs.
         self.dd = None
         if dd_overlay is not None:
@@ -223,7 +223,7 @@ class PredictiveEngineStrategy(Strategy):
                 raise ValueError("the drawdown-limit axis cannot run on a stop arm (v5/v6)")
             if start_capital is None:
                 raise ValueError("dd_overlay needs start_capital, the run's first peak")
-            from drawdown_overlay import OverlayState
+            from portfolio import OverlayState
             self.dd = OverlayState(dd_overlay, start_capital)
 
     def on_start(self):
@@ -433,7 +433,7 @@ class PredictiveEngineStrategy(Strategy):
             # NO PARTICIPATION CAP IS APPLIED HERE, AND THAT IS THE CURRENT STATE
             # OF THIS PORT, not a plan. The reference engine caps a buy at
             # costs.participation_cap() x the symbol's prior-20-session median
-            # volume (results/test_exposure.py, _participation_limit). This line has
+            # volume (portfolio.py, _participation_limit). This line has
             # no equivalent: `participation_cap`, `vol20` and `median_volume` appear
             # nowhere in nautilus/, and the strategy is handed scores, not
             # quantities, so no capped size reaches it by another route either.
@@ -453,7 +453,7 @@ class PredictiveEngineStrategy(Strategy):
                 continue
             # A buy cash cannot fully pay for is cut to the largest whole quantity
             # that fits, or refused, by the reference engine's rule
-            # (buy_shortfall.py, the same trim function). leg_charges is the same
+            # (portfolio.py, the same trim function). leg_charges is the same
             # calculator the venue will deduct with, so this is not a guessed
             # headroom; an earlier version of this port guessed 5% and it shrank
             # every buy.

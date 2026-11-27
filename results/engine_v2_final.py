@@ -45,10 +45,10 @@ import model
 import settings
 from settings import cadence
 from settings import dd_axis  # noqa: E402
-import arms.registry as arm_reg
+import portfolio as arm_reg
 from engine_core import metrics
 from market_data import precompute
-from test_exposure import backtest_exposure, CASH_YIELD
+from portfolio import backtest_exposure, CASH_YIELD
 import costs
 import settings            # the run's execution-realism profile
 # SURVIVORSHIP REPORTING, BACK-PORTED FROM engine_v2_final_n100.py 2026-09-13.
@@ -211,7 +211,7 @@ def main(u):
     _reb = cadence.selected()
     # THE TAX SELECTION, READ ONCE AND PASSED AS AN ARGUMENT -- exactly as _reb
     # above and participation_cap below. backtest_exposure's tax_enabled is a
-    # PARAMETER by design (test_exposure.py:203 gives the reason: same as rebal
+    # PARAMETER by design (portfolio.py gives the reason: same as rebal
     # and participation_cap), so it stays one; what was missing was any caller on
     # the PUBLISHED path passing it.
     #

@@ -481,10 +481,10 @@ the first day and the gap; 0 if all reconcile.
     import market_data                                               # noqa: E402
     import costs
     import settings                                                  # noqa: E402
-    import arms.registry as arm_reg                                  # noqa: E402
+    import portfolio as arm_reg                                  # noqa: E402
     from market_data import read_table                                    # noqa: E402
     from market_data import precompute                               # noqa: E402
-    from test_exposure import backtest_exposure, START_CAPITAL       # noqa: E402
+    from portfolio import backtest_exposure, START_CAPITAL       # noqa: E402
     from settings import REGISTRY, argv_universes, check_tags  # noqa: E402
 
     KEYS = ("holdings", "summary", "trades", "ranking", "decisions", "skipped")

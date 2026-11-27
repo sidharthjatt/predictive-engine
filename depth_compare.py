@@ -134,7 +134,7 @@ def main():
             # defaults apply -- named through arms.registry rather than spelled
             # "v2" here, so the two cannot drift.
             import inspect
-            from arms.registry import path_segment
+            from portfolio import path_segment
             _d = {k: v.default for k, v in inspect.signature(nt_run.run).parameters.items()}
             # nt_run.run() writes a tool's reports under TOOL_REPORTS, not the
             # pipeline's nautilus/reports/ (2026-09-24).

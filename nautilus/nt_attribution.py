@@ -104,22 +104,22 @@ def run(px, op, sc, dates, pc, mom20, holdings_out=None,
     rather than an extra return value so existing three-value callers keep
     working.
 
-    `drawdown_stop` runs the stop of v5/v6 through results/drawdown_stop.py, the
+    `drawdown_stop` runs the stop of v5/v6 through portfolio.py, the
     state machine the engine and the port also run; `stop_events_out`, a list,
     receives its events. Both None for the core arms, which then run the loop
     exactly as before.
 
     `dd_overlay`, a dd_axis.DDLimit, runs the drawdown-limit axis through
-    results/drawdown_overlay.py, the class the engine and the port also run. None,
+    portfolio.py, the class the engine and the port also run. None,
     the default, runs none of its code.
 
     `buy_shortfall`, "trim" or "refuse", is what a buy cash cannot fully pay for
-    does, as in the engine (buy_shortfall.py). None reads buy_shortfall.selected().
+    does, as in the engine (portfolio.py). None reads portfolio.selected().
 
     `fills_out`, a list, receives one row per fill in the port's strat.fills
     shape (date, action, symbol, qty, price). nt_verify compares it with the
     port's strat.fills."""
-    import buy_shortfall as _bsf
+    import portfolio as _bsf
     import settings
     _shortfall = settings.shortfall_axis.selected() if buy_shortfall is None else buy_shortfall
 
@@ -142,7 +142,7 @@ def run(px, op, sc, dates, pc, mom20, holdings_out=None,
 
     # THE CADENCE, AS AN ARGUMENT. REBAL stays the module DEFAULT and is never
     # reassigned: module_state.py records that rebal_cadence_sweep.py:172 writes
-    # test_exposure.REBAL and never restores it, and that every later step then
+    # portfolio.REBAL and never restores it, and that every later step then
     # backtests on the wrong cadence with nothing saying so. A parameter cannot
     # leak into the next call; a global can, and did.
     #
@@ -161,12 +161,12 @@ def run(px, op, sc, dates, pc, mom20, holdings_out=None,
     eq, pending, n_trades, cum_tc = [], None, 0, 0.0
     _stop = drawdown_stop
     if _stop is not None:
-        from drawdown_stop import StopState
+        from portfolio import StopState
         _st = StopState(_stop, _reb, len(dates))
         _EXIT = ({"_exposure": 0.0}, set())
     _dd = dd_overlay
     if _dd is not None:
-        from drawdown_overlay import OverlayState
+        from portfolio import OverlayState
         _ds = OverlayState(_dd, _capital_axis.selected())
         _expo_last = 1.0
 
@@ -218,7 +218,7 @@ def run(px, op, sc, dates, pc, mom20, holdings_out=None,
                                 lambda k: pd.Timestamp(dates[k]).date())
 
         # THE DRAWDOWN-LIMIT ORDER, after the arm's fills: the engine's sequence
-        # (results/test_exposure.py), without the cap, tax or impact this copy
+        # (portfolio.py), without the cap, tax or impact this copy
         # never models.
         if _dd is not None and _ds.order is not None:
             _ord = _ds.order
