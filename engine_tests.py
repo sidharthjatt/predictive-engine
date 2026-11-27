@@ -722,7 +722,13 @@ fixed_capital_test.py -- the fixed-capital axis (fixed_axis.py).
     2. the default path: fixed_capital unset and fixed_capital=False give the same run
     a. purchases never lift invested value above the book: on every execution day,
        after all fills, valued at that open, held value <= max(book, held value
-       before that day's buys). nifty200, pit, tradeable, v1 to v4, tax off and on
+       before that day's buys), where book = min(base, portfolio value at that
+       open after the morning's sells and tax). This is the rule the engine
+       follows since 557de05. The open value is cash before the buys (cash after
+       the buys plus each rebalance buy's fill value and charges, from
+       audit["costs"]) plus held value before the buys. On days with a reserve
+       the test also checks that reserve = open value - base. nifty200, pit,
+       tradeable, v1 to v4, tax off and on
    b1. nifty500 v4, pit, tradeable, tax off and on: the fixed and compounded runs
        are identical, every fill, cash and equity value, up to the session before
        the first execution day whose open equity is above the base. That day is
@@ -870,6 +876,20 @@ Exit 0 when every case passes, 1 otherwise.
             return eq, audit
 
 
+    def open_value(r, au):
+        """Portfolio value at the fill open, after the morning's sells and tax and
+        before the buys: cash before the buys plus held value before the buys."""
+        bought = sum(f["qty"] * f["fill_price"] + f["charges"] for f in au["costs"]["fills"]
+                     if f["date"] == r["date"] and f["side"] == "BUY"
+                     and f["kind"] == "rebalance")
+        return r["cash_after"] + bought + r["held_before_buys"]
+
+
+    def open_book(r, au):
+        """The fixed-capital book at the fill open: min(base, open value)."""
+        return min(BASE, open_value(r, au))
+
+
     def case_a():
         C = Cell("nifty200")
         worst, n_days, n_res, n_short = [], 0, 0, 0
@@ -877,18 +897,25 @@ Exit 0 when every case passes, 1 otherwise.
             for tax in (False, True):
                 eq, au = C.run(arm, tax, True)
                 rows = au["fixed"]
-                over = [r for r in rows
-                        if r["held_after"] > max(r["book"], r["held_before_buys"]) + TOL_BOOK]
+                books = [open_book(r, au) for r in rows]
+                over = [r for r, b in zip(rows, books)
+                        if r["held_after"] > max(b, r["held_before_buys"]) + TOL_BOOK]
+                neg = [r for r in rows if r["cash_after"] < 0]
+                bad_res = [r for r in rows if r["reserve"] > 0
+                           and abs(r["reserve"] - (open_value(r, au) - BASE)) > TOL_BOOK]
                 n_days += len(rows)
                 n_res += sum(1 for r in rows if r["reserve"] > 0)
                 n_short += sum(1 for s in au["skipped"] if "fixed-capital reserve" in s["detail"])
-                margin = max(r["held_after"] - max(r["book"], r["held_before_buys"]) for r in rows)
+                margin = max(r["held_after"] - max(b, r["held_before_buys"])
+                             for r, b in zip(rows, books))
                 worst.append((arm, tax, len(over), margin))
                 case(f"a nifty200 pit tradeable {arm} tax {'on' if tax else 'off'}: purchases "
-                     f"never lift invested value above the book", not over and len(rows) > 0,
-                     f"{len(rows)} execution days, {len(over)} over; largest held_after - "
-                     f"max(book, held before) Rs {margin:,.2f}; reserve > 0 on "
-                     f"{sum(1 for r in rows if r['reserve'] > 0)} days")
+                     f"never lift invested value above the book",
+                     not over and not neg and not bad_res and len(rows) > 0,
+                     f"{len(rows)} execution days, {len(over)} over, {len(neg)} with negative "
+                     f"cash, {len(bad_res)} with a reserve that is not open value - base; "
+                     f"largest held_after - max(book, held before) Rs {margin:,.2f}; "
+                     f"reserve > 0 on {sum(1 for r in rows if r['reserve'] > 0)} days")
                 check_c(f"nifty200 {arm} tax {'on' if tax else 'off'} fixed", au, eq, C.px)
         case("a the reserve bites: some day holds profit back and some buy is refused for it",
              n_res > 0 and n_short > 0,
